@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  name           String?
+  passwordHash   String?
+  role           UserRole        @default(LAWYER)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  reportRequests ReportRequest[]
+  wallet         Wallet?
+}
+
+model Wallet {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  balance      Decimal             @default(0) @db.Decimal(10, 2)
+  currency     String              @default("EUR")
+  version      Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([userId])
+}
+
+model WalletTransaction {
+  id                    String            @id @default(cuid())
+  walletId              String
+  amount                Decimal           @db.Decimal(10, 2)
+  type                  TransactionType
+  status                TransactionStatus @default(COMPLETED)
+  reportRequestId       String?
+  stripePaymentIntentId String?
+  description           String?
+  createdAt             DateTime          @default(now())
+  reportRequest         ReportRequest?    @relation(fields: [reportRequestId], references: [id])
+  wallet                Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([reportRequestId])
+}
+
+model ReportRequest {
+  id              String              @id @default(cuid())
+  userId          String
+  status          ReportStatus        @default(PENDING)
+  targetType      TargetType
+  ico             String?
+  name            String?
+  surname         String?
+  birthDate       DateTime?
+  selectedSources SourceType[]
+  totalCost       Decimal             @default(0) @db.Decimal(10, 2)
+  resultUrl       String?
+  resultFilePath  String?
+  completedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources         ReportSource[]
+  transactions    WalletTransaction[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model ReportSource {
+  id              String        @id @default(cuid())
+  reportRequestId String
+  sourceType      SourceType
+  status          SourceStatus  @default(PENDING)
+  statusMessage   String?
+  filePath        String?
+  pageCount       Int?
+  costCredits     Decimal       @default(0) @db.Decimal(10, 2)
+  findings        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  reportRequest   ReportRequest @relation(fields: [reportRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([reportRequestId, sourceType])
+  @@index([reportRequestId])
+  @@index([sourceType])
+}
+
+enum UserRole {
+  LAWYER
+  ADMIN
+}
+
+enum TransactionType {
+  CHARGE
+  TOPUP
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum TargetType {
+  COMPANY
+  PERSON
+}
+
+enum SourceType {
+  ORSR
+  ZRSR
+  INSOLVENCY
+  CRE
+}
+
+enum SourceStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  UNAVAILABLE
+}
