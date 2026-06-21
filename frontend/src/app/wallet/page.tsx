@@ -134,7 +134,7 @@ function TransactionItem({
       </div>
     </div>
   );
-export const dynamic = "force-dynamic";
+}
 
 export default async function WalletPage() {
   const wallet = await getWalletData();
