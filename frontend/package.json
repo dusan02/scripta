@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && prisma db push --accept-data-loss",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed.ts"
@@ -18,7 +18,7 @@
   "dependencies": {
     "@prisma/client": "^5.15.0",
     "bcryptjs": "^2.4.3",
-    "next": "14.2.4",
+    "next": "^14.2.35",
     "next-auth": "^4.24.7",
     "nodemailer": "^7.0.13",
     "react": "^18.3.1",
