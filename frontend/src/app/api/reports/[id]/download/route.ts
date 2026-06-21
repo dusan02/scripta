@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createReadStream, existsSync, statSync } from "fs";
+import path from "path";
 import { Readable } from "stream";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -43,15 +44,20 @@ export async function GET(
       );
     }
 
-    if (!existsSync(report.resultFilePath)) {
+    let filePath = report.resultFilePath;
+    if (!path.isAbsolute(filePath)) {
+      filePath = path.resolve(process.cwd(), "..", filePath);
+    }
+
+    if (!existsSync(filePath)) {
       return NextResponse.json(
         { error: "Result file not found on disk" },
         { status: 404 }
       );
     }
 
-    const stat = statSync(report.resultFilePath);
-    const nodeStream = createReadStream(report.resultFilePath);
+    const stat = statSync(filePath);
+    const nodeStream = createReadStream(filePath);
 
     // Convert Node.js ReadStream to Web ReadableStream.
     const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;

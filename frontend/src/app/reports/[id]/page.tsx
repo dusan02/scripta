@@ -62,8 +62,8 @@ function ProgressTimeline({ status }: { status: string }) {
   return (
     <div className="flex items-center gap-0">
       {steps.map((step, i) => {
-        const done = current > i;
-        const active = current === i;
+        const done = current > i || (status === "COMPLETED" && i === steps.length - 1);
+        const active = current === i && status !== "COMPLETED";
         const isFailed = status === "FAILED" && i === 2;
         const isPartial = status === "PARTIAL" && i === 2;
 

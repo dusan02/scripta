@@ -1,4 +1,5 @@
 """Jednoduchý async DB helper pre worker. Update-only — Prisma canonical model zostáva v Next.js."""
+from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List
 
@@ -18,7 +19,7 @@ async def update_report_status(
     status: str,
     result_file_path: str | None = None,
 ) -> None:
-    completed_at = datetime.now(timezone.utc) if status in ("COMPLETED", "PARTIAL") else None
+    completed_at = datetime.utcnow() if status in ("COMPLETED", "PARTIAL") else None
     await pool.execute(
         """
         UPDATE "ReportRequest"

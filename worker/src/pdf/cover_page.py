@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -11,6 +12,8 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 
@@ -29,6 +32,10 @@ class CoverPageGenerator:
         sources: List[ScrapedSource],
         generated_at: datetime,
     ) -> None:
+        fonts_dir = Path(__file__).parent / "fonts"
+        pdfmetrics.registerFont(TTFont("DejaVuSans", str(fonts_dir / "DejaVuSans.ttf")))
+        pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", str(fonts_dir / "DejaVuSans-Bold.ttf")))
+
         doc = SimpleDocTemplate(
             str(output_path),
             pagesize=A4,
@@ -38,9 +45,15 @@ class CoverPageGenerator:
             bottomMargin=2 * cm,
         )
         styles = getSampleStyleSheet()
+        
+        # Override default fonts for basic styles used in table
+        styles["Normal"].fontName = "DejaVuSans"
+        styles["Heading2"].fontName = "DejaVuSans-Bold"
+        
         title_style = ParagraphStyle(
             "Title",
             parent=styles["Heading1"],
+            fontName="DejaVuSans-Bold",
             fontSize=22,
             spaceAfter=0.6 * cm,
             textColor=colors.HexColor("#1f2937"),
@@ -48,6 +61,7 @@ class CoverPageGenerator:
         subtitle_style = ParagraphStyle(
             "Subtitle",
             parent=styles["Normal"],
+            fontName="DejaVuSans",
             fontSize=12,
             spaceAfter=0.4 * cm,
             textColor=colors.HexColor("#4b5563"),
@@ -83,7 +97,8 @@ class CoverPageGenerator:
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#111827")),
                     ("ALIGN", (0, 0), (-1, -1), "LEFT"),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTNAME", (0, 0), (-1, 0), "DejaVuSans-Bold"),
+                    ("FONTNAME", (0, 1), (-1, -1), "DejaVuSans"),
                     ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 6),

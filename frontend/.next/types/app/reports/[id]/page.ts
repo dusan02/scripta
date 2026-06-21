@@ -1,4 +1,4 @@
-// File: D:\Projects\Scripta\frontend\src\app\reports\[id]\page.tsx
+// File: /Users/dusanbaran/Documents/GitHub/scripta/frontend/src/app/reports/[id]/page.tsx
 import * as entry from '../../../../../src/app/reports/[id]/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

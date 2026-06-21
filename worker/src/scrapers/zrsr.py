@@ -1,81 +1,52 @@
-import logging
 from pathlib import Path
 from typing import Optional
+import logging
+from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
-
-from .base import BaseScraper, ScraperUnavailableError
-from ..models import ScrapedSource
+from .base import BaseScraper, ScrapedSource, ScraperUnavailableError
 
 logger = logging.getLogger(__name__)
 
+
 class ZrsrScraper(BaseScraper):
     """
-    Scraper pre Živnostenský register SR (ZRSR).
-    Hľadá firmu podľa IČO alebo osobu a sťahuje PDF výpis.
+    Scraper pre Živnostenský register SR.
     """
 
     source_type = "ZRSR"
-    _base_url_company = "https://www.zrsr.sk/zr_ico.aspx"
-    _base_url_person = "https://www.zrsr.sk/zr_fyz.aspx"
+    _base_url_company = "https://www.zrsr.sk/index"
+    _base_url_person = "https://www.zrsr.sk/index"
 
     async def run(
         self,
-        *,
+        page: Page,
         output_dir: Path,
-        target_type: str,
+        *,
         ico: Optional[str] = None,
         name: Optional[str] = None,
         surname: Optional[str] = None,
         birth_date: Optional[str] = None,
-        **kwargs,
     ) -> ScrapedSource:
-        page: Optional[Page] = None
-        try:
-            logger.info(f"[{self.source_type}] Začínam vyhľadávanie. Typ: {target_type}")
-            page = await self._get_page()
-
-            if target_type == "COMPANY":
-                result = await self._search_company(page, ico=ico, output_dir=output_dir)
-            else:
-                result = await self._search_person(
-                    page,
-                    name=name,
-                    surname=surname,
-                    birth_date=birth_date,
-                    output_dir=output_dir,
-                )
-            return result
-
-        except ScraperUnavailableError as e:
-            logger.error(f"[{self.source_type}] ZRSR je nedostupný: {e}")
-            return self._make_result(
-                status="UNAVAILABLE",
-                status_message=f"Register ZRSR je nedostupný: {e}",
+        """
+        Hlavná metóda na spustenie scrapovania ZRSR.
+        """
+        if ico:
+            return await self._search_company(page, ico=ico, output_dir=output_dir)
+        elif name and surname:
+            return await self._search_person(
+                page,
+                name=name,
+                surname=surname,
+                birth_date=birth_date,
+                output_dir=output_dir,
             )
-        except PlaywrightError as e:
-            logger.error(f"[{self.source_type}] Playwright sieťová chyba: {e}")
+        else:
             return self._make_result(
                 status="FAILED",
-                status_message=f"Sieťová chyba pri spracovaní ZRSR: {e}",
+                status_message="Pre ZRSR je potrebné zadať IČO alebo Meno a Priezvisko.",
             )
-        except Exception as e:
-            logger.error(f"[{self.source_type}] Nečakaná chyba: {e}")
-            return self._make_result(
-                status="FAILED",
-                status_message=f"Chyba pri spracovaní ZRSR: {type(e).__name__}: {e}",
-            )
-        finally:
-            if page:
-                await page.close()
 
-    async def _search_company(
-        self,
-        page: Page,
-        *,
-        ico: Optional[str],
-        output_dir: Path,
-    ) -> ScrapedSource:
+    async def _search_company(self, page: Page, *, ico: str, output_dir: Path) -> ScrapedSource:
         if not ico:
             return self._make_result(
                 status="FAILED",
@@ -90,10 +61,26 @@ class ZrsrScraper(BaseScraper):
 
         try:
             logger.info(f"[{self.source_type}] Vypĺňam formulár IČO: {ico}")
-            await page.fill("input[name*='ICO']", ico, timeout=10000)
+            await page.click("label[for='how-filtered-ico']", timeout=10000)
+            await page.fill("input#filter_ico", ico, timeout=10000)
             logger.info(f"[{self.source_type}] Odosielam formulár.")
-            await page.click("input[type='submit']", timeout=10000)
-            await page.wait_for_load_state("domcontentloaded", timeout=45000)
+            
+            # Riešenie Altcha Anti-Bot ochrany
+            try:
+                await page.click("altcha-widget", timeout=5000)
+                await page.wait_for_function(
+                    'document.querySelector("input[name=\\"altcha\\"]") && document.querySelector("input[name=\\"altcha\\"]").value !== ""',
+                    timeout=10000
+                )
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] Altcha widget sa nenašiel alebo nebol zakliknutý: {e}")
+
+            # Simulácia správania človeka pred vyhľadaním
+            logger.info(f"[{self.source_type}] Čakám ako človek pred odoslaním.")
+            await page.wait_for_timeout(1500 + (hash(ico) % 1000))
+            
+            async with page.expect_navigation(timeout=45000):
+                await page.click("input[name='cmdPotvrdit']", timeout=10000)
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError("Timeout pri odosielaní formulára ZRSR.")
         except Exception as e:
@@ -128,12 +115,27 @@ class ZrsrScraper(BaseScraper):
 
         try:
             logger.info(f"[{self.source_type}] Vypĺňam Meno: {name}, Priezvisko: {surname}")
-            await page.fill("input[name*='MENO']", name, timeout=10000)
-            await page.fill("input[name*='PRIEZVISKO']", surname, timeout=10000)
+            await page.click("label[for='how-filtered-fo']", timeout=10000)
+            await page.fill("input#filter_fo_meno", name, timeout=10000)
+            await page.fill("input#filter_fo_priezvisko", surname, timeout=10000)
             
-            logger.info(f"[{self.source_type}] Odosielam formulár.")
-            await page.click("input[type='submit']", timeout=10000)
-            await page.wait_for_load_state("domcontentloaded", timeout=45000)
+            # Riešenie Altcha Anti-Bot ochrany
+            try:
+                await page.click("altcha-widget", timeout=5000)
+                await page.wait_for_function(
+                    'document.querySelector("input[name=\\"altcha\\"]") && document.querySelector("input[name=\\"altcha\\"]").value !== ""',
+                    timeout=10000
+                )
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] Altcha widget sa nenašiel: {e}")
+
+            # Simulácia správania človeka pred vyhľadaním
+            logger.info(f"[{self.source_type}] Čakám ako človek pred odoslaním.")
+            await page.wait_for_timeout(1800)
+
+            submit_btn = page.locator("input[name='cmdPotvrdit']")
+            async with page.expect_navigation(timeout=45000):
+                await submit_btn.click(timeout=10000)
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError("Timeout pri odosielaní formulára ZRSR.")
         except Exception as e:
@@ -161,11 +163,34 @@ class ZrsrScraper(BaseScraper):
 
         # Pokus o klik na detail
         try:
-            detail_link = page.locator("a[href*='detail']").first
+            # Počkáme, kým sa zjaví link na detail
+            try:
+                await page.wait_for_selector("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']", timeout=10000)
+            except PlaywrightTimeoutError:
+                pass # Možno sme hľadali firmu, ktorá nemá detail
+            
+            detail_link = page.locator("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']").first
             if await detail_link.count() > 0:
+                logger.info(f"[{self.source_type}] Našiel som detail. Simulujem čítanie pred kliknutím.")
+                await page.wait_for_timeout(2500)  # 2.5 sekundy pozerá na výsledky
+                
                 logger.info(f"[{self.source_type}] Klikám na detail.")
-                await detail_link.click(timeout=10000)
-                await page.wait_for_load_state("domcontentloaded", timeout=30000)
+                async with page.expect_navigation(timeout=30000):
+                    await detail_link.click(timeout=10000)
+                    
+                logger.info(f"[{self.source_type}] Detail načítaný, simulujem čítanie Výpisu.")
+                await page.wait_for_timeout(2000)  # 2 sekundy pozerá na detail
+                
+                # Verifikácia, že sme na správnej stránke
+                try:
+                    await page.wait_for_selector("text=Výpis zo živnostenského registra", timeout=10000)
+                    logger.info(f"[{self.source_type}] Detail úspešne overený.")
+                except PlaywrightTimeoutError:
+                    html = await page.content()
+                    if "Odkaz je neplatný" in html:
+                        logger.error(f"[{self.source_type}] Štátny portál vrátil chybu 'Odkaz je neplatný'.")
+                    else:
+                        logger.warning(f"[{self.source_type}] Nenašiel sa text 'Výpis zo živnostenského registra'.")
             else:
                 logger.info(f"[{self.source_type}] Detail link nenájdený, generujem PDF z aktuálneho pohľadu.")
         except Exception as e:
@@ -202,7 +227,6 @@ class ZrsrScraper(BaseScraper):
                 return "POZOR: Živnosť je pozastavená."
             if "zaniknut" in text_content.lower() or "zánik" in text_content.lower():
                 return "POZOR: Živnosť je zaniknutá."
-            
             return "Aktívny záznam v ZRSR."
         except Exception as e:
             logger.warning(f"[{self.source_type}] Nepodarilo sa extrahovať nálezy: {e}")

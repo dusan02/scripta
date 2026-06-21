@@ -1,4 +1,4 @@
-// File: D:\Projects\Scripta\frontend\src\app\api\auth\[...nextauth]\route.ts
+// File: /Users/dusanbaran/Documents/GitHub/scripta/frontend/src/app/api/auth/[...nextauth]/route.ts
 import * as entry from '../../../../../../src/app/api/auth/[...nextauth]/route.js'
 import type { NextRequest } from 'next/server.js'
 

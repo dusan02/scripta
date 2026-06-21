@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .base import BaseScraper, ScraperUnavailableError, ScraperInputError
 from .orsr import OrsrScraper
 from .zrsr import ZrsrScraper

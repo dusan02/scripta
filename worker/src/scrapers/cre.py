@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 CreScraper — Centrálny register exekúcií (www.cre.sk)
 
