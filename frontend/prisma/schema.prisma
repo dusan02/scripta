@@ -129,6 +129,7 @@ enum SourceType {
   ZRSR
   INSOLVENCY
   CRE
+  RPVS
 }
 
 enum SourceStatus {

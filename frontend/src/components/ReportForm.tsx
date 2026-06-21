@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 const SOURCES = [
   { id: "ORSR",       label: "ORSR",            sublabel: "Obchodný register",    cost: 0 },
   { id: "ZRSR",       label: "ŽRSR",            sublabel: "Živnostenský register", cost: 0 },
+  { id: "RPVS",       label: "RPVS",            sublabel: "Register part. ver. sektora", cost: 0 },
   { id: "INSOLVENCY", label: "Insolvenčný reg.", sublabel: "Register úpadcov",     cost: 0 },
   { id: "CRE",        label: "CRE",             sublabel: "Exekúcie",              cost: 5 },
 ];
@@ -28,7 +29,7 @@ export default function SearchForm() {
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [selected, setSelected] = useState<string[]>(["ORSR", "ZRSR", "INSOLVENCY"]);
+  const [selected, setSelected] = useState<string[]>(["ORSR", "ZRSR", "RPVS", "INSOLVENCY"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [icoError, setIcoError] = useState<string | null>(null);

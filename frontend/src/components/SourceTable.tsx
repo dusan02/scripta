@@ -15,6 +15,7 @@ const SOURCE_META: Record<string, { name: string; description: string; free: boo
   ORSR:       { name: "ORSR",              description: "Obchodný register SR",     free: true  },
   ZRSR:       { name: "ŽRSR",              description: "Živnostenský register SR", free: true  },
   INSOLVENCY: { name: "Register úpadcov",  description: "Insolvenčný register",     free: true  },
+  RPVS:       { name: "RPVS",              description: "Register partnerov verejného sektora", free: true  },
   CRE:        { name: "CRE",               description: "Centrálny register exekúcií", free: false },
 };
 

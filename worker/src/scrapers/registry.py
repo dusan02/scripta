@@ -10,6 +10,7 @@ from .orsr import OrsrScraper
 from .zrsr import ZrsrScraper
 from .insolvency import InsolvencyScraper
 from .cre import CreScraper
+from .rpvs import RpvsScraper
 from ..models import ScrapedSource
 
 # Registrácia scraperov podľa SourceType.
@@ -18,6 +19,7 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "ZRSR": ZrsrScraper,
     "INSOLVENCY": InsolvencyScraper,
     "CRE": CreScraper,
+    "RPVS": RpvsScraper,
 }
 
 
