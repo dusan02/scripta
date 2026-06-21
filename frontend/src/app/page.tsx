@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import ReportForm from "@/components/ReportForm";
 import ReportsTable from "@/components/ReportsTable";
@@ -24,10 +23,9 @@ async function getRecentReports(userId: string) {
   } catch {
     return [];
   }
-}
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  noStore(); // Ochrana pred statickým generovaním (bráni chybe s 'headers')
   const session = await getServerSession();
   if (!session?.user) redirect("/login");
 
