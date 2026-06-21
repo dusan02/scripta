@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import ReportForm from "@/components/ReportForm";
 import ReportsTable from "@/components/ReportsTable";
@@ -9,7 +10,6 @@ export const metadata: Metadata = {
   title: "Dashboard",
   description: "Veriso.sk — previerka subjektov zo štátnych registrov SR",
 };
-
 
 async function getRecentReports(userId: string) {
   try {
@@ -27,6 +27,7 @@ async function getRecentReports(userId: string) {
 }
 
 export default async function DashboardPage() {
+  noStore(); // Ochrana pred statickým generovaním (bráni chybe s 'headers')
   const session = await getServerSession();
   if (!session?.user) redirect("/login");
 

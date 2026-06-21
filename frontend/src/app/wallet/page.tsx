@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -137,6 +138,7 @@ function TransactionItem({
 }
 
 export default async function WalletPage() {
+  noStore();
   const wallet = await getWalletData();
   const balance = wallet ? parseFloat(wallet.balance.toString()) : 0;
 
