@@ -33,21 +33,25 @@ class RpvsScraper(BaseScraper):
                 raise ScraperUnavailableError("Timeout pri načítaní stránky RPVS.")
 
             # Nájdenie input boxu
-            search_input = page.get_by_role("textbox").first
+            search_input = page.locator("#partner_hladat_text")
             await search_input.wait_for(state="visible", timeout=10000)
             await search_input.fill(ico)
 
-            logger.info(f"[{self.source_type}] Vyplnené IČO {ico}, čakám na našepkávač...")
+            logger.info(f"[{self.source_type}] Vyplnené IČO {ico}, stláčam lupu...")
 
-            # RPVS vyhadzuje v dropdown liste položku, ktorá obsahuje "(IČO: 12345678)"
-            # Skúsime nájsť takýto text a kliknúť naň
-            dropdown_item = page.locator(f"text=(IČO: {ico})")
+            # Kliknutie na lupu
+            search_btn = page.locator(".input-group-btn-tt")
+            await search_btn.click()
             
-            try:
-                await dropdown_item.wait_for(state="visible", timeout=8000)
-                await dropdown_item.first.click()
-            except PlaywrightTimeoutError:
-                logger.info(f"[{self.source_type}] IČO {ico} nebolo nájdené v RPVS (nenašiel sa výsledok v našepkávači).")
+            # Počkáme na načítanie výsledkov
+            await page.wait_for_load_state("networkidle", timeout=15000)
+
+            # Pozrieme sa, či existuje tabuľka s výsledkami
+            table_rows = page.locator("table tbody tr")
+            count = await table_rows.count()
+
+            if count == 0:
+                logger.info(f"[{self.source_type}] Žiadne výsledky pre {ico}.")
                 return self._make_result(
                     status="SUCCESS",
                     file_path=None,
