@@ -3,7 +3,7 @@ import { Prisma, SourceType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask } from "@/lib/worker";
-import { calculateCost, reportRequestSchema } from "./schema";
+import { calculateCost, reportRequestSchema, SOURCE_COSTS } from "./schema";
 
 export async function POST(req: NextRequest) {
   try {
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
             create: sources.map((source: SourceType) => ({
               sourceType: source,
               status: "PENDING",
-              costCredits: source === "CRE" ? 5 : 0,
+              costCredits: SOURCE_COSTS[source] ?? 0,
             })),
           },
         },
@@ -111,14 +111,43 @@ export async function POST(req: NextRequest) {
         sources,
       });
     } catch (workerErr) {
-      // Worker nie je dostupný — report ostáva v DB ako PENDING a retry job ho neskôr zoberie.
+      // Worker nie je dostupný — report označíme ako FAILED a vrátime strhnuté kredity,
+      // aby používateľ neprišiel o platené registre (napr. CRE).
       console.error("Worker enqueue failed", workerErr);
-      await prisma.reportRequest.update({
-        where: { id: result.id },
-        data: { status: "FAILED" },
-      });
+      try {
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await tx.reportRequest.update({
+            where: { id: result.id },
+            data: { status: "FAILED" },
+          });
+
+          if (totalCost > 0) {
+            await tx.wallet.update({
+              where: { id: wallet.id },
+              data: {
+                balance: { increment: totalCost },
+                version: { increment: 1 },
+              },
+            });
+
+            await tx.walletTransaction.create({
+              data: {
+                walletId: wallet.id,
+                amount: totalCost,
+                type: "REFUND",
+                status: "COMPLETED",
+                reportRequestId: result.id,
+                description: `Refund for failed report ${result.id} (worker unavailable)`,
+              },
+            });
+          }
+        });
+      } catch (refundErr) {
+        console.error("Refund after worker failure failed", refundErr);
+      }
+
       return NextResponse.json(
-        { error: "Worker is unavailable, report marked as failed" },
+        { error: "Worker is unavailable, report marked as failed and credits refunded" },
         { status: 503 }
       );
     }

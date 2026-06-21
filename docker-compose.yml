@@ -32,16 +32,19 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
+      DATABASE_URL_UNPOOLED: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change_me_in_production_please}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       WORKER_URL: http://worker:8000
+      WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
       NODE_ENV: development
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend/src:/app/src   # hot reload v dev režime
+      - ./frontend/src:/app/src         # hot reload v dev režime
+      - worker_results:/app/results:ro  # read-only prístup k vygenerovaným PDF
 
   # ─── Python FastAPI Worker ────────────────────────────────
   worker:
@@ -56,8 +59,10 @@ services:
     environment:
       DATABASE_URL: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
       APP_ENV: development
+      RESULTS_DIR: /app/results
       PLAYWRIGHT_HEADLESS: "true"
       PLAYWRIGHT_TIMEOUT: "60000"
+      WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
     ports:

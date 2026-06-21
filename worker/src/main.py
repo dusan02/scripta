@@ -1,18 +1,42 @@
 from __future__ import annotations
 from datetime import datetime, timezone
+from typing import Optional
 
 import traceback
 import asyncpg
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from playwright.async_api import async_playwright
 
 from .config import settings
-from .db import get_db_pool, update_report_status, upsert_report_sources
+from .db import (
+    get_db_pool,
+    update_report_status,
+    upsert_report_sources,
+    refund_unavailable_paid_sources,
+    close_db_pool,
+)
 from .models import ReportTask
 from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 
 app = FastAPI(title="Scripta Worker", version="0.1.0")
+
+
+async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=None)) -> None:
+    """Overí shared-secret medzi Next.js API a workerom.
+
+    Ak nie je nastavený `worker_secret` (lokálny vývoj), kontrola sa preskočí.
+    """
+    expected = settings.worker_secret
+    if not expected:
+        return
+    if x_worker_secret != expected:
+        raise HTTPException(status_code=401, detail="Invalid worker secret")
+
+
+@app.on_event("shutdown")
+async def _on_shutdown() -> None:
+    await close_db_pool()
 
 
 def _identifier(task: ReportTask) -> str:
@@ -26,7 +50,7 @@ async def _execute_report(task: ReportTask) -> None:
     report_dir = settings.results_dir / task.report_request_id
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    pool: asyncpg.Pool | None = None
+    pool: Optional[asyncpg.Pool] = None
     browser = None
     playwright = None
 
@@ -50,6 +74,9 @@ async def _execute_report(task: ReportTask) -> None:
 
         # Uložíme výsledky jednotlivých zdrojov.
         await upsert_report_sources(pool, task.report_request_id, sources)
+
+        # Vrátime kredity za platené registre, ktoré nezbehli úspešne (napr. CRE UNAVAILABLE).
+        await refund_unavailable_paid_sources(pool, task.report_request_id)
 
         # Zlúčime PDF aj ak niektorý zdroj zlyhal — report pokračuje.
         compiler = PdfCompiler(settings.results_dir)
@@ -84,11 +111,10 @@ async def _execute_report(task: ReportTask) -> None:
             await browser.close()
         if playwright:
             await playwright.stop()
-        if pool:
-            await pool.close()
+        # Pool je modulový singleton — nezatvárame ho po každej úlohe.
 
 
-@app.post("/tasks")
+@app.post("/tasks", dependencies=[Depends(verify_worker_secret)])
 async def create_task(task: ReportTask, background_tasks: BackgroundTasks):
     """Prijme úlohu z Next.js API a okamžite vráti task ID."""
     if task.target_type == "COMPANY" and not task.ico:
@@ -109,4 +135,4 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("worker.src.main:app", host="0.0.0.0", port=8000, reload=settings.app_env == "development")
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=settings.app_env == "development")

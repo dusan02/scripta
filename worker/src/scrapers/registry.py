@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
 from pathlib import Path
-from typing import Dict, List, Type
+from typing import Dict, List, Optional, Type
 
 from playwright.async_api import Browser
 
@@ -36,13 +36,12 @@ async def run_scrapers(
     output_dir: Path,
     browser: Browser,
     target_type: str,
-    ico: str | None = None,
-    name: str | None = None,
-    surname: str | None = None,
-    birth_date: str | None = None,
+    ico: Optional[str] = None,
+    name: Optional[str] = None,
+    surname: Optional[str] = None,
+    birth_date: Optional[str] = None,
 ) -> List[ScrapedSource]:
     """Spustí všetky scrapery paralelne, každý s vlastnou stránkou."""
-    results: List[ScrapedSource] = []
 
     async def run_one(source_type: str) -> ScrapedSource:
         scraper_cls = get_scraper(source_type)

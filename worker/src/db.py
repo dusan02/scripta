@@ -1,25 +1,38 @@
 """Jednoduchý async DB helper pre worker. Update-only — Prisma canonical model zostáva v Next.js."""
 from __future__ import annotations
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
+from typing import List, Optional
 
 import asyncpg
 
 from .config import settings
 from .models import ScrapedSource
 
+# Modulový singleton — pool sa vytvorí raz a znovu používa naprieč úlohami.
+_pool: Optional[asyncpg.Pool] = None
+
 
 async def get_db_pool() -> asyncpg.Pool:
-    return await asyncpg.create_pool(settings.database_url)
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(settings.database_url)
+    return _pool
+
+
+async def close_db_pool() -> None:
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
 
 
 async def update_report_status(
     pool: asyncpg.Pool,
     report_request_id: str,
     status: str,
-    result_file_path: str | None = None,
+    result_file_path: Optional[str] = None,
 ) -> None:
-    completed_at = datetime.utcnow() if status in ("COMPLETED", "PARTIAL") else None
+    completed_at = datetime.now(timezone.utc) if status in ("COMPLETED", "PARTIAL") else None
     await pool.execute(
         """
         UPDATE "ReportRequest"
@@ -68,3 +81,80 @@ async def upsert_report_sources(
                     0,  # costCredits už bol nastavený pri vytvorení v Next.js; ON CONFLICT ho neprepíše
                     source.findings,
                 )
+
+
+async def refund_unavailable_paid_sources(
+    pool: asyncpg.Pool,
+    report_request_id: str,
+) -> None:
+    """
+    Vráti kredity za platené registre (napr. CRE), ktoré neskončili so statusom SUCCESS.
+    Idempotentné — ak už pre tento report existuje REFUND transakcia, neurobí nič.
+    """
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Nájdeme peňaženku používateľa daného reportu.
+            wallet = await conn.fetchrow(
+                """
+                SELECT w.id AS wallet_id
+                FROM "ReportRequest" r
+                JOIN "Wallet" w ON w."userId" = r."userId"
+                WHERE r.id = $1
+                """,
+                report_request_id,
+            )
+            if not wallet:
+                return
+
+            wallet_id = wallet["wallet_id"]
+
+            # Idempotencia — refund pre tento report už prebehol.
+            existing = await conn.fetchval(
+                """
+                SELECT 1 FROM "WalletTransaction"
+                WHERE "reportRequestId" = $1 AND type = 'REFUND'
+                LIMIT 1
+                """,
+                report_request_id,
+            )
+            if existing:
+                return
+
+            # Spočítame kredity za platené zdroje, ktoré nezbehli úspešne.
+            refund_amount = await conn.fetchval(
+                """
+                SELECT COALESCE(SUM("costCredits"), 0)
+                FROM "ReportSource"
+                WHERE "reportRequestId" = $1
+                  AND "costCredits" > 0
+                  AND status <> 'SUCCESS'
+                """,
+                report_request_id,
+            )
+
+            if not refund_amount or refund_amount <= 0:
+                return
+
+            await conn.execute(
+                """
+                UPDATE "Wallet"
+                SET balance = balance + $1, version = version + 1, "updatedAt" = NOW()
+                WHERE id = $2
+                """,
+                refund_amount,
+                wallet_id,
+            )
+
+            await conn.execute(
+                """
+                INSERT INTO "WalletTransaction" (
+                    id, "walletId", amount, type, status,
+                    "reportRequestId", description, "createdAt"
+                )
+                VALUES (gen_random_uuid(), $1, $2, 'REFUND', 'COMPLETED', $3, $4, NOW())
+                """,
+                wallet_id,
+                refund_amount,
+                report_request_id,
+                f"Refund for unavailable/failed paid sources in report {report_request_id}",
+            )

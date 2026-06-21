@@ -42,6 +42,15 @@ export async function POST(req: NextRequest) {
 
     try {
       await prisma.$transaction(async (tx) => {
+        // Idempotencia — Stripe môže webhook doručiť viackrát.
+        const existing = await tx.walletTransaction.findUnique({
+          where: { stripePaymentIntentId: paymentIntent.id },
+        });
+        if (existing) {
+          console.log(`PaymentIntent ${paymentIntent.id} already processed, skipping.`);
+          return;
+        }
+
         // Find the wallet for this user.
         const wallet = await tx.wallet.findUnique({ where: { userId } });
         if (!wallet) {
@@ -54,7 +63,8 @@ export async function POST(req: NextRequest) {
           data: { balance: { increment: credits } },
         });
 
-        // Record the transaction.
+        // Record the transaction. The unique stripePaymentIntentId acts as a
+        // second line of defence against concurrent duplicate deliveries.
         await tx.walletTransaction.create({
           data: {
             walletId: wallet.id,

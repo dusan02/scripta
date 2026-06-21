@@ -1,6 +1,7 @@
 // Klient pre komunikáciu s Python workerom.
 
 const WORKER_URL = process.env.WORKER_URL ?? "http://localhost:8000";
+const WORKER_SECRET = process.env.WORKER_SECRET;
 
 export interface EnqueueTaskPayload {
   reportRequestId: string;
@@ -23,9 +24,14 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
     sources: payload.sources,
   };
 
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (WORKER_SECRET) {
+    headers["x-worker-secret"] = WORKER_SECRET;
+  }
+
   const res = await fetch(`${WORKER_URL}/tasks`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(workerPayload),
   });
 

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from PyPDF2 import PdfWriter, PdfReader
-from PyPDF2.generic import ArrayObject, NumberObject, NameObject, FloatObject
+from PyPDF2.generic import ArrayObject, NumberObject, NameObject
 
 from .cover_page import CoverPageGenerator
 from ..models import ScrapedSource
@@ -40,10 +40,11 @@ class PdfCompiler:
             if source.status == "SUCCESS" and source.file_path and Path(source.file_path).exists():
                 try:
                     source.page_count = len(PdfReader(source.file_path).pages)
+                    source.start_page = current_page
+                    current_page += source.page_count
                 except Exception:
                     source.page_count = source.page_count or 1
-                source.start_page = current_page
-                current_page += source.page_count
+                    source.start_page = None
             else:
                 source.start_page = None
 
@@ -71,7 +72,10 @@ class PdfCompiler:
         if "/Annots" in cover_page_obj:
             for annot in cover_page_obj["/Annots"]:
                 annot_obj = annot.get_object()
-                a_obj = annot_obj.get("/A", {}).get_object() if "/A" in annot_obj else None
+                a_obj = None
+                if "/A" in annot_obj:
+                    a_val = annot_obj["/A"]
+                    a_obj = a_val.get_object() if hasattr(a_val, "get_object") else a_val
                 if a_obj and a_obj.get("/S") == "/URI":
                     uri = a_obj.get("/URI")
                     if isinstance(uri, str) and uri.startswith("http://PAGE_"):

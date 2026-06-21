@@ -41,7 +41,7 @@ model WalletTransaction {
   type                  TransactionType
   status                TransactionStatus @default(COMPLETED)
   reportRequestId       String?
-  stripePaymentIntentId String?
+  stripePaymentIntentId String?           @unique
   description           String?
   createdAt             DateTime          @default(now())
   reportRequest         ReportRequest?    @relation(fields: [reportRequestId], references: [id])

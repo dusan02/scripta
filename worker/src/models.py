@@ -1,5 +1,4 @@
 from __future__ import annotations
-from datetime import date
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
@@ -26,13 +25,3 @@ class ScrapedSource(BaseModel):
     @property
     def message(self) -> Optional[str]:  # backward compat alias
         return self.status_message
-
-
-class PersonInput(BaseModel):
-    name: str
-    surname: str
-    birth_date: date
-
-
-class CompanyInput(BaseModel):
-    ico: str
