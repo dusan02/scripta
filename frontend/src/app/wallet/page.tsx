@@ -7,7 +7,6 @@ export const metadata: Metadata = {
   description: "Správa kreditov — história transakcií a dobíjanie",
 };
 
-export const dynamic = "force-dynamic";
 
 // For demo: load first wallet (replace with getCurrentUser session)
 async function getWalletData() {

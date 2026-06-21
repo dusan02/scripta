@@ -10,7 +10,6 @@ export const metadata: Metadata = {
   description: "Veriso.sk — previerka subjektov zo štátnych registrov SR",
 };
 
-export const dynamic = "force-dynamic";
 
 async function getRecentReports(userId: string) {
   try {
