@@ -8,7 +8,7 @@ export const reportRequestSchema = z.object({
   name: z.string().optional(),
   surname: z.string().optional(),
   birthDate: z.string().datetime().optional(),
-  sources: z.array(z.enum(["ORSR", "ZRSR", "INSOLVENCY", "CRE"])).min(1),
+  sources: z.array(z.enum(["ORSR", "ZRSR", "INSOLVENCY", "CRE", "RPVS"])).min(1),
 });
 
 export type ReportRequestInput = z.infer<typeof reportRequestSchema>;
@@ -17,6 +17,7 @@ export const SOURCE_COSTS: Record<string, number> = {
   ORSR: 0,
   ZRSR: 0,
   INSOLVENCY: 0,
+  RPVS: 0,
   CRE: 5, // platený register
 };
 
