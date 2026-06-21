@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Logo from "@/components/Logo";
 import Link from "next/link";
 
 function Spinner() {
@@ -20,10 +21,9 @@ function Spinner() {
   );
 }
 
-import Logo from "@/components/Logo";
-
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,6 +36,25 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Registrácia zlyhala. Skúste znova.");
+        setLoading(false);
+        return;
+      }
+
+      // Automatically sign in after successful registration
       const result = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password,
@@ -43,19 +62,13 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError(
-          result.error === "CredentialsSignin"
-            ? "Nesprávny e-mail alebo heslo."
-            : "Prihlásenie zlyhalo. Skúste znova."
-        );
-        return;
-      }
-
-      if (result?.ok) {
-        window.location.href = "/";
+        setError("Registrácia prebehla, ale automatické prihlásenie zlyhalo.");
+      } else {
+        router.push("/");
+        router.refresh();
       }
     } catch {
-      setError("Neočakávaná chyba. Skúste znova neskôr.");
+      setError("Neočakávaná chyba komunikácie so serverom.");
     } finally {
       setLoading(false);
     }
@@ -105,10 +118,10 @@ export default function LoginPage() {
           <h2
             style={{ fontSize: "20px", fontWeight: 600, color: "var(--text)", letterSpacing: "-0.01em", margin: "0 0 6px 0" }}
           >
-            Prihlásenie do platformy
+            Nová registrácia
           </h2>
           <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "0 0 24px 0" }}>
-            Zadajte svoje prihlasovacie údaje.
+            Vytvorte si účet pre prístup do platformy.
           </p>
 
           {/* Error */}
@@ -137,11 +150,29 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} noValidate autoComplete="on" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Name */}
+            <div>
+              <label htmlFor="register-name" className="label" style={{ display: "block", marginBottom: "8px" }}>Meno a Priezvisko</label>
+              <input
+                id="register-name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                required
+                placeholder="Jozef Mrkvička"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={loading}
+                className="input"
+                style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}
+              />
+            </div>
+
             {/* Email */}
             <div>
-              <label htmlFor="login-email" className="label" style={{ display: "block", marginBottom: "8px" }}>E-mail</label>
+              <label htmlFor="register-email" className="label" style={{ display: "block", marginBottom: "8px" }}>E-mail</label>
               <input
-                id="login-email"
+                id="register-email"
                 name="email"
                 type="email"
                 autoComplete="email"
@@ -157,23 +188,13 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                <label htmlFor="login-password" className="label" style={{ margin: 0 }}>Heslo</label>
-                <Link
-                  href="/forgot-password"
-                  style={{ fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-                >
-                  Zabudnuté heslo?
-                </Link>
-              </div>
+              <label htmlFor="register-password" className="label" style={{ display: "block", marginBottom: "8px" }}>Heslo (min. 8 znakov)</label>
               <div style={{ position: "relative" }}>
                 <input
-                  id="login-password"
+                  id="register-password"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
                   placeholder="••••••••"
                   value={password}
@@ -221,27 +242,27 @@ export default function LoginPage() {
 
             {/* Submit */}
             <button
-              id="login-submit-btn"
+              id="register-submit-btn"
               type="submit"
               disabled={loading}
               className="btn-primary"
               style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
             >
               {loading ? (
-                <><Spinner /> Overujem…</>
+                <><Spinner /> Spracúvam…</>
               ) : (
-                "Prihlásiť sa"
+                "Zaregistrovať sa"
               )}
             </button>
           </form>
-
+          
           <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "var(--text-muted)" }}>
-            Nemáte účet?{" "}
+            Už máte účet?{" "}
             <Link 
-              href="/register" 
+              href="/login" 
               style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
             >
-              Zaregistrujte sa
+              Prihlásiť sa
             </Link>
           </div>
         </div>

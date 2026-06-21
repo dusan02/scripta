@@ -11,141 +11,197 @@ interface Source {
   costCredits: number | string;
 }
 
-const SOURCE_LABELS: Record<string, { name: string; description: string; free: boolean }> = {
-  ORSR: { name: "ORSR", description: "Obchodný register SR", free: true },
-  ZRSR: { name: "ŽRSR", description: "Živnostenský register SR", free: true },
-  INSOLVENCY: { name: "Register úpadcov", description: "Insolvenčný register", free: true },
-  CRE: { name: "CRE", description: "Centrálny register exekúcií", free: false },
+const SOURCE_META: Record<string, { name: string; description: string; free: boolean }> = {
+  ORSR:       { name: "ORSR",              description: "Obchodný register SR",     free: true  },
+  ZRSR:       { name: "ŽRSR",              description: "Živnostenský register SR", free: true  },
+  INSOLVENCY: { name: "Register úpadcov",  description: "Insolvenčný register",     free: true  },
+  CRE:        { name: "CRE",               description: "Centrálny register exekúcií", free: false },
 };
 
-function SemaphoreIcon({ status }: { status: string }) {
-  if (status === "SUCCESS") {
-    return (
-      <div className="flex flex-col items-center gap-0.5">
-        <div className="w-3 h-3 rounded-full bg-slate-700" />
-        <div className="w-3 h-3 rounded-full bg-slate-700" />
-        <div className="w-3 h-3 rounded-full bg-emerald-400" style={{ boxShadow: "0 0 8px rgba(52,211,153,0.6)" }} />
-      </div>
-    );
-  }
-  if (status === "UNAVAILABLE") {
-    return (
-      <div className="flex flex-col items-center gap-0.5">
-        <div className="w-3 h-3 rounded-full bg-slate-700" />
-        <div className="w-3 h-3 rounded-full bg-amber-400" style={{ boxShadow: "0 0 8px rgba(251,191,36,0.6)" }} />
-        <div className="w-3 h-3 rounded-full bg-slate-700" />
-      </div>
-    );
-  }
-  if (status === "FAILED") {
-    return (
-      <div className="flex flex-col items-center gap-0.5">
-        <div className="w-3 h-3 rounded-full bg-red-400" style={{ boxShadow: "0 0 8px rgba(248,113,113,0.6)" }} />
-        <div className="w-3 h-3 rounded-full bg-slate-700" />
-        <div className="w-3 h-3 rounded-full bg-slate-700" />
-      </div>
-    );
-  }
-  // PENDING / default
+function StatusDot({ status }: { status: string }) {
+  const colorMap: Record<string, string> = {
+    SUCCESS:     "#10b981",
+    UNAVAILABLE: "#f59e0b",
+    FAILED:      "#ef4444",
+    PENDING:     "var(--border-strong)",
+    PROCESSING:  "#3b82f6",
+  };
+  const color = colorMap[status] ?? "var(--border-strong)";
+  const isAnimated = status === "PENDING" || status === "PROCESSING";
+
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <div className="w-3 h-3 rounded-full bg-slate-700 animate-pulse" />
-      <div className="w-3 h-3 rounded-full bg-slate-700 animate-pulse" />
-      <div className="w-3 h-3 rounded-full bg-slate-700 animate-pulse" />
-    </div>
+    <span
+      className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isAnimated ? "animate-pulse" : ""}`}
+      style={{ background: color }}
+    />
   );
 }
 
 export default function SourceTable({ sources }: { sources: Source[] }) {
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
-    <div className="overflow-hidden rounded-xl border" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Stav</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Register</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 hidden sm:table-cell">Strany</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 hidden md:table-cell">Nálezy</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Cena</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-          {sources.map((source) => {
-            const meta = SOURCE_LABELS[source.sourceType] ?? {
-              name: source.sourceType,
-              description: source.sourceType,
-              free: true,
-            };
-            const isExpanded = expandedRow === source.sourceType;
-            const hasFindings = source.findings && source.findings.trim();
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{ border: "1px solid var(--border)" }}
+    >
+      {/* Header */}
+      <div
+        className="grid px-4 py-2.5"
+        style={{
+          gridTemplateColumns: "28px 1fr 60px 80px 70px",
+          background: "var(--bg-subtle)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        {["", "Register", "Strany", "Nálezy", "Cena"].map((h) => (
+          <span
+            key={h}
+            className="text-[10px] font-medium uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {h}
+          </span>
+        ))}
+      </div>
 
-            return (
-              <>
-                <tr
-                  key={source.sourceType}
-                  className={`transition-colors duration-150 ${hasFindings ? "cursor-pointer hover:bg-white/[0.02]" : ""}`}
-                  onClick={() => hasFindings && setExpandedRow(isExpanded ? null : source.sourceType)}
-                >
-                  <td className="px-4 py-3">
-                    <SemaphoreIcon status={source.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div>
-                      <span className="font-semibold text-slate-200">{meta.name}</span>
-                      <span className="ml-2 text-xs text-slate-500 hidden sm:inline">{meta.description}</span>
-                    </div>
-                    {source.status === "UNAVAILABLE" && (
-                      <div className="text-xs text-amber-400 mt-0.5">⚠ Nedostupné</div>
-                    )}
-                    {source.status === "FAILED" && source.statusMessage && (
-                      <div className="text-xs text-red-400 mt-0.5 truncate max-w-[200px]" title={source.statusMessage}>
-                        {source.statusMessage}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-400 hidden sm:table-cell">
-                    {source.pageCount ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell">
-                    {hasFindings ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-slate-400 truncate max-w-[240px] text-xs">{source.findings}</span>
-                        <svg
-                          width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          className={`flex-shrink-0 text-slate-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                        >
-                          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
-                      </div>
-                    ) : (
-                      <span className="text-slate-600 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {meta.free ? (
-                      <span className="text-xs text-emerald-400 font-medium">Zadarmo</span>
-                    ) : (
-                      <span className="text-xs text-amber-400 font-medium">{source.costCredits} kr.</span>
-                    )}
-                  </td>
-                </tr>
-                {isExpanded && hasFindings && (
-                  <tr key={`${source.sourceType}-expanded`} className="animate-fade-in">
-                    <td colSpan={5} className="px-4 py-3" style={{ background: "rgba(16,185,129,0.04)", borderTop: "none" }}>
-                      <div className="text-xs text-slate-300 leading-relaxed pl-8">
-                        <span className="font-semibold text-slate-400 block mb-1">Podrobnosti:</span>
+      {/* Rows */}
+      <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+        {sources.map((source) => {
+          const meta = SOURCE_META[source.sourceType] ?? {
+            name: source.sourceType,
+            description: source.sourceType,
+            free: true,
+          };
+          const hasFindings = !!source.findings?.trim();
+          const isExpanded = expanded === source.sourceType;
+
+          return (
+            <div key={source.sourceType}>
+              <div
+                className="grid items-center px-4 py-3 transition-colors duration-100"
+                style={{
+                  gridTemplateColumns: "28px 1fr 60px 80px 70px",
+                  background: isExpanded ? "var(--bg-subtle)" : "var(--surface)",
+                  cursor: hasFindings ? "pointer" : "default",
+                }}
+                onClick={() =>
+                  hasFindings && setExpanded(isExpanded ? null : source.sourceType)
+                }
+                onMouseEnter={(e) => {
+                  if (!isExpanded)
+                    (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isExpanded)
+                    (e.currentTarget as HTMLElement).style.background = "var(--surface)";
+                }}
+              >
+                {/* Status dot */}
+                <div className="flex items-center">
+                  <StatusDot status={source.status} />
+                </div>
+
+                {/* Name */}
+                <div className="min-w-0">
+                  <span
+                    className="text-xs font-medium"
+                    style={{ color: "var(--text)" }}
+                  >
+                    {meta.name}
+                  </span>
+                  <span
+                    className="hidden sm:inline text-xs ml-2"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    {meta.description}
+                  </span>
+                  {source.status === "UNAVAILABLE" && (
+                    <p className="text-[10px] mt-0.5" style={{ color: "#f59e0b" }}>
+                      Nedostupné
+                    </p>
+                  )}
+                  {source.status === "FAILED" && source.statusMessage && (
+                    <p
+                      className="text-[10px] mt-0.5 truncate max-w-[200px]"
+                      style={{ color: "#ef4444" }}
+                      title={source.statusMessage}
+                    >
+                      {source.statusMessage}
+                    </p>
+                  )}
+                </div>
+
+                {/* Pages */}
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {source.pageCount ?? "—"}
+                </span>
+
+                {/* Findings */}
+                <div className="flex items-center gap-1 min-w-0">
+                  {hasFindings ? (
+                    <>
+                      <span
+                        className="text-[10px] truncate"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
                         {source.findings}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </>
-            );
-          })}
-        </tbody>
-      </table>
+                      </span>
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className={`flex-shrink-0 transition-transform duration-200 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <path
+                          d="M6 9l6 6 6-6"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </>
+                  ) : (
+                    <span style={{ color: "var(--text-muted)" }}>—</span>
+                  )}
+                </div>
+
+                {/* Cost */}
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: meta.free ? "var(--accent)" : "#d97706" }}
+                >
+                  {meta.free ? "Free" : `${source.costCredits} kr.`}
+                </span>
+              </div>
+
+              {/* Expanded findings */}
+              {isExpanded && hasFindings && (
+                <div
+                  className="px-4 py-3 text-xs leading-relaxed fade-in"
+                  style={{
+                    background: "var(--accent-light)",
+                    borderTop: "1px solid var(--accent-border)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <p
+                    className="font-medium mb-1 text-[10px] uppercase tracking-wider"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    Podrobnosti
+                  </p>
+                  {source.findings}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

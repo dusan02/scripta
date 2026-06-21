@@ -46,7 +46,7 @@ export async function GET(
 
     let filePath = report.resultFilePath;
     if (!path.isAbsolute(filePath)) {
-      filePath = path.resolve(process.cwd(), "..", filePath);
+      filePath = path.resolve(process.cwd(), "..", "worker", filePath);
     }
 
     if (!existsSync(filePath)) {

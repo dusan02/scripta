@@ -1,6 +1,6 @@
 """Jednoduchý async DB helper pre worker. Update-only — Prisma canonical model zostáva v Next.js."""
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List
 
 import asyncpg

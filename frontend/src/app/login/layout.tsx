@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Prihlásenie",
-  description: "Prihlásenie do systému Scripta.sk — Evidence Binder pre advokátov",
+  description: "Prihlásenie do systému Veriso.sk — Komplexné reporty pre advokátov",
 };
 
 /**

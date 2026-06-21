@@ -157,7 +157,7 @@ class InsolvencyScraper(BaseScraper):
                 if first_row_classes and "ui-datatable-empty-message" in first_row_classes:
                     return False, "Subjekt nemá negatívne záznamy v registri úpadcov."
                     
-                return True, f"Nájdený záznam v insolvenčnom registri — POZOR! Subjekt môže byť v konkurze/reštrukturalizácii."
+                return True, "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt môže byť v konkurze/reštrukturalizácii."
 
             # Defaultný fallback, ak UI nepoznáme ale nevyhlásilo to prázdne konania
             if "Konkurz (0)" in text_content and "Malý Konkurz (0)" in text_content and "Likvidácia (0)" in text_content:

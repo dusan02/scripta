@@ -1,6 +1,5 @@
 from __future__ import annotations
 from datetime import datetime, timezone
-from pathlib import Path
 
 import traceback
 import asyncpg
@@ -9,7 +8,7 @@ from playwright.async_api import async_playwright
 
 from .config import settings
 from .db import get_db_pool, update_report_status, upsert_report_sources
-from .models import ReportTask, ScrapedSource
+from .models import ReportTask
 from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 
@@ -74,7 +73,7 @@ async def _execute_report(task: ReportTask) -> None:
             final_status,
             result_file_path=str(final_path),
         )
-    except Exception as e:
+    except Exception:
         # Ak celý worker zlyhá, report označíme ako FAILED.
         traceback.print_exc()
         if pool:

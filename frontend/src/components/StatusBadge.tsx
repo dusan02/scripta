@@ -1,65 +1,38 @@
 "use client";
 
-import { ReportStatus, SourceStatus } from "@prisma/client";
-
 interface StatusBadgeProps {
-  status: ReportStatus | SourceStatus | string;
+  status: string;
   size?: "sm" | "md";
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; dotClass: string; badgeClass: string }
-> = {
-  // Report statuses
-  PENDING: {
-    label: "Čaká",
-    dotClass: "bg-slate-400",
-    badgeClass: "badge-pending",
-  },
-  PROCESSING: {
-    label: "Spracúva sa",
-    dotClass: "bg-blue-400 animate-pulse",
-    badgeClass: "badge-processing",
-  },
-  COMPLETED: {
-    label: "Dokončené",
-    dotClass: "bg-emerald-400",
-    badgeClass: "badge-success",
-  },
-  PARTIAL: {
-    label: "Čiastočné",
-    dotClass: "bg-amber-400",
-    badgeClass: "badge-warning",
-  },
-  FAILED: {
-    label: "Zlyhalo",
-    dotClass: "bg-red-400",
-    badgeClass: "badge-error",
-  },
-  // Source statuses
-  SUCCESS: {
-    label: "✓ OK",
-    dotClass: "bg-emerald-400",
-    badgeClass: "badge-success",
-  },
-  UNAVAILABLE: {
-    label: "Nedostupné",
-    dotClass: "bg-amber-400",
-    badgeClass: "badge-warning",
-  },
+const STATUS_CONFIG: Record<string, { label: string; dotColor: string; badgeClass: string }> = {
+  PENDING:    { label: "Čaká",       dotColor: "var(--text-muted)", badgeClass: "badge-pending" },
+  PROCESSING: { label: "Prebieha",   dotColor: "#3b82f6",           badgeClass: "badge-processing" },
+  COMPLETED:  { label: "Dokončené",  dotColor: "#10b981",           badgeClass: "badge-success" },
+  PARTIAL:    { label: "Čiastočné",  dotColor: "#f59e0b",           badgeClass: "badge-warning" },
+  FAILED:     { label: "Zlyhalo",    dotColor: "#ef4444",           badgeClass: "badge-error" },
+  SUCCESS:    { label: "OK",         dotColor: "#10b981",           badgeClass: "badge-success" },
+  UNAVAILABLE:{ label: "Nedostupné", dotColor: "#f59e0b",           badgeClass: "badge-warning" },
 };
 
 export default function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
   const config = STATUS_CONFIG[status] ?? {
     label: status,
-    dotClass: "bg-slate-400",
+    dotColor: "var(--text-muted)",
     badgeClass: "badge-pending",
   };
 
+  const isAnimated = status === "PROCESSING";
+
   return (
-    <span className={`${config.badgeClass} ${size === "sm" ? "text-[10px] px-2 py-0.5" : ""}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dotClass}`} />
+    <span
+      className={config.badgeClass}
+      style={size === "sm" ? { fontSize: "10px", padding: "2px 6px" } : undefined}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full inline-block flex-shrink-0 ${isAnimated ? "animate-pulse" : ""}`}
+        style={{ background: config.dotColor }}
+      />
       {config.label}
     </span>
   );

@@ -1,4 +1,14 @@
 from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+from playwright.async_api import Page
+
+from .base import BaseScraper, ScraperUnavailableError
+from ..config import settings
+from ..models import ScrapedSource
+
 """
 CreScraper — Centrálny register exekúcií (www.cre.sk)
 
@@ -10,14 +20,6 @@ Platený register — implementovaný ako web form scraper.
 #   CRE_USERNAME, CRE_PASSWORD
 # alebo použite API kľúč cez hlavičku (ak cre.sk ponúka API v budúcnosti).
 """
-from pathlib import Path
-from typing import Optional
-
-from playwright.async_api import Page
-
-from .base import BaseScraper, ScraperUnavailableError
-from ..config import settings
-from ..models import ScrapedSource
 
 
 class CreScraper(BaseScraper):

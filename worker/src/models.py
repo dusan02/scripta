@@ -20,6 +20,7 @@ class ScrapedSource(BaseModel):
     status_message: Optional[str] = None
     file_path: Optional[str] = None
     page_count: Optional[int] = None
+    start_page: Optional[int] = None
     findings: Optional[str] = None
 
     @property

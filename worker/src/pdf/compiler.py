@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from PyPDF2 import PdfMerger, PdfReader
+from PyPDF2 import PdfWriter, PdfReader
+from PyPDF2.generic import ArrayObject, NumberObject, NameObject, FloatObject
 
 from .cover_page import CoverPageGenerator
 from ..models import ScrapedSource
@@ -33,7 +34,20 @@ class PdfCompiler:
 
         generated_at = datetime.now(timezone.utc)
 
-        # 1. Generujeme titulnú stranu.
+        # 1. Spočítame skutočný počet strán pre všetky zdroje pred generovaním cover page
+        current_page = 2  # Cover page je strana 1
+        for source in sources:
+            if source.status == "SUCCESS" and source.file_path and Path(source.file_path).exists():
+                try:
+                    source.page_count = len(PdfReader(source.file_path).pages)
+                except Exception:
+                    source.page_count = source.page_count or 1
+                source.start_page = current_page
+                current_page += source.page_count
+            else:
+                source.start_page = None
+
+        # 2. Generujeme titulnú stranu.
         cover_path = output_dir / "cover_page.pdf"
         self.cover_generator.generate(
             output_path=cover_path,
@@ -43,35 +57,52 @@ class PdfCompiler:
             generated_at=generated_at,
         )
 
-        # 2. Zlúčime cover page + PDF zdrojov, ktoré majú file_path.
-        merger = PdfMerger()
-        merger.append(str(cover_path))
+        # 3. Zlúčime cover page + PDF zdrojov pomocou PdfWriter.
+        writer = PdfWriter()
+        writer.append(cover_path)
 
         for source in sources:
-            if source.status == "SUCCESS" and source.file_path and Path(source.file_path).exists():
-                merger.append(source.file_path)
-                # Aktualizujeme reálny počet strán.
-                try:
-                    source.page_count = len(PdfReader(source.file_path).pages)
-                except Exception:
-                    source.page_count = source.page_count or 1
+            if source.start_page is not None and source.file_path:
+                writer.append(source.file_path)
+                writer.add_outline_item(source.source_type, source.start_page - 1)
 
-        # 3. Opečiatkujeme metadata časovou pečiatkou.
-        merger.add_metadata(
+        # 4. Nahradenie falošných URL odkazov z Cover Page za vnútorné prelinkovania na stránky (GoTo Action)
+        cover_page_obj = writer.pages[0]
+        if "/Annots" in cover_page_obj:
+            for annot in cover_page_obj["/Annots"]:
+                annot_obj = annot.get_object()
+                a_obj = annot_obj.get("/A", {}).get_object() if "/A" in annot_obj else None
+                if a_obj and a_obj.get("/S") == "/URI":
+                    uri = a_obj.get("/URI")
+                    if isinstance(uri, str) and uri.startswith("http://PAGE_"):
+                        target_page_idx = int(uri.replace("http://PAGE_", "")) - 1
+                        if 0 <= target_page_idx < len(writer.pages):
+                            target_page = writer.pages[target_page_idx]
+                            del annot_obj["/A"]
+                            annot_obj[NameObject("/Dest")] = ArrayObject([
+                                target_page.indirect_reference, 
+                                NameObject("/XYZ"), 
+                                NumberObject(0), 
+                                target_page.mediabox.top, 
+                                NumberObject(0)
+                            ])
+
+        # 5. Opečiatkujeme metadata časovou pečiatkou.
+        writer.add_metadata(
             {
-                "/Title": f"Scripta Evidence Binder — {identifier}",
-                "/Author": "Scripta.sk",
-                "/Producer": "Scripta PDF Worker",
+                "/Title": f"Veriso.sk — Due Diligence Report — {identifier}",
+                "/Author": "Veriso.sk",
+                "/Producer": "Veriso PDF Worker",
                 "/CreationDate": generated_at.strftime("D:%Y%m%d%H%M%S+00'00'"),
-                "/ScriptaGeneratedAt": generated_at.isoformat(),
-                "/ScriptaReportId": report_request_id,
+                "/VerisoGeneratedAt": generated_at.isoformat(),
+                "/VerisoReportId": report_request_id,
             }
         )
 
         final_path = output_dir / "evidence_binder.pdf"
         with open(final_path, "wb") as f:
-            merger.write(f)
-        merger.close()
+            writer.write(f)
+        writer.close()
 
         return final_path
 
