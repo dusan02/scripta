@@ -73,10 +73,11 @@ export default function SearchForm() {
       const data = await res.json();
 
       if (!res.ok) {
+        const detail = data.details ? ` (${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)})` : '';
         setError(
           res.status === 402
             ? `Nedostatok kreditov. Potrebujete ${data.required} kr., máte ${data.balance} kr.`
-            : (data.error ?? "Nastala chyba.")
+            : (data.error ?? "Nastala chyba.") + detail
         );
         return;
       }
