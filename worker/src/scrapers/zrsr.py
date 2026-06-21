@@ -19,31 +19,40 @@ class ZrsrScraper(BaseScraper):
 
     async def run(
         self,
-        page: Page,
-        output_dir: Path,
         *,
+        output_dir: Path,
         ico: Optional[str] = None,
         name: Optional[str] = None,
         surname: Optional[str] = None,
         birth_date: Optional[str] = None,
+        **kwargs
     ) -> ScrapedSource:
         """
         Hlavná metóda na spustenie scrapovania ZRSR.
         """
-        if ico:
-            return await self._search_company(page, ico=ico, output_dir=output_dir)
-        elif name and surname:
-            return await self._search_person(
-                page,
-                name=name,
-                surname=surname,
-                birth_date=birth_date,
-                output_dir=output_dir,
-            )
-        else:
+        page: Optional[Page] = None
+        try:
+            page = await self._get_page()
+            if ico:
+                return await self._search_company(page, ico=ico, output_dir=output_dir)
+            elif name and surname:
+                return await self._search_person(
+                    page,
+                    name=name,
+                    surname=surname,
+                    birth_date=birth_date,
+                    output_dir=output_dir,
+                )
+            else:
+                return self._make_result(
+                    status="FAILED",
+                    status_message="Pre ZRSR je potrebné zadať IČO alebo Meno a Priezvisko.",
+                )
+        except Exception as e:
+            logger.error(f"[{self.source_type}] Nečakaná chyba: {e}")
             return self._make_result(
                 status="FAILED",
-                status_message="Pre ZRSR je potrebné zadať IČO alebo Meno a Priezvisko.",
+                status_message=f"Chyba pri spracovaní: {e}"
             )
 
     async def _search_company(self, page: Page, *, ico: str, output_dir: Path) -> ScrapedSource:
@@ -77,7 +86,8 @@ class ZrsrScraper(BaseScraper):
 
             # Simulácia správania človeka pred vyhľadaním
             logger.info(f"[{self.source_type}] Čakám ako človek pred odoslaním.")
-            await page.wait_for_timeout(1500 + (hash(ico) % 1000))
+            import random
+            await page.wait_for_timeout(random.randint(1500, 2500))
             
             async with page.expect_navigation(timeout=45000):
                 await page.click("input[name='cmdPotvrdit']", timeout=10000)
