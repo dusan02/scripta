@@ -31,19 +31,38 @@ async def update_report_status(
     report_request_id: str,
     status: str,
     result_file_path: Optional[str] = None,
+    company_name: Optional[str] = None,
 ) -> None:
-    completed_at = datetime.now(timezone.utc) if status in ("COMPLETED", "PARTIAL") else None
-    await pool.execute(
-        """
-        UPDATE "ReportRequest"
-        SET status = $1, "resultFilePath" = $2, "completedAt" = $3, "updatedAt" = NOW()
-        WHERE id = $4
-        """,
-        status,
-        result_file_path,
-        completed_at,
-        report_request_id,
-    )
+    if status in ("COMPLETED", "PARTIAL"):
+        completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    else:
+        completed_at = None
+
+    if company_name:
+        await pool.execute(
+            """
+            UPDATE "ReportRequest"
+            SET status = $1, "resultFilePath" = $2, "completedAt" = $3, name = $4, "updatedAt" = NOW()
+            WHERE id = $5
+            """,
+            status,
+            result_file_path,
+            completed_at,
+            company_name,
+            report_request_id,
+        )
+    else:
+        await pool.execute(
+            """
+            UPDATE "ReportRequest"
+            SET status = $1, "resultFilePath" = $2, "completedAt" = $3, "updatedAt" = NOW()
+            WHERE id = $4
+            """,
+            status,
+            result_file_path,
+            completed_at,
+            report_request_id,
+        )
 
 
 async def upsert_report_sources(

@@ -87,6 +87,7 @@ class BaseScraper(ABC):
         page_count: Optional[int] = None,
         status_message: Optional[str] = None,
         findings: Optional[str] = None,
+        company_name: Optional[str] = None,
     ) -> ScrapedSource:
         return ScrapedSource(
             source_type=self.source_type,
@@ -95,4 +96,5 @@ class BaseScraper(ABC):
             page_count=page_count,
             status_message=status_message,
             findings=findings,
+            company_name=company_name,
         )

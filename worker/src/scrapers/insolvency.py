@@ -107,11 +107,36 @@ class InsolvencyScraper(BaseScraper):
         logger.info(f"[{self.source_type}] Spracovávam výsledky vyhľadávania.")
         has_results, findings = await self._extract_findings(page)
 
+        if has_results:
+            # Klikneme na detail konania, aby sme ho stiahli namiesto zoznamu vyhľadávania
+            detail_link = page.locator("a[href*='konanieDetail.xhtml']").first
+            try:
+                logger.info(f"[{self.source_type}] Klikám na prvý nájdený detail konania.")
+                async with page.expect_navigation(timeout=20000):
+                    await detail_link.click(timeout=10000)
+                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                # Počkáme na načítanie hlavných elementov detailu
+                await page.locator("text=Spisová značka").first.wait_for(state="visible", timeout=10000)
+                logger.info(f"[{self.source_type}] Detail konania úspešne načítaný.")
+            except Exception as click_err:
+                logger.warning(f"[{self.source_type}] Nepodarilo sa prejsť na detail konania: {click_err}. Vytlačí sa zoznam.")
+
         logger.info(f"[{self.source_type}] Generujem PDF dôkaz (či už s nálezmi alebo bez).")
         pdf_output = output_dir / f"insolvency_{label}.pdf"
         
         try:
             await page.wait_for_timeout(2000)
+            
+            # Skryjeme navigačné/neestetické prvky a zakážeme zobrazenie URL odkazov v zátvorkách pri tlači
+            await page.add_style_tag(content="""
+                #header, #footer, .menubar, .konanie-detail-osoby-eform-link {
+                    display: none !important;
+                }
+                a[href]::after {
+                    content: none !important;
+                }
+            """)
+            
             await self._print_page_to_pdf(page, pdf_output)
             logger.info(f"[{self.source_type}] PDF úspešne vygenerované na {pdf_output}")
         except Exception as e:
@@ -120,6 +145,28 @@ class InsolvencyScraper(BaseScraper):
                 status="FAILED",
                 status_message=f"Chyba pri generovaní PDF z Registra úpadcov: {e}",
             )
+
+        # Dodatočné overenie cez text vygenerovaného PDF (double-check bezpečnosti)
+        try:
+            from PyPDF2 import PdfReader
+            import re
+            
+            reader = PdfReader(str(pdf_output))
+            pdf_text = "".join([p.extract_text() or "" for p in reader.pages])
+            
+            # 1. Ak PDF explicitne obsahuje informáciu, že sa nič nenašlo
+            if "Nenašli sa žiadne" in pdf_text or "žiadne konania" in pdf_text:
+                has_results = False
+                findings = "Subjekt nemá negatívne záznamy v registri úpadcov."
+            else:
+                # 2. Ak PDF obsahuje počet výsledkov väčší ako 0 (zo zoznamu) ALEBO ak sme už v detaile konania
+                match = re.search(r"P\s*o\s*č\s*e\s*t\s*v\s*[yý]\s*s\s*l\s*e\s*d\s*k\s*o\s*v\s*:\s*([1-9]\d*)", pdf_text, re.IGNORECASE)
+                is_detail = "Spisová značka" in pdf_text or "História stavov konania" in pdf_text or "História stavov" in pdf_text
+                if match or is_detail:
+                    has_results = True
+                    findings = "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt je v konkurze/reštrukturalizácii."
+        except Exception as pdf_err:
+            logger.warning(f"[{self.source_type}] Zlyhalo overenie textu vygenerovaného PDF: {pdf_err}")
 
         if not has_results:
             logger.info(f"[{self.source_type}] Neboli nájdené žiadne záznamy.")
@@ -149,7 +196,13 @@ class InsolvencyScraper(BaseScraper):
             if "Nenašli sa žiadne konania" in text_content or "žiadne konania pre hľadaný reťazec" in text_content:
                 return False, "Subjekt nemá negatívne záznamy v registri úpadcov."
 
-            # Kontrola tabuľky
+            # Kontrola odkazov na detaily konaní (nový portál s kartami z 2025+)
+            detail_links = page.locator("a[href*='konanieDetail.xhtml']")
+            detail_count = await detail_links.count()
+            if detail_count > 0:
+                return True, "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt je v konkurze/reštrukturalizácii."
+
+            # Kontrola tabuľky (starší datatable/fallback)
             result_rows = await page.locator("div.ui-datatable-tablewrapper table tbody tr.ui-widget-content").count()
             if result_rows > 0:
                 # PrimeFaces zvykne dať class 'ui-datatable-empty-message' na prvý riadok ak nie sú dáta
@@ -158,6 +211,16 @@ class InsolvencyScraper(BaseScraper):
                     return False, "Subjekt nemá negatívne záznamy v registri úpadcov."
                     
                 return True, "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt môže byť v konkurze/reštrukturalizácii."
+
+            # Kontrola textov počtu výsledkov cez regulárny výraz (napr. "Počet výsledkov: 1")
+            import re
+            match = re.search(r"Počet výsledkov:\s*(\d+)", text_content)
+            if match:
+                count = int(match.group(1))
+                if count > 0:
+                    return True, "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt je v konkurze/reštrukturalizácii."
+                else:
+                    return False, "Subjekt nemá negatívne záznamy v registri úpadcov."
 
             # Defaultný fallback, ak UI nepoznáme ale nevyhlásilo to prázdne konania
             if "Konkurz (0)" in text_content and "Malý Konkurz (0)" in text_content and "Likvidácia (0)" in text_content:

@@ -28,6 +28,7 @@ class PdfCompiler:
         target_type: str,
         identifier: str,
         sources: List[ScrapedSource],
+        company_name: Optional[str] = None,
     ) -> Path:
         output_dir = self.results_dir / report_request_id
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -56,6 +57,7 @@ class PdfCompiler:
             identifier=identifier,
             sources=sources,
             generated_at=generated_at,
+            company_name=company_name,
         )
 
         # 3. Zlúčime cover page + PDF zdrojov pomocou PdfWriter.

@@ -32,6 +32,7 @@ class CoverPageGenerator:
         identifier: str,  # IČO alebo "Meno Priezvisko, DD.MM.RRRR"
         sources: List[ScrapedSource],
         generated_at: datetime,
+        company_name: Optional[str] = None,
     ) -> None:
         fonts_dir = Path(__file__).parent / "fonts"
         pdfmetrics.registerFont(TTFont("DejaVuSans", str(fonts_dir / "DejaVuSans.ttf")))
@@ -102,6 +103,8 @@ class CoverPageGenerator:
 
         subject_label = "Subjekt" if target_type == "COMPANY" else "Fyzická osoba"
         story.append(Paragraph(f"<b>{subject_label}:</b> {identifier}", subtitle_style))
+        if target_type == "COMPANY" and company_name:
+            story.append(Paragraph(f"<b>Obchodné meno:</b> {company_name}", subtitle_style))
         story.append(Paragraph(f"<b>Vygenerované:</b> {generated_at.strftime('%d.%m.%Y %H:%M:%S')}", subtitle_style))
         story.append(Spacer(1, 1.2 * cm))
 
@@ -121,6 +124,12 @@ class CoverPageGenerator:
                 status_p = Paragraph('<font color="#ef4444">FAILED</font>', styles["Normal"])
 
             findings = source.findings or source.message or "Bez záznamu."
+            
+            # Zvýrazníme slovo POZOR na červeno a tučne pre lepšiu viditeľnosť nálezov
+            if "POZOR" in findings:
+                findings = findings.replace("POZOR!", '<font color="#ef4444"><b>POZOR!</b></font>')
+                findings = findings.replace("POZOR:", '<font color="#ef4444"><b>POZOR:</b></font>')
+                findings = findings.replace("POZOR", '<font color="#ef4444"><b>POZOR</b></font>')
             
             if source.start_page is not None:
                 page_link = Paragraph(f'<a href="http://PAGE_{source.start_page}" color="#2563eb"><u>{source.start_page}</u></a>', styles["Normal"])

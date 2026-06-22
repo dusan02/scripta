@@ -336,6 +336,37 @@ export default function ReportDetailPage() {
                 )}
               </button>
             )}
+            <Link
+              id="new-search-btn"
+              href="/"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto transition-all hover:brightness-110 active:brightness-95 rounded-lg border text-center"
+              style={{ 
+                background: "var(--surface)", 
+                color: "var(--text-secondary)", 
+                height: "40px", 
+                padding: "0 18px",
+                fontSize: "13.5px", 
+                fontWeight: 600,
+                borderColor: "var(--border)",
+                boxShadow: "var(--shadow-sm)",
+                textDecoration: "none"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-strong)";
+                e.currentTarget.style.color = "var(--text)";
+                e.currentTarget.style.background = "var(--surface-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border)";
+                e.currentTarget.style.color = "var(--text-secondary)";
+                e.currentTarget.style.background = "var(--surface)";
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+              Nové hľadanie
+            </Link>
           </div>
 
         </div>

@@ -50,11 +50,30 @@ class OrsrScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Pokúšam sa nájsť odkaz na detail firmy pre IČO {ico}.")
             
-            detail_link = page.locator("a[href*='vypis.asp']").first
-            
+            detail_link = page.locator("a[href*='vypis.asp']").last
+            company_name = None
             try:
                 await detail_link.wait_for(timeout=10000)
-                logger.info(f"[{self.source_type}] Klikám na odkaz detailu.")
+                
+                # Získame obchodné meno z príslušného riadku (tr) tabuľky
+                try:
+                    row = detail_link.locator("xpath=ancestor::tr")
+                    cells = row.locator("td")
+                    cells_count = await cells.count()
+                    for i in range(cells_count):
+                        text_val = (await cells.nth(i).inner_text()).strip()
+                        # Ignorujeme poradové číslo (napr. "1.") a odkaz na výpis ("Aktuálny Úplný")
+                        if text_val and not text_val.endswith(".") and "aktuálny" not in text_val.lower() and "úplný" not in text_val.lower():
+                            company_name = text_val
+                            break
+                except Exception as row_err:
+                    logger.warning(f"[{self.source_type}] Nepodarilo sa získať meno z riadku tabuľky: {row_err}")
+                    # Fallback na text samotného odkazu
+                    company_name = await detail_link.inner_text()
+
+                if company_name:
+                    company_name = company_name.strip()
+                logger.info(f"[{self.source_type}] Klikám na odkaz detailu pre: {company_name}")
                 await detail_link.click()
                 await page.wait_for_load_state("domcontentloaded", timeout=45000)
             except PlaywrightTimeoutError:
@@ -89,6 +108,7 @@ class OrsrScraper(BaseScraper):
                 page_count=1,
                 status_message="Výpis z ORSR úspešne stiahnutý.",
                 findings=findings,
+                company_name=company_name,
             )
         except ScraperUnavailableError as e:
             logger.error(f"[{self.source_type}] ORSR je nedostupný: {e}")
