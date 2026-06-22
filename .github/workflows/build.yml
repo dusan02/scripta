@@ -9,6 +9,9 @@ on:
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+      DATABASE_URL_UNPOOLED: "postgresql://dummy:dummy@localhost:5432/dummy"
     defaults:
       run:
         working-directory: ./frontend
