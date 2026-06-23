@@ -35,22 +35,30 @@ class PdfCompiler:
 
         generated_at = datetime.now(timezone.utc)
 
-        # 1. Spočítame skutočný počet strán pre všetky zdroje pred generovaním cover page
-        current_page = 2  # Cover page je strana 1
+        # 1. Spočítame skutočný počet strán pre všetky zdroje.
+        # Cover page môže mať 1+ strán — nepoznáme ich ešte, tak predpokladáme 1 a opravíme neskôr.
         for source in sources:
             if source.status == "SUCCESS" and source.file_path and Path(source.file_path).exists():
                 try:
                     source.page_count = len(PdfReader(source.file_path).pages)
-                    source.start_page = current_page
-                    current_page += source.page_count
                 except Exception:
                     source.page_count = source.page_count or 1
-                    source.start_page = None
             else:
-                source.start_page = None
+                source.page_count = 0
 
-        # 2. Generujeme titulnú stranu.
+        # 2. Pomocná funkcia na priradenie start_page s predpokladaným počtom strán cover page.
+        def _assign_start_pages(cover_pages: int):
+            current = cover_pages + 1
+            for source in sources:
+                if source.status == "SUCCESS" and source.file_path and source.page_count > 0:
+                    source.start_page = current
+                    current += source.page_count
+                else:
+                    source.start_page = None
+
+        # 3. Prvý pokus: predpokladáme 1-stranový cover, vygenerujeme a zistíme reálny počet.
         cover_path = output_dir / "cover_page.pdf"
+        _assign_start_pages(1)
         self.cover_generator.generate(
             output_path=cover_path,
             target_type=target_type,
@@ -59,8 +67,21 @@ class PdfCompiler:
             generated_at=generated_at,
             company_name=company_name,
         )
+        actual_cover_pages = len(PdfReader(str(cover_path)).pages)
 
-        # 3. Zlúčime cover page + PDF zdrojov pomocou PdfWriter.
+        # 4. Ak má cover page viac strán, opravíme start_page a regenerujeme.
+        if actual_cover_pages != 1:
+            _assign_start_pages(actual_cover_pages)
+            self.cover_generator.generate(
+                output_path=cover_path,
+                target_type=target_type,
+                identifier=identifier,
+                sources=sources,
+                generated_at=generated_at,
+                company_name=company_name,
+            )
+
+        # 5. Zlúčime cover page + PDF zdrojov pomocou PdfWriter.
         writer = PdfWriter()
         writer.append(cover_path)
 
