@@ -33,6 +33,8 @@ export async function GET(
       companyName: report.companyName,
       name: report.name,
       surname: report.surname,
+      birthDate: report.birthDate?.toISOString() ?? null,
+      selectedSources: report.selectedSources,
       totalCost: report.totalCost,
       createdAt: report.createdAt,
       completedAt: report.completedAt,

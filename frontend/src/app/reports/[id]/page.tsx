@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
 import SourceTable from "@/components/SourceTable";
@@ -26,6 +26,7 @@ interface Report {
   name?: string | null;
   surname?: string | null;
   birthDate?: string | null;
+  selectedSources?: string[];
   totalCost: number;
   createdAt: string;
   completedAt?: string | null;
@@ -194,10 +195,12 @@ function ProgressTimeline({ status, sources }: { status: string; sources: Report
 // ── Main Page ────────────────────────────────────────────────────
 export default function ReportDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const fetchReport = useCallback(async () => {
     try {
@@ -239,6 +242,37 @@ export default function ReportDetailPage() {
     }
   };
 
+  const handleRetry = async () => {
+    if (!report) return;
+    setRetrying(true);
+    try {
+      const body: Record<string, unknown> = {
+        targetType: report.targetType,
+        sources: report.selectedSources ?? report.sources.map(s => s.sourceType),
+      };
+      if (report.targetType === "COMPANY") {
+        body.ico = report.ico;
+      } else {
+        body.name = report.name;
+        body.surname = report.surname;
+        body.birthDate = report.birthDate;
+      }
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/reports/${data.reportRequestId}`);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-[1000px] mx-auto px-6 py-8">
@@ -268,6 +302,7 @@ export default function ReportDetailPage() {
       : `${report.name} ${report.surname}`;
 
   const canDownload = report.status === "COMPLETED" || report.status === "PARTIAL";
+  const canRetry = report.status === "FAILED";
 
   return (
     <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
@@ -362,6 +397,41 @@ export default function ReportDetailPage() {
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>Stav:</span>
               <StatusBadge status={report.status} />
             </div>
+            {canRetry && (
+              <button
+                id="retry-btn"
+                onClick={handleRetry}
+                disabled={retrying}
+                className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
+                style={{
+                  background: "#ef4444",
+                  color: "white",
+                  height: "40px",
+                  padding: "0 18px",
+                  fontSize: "13.5px",
+                  fontWeight: 600,
+                  border: "none",
+                  boxShadow: "0 2px 4px rgba(239, 68, 68, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
+                }}
+              >
+                {retrying ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Odosielam…
+                  </>
+                ) : (
+                  <>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                    </svg>
+                    Znovu overiť
+                  </>
+                )}
+              </button>
+            )}
             {canDownload && (
                 <button
                   id="download-pdf-btn"
