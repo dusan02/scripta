@@ -30,7 +30,7 @@ class FsDphRegistrovaniScraper(FinancnaSpravaBase):
             has_results = "dph" in text_lower or "registrovan" in text_lower or "daňový subjekt" in text_lower
 
             if has_results:
-                _SKIP = {"názov subjektu", "názov", "obec", "psč", "psc", "ulica", "ičo", "ico", "dič", "dic", "štát", "stat"}
+                _SKIP = {"názov subjektu", "názov", "obec", "psč", "psc", "ulica", "ulica číslo", "ičo", "ico", "dič", "dic", "štát", "stat", "ič dph", "ič_dph"}
                 formatted = await self._parse_table_with_headers(page, skip_columns=_SKIP)
                 if formatted:
                     return f"Subjekt (IČO: {search_term}) je registrovaný pre DPH.\n" + "\n\n".join(formatted)
