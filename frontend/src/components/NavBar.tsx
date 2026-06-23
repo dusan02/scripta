@@ -74,8 +74,8 @@ export default function NavBar() {
                     href={item.href}
                     className="px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150"
                     style={{
-                      color: active ? "var(--text)" : "var(--text-muted)",
-                      background: active ? "var(--bg-muted)" : "transparent",
+                      color: active ? "var(--accent)" : "var(--text-secondary)",
+                      background: active ? "var(--accent-light)" : "transparent",
                     }}
                   >
                     {item.label}
@@ -101,9 +101,9 @@ export default function NavBar() {
               title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
               className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
               style={{
-                background: "var(--bg-muted)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
+                background: isDark ? "var(--bg-muted)" : "var(--bg-muted)",
+                border: `1px solid ${isDark ? "var(--border)" : "var(--border)"}`,
+                color: isDark ? "var(--text)" : "var(--text-secondary)",
               }}
             >
               {isDark ? <SunIcon /> : <MoonIcon />}
@@ -119,7 +119,7 @@ export default function NavBar() {
               style={{
                 background: "var(--bg-muted)",
                 border: "1px solid var(--border)",
-                color: loggingOut ? "var(--text-muted)" : "var(--text-secondary)",
+                color: isDark ? (loggingOut ? "var(--text-muted)" : "var(--text)") : (loggingOut ? "var(--text-muted)" : "var(--text-secondary)"),
               }}
             >
               {loggingOut ? (
@@ -138,7 +138,7 @@ export default function NavBar() {
               style={{
                 background: "var(--bg-muted)",
                 border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
+                color: isDark ? "var(--text)" : "var(--text-secondary)",
               }}
             >
               JD
@@ -173,8 +173,8 @@ export default function NavBar() {
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center px-3 py-2 rounded-md text-sm font-medium"
                   style={{
-                    color: active ? "var(--text)" : "var(--text-secondary)",
-                    background: active ? "var(--bg-muted)" : "transparent",
+                    color: active ? "var(--accent)" : "var(--text-secondary)",
+                    background: active ? "var(--accent-light)" : "transparent",
                   }}
                 >
                   {item.label}

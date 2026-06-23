@@ -434,8 +434,13 @@
   }
   @media (prefers-color-scheme: dark) {
     .glass-nav {
-      background: rgba(15,15,17,0.85);
+      background: rgba(12,12,14,0.9);
+      border-bottom: 1px solid #2a2d31;
     }
+  }
+  [data-theme="dark"] .glass-nav {
+    background: rgba(12,12,14,0.9);
+    border-bottom: 1px solid #2a2d31;
   }
 
   /* ── CopyableText ─────────────────────────────────── */
