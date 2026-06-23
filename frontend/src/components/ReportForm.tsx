@@ -13,7 +13,7 @@ function isValidIco(ico: string): boolean {
 
 type TargetType = "COMPANY" | "PERSON";
 
-export default function SearchForm() {
+export default function SearchForm({ reportCount = 0, completedCount = 0, processingCount = 0 }: { reportCount?: number; completedCount?: number; processingCount?: number }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,10 +102,10 @@ export default function SearchForm() {
   return (
     <form onSubmit={handleSubmit} className="w-full">
 
-      {/* ── Type toggle ───────────────────────── */}
-      <div className="flex justify-center mb-5">
+      {/* ── Type toggle — compact ──────────────── */}
+      <div className="flex justify-center mb-3">
         <div
-          className="flex p-1 gap-1 rounded-lg"
+          className="flex p-0.5 gap-0.5 rounded-lg"
           style={{
             background: "var(--bg-muted)",
             border: "1px solid var(--border)",
@@ -119,7 +119,7 @@ export default function SearchForm() {
                 key={type}
                 type="button"
                 onClick={() => setTargetType(type)}
-                className="px-4 py-1.5 rounded-md text-xs font-medium transition-all duration-150"
+                className="px-3 py-1 rounded-md text-[11px] font-medium transition-all duration-150"
                 style={{
                   background: active ? "var(--surface)" : "transparent",
                   color: active ? "var(--text)" : "var(--text-muted)",
@@ -134,81 +134,84 @@ export default function SearchForm() {
         </div>
       </div>
 
-      {/* ── Main search bar ───────────────────── */}
+      {/* ── Main search bar — narrower, centered ── */}
       {targetType === "COMPANY" ? (
-        <div
-          className="flex flex-col sm:flex-row items-stretch sm:items-center rounded-2xl transition-all duration-200"
-          style={{
-            background: "var(--surface)",
-            border: "1.5px solid var(--border)",
-            boxShadow: "var(--shadow-md)",
-          }}
-          onFocus={() => {
-            const el = document.getElementById("search-wrap");
-            if (el) el.style.borderColor = "var(--accent)";
-          }}
-          id="search-wrap"
-        >
-          {/* Search icon */}
-          <div className="pl-5 pr-3 flex-shrink-0 hidden sm:block">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <path
-                d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-
-          {/* Input */}
-          <input
-            ref={inputRef}
-            id="ico"
-            type="text"
-            inputMode="numeric"
-            placeholder="Zadajte IČO..."
-            value={ico}
-            onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, "").slice(0, 8);
-              setIco(val);
-              if (val.length === 8)
-                setIcoError(isValidIco(val) ? null : "Neplatné IČO — nesprávna kontrolná číslica.");
-              else setIcoError(null);
-            }}
-            className="flex-1 bg-transparent outline-none px-5 sm:px-0"
+        <div className="mx-auto" style={{ maxWidth: 480 }}>
+          <div
+            className="flex items-center rounded-xl transition-all duration-200"
             style={{
-              fontSize: "1.125rem",
-              letterSpacing: "-0.01em",
-              color: "var(--text)",
-              padding: "16px 0",
-              caretColor: "var(--accent)",
-              fontFamily: "inherit",
+              background: "var(--surface)",
+              border: "1.5px solid var(--border)",
+              boxShadow: "var(--shadow-md)",
             }}
-            autoFocus
-            required
-          />
+            onFocus={() => {
+              const el = document.getElementById("search-wrap");
+              if (el) el.style.borderColor = "var(--accent)";
+            }}
+            id="search-wrap"
+          >
+            {/* Search icon */}
+            <div className="pl-4 pr-2 flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--text-muted)" }}>
+                <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
 
-          {/* Validity indicator */}
-          {ico.length === 8 && !icoError && (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mr-1" style={{ color: "var(--accent)" }}>
-              <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
+            {/* Input */}
+            <input
+              ref={inputRef}
+              id="ico"
+              type="text"
+              inputMode="numeric"
+              placeholder="Zadajte IČO..."
+              value={ico}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 8);
+                setIco(val);
+                if (val.length === 8)
+                  setIcoError(isValidIco(val) ? null : "Neplatné IČO — nesprávna kontrolná číslica.");
+                else setIcoError(null);
+              }}
+              className="flex-1 bg-transparent outline-none"
+              style={{
+                fontSize: "0.95rem",
+                letterSpacing: "-0.01em",
+                color: "var(--text)",
+                padding: "12px 0",
+                caretColor: "var(--accent)",
+                fontFamily: "inherit",
+              }}
+              autoFocus
+              required
+            />
 
-          {/* Submit button */}
-          <div className="p-2 flex-shrink-0">
+            {/* Clear (x) button */}
+            {ico && (
+              <button
+                type="button"
+                onClick={() => { setIco(""); setIcoError(null); inputRef.current?.focus(); }}
+                className="flex-shrink-0 flex items-center justify-center mr-1 transition-opacity"
+                style={{ width: "24px", height: "24px", color: "var(--text-muted)" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+
+            {/* Validity indicator */}
+            {ico.length === 8 && !icoError && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mr-1" style={{ color: "var(--accent)" }}>
+                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+
+            {/* Submit button — dominant tyrkysov */}
             <button
               id="submit-report-btn"
               type="submit"
               disabled={loading || !isValid}
-              className="flex items-center justify-center gap-2 px-5 rounded-xl font-medium text-sm transition-all duration-150 w-full sm:w-auto"
+              className="flex items-center justify-center gap-1.5 px-4 rounded-r-xl font-semibold text-sm transition-all duration-150 flex-shrink-0"
               style={{
                 height: "44px",
                 background: isValid ? "var(--accent)" : "var(--bg-muted)",
@@ -227,7 +230,7 @@ export default function SearchForm() {
                 <>
                   Overiť
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </>
               )}
@@ -236,38 +239,59 @@ export default function SearchForm() {
         </div>
       ) : (
         /* Person form */
-        <div
-          className="rounded-2xl p-5 space-y-4"
-          style={{
-            background: "var(--surface)",
-            border: "1.5px solid var(--border)",
-            boxShadow: "var(--shadow-md)",
-          }}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label" htmlFor="name">Meno *</label>
-              <input id="name" type="text" className="input" placeholder="Ján" value={name} onChange={(e) => setName(e.target.value)} required />
+        <div className="mx-auto" style={{ maxWidth: 480 }}>
+          <div
+            className="rounded-xl p-4 space-y-3"
+            style={{
+              background: "var(--surface)",
+              border: "1.5px solid var(--border)",
+              boxShadow: "var(--shadow-md)",
+            }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label" htmlFor="name">Meno *</label>
+                <input id="name" type="text" className="input" placeholder="Ján" value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+              <div>
+                <label className="label" htmlFor="surname">Priezvisko *</label>
+                <input id="surname" type="text" className="input" placeholder="Novák" value={surname} onChange={(e) => setSurname(e.target.value)} required />
+              </div>
             </div>
             <div>
-              <label className="label" htmlFor="surname">Priezvisko *</label>
-              <input id="surname" type="text" className="input" placeholder="Novák" value={surname} onChange={(e) => setSurname(e.target.value)} required />
+              <label className="label" htmlFor="birthDate">Dátum narodenia *</label>
+              <input id="birthDate" type="date" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
             </div>
-          </div>
-          <div>
-            <label className="label" htmlFor="birthDate">Dátum narodenia *</label>
-            <input id="birthDate" type="date" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
-          </div>
-          <div className="flex justify-end">
-            <button
-              id="submit-report-btn"
-              type="submit"
-              disabled={loading || !isValid}
-              className="btn-primary w-full sm:w-auto"
-              style={{ height: "44px" }}
-            >
-              {loading ? "Spúšťam…" : "Overiť osobu →"}
-            </button>
+            <div className="flex justify-end">
+              <button
+                id="submit-report-btn"
+                type="submit"
+                disabled={loading || !isValid}
+                className="flex items-center justify-center gap-1.5 px-4 rounded-lg font-semibold text-sm transition-all duration-150"
+                style={{
+                  height: "40px",
+                  background: isValid ? "var(--accent)" : "var(--bg-muted)",
+                  color: isValid ? "white" : "var(--text-muted)",
+                  cursor: isValid ? "pointer" : "default",
+                  border: "none",
+                  outline: "none",
+                }}
+              >
+                {loading ? (
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                    <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  <>
+                    Overiť osobu
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -280,10 +304,10 @@ export default function SearchForm() {
       )}
 
       {/* ── Source selection ─────────────────── */}
-      <div className="mt-4 space-y-3">
-        {/* Global controls */}
+      <div className="mt-5 space-y-2.5">
+        {/* Counter above grid */}
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
             {selected.length} z {ENABLED_SOURCES.length} registrov
           </span>
           <div className="flex items-center gap-3">
@@ -307,8 +331,8 @@ export default function SearchForm() {
           </div>
         </div>
 
-        {/* Category groups — 2-column grid on desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Category groups — 3-column grid on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
           {SOURCE_CATEGORIES.map((cat) => {
           const catSources = SOURCES.filter((s) => s.category === cat.id);
           if (catSources.length === 0) return null;
@@ -361,36 +385,43 @@ export default function SearchForm() {
                 </span>
               </div>
 
-              {/* Source chips */}
-              <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+              {/* Source chips — compact */}
+              <div className="flex flex-wrap items-center gap-1.5 px-3 py-2">
                 {catSources.map((source) => {
                   const active = selected.includes(source.id);
                   const disabled = !source.enabled;
+                  const isFullyDisabled = disabled && source.id === "RUZ";
                   return (
                     <button
                       key={source.id}
                       type="button"
                       onClick={() => !disabled && toggleSource(source.id)}
                       disabled={disabled}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-150"
                       style={{
-                        background: disabled ? "var(--bg-muted)" : active ? "var(--accent-light)" : "var(--bg-muted)",
+                        background: disabled ? "var(--bg-subtle)" : active ? "var(--accent-light)" : "var(--bg-muted)",
                         color: disabled ? "var(--text-muted)" : active ? "var(--accent)" : "var(--text-muted)",
                         border: `1px solid ${disabled ? "var(--border)" : active ? "var(--accent-border)" : "var(--border)"}`,
-                        opacity: disabled ? 0.45 : 1,
+                        opacity: disabled ? 0.5 : 1,
                         cursor: disabled ? "not-allowed" : "pointer",
                       }}
                     >
+                      {isFullyDisabled && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                          <rect x="3" y="11" width="18" height="11" rx="2" />
+                          <path d="M7 11V7a5 5 0 0110 0v4" />
+                        </svg>
+                      )}
                       {active && !disabled && (
                         <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                           <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                       {source.label}
-                      {disabled && (
+                      {disabled && !isFullyDisabled && (
                         <span
-                          className="ml-0.5 px-1 rounded text-[8px] font-semibold"
-                          style={{ background: "var(--border)", color: "var(--text-muted)" }}
+                          className="ml-0.5 px-1 py-0.5 rounded text-[8px] font-bold"
+                          style={{ background: "rgba(245,158,11,0.15)", color: "#d97706" }}
                         >
                           soon
                         </span>
@@ -416,6 +447,33 @@ export default function SearchForm() {
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
             · {totalCost} kreditov
           </span>
+        )}
+
+        {/* Stats below grid */}
+        {reportCount > 0 && (
+          <div
+            className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1 pt-2 text-xs"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <span className="font-semibold" style={{ color: "var(--text)" }}>
+              {reportCount}
+            </span>
+            <span>reportov</span>
+            <span className="mx-1.5" style={{ color: "var(--border-strong)" }}>·</span>
+            <span className="font-semibold" style={{ color: "#10b981" }}>
+              {completedCount}
+            </span>
+            <span>dokončených</span>
+            {processingCount > 0 && (
+              <>
+                <span className="mx-1.5" style={{ color: "var(--border-strong)" }}>·</span>
+                <span className="font-semibold" style={{ color: "#3b82f6" }}>
+                  {processingCount}
+                </span>
+                <span>prebieha</span>
+              </>
+            )}
+          </div>
         )}
       </div>
 

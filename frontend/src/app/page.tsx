@@ -54,17 +54,17 @@ export default async function DashboardPage() {
   return (
     <div style={{ minHeight: "calc(100vh - 56px)" }}>
 
-      {/* ── HERO: centered search ─────────────────── */}
+      {/* ── HERO: compact centered search ─────────── */}
       <section
-        className="flex flex-col items-center px-4 sm:px-6 pt-10 sm:pt-16 pb-10 sm:pb-12"
+        className="flex flex-col items-center px-4 sm:px-6 pt-6 sm:pt-8 pb-6 sm:pb-8"
         style={{
           borderBottom: reports.length > 0 ? "1px solid var(--border)" : "none",
         }}
       >
-        {/* Heading */}
-        <div className="text-center mb-8 fade-in">
+        {/* Heading — compact */}
+        <div className="text-center mb-5 fade-in">
           <h1
-            className="text-2xl sm:text-4xl font-bold mb-3"
+            className="text-xl sm:text-2xl font-bold mb-1.5"
             style={{
               color: "var(--text)",
               letterSpacing: "-0.04em",
@@ -73,44 +73,17 @@ export default async function DashboardPage() {
           >
             Overenie subjektu
           </h1>
-          <p className="text-sm px-2" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs sm:text-sm px-2" style={{ color: "var(--text-muted)" }}>
             Zadajte IČO alebo meno osoby a vyberte registre, ktoré chcete preveriť
           </p>
         </div>
 
         {/* Search form */}
-        <div className="w-full" style={{ maxWidth: 620 }}>
+        <div className="w-full" style={{ maxWidth: 560 }}>
           <Suspense fallback={null}>
-            <ReportForm />
+            <ReportForm reportCount={stats.total} completedCount={stats.completed} processingCount={stats.processing} />
           </Suspense>
         </div>
-
-        {/* Quick stats */}
-        {reports.length > 0 && (
-          <div
-            className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1 mt-8 text-xs fade-in"
-            style={{ animationDelay: "120ms", color: "var(--text-muted)" }}
-          >
-            <span className="font-semibold" style={{ color: "var(--text)" }}>
-              {stats.total}
-            </span>
-            <span>reportov</span>
-            <span className="mx-2" style={{ color: "var(--border-strong)" }}>·</span>
-            <span className="font-semibold" style={{ color: "#10b981" }}>
-              {stats.completed}
-            </span>
-            <span>dokončených</span>
-            {stats.processing > 0 && (
-              <>
-                <span className="mx-2" style={{ color: "var(--border-strong)" }}>·</span>
-                <span className="font-semibold" style={{ color: "#3b82f6" }}>
-                  {stats.processing}
-                </span>
-                <span>prebieha</span>
-              </>
-            )}
-          </div>
-        )}
       </section>
 
       {/* ── REPORTS TABLE (Client Component) ─────── */}
