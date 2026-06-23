@@ -398,14 +398,14 @@ export default function ReportDetailPage() {
                 disabled={retrying}
                 className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
                 style={{
-                  background: "#ef4444",
+                  background: "var(--accent)",
                   color: "white",
                   height: "40px",
                   padding: "0 18px",
                   fontSize: "13.5px",
                   fontWeight: 600,
                   border: "none",
-                  boxShadow: "0 2px 4px rgba(239, 68, 68, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
+                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
                 }}
               >
                 {retrying ? (
