@@ -217,7 +217,7 @@ class CoverPageGenerator:
         def _effective_status(source) -> str:
             """Vráti efektívny status — ak findings obsahujú POZOR, ide o varovanie."""
             findings = (source.findings or source.message or "").upper()
-            if "POZOR" in findings or "NEDOPLATOK" in findings or "DLŽNÍK" in findings or "DLŽNÁ SUMA" in findings:
+            if "POZOR" in findings:
                 return "WARNING"
             return source.status
 
@@ -261,6 +261,8 @@ class CoverPageGenerator:
         def _build_findings(source) -> Paragraph:
             findings = source.findings or source.message or "Bez záznamu."
             findings = xml_escape(findings)
+            # Konverzia nových riadkov na <br/> — ReportLab Paragraph ignoruje \n
+            findings = findings.replace("\n", "<br/>")
 
             if "POZOR" in findings:
                 findings = findings.replace("POZOR!", '<font color="#ef4444"><b>POZOR!</b></font>')
