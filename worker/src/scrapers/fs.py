@@ -31,7 +31,6 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
                 formatted = await self._parse_table_with_headers(page)
                 if formatted:
                     return f"POZOR: Subjekt '{search_term}' je v zozname daňových dlžníkov.\n" + "\n\n".join(formatted)
-                return f"POZOR: Subjekt '{search_term}' je v zozname daňových dlžníkov (detaily v PDF)."
 
             return f"Subjekt '{search_term}' nájdený v zozname Finančnej správy bez zistených nedoplatkov."
 

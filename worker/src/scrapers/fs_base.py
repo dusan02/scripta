@@ -116,8 +116,12 @@ class FinancnaSpravaBase(BaseScraper):
             logger.warning(f"[{self.source_type}] Extrakcia riadkov tabuľky zlyhala: {e}")
             return []
 
-    async def _parse_table_with_headers(self, page: Page, max_rows: int = 5) -> list[str]:
-        """Extrahuje riadky z tabuľky s hlavičkou. Vráti zoznam formátovaných reťazcov 'Stĺpec: hodnota'."""
+    async def _parse_table_with_headers(self, page: Page, max_rows: int = 5, skip_columns: set[str] | None = None) -> list[str]:
+        """Extrahuje riadky z tabuľky s hlavičkou. Vráti zoznam formátovaných reťazcov 'Stĺpec: hodnota'.
+
+        Args:
+            skip_columns: názvy stĺpcov (lowercase), ktoré sa majú vynechať (napr. redundantné údaje o firme).
+        """
         try:
             headers = []
             header_loc = page.locator("table thead tr th, .table thead tr th, table thead tr td")
@@ -132,10 +136,14 @@ class FinancnaSpravaBase(BaseScraper):
             if not rows:
                 return []
 
+            skip = skip_columns or set()
             formatted = []
             for row_data in rows:
                 if headers and len(headers) >= len(row_data):
-                    parts = [f"  {headers[h_idx]}: {val}" for h_idx, val in enumerate(row_data) if val]
+                    parts = []
+                    for h_idx, val in enumerate(row_data):
+                        if val and headers[h_idx].lower() not in skip:
+                            parts.append(f"  {headers[h_idx]}: {val}")
                     formatted.append("\n".join(parts))
                 else:
                     parts = [f"  • {val}" for val in row_data if val]
