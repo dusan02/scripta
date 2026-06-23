@@ -34,6 +34,7 @@ function LogOutIcon() {
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
+  { href: "/history", label: "História" },
   { href: "/settings", label: "Nastavenia" },
 ];
 
