@@ -325,9 +325,9 @@ export default function ReportDetailPage() {
           style={{ 
             background: "var(--surface)", 
             color: "var(--text-secondary)", 
-            height: "36px", 
-            padding: "0 16px",
-            fontSize: "13px", 
+            height: "40px", 
+            padding: "0 18px",
+            fontSize: "13.5px", 
             fontWeight: 600,
             borderColor: "var(--border)",
             boxShadow: "var(--shadow-sm)",
