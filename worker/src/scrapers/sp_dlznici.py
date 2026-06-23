@@ -130,10 +130,16 @@ class SpDlzniciScraper(BaseScraper):
                     findings="Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení.",
                 )
 
-            # Ak sme prešli empty markers, subjekt JE v zozname dlžníkov
+            # Ak sme prešli empty markers, skontrolujeme či hľadané IČO je v tabuľke
             findings = await self._extract_findings(page, ico)
-            if findings is None:
-                findings = f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Sociálnej poisťovne."
+            if findings is None or ico not in (findings or ""):
+                logger.info(f"[{self.source_type}] Hľadané IČO {ico} sa nenašlo v tabuľke — nie je dlžník.")
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=None,
+                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov Sociálnej poisťovne.",
+                    findings="Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení.",
+                )
 
             # Generovať PDF z výsledkovej stránky — len tabuľka s výsledkami
             pdf_output = output_dir / f"sp_dlznici_{ico}.pdf"
