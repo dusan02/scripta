@@ -34,6 +34,7 @@ class BaseScraper(ABC):
     def __init__(self, browser: Optional[Browser] = None):
         self.browser = browser
         self._owned_browser = False
+        self._contexts: list = []
 
     @abstractmethod
     async def run(self, **kwargs) -> ScrapedSource:
@@ -43,12 +44,15 @@ class BaseScraper(ABC):
     async def _get_page(self, block_images: bool = True) -> Page:
         """Lazily start a browser if one was not injected.
         block_images: ak True, blokuje obrázky/fonty/media pre rýchlosť (text-only scraping).
-        Scrapery ktoré generujú PDF s obrázkami (ORSR, RPVS) musia dať block_images=False."""
+        Scrapery ktoré generujú PDF s obrázkami (ORSR, RPVS) musia dať block_images=False.
+        Každý scraper dostáva vlastný browser context (izolované cookies/session)."""
         if self.browser is None:
             self._playwright = await async_playwright().start()
             self.browser = await self._playwright.chromium.launch(headless=settings.playwright_headless)
             self._owned_browser = True
-        page = await self.browser.new_page()
+        context = await self.browser.new_context()
+        self._contexts.append(context)
+        page = await context.new_page()
 
         # Block unnecessary resources to speed up page loads (len ak block_images=True).
         # Obrázky blokujeme pri text-only scraperoch; fonty/media vždy (nepotrebné pre PDF).
@@ -69,7 +73,13 @@ class BaseScraper(ABC):
         return page
 
     async def _close(self) -> None:
-        """Close browser only if we created it."""
+        """Close browser contexts and browser if we created it."""
+        for ctx in self._contexts:
+            try:
+                await ctx.close()
+            except Exception:
+                pass
+        self._contexts.clear()
         if self._owned_browser and self.browser:
             await self.browser.close()
             if hasattr(self, "_playwright"):

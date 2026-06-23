@@ -37,6 +37,7 @@ class SpDlzniciScraper(BaseScraper):
             viewport={'width': 1920, 'height': 1080},
             locale='sk-SK',
         )
+        self._contexts.append(ctx)
         page = await ctx.new_page()
         return page
 
