@@ -18,10 +18,27 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.graphics.shapes import Drawing, Circle
+from reportlab.graphics.shapes import Drawing, Circle, RoundedRect, String
 
 from ..models import ScrapedSource
 
+
+# Vizuálne ikony zdrojov — farebné badge so skratkou
+_SOURCE_ICONS = {
+    "ORSR": ("OR", "#2563eb"),
+    "ZRSR": ("ZR", "#7c3aed"),
+    "INSOLVENCY": ("RU", "#dc2626"),
+    "RPVS": ("RP", "#0d9488"),
+    "FINANCNA_SPRAVA": ("DD", "#ea580c"),
+    "FS_DPH_RUSENIE": ("DR", "#f59e0b"),
+    "FS_DPH_VYMAZANI": ("DV", "#f59e0b"),
+    "FS_DANOVE_SUBJEKTY": ("DS", "#ea580c"),
+    "FS_DAN_Z_PRIJMOV": ("DP", "#ea580c"),
+    "FS_DPH_NADMERNY_ODPOCET": ("DN", "#f59e0b"),
+    "FS_DPH_REGISTROVANI": ("DG", "#f59e0b"),
+    "FS_DAN_PRIJMOV_REG": ("DPR", "#ea580c"),
+    "SP_DLZNICI": ("SP", "#db2777"),
+}
 
 # Friendly názvy zdrojov pre cover page (raw enum je príliš dlhý pre tabuľku)
 _SOURCE_LABELS = {
@@ -179,7 +196,7 @@ class CoverPageGenerator:
         story.append(Paragraph(f"<b>Vygenerované:</b> {generated_at.strftime('%d.%m.%Y %H:%M:%S')}", subtitle_style))
         total_pages = sum(s.page_count or 0 for s in sources if s.status == "SUCCESS")
         story.append(Paragraph(f"<b>Počet strán:</b> {total_pages}", subtitle_style))
-        story.append(Spacer(1, 1.0 * cm))
+        story.append(Spacer(1, 0.6 * cm))
 
         # ── Section heading ────────────────────────────────────────
         story.append(Paragraph("Prehľad zdrojov", section_style))
@@ -187,8 +204,8 @@ class CoverPageGenerator:
 
         from xml.sax.saxutils import escape as xml_escape
 
-        # Stĺpce: Icon (0.8cm) | Zdroj (3.5cm) | Strana (1.6cm) | Stav (2.2cm) | Nálezy (8.0cm)
-        col_widths = [0.8 * cm, 3.5 * cm, 1.6 * cm, 2.2 * cm, 8.0 * cm]
+        # Stĺpce: Icon (1.0cm) | Zdroj (3.3cm) | Lokalizácia (1.5cm) | Stav (2.5cm) | Nálezy (7.8cm)
+        col_widths = [1.0 * cm, 3.3 * cm, 1.5 * cm, 2.5 * cm, 7.8 * cm]
 
         # Status farby
         _STATUS_COLORS = {
@@ -197,31 +214,42 @@ class CoverPageGenerator:
             "FAILED":      "#ef4444",
         }
 
-        def _build_status_icon(status: str) -> Drawing:
-            """Malý farebný kruh ako stavová ikona — spoľahlivé naprieč PDF čítačkami."""
-            color_hex = _STATUS_COLORS.get(status, "#71717a")
+        def _build_source_icon(source_type: str) -> Drawing:
+            """Farebný badge so skratkou zdroja."""
+            abbr, color_hex = _SOURCE_ICONS.get(source_type, ("?", "#71717a"))
             fill = colors.HexColor(color_hex)
-            d = Drawing(12, 12)
-            d.add(Circle(6, 6, 5, fillColor=fill, strokeColor=None))
-            if status == "FAILED":
-                d.add(Circle(6, 6, 2, fillColor=colors.white, strokeColor=None))
-            elif status == "UNAVAILABLE":
-                d.add(Circle(6, 6, 2, fillColor=colors.white, strokeColor=None))
+            w, h = 22, 14
+            d = Drawing(w, h)
+            d.add(RoundedRect(0, 0, w, h, 3, fillColor=fill, strokeColor=None))
+            d.add(String(w / 2, 4, abbr, textAnchor="middle",
+                         fontName="Inter-Bold", fontSize=7, fillColor=colors.white))
             return d
 
-        def _build_status_text(status: str) -> Paragraph:
+        def _build_status_pill(status: str) -> Table:
+            """Pill-shaped status badge s ikonou a textom."""
             color = _STATUS_COLORS.get(status, "#71717a")
             if status == "SUCCESS":
-                label = "V poriadku"
+                icon, label = "✓", "V poriadku"
             elif status == "UNAVAILABLE":
-                label = "Nedostupné"
+                icon, label = "⚠", "Nedostupné"
             else:
-                label = "Zlyhal"
-            return Paragraph(
-                f'<font size="9" color="{color}"><b>●</b></font>'
-                f' <font color="{color}">{label}</font>',
+                icon, label = "✗", "Zlyhal"
+            text = Paragraph(
+                f'<font color="white" size="8"><b>{icon} {label}</b></font>',
                 table_style,
             )
+            pill = Table([[text]], colWidths=[2.3 * cm])
+            pill.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(color)),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
+            ]))
+            return pill
 
         def _build_findings(source) -> Paragraph:
             findings = source.findings or source.message or "Bez záznamu."
@@ -259,10 +287,10 @@ class CoverPageGenerator:
             start_page = getattr(source, "start_page", None)
             page_text = str(start_page) if start_page else "—"
             return [
-                _build_status_icon(source.status),
+                _build_source_icon(source.source_type),
                 _build_source_label(source),
                 Paragraph(page_text, ParagraphStyle("PageNum", parent=table_style, alignment=1)),
-                _build_status_text(source.status),
+                _build_status_pill(source.status),
                 _build_findings(source),
             ]
 
@@ -281,13 +309,13 @@ class CoverPageGenerator:
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
         ]
 
-        # ── Column header table (Zdroj | Strana | Stav | Nálezy) ───
+        # ── Column header table (Zdroj | Lokalizácia | Stav | Nálezy) ───
         header_row = [
             Paragraph("", table_style),
             Paragraph("<b>Zdroj</b>", table_style),
-            Paragraph("<b>Strana</b>", table_style),
+            Paragraph("<b>Lokalizácia</b>", table_style),
             Paragraph("<b>Stav</b>", table_style),
-            Paragraph("<b>Nálezy</b>", table_style),
+            Paragraph("<b>Súhrnný nález</b>", table_style),
         ]
         header_table = Table([header_row], colWidths=col_widths)
         header_table.setStyle(TableStyle(_base_table_style + [
@@ -347,10 +375,28 @@ class CoverPageGenerator:
         if remaining:
             story.append(_build_category_block("Ostatné", remaining))
 
-        story.append(Spacer(1, 0.6 * cm))
+        story.append(Spacer(1, 0.4 * cm))
 
-        summary = self._build_summary(sources)
-        story.append(Paragraph(f"<b>Zhrnutie:</b> {summary}", subtitle_style))
+        # ── Summary with status counts ─────────────────────────────
+        total = len(sources)
+        successful = sum(1 for s in sources if s.status == "SUCCESS")
+        unavailable = sum(1 for s in sources if s.status == "UNAVAILABLE")
+        failed = total - successful - unavailable
+
+        summary_parts = []
+        if successful:
+            summary_parts.append(f'<font color="#10b981"><b>✓ {successful}</b></font> V poriadku')
+        if unavailable:
+            summary_parts.append(f'<font color="#f59e0b"><b>⚠ {unavailable}</b></font> Upozornenie')
+        if failed:
+            summary_parts.append(f'<font color="#ef4444"><b>✗ {failed}</b></font> Zlyhal')
+        summary_text = "  •  ".join(summary_parts) if summary_parts else "Žiadne zdroje."
+
+        summary_style = ParagraphStyle(
+            "SummaryStyle", parent=subtitle_style,
+            fontSize=10, leading=14, textColor=colors.HexColor("#18181b"),
+        )
+        story.append(Paragraph(f"<b>Zhrnutie:</b> {summary_text}", summary_style))
 
         doc.build(story)
 
