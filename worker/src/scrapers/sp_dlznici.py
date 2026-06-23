@@ -214,14 +214,22 @@ class SpDlzniciScraper(BaseScraper):
     async def _extract_findings(self, page: Page, ico: str) -> Optional[str]:
         """Extrahuje nálezy z výsledkovej tabuľky — volané len ak sme prešli empty markers (subjekt JE dlžník)."""
         try:
-            # Skúsime rôzne selektory — Drupal tabuľky nemusia mať tbody
-            rows = page.locator("table tbody tr, table tr")
+            # Drupal Views tabuľka — td majú class "views-field views-field-<name>"
+            rows = page.locator("table tbody tr")
             count = await rows.count()
             if count == 0:
                 logger.warning(f"[{self.source_type}] Tabuľka s výsledkami sa nenašla.")
                 return None
 
-            clean_headers = ["Názov / Meno", "IČO", "Adresa", "Mesto", "Dlžná suma", "Chýbajúce podklady za obdobie"]
+            # Mapovanie Drupal field class → názov stĺpca
+            field_map = {
+                "views-field-name":       "Názov / Meno",
+                "views-field-ico":        "IČO",
+                "views-field-address":    "Adresa",
+                "views-field-city":       "Mesto",
+                "views-field-debt-amount": "Dlžná suma",
+                "views-field-missing-documents": "Chýbajúce podklady za obdobie",
+            }
 
             result_lines = []
             for i in range(min(count, 5)):
@@ -232,20 +240,33 @@ class SpDlzniciScraper(BaseScraper):
                 row_data = []
                 for c in range(cell_count):
                     try:
-                        val = (await cells.nth(c).inner_text(timeout=2000)).strip()
+                        cell = cells.nth(c)
+                        cls = await cell.get_attribute("class") or ""
+                        val = (await cell.inner_text(timeout=2000)).strip()
                     except PlaywrightTimeoutError:
                         val = ""
+                        cls = ""
+                    # Odstránime 'zoradiť podľa ...' texty z Drupal tabuľky
                     val = re.sub(r'\s*zoradiť podľa\s+.*$', '', val).strip()
-                    if val:
-                        row_data.append(val)
+                    if not val:
+                        continue
+                    # Nájdi názov stĺpca z Drupal class
+                    label = None
+                    for cls_key, cls_label in field_map.items():
+                        if cls_key in cls:
+                            label = cls_label
+                            break
+                    row_data.append((label, val))
 
                 if not row_data:
                     continue
 
-                if len(clean_headers) >= len(row_data):
-                    parts = [f"  {clean_headers[h_idx]}: {val}" for h_idx, val in enumerate(row_data) if val]
-                else:
-                    parts = [f"  • {val}" for val in row_data if val]
+                parts = []
+                for label, val in row_data:
+                    if label:
+                        parts.append(f"  {label}: {val}")
+                    else:
+                        parts.append(f"  • {val}")
                 result_lines.append("\n".join(parts))
 
             if not result_lines:
