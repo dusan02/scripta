@@ -18,7 +18,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.graphics.shapes import Drawing, Circle, RoundedRect, String
+from reportlab.graphics.shapes import Drawing, Circle, Rect, String
 
 from ..models import ScrapedSource
 
@@ -220,7 +220,7 @@ class CoverPageGenerator:
             fill = colors.HexColor(color_hex)
             w, h = 22, 14
             d = Drawing(w, h)
-            d.add(RoundedRect(0, 0, w, h, 3, fillColor=fill, strokeColor=None))
+            d.add(Rect(0, 0, w, h, rx=3, ry=3, fillColor=fill, strokeColor=None))
             d.add(String(w / 2, 4, abbr, textAnchor="middle",
                          fontName="Inter-Bold", fontSize=7, fillColor=colors.white))
             return d
@@ -247,7 +247,6 @@ class CoverPageGenerator:
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                 ("LEFTPADDING", (0, 0), (-1, -1), 6),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                ("ROUNDEDCORNERS", [4, 4, 4, 4]),
             ]))
             return pill
 
