@@ -121,30 +121,22 @@ class SpDlzniciScraper(BaseScraper):
                 "neboli nájdené žiadne",
                 "žiadne výsledky",
             ]
-            if any(marker in text_lower for marker in empty_markers):
-                logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov.")
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=None,
-                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov Sociálnej poisťovne.",
-                    findings="Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení.",
-                )
+            is_empty = any(marker in text_lower for marker in empty_markers)
 
             # Ak sme prešli empty markers, skontrolujeme či hľadané IČO je v tabuľke
-            findings = await self._extract_findings(page, ico)
-            if findings is None or ico not in (findings or ""):
-                logger.info(f"[{self.source_type}] Hľadané IČO {ico} sa nenašlo v tabuľke — nie je dlžník.")
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=None,
-                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov Sociálnej poisťovne.",
-                    findings="Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení.",
-                )
+            findings = None
+            is_debtor = False
+            if not is_empty:
+                findings = await self._extract_findings(page, ico)
+                is_debtor = findings is not None and ico in findings
 
-            # Generovať PDF z výsledkovej stránky — len tabuľka s výsledkami
+            if not is_debtor:
+                logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov.")
+                findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení."
+
+            # Generovať PDF z výsledkovej stránky vždy — aj keď nie je dlžník
             pdf_output = output_dir / f"sp_dlznici_{ico}.pdf"
             try:
-                # Skryjeme navigáciu/footer/hlavičku a popisný úvodný obsah, necháme len tabuľku.
                 await page.add_style_tag(content="""
                     header, footer, nav, .header, .footer, .navigation, .menu,
                     .breadcrumb, .sidebar, #header, #footer, #navigation,
@@ -157,7 +149,6 @@ class SpDlzniciScraper(BaseScraper):
                     main, .main-content, .content, .region-content {
                         margin: 0 !important; padding: 0 !important;
                     }
-                    /* Tabuľka na celú šírku, menšie písmo aby sa zmestila */
                     table { width: 100% !important; font-size: 10px !important; table-layout: auto !important; }
                     td, th { padding: 3px 5px !important; word-break: break-word !important; }
                 """)
@@ -173,25 +164,27 @@ class SpDlzniciScraper(BaseScraper):
                 logger.info(f"[{self.source_type}] PDF vygenerované: {pdf_output}")
             except Exception as e:
                 logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")
-                if findings:
-                    return self._make_result(
-                        status="SUCCESS",
-                        file_path=None,
-                        status_message=f"Subjekt {ico} je v zozname dlžníkov Sociálnej poisťovne (PDF zlyhalo).",
-                        findings=findings,
-                    )
                 return self._make_result(
                     status="FAILED",
                     status_message=f"Chyba pri generovaní PDF: {e}",
                 )
 
-            return self._make_result(
-                status="SUCCESS",
-                file_path=str(pdf_output),
-                page_count=1,
-                status_message=f"Subjekt {ico} je v zozname dlžníkov Sociálnej poisťovne.",
-                findings=findings,
-            )
+            if is_debtor:
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message=f"Subjekt {ico} je v zozname dlžníkov Sociálnej poisťovne.",
+                    findings=findings,
+                )
+            else:
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov Sociálnej poisťovne.",
+                    findings=findings,
+                )
 
         except ScraperUnavailableError as e:
             logger.error(f"[{self.source_type}] Nedostupné: {e}")
