@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     playwright_timeout: int = 60_000
     scraper_retries: int = 2
     scraper_retry_delay: float = 1.5
+    # Debug screenshoty počas scrapovania — vypnuté v produkcii (spomaľujú a zapisujú na disk)
+    debug_screenshots: bool = False
 
     # Shared-secret medzi Next.js API a workerom (voliteľné v dev; povinné v produkcii)
     worker_secret: Optional[str] = None

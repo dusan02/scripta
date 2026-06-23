@@ -36,6 +36,7 @@ _SOURCE_LABELS = {
     "FS_DPH_NADMERNY_ODPOCET": "DPH nadmerný odpočet",
     "FS_DPH_REGISTROVANI": "DPH registrovaní",
     "FS_DAN_PRIJMOV_REG": "Daň z príjmov (reg.)",
+    "SP_DLZNICI": "Soc. poisťovňa",
 }
 
 # Zoskupenie zdrojov do kategórií pre prehľadnejšie zobrazenie
@@ -45,6 +46,7 @@ _SOURCE_CATEGORIES = [
     ("Finančná správa SR — DPH", ["FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI"]),
     ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
+    ("Poisťovne a inštitúcie", ["SP_DLZNICI"]),
 ]
 
 # Mapa source_type -> category label pre rýchle hľadanie
@@ -174,6 +176,8 @@ class CoverPageGenerator:
         if target_type == "COMPANY" and company_name:
             story.append(Paragraph(f"<b>Obchodné meno:</b> {company_name}", subtitle_style))
         story.append(Paragraph(f"<b>Vygenerované:</b> {generated_at.strftime('%d.%m.%Y %H:%M:%S')}", subtitle_style))
+        total_pages = sum(s.page_count or 0 for s in sources if s.status == "SUCCESS")
+        story.append(Paragraph(f"<b>Počet strán:</b> {total_pages}", subtitle_style))
         story.append(Spacer(1, 1.0 * cm))
 
         # ── Section heading ────────────────────────────────────────
@@ -182,8 +186,8 @@ class CoverPageGenerator:
 
         from xml.sax.saxutils import escape as xml_escape
 
-        # Stĺpce: Icon (0.8cm) | Zdroj (3.5cm) | Status (2.5cm) | Strana (1.5cm) | Nálezy (7.7cm)
-        col_widths = [0.8 * cm, 3.5 * cm, 2.5 * cm, 1.5 * cm, 7.7 * cm]
+        # Stĺpce: Icon (0.8cm) | Zdroj (3.7cm) | Strana (1.3cm) | Stav (2.2cm) | Nálezy (8.0cm)
+        col_widths = [0.8 * cm, 3.7 * cm, 1.3 * cm, 2.2 * cm, 8.0 * cm]
 
         # Status ikonky — Unicode symboly v jednotnej farbe
         _STATUS_ICONS = {
@@ -201,7 +205,7 @@ class CoverPageGenerator:
 
         def _build_status_text(status: str) -> Paragraph:
             if status == "SUCCESS":
-                return Paragraph('<font color="#10b981">Úspech</font>', table_style)
+                return Paragraph('<font color="#10b981">V poriadku</font>', table_style)
             elif status == "UNAVAILABLE":
                 return Paragraph('<font color="#f59e0b">Nedostupné</font>', table_style)
             else:
@@ -224,17 +228,12 @@ class CoverPageGenerator:
 
             return Paragraph(findings, table_style)
 
-        def _build_page_link(source) -> Paragraph:
-            if source.start_page is not None:
-                return Paragraph(f'<a href="http://PAGE_{source.start_page}" color="#2563eb"><u>{source.start_page}</u></a>', table_style)
-            return Paragraph("—", table_style)
-
         # Header riadok
         header_row = [
             Paragraph("", table_style),
             Paragraph("<b>Zdroj</b>", table_style),
-            Paragraph("<b>Stav</b>", table_style),
             Paragraph("<b>Strana</b>", table_style),
+            Paragraph("<b>Stav</b>", table_style),
             Paragraph("<b>Nálezy</b>", table_style),
         ]
 
@@ -245,6 +244,7 @@ class CoverPageGenerator:
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#18181b")),
             ("ALIGN", (0, 0), (-1, -1), "LEFT"),
             ("ALIGN", (0, 0), (0, -1), "CENTER"),  # Icon column centered
+            ("ALIGN", (2, 0), (2, -1), "CENTER"),  # Strana column centered
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("FONTNAME", (0, 0), (-1, 0), "Inter-Bold"),
             ("FONTNAME", (0, 1), (-1, -1), "Inter"),
@@ -258,6 +258,19 @@ class CoverPageGenerator:
         ]
 
         current_row = 1  # 0 = header
+
+        def _build_source_label(source) -> Paragraph:
+            """Názov zdroja — klikateľný odkaz na jeho stranu v dokumente (ak má PDF sekciu)."""
+            label = _SOURCE_LABELS.get(source.source_type, source.source_type)
+            start_page = getattr(source, "start_page", None)
+            if start_page:
+                # compiler.py prevedie 'http://PAGE_N' na interný GoTo odkaz.
+                # <u> podčiarknutie aby bolo jasne vidno že ide o klikateľný odkaz.
+                return Paragraph(
+                    f'<a href="http://PAGE_{start_page}" color="#2563eb"><u>{label}</u></a>',
+                    table_style,
+                )
+            return Paragraph(label, table_style)
 
         # Zoskupenie podľa kategórií
         source_map = {s.source_type: s for s in sources}
@@ -282,11 +295,13 @@ class CoverPageGenerator:
 
             for source in cat_sources:
                 rendered_sources.add(source.source_type)
+                start_page = getattr(source, "start_page", None)
+                page_text = str(start_page) if start_page else "—"
                 table_data.append([
                     _build_status_icon(source.status),
-                    Paragraph(_SOURCE_LABELS.get(source.source_type, source.source_type), table_style),
+                    _build_source_label(source),
+                    Paragraph(page_text, ParagraphStyle("PageNum", parent=table_style, alignment=1)),
                     _build_status_text(source.status),
-                    _build_page_link(source),
                     _build_findings(source),
                 ])
                 table_styles.append(("LINEBELOW", (0, current_row), (-1, current_row), 0.5, colors.HexColor("#f0f0f0")))
@@ -307,11 +322,13 @@ class CoverPageGenerator:
             current_row += 1
 
             for source in remaining:
+                start_page = getattr(source, "start_page", None)
+                page_text = str(start_page) if start_page else "—"
                 table_data.append([
                     _build_status_icon(source.status),
-                    Paragraph(_SOURCE_LABELS.get(source.source_type, source.source_type), table_style),
+                    _build_source_label(source),
+                    Paragraph(page_text, ParagraphStyle("PageNum", parent=table_style, alignment=1)),
                     _build_status_text(source.status),
-                    _build_page_link(source),
                     _build_findings(source),
                 ])
                 table_styles.append(("LINEBELOW", (0, current_row), (-1, current_row), 0.5, colors.HexColor("#f0f0f0")))

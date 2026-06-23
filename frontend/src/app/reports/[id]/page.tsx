@@ -233,18 +233,7 @@ export default function ReportDetailPage() {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const res = await fetch(`/api/reports/${params.id}/download`);
-      if (!res.ok) {
-        alert("PDF nie je dostupné.");
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `report-${params.id}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      window.open(`/api/reports/${params.id}/download`, "_blank");
     } finally {
       setDownloading(false);
     }

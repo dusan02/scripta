@@ -1,12 +1,15 @@
 from __future__ import annotations
+import asyncio
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
 from .base import BaseScraper, ScraperUnavailableError
+from ..config import settings
 from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
@@ -31,6 +34,37 @@ class FinancnaSpravaBase(BaseScraper):
     # 'name' = vyhľadávanie podľa názvu subjektu (vyžaduje ORSR pre company_name)
     search_by: str = "name"
 
+    async def _safe_goto(self, page: Page, url: str, retries: int = None) -> Page:
+        """FS server občas zasekne konkrétne spojenie (page), zatiaľ čo iné fungujú.
+        Preto pri timeoute zatvoríme zaseknutú page a retryneme na čerstvej page
+        (= čerstvé spojenie), ktorá zvyčajne prejde do 1s.
+        Vracia funkčnú page (môže byť iná než vstupná)."""
+        if retries is None:
+            retries = settings.scraper_retries + 2  # FS je flaky — viac pokusov
+        last_error: Optional[Exception] = None
+        for attempt in range(retries + 1):
+            try:
+                await page.goto(url, timeout=7000, wait_until="commit")
+                # Po commit počkáme na DOM, ale s krátkym limitom — obsah už beží
+                try:
+                    await page.wait_for_load_state("domcontentloaded", timeout=8000)
+                except PlaywrightTimeoutError:
+                    pass
+                return page
+            except (PlaywrightTimeoutError, PlaywrightError) as e:
+                last_error = e
+                delay = settings.scraper_retry_delay * (attempt + 1)
+                logger.warning(f"[{self.source_type}] goto attempt {attempt + 1}/{retries + 1} failed: {e} — čerstvá page, retry o {delay}s")
+                # Zatvoríme zaseknutú page a vytvoríme čerstvú (nové spojenie)
+                if attempt < retries:
+                    try:
+                        await page.close()
+                    except Exception:
+                        pass
+                    await asyncio.sleep(delay)
+                    page = await self._get_page()
+        raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
+
     # Zoznam textov indikujúcich prázdny výsledok — zdieľané medzi run() a _extract_findings()
     EMPTY_MARKERS: list[str] = [
         "zoznam neobsahuje žiadne položky",
@@ -42,23 +76,9 @@ class FinancnaSpravaBase(BaseScraper):
 
     async def _pre_link_click(self, page: Page) -> None:
         """Hook pre subclassy — volá sa pred hľadaním linku na zoznam.
-        Defaultne klikne na button 'www.info-efaktura.sk' ktorý otvorí popup."""
-        try:
-            btn = page.get_by_role("button", name="www.info-efaktura.sk")
-            await btn.wait_for(timeout=10000)
-            try:
-                async with page.context.expect_page(timeout=5000) as popup_info:
-                    await btn.click()
-                popup = await popup_info.value
-                await popup.close()
-            except PlaywrightTimeoutError:
-                pass
-            await page.wait_for_timeout(1000)
-            logger.info(f"[{self.source_type}] Button info-efaktura.sk kliknutý.")
-        except PlaywrightTimeoutError:
-            logger.info(f"[{self.source_type}] Button info-efaktura.sk sa nenašiel, pokračujem.")
-        except Exception as e:
-            logger.warning(f"[{self.source_type}] Pre-link-click chyba: {e}")
+        Defaultne nerobí nič; popup/modal už rieši _dismiss_modal.
+        Subclassy môžu prepísať pre špecifickú interakciu pred kliknutím na link."""
+        return None
 
     async def _is_empty_page(self, page: Page) -> bool:
         """Skontroluje či stránka obsahuje text indikujúci prázdny zoznam."""
@@ -80,7 +100,15 @@ class FinancnaSpravaBase(BaseScraper):
             for i in range(min(count, max_rows)):
                 cells = rows.nth(i).locator("td")
                 cell_count = await cells.count()
-                row_data = [(await cells.nth(c).inner_text()).strip() for c in range(cell_count)]
+                row_data = []
+                for c in range(cell_count):
+                    try:
+                        # Krátky timeout — tabuľka sa môže ešte dopĺňať, nečakáme default 30s
+                        val = (await cells.nth(c).inner_text(timeout=2000)).strip()
+                    except PlaywrightTimeoutError:
+                        val = ""
+                    if val:
+                        row_data.append(val)
                 if row_data:
                     result.append(row_data)
             return result
@@ -95,7 +123,10 @@ class FinancnaSpravaBase(BaseScraper):
             header_loc = page.locator("table thead tr th, .table thead tr th, table thead tr td")
             header_count = await header_loc.count()
             for h in range(header_count):
-                headers.append((await header_loc.nth(h).inner_text()).strip())
+                try:
+                    headers.append((await header_loc.nth(h).inner_text(timeout=2000)).strip())
+                except PlaywrightTimeoutError:
+                    headers.append("")
 
             rows = await self._parse_table_rows(page, max_rows)
             if not rows:
@@ -152,17 +183,23 @@ class FinancnaSpravaBase(BaseScraper):
                 logger.info(f"[{self.source_type}] Pôvodné meno: '{company_name}' → fulltext query: '{search_query}'")
 
             logger.info(f"[{self.source_type}] Začínam pre: {search_query} (search_by={self.search_by})")
+            _t = time.perf_counter()
+            _t0 = _t
             page = await self._get_page()
+            print(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
-            await self._safe_goto(page, self.base_url)
-            logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
+            page = await self._safe_goto(page, self.base_url)
+            print(f"[{self.source_type}] ⏱ goto base_url: {time.perf_counter() - _t:.2f}s (URL: {page.url})")
+            _t = time.perf_counter()
 
             # Modal dismissal
             await self._dismiss_modal(page)
-
             # Pre-link-click hook (napr. klik na button ktorý otvorí popup)
             await self._pre_link_click(page)
+            print(f"[{self.source_type}] ⏱ dismiss_modal + pre_link: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             # Navigácia na konkrétny zoznam
             logger.info(f"[{self.source_type}] Hľadám link '{self.zoznam_link_name}'...")
@@ -176,18 +213,22 @@ class FinancnaSpravaBase(BaseScraper):
                 # Skúsime partial match — get_by_role robí exact match
                 logger.info(f"[{self.source_type}] Exact link match zlyhal, skúšam partial...")
                 try:
-                    partial_link = page.locator(f'a:has-text("{self.zoznam_link_name}")').first
+                    partial_link = page.get_by_role("link", name=self.zoznam_link_name, exact=False).first
                     await partial_link.wait_for(timeout=5000)
                     await partial_link.click()
                     await page.wait_for_load_state("domcontentloaded", timeout=15000)
                     logger.info(f"[{self.source_type}] Na stránke zoznamu (partial match), URL: {page.url}")
                 except PlaywrightTimeoutError:
+                    logger.info(f"[{self.source_type}] ⏱ link_click (FAILED): {time.perf_counter() - _t:.2f}s")
                     logger.error(f"[{self.source_type}] Link '{self.zoznam_link_name}' sa nenašiel!")
                     await self._debug_screenshot(page, output_dir, ico, "no_link")
                     return self._make_result(
                         status="FAILED",
                         status_message=f"Nepodarilo sa nájsť link '{self.zoznam_link_name}'.",
                     )
+
+            print(f"[{self.source_type}] ⏱ link_click: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             # Debug screenshot
             await self._debug_screenshot(page, output_dir, ico, "after_modal")
@@ -220,9 +261,22 @@ class FinancnaSpravaBase(BaseScraper):
                     status_message="Nepodarilo sa nájsť tlačidlo Vyhľadať na stránke Finančnej správy.",
                 )
 
+            print(f"[{self.source_type}] ⏱ fill + click_search: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
+
             logger.info(f"[{self.source_type}] Vyhľadávanie spustené, čakám na výsledky...")
-            await page.wait_for_timeout(3000)
+            # Smart wait — skončíme hneď ako sa objaví výsledková tabuľka (zvyčajne <1s).
+            # Ak sa neobjaví do 3.5s, je to pravdepodobne prázdny výsledok — pokračujeme.
+            try:
+                await page.wait_for_selector(
+                    "table tbody tr, .table tbody tr, .datagrid tbody tr",
+                    timeout=3500,
+                )
+            except PlaywrightTimeoutError:
+                pass
             await self._debug_screenshot(page, output_dir, ico, "results")
+            print(f"[{self.source_type}] ⏱ wait_results: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             # Skontrolujeme či sú vôbec nejaké výsledky
             is_empty = await self._is_empty_page(page)
@@ -249,6 +303,7 @@ class FinancnaSpravaBase(BaseScraper):
             # Ak sú výsledky, skúsime PDF export
             pdf_output = output_dir / f"{self.file_prefix}_{ico}.pdf"
             downloaded = await self._download_pdf(page, pdf_output)
+            print(f"[{self.source_type}] ⏱ download_pdf: {time.perf_counter() - _t:.2f}s | CELKOM: {time.perf_counter() - _t0:.2f}s")
 
             if downloaded:
                 logger.info(f"[{self.source_type}] PDF úspešne stiahnuté: {pdf_output}")
@@ -307,7 +362,9 @@ class FinancnaSpravaBase(BaseScraper):
     # ── Zdieľané helper metódy ──────────────────────────────────────────
 
     async def _debug_screenshot(self, page: Page, output_dir: Path, ico: str, label: str, full_page: bool = False) -> None:
-        """Uloží debug screenshot do results/<id>/debug/."""
+        """Uloží debug screenshot do results/<id>/debug/ — len ak je zapnuté debug_screenshots."""
+        if not settings.debug_screenshots:
+            return
         try:
             debug_dir = output_dir / "debug"
             debug_dir.mkdir(parents=True, exist_ok=True)
@@ -321,19 +378,18 @@ class FinancnaSpravaBase(BaseScraper):
         """Zavrie modálny dialog — klikne na 'www.info-efaktura.sk' button."""
         try:
             efaktura_btn = page.get_by_role("button", name="www.info-efaktura.sk")
-            await efaktura_btn.wait_for(timeout=10000)
-            async with page.context.expect_page(timeout=10000) as popup_info:
+            await efaktura_btn.wait_for(timeout=5000)
+            async with page.context.expect_page(timeout=5000) as popup_info:
                 await efaktura_btn.click()
             popup = await popup_info.value
             logger.info(f"[{self.source_type}] Modal zatvorený, popup otvorený — zatváram ho.")
             await popup.close()
-            await page.wait_for_timeout(500)
             logger.info(f"[{self.source_type}] Popup zatvorený, pokračujem na hlavnej stránke.")
         except PlaywrightTimeoutError:
             logger.info(f"[{self.source_type}] 'www.info-efaktura.sk' button sa nenašiel, skúšam 'Rozumiem'...")
             try:
                 rozumiem_btn = page.get_by_role("button", name="Rozumiem")
-                await rozumiem_btn.wait_for(timeout=5000)
+                await rozumiem_btn.wait_for(timeout=3000)
                 await rozumiem_btn.click()
                 logger.info(f"[{self.source_type}] Modálny dialog — kliknuté 'Rozumiem'.")
                 await page.wait_for_timeout(1000)

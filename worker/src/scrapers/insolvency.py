@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -36,13 +37,18 @@ class InsolvencyScraper(BaseScraper):
         page: Optional[Page] = None
         try:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie. Typ: {target_type}")
+            _t = time.perf_counter()
             page = await self._get_page()
+            print(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
                 await page.goto(self.base_url, timeout=45000, wait_until="domcontentloaded")
             except PlaywrightTimeoutError:
                 raise ScraperUnavailableError("Timeout pri načítaní stránky Registra úpadcov.")
+            print(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             # Nový portál má univerzálne vyhľadávacie pole pre IČO aj meno
             search_query = ""
@@ -73,6 +79,7 @@ class InsolvencyScraper(BaseScraper):
                 raise ScraperUnavailableError("Timeout pri vyhľadávaní v Registri úpadcov.")
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Zlyhalo vyhľadávanie. Chyba: {e}")
+            print(f"[{self.source_type}] ⏱ fill + search: {time.perf_counter() - _t:.2f}s")
 
             return await self._process_results(page, label, output_dir, search_query)
 
@@ -106,7 +113,10 @@ class InsolvencyScraper(BaseScraper):
         search_query: str = "",
     ) -> ScrapedSource:
         logger.info(f"[{self.source_type}] Spracovávam výsledky vyhľadávania.")
+        _t = time.perf_counter()
         has_results, findings = await self._extract_findings(page, search_query)
+        print(f"[{self.source_type}] ⏱ extract_findings: {time.perf_counter() - _t:.2f}s")
+        _t = time.perf_counter()
 
         if has_results:
             # Klikneme na detail konania, aby sme ho stiahli namiesto zoznamu vyhľadávania
@@ -126,8 +136,6 @@ class InsolvencyScraper(BaseScraper):
         pdf_output = output_dir / f"insolvency_{label}.pdf"
         
         try:
-            await page.wait_for_timeout(2000)
-            
             # Skryjeme navigačné/neestetické prvky a zakážeme zobrazenie URL odkazov v zátvorkách pri tlači
             await page.add_style_tag(content="""
                 #header, #footer, .menubar, .konanie-detail-osoby-eform-link {
@@ -139,6 +147,7 @@ class InsolvencyScraper(BaseScraper):
             """)
             
             await self._print_page_to_pdf(page, pdf_output)
+            print(f"[{self.source_type}] ⏱ detail + print_pdf: {time.perf_counter() - _t:.2f}s")
             logger.info(f"[{self.source_type}] PDF úspešne vygenerované na {pdf_output}")
         except Exception as e:
             logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")

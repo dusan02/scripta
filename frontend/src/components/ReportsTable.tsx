@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
@@ -52,6 +52,12 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [modal, setModal] = useState<{ type: "single" | "all"; reportId?: string; subject?: string } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const timeAgoSafe = useMemo(
+    () => (date: string) => mounted ? timeAgo(date) : "",
+    [mounted]
+  );
 
   const handleDelete = useCallback((e: React.MouseEvent, reportId: string, subject: string) => {
     e.preventDefault();
@@ -143,7 +149,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
         <div
           className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider"
           style={{
-            gridTemplateColumns: "200px 1fr 100px 80px 60px",
+            gridTemplateColumns: "190px 1fr 90px 90px 90px",
             background: "var(--bg-subtle)",
             borderBottom: "1px solid var(--border)",
             color: "var(--text-muted)",
@@ -153,7 +159,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
           <span>Registre</span>
           <span>Čas</span>
           <span>Stav</span>
-          <span />
+          <span className="text-right">Akcia</span>
         </div>
 
         {/* Rows */}
@@ -178,8 +184,10 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
               >
                 {/* Desktop row */}
                 <div
-                  className="hidden md:grid items-center px-4 py-3"
-                  style={{ gridTemplateColumns: "200px 1fr 100px 80px 60px" }}
+                  className="hidden md:grid items-center px-4 py-3 transition-colors duration-100"
+                  style={{ gridTemplateColumns: "190px 1fr 90px 90px 90px" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
                   {/* Identifier */}
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -236,7 +244,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
 
                   {/* Time */}
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {timeAgo(report.createdAt.toString())}
+                    {timeAgoSafe(report.createdAt.toString())}
                   </span>
 
                   {/* Status */}
@@ -245,17 +253,29 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center justify-end gap-3 pl-2">
+                  <div className="flex items-center justify-end gap-2.5">
                     <button
                       onClick={(e) => handleSearchAgain(e, report)}
                       title="Vyhľadať znova"
                       className="transition-colors hover:text-blue-500"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                         <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                       </svg>
                     </button>
+                    {canDownload && (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
+                        title="Stiahnuť PDF"
+                        className="transition-colors hover:text-green-600"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    )}
                     <button
                       onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                       disabled={deletingId === report.id}
@@ -269,19 +289,11 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                         </svg>
                       ) : (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                           <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </button>
-                    {canDownload && (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--accent)" }}>
-                        <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                      </svg>
-                    )}
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style={{ color: "var(--text-secondary)" }}>
-                      <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
                   </div>
                 </div>
 
@@ -340,17 +352,22 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         );
                       })}
                     </div>
-                    <div className="flex items-center gap-2.5 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={(e) => handleSearchAgain(e, report)}
                         title="Vyhľadať znova"
                         className="transition-colors hover:text-blue-500"
                         style={{ color: "var(--text-secondary)" }}
                       >
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                           <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
                       </button>
+                      {canDownload && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--accent)" }}>
+                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      )}
                       <button
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                         disabled={deletingId === report.id}
@@ -364,22 +381,14 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                             <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                           </svg>
                         ) : (
-                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                             <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                       </button>
                       <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                        {timeAgo(report.createdAt.toString())}
+                        {timeAgoSafe(report.createdAt.toString())}
                       </span>
-                      {canDownload && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--accent)" }}>
-                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                        </svg>
-                      )}
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style={{ color: "var(--text-secondary)" }}>
-                        <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
                     </div>
                   </div>
                 </div>

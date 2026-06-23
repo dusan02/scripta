@@ -16,7 +16,7 @@ class FsDphVymazaniScraper(FinancnaSpravaBase):
     """
 
     source_type = "FS_DPH_VYMAZANI"
-    zoznam_link_name = "Zoznam vymazaných platiteľov DPH"
+    zoznam_link_name = "Zoznam vymazaných platiteľov DPH podľa §52 ods.8 zákona 563/2009 Z. z."
     file_prefix = "fs_dph_vymazani"
     search_by = "ico"
 

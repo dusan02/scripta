@@ -77,7 +77,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="evidence-binder-${params.id}.pdf"`,
+        "Content-Disposition": `inline; filename="evidence-binder-${params.id}.pdf"`,
         "Content-Length": String(stat.size),
         "Cache-Control": "no-store",
       },

@@ -141,6 +141,7 @@ enum SourceType {
   FS_DPH_NADMERNY_ODPOCET
   FS_DPH_REGISTROVANI
   FS_DAN_PRIJMOV_REG
+  SP_DLZNICI
 }
 
 enum SourceStatus {

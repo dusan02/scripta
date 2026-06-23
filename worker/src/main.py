@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
+import time
 
 import traceback
 import asyncpg
@@ -61,6 +62,7 @@ async def _save_company_name(pool: asyncpg.Pool, report_request_id: str, company
 
 async def _execute_report(task: ReportTask) -> None:
     """Background job: stiahne výpisy, vygeneruje Cover Page a zlúči PDF."""
+    t_start = time.perf_counter()
     print(f"[WORKER] Starting report {task.report_request_id} for ICO {task.ico}")
     report_dir = settings.results_dir / task.report_request_id
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -77,7 +79,8 @@ async def _execute_report(task: ReportTask) -> None:
 
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(headless=settings.playwright_headless)
-        print(f"[WORKER] Browser launched")
+        t_browser = time.perf_counter()
+        print(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
 
         # Callback — upsertne každý zdroj do DB ihneď ako skončí
         import asyncio as _asyncio
@@ -108,7 +111,8 @@ async def _execute_report(task: ReportTask) -> None:
             birth_date=task.birth_date,
             on_source_done=_on_source_done,
         )
-        print(f"[WORKER] Scrapers done: {[f'{s.source_type}:{s.status}' for s in sources]}")
+        t_scrape = time.perf_counter()
+        print(f"[WORKER] Scrapers done ({t_scrape - t_browser:.2f}s): {[f'{s.source_type}:{s.status}' for s in sources]}")
 
         # Finálny upsert všetkých zdrojov (pre istotu — pokryje prípadné preteky callbacku)
         await upsert_report_sources(pool, task.report_request_id, sources)
@@ -136,7 +140,8 @@ async def _execute_report(task: ReportTask) -> None:
             sources=sources,
             company_name=company_name,
         )
-        print(f"[WORKER] PDF compiled: {final_path}")
+        t_compile = time.perf_counter()
+        print(f"[WORKER] PDF compiled ({t_compile - t_scrape:.2f}s): {final_path}")
 
         # Rozhodneme finálny status reportu.
         any_unavailable = any(s.status == "UNAVAILABLE" for s in sources)
@@ -153,7 +158,8 @@ async def _execute_report(task: ReportTask) -> None:
             result_file_path=str(final_path),
             company_name=company_name,
         )
-        print(f"[WORKER] Report completed successfully")
+        t_end = time.perf_counter()
+        print(f"[WORKER] Report completed successfully — total {t_end - t_start:.2f}s (browser {t_browser - t_start:.2f}s, scrapers {t_scrape - t_browser:.2f}s, compile {t_compile - t_scrape:.2f}s)")
     except Exception:
         # Ak celý worker zlyhá, report označíme ako FAILED.
         traceback.print_exc()

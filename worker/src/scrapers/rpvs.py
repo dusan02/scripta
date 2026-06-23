@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -23,7 +24,10 @@ class RpvsScraper(BaseScraper):
         page: Optional[Page] = None
         try:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
-            page = await self._get_page()
+            _t = time.perf_counter()
+            page = await self._get_page(block_images=False)
+            print(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             # 1. Načítaj úvodnú stránku
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
@@ -46,6 +50,9 @@ class RpvsScraper(BaseScraper):
                     timeout=20000,
                     wait_until="domcontentloaded",
                 )
+
+            print(f"[{self.source_type}] ⏱ goto + rozš. vyhľadávanie: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             # 3. Zadaj IČO do políčka "IČO"
             ico_input = page.get_by_role("textbox", name="IČO")
@@ -83,6 +90,8 @@ class RpvsScraper(BaseScraper):
                 logger.info(f"[{self.source_type}] Výsledky vyhľadávania načítané.")
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vyhľadávania vypršalo ({e}), pokračujem...")
+            print(f"[{self.source_type}] ⏱ fill + hľadať + výsledky: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             # 5. Počkaj na výsledky a klikni na názov partnera
             # Kliká sa na Meno partnera verejného sektora, ktoré je v 2. stĺpci prvého riadku (td:nth-child(2))
@@ -130,6 +139,7 @@ class RpvsScraper(BaseScraper):
                 download_selector = "a:has-text('Stiahnuť výpis'):visible"
                 await page.locator(download_selector).first.wait_for(state="visible", timeout=10000)
                 await self._download_pdf(page, download_selector, file_path)
+                print(f"[{self.source_type}] ⏱ detail + download_pdf: {time.perf_counter() - _t:.2f}s")
                 logger.info(f"[{self.source_type}] Oficiálny PDF výpis úspešne stiahnutý do {file_path}")
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Stiahnutie oficiálneho PDF zlyhalo ({e}). Robím fallback na tlač stránky.")

@@ -42,7 +42,7 @@ export const SOURCES: SourceInfo[] = [
   { id: "FS_DAN_PRIJMOV_REG", name: "Daň z príjmov (reg.)", short: "DPR", description: "Zoznam daňových subjektov registrovaných na daň z príjmov", label: "Daň z príjmov (reg.)", sublabel: "Daňové subjekty registrované na daň z príjmov", cost: 0, category: "fs_dan", enabled: true },
 
   // ── Poisťovne a inštitúcie ──
-  { id: "SP_DLZNICI",  name: "Sociálna poisťovňa", short: "SP",  description: "Zoznam dlžníkov na sociálnom poistení", label: "Soc. poisťovňa", sublabel: "Dlžníci na sociálnom poistení", cost: 0, category: "inst", enabled: false },
+  { id: "SP_DLZNICI",  name: "Sociálna poisťovňa", short: "SP",  description: "Zoznam dlžníkov na sociálnom poistení", label: "Soc. poisťovňa", sublabel: "Dlžníci na sociálnom poistení", cost: 0, category: "inst", enabled: true },
   { id: "ZP_DLZNICI",  name: "Zdravotné poisťovne", short: "ZP", description: "Dlžníci na zdravotnom poistení (VšZP, Dôvera, Union)", label: "Zdrav. poisťovne", sublabel: "Dlžníci na zdravotnom poistení", cost: 0, category: "inst", enabled: false },
 
   // ── Finančné výkazy ──

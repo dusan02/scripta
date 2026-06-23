@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import logging
+import time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Type
 
@@ -19,7 +20,17 @@ from .fs_dan_z_prijmov import FsDanZPrijmovScraper
 from .fs_dph_nadmerny_odpocet import FsDphNadmernyOdpocetScraper
 from .fs_dph_registrovani import FsDphRegistrovaniScraper
 from .fs_dan_prijmov_reg import FsDanPrijmovRegistrovaniScraper
+from .sp_dlznici import SpDlzniciScraper
 from ..models import ScrapedSource
+
+# FS scrapery zdieľajú rovnakú URL — obmedzíme paralelizmus aby FS server
+# nerobil rate-limiting / timeout
+_FS_SOURCE_TYPES = {
+    "FINANCNA_SPRAVA", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DANOVE_SUBJEKTY",
+    "FS_DAN_Z_PRIJMOV", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI",
+    "FS_DAN_PRIJMOV_REG",
+}
+_fs_semaphore = asyncio.Semaphore(4)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +48,7 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "FS_DPH_NADMERNY_ODPOCET": FsDphNadmernyOdpocetScraper,
     "FS_DPH_REGISTROVANI": FsDphRegistrovaniScraper,
     "FS_DAN_PRIJMOV_REG": FsDanPrijmovRegistrovaniScraper,
+    "SP_DLZNICI": SpDlzniciScraper,
 }
 
 # Scrapery, ktoré závisia na výsledku iného scraperu (potrebujú company_name).
@@ -65,7 +77,8 @@ async def run_scrapers(
     birth_date: Optional[str] = None,
     on_source_done: Optional[Callable[[ScrapedSource], None]] = None,
 ) -> List[ScrapedSource]:
-    """Spustí scrapery — nezávislé paralelne, závislé sekvenčne po ich dependencii.
+    """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
+    dependencia skončí (paralelne s ostatnými nezávislými).
     Ak je zadaný on_source_done, zavolá sa ihneď po dokončení každého scraperu."""
 
     # Rozdelíme na nezávislé a závislé scrapery
@@ -77,16 +90,35 @@ async def run_scrapers(
     async def run_one(source_type: str, **extra_kwargs) -> ScrapedSource:
         scraper_cls = get_scraper(source_type)
         scraper = scraper_cls(browser=browser)
+        is_fs = source_type in _FS_SOURCE_TYPES
+        _t_start = time.perf_counter()
+        print(f"[TIMING] ▶ {source_type} START")
         try:
-            result = await scraper.run(
-                output_dir=output_dir,
-                target_type=target_type,
-                ico=ico,
-                name=name,
-                surname=surname,
-                birth_date=birth_date,
-                **extra_kwargs,
-            )
+            if is_fs:
+                async with _fs_semaphore:
+                    _t_run = time.perf_counter()
+                    if _t_run - _t_start > 0.05:
+                        print(f"[TIMING] {source_type} čakal na FS semafor: {_t_run - _t_start:.2f}s")
+                    result = await scraper.run(
+                        output_dir=output_dir,
+                        target_type=target_type,
+                        ico=ico,
+                        name=name,
+                        surname=surname,
+                        birth_date=birth_date,
+                        **extra_kwargs,
+                    )
+            else:
+                result = await scraper.run(
+                    output_dir=output_dir,
+                    target_type=target_type,
+                    ico=ico,
+                    name=name,
+                    surname=surname,
+                    birth_date=birth_date,
+                    **extra_kwargs,
+                )
+            print(f"[TIMING] ✔ {source_type} HOTOVO za {time.perf_counter() - _t_start:.2f}s → {result.status if result else '?'}")
             # Ihneď reportujeme dokončenie
             if on_source_done and result:
                 try:
@@ -94,11 +126,51 @@ async def run_scrapers(
                 except Exception as cb_err:
                     logger.warning(f"on_source_done callback zlyhal pre {source_type}: {cb_err}")
             return result
+        except BaseException as e:
+            print(f"[TIMING] ✗ {source_type} CHYBA za {time.perf_counter() - _t_start:.2f}s: {type(e).__name__}")
+            raise
         finally:
             await scraper._close()
 
     # 1. prechod — nezávislé scrapery paralelne
-    tasks = [run_one(source) for source in independent]
+    # Závislé scrapery sa spustia hneď ako ich dependencia skončí (nie až po všetkých)
+    pending_dependent: Dict[str, asyncio.Task] = {}
+
+    async def _run_dependent_after(dep_source_type: str, dep_result: ScrapedSource) -> None:
+        """Spustí závislé scrapery čo najskôr po dokončení dependencie."""
+        company_name = None
+        if dep_result and dep_result.status == "SUCCESS":
+            company_name = getattr(dep_result, "company_name", None)
+
+        for source in dependent:
+            if _DEPENDS_ON.get(source) != dep_source_type:
+                continue
+            if not company_name:
+                logger.info(f"[{source}] Preskakujem — dependencia {dep_source_type} neposkytla company_name.")
+                skip_result = ScrapedSource(
+                    source_type=source,
+                    status="UNAVAILABLE",
+                    status_message=f"Závislosť {dep_source_type} neposkytla názov subjektu.",
+                )
+                results_by_source[source] = skip_result
+                if on_source_done:
+                    try:
+                        on_source_done(skip_result)
+                    except Exception as cb_err:
+                        logger.warning(f"on_source_done callback zlyhal pre {source}: {cb_err}")
+                continue
+
+            task = asyncio.ensure_future(run_one(source, company_name=company_name))
+            pending_dependent[source] = task
+
+    async def _run_independent(source_type: str) -> ScrapedSource:
+        result = await run_one(source_type)
+        # Ak je táto dependencia pre nejaký závislý scraper, spustíme ho hneď
+        if source_type in _DEPENDS_ON.values():
+            await _run_dependent_after(source_type, result)
+        return result
+
+    tasks = [_run_independent(source) for source in independent]
     raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for source, res in zip(independent, raw_results):
@@ -111,41 +183,36 @@ async def run_scrapers(
         else:
             results_by_source[source] = res
 
-    # 2. prechod — závislé scrapery (potrebujú company_name z dependencie)
+    # Počkáme na závislé scrapery ktoré sa spustili paralelne
+    if pending_dependent:
+        dep_results = await asyncio.gather(*pending_dependent.values(), return_exceptions=True)
+        for source, res in zip(pending_dependent.keys(), dep_results):
+            if isinstance(res, BaseException):
+                results_by_source[source] = ScrapedSource(
+                    source_type=source,
+                    status="FAILED",
+                    status_message=f"Unhandled exception: {type(res).__name__}: {res}",
+                )
+            else:
+                results_by_source[source] = res
+
+    # Safety net — závislé scrapery ktoré sa nespustili (dependencia nebola vybraná
+    # alebo zlyhala výnimkou) označíme ako UNAVAILABLE, aby nevznikol KeyError.
     for source in dependent:
-        dependency = _DEPENDS_ON[source]
-        dep_result = results_by_source.get(dependency)
-
-        # Získame company_name z dependencie
-        company_name = None
-        if dep_result and dep_result.status == "SUCCESS":
-            company_name = getattr(dep_result, "company_name", None)
-
-        if not company_name:
-            logger.info(f"[{source}] Preskakujem — dependencia {dependency} neposkytla company_name.")
-            skip_result = ScrapedSource(
-                source_type=source,
-                status="UNAVAILABLE",
-                status_message=f"Závislosť {dependency} neposkytla názov subjektu.",
-            )
-            results_by_source[source] = skip_result
-            if on_source_done:
-                try:
-                    on_source_done(skip_result)
-                except Exception as cb_err:
-                    logger.warning(f"on_source_done callback zlyhal pre {source}: {cb_err}")
+        if source in results_by_source:
             continue
-
-        try:
-            result = await run_one(source, company_name=company_name)
-            results_by_source[source] = result
-        except BaseException as e:
-            err_result = ScrapedSource(
-                source_type=source,
-                status="FAILED",
-                status_message=f"Unhandled exception: {type(e).__name__}: {e}",
-            )
-            results_by_source[source] = err_result
+        dependency = _DEPENDS_ON[source]
+        skip_result = ScrapedSource(
+            source_type=source,
+            status="UNAVAILABLE",
+            status_message=f"Závislosť {dependency} nebola dostupná — názov subjektu sa nezískal.",
+        )
+        results_by_source[source] = skip_result
+        if on_source_done:
+            try:
+                on_source_done(skip_result)
+            except Exception as cb_err:
+                logger.warning(f"on_source_done callback zlyhal pre {source}: {cb_err}")
 
     # Vrátime v pôvodnom poradí
     return [results_by_source[s] for s in sources]

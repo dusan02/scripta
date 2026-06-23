@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional
 import logging
+import time
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .base import BaseScraper, ScrapedSource, ScraperUnavailableError
@@ -63,10 +64,13 @@ class ZrsrScraper(BaseScraper):
             )
 
         logger.info(f"[{self.source_type}] Navigujem na {self._base_url_company}")
+        _t = time.perf_counter()
         try:
             await page.goto(self._base_url_company, timeout=45000, wait_until="domcontentloaded")
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError("Timeout pri načítaní stránky ZRSR.")
+        print(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
+        _t = time.perf_counter()
 
         try:
             logger.info(f"[{self.source_type}] Vypĺňam formulár IČO: {ico}")
@@ -99,6 +103,7 @@ class ZrsrScraper(BaseScraper):
                 status="FAILED",
                 status_message=f"Chyba pri odoslaní formulára ZRSR (firma): {e}",
             )
+        print(f"[{self.source_type}] ⏱ formulár + altcha + submit: {time.perf_counter() - _t:.2f}s")
 
         return await self._process_zrsr_results(page, f"ico_{ico}", output_dir)
 
@@ -160,6 +165,7 @@ class ZrsrScraper(BaseScraper):
 
     async def _process_zrsr_results(self, page: Page, label: str, output_dir: Path) -> ScrapedSource:
         logger.info(f"[{self.source_type}] Spracovávam výsledky vyhľadávania.")
+        _t = time.perf_counter()
         
         text_content = await page.inner_text("body")
         if "Neboli nájdené žiadne záznamy" in text_content or "Nenašiel sa žiadny" in text_content:
@@ -206,12 +212,15 @@ class ZrsrScraper(BaseScraper):
         except Exception as e:
             logger.warning(f"[{self.source_type}] Chyba pri klikaní na detail, pokračujem s aktuálnou stránkou: {e}")
 
+        print(f"[{self.source_type}] ⏱ detail + spracovanie: {time.perf_counter() - _t:.2f}s")
+        _t = time.perf_counter()
+
         logger.info(f"[{self.source_type}] Generujem PDF.")
         pdf_output = output_dir / f"zrsr_{label}.pdf"
         
         try:
-            await page.wait_for_timeout(1500)
             await self._print_page_to_pdf(page, pdf_output)
+            print(f"[{self.source_type}] ⏱ print_pdf: {time.perf_counter() - _t:.2f}s")
             logger.info(f"[{self.source_type}] PDF úspešne vygenerované na {pdf_output}")
         except Exception as e:
             logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")

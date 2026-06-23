@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -24,7 +25,10 @@ class OrsrScraper(BaseScraper):
         page: Optional[Page] = None
         try:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
-            page = await self._get_page()
+            _t = time.perf_counter()
+            page = await self._get_page(block_images=False)
+            print(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
             
             search_url = f"{self.base_url}?ICO={ico}&SID=0"
             logger.info(f"[{self.source_type}] Navigujem na {search_url}")
@@ -35,6 +39,8 @@ class OrsrScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 logger.error(f"[{self.source_type}] Timeout pri načítaní stránky ORSR.")
                 raise ScraperUnavailableError("Timeout pri načítaní stránky ORSR.")
+            print(f"[{self.source_type}] ⏱ goto search: {time.perf_counter() - _t:.2f}s")
+            _t = time.perf_counter()
 
             logger.info(f"[{self.source_type}] Stránka načítaná. Kontrolujem prázdne výsledky.")
             
@@ -94,6 +100,8 @@ class OrsrScraper(BaseScraper):
                 logger.info(f"[{self.source_type}] Klikám na odkaz detailu pre: {company_name}")
                 await detail_link.click()
                 await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                print(f"[{self.source_type}] ⏱ detail_click + meno: {time.perf_counter() - _t:.2f}s")
+                _t = time.perf_counter()
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Odkaz na detail nenájdený alebo timeout po kliknutí.")
                 return self._make_result(
@@ -107,9 +115,9 @@ class OrsrScraper(BaseScraper):
             pdf_output = output_dir / f"orsr_{ico}.pdf"
             
             try:
-                # Wait a bit to ensure rendering
-                await page.wait_for_timeout(1500)
                 await self._print_page_to_pdf(page, pdf_output)
+                print(f"[{self.source_type}] ⏱ print_pdf: {time.perf_counter() - _t:.2f}s")
+                _t = time.perf_counter()
                 logger.info(f"[{self.source_type}] PDF úspešne vygenerované na {pdf_output}")
             except Exception as e:
                 logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")
