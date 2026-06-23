@@ -244,7 +244,8 @@ class SpDlzniciScraper(BaseScraper):
                     parts = [f"  {clean_headers[h_idx]}: {val}" for h_idx, val in enumerate(row_data) if val]
                     result_lines.append("\n".join(parts))
                 else:
-                    result_lines.append(" | ".join(row_data))
+                    parts = [f"  • {val}" for val in row_data if val]
+                    result_lines.append("\n".join(parts))
 
             if not result_lines:
                 return None

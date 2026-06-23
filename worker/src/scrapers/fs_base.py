@@ -138,7 +138,8 @@ class FinancnaSpravaBase(BaseScraper):
                     parts = [f"  {headers[h_idx]}: {val}" for h_idx, val in enumerate(row_data) if val]
                     formatted.append("\n".join(parts))
                 else:
-                    formatted.append(" | ".join(row_data))
+                    parts = [f"  • {val}" for val in row_data if val]
+                    formatted.append("\n".join(parts))
             return formatted
         except Exception as e:
             logger.warning(f"[{self.source_type}] Extrakcia tabuľky s hlavičkou zlyhala: {e}")

@@ -204,7 +204,7 @@ class CoverPageGenerator:
 
         from xml.sax.saxutils import escape as xml_escape
 
-        # Stĺpce: Icon (1.0cm) | Zdroj (3.3cm) | Lokalizácia (1.5cm) | Stav (2.5cm) | Nálezy (7.8cm)
+        # Stĺpce: Icon (1.0cm) | Zdroj (3.3cm) | Strana (1.5cm) | Stav (2.5cm) | Nálezy (7.8cm)
         col_widths = [1.0 * cm, 3.3 * cm, 1.5 * cm, 2.5 * cm, 7.8 * cm]
 
         # Status farby
@@ -213,6 +213,13 @@ class CoverPageGenerator:
             "UNAVAILABLE": "#f59e0b",
             "FAILED":      "#ef4444",
         }
+
+        def _effective_status(source) -> str:
+            """Vráti efektívny status — ak findings obsahujú POZOR, ide o varovanie."""
+            findings = (source.findings or source.message or "").upper()
+            if "POZOR" in findings or "NEDOPLATOK" in findings or "DLŽNÍK" in findings or "DLŽNÁ SUMA" in findings:
+                return "WARNING"
+            return source.status
 
         def _build_source_icon(source_type: str) -> Drawing:
             """Farebný badge so skratkou zdroja."""
@@ -227,13 +234,14 @@ class CoverPageGenerator:
 
         def _build_status_pill(status: str) -> Table:
             """Pill-shaped status badge s ikonou a textom."""
-            color = _STATUS_COLORS.get(status, "#71717a")
-            if status == "SUCCESS":
-                icon, label = "✓", "V poriadku"
+            if status == "WARNING":
+                color, icon, label = "#ef4444", "⚠", "Upozornenie"
+            elif status == "SUCCESS":
+                color, icon, label = "#10b981", "✓", "V poriadku"
             elif status == "UNAVAILABLE":
-                icon, label = "⚠", "Nedostupné"
+                color, icon, label = "#f59e0b", "⚠", "Nedostupné"
             else:
-                icon, label = "✗", "Zlyhal"
+                color, icon, label = "#ef4444", "✗", "Zlyhal"
             text = Paragraph(
                 f'<font color="white" size="8"><b>{icon} {label}</b></font>',
                 table_style,
@@ -285,11 +293,12 @@ class CoverPageGenerator:
         def _build_source_row(source) -> list:
             start_page = getattr(source, "start_page", None)
             page_text = str(start_page) if start_page else "—"
+            eff_status = _effective_status(source)
             return [
                 _build_source_icon(source.source_type),
                 _build_source_label(source),
                 Paragraph(page_text, ParagraphStyle("PageNum", parent=table_style, alignment=1)),
-                _build_status_pill(source.status),
+                _build_status_pill(eff_status),
                 _build_findings(source),
             ]
 
@@ -308,11 +317,11 @@ class CoverPageGenerator:
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
         ]
 
-        # ── Column header table (Zdroj | Lokalizácia | Stav | Nálezy) ───
+        # ── Column header table (Zdroj | Strana | Stav | Nálezy) ───
         header_row = [
             Paragraph("", table_style),
             Paragraph("<b>Zdroj</b>", table_style),
-            Paragraph("<b>Lokalizácia</b>", table_style),
+            Paragraph("<b>Strana</b>", table_style),
             Paragraph("<b>Stav</b>", table_style),
             Paragraph("<b>Súhrnný nález</b>", table_style),
         ]
@@ -378,15 +387,18 @@ class CoverPageGenerator:
 
         # ── Summary with status counts ─────────────────────────────
         total = len(sources)
-        successful = sum(1 for s in sources if s.status == "SUCCESS")
+        warnings = sum(1 for s in sources if _effective_status(s) == "WARNING")
+        successful = sum(1 for s in sources if s.status == "SUCCESS" and _effective_status(s) != "WARNING")
         unavailable = sum(1 for s in sources if s.status == "UNAVAILABLE")
-        failed = total - successful - unavailable
+        failed = total - successful - unavailable - warnings
 
         summary_parts = []
         if successful:
             summary_parts.append(f'<font color="#10b981"><b>✓ {successful}</b></font> V poriadku')
+        if warnings:
+            summary_parts.append(f'<font color="#ef4444"><b>⚠ {warnings}</b></font> Upozornenie')
         if unavailable:
-            summary_parts.append(f'<font color="#f59e0b"><b>⚠ {unavailable}</b></font> Upozornenie')
+            summary_parts.append(f'<font color="#f59e0b"><b>⚠ {unavailable}</b></font> Nedostupné')
         if failed:
             summary_parts.append(f'<font color="#ef4444"><b>✗ {failed}</b></font> Zlyhal')
         summary_text = "  •  ".join(summary_parts) if summary_parts else "Žiadne zdroje."
