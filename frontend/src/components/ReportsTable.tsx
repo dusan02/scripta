@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
+import CopyableText from "@/components/CopyableText";
 import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP, ENABLED_SOURCES } from "@/lib/sources";
 
 interface ReportSource {
@@ -203,7 +204,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           </span>
                           {report.ico && (
                             <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                              IČO: {report.ico}
+                              <CopyableText text={report.ico} />
                             </span>
                           )}
                         </>
@@ -336,7 +337,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                             </span>
                             {report.ico && (
                               <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                IČO: {report.ico}
+                                <CopyableText text={report.ico} />
                               </span>
                             )}
                           </>
