@@ -231,13 +231,13 @@ class SpDlzniciScraper(BaseScraper):
                 "views-field-missing-documents": "Chýbajúce podklady za obdobie",
             }
 
-            result_lines = []
+            rows_data = []
             for i in range(min(count, 5)):
                 cells = rows.nth(i).locator("td")
                 cell_count = await cells.count()
                 if cell_count == 0:
                     continue
-                row_data = []
+                row = {}
                 for c in range(cell_count):
                     try:
                         cell = cells.nth(c)
@@ -246,33 +246,30 @@ class SpDlzniciScraper(BaseScraper):
                     except PlaywrightTimeoutError:
                         val = ""
                         cls = ""
-                    # Odstránime 'zoradiť podľa ...' texty z Drupal tabuľky
                     val = re.sub(r'\s*zoradiť podľa\s+.*$', '', val).strip()
-                    if not val:
+                    if not val or val == "-":
                         continue
-                    # Nájdi názov stĺpca z Drupal class
-                    label = None
                     for cls_key, cls_label in field_map.items():
                         if cls_key in cls:
-                            label = cls_label
+                            row[cls_label] = val
                             break
-                    row_data.append((label, val))
+                if row:
+                    rows_data.append(row)
 
-                if not row_data:
-                    continue
-
-                parts = []
-                for label, val in row_data:
-                    if label:
-                        parts.append(f"  {label}: {val}")
-                    else:
-                        parts.append(f"  • {val}")
-                result_lines.append("\n".join(parts))
-
-            if not result_lines:
+            if not rows_data:
                 return None
 
-            findings = f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Sociálnej poisťovne.\n" + "\n\n".join(result_lines)
+            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Sociálnej poisťovne."]
+            for row in rows_data:
+                if "Názov / Meno" in row:
+                    name = row.pop("Názov / Meno").strip("'\"").strip()
+                    parts.append(f"Názov: {name}")
+                if "Dlžná suma" in row:
+                    parts.append(f"Dlžná suma: {row.pop('Dlžná suma')}")
+                for label in ("IČO", "Adresa", "Mesto", "Chýbajúce podklady za obdobie"):
+                    if label in row:
+                        parts.append(f"{label}: {row[label]}")
+            findings = "\n".join(parts)
             logger.info(f"[{self.source_type}] Findings extrahované: {findings[:200]}")
             return findings
 
