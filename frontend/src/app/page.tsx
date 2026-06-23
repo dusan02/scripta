@@ -16,7 +16,7 @@ async function getRecentReports(userId: string) {
     return await prisma.reportRequest.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      take: 12,
+      take: 10,
       include: {
         sources: { select: { sourceType: true, status: true } },
       },
