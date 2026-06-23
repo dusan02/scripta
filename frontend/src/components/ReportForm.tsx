@@ -13,7 +13,7 @@ function isValidIco(ico: string): boolean {
 
 type TargetType = "COMPANY" | "PERSON";
 
-export default function SearchForm({ reportCount = 0, completedCount = 0, processingCount = 0 }: { reportCount?: number; completedCount?: number; processingCount?: number }) {
+export default function SearchForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -447,33 +447,6 @@ export default function SearchForm({ reportCount = 0, completedCount = 0, proces
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
             · {totalCost} kreditov
           </span>
-        )}
-
-        {/* Stats below grid */}
-        {reportCount > 0 && (
-          <div
-            className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1 pt-2 text-xs"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <span className="font-semibold" style={{ color: "var(--text)" }}>
-              {reportCount}
-            </span>
-            <span>reportov</span>
-            <span className="mx-1.5" style={{ color: "var(--border-strong)" }}>·</span>
-            <span className="font-semibold" style={{ color: "#10b981" }}>
-              {completedCount}
-            </span>
-            <span>dokončených</span>
-            {processingCount > 0 && (
-              <>
-                <span className="mx-1.5" style={{ color: "var(--border-strong)" }}>·</span>
-                <span className="font-semibold" style={{ color: "#3b82f6" }}>
-                  {processingCount}
-                </span>
-                <span>prebieha</span>
-              </>
-            )}
-          </div>
         )}
       </div>
 

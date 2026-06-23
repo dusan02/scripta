@@ -32,12 +32,6 @@ export default async function DashboardPage() {
 
   const reports = await getRecentReports(session.user.id);
 
-  const stats = {
-    total:      reports.length,
-    completed:  reports.filter((r) => r.status === "COMPLETED" || r.status === "PARTIAL").length,
-    processing: reports.filter((r) => r.status === "PROCESSING" || r.status === "PENDING").length,
-  };
-
   // Serialize dates for Client Component
   const serializedReports = reports.map((r) => ({
     id:         r.id,
@@ -81,7 +75,7 @@ export default async function DashboardPage() {
         {/* Search form */}
         <div className="w-full" style={{ maxWidth: 560 }}>
           <Suspense fallback={null}>
-            <ReportForm reportCount={stats.total} completedCount={stats.completed} processingCount={stats.processing} />
+            <ReportForm />
           </Suspense>
         </div>
       </section>
