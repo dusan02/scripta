@@ -384,12 +384,6 @@ export default function ReportDetailPage() {
                 <span>Dokončené: {formatDate(report.completedAt)}</span>
               </>
             )}
-            <span style={{ color: "var(--border-strong)" }}>·</span>
-            <span>
-              Cena: <span className="font-medium" style={{ color: report.totalCost === 0 ? "var(--accent)" : "#d97706" }}>
-                {report.totalCost === 0 ? "Free" : `${report.totalCost} kreditov`}
-              </span>
-            </span>
           </div>
 
           <div className="flex items-center justify-end gap-3 mt-4 w-full">
