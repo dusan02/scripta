@@ -18,7 +18,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
 
   // On mount — read from localStorage or system preference
   useEffect(() => {
-    const stored = localStorage.getItem("veriso-theme") as Theme | null;
+    const stored = localStorage.getItem("registro-theme") as Theme | null;
     if (stored === "dark" || stored === "light") {
       setTheme(stored);
       document.documentElement.setAttribute("data-theme", stored);
@@ -33,7 +33,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    localStorage.setItem("veriso-theme", next);
+    localStorage.setItem("registro-theme", next);
     document.documentElement.setAttribute("data-theme", next);
   };
 

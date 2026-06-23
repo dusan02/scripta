@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
 import SourceTable from "@/components/SourceTable";
+import CopyableText from "@/components/CopyableText";
+import { getSourceDescription, SOURCE_CATEGORIES, SOURCES, SOURCE_MAP } from "@/lib/sources";
 
 interface ReportSource {
   sourceType: string;
@@ -20,6 +22,7 @@ interface Report {
   status: string;
   targetType: string;
   ico?: string | null;
+  companyName?: string | null;
   name?: string | null;
   surname?: string | null;
   birthDate?: string | null;
@@ -32,13 +35,6 @@ interface Report {
 
 const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "PARTIAL"];
 const POLL_INTERVAL_MS = 3000;
-
-const SOURCE_META: Record<string, string> = {
-  ORSR: "Obchodný register SR",
-  ZRSR: "Živnostenský register SR",
-  INSOLVENCY: "Register úpadcov",
-  CRE: "Centrálny register exekúcií",
-};
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("sk-SK", {
@@ -122,7 +118,7 @@ function ProgressTimeline({ status, sources }: { status: string; sources: Report
 
               {i < steps.length - 1 && (
                 <div
-                  className="h-[2px] w-16 sm:w-28 mx-1 transition-all duration-700"
+                  className="h-[2px] w-10 sm:w-16 sm:w-28 mx-1 transition-all duration-700"
                   style={{ background: current > i ? "var(--accent)" : "var(--border)" }}
                 />
               )}
@@ -131,36 +127,64 @@ function ProgressTimeline({ status, sources }: { status: string; sources: Report
         })}
       </div>
 
-      {/* Zoznam čiastkových úloh bežiacich paralelne */}
+      {/* Zoznam čiastkových úloh bežiacich paralelne — zoskupené podľa kategórie */}
       {(current === 1 || current === 0) && sources.length > 0 && (
-        <div className="mt-10 flex flex-wrap justify-center gap-2 fade-in max-w-[500px]">
-          {sources.map(s => {
-            const isDone = s.status === "COMPLETED";
-            const isFailed = s.status === "FAILED";
-            const isPending = s.status === "PENDING" || s.status === "PROCESSING";
+        <div className="mt-10 fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[800px] mx-auto">
+            {SOURCE_CATEGORIES.map((cat) => {
+              const catSources = sources.filter(s => {
+                const src = SOURCE_MAP[s.sourceType];
+                return src && src.category === cat.id;
+              });
+              if (catSources.length === 0) return null;
 
-            return (
-              <div
-                key={s.sourceType}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium"
-                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-              >
-                {isPending && (
-                  <svg className="animate-spin w-3 h-3 text-blue-500" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                    <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                )}
-                {isDone && (
-                  <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-                {isFailed && <span className="text-red-500 font-bold text-[10px]">✗</span>}
-                {SOURCE_META[s.sourceType] || s.sourceType}
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={cat.id}
+                  className="rounded-xl overflow-hidden"
+                  style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
+                >
+                  <div
+                    className="px-3 py-2"
+                    style={{ background: "var(--bg-muted)" }}
+                  >
+                    <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+                      {cat.label}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+                    {catSources.map(s => {
+                      const isDone = s.status === "COMPLETED";
+                      const isFailed = s.status === "FAILED";
+                      const isPending = s.status === "PENDING" || s.status === "PROCESSING";
+
+                      return (
+                        <div
+                          key={s.sourceType}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium"
+                          style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                        >
+                          {isPending && (
+                            <svg className="animate-spin w-3 h-3 text-blue-500" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          )}
+                          {isDone && (
+                            <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none">
+                              <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                          {isFailed && <span className="text-red-500 font-bold text-[10px]">✗</span>}
+                          {getSourceDescription(s.sourceType)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -257,123 +281,135 @@ export default function ReportDetailPage() {
   const canDownload = report.status === "COMPLETED" || report.status === "PARTIAL";
 
   return (
-    <div className="max-w-[1000px] mx-auto px-6 py-8 animate-fade-in">
+    <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
       
-      {/* ── Breadcrumb ── */}
-      <div className="flex items-center gap-2 mb-6 text-xs">
-        <Link href="/" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
-          Dashboard
+      {/* ── Breadcrumb + Nové hľadanie ── */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-xs">
+          <Link href="/" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+            Dashboard
+          </Link>
+          <span style={{ color: "var(--border-strong)" }}>/</span>
+          <span style={{ color: "var(--text-muted)" }}>Report</span>
+          <span style={{ color: "var(--border-strong)" }}>/</span>
+          <span className="font-mono" style={{ color: "var(--text-secondary)" }}>{params.id.slice(0, 8)}…</span>
+        </div>
+        <Link
+          id="new-search-btn"
+          href="/"
+          className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg border text-center"
+          style={{ 
+            background: "var(--surface)", 
+            color: "var(--text-secondary)", 
+            height: "36px", 
+            padding: "0 16px",
+            fontSize: "13px", 
+            fontWeight: 600,
+            borderColor: "var(--border)",
+            boxShadow: "var(--shadow-sm)",
+            textDecoration: "none"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--border-strong)";
+            e.currentTarget.style.color = "var(--text)";
+            e.currentTarget.style.background = "var(--surface-hover)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--border)";
+            e.currentTarget.style.color = "var(--text-secondary)";
+            e.currentTarget.style.background = "var(--surface)";
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+          Nové hľadanie
         </Link>
-        <span style={{ color: "var(--border-strong)" }}>/</span>
-        <span style={{ color: "var(--text-muted)" }}>Report</span>
-        <span style={{ color: "var(--border-strong)" }}>/</span>
-        <span className="font-mono" style={{ color: "var(--text-secondary)" }}>{params.id.slice(0, 8)}…</span>
       </div>
 
       {/* ── Header Card ── */}
-      <div className="card p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+      <div className="card p-4 sm:p-6 mb-6">
+        <div className="flex flex-col items-center text-center gap-2">
+          <span className="text-3xl">{report.targetType === "COMPANY" ? "🏢" : "👤"}</span>
           
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <span className="text-2xl">{report.targetType === "COMPANY" ? "🏢" : "👤"}</span>
-              <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
-                {identifier}
-              </h1>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              <span>Vytvorené: {formatDate(report.createdAt)}</span>
-              {report.completedAt && (
-                <>
-                  <span style={{ color: "var(--border-strong)" }}>·</span>
-                  <span>Dokončené: {formatDate(report.completedAt)}</span>
-                </>
-              )}
-              <span style={{ color: "var(--border-strong)" }}>·</span>
-              <span>
-                Cena: <span className="font-medium" style={{ color: report.totalCost === 0 ? "var(--accent)" : "#d97706" }}>
-                  {report.totalCost === 0 ? "Free" : `${report.totalCost} kreditov`}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-end gap-3 min-w-[200px]">
-            <StatusBadge status={report.status} />
-            {canDownload && (
-              <button
-                id="download-pdf-btn"
-                onClick={handleDownload}
-                disabled={downloading}
-                className="flex items-center justify-center gap-2 w-full sm:w-auto mt-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
-                style={{ 
-                  background: "var(--accent)", 
-                  color: "white", 
-                  height: "40px", 
-                  padding: "0 18px",
-                  fontSize: "13.5px", 
-                  fontWeight: 600,
-                  border: "none",
-                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
-                }}
-              >
-                {downloading ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                    Sťahujem PDF…
-                  </>
-                ) : (
-                  <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Stiahnuť report
-                  </>
-                )}
-              </button>
+          {report.targetType === "COMPANY" && report.companyName && (
+            <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
+              {report.companyName}
+            </h1>
+          )}
+          
+          <div className={report.companyName ? "text-lg font-medium" : "text-3xl font-bold tracking-tight"} style={{ color: report.companyName ? "var(--text-secondary)" : "var(--text)", letterSpacing: report.companyName ? undefined : "-0.02em" }}>
+            {report.targetType === "COMPANY" ? (
+              <CopyableText text={report.ico ?? ""} />
+            ) : (
+              identifier
             )}
-            <Link
-              id="new-search-btn"
-              href="/"
-              className="flex items-center justify-center gap-2 w-full sm:w-auto transition-all hover:brightness-110 active:brightness-95 rounded-lg border text-center"
-              style={{ 
-                background: "var(--surface)", 
-                color: "var(--text-secondary)", 
-                height: "40px", 
-                padding: "0 18px",
-                fontSize: "13.5px", 
-                fontWeight: 600,
-                borderColor: "var(--border)",
-                boxShadow: "var(--shadow-sm)",
-                textDecoration: "none"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--border-strong)";
-                e.currentTarget.style.color = "var(--text)";
-                e.currentTarget.style.background = "var(--surface-hover)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--border)";
-                e.currentTarget.style.color = "var(--text-secondary)";
-                e.currentTarget.style.background = "var(--surface)";
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
-              Nové hľadanie
-            </Link>
+          </div>
+          
+          {report.targetType === "PERSON" && report.birthDate && (
+            <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+              Nar.: {new Intl.DateTimeFormat("sk-SK", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(report.birthDate))}
+            </div>
+          )}
+          
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span>Vytvorené: {formatDate(report.createdAt)}</span>
+            {report.completedAt && (
+              <>
+                <span style={{ color: "var(--border-strong)" }}>·</span>
+                <span>Dokončené: {formatDate(report.completedAt)}</span>
+              </>
+            )}
+            <span style={{ color: "var(--border-strong)" }}>·</span>
+            <span>
+              Cena: <span className="font-medium" style={{ color: report.totalCost === 0 ? "var(--accent)" : "#d97706" }}>
+                {report.totalCost === 0 ? "Free" : `${report.totalCost} kreditov`}
+              </span>
+            </span>
           </div>
 
-        </div>
+          <div className="flex items-center justify-end gap-3 mt-4 w-full">
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>Stav:</span>
+              <StatusBadge status={report.status} />
+            </div>
+            {canDownload && (
+                <button
+                  id="download-pdf-btn"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
+                  style={{ 
+                    background: "var(--accent)", 
+                    color: "white", 
+                    height: "40px", 
+                    padding: "0 18px",
+                    fontSize: "13.5px", 
+                    fontWeight: 600,
+                    border: "none",
+                    boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
+                  }}
+                >
+                  {downloading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Sťahujem…
+                    </>
+                  ) : (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Stiahnuť dokument
+                    </>
+                  )}
+                </button>
+              )}
+          </div>
 
-        {/* ── Timeline ── */}
-        <div className="mt-8 pt-8 flex justify-center" style={{ borderTop: "1px solid var(--border)" }}>
-          <ProgressTimeline status={report.status} sources={report.sources} />
         </div>
       </div>
 

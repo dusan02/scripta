@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hashToken } from "@/lib/token";
+import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -8,7 +11,10 @@ const resetPasswordSchema = z.object({
   password: z.string().min(8, "Nové heslo musí mať aspoň 8 znakov."),
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const rl = rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 10 });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   try {
     const body = await req.json();
     const result = resetPasswordSchema.safeParse(body);
@@ -23,7 +29,7 @@ export async function POST(req: Request) {
     const { token, password } = result.data;
 
     const resetTokenRecord = await prisma.passwordResetToken.findUnique({
-      where: { token },
+      where: { token: hashToken(token) },
     });
 
     if (!resetTokenRecord) {
@@ -49,11 +55,14 @@ export async function POST(req: Request) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Update user and delete token in a transaction
+    // Update user (password + tokenVersion) and delete token in a transaction
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { email: resetTokenRecord.email },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
       });
 
       await tx.passwordResetToken.delete({

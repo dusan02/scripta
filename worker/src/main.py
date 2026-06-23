@@ -12,6 +12,7 @@ from .db import (
     get_db_pool,
     update_report_status,
     upsert_report_sources,
+    upsert_single_report_source,
     refund_unavailable_paid_sources,
     close_db_pool,
 )
@@ -45,6 +46,19 @@ def _identifier(task: ReportTask) -> str:
     return f"{task.name} {task.surname}, nar. {task.birth_date}"
 
 
+async def _save_company_name(pool: asyncpg.Pool, report_request_id: str, company_name: str) -> None:
+    """Uloží company_name do ReportRequest ihneď ako ho ORSR extrahuje."""
+    try:
+        await pool.execute(
+            'UPDATE "ReportRequest" SET "companyName" = $1, "updatedAt" = NOW() WHERE id = $2',
+            company_name,
+            report_request_id,
+        )
+        print(f"[WORKER] Company name saved: {company_name}")
+    except Exception as e:
+        print(f"[WORKER] Failed to save company name: {e}")
+
+
 async def _execute_report(task: ReportTask) -> None:
     """Background job: stiahne výpisy, vygeneruje Cover Page a zlúči PDF."""
     print(f"[WORKER] Starting report {task.report_request_id} for ICO {task.ico}")
@@ -65,6 +79,24 @@ async def _execute_report(task: ReportTask) -> None:
         browser = await playwright.chromium.launch(headless=settings.playwright_headless)
         print(f"[WORKER] Browser launched")
 
+        # Callback — upsertne každý zdroj do DB ihneď ako skončí
+        import asyncio as _asyncio
+
+        def _on_source_done(source) -> None:
+            print(f"[WORKER] Source done: {source.source_type}:{source.status}")
+            try:
+                loop = _asyncio.get_running_loop()
+                _asyncio.ensure_future(
+                    upsert_single_report_source(pool, task.report_request_id, source)
+                )
+                # Ak ORSR extrahoval company_name, uložíme ho ihneď do ReportRequest
+                if source.source_type == "ORSR" and source.status == "SUCCESS" and getattr(source, "company_name", None):
+                    _asyncio.ensure_future(
+                        _save_company_name(pool, task.report_request_id, source.company_name)
+                    )
+            except RuntimeError:
+                pass
+
         sources = await run_scrapers(
             sources=task.sources,
             output_dir=report_dir,
@@ -74,12 +106,13 @@ async def _execute_report(task: ReportTask) -> None:
             name=task.name,
             surname=task.surname,
             birth_date=task.birth_date,
+            on_source_done=_on_source_done,
         )
         print(f"[WORKER] Scrapers done: {[f'{s.source_type}:{s.status}' for s in sources]}")
 
-        # Uložíme výsledky jednotlivých zdrojov.
+        # Finálny upsert všetkých zdrojov (pre istotu — pokryje prípadné preteky callbacku)
         await upsert_report_sources(pool, task.report_request_id, sources)
-        print(f"[WORKER] Sources upserted")
+        print(f"[WORKER] Sources upserted (final)")
 
         # Vrátime kredity za platené registre, ktoré nezbehli úspešne (napr. CRE UNAVAILABLE).
         await refund_unavailable_paid_sources(pool, task.report_request_id)

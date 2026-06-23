@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "@/lib/auth";
 import Link from "next/link";
 import CreditPackages from "./CreditPackages";
 
@@ -9,10 +11,10 @@ export const metadata: Metadata = {
 };
 
 
-// For demo: load first wallet (replace with getCurrentUser session)
-async function getWalletData() {
+async function getWalletData(userId: string) {
   try {
     const wallet = await prisma.wallet.findFirst({
+      where: { userId },
       include: {
         transactions: {
           orderBy: { createdAt: "desc" },
@@ -95,21 +97,22 @@ function TransactionItem({
   return (
     <div
       className="flex items-center justify-between py-3 border-b transition-colors"
-      style={{ borderColor: "rgba(255,255,255,0.04)" }}
+      style={{ borderColor: "var(--border)" }}
     >
       <div className="flex items-center gap-3">
         {/* Icon */}
         <div
           className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
-            isPositive ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-700/50 text-slate-400"
+            isPositive ? "text-emerald-500" : "text-muted-v"
           }`}
+          style={{ background: isPositive ? "var(--accent-light)" : "var(--bg-muted)" }}
         >
           {tx.type === "TOPUP" ? "↑" : tx.type === "REFUND" ? "↩" : "↓"}
         </div>
 
         {/* Description */}
         <div>
-          <div className="text-sm font-medium text-slate-300">
+          <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
             {tx.type === "TOPUP"
               ? "Dobíjanie kreditov"
               : tx.type === "REFUND"
@@ -120,15 +123,16 @@ function TransactionItem({
                 : `Report — ${tx.reportRequest.name} ${tx.reportRequest.surname}`
               : (tx.description ?? "Transakcia")}
           </div>
-          <div className="text-xs text-slate-600">{formatDate(tx.createdAt)}</div>
+          <div className="text-xs" style={{ color: "var(--text-muted)" }}>{formatDate(tx.createdAt)}</div>
         </div>
       </div>
 
       {/* Amount */}
       <div
         className={`text-sm font-bold tabular-nums ${
-          isPositive ? "text-emerald-400" : "text-slate-400"
+          isPositive ? "text-emerald-500" : ""
         }`}
+        style={!isPositive ? { color: "var(--text-secondary)" } : undefined}
       >
         {isPositive ? "+" : ""}
         {amount.toFixed(0)} kr.
@@ -138,20 +142,23 @@ function TransactionItem({
 }
 
 export default async function WalletPage() {
-  const wallet = await getWalletData();
+  const session = await getServerSession();
+  if (!session?.user?.id) redirect("/login");
+
+  const wallet = await getWalletData(session.user.id);
   const balance = wallet ? parseFloat(wallet.balance.toString()) : 0;
 
   return (
     <div className="page-container max-w-5xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 mb-6 text-sm">
-        <Link href="/" className="text-slate-500 hover:text-slate-300 transition-colors">Dashboard</Link>
-        <span className="text-slate-700">/</span>
-        <span className="text-slate-400">Peňaženka</span>
+        <Link href="/" className="transition-colors" style={{ color: "var(--text-muted)" }}>Dashboard</Link>
+        <span style={{ color: "var(--border-strong)" }}>/</span>
+        <span style={{ color: "var(--text-secondary)" }}>Peňaženka</span>
       </div>
 
-      <h1 className="text-3xl font-extrabold text-white mb-8">
-        Kreditová <span className="text-gradient">peňaženka</span>
+      <h1 className="text-3xl font-extrabold mb-8" style={{ color: "var(--text)" }}>
+        Kreditová <span style={{ color: "var(--accent)" }}>peňaženka</span>
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -160,17 +167,17 @@ export default async function WalletPage() {
           {/* Current balance */}
           <div
             className="glass-card p-6"
-            style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.06), rgba(15,32,64,0.6))" }}
+            style={{ background: "linear-gradient(135deg, var(--accent-light), var(--surface))" }}
           >
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
               Aktuálny zostatok
             </div>
-            <div className="text-5xl font-extrabold text-white tabular-nums">
+            <div className="text-5xl font-extrabold tabular-nums" style={{ color: "var(--text)" }}>
               {balance.toFixed(0)}
             </div>
-            <div className="text-emerald-400 font-medium mt-1">kreditov</div>
+            <div className="font-medium mt-1" style={{ color: "var(--accent)" }}>kreditov</div>
 
-            <div className="mt-4 pt-4 border-t text-xs text-slate-600" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+            <div className="mt-4 pt-4 border-t text-xs" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
               1 CRE dopyt = 5 kreditov
             </div>
           </div>
@@ -179,12 +186,12 @@ export default async function WalletPage() {
           {wallet && (
             <div className="glass-card p-4 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Celkom transakcií</span>
-                <span className="text-slate-300 font-medium">{wallet.transactions.length}</span>
+                <span style={{ color: "var(--text-muted)" }}>Celkom transakcií</span>
+                <span className="font-medium" style={{ color: "var(--text)" }}>{wallet.transactions.length}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Dobité kredity</span>
-                <span className="text-emerald-400 font-medium">
+                <span style={{ color: "var(--text-muted)" }}>Dobité kredity</span>
+                <span className="font-medium" style={{ color: "var(--accent)" }}>
                   {wallet.transactions
                     .filter((t) => t.type === "TOPUP")
                     .reduce((s, t) => s + parseFloat(t.amount.toString()), 0)
@@ -193,8 +200,8 @@ export default async function WalletPage() {
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Spotrebované</span>
-                <span className="text-slate-300 font-medium">
+                <span style={{ color: "var(--text-muted)" }}>Spotrebované</span>
+                <span className="font-medium" style={{ color: "var(--text)" }}>
                   {Math.abs(
                     wallet.transactions
                       .filter((t) => t.type === "CHARGE")
@@ -213,7 +220,7 @@ export default async function WalletPage() {
           <div className="glass-card p-6">
             <h2 className="section-title mb-4">Dobiť kredity</h2>
             <CreditPackages />
-            <p className="text-xs text-slate-600 mt-3 text-center">
+            <p className="text-xs mt-3 text-center" style={{ color: "var(--text-muted)" }}>
               Platba cez Stripe · Bezpečná transakcia · Kredity nepretekajú
             </p>
           </div>
@@ -222,7 +229,7 @@ export default async function WalletPage() {
           <div className="glass-card p-6">
             <h2 className="section-title mb-4">História transakcií</h2>
             {!wallet || wallet.transactions.length === 0 ? (
-              <div className="text-center py-8 text-slate-600 text-sm">
+              <div className="text-center py-8 text-sm" style={{ color: "var(--text-muted)" }}>
                 Zatiaľ žiadne transakcie
               </div>
             ) : (

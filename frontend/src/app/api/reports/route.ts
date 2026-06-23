@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma, SourceType } from "@prisma/client";
+import { SourceType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask } from "@/lib/worker";
-import { calculateCost, reportRequestSchema, SOURCE_COSTS } from "./schema";
+import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { reportRequestSchema } from "./schema";
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 20 });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   try {
     const user = await getCurrentUser(req);
     if (!user) {
@@ -37,72 +41,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const totalCost = calculateCost(sources);
-
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId: user.id },
+    const reportRequest = await prisma.reportRequest.create({
+      data: {
+        userId: user.id,
+        targetType,
+        ico: ico ?? null,
+        name: name ?? null,
+        surname: surname ?? null,
+        birthDate: birthDate ? new Date(birthDate) : null,
+        selectedSources: sources as SourceType[],
+        totalCost: 0,
+        status: "PENDING",
+        sources: {
+          create: (sources as SourceType[]).map((source) => ({
+            sourceType: source,
+            status: "PENDING",
+            costCredits: 0,
+          })),
+        },
+      },
     });
 
-    if (!wallet || wallet.balance.toNumber() < totalCost) {
-      return NextResponse.json(
-        { error: "Insufficient credits", required: totalCost, balance: wallet?.balance.toNumber() ?? 0 },
-        { status: 402 }
-      );
-    }
-
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Optimistic locking: kontrolujeme version, strhávame kredit.
-      const updatedWallet = await tx.wallet.updateMany({
-        where: { id: wallet.id, version: wallet.version },
-        data: {
-          balance: { decrement: totalCost },
-          version: { increment: 1 },
-        },
-      });
-
-      if (updatedWallet.count === 0) {
-        throw new Error("Concurrent wallet update conflict");
-      }
-
-      const reportRequest = await tx.reportRequest.create({
-        data: {
-          userId: user.id,
-          targetType,
-          ico: ico ?? null,
-          name: name ?? null,
-          surname: surname ?? null,
-          birthDate: birthDate ? new Date(birthDate) : null,
-          selectedSources: sources,
-          totalCost: totalCost,
-          status: "PENDING",
-          sources: {
-            create: sources.map((source: SourceType) => ({
-              sourceType: source,
-              status: "PENDING",
-              costCredits: SOURCE_COSTS[source] ?? 0,
-            })),
-          },
-        },
-      });
-
-      await tx.walletTransaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: -totalCost,
-          type: "CHARGE",
-          status: "COMPLETED",
-          reportRequestId: reportRequest.id,
-          description: `Report ${reportRequest.id} charge`,
-        },
-      });
-
-      return reportRequest;
-    });
-
-    // Odošleme úlohu workerovi mimo transakcie, aby sme neblokovali DB.
+    // Odošleme úlohu workerovi.
     try {
       await enqueueReportTask({
-        reportRequestId: result.id,
+        reportRequestId: reportRequest.id,
         targetType,
         ico,
         name,
@@ -111,55 +74,74 @@ export async function POST(req: NextRequest) {
         sources,
       });
     } catch (workerErr) {
-      // Worker nie je dostupný — report označíme ako FAILED a vrátime strhnuté kredity,
-      // aby používateľ neprišiel o platené registre (napr. CRE).
       console.error("Worker enqueue failed", workerErr);
-      try {
-        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          await tx.reportRequest.update({
-            where: { id: result.id },
-            data: { status: "FAILED" },
-          });
-
-          if (totalCost > 0) {
-            await tx.wallet.update({
-              where: { id: wallet.id },
-              data: {
-                balance: { increment: totalCost },
-                version: { increment: 1 },
-              },
-            });
-
-            await tx.walletTransaction.create({
-              data: {
-                walletId: wallet.id,
-                amount: totalCost,
-                type: "REFUND",
-                status: "COMPLETED",
-                reportRequestId: result.id,
-                description: `Refund for failed report ${result.id} (worker unavailable)`,
-              },
-            });
-          }
-        });
-      } catch (refundErr) {
-        console.error("Refund after worker failure failed", refundErr);
-      }
+      await prisma.reportRequest.update({
+        where: { id: reportRequest.id },
+        data: { status: "FAILED" },
+      });
 
       return NextResponse.json(
-        { error: "Worker is unavailable, report marked as failed and credits refunded" },
+        { error: "Worker is unavailable, report marked as failed" },
         { status: 503 }
       );
     }
 
     await prisma.reportRequest.update({
-      where: { id: result.id },
+      where: { id: reportRequest.id },
       data: { status: "PROCESSING" },
     });
 
-    return NextResponse.json({ reportRequestId: result.id }, { status: 201 });
+    return NextResponse.json({ reportRequestId: reportRequest.id }, { status: 201 });
   } catch (error) {
     console.error("POST /api/reports error", error);
+    return NextResponse.json(
+      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const reportId = searchParams.get("id");
+    const deleteAll = searchParams.get("all") === "true";
+
+    if (deleteAll) {
+      const result = await prisma.reportRequest.deleteMany({
+        where: { userId: user.id },
+      });
+      return NextResponse.json({ deleted: result.count });
+    }
+
+    if (!reportId) {
+      return NextResponse.json({ error: "Report ID is required" }, { status: 400 });
+    }
+
+    const report = await prisma.reportRequest.findUnique({
+      where: { id: reportId },
+    });
+
+    if (!report) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    }
+
+    if (report.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    await prisma.reportRequest.delete({
+      where: { id: reportId },
+    });
+
+    return NextResponse.json({ deleted: 1 });
+  } catch (error) {
+    console.error("DELETE /api/reports error", error);
     return NextResponse.json(
       { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }

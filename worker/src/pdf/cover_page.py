@@ -1,7 +1,8 @@
 from __future__ import annotations
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -16,9 +17,41 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.graphics.shapes import Drawing, Path as RLPath
+from reportlab.graphics.shapes import Drawing
 
 from ..models import ScrapedSource
+
+
+# Friendly názvy zdrojov pre cover page (raw enum je príliš dlhý pre tabuľku)
+_SOURCE_LABELS = {
+    "ORSR": "ORSR",
+    "ZRSR": "ŽRSR",
+    "INSOLVENCY": "Register úpadcov",
+    "RPVS": "RPVS",
+    "FINANCNA_SPRAVA": "Daň. dlžníci",
+    "FS_DPH_RUSENIE": "DPH rušenie",
+    "FS_DPH_VYMAZANI": "DPH vymazaní",
+    "FS_DANOVE_SUBJEKTY": "Daň. spoľahlivosť",
+    "FS_DAN_Z_PRIJMOV": "Daň z príjmov",
+    "FS_DPH_NADMERNY_ODPOCET": "DPH nadmerný odpočet",
+    "FS_DPH_REGISTROVANI": "DPH registrovaní",
+    "FS_DAN_PRIJMOV_REG": "Daň z príjmov (reg.)",
+}
+
+# Zoskupenie zdrojov do kategórií pre prehľadnejšie zobrazenie
+_SOURCE_CATEGORIES = [
+    ("Základné firemné a podnikateľské registre", ["ORSR", "ZRSR", "RPVS"]),
+    ("Insolvenčný a majetkový register", ["INSOLVENCY"]),
+    ("Finančná správa SR — DPH", ["FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI"]),
+    ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
+    ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
+]
+
+# Mapa source_type -> category label pre rýchle hľadanie
+_SOURCE_TO_CATEGORY: dict[str, str] = {}
+for _cat_label, _source_ids in _SOURCE_CATEGORIES:
+    for _sid in _source_ids:
+        _SOURCE_TO_CATEGORY[_sid] = _cat_label
 
 
 class CoverPageGenerator:
@@ -49,127 +82,245 @@ class CoverPageGenerator:
             bottomMargin=2 * cm,
         )
         styles = getSampleStyleSheet()
-        
+
         # Override default fonts for basic styles used in table
         styles["Normal"].fontName = "Inter"
+        styles["Normal"].fontSize = 9
+        styles["Normal"].leading = 13
         styles["Heading2"].fontName = "Inter-Bold"
-        
-        title_style = ParagraphStyle(
-            "Title",
-            parent=styles["Heading1"],
+
+        # ── Font system ──────────────────────────────────────────────
+        # Brand: 18pt bold (fits on one line with suffix)
+        brand_style = ParagraphStyle(
+            "Brand",
+            parent=styles["Normal"],
             fontName="Inter-Bold",
-            fontSize=24,
-            spaceAfter=0, # Space is handled by Spacer after table
+            fontSize=18,
+            leading=22,
+            spaceAfter=0,
         )
+        # Subtitle: 10pt muted, for subject info and summary
         subtitle_style = ParagraphStyle(
             "Subtitle",
             parent=styles["Normal"],
             fontName="Inter",
-            fontSize=11,
-            spaceAfter=0.3 * cm,
-            textColor=colors.HexColor("#52525b"), # Muted text
+            fontSize=10,
+            leading=14,
+            spaceAfter=0.25 * cm,
+            textColor=colors.HexColor("#71717a"),
+        )
+        # Section heading: 13pt bold
+        section_style = ParagraphStyle(
+            "Section",
+            parent=styles["Normal"],
+            fontName="Inter-Bold",
+            fontSize=13,
+            leading=17,
+            spaceAfter=0,
+            textColor=colors.HexColor("#18181b"),
+        )
+        # Table body: 9pt
+        table_style = ParagraphStyle(
+            "TableCell",
+            parent=styles["Normal"],
+            fontName="Inter",
+            fontSize=9,
+            leading=12.5,
         )
 
         story: list = []
         
-        # Vykreslenie loga (zelená "fajka") presne podľa webu (väčšie a zarovnané)
-        logo_drawing = Drawing(30, 26)
-        p = RLPath(strokeColor=colors.HexColor("#10b981"), strokeWidth=4.5, strokeLineCap=1, strokeLineJoin=1, fillColor=None)
-        # Scaled by ~1.25, Y os otočená. Posunuté nižšie (o 4 body) aby V nebolo "ustrelené" dohora
-        p.moveTo(6.25, 14)
-        p.lineTo(13.75, 1.5)
-        p.lineTo(26.25, 19)
-        logo_drawing.add(p)
+        # Vykreslenie loga (moderné grid logo)
+        from reportlab.graphics.shapes import Rect
+        color_main = colors.HexColor("#10b981")
+        color_light = colors.HexColor("#86efac")
 
-        # Naformátovaný text: eriso.sk (zelené sk) a potom šedý suffix
+        # Drawing 24x20 — vizuálny stred štvorčekov sa zarovná s cap-height stredom 24pt textu
+        logo_drawing = Drawing(24, 20)
+        sq = 8  # veľkosť štvorčeka
+        gap = 2  # medzera medzi štvorčekami
+        logo_drawing.add(Rect(0, 0, sq, sq, rx=1.5, ry=1.5, fillColor=color_light, strokeColor=None))
+        logo_drawing.add(Rect(sq + gap, 0, sq, sq, rx=1.5, ry=1.5, fillColor=color_main, strokeColor=None))
+        logo_drawing.add(Rect(0, sq + gap, sq, sq, rx=1.5, ry=1.5, fillColor=color_main, strokeColor=None))
+        logo_drawing.add(Rect(sq + gap, sq + gap, sq, sq, rx=1.5, ry=1.5, fillColor=color_light, strokeColor=None))
+
+        # Naformátovaný text: Registro.sk — Due Diligence Report
+        # Brand 18pt bold + suffix 11pt regular muted = jeden riadok
         logo_text = Paragraph(
-            '<font color="#111827">eriso</font><font color="#10b981">.sk</font><font color="#000000"> — Due Diligence Report</font>',
-            title_style
+            '<font color="#111827">Registro</font><font color="#10b981">.sk</font>'
+            '<font color="#71717a" size="11"> — Due Diligence Report</font>',
+            brand_style
         )
 
-        # Šírka prvého stĺpca 0.85cm naschvál vytvorí mierny prekryv (-8px margin ako na webe)
-        header_table = Table([[logo_drawing, logo_text]], colWidths=[0.85 * cm, 15 * cm])
+        # Prvý stĺpec 1.2cm + LEFTPADDING 6pt na druhom stĺpci = medzera medzi logom a textom
+        header_table = Table([[logo_drawing, logo_text]], colWidths=[1.2 * cm, 14.8 * cm])
         header_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (0, 0), 0),
+            ('RIGHTPADDING', (0, 0), (0, 0), 0),
+            ('LEFTPADDING', (1, 0), (1, 0), 6),
+            ('RIGHTPADDING', (1, 0), (1, 0), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
             ('TOPPADDING', (0, 0), (-1, -1), 0),
         ]))
         
         story.append(header_table)
-        story.append(Spacer(1, 0.8 * cm))
+        story.append(Spacer(1, 0.6 * cm))
 
+        # ── Subject info ────────────────────────────────────────────
         subject_label = "Subjekt" if target_type == "COMPANY" else "Fyzická osoba"
         story.append(Paragraph(f"<b>{subject_label}:</b> {identifier}", subtitle_style))
         if target_type == "COMPANY" and company_name:
             story.append(Paragraph(f"<b>Obchodné meno:</b> {company_name}", subtitle_style))
         story.append(Paragraph(f"<b>Vygenerované:</b> {generated_at.strftime('%d.%m.%Y %H:%M:%S')}", subtitle_style))
-        story.append(Spacer(1, 1.2 * cm))
+        story.append(Spacer(1, 1.0 * cm))
 
-        story.append(Paragraph("<b>Prehľad zdrojov</b>", styles["Heading2"]))
-        story.append(Spacer(1, 0.4 * cm))
+        # ── Section heading ────────────────────────────────────────
+        story.append(Paragraph("Prehľad zdrojov", section_style))
+        story.append(Spacer(1, 0.35 * cm))
 
-        table_data = [
-            ["Zdroj", "Status", "Strana", "Nálezy"]
-        ]
+        from xml.sax.saxutils import escape as xml_escape
 
-        for source in sources:
-            if source.status == "SUCCESS":
-                status_p = Paragraph('<font color="#10b981">SUCCESS</font>', styles["Normal"])
-            elif source.status == "UNAVAILABLE":
-                status_p = Paragraph('<font color="#f59e0b">UNAVAILABLE</font>', styles["Normal"])
+        # Stĺpce: Icon (0.8cm) | Zdroj (3.5cm) | Status (2.5cm) | Strana (1.5cm) | Nálezy (7.7cm)
+        col_widths = [0.8 * cm, 3.5 * cm, 2.5 * cm, 1.5 * cm, 7.7 * cm]
+
+        # Status ikonky — Unicode symboly v jednotnej farbe
+        _STATUS_ICONS = {
+            "SUCCESS":     ("✓", "#10b981"),
+            "UNAVAILABLE": ("⚠", "#f59e0b"),
+            "FAILED":      ("✗", "#ef4444"),
+        }
+
+        def _build_status_icon(status: str) -> Paragraph:
+            icon, color = _STATUS_ICONS.get(status, ("•", "#71717a"))
+            return Paragraph(
+                f'<font name="DejaVuSans" size="11" color="{color}"><b>{icon}</b></font>',
+                ParagraphStyle("Icon", parent=table_style, alignment=1),  # CENTER
+            )
+
+        def _build_status_text(status: str) -> Paragraph:
+            if status == "SUCCESS":
+                return Paragraph('<font color="#10b981">Úspech</font>', table_style)
+            elif status == "UNAVAILABLE":
+                return Paragraph('<font color="#f59e0b">Nedostupné</font>', table_style)
             else:
-                status_p = Paragraph('<font color="#ef4444">FAILED</font>', styles["Normal"])
+                return Paragraph('<font color="#ef4444">Zlyhal</font>', table_style)
 
+        def _build_findings(source) -> Paragraph:
             findings = source.findings or source.message or "Bez záznamu."
-            
-            # Zvýrazníme slovo POZOR na červeno a tučne pre lepšiu viditeľnosť nálezov
+            findings = xml_escape(findings)
+
             if "POZOR" in findings:
                 findings = findings.replace("POZOR!", '<font color="#ef4444"><b>POZOR!</b></font>')
                 findings = findings.replace("POZOR:", '<font color="#ef4444"><b>POZOR:</b></font>')
                 findings = findings.replace("POZOR", '<font color="#ef4444"><b>POZOR</b></font>')
-            
+
+            findings = re.sub(r'vysoko spoľahlivý', r'<font color="#10b981"><b>\g<0></b></font>', findings)
+            findings = re.sub(r'menej spoľahlivý', r'<font color="#ef4444"><b>\g<0></b></font>', findings)
+            findings = re.sub(r'(?<!vysoko )(?<!menej )spoľahlivý', r'<font color="#f59e0b"><b>\g<0></b></font>', findings)
+            findings = re.sub(r'Vyrubená daň:\s*(?!0[.,]00)([\d.,]+\s*EUR)', r'<font color="#10b981"><b>Vyrubená daň: \1</b></font>', findings)
+            findings = re.sub(r'Daňová strata:\s*(?!0[.,]00)([\d.,]+\s*EUR)', r'<font color="#ef4444"><b>Daňová strata: \1</b></font>', findings)
+
+            return Paragraph(findings, table_style)
+
+        def _build_page_link(source) -> Paragraph:
             if source.start_page is not None:
-                page_link = Paragraph(f'<a href="http://PAGE_{source.start_page}" color="#2563eb"><u>{source.start_page}</u></a>', styles["Normal"])
-            else:
-                page_link = Paragraph("-", styles["Normal"])
+                return Paragraph(f'<a href="http://PAGE_{source.start_page}" color="#2563eb"><u>{source.start_page}</u></a>', table_style)
+            return Paragraph("—", table_style)
 
-            table_data.append(
-                [
-                    Paragraph(source.source_type, styles["Normal"]),
-                    status_p,
-                    page_link,
-                    Paragraph(findings, styles["Normal"]),
-                ]
-            )
+        # Header riadok
+        header_row = [
+            Paragraph("", table_style),
+            Paragraph("<b>Zdroj</b>", table_style),
+            Paragraph("<b>Stav</b>", table_style),
+            Paragraph("<b>Strana</b>", table_style),
+            Paragraph("<b>Nálezy</b>", table_style),
+        ]
 
-        table = Table(table_data, colWidths=[3.5 * cm, 3 * cm, 2 * cm, 7.5 * cm])
-        table.setStyle(
-            TableStyle(
-                [
-                    # Header
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f4f4f5")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#18181b")),
-                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Inter-Bold"),
-                    ("FONTNAME", (0, 1), (-1, -1), "Inter"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 10),
-                    ("FONTSIZE", (0, 1), (-1, -1), 9),
-                    # Padding
-                    ("TOPPADDING", (0, 0), (-1, -1), 8),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                    # Grid
-                    ("LINEBELOW", (0, 0), (-1, -1), 0.5, colors.HexColor("#e4e4e7")),
-                ]
-            )
-        )
+        table_data = [header_row]
+        table_styles = [
+            # Header
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f4f4f5")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#18181b")),
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ("ALIGN", (0, 0), (0, -1), "CENTER"),  # Icon column centered
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("FONTNAME", (0, 0), (-1, 0), "Inter-Bold"),
+            ("FONTNAME", (0, 1), (-1, -1), "Inter"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("LEADING", (0, 0), (-1, -1), 12.5),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("LINEBELOW", (0, 0), (-1, 0), 1, colors.HexColor("#e4e4e7")),
+        ]
+
+        current_row = 1  # 0 = header
+
+        # Zoskupenie podľa kategórií
+        source_map = {s.source_type: s for s in sources}
+        rendered_sources = set()
+
+        for cat_label, cat_source_ids in _SOURCE_CATEGORIES:
+            cat_sources = [source_map[sid] for sid in cat_source_ids if sid in source_map]
+            if not cat_sources:
+                continue
+
+            # Category header row — span all columns
+            table_data.append([
+                Paragraph(f'<b>{cat_label}</b>', ParagraphStyle("CatHeader", parent=table_style, fontSize=8, textColor=colors.HexColor("#71717a"))),
+                "", "", "", "",
+            ])
+            table_styles.append(("SPAN", (0, current_row), (-1, current_row)))
+            table_styles.append(("BACKGROUND", (0, current_row), (-1, current_row), colors.HexColor("#fafafa")))
+            table_styles.append(("TOPPADDING", (0, current_row), (-1, current_row), 5))
+            table_styles.append(("BOTTOMPADDING", (0, current_row), (-1, current_row), 5))
+            table_styles.append(("LINEBELOW", (0, current_row), (-1, current_row), 0.5, colors.HexColor("#e4e4e7")))
+            current_row += 1
+
+            for source in cat_sources:
+                rendered_sources.add(source.source_type)
+                table_data.append([
+                    _build_status_icon(source.status),
+                    Paragraph(_SOURCE_LABELS.get(source.source_type, source.source_type), table_style),
+                    _build_status_text(source.status),
+                    _build_page_link(source),
+                    _build_findings(source),
+                ])
+                table_styles.append(("LINEBELOW", (0, current_row), (-1, current_row), 0.5, colors.HexColor("#f0f0f0")))
+                current_row += 1
+
+        # Zdroje, ktoré nepatria do žiadnej kategórie
+        remaining = [s for s in sources if s.source_type not in rendered_sources]
+        if remaining:
+            table_data.append([
+                Paragraph('<b>Ostatné</b>', ParagraphStyle("CatHeader", parent=table_style, fontSize=8, textColor=colors.HexColor("#71717a"))),
+                "", "", "", "",
+            ])
+            table_styles.append(("SPAN", (0, current_row), (-1, current_row)))
+            table_styles.append(("BACKGROUND", (0, current_row), (-1, current_row), colors.HexColor("#fafafa")))
+            table_styles.append(("TOPPADDING", (0, current_row), (-1, current_row), 5))
+            table_styles.append(("BOTTOMPADDING", (0, current_row), (-1, current_row), 5))
+            table_styles.append(("LINEBELOW", (0, current_row), (-1, current_row), 0.5, colors.HexColor("#e4e4e7")))
+            current_row += 1
+
+            for source in remaining:
+                table_data.append([
+                    _build_status_icon(source.status),
+                    Paragraph(_SOURCE_LABELS.get(source.source_type, source.source_type), table_style),
+                    _build_status_text(source.status),
+                    _build_page_link(source),
+                    _build_findings(source),
+                ])
+                table_styles.append(("LINEBELOW", (0, current_row), (-1, current_row), 0.5, colors.HexColor("#f0f0f0")))
+                current_row += 1
+
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle(table_styles))
         story.append(table)
-        story.append(Spacer(1, 0.8 * cm))
+        story.append(Spacer(1, 0.6 * cm))
 
         summary = self._build_summary(sources)
         story.append(Paragraph(f"<b>Zhrnutie:</b> {summary}", subtitle_style))

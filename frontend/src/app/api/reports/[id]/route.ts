@@ -30,6 +30,7 @@ export async function GET(
       status: report.status,
       targetType: report.targetType,
       ico: report.ico,
+      companyName: report.companyName,
       name: report.name,
       surname: report.surname,
       totalCost: report.totalCost,

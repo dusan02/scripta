@@ -27,18 +27,14 @@ export default function Logo({ size = "md" }: LogoProps) {
         style={{ 
           color: "var(--accent)", 
           flexShrink: 0, 
-          marginRight: "-0.2em",
-          marginTop: "-0.1em" // Posunieme Včko mierne dole/hore aby lícovalo s textom
+          marginRight: "0.2em",
+          marginTop: "-0.1em"
         }}
       >
-        <path
-          d="M4.5 10 L10 18 L20 4"
-          stroke="currentColor"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
+        <rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" />
+        <rect x="14" y="3" width="7" height="7" rx="2" fill="currentColor" opacity="0.5" />
+        <rect x="3" y="14" width="7" height="7" rx="2" fill="currentColor" opacity="0.5" />
+        <rect x="14" y="14" width="7" height="7" rx="2" fill="currentColor" />
       </svg>
       <span
         style={{ 
@@ -47,7 +43,7 @@ export default function Logo({ size = "md" }: LogoProps) {
           letterSpacing: "-0.04em",
         }}
       >
-        eriso<span style={{ color: "var(--accent)" }}>.sk</span>
+        Registro<span style={{ color: "var(--accent)" }}>.sk</span>
       </span>
     </div>
   );

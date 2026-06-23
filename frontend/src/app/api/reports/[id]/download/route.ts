@@ -49,6 +49,17 @@ export async function GET(
       filePath = path.resolve(process.cwd(), "..", "worker", filePath);
     }
 
+    // Path traversal protection: ensure resolved path is within the worker results directory
+    const resultsDir = path.resolve(process.cwd(), "..", "worker", "results");
+    const resolvedFilePath = path.resolve(filePath);
+    if (!resolvedFilePath.startsWith(resultsDir + path.sep) && resolvedFilePath !== resultsDir) {
+      return NextResponse.json(
+        { error: "Invalid file path" },
+        { status: 403 }
+      );
+    }
+    filePath = resolvedFilePath;
+
     if (!existsSync(filePath)) {
       return NextResponse.json(
         { error: "Result file not found on disk" },

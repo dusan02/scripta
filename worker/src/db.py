@@ -42,7 +42,7 @@ async def update_report_status(
         await pool.execute(
             """
             UPDATE "ReportRequest"
-            SET status = $1, "resultFilePath" = $2, "completedAt" = $3, name = $4, "updatedAt" = NOW()
+            SET status = $1, "resultFilePath" = $2, "completedAt" = $3, "companyName" = $4, "updatedAt" = NOW()
             WHERE id = $5
             """,
             status,
@@ -73,33 +73,48 @@ async def upsert_report_sources(
     async with pool.acquire() as conn:
         async with conn.transaction():
             for source in sources:
-                await conn.execute(
-                    """
-                    INSERT INTO "ReportSource" (
-                        id, "reportRequestId", "sourceType", status, "statusMessage",
-                        "filePath", "pageCount", "costCredits", findings, "createdAt", "updatedAt"
-                    )
-                    VALUES (
-                        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
-                    )
-                    ON CONFLICT ("reportRequestId", "sourceType")
-                    DO UPDATE SET
-                        status = EXCLUDED.status,
-                        "statusMessage" = EXCLUDED."statusMessage",
-                        "filePath" = EXCLUDED."filePath",
-                        "pageCount" = EXCLUDED."pageCount",
-                        findings = EXCLUDED.findings,
-                        "updatedAt" = NOW()
-                    """,
-                    report_request_id,
-                    source.source_type,
-                    source.status,
-                    source.status_message,
-                    source.file_path,
-                    source.page_count,
-                    0,  # costCredits už bol nastavený pri vytvorení v Next.js; ON CONFLICT ho neprepíše
-                    source.findings,
-                )
+                await _upsert_one(conn, report_request_id, source)
+
+
+async def upsert_single_report_source(
+    pool: asyncpg.Pool,
+    report_request_id: str,
+    source: ScrapedSource,
+) -> None:
+    """Upsertne jeden zdroj do DB — pre okamžité aktualizácie po dokončení scraperu."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await _upsert_one(conn, report_request_id, source)
+
+
+async def _upsert_one(conn, report_request_id: str, source: ScrapedSource) -> None:
+    await conn.execute(
+        """
+        INSERT INTO "ReportSource" (
+            id, "reportRequestId", "sourceType", status, "statusMessage",
+            "filePath", "pageCount", "costCredits", findings, "createdAt", "updatedAt"
+        )
+        VALUES (
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+        )
+        ON CONFLICT ("reportRequestId", "sourceType")
+        DO UPDATE SET
+            status = EXCLUDED.status,
+            "statusMessage" = EXCLUDED."statusMessage",
+            "filePath" = EXCLUDED."filePath",
+            "pageCount" = EXCLUDED."pageCount",
+            findings = EXCLUDED.findings,
+            "updatedAt" = NOW()
+        """,
+        report_request_id,
+        source.source_type,
+        source.status,
+        source.status_message,
+        source.file_path,
+        source.page_count,
+        0,
+        source.findings,
+    )
 
 
 async def refund_unavailable_paid_sources(

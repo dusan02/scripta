@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -62,8 +63,8 @@ class OrsrScraper(BaseScraper):
                     cells_count = await cells.count()
                     for i in range(cells_count):
                         text_val = (await cells.nth(i).inner_text()).strip()
-                        # Ignorujeme poradové číslo (napr. "1.") a odkaz na výpis ("Aktuálny Úplný")
-                        if text_val and not text_val.endswith(".") and "aktuálny" not in text_val.lower() and "úplný" not in text_val.lower():
+                        # Preskakujeme poradové čísla (napr. "1.", "2.") a odkazy na výpis
+                        if text_val and not re.match(r'^\d+\.$', text_val) and "aktuálny" not in text_val.lower() and "úplný" not in text_val.lower():
                             company_name = text_val
                             break
                 except Exception as row_err:
@@ -73,6 +74,23 @@ class OrsrScraper(BaseScraper):
 
                 if company_name:
                     company_name = company_name.strip()
+                    # ORSR vracia meno v tvare '" AGROVASTA spol. s r.o." Sečovce'
+                    # — berieme len text medzi úvodzovkami, ak sú prítomné
+                    quote_match = re.match(r'^["\']+(.+?)["\']+', company_name)
+                    if quote_match:
+                        company_name = quote_match.group(1).strip()
+                    else:
+                        # Bez úvodzoviek — orežeme trailing obec za právnou formou
+                        company_name = re.sub(
+                            r'((?:spol\.\s*s\s*r\.\s*o\.|s\.?\s*r\.?\s*o\.|a\.\s*s\.|v\.\s*o\.\s*s\.|k\.\s*s\.))\.?\s.*$',
+                            r'\1',
+                            company_name,
+                            flags=re.IGNORECASE,
+                        )
+                    company_name = company_name.strip()
+                    logger.info(f"[{self.source_type}] Extrahované obchodné meno: '{company_name}'")
+                else:
+                    logger.warning(f"[{self.source_type}] Nepodarilo sa extrahovať obchodné meno z tabuľky.")
                 logger.info(f"[{self.source_type}] Klikám na odkaz detailu pre: {company_name}")
                 await detail_link.click()
                 await page.wait_for_load_state("domcontentloaded", timeout=45000)

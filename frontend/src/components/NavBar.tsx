@@ -34,7 +34,6 @@ function LogOutIcon() {
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
-  { href: "/wallet", label: "Peňaženka" },
 ];
 
 export default function NavBar() {
@@ -54,12 +53,12 @@ export default function NavBar() {
 
   return (
     <header className="glass-nav sticky top-0 z-50">
-      <div className="max-w-[1200px] mx-auto px-6">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
 
           {/* Left: Logo + Nav */}
           <div className="flex items-center gap-6">
-            <Link href="/" aria-label="Veriso dashboard" style={{ textDecoration: "none" }}>
+            <Link href="/" aria-label="Registro dashboard" style={{ textDecoration: "none" }}>
               <Logo />
             </Link>
 
@@ -87,23 +86,6 @@ export default function NavBar() {
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
 
-            {/* Credits pill */}
-            <Link
-              href="/wallet"
-              className="hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-full text-xs font-medium transition-all duration-150"
-              style={{
-                background: "var(--bg-muted)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: "var(--accent)" }}
-              />
-              <span>— kr.</span>
-            </Link>
-
             {/* Divider */}
             <div
               className="hidden sm:block w-px h-5 mx-1"
@@ -115,7 +97,7 @@ export default function NavBar() {
               id="theme-toggle-btn"
               onClick={toggle}
               title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
-              className="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150"
+              className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
               style={{
                 background: "var(--bg-muted)",
                 border: "1px solid var(--border)",
@@ -131,7 +113,7 @@ export default function NavBar() {
               onClick={handleLogout}
               disabled={loggingOut}
               title="Odhlásiť sa"
-              className="hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-all duration-150"
+              className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg transition-all duration-150"
               style={{
                 background: "var(--bg-muted)",
                 border: "1px solid var(--border)",

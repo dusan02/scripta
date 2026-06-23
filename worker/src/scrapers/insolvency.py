@@ -74,7 +74,7 @@ class InsolvencyScraper(BaseScraper):
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Zlyhalo vyhľadávanie. Chyba: {e}")
 
-            return await self._process_results(page, label, output_dir)
+            return await self._process_results(page, label, output_dir, search_query)
 
         except ScraperUnavailableError as e:
             logger.error(f"[{self.source_type}] Register úpadcov je nedostupný: {e}")
@@ -103,9 +103,10 @@ class InsolvencyScraper(BaseScraper):
         page: Page,
         label: str,
         output_dir: Path,
+        search_query: str = "",
     ) -> ScrapedSource:
         logger.info(f"[{self.source_type}] Spracovávam výsledky vyhľadávania.")
-        has_results, findings = await self._extract_findings(page)
+        has_results, findings = await self._extract_findings(page, search_query)
 
         if has_results:
             # Klikneme na detail konania, aby sme ho stiahli namiesto zoznamu vyhľadávania
@@ -186,7 +187,7 @@ class InsolvencyScraper(BaseScraper):
             findings=findings,
         )
 
-    async def _extract_findings(self, page: Page) -> tuple[bool, str]:
+    async def _extract_findings(self, page: Page, search_query: str = "") -> tuple[bool, str]:
         try:
             # Počkáme chvíľku kým PrimeFaces dogeneruje AJAX DOM elementy
             await page.wait_for_timeout(2000)
@@ -194,7 +195,12 @@ class InsolvencyScraper(BaseScraper):
             
             # Nový portál zobrazuje toto, ak nič nenájde
             if "Nenašli sa žiadne konania" in text_content or "žiadne konania pre hľadaný reťazec" in text_content:
-                return False, "Subjekt nemá negatívne záznamy v registri úpadcov."
+                # Vnútorná kontrola: overíme že IČO v texte sa zhoduje s hľadaným IČO
+                if search_query and search_query in text_content:
+                    logger.info(f"[{self.source_type}] Potvrdené: stránka hlási 'Nenašli sa žiadne konania' pre IČO {search_query}.")
+                elif search_query:
+                    logger.warning(f"[{self.source_type}] UPOZORNENIE: 'Nenašli sa' text neobsahuje hľadané IČO {search_query}! Text: {text_content[:300]}")
+                return False, f"Nenašli sa žiadne konania pre hľadaný reťazec — {search_query}. Subjekt nemá negatívne záznamy v registri úpadcov."
 
             # Kontrola odkazov na detaily konaní (nový portál s kartami z 2025+)
             detail_links = page.locator("a[href*='konanieDetail.xhtml']")

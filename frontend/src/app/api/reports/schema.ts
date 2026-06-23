@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SOURCE_IDS, SOURCE_COSTS, calculateCost } from "@/lib/sources";
 
 export const reportRequestSchema = z.object({
   targetType: z.enum(["COMPANY", "PERSON"]),
@@ -8,19 +9,9 @@ export const reportRequestSchema = z.object({
   name: z.string().optional(),
   surname: z.string().optional(),
   birthDate: z.string().datetime().optional(),
-  sources: z.array(z.enum(["ORSR", "ZRSR", "INSOLVENCY", "CRE", "RPVS"])).min(1),
+  sources: z.array(z.enum(SOURCE_IDS)).min(1),
 });
 
 export type ReportRequestInput = z.infer<typeof reportRequestSchema>;
 
-export const SOURCE_COSTS: Record<string, number> = {
-  ORSR: 0,
-  ZRSR: 0,
-  INSOLVENCY: 0,
-  RPVS: 0,
-  CRE: 5, // platený register
-};
-
-export function calculateCost(sources: string[]) {
-  return sources.reduce((sum, source) => sum + (SOURCE_COSTS[source] ?? 0), 0);
-}
+export { SOURCE_COSTS, calculateCost };

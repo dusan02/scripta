@@ -1,15 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-
-const SOURCES = [
-  { id: "ORSR",       label: "ORSR",            sublabel: "Obchodný register",    cost: 0 },
-  { id: "ZRSR",       label: "ŽRSR",            sublabel: "Živnostenský register", cost: 0 },
-  { id: "RPVS",       label: "RPVS",            sublabel: "Register part. ver. sektora", cost: 0 },
-  { id: "INSOLVENCY", label: "Insolvenčný reg.", sublabel: "Register úpadcov",     cost: 0 },
-  { id: "CRE",        label: "CRE",             sublabel: "Exekúcie",              cost: 5 },
-];
+import { useState, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { SOURCES, SOURCE_CATEGORIES, ENABLED_SOURCES, DEFAULT_SELECTED_SOURCES, calculateCost } from "@/lib/sources";
 
 function isValidIco(ico: string): boolean {
   if (!/^\d{8}$/.test(ico)) return false;
@@ -22,6 +15,7 @@ type TargetType = "COMPANY" | "PERSON";
 
 export default function SearchForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [targetType, setTargetType] = useState<TargetType>("COMPANY");
@@ -29,18 +23,33 @@ export default function SearchForm() {
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [selected, setSelected] = useState<string[]>(["ORSR", "ZRSR", "RPVS", "INSOLVENCY"]);
+  const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [icoError, setIcoError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const icoParam = searchParams.get("ico");
+    if (icoParam) {
+      const cleanIco = icoParam.replace(/\D/g, "").slice(0, 8);
+      if (cleanIco.length === 8 && isValidIco(cleanIco)) {
+        setIco(cleanIco);
+        setTargetType("COMPANY");
+      }
+    }
+    const nameParam = searchParams.get("name");
+    const surnameParam = searchParams.get("surname");
+    if (nameParam && surnameParam) {
+      setName(nameParam);
+      setSurname(surnameParam);
+      setTargetType("PERSON");
+    }
+  }, [searchParams]);
+
   const toggleSource = (id: string) =>
     setSelected((p) => (p.includes(id) ? p.filter((s) => s !== id) : [...p, id]));
 
-  const totalCost = SOURCES.filter((s) => selected.includes(s.id)).reduce(
-    (sum, s) => sum + s.cost,
-    0
-  );
+  const totalCost = calculateCost(selected);
 
   const isValid =
     selected.length > 0 &&
@@ -128,7 +137,7 @@ export default function SearchForm() {
       {/* ── Main search bar ───────────────────── */}
       {targetType === "COMPANY" ? (
         <div
-          className="flex items-center rounded-2xl transition-all duration-200"
+          className="flex flex-col sm:flex-row items-stretch sm:items-center rounded-2xl transition-all duration-200"
           style={{
             background: "var(--surface)",
             border: "1.5px solid var(--border)",
@@ -141,7 +150,7 @@ export default function SearchForm() {
           id="search-wrap"
         >
           {/* Search icon */}
-          <div className="pl-5 pr-3 flex-shrink-0">
+          <div className="pl-5 pr-3 flex-shrink-0 hidden sm:block">
             <svg
               width="18"
               height="18"
@@ -173,7 +182,7 @@ export default function SearchForm() {
                 setIcoError(isValidIco(val) ? null : "Neplatné IČO — nesprávna kontrolná číslica.");
               else setIcoError(null);
             }}
-            className="flex-1 bg-transparent outline-none"
+            className="flex-1 bg-transparent outline-none px-5 sm:px-0"
             style={{
               fontSize: "1.125rem",
               letterSpacing: "-0.01em",
@@ -197,12 +206,12 @@ export default function SearchForm() {
           )}
 
           {/* Submit button */}
-          <div className="pr-2 flex-shrink-0">
+          <div className="p-2 flex-shrink-0">
             <button
               id="submit-report-btn"
               type="submit"
               disabled={loading || !isValid}
-              className="flex items-center gap-2 px-5 rounded-xl font-medium text-sm transition-all duration-150"
+              className="flex items-center justify-center gap-2 px-5 rounded-xl font-medium text-sm transition-all duration-150 w-full sm:w-auto"
               style={{
                 height: "44px",
                 background: isValid ? "var(--accent)" : "var(--bg-muted)",
@@ -238,7 +247,7 @@ export default function SearchForm() {
             boxShadow: "var(--shadow-md)",
           }}
         >
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label" htmlFor="name">Meno *</label>
               <input id="name" type="text" className="input" placeholder="Ján" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -257,7 +266,8 @@ export default function SearchForm() {
               id="submit-report-btn"
               type="submit"
               disabled={loading || !isValid}
-              className="btn-primary"
+              className="btn-primary w-full sm:w-auto"
+              style={{ height: "44px" }}
             >
               {loading ? "Spúšťam…" : "Overiť osobu →"}
             </button>
@@ -272,39 +282,138 @@ export default function SearchForm() {
         </p>
       )}
 
-      {/* ── Source chips ──────────────────────── */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-        {SOURCES.map((source) => {
-          const active = selected.includes(source.id);
-          return (
+      {/* ── Source selection ─────────────────── */}
+      <div className="mt-4 space-y-3">
+        {/* Global controls */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+            {selected.length} z {ENABLED_SOURCES.length} registrov
+          </span>
+          <div className="flex items-center gap-3">
             <button
-              key={source.id}
               type="button"
-              onClick={() => toggleSource(source.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
-              style={{
-                background: active ? "var(--accent-light)" : "var(--bg-muted)",
-                color: active ? "var(--accent)" : "var(--text-muted)",
-                border: `1px solid ${active ? "var(--accent-border)" : "var(--border)"}`,
-              }}
+              onClick={() => setSelected(ENABLED_SOURCES.map(s => s.id))}
+              className="text-[11px] font-medium transition-colors hover:opacity-80"
+              style={{ color: "var(--accent)" }}
             >
-              {active && (
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
-              {source.label}
-              {source.cost > 0 && (
-                <span
-                  className="ml-0.5 px-1 rounded text-[9px] font-semibold"
-                  style={{ background: active ? "rgba(16,185,129,0.15)" : "var(--border)", color: active ? "var(--accent)" : "var(--text-muted)" }}
-                >
-                  {source.cost} kr
-                </span>
-              )}
+              Označiť všetko
             </button>
+            <span style={{ color: "var(--border)" }}>·</span>
+            <button
+              type="button"
+              onClick={() => setSelected([])}
+              className="text-[11px] font-medium transition-colors hover:opacity-80"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Odznačiť všetko
+            </button>
+          </div>
+        </div>
+
+        {/* Category groups — 2-column grid on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {SOURCE_CATEGORIES.map((cat) => {
+          const catSources = SOURCES.filter((s) => s.category === cat.id);
+          if (catSources.length === 0) return null;
+          const catEnabled = catSources.filter(s => s.enabled);
+          const catSelected = catEnabled.filter(s => selected.includes(s.id));
+          const allCatSelected = catEnabled.length > 0 && catSelected.length === catEnabled.length;
+          const someCatSelected = catSelected.length > 0 && !allCatSelected;
+
+          return (
+            <div
+              key={cat.id}
+              className="rounded-xl overflow-hidden"
+              style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
+            >
+              {/* Category header */}
+              <div
+                className="flex items-center justify-between px-3 py-2 cursor-pointer select-none transition-colors hover:bg-opacity-50"
+                style={{ background: "var(--bg-muted)" }}
+                onClick={() => {
+                  if (allCatSelected) {
+                    setSelected(p => p.filter(id => !catEnabled.some(s => s.id === id)));
+                  } else {
+                    setSelected(p => Array.from(new Set([...p, ...catEnabled.map(s => s.id)])));
+                  }
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-flex items-center justify-center w-4 h-4 rounded border transition-all"
+                    style={{
+                      background: allCatSelected ? "var(--accent)" : someCatSelected ? "var(--accent-light)" : "var(--surface)",
+                      borderColor: allCatSelected || someCatSelected ? "var(--accent)" : "var(--border)",
+                    }}
+                  >
+                    {allCatSelected && (
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                    {someCatSelected && (
+                      <span style={{ background: "var(--accent)", width: "6px", height: "2px", borderRadius: "1px" }} />
+                    )}
+                  </span>
+                  <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+                    {cat.label}
+                  </span>
+                </div>
+                <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                  {catSelected.length}/{catEnabled.length}
+                </span>
+              </div>
+
+              {/* Source chips */}
+              <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+                {catSources.map((source) => {
+                  const active = selected.includes(source.id);
+                  const disabled = !source.enabled;
+                  return (
+                    <button
+                      key={source.id}
+                      type="button"
+                      onClick={() => !disabled && toggleSource(source.id)}
+                      disabled={disabled}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150"
+                      style={{
+                        background: disabled ? "var(--bg-muted)" : active ? "var(--accent-light)" : "var(--bg-muted)",
+                        color: disabled ? "var(--text-muted)" : active ? "var(--accent)" : "var(--text-muted)",
+                        border: `1px solid ${disabled ? "var(--border)" : active ? "var(--accent-border)" : "var(--border)"}`,
+                        opacity: disabled ? 0.45 : 1,
+                        cursor: disabled ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {active && !disabled && (
+                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                      {source.label}
+                      {disabled && (
+                        <span
+                          className="ml-0.5 px-1 rounded text-[8px] font-semibold"
+                          style={{ background: "var(--border)", color: "var(--text-muted)" }}
+                        >
+                          soon
+                        </span>
+                      )}
+                      {source.cost > 0 && !disabled && (
+                        <span
+                          className="ml-0.5 px-1 rounded text-[9px] font-semibold"
+                          style={{ background: active ? "rgba(16,185,129,0.15)" : "var(--border)", color: active ? "var(--accent)" : "var(--text-muted)" }}
+                        >
+                          {source.cost} kr
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
+        </div>
 
         {totalCost > 0 && (
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>

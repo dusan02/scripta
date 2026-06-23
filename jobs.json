@@ -1,0 +1,181 @@
+{
+  "total_count": 2,
+  "jobs": [
+    {
+      "id": 82621454226,
+      "run_id": 27923532606,
+      "workflow_name": "Build & CI",
+      "head_branch": "master",
+      "run_url": "https://api.github.com/repos/dusan02/scripta/actions/runs/27923532606",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTAf5dM8AAAATPJ9Xkg",
+      "head_sha": "3c5e64cddc807033094d228f3bbf3849e0180990",
+      "url": "https://api.github.com/repos/dusan02/scripta/actions/jobs/82621454226",
+      "html_url": "https://github.com/dusan02/scripta/actions/runs/27923532606/job/82621454226",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-06-22T01:09:23Z",
+      "started_at": "2026-06-22T01:09:24Z",
+      "completed_at": "2026-06-22T01:09:46Z",
+      "name": "build-frontend",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-06-22T01:09:25Z",
+          "completed_at": "2026-06-22T01:09:26Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-06-22T01:09:26Z",
+          "completed_at": "2026-06-22T01:09:27Z"
+        },
+        {
+          "name": "Setup Node.js",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-06-22T01:09:27Z",
+          "completed_at": "2026-06-22T01:09:31Z"
+        },
+        {
+          "name": "Install Dependencies",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 4,
+          "started_at": "2026-06-22T01:09:31Z",
+          "completed_at": "2026-06-22T01:09:44Z"
+        },
+        {
+          "name": "Build Next.js",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 5,
+          "started_at": "2026-06-22T01:09:44Z",
+          "completed_at": "2026-06-22T01:09:44Z"
+        },
+        {
+          "name": "Post Setup Node.js",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-06-22T01:09:44Z",
+          "completed_at": "2026-06-22T01:09:44Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-06-22T01:09:44Z",
+          "completed_at": "2026-06-22T01:09:44Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-06-22T01:09:44Z",
+          "completed_at": "2026-06-22T01:09:44Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/dusan02/scripta/check-runs/82621454226",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000014274,
+      "runner_name": "GitHub Actions 1000014274",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 82621454318,
+      "run_id": 27923532606,
+      "workflow_name": "Build & CI",
+      "head_branch": "master",
+      "run_url": "https://api.github.com/repos/dusan02/scripta/actions/runs/27923532606",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTAf5dM8AAAATPJ9X7g",
+      "head_sha": "3c5e64cddc807033094d228f3bbf3849e0180990",
+      "url": "https://api.github.com/repos/dusan02/scripta/actions/jobs/82621454318",
+      "html_url": "https://github.com/dusan02/scripta/actions/runs/27923532606/job/82621454318",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-06-22T01:09:23Z",
+      "started_at": "2026-06-22T01:09:25Z",
+      "completed_at": "2026-06-22T01:09:53Z",
+      "name": "build-worker",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-06-22T01:09:26Z",
+          "completed_at": "2026-06-22T01:09:26Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-06-22T01:09:26Z",
+          "completed_at": "2026-06-22T01:09:28Z"
+        },
+        {
+          "name": "Setup Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-06-22T01:09:28Z",
+          "completed_at": "2026-06-22T01:09:40Z"
+        },
+        {
+          "name": "Install Dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-06-22T01:09:40Z",
+          "completed_at": "2026-06-22T01:09:50Z"
+        },
+        {
+          "name": "Post Setup Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-06-22T01:09:50Z",
+          "completed_at": "2026-06-22T01:09:50Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-06-22T01:09:50Z",
+          "completed_at": "2026-06-22T01:09:50Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-06-22T01:09:50Z",
+          "completed_at": "2026-06-22T01:09:51Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/dusan02/scripta/check-runs/82621454318",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000014275,
+      "runner_name": "GitHub Actions 1000014275",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

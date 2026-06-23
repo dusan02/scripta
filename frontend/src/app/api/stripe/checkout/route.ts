@@ -2,19 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import { getCurrentUser } from "@/lib/auth";
+import { CREDIT_PACKAGES, getPackageById } from "@/lib/creditPackages";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// ─── Credit packages ─────────────────────────────────────────────────────────
-
-const CREDIT_PACKAGES = {
-  small:  { credits: 20,  amountEur: 990  },  // 9.90 EUR v centoch
-  medium: { credits: 60,  amountEur: 2490 },  // 24.90 EUR
-  large:  { credits: 150, amountEur: 4990 },  // 49.90 EUR
-} as const;
-
-type PackageId = keyof typeof CREDIT_PACKAGES;
 
 // ─── Input validation ─────────────────────────────────────────────────────────
 
@@ -40,11 +31,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { packageId } = parseResult.data as { packageId: PackageId };
-    const pkg = CREDIT_PACKAGES[packageId];
+    const { packageId } = parseResult.data;
+    const pkg = getPackageById(packageId);
+    if (!pkg) {
+      return NextResponse.json({ error: "Invalid package" }, { status: 400 });
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: pkg.amountEur,
+      amount: pkg.priceCents,
       currency: "eur",
       metadata: {
         userId: user.id,

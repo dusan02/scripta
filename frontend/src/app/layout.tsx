@@ -5,20 +5,24 @@ import ThemeProvider from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: {
-    default: "Veriso.sk — Due Diligence reporty pre advokátov",
-    template: "%s | Veriso.sk",
+    default: "Registro.sk — Due Diligence reporty pre advokátov",
+    template: "%s | Registro.sk",
   },
   description:
     "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s titulnou stranou a semaformi nálezov.",
-  keywords: ["due diligence", "report", "ORSR", "advokát", "právnik", "register", "previerka"],
+  keywords: ["due diligence", "report", "ORSR", "advokát", "právnik", "register", "previerka", "daňoví dlžníci", "exekúcie", "insolvencia"],
   robots: { index: false, follow: false },
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 // Inline script to prevent flash of wrong theme before React hydrates
 const themeScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('veriso-theme');
+    var stored = localStorage.getItem('registro-theme');
     if (stored === 'dark' || stored === 'light') {
       document.documentElement.setAttribute('data-theme', stored);
     } else {
@@ -53,7 +57,7 @@ export default function RootLayout({
           <footer style={{ borderTop: "1px solid var(--border)", marginTop: "64px" }}>
             <div className="max-w-[1200px] mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                © {new Date().getFullYear()} Veriso.sk
+                © {new Date().getFullYear()} Registro.sk
               </span>
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Určené výhradne pre advokátov a právnikov

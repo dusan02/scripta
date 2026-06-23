@@ -43,7 +43,18 @@ class BaseScraper(ABC):
             self._playwright = await async_playwright().start()
             self.browser = await self._playwright.chromium.launch(headless=settings.playwright_headless)
             self._owned_browser = True
-        return await self.browser.new_page()
+        page = await self.browser.new_page()
+
+        # Block unnecessary resources to speed up page loads
+        # CSS and fonts are not needed for scraping text content / printing PDFs
+        async def _block_resources(route):
+            if route.request.resource_type in ("image", "font", "media"):
+                await route.abort()
+            else:
+                await route.continue_()
+
+        await page.route("**/*", _block_resources)
+        return page
 
     async def _close(self) -> None:
         """Close browser only if we created it."""
@@ -52,8 +63,10 @@ class BaseScraper(ABC):
             if hasattr(self, "_playwright"):
                 await self._playwright.stop()
 
-    async def _safe_goto(self, page: Page, url: str, retries: int = 2) -> None:
+    async def _safe_goto(self, page: Page, url: str, retries: int = None) -> None:
         """Go to URL with retry; mark as UNAVAILABLE on persistent failures."""
+        if retries is None:
+            retries = settings.scraper_retries
         last_error: Optional[Exception] = None
         for attempt in range(retries + 1):
             try:
@@ -61,7 +74,7 @@ class BaseScraper(ABC):
                 return
             except PlaywrightTimeout as e:
                 last_error = e
-                await asyncio.sleep(1.5 * (attempt + 1))
+                await asyncio.sleep(settings.scraper_retry_delay * (attempt + 1))
         raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
 
     async def _print_page_to_pdf(self, page: Page, output_path: Path) -> int:

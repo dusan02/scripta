@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -9,7 +11,10 @@ const registerSchema = z.object({
   password: z.string().min(8, "Heslo musí mať aspoň 8 znakov"),
 });
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const rl = rateLimit(req, { windowMs: 60 * 60 * 1000, maxRequests: 5 });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   try {
     const body = await req.json();
     const result = registerSchema.safeParse(body);

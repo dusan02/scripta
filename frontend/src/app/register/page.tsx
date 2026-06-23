@@ -273,7 +273,7 @@ export default function RegisterPage() {
         >
           Systém je určený výhradne pre advokátov.{" "}
           <a
-            href="mailto:info@veriso.sk"
+            href="mailto:info@registro.sk"
             style={{ color: "var(--text-secondary)", textDecoration: "none", fontWeight: 500 }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}

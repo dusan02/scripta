@@ -27,6 +27,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
+    tokenVersion: number;
   }
 }
 
@@ -85,18 +86,39 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
-      // `user` is only available on sign-in; persist id into token.
+    async jwt({ token, user, trigger }) {
+      // `user` is only available on sign-in; persist id and tokenVersion into token.
       if (user) {
         token.id = user.id;
+        // Fetch tokenVersion from DB at sign-in
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { tokenVersion: true },
+        });
+        token.tokenVersion = dbUser?.tokenVersion ?? 0;
+      }
+      // On session update (e.g. after password change), re-check tokenVersion
+      if (trigger === "update") {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { tokenVersion: true },
+        });
+        if (dbUser && dbUser.tokenVersion !== token.tokenVersion) {
+          // Version mismatch — invalidate session by clearing id
+          token.id = "";
+        }
       }
       return token;
     },
 
     async session({ session, token }) {
       // Expose id in the session object.
-      if (session.user) {
+      // If token was invalidated (id cleared), session has no user.
+      if (session.user && token.id) {
         session.user.id = token.id;
+      } else {
+        // Invalidated token — return empty session
+        session.user = undefined as unknown as typeof session.user;
       }
       return session;
     },

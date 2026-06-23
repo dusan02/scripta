@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import ReportForm from "@/components/ReportForm";
 import ReportsTable from "@/components/ReportsTable";
@@ -6,8 +7,8 @@ import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Veriso.sk — previerka subjektov zo štátnych registrov SR",
+  title: "Registro",
+  description: "Registro.sk — previerka subjektov zo štátnych registrov SR",
 };
 
 async function getRecentReports(userId: string) {
@@ -43,6 +44,7 @@ export default async function DashboardPage() {
     status:     r.status,
     targetType: r.targetType,
     ico:        r.ico,
+    companyName: r.companyName,
     name:       r.name,
     surname:    r.surname,
     createdAt:  r.createdAt.toISOString(),
@@ -54,7 +56,7 @@ export default async function DashboardPage() {
 
       {/* ── HERO: centered search ─────────────────── */}
       <section
-        className="flex flex-col items-center px-6 pt-16 pb-12"
+        className="flex flex-col items-center px-4 sm:px-6 pt-10 sm:pt-16 pb-10 sm:pb-12"
         style={{
           borderBottom: reports.length > 0 ? "1px solid var(--border)" : "none",
         }}
@@ -62,7 +64,7 @@ export default async function DashboardPage() {
         {/* Heading */}
         <div className="text-center mb-8 fade-in">
           <h1
-            className="text-3xl sm:text-4xl font-bold mb-3"
+            className="text-2xl sm:text-4xl font-bold mb-3"
             style={{
               color: "var(--text)",
               letterSpacing: "-0.04em",
@@ -71,20 +73,22 @@ export default async function DashboardPage() {
           >
             Overenie subjektu
           </h1>
-          <p className="text-sm whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm px-2" style={{ color: "var(--text-muted)" }}>
             Zadajte IČO alebo meno osoby a vyberte registre, ktoré chcete preveriť
           </p>
         </div>
 
         {/* Search form */}
         <div className="w-full" style={{ maxWidth: 620 }}>
-          <ReportForm />
+          <Suspense fallback={null}>
+            <ReportForm />
+          </Suspense>
         </div>
 
         {/* Quick stats */}
         {reports.length > 0 && (
           <div
-            className="flex items-center gap-1 mt-8 text-xs fade-in"
+            className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1 mt-8 text-xs fade-in"
             style={{ animationDelay: "120ms", color: "var(--text-muted)" }}
           >
             <span className="font-semibold" style={{ color: "var(--text)" }}>

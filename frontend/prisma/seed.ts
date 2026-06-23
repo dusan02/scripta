@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱  Seeding development database...");
 
-  const email = "test@scripta.sk";
+  const email = "test@registro.sk";
   const password = "heslo123";
   const passwordHash = await bcrypt.hash(password, 12);
 

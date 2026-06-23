@@ -70,38 +70,41 @@ class PdfCompiler:
                 writer.add_outline_item(source.source_type, source.start_page - 1)
 
         # 4. Nahradenie falošných URL odkazov z Cover Page za vnútorné prelinkovania na stránky (GoTo Action)
-        cover_page_obj = writer.pages[0]
-        if "/Annots" in cover_page_obj:
-            for annot in cover_page_obj["/Annots"]:
-                annot_obj = annot.get_object()
-                a_obj = None
-                if "/A" in annot_obj:
-                    a_val = annot_obj["/A"]
-                    a_obj = a_val.get_object() if hasattr(a_val, "get_object") else a_val
-                if a_obj and a_obj.get("/S") == "/URI":
-                    uri = a_obj.get("/URI")
-                    if isinstance(uri, str) and uri.startswith("http://PAGE_"):
-                        target_page_idx = int(uri.replace("http://PAGE_", "")) - 1
-                        if 0 <= target_page_idx < len(writer.pages):
-                            target_page = writer.pages[target_page_idx]
-                            del annot_obj["/A"]
-                            annot_obj[NameObject("/Dest")] = ArrayObject([
-                                target_page.indirect_reference, 
-                                NameObject("/XYZ"), 
-                                NumberObject(0), 
-                                target_page.mediabox.top, 
-                                NumberObject(0)
-                            ])
+        # Cover page môže mať viac stránok — spracujeme anotácie na každej z nich.
+        cover_page_count = len(PdfReader(str(cover_path)).pages)
+        for cover_idx in range(cover_page_count):
+            cover_page_obj = writer.pages[cover_idx]
+            if "/Annots" in cover_page_obj:
+                for annot in cover_page_obj["/Annots"]:
+                    annot_obj = annot.get_object()
+                    a_obj = None
+                    if "/A" in annot_obj:
+                        a_val = annot_obj["/A"]
+                        a_obj = a_val.get_object() if hasattr(a_val, "get_object") else a_val
+                    if a_obj and a_obj.get("/S") == "/URI":
+                        uri = a_obj.get("/URI")
+                        if isinstance(uri, str) and uri.startswith("http://PAGE_"):
+                            target_page_idx = int(uri.replace("http://PAGE_", "")) - 1
+                            if 0 <= target_page_idx < len(writer.pages):
+                                target_page = writer.pages[target_page_idx]
+                                del annot_obj["/A"]
+                                annot_obj[NameObject("/Dest")] = ArrayObject([
+                                    target_page.indirect_reference, 
+                                    NameObject("/XYZ"), 
+                                    NumberObject(0), 
+                                    target_page.mediabox.top, 
+                                    NumberObject(0)
+                                ])
 
         # 5. Opečiatkujeme metadata časovou pečiatkou.
         writer.add_metadata(
             {
-                "/Title": f"Veriso.sk — Due Diligence Report — {identifier}",
-                "/Author": "Veriso.sk",
-                "/Producer": "Veriso PDF Worker",
+                "/Title": f"Registro.sk — Due Diligence Report — {identifier}",
+                "/Author": "Registro.sk",
+                "/Producer": "Registro PDF Worker",
                 "/CreationDate": generated_at.strftime("D:%Y%m%d%H%M%S+00'00'"),
-                "/VerisoGeneratedAt": generated_at.isoformat(),
-                "/VerisoReportId": report_request_id,
+                "/RegistroGeneratedAt": generated_at.isoformat(),
+                "/RegistroReportId": report_request_id,
             }
         )
 

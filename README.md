@@ -1,4 +1,4 @@
-# Scripta.sk — B2B Legal-Tech SaaS Skeleton
+# Registro.sk — B2B Legal-Tech SaaS
 
 Automatizovaná príprava `Evidence Binder` (zlúčené PDF výpisy zo štátnych registrov + titulná strana s nálezmi) pre advokátov.
 

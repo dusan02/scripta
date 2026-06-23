@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     web_concurrency: int = 4
     playwright_headless: bool = True
     playwright_timeout: int = 60_000
+    scraper_retries: int = 2
+    scraper_retry_delay: float = 1.5
 
     # Shared-secret medzi Next.js API a workerom (voliteľné v dev; povinné v produkcii)
     worker_secret: Optional[str] = None
