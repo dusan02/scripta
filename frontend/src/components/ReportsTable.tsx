@@ -4,8 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
-import CopyableText from "@/components/CopyableText";
-import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP } from "@/lib/sources";
+import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP, ENABLED_SOURCES } from "@/lib/sources";
 
 interface ReportSource {
   sourceType: string;
@@ -95,19 +94,6 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
     setModal({ type: "all" });
   }, []);
 
-  const handleSearchAgain = useCallback((e: React.MouseEvent, report: Report) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (report.targetType === "COMPANY" && report.ico) {
-      router.push(`/?ico=${report.ico}`);
-    } else if (report.targetType === "PERSON") {
-      const params = new URLSearchParams();
-      if (report.name) params.set("name", report.name);
-      if (report.surname) params.set("surname", report.surname);
-      router.push(`/?${params.toString()}`);
-    }
-  }, [router]);
-
   if (reports.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 fade-in">
@@ -121,16 +107,13 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
   return (
     <section className="page pt-8 pb-16">
       <div className="flex items-center justify-between mb-4">
-        <h2
-          className="text-sm font-semibold"
-          style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
-        >
-          Posledné reporty
-        </h2>
-        <div className="flex items-center gap-3">
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {reports.length} záznamov
-          </span>
+        <div className="flex items-center gap-4">
+          <h2
+            className="text-sm font-semibold"
+            style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+          >
+            Posledné reporty
+          </h2>
           <button
             onClick={handleDeleteAll}
             disabled={deletingAll}
@@ -139,6 +122,11 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
           >
             {deletingAll ? "Mažem…" : "Vymazať všetko"}
           </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {reports.length} záznamov
+          </span>
           <Link
             href="/history"
             className="text-xs font-medium transition-colors hover:opacity-80 flex items-center gap-1"
@@ -199,144 +187,48 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
-                  {/* Identifier */}
+                  {/* Identifier — company name first, IČO below */}
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="text-base flex-shrink-0">
                       {report.targetType === "COMPANY" ? "🏢" : "👤"}
                     </span>
                     <div className="min-w-0">
-                      <span
-                        className="text-sm font-semibold truncate block"
-                        style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
-                      >
-                        {report.targetType === "COMPANY" && report.ico ? (
-                          <CopyableText text={report.ico} />
-                        ) : (
-                          identifier
-                        )}
-                      </span>
-                      {report.targetType === "COMPANY" && report.companyName && (
-                        <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                          {report.companyName}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Source chips — grouped by category */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {SOURCE_CATEGORIES.map((cat) => {
-                      const catSources = report.sources.filter(s => {
-                        const meta = SOURCE_MAP[s.sourceType];
-                        return meta && meta.category === cat.id;
-                      });
-                      if (catSources.length === 0) return null;
-                      return (
-                        <div key={cat.id} className="flex items-center gap-1">
-                          {catSources.map((s) => (
-                            <span
-                              key={s.sourceType}
-                              title={`${s.sourceType}: ${s.status}`}
-                              className="inline-flex items-center justify-center rounded text-[10px] font-bold px-2 py-1"
-                              style={{
-                                background: "var(--bg-muted)",
-                                color: SOURCE_DOT_COLOR[s.status] ?? "var(--text-muted)",
-                                border: "1px solid var(--border)",
-                              }}
-                            >
-                              {getSourceShort(s.sourceType)}
+                      {report.targetType === "COMPANY" && report.companyName ? (
+                        <>
+                          <span
+                            className="text-sm font-semibold truncate block"
+                            style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                          >
+                            {report.companyName}
+                          </span>
+                          {report.ico && (
+                            <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
+                              IČO: {report.ico}
                             </span>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Time */}
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {timeAgoSafe(report.createdAt.toString())}
-                  </span>
-
-                  {/* Status */}
-                  <div>
-                    <StatusBadge status={report.status} size="sm" />
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-end gap-2.5">
-                    <button
-                      onClick={(e) => handleSearchAgain(e, report)}
-                      title="Vyhľadať znova"
-                      className="transition-colors hover:text-blue-500"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      </svg>
-                    </button>
-                    {canDownload && (
-                      <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
-                        title="Stiahnuť PDF"
-                        className="transition-colors hover:text-green-600"
-                        style={{ color: "var(--accent)" }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                        </svg>
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
-                      disabled={deletingId === report.id}
-                      title="Vymazať"
-                      className="transition-colors hover:text-red-500"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {deletingId === report.id ? (
-                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                          <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                        </svg>
+                          )}
+                        </>
                       ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Mobile card */}
-                <div className="md:hidden px-4 py-3.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-base flex-shrink-0">
-                        {report.targetType === "COMPANY" ? "🏢" : "👤"}
-                      </span>
-                      <div className="min-w-0">
                         <span
                           className="text-sm font-semibold truncate block"
                           style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
                         >
-                          {report.targetType === "COMPANY" && report.ico ? (
-                            <CopyableText text={report.ico} />
-                          ) : (
-                            identifier
-                          )}
+                          {identifier}
                         </span>
-                        {report.targetType === "COMPANY" && report.companyName && (
-                          <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                            {report.companyName}
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
-                    <StatusBadge status={report.status} size="sm" />
                   </div>
-                  <div className="flex items-center justify-between gap-2 mt-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {SOURCE_CATEGORIES.map((cat) => {
+
+                  {/* Source chips — compact if all selected */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {report.sources.length >= ENABLED_SOURCES.length ? (
+                      <span
+                        className="inline-flex items-center rounded text-[10px] font-bold px-2 py-1"
+                        style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+                      >
+                        {report.sources.length}/{ENABLED_SOURCES.length} registrov
+                      </span>
+                    ) : (
+                      SOURCE_CATEGORIES.map((cat) => {
                         const catSources = report.sources.filter(s => {
                           const meta = SOURCE_MAP[s.sourceType];
                           return meta && meta.category === cat.id;
@@ -360,17 +252,153 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                             ))}
                           </div>
                         );
-                      })}
+                      })
+                    )}
+                  </div>
+
+                  {/* Time */}
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {timeAgoSafe(report.createdAt.toString())}
+                  </span>
+
+                  {/* Status */}
+                  <div>
+                    <StatusBadge status={report.status} size="sm" />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2.5">
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
+                      title="Zobraziť report"
+                      className="transition-all duration-150 rounded-md p-0.5"
+                      style={{ color: "var(--text-secondary)" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                    {canDownload && (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
+                        title="Stiahnuť PDF"
+                        className="transition-all duration-150 rounded-md p-0.5"
+                        style={{ color: "var(--accent)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--accent-light)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
+                      disabled={deletingId === report.id}
+                      title="Vymazať"
+                      className="transition-all duration-150 rounded-md p-0.5"
+                      style={{ color: "var(--text-secondary)" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)"; (e.currentTarget as HTMLElement).style.color = "#ef4444"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+                    >
+                      {deletingId === report.id ? (
+                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                          <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile card */}
+                <div className="md:hidden px-4 py-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-base flex-shrink-0">
+                        {report.targetType === "COMPANY" ? "🏢" : "👤"}
+                      </span>
+                      <div className="min-w-0">
+                        {report.targetType === "COMPANY" && report.companyName ? (
+                          <>
+                            <span
+                              className="text-sm font-semibold truncate block"
+                              style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                            >
+                              {report.companyName}
+                            </span>
+                            {report.ico && (
+                              <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
+                                IČO: {report.ico}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span
+                            className="text-sm font-semibold truncate block"
+                            style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                          >
+                            {identifier}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <StatusBadge status={report.status} size="sm" />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {report.sources.length >= ENABLED_SOURCES.length ? (
+                        <span
+                          className="inline-flex items-center rounded text-[10px] font-bold px-2 py-1"
+                          style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+                        >
+                          {report.sources.length}/{ENABLED_SOURCES.length}
+                        </span>
+                      ) : (
+                        SOURCE_CATEGORIES.map((cat) => {
+                          const catSources = report.sources.filter(s => {
+                            const meta = SOURCE_MAP[s.sourceType];
+                            return meta && meta.category === cat.id;
+                          });
+                          if (catSources.length === 0) return null;
+                          return (
+                            <div key={cat.id} className="flex items-center gap-1">
+                              {catSources.map((s) => (
+                                <span
+                                  key={s.sourceType}
+                                  title={`${s.sourceType}: ${s.status}`}
+                                  className="inline-flex items-center justify-center rounded text-[10px] font-bold px-2 py-1"
+                                  style={{
+                                    background: "var(--bg-muted)",
+                                    color: SOURCE_DOT_COLOR[s.status] ?? "var(--text-muted)",
+                                    border: "1px solid var(--border)",
+                                  }}
+                                >
+                                  {getSourceShort(s.sourceType)}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
-                        onClick={(e) => handleSearchAgain(e, report)}
-                        title="Vyhľadať znova"
-                        className="transition-colors hover:text-blue-500"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
+                        title="Zobraziť report"
+                        className="transition-all duration-150 rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
                         </svg>
                       </button>
                       {canDownload && (
@@ -382,7 +410,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                         disabled={deletingId === report.id}
                         title="Vymazať"
-                        className="transition-colors hover:text-red-500"
+                        className="transition-all duration-150 rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
                         {deletingId === report.id ? (
