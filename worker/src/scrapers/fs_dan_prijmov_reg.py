@@ -30,18 +30,9 @@ class FsDanPrijmovRegistrovaniScraper(FinancnaSpravaBase):
             has_results = "daň z príjmov" in text_lower or "registrovan" in text_lower or "daňový subjekt" in text_lower
 
             if has_results:
-                rows = await self._parse_table_rows(page)
-                if rows:
-                    info = []
-                    for row_data in rows:
-                        parts = []
-                        for val in row_data:
-                            if val and val.strip():
-                                parts.append(val.strip())
-                        if parts:
-                            info.append(" | ".join(parts))
-                    if info:
-                        return "\n".join(info)
+                formatted = await self._parse_table_with_headers(page)
+                if formatted:
+                    return f"Subjekt (IČO: {search_term}) je registrovaný na daň z príjmov.\n" + "\n\n".join(formatted)
 
                 return f"Subjekt (IČO: {search_term}) je registrovaný na daň z príjmov (detaily v PDF)."
 

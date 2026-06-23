@@ -30,18 +30,9 @@ class FsDphNadmernyOdpocetScraper(FinancnaSpravaBase):
             has_results = "nadmerný" in text_lower or "odpočet" in text_lower or "dph" in text_lower or "daňovej povinnosti" in text_lower
 
             if has_results:
-                rows = await self._parse_table_rows(page)
-                if rows:
-                    info = []
-                    for row_data in rows:
-                        parts = []
-                        for i, val in enumerate(row_data):
-                            if val and val.strip():
-                                parts.append(val.strip())
-                        if parts:
-                            info.append(" | ".join(parts))
-                    if info:
-                        return "\n".join(info)
+                formatted = await self._parse_table_with_headers(page)
+                if formatted:
+                    return f"Subjekt (IČO: {search_term}) je v zozname DPH subjektov s nadmerným odpočtom.\n" + "\n\n".join(formatted)
 
                 return f"Subjekt (IČO: {search_term}) je v zozname DPH subjektov s nadmerným odpočtom (detaily v PDF)."
 
