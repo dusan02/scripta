@@ -130,8 +130,10 @@ class SpDlzniciScraper(BaseScraper):
                     findings="Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení.",
                 )
 
-            # Extrahovať nálezy z tabuľky
+            # Ak sme prešli empty markers, subjekt JE v zozname dlžníkov
             findings = await self._extract_findings(page, ico)
+            if findings is None:
+                findings = f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Sociálnej poisťovne."
 
             # Generovať PDF z výsledkovej stránky — len tabuľka s výsledkami
             pdf_output = output_dir / f"sp_dlznici_{ico}.pdf"
@@ -169,7 +171,7 @@ class SpDlzniciScraper(BaseScraper):
                     return self._make_result(
                         status="SUCCESS",
                         file_path=None,
-                        status_message="Výsledky nájdené, ale PDF generovanie zlyhalo.",
+                        status_message=f"Subjekt {ico} je v zozname dlžníkov Sociálnej poisťovne (PDF zlyhalo).",
                         findings=findings,
                     )
                 return self._make_result(
@@ -181,8 +183,8 @@ class SpDlzniciScraper(BaseScraper):
                 status="SUCCESS",
                 file_path=str(pdf_output),
                 page_count=1,
-                status_message="Výpis zo Sociálnej poisťovne úspešne stiahnutý.",
-                findings=findings or "Výpis úspešne stiahnutý zo Sociálnej poisťovne.",
+                status_message=f"Subjekt {ico} je v zozname dlžníkov Sociálnej poisťovne.",
+                findings=findings,
             )
 
         except ScraperUnavailableError as e:
@@ -210,30 +212,29 @@ class SpDlzniciScraper(BaseScraper):
                 await ctx.close()
 
     async def _extract_findings(self, page: Page, ico: str) -> Optional[str]:
-        """Extrahuje nálezy z výsledkovej tabuľky."""
+        """Extrahuje nálezy z výsledkovej tabuľky — volané len ak sme prešli empty markers (subjekt JE dlžník)."""
         try:
-            # Skúsime nájsť tabuľku s výsledkami
-            rows = page.locator("table tbody tr, .table tbody tr, .datagrid tbody tr")
+            # Skúsime rôzne selektory — Drupal tabuľky nemusia mať tbody
+            rows = page.locator("table tbody tr, table tr")
             count = await rows.count()
             if count == 0:
                 logger.warning(f"[{self.source_type}] Tabuľka s výsledkami sa nenašla.")
                 return None
 
-            # Čisté názvy stĺpcov (bez 'zoradiť podľa' textov z Drupal)
             clean_headers = ["Názov / Meno", "IČO", "Adresa", "Mesto", "Dlžná suma", "Chýbajúce podklady za obdobie"]
 
-            # Extrahujeme riadky
             result_lines = []
             for i in range(min(count, 5)):
                 cells = rows.nth(i).locator("td")
                 cell_count = await cells.count()
+                if cell_count == 0:
+                    continue
                 row_data = []
                 for c in range(cell_count):
                     try:
                         val = (await cells.nth(c).inner_text(timeout=2000)).strip()
                     except PlaywrightTimeoutError:
                         val = ""
-                    # Odstránime 'zoradiť podľa ...' texty z Drupal tabuľky
                     val = re.sub(r'\s*zoradiť podľa\s+.*$', '', val).strip()
                     if val:
                         row_data.append(val)
@@ -243,23 +244,14 @@ class SpDlzniciScraper(BaseScraper):
 
                 if len(clean_headers) >= len(row_data):
                     parts = [f"  {clean_headers[h_idx]}: {val}" for h_idx, val in enumerate(row_data) if val]
-                    result_lines.append("\n".join(parts))
                 else:
                     parts = [f"  • {val}" for val in row_data if val]
-                    result_lines.append("\n".join(parts))
+                result_lines.append("\n".join(parts))
 
             if not result_lines:
                 return None
 
-            # Skontrolujeme či ide o dlžníka
-            text_lower = (await page.inner_text("body")).lower()
-            has_debt = "dlžná suma" in text_lower or "dlžník" in text_lower or "€" in text_lower
-
-            if has_debt:
-                findings = f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Sociálnej poisťovne.\n" + "\n\n".join(result_lines)
-            else:
-                findings = f"Subjekt (IČO: {ico}) nájdený v zozname Sociálnej poisťovne bez zisteného dlhu.\n" + "\n\n".join(result_lines)
-
+            findings = f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Sociálnej poisťovne.\n" + "\n\n".join(result_lines)
             logger.info(f"[{self.source_type}] Findings extrahované: {findings[:200]}")
             return findings
 
