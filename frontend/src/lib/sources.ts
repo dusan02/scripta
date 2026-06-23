@@ -17,7 +17,6 @@ export const SOURCE_CATEGORIES: { id: string; label: string }[] = [
   { id: "fs_dan",   label: "Finančná správa SR — Daň z príjmov" },
   { id: "fs_ost",   label: "Finančná správa SR — Ostatné" },
   { id: "inst",     label: "Poisťovne a inštitúcie" },
-  { id: "finance",  label: "Finančné výkazy" },
 ];
 
 export const SOURCES: SourceInfo[] = [
@@ -25,6 +24,7 @@ export const SOURCES: SourceInfo[] = [
   { id: "ORSR",       name: "ORSR",              short: "ORSR", description: "Obchodný register SR",     label: "ORSR",            sublabel: "Obchodný register",     cost: 0, category: "basic",   enabled: true },
   { id: "ZRSR",       name: "ŽRSR",              short: "ZRSR", description: "Živnostenský register SR",  label: "ŽRSR",            sublabel: "Živnostenský register", cost: 0, category: "basic",   enabled: true },
   { id: "RPVS",       name: "RPVS",              short: "RPVS", description: "Register partnerov verejného sektora", label: "RPVS", sublabel: "Register part. ver. sektora", cost: 0, category: "basic", enabled: true },
+  { id: "RUZ",        name: "Register účtovných závierok", short: "RUZ", description: "Súvaha, výkaz ziskov a strát, kľúčové finančné ukazovatele", label: "Účtovné závierky", sublabel: "Register účtovných závierok (RUZ)", cost: 0, category: "basic", enabled: false },
 
   // ── Insolvenčný a majetkový register ──
   { id: "INSOLVENCY", name: "Register úpadcov",  short: "INS",  description: "Insolvenčný register",      label: "Insolvenčný reg.", sublabel: "Register úpadcov",     cost: 0, category: "asset",   enabled: true },
@@ -44,9 +44,6 @@ export const SOURCES: SourceInfo[] = [
   // ── Poisťovne a inštitúcie ──
   { id: "SP_DLZNICI",  name: "Sociálna poisťovňa", short: "SP",  description: "Zoznam dlžníkov na sociálnom poistení", label: "Soc. poisťovňa", sublabel: "Dlžníci na sociálnom poistení", cost: 0, category: "inst", enabled: true },
   { id: "ZP_DLZNICI",  name: "Zdravotné poisťovne", short: "ZP", description: "Dlžníci na zdravotnom poistení (VšZP, Dôvera, Union)", label: "Zdrav. poisťovne", sublabel: "Dlžníci na zdravotnom poistení", cost: 0, category: "inst", enabled: false },
-
-  // ── Finančné výkazy ──
-  { id: "RUZ",         name: "Register účtovných závierok", short: "RUZ", description: "Súvaha, výkaz ziskov a strát, kľúčové finančné ukazovatele", label: "Účtovné závierky", sublabel: "Register účtovných závierok (RUZ)", cost: 0, category: "finance", enabled: false },
 ];
 
 export const ENABLED_SOURCES = SOURCES.filter(s => s.enabled);
