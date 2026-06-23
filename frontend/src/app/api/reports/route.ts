@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
 
     // Odošleme úlohu workerovi.
     try {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { orsrExtractType: true },
+      });
       await enqueueReportTask({
         reportRequestId: reportRequest.id,
         targetType,
@@ -72,6 +76,7 @@ export async function POST(req: NextRequest) {
         surname,
         birthDate,
         sources,
+        orsrExtractType: dbUser?.orsrExtractType ?? "CURRENT",
       });
     } catch (workerErr) {
       console.error("Worker enqueue failed", workerErr);

@@ -75,6 +75,7 @@ async def run_scrapers(
     name: Optional[str] = None,
     surname: Optional[str] = None,
     birth_date: Optional[str] = None,
+    orsr_extract_type: Optional[str] = "CURRENT",
     on_source_done: Optional[Callable[[ScrapedSource], None]] = None,
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
@@ -106,6 +107,7 @@ async def run_scrapers(
                         name=name,
                         surname=surname,
                         birth_date=birth_date,
+                        orsr_extract_type=orsr_extract_type,
                         **extra_kwargs,
                     )
             else:
@@ -116,6 +118,7 @@ async def run_scrapers(
                     name=name,
                     surname=surname,
                     birth_date=birth_date,
+                    orsr_extract_type=orsr_extract_type,
                     **extra_kwargs,
                 )
             print(f"[TIMING] ✔ {source_type} HOTOVO za {time.perf_counter() - _t_start:.2f}s → {result.status if result else '?'}")

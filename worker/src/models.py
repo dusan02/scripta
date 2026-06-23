@@ -11,6 +11,7 @@ class ReportTask(BaseModel):
     surname: Optional[str] = None
     birth_date: Optional[str] = None
     sources: List[str]
+    orsr_extract_type: Optional[str] = "CURRENT"
 
 
 class ScrapedSource(BaseModel):

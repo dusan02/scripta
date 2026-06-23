@@ -21,7 +21,7 @@ class OrsrScraper(BaseScraper):
     source_type = "ORSR"
     base_url = "https://www.orsr.sk/hladaj_ico.asp"
 
-    async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
+    async def run(self, *, ico: str, output_dir: Path, orsr_extract_type: str = "CURRENT", **kwargs) -> ScrapedSource:
         page: Optional[Page] = None
         try:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
@@ -55,9 +55,10 @@ class OrsrScraper(BaseScraper):
                     findings="Žiadny záznam v Obchodnom registri SR."
                 )
 
-            logger.info(f"[{self.source_type}] Pokúšam sa nájsť odkaz na detail firmy pre IČO {ico}.")
+            logger.info(f"[{self.source_type}] Pokúšam sa nájsť odkaz na detail firmy pre IČO {ico} (typ: {orsr_extract_type}).")
             
-            detail_link = page.locator("a[href*='vypis.asp']").last
+            link_name = "Úplný" if orsr_extract_type == "FULL" else "Aktuálny"
+            detail_link = page.get_by_role("link", name=link_name).first
             company_name = None
             try:
                 await detail_link.wait_for(timeout=10000)
@@ -97,7 +98,7 @@ class OrsrScraper(BaseScraper):
                     logger.info(f"[{self.source_type}] Extrahované obchodné meno: '{company_name}'")
                 else:
                     logger.warning(f"[{self.source_type}] Nepodarilo sa extrahovať obchodné meno z tabuľky.")
-                logger.info(f"[{self.source_type}] Klikám na odkaz detailu pre: {company_name}")
+                logger.info(f"[{self.source_type}] Klikám na odkaz '{link_name}' pre: {company_name}")
                 await detail_link.click()
                 await page.wait_for_load_state("domcontentloaded", timeout=45000)
                 print(f"[{self.source_type}] ⏱ detail_click + meno: {time.perf_counter() - _t:.2f}s")

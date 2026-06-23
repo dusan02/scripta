@@ -34,6 +34,7 @@ function LogOutIcon() {
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
+  { href: "/settings", label: "Nastavenia" },
 ];
 
 export default function NavBar() {

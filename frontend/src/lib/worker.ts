@@ -11,6 +11,7 @@ export interface EnqueueTaskPayload {
   surname?: string;
   birthDate?: string;
   sources: string[];
+  orsrExtractType?: string;
 }
 
 export async function enqueueReportTask(payload: EnqueueTaskPayload) {
@@ -22,6 +23,7 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
     surname: payload.surname,
     birth_date: payload.birthDate,
     sources: payload.sources,
+    orsr_extract_type: payload.orsrExtractType ?? "CURRENT",
   };
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
