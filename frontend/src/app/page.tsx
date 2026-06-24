@@ -6,6 +6,8 @@ import ReportsTable from "@/components/ReportsTable";
 import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Registro",
   description: "Registro.sk — previerka subjektov zo štátnych registrov SR",

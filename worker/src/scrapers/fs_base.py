@@ -195,19 +195,19 @@ class FinancnaSpravaBase(BaseScraper):
             _t = time.perf_counter()
             _t0 = _t
             page = await self._get_page()
-            print(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             page = await self._safe_goto(page, self.base_url)
-            print(f"[{self.source_type}] ⏱ goto base_url: {time.perf_counter() - _t:.2f}s (URL: {page.url})")
+            logger.debug(f"[{self.source_type}] ⏱ goto base_url: {time.perf_counter() - _t:.2f}s (URL: {page.url})")
             _t = time.perf_counter()
 
             # Modal dismissal
             await self._dismiss_modal(page)
             # Pre-link-click hook (napr. klik na button ktorý otvorí popup)
             await self._pre_link_click(page)
-            print(f"[{self.source_type}] ⏱ dismiss_modal + pre_link: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ dismiss_modal + pre_link: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
             # Navigácia na konkrétny zoznam
@@ -236,7 +236,7 @@ class FinancnaSpravaBase(BaseScraper):
                         status_message=f"Nepodarilo sa nájsť link '{self.zoznam_link_name}'.",
                     )
 
-            print(f"[{self.source_type}] ⏱ link_click: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ link_click: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
             # Debug screenshot
@@ -270,7 +270,7 @@ class FinancnaSpravaBase(BaseScraper):
                     status_message="Nepodarilo sa nájsť tlačidlo Vyhľadať na stránke Finančnej správy.",
                 )
 
-            print(f"[{self.source_type}] ⏱ fill + click_search: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ fill + click_search: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
             logger.info(f"[{self.source_type}] Vyhľadávanie spustené, čakám na výsledky...")
@@ -284,7 +284,7 @@ class FinancnaSpravaBase(BaseScraper):
             except PlaywrightTimeoutError:
                 pass
             await self._debug_screenshot(page, output_dir, ico, "results")
-            print(f"[{self.source_type}] ⏱ wait_results: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ wait_results: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
             # Skontrolujeme či sú vôbec nejaké výsledky
@@ -312,7 +312,7 @@ class FinancnaSpravaBase(BaseScraper):
             # Ak sú výsledky, skúsime PDF export
             pdf_output = output_dir / f"{self.file_prefix}_{ico}.pdf"
             downloaded = await self._download_pdf(page, pdf_output)
-            print(f"[{self.source_type}] ⏱ download_pdf: {time.perf_counter() - _t:.2f}s | CELKOM: {time.perf_counter() - _t0:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ download_pdf: {time.perf_counter() - _t:.2f}s | CELKOM: {time.perf_counter() - _t0:.2f}s")
 
             if downloaded:
                 logger.info(f"[{self.source_type}] PDF úspešne stiahnuté: {pdf_output}")

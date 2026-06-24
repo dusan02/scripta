@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional
 import asyncio
 import logging
+import re
 
 from playwright.async_api import Page, Browser, async_playwright, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 
@@ -159,3 +160,236 @@ class BaseScraper(ABC):
             findings=findings,
             company_name=company_name,
         )
+
+    # ── Shared helpers for debtor-list scrapers ──────────────────────
+
+    _STEALTH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+
+    async def _get_stealth_page(self) -> Page:
+        """Vytvorí page s realistickým user-agentom pre anti-bot detekciu.
+        Scrapery ktoré potrebujú stealth mode (VšZP, SP, Dôvera) volajú túto metódu."""
+        if self.browser is None:
+            self._playwright = await async_playwright().start()
+            self.browser = await self._playwright.chromium.launch(
+                headless=True,
+                args=['--disable-blink-features=AutomationDetected'],
+            )
+            self._owned_browser = True
+        ctx = await self.browser.new_context(
+            user_agent=self._STEALTH_UA,
+            viewport={'width': 1920, 'height': 1080},
+            locale='sk-SK',
+        )
+        self._contexts.append(ctx)
+        page = await ctx.new_page()
+        return page
+
+    async def _run_debtor_scraper(
+        self,
+        scrape_fn,
+        *,
+        unavailable_msg: str,
+    ) -> ScrapedSource:
+        """Template wrapper pre debtor-list scrapery.
+        Spravuje page lifecycle, error handling a cleanup.
+        scrape_fn je async funkcia ktorá prijíma (page: Page) a vracia ScrapedSource."""
+        page: Optional[Page] = None
+        ctx = None
+        try:
+            page = await self._get_stealth_page()
+            ctx = page.context
+            return await scrape_fn(page)
+        except ScraperUnavailableError as e:
+            logger.error(f"[{self.source_type}] Nedostupné: {e}")
+            return self._make_result(status="UNAVAILABLE", status_message=f"{unavailable_msg}: {e}")
+        except PlaywrightError as e:
+            logger.error(f"[{self.source_type}] Playwright chyba: {e}")
+            return self._make_result(status="FAILED", status_message=f"Sieťová chyba pri spracovaní {self.source_type}: {e}")
+        except Exception as e:
+            logger.error(f"[{self.source_type}] Nečakaná chyba: {e}", exc_info=True)
+            return self._make_result(status="FAILED", status_message=f"Neznáma chyba pri spracovaní {self.source_type}: {type(e).__name__}: {e}")
+        finally:
+            if page:
+                await page.close()
+            if ctx:
+                await ctx.close()
+
+    async def _extract_table_findings(
+        self,
+        page: Page,
+        ico: str,
+        *,
+        source_name: str,
+        field_map: Optional[dict] = None,
+    ) -> Optional[str]:
+        """Extrahuje nálezy z tabuľky. Ak je field_map zadaný, použije ho na mapovanie stĺpcov.
+        Bez field_map vracia hodnoty oddelené ' | '."""
+        try:
+            rows = page.locator("table tbody tr")
+            count = await rows.count()
+            if count == 0:
+                logger.warning(f"[{self.source_type}] Tabuľka s výsledkami sa nenašla.")
+                return None
+
+            rows_data = []
+            for i in range(min(count, 5)):
+                cells = rows.nth(i).locator("td")
+                cell_count = await cells.count()
+                if cell_count == 0:
+                    continue
+                if field_map:
+                    row = {}
+                    for c in range(cell_count):
+                        try:
+                            cell = cells.nth(c)
+                            cls = await cell.get_attribute("class") or ""
+                            val = (await cell.inner_text(timeout=2000)).strip()
+                        except PlaywrightTimeout:
+                            val = ""
+                            cls = ""
+                        val = re.sub(r'\s+', ' ', val).strip()
+                        if not val or val == "-":
+                            continue
+                        for cls_key, cls_label in field_map.items():
+                            if cls_key in cls:
+                                row[cls_label] = val
+                                break
+                    if row:
+                        rows_data.append(row)
+                else:
+                    row = []
+                    for c in range(cell_count):
+                        try:
+                            val = (await cells.nth(c).inner_text(timeout=2000)).strip()
+                        except PlaywrightTimeout:
+                            val = ""
+                        val = re.sub(r'\s+', ' ', val).strip()
+                        if val and val != "-":
+                            row.append(val)
+                    if row:
+                        rows_data.append(row)
+
+            if not rows_data:
+                return None
+
+            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov {source_name}."]
+            if field_map:
+                for row in rows_data:
+                    for label, val in row.items():
+                        parts.append(f"{label}: {val}")
+            else:
+                for row in rows_data:
+                    parts.append(" | ".join(row))
+            findings = "\n".join(parts)
+            logger.info(f"[{self.source_type}] Findings extrahované: {findings[:200]}")
+            return findings
+
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Extrakcia nálezov zlyhala: {e}")
+            return None
+
+    async def _handle_cloudflare_challenge(self, page: Page, max_attempts: int = 3) -> None:
+        """Detekuje a skúsi vyriešiť Cloudflare Turnstile challenge (kliknutie na iframe)."""
+        for attempt in range(max_attempts):
+            try:
+                cf_iframe = page.locator("iframe[src*='challenges.cloudflare.com']")
+                await cf_iframe.first.wait_for(timeout=5000)
+                logger.info(f"[{self.source_type}] Cloudflare challenge detekovaný (pokus {attempt + 1}).")
+                frame = cf_iframe.first.content_frame
+                if frame:
+                    await frame.locator("body").click(timeout=5000)
+                    logger.info(f"[{self.source_type}] Cloudflare challenge kliknuté.")
+                    await page.wait_for_timeout(3000)
+                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+            except PlaywrightTimeout:
+                break  # Žiadny Cloudflare challenge — pokračuj
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] Cloudflare challenge chyba: {e}")
+                break
+
+            # Skontroluj či textbox je už dostupný
+            try:
+                await page.get_by_role("textbox").wait_for(timeout=3000)
+                break  # Textbox nájdený — challenge vyriešený
+            except PlaywrightTimeout:
+                logger.info(f"[{self.source_type}] Textbox stále nedostupný — skúšam znova.")
+                continue
+
+    async def _generate_clean_pdf(
+        self,
+        page: Page,
+        output_path: Path,
+        title: str,
+        disclaimer_html: Optional[str] = None,
+        *,
+        content_selector: str = "table",
+        fallback_selectors: str = "main, .main, .content, .results, .search-results, [class*='result'], [class*='debtor']",
+        format: str = "A3",
+        scale: float = 0.85,
+    ) -> None:
+        """Vygeneruje čisté PDF s nadpisom (a voliteľným disclaimerom).
+        Odstráni všetko z DOMu okrem content_selector elementu."""
+        await page.set_viewport_size({"width": 1920, "height": 1080})
+
+        await page.evaluate(
+            """(params) => {
+                const {contentSelector, fallbackSelectors, title, disclaimerHtml} = params;
+                let content = document.querySelector(contentSelector);
+                if (!content) {
+                    for (const sel of fallbackSelectors.split(',').map(s => s.trim())) {
+                        content = document.querySelector(sel);
+                        if (content) break;
+                    }
+                }
+
+                const body = document.body;
+
+                if (content && content !== body) {
+                    while (body.firstChild) body.removeChild(body.firstChild);
+                    const h1 = document.createElement('h1');
+                    h1.textContent = title;
+                    h1.style.cssText = 'font-size: 30px; font-weight: 700; margin: 0 0 10px 0; padding: 0; text-align: center;';
+                    body.appendChild(h1);
+                    body.appendChild(content);
+                    if (disclaimerHtml) {
+                        const div = document.createElement('div');
+                        div.innerHTML = disclaimerHtml;
+                        body.appendChild(div);
+                    }
+                } else {
+                    document.querySelectorAll('header, footer, nav, .header, .footer, .navigation, .menu, .cookie-bar, .breadcrumb, .sidebar, #header, #footer, .page-header, [class*="cookie"], [class*="banner"], [class*="modal"], [id*="cookie"], [id*="banner"]').forEach(el => el.remove());
+                    const h1 = document.createElement('h1');
+                    h1.textContent = title;
+                    h1.style.cssText = 'font-size: 30px; font-weight: 700; margin: 0 0 10px 0; padding: 0; text-align: center;';
+                    body.insertBefore(h1, body.firstChild);
+                }
+
+                body.style.margin = '0';
+                body.style.padding = '0';
+            }""",
+            {"contentSelector": content_selector, "fallbackSelectors": fallback_selectors, "title": title, "disclaimerHtml": disclaimer_html},
+        )
+
+        await page.add_style_tag(content="""
+            @page { size: A3 landscape; margin: 0.5cm; }
+            body { margin: 0 !important; padding: 0 !important; }
+            table {
+                width: 100% !important;
+                font-size: 11px !important;
+                table-layout: auto !important;
+                border-collapse: collapse !important;
+            }
+            th { background: #f3f4f6 !important; font-weight: 600 !important; }
+            td, th { padding: 3px 6px !important; word-break: normal !important; white-space: normal !important; overflow-wrap: break-word !important; text-align: left !important; }
+        """)
+        await page.emulate_media(media="print")
+        await page.pdf(
+            path=str(output_path),
+            format=format,
+            landscape=True,
+            print_background=True,
+            scale=scale,
+            margin={"top": "0.5cm", "bottom": "0.5cm", "left": "0.5cm", "right": "0.5cm"},
+            prefer_css_page_size=False,
+        )
+        logger.info(f"[{self.source_type}] PDF vygenerované: {output_path}")

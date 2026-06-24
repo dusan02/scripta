@@ -38,6 +38,9 @@ _SOURCE_ICONS = {
     "FS_DPH_REGISTROVANI": ("DG", "#f59e0b"),
     "FS_DAN_PRIJMOV_REG": ("DPR", "#ea580c"),
     "SP_DLZNICI": ("SP", "#db2777"),
+    "VSZP_DLZNICI": ("VšZP", "#2563eb"),
+    "DOVERA_DLZNICI": ("Dôv", "#7c3aed"),
+    "UNION_DLZNICI": ("UNI", "#0891b2"),
 }
 
 # Friendly názvy zdrojov pre cover page (raw enum je príliš dlhý pre tabuľku)
@@ -55,6 +58,9 @@ _SOURCE_LABELS = {
     "FS_DPH_REGISTROVANI": "DPH registrovaní",
     "FS_DAN_PRIJMOV_REG": "Daň z príjmov (reg.)",
     "SP_DLZNICI": "Soc. poisťovňa",
+    "VSZP_DLZNICI": "VšZP",
+    "DOVERA_DLZNICI": "Dôvera",
+    "UNION_DLZNICI": "UNION",
 }
 
 # Zoskupenie zdrojov do kategórií pre prehľadnejšie zobrazenie
@@ -64,7 +70,7 @@ _SOURCE_CATEGORIES = [
     ("Finančná správa SR — DPH", ["FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI"]),
     ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
-    ("Poisťovne a inštitúcie", ["SP_DLZNICI"]),
+    ("Poisťovne a inštitúcie", ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
 ]
 
 # Mapa source_type -> category label pre rýchle hľadanie

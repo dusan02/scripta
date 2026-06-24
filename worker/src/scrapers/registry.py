@@ -21,6 +21,9 @@ from .fs_dph_nadmerny_odpocet import FsDphNadmernyOdpocetScraper
 from .fs_dph_registrovani import FsDphRegistrovaniScraper
 from .fs_dan_prijmov_reg import FsDanPrijmovRegistrovaniScraper
 from .sp_dlznici import SpDlzniciScraper
+from .vszp_dlznici import VszpDlzniciScraper
+from .dovera_dlznici import DoveraDlzniciScraper
+from .union_dlznici import UnionDlzniciScraper
 from ..models import ScrapedSource
 
 # FS scrapery zdieľajú rovnakú URL — obmedzíme paralelizmus aby FS server
@@ -49,6 +52,9 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "FS_DPH_REGISTROVANI": FsDphRegistrovaniScraper,
     "FS_DAN_PRIJMOV_REG": FsDanPrijmovRegistrovaniScraper,
     "SP_DLZNICI": SpDlzniciScraper,
+    "VSZP_DLZNICI": VszpDlzniciScraper,
+    "DOVERA_DLZNICI": DoveraDlzniciScraper,
+    "UNION_DLZNICI": UnionDlzniciScraper,
 }
 
 # Scrapery, ktoré závisia na výsledku iného scraperu (potrebujú company_name).
@@ -93,13 +99,13 @@ async def run_scrapers(
         scraper = scraper_cls(browser=browser)
         is_fs = source_type in _FS_SOURCE_TYPES
         _t_start = time.perf_counter()
-        print(f"[TIMING] ▶ {source_type} START")
+        logger.debug(f"[TIMING] ▶ {source_type} START")
         try:
             if is_fs:
                 async with _fs_semaphore:
                     _t_run = time.perf_counter()
                     if _t_run - _t_start > 0.05:
-                        print(f"[TIMING] {source_type} čakal na FS semafor: {_t_run - _t_start:.2f}s")
+                        logger.debug(f"[TIMING] {source_type} čakal na FS semafor: {_t_run - _t_start:.2f}s")
                     result = await scraper.run(
                         output_dir=output_dir,
                         target_type=target_type,
@@ -121,7 +127,7 @@ async def run_scrapers(
                     orsr_extract_type=orsr_extract_type,
                     **extra_kwargs,
                 )
-            print(f"[TIMING] ✔ {source_type} HOTOVO za {time.perf_counter() - _t_start:.2f}s → {result.status if result else '?'}")
+            logger.debug(f"[TIMING] ✔ {source_type} HOTOVO za {time.perf_counter() - _t_start:.2f}s → {result.status if result else '?'}")
             # Ihneď reportujeme dokončenie
             if on_source_done and result:
                 try:
@@ -130,7 +136,7 @@ async def run_scrapers(
                     logger.warning(f"on_source_done callback zlyhal pre {source_type}: {cb_err}")
             return result
         except BaseException as e:
-            print(f"[TIMING] ✗ {source_type} CHYBA za {time.perf_counter() - _t_start:.2f}s: {type(e).__name__}")
+            logger.debug(f"[TIMING] ✗ {source_type} CHYBA za {time.perf_counter() - _t_start:.2f}s: {type(e).__name__}")
             raise
         finally:
             await scraper._close()

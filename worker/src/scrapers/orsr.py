@@ -13,13 +13,14 @@ from ..models import ScrapedSource
 logger = logging.getLogger(__name__)
 
 _EMPTY_MARKERS = ("Nenašli sa žiadne", "Podmienkam nevyhovuje žiadny")
+_OUTDATED_MARKER = "Výpis je neaktuálny"
+_TRANSFERRED_MARKER = "Spis odstúpený na iný registrový súd"
 
 _LEGAL_FORM_RE = re.compile(
     r'((?:spol\.\s*s\s*r\.\s*o\.|s\.?\s*r\.?\s*o\.|a\.\s*s\.|v\.\s*o\.\s*s\.|k\.\s*s\.))\.?\s.*$',
     re.IGNORECASE,
 )
 _QUOTE_RE = re.compile(r'^["\']+(.+?)["\']+')
-_NUM_RE = re.compile(r'^\d+\.$')
 
 
 class OrsrScraper(BaseScraper):
@@ -36,10 +37,10 @@ class OrsrScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Začínam pre IČO: {ico} (typ: {orsr_extract_type})")
             _t = time.perf_counter()
             page = await self._get_page(block_images=False)
-            print(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
 
             await self._navigate_to_search(page, ico)
-            print(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
             if await self._is_empty_results(page):
@@ -53,19 +54,22 @@ class OrsrScraper(BaseScraper):
             link_name = "Úplný" if orsr_extract_type == "FULL" else "Aktuálny"
             company_name = await self._click_extract_link(page, link_name)
             if company_name is None:
+                # Fallback: skús extrahovať meno z vyhľadávacej tabuľky
+                company_name = await self._extract_company_name_from_search(page, ico)
+            if company_name is None:
                 return self._make_result(
                     status="SUCCESS",
                     file_path=None,
                     status_message=f"Výpis pre IČO {ico} nebol nájdený.",
                     findings="Záznam neexistuje alebo nebol nájdený.",
                 )
-            print(f"[{self.source_type}] ⏱ detail_click + meno: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ detail_click + meno: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
             pdf_output = output_dir / f"orsr_{ico}.pdf"
             try:
                 await self._print_page_to_pdf(page, pdf_output)
-                print(f"[{self.source_type}] ⏱ print_pdf: {time.perf_counter() - _t:.2f}s")
+                logger.debug(f"[{self.source_type}] ⏱ print_pdf: {time.perf_counter() - _t:.2f}s")
                 logger.info(f"[{self.source_type}] PDF: {pdf_output}")
             except Exception as e:
                 logger.error(f"[{self.source_type}] PDF zlyhalo: {e}")
@@ -108,36 +112,80 @@ class OrsrScraper(BaseScraper):
         return any(marker in text for marker in _EMPTY_MARKERS)
 
     async def _click_extract_link(self, page: Page, link_name: str) -> Optional[str]:
-        """Nájde odkaz 'Aktuálny'/'Úplný', extrahuje company_name z riadku a klikne."""
-        detail_link = page.get_by_role("link", name=link_name).first
-        try:
-            await detail_link.wait_for(timeout=10000)
-        except PlaywrightTimeoutError:
+        """Nájde odkaz 'Aktuálny'/'Úplný', klikne naň a extrahuje company_name z detailnej stránky.
+        Ak výpis obsahuje 'Výpis je neaktuálny', nasleduje odkaz na aktuálny výpis.
+        Ak výpis obsahuje 'Spis odstúpený', skúsi ďalší odkaz v zozname výsledkov."""
+        links = page.get_by_role("link", name=link_name)
+        link_count = await links.count()
+        if link_count == 0:
             logger.warning(f"[{self.source_type}] Odkaz '{link_name}' nenájdený.")
             return None
 
-        company_name = await self._extract_company_name(detail_link)
-        logger.info(f"[{self.source_type}] Klikám '{link_name}' pre: {company_name}")
-        await detail_link.click()
+        for attempt in range(link_count):
+            logger.info(f"[{self.source_type}] Klikám '{link_name}' (riadok {attempt + 1}/{link_count}).")
+            detail_link = links.nth(attempt)
+            await detail_link.click()
+            await page.wait_for_load_state("domcontentloaded", timeout=45000)
+
+            body_text = await page.inner_text("body")
+
+            # Ak je výpis neaktuálny (zmena právnej formy), klikni na odkaz na aktuálny výpis
+            if _OUTDATED_MARKER in body_text:
+                logger.info(f"[{self.source_type}] Výpis je neaktuálny — nasledujem odkaz na aktuálny výpis.")
+                current_link = page.locator("a:has-text('aktuálny výpis')")
+                try:
+                    await current_link.wait_for(timeout=5000)
+                    await current_link.first.click()
+                    await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                    body_text = await page.inner_text("body")
+                except PlaywrightTimeoutError:
+                    logger.warning(f"[{self.source_type}] Odkaz na aktuálny výpis sa nenašiel — používam tento výpis.")
+
+            # Ak je spis odstúpený na iný súd, skús ďalší odkaz
+            if _TRANSFERRED_MARKER in body_text:
+                logger.info(f"[{self.source_type}] Spis odstúpený — skúšam ďalší odkaz.")
+                await page.go_back()
+                await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                continue
+
+            # Výpis je OK — extrahuj company_name
+            company_name = await self._extract_company_name_from_detail(page)
+            logger.info(f"[{self.source_type}] Company name z detailu: {company_name}")
+            return company_name
+
+        logger.warning(f"[{self.source_type}] Všetky odkazy majú spis odstúpený — používam posledný.")
+        await page.go_back()
         await page.wait_for_load_state("domcontentloaded", timeout=45000)
+        links = page.get_by_role("link", name=link_name)
+        await links.last.click()
+        await page.wait_for_load_state("domcontentloaded", timeout=45000)
+        company_name = await self._extract_company_name_from_detail(page)
         return company_name
 
-    async def _extract_company_name(self, detail_link) -> Optional[str]:
-        """Extrahuje obchodné meno z riadku tabuľky, v ktorom je odkaz."""
+    async def _extract_company_name_from_detail(self, page: Page) -> Optional[str]:
+        """Extrahuje obchodné meno z detailnej stránky výpisu ORSR.
+        Na detailnej stránke je aktuálny názov vždy uvedený ako hodnota v tabuľke."""
         try:
-            row = detail_link.locator("xpath=ancestor::tr")
-            cells = row.locator("td")
-            for i in range(await cells.count()):
-                val = (await cells.nth(i).inner_text()).strip()
-                if val and not _NUM_RE.match(val) and "aktuálny" not in val.lower() and "úplný" not in val.lower():
-                    return self._clean_company_name(val)
-        except Exception as row_err:
-            logger.warning(f"[{self.source_type}] Riadok tabuľky zlyhal: {row_err}")
-        # Fallback na text odkazu
-        try:
-            return self._clean_company_name(await detail_link.inner_text())
-        except Exception:
-            return None
+            # ORSR detail má tabuľku s riadkami typu: <td>Obchodné meno:</td><td>Názov spoločnosti</td>
+            # Hľadáme riadok obsahujúci 'Obchodné meno' a berieme hodnotu z vedľajšej bunky
+            rows = page.locator("table tr")
+            count = await rows.count()
+            for i in range(count):
+                row = rows.nth(i)
+                cells = row.locator("td")
+                cell_count = await cells.count()
+                for c in range(cell_count):
+                    try:
+                        val = (await cells.nth(c).inner_text(timeout=2000)).strip()
+                    except PlaywrightTimeoutError:
+                        continue
+                    if "obchodné meno" in val.lower() and c + 1 < cell_count:
+                        name_val = (await cells.nth(c + 1).inner_text(timeout=2000)).strip()
+                        if name_val:
+                            return self._clean_company_name(name_val)
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Extrakcia mena z detailu zlyhala: {e}")
+        return None
 
     @staticmethod
     def _clean_company_name(raw: str) -> str:
@@ -159,3 +207,30 @@ class OrsrScraper(BaseScraper):
         except Exception as e:
             logger.warning(f"[{self.source_type}] Nálezy zlyhali: {e}")
             return "Nálezy sa nepodarilo extrahovať."
+
+    async def _extract_company_name_from_search(self, page: Page, ico: str) -> Optional[str]:
+        """Fallback: extrahuje obchodné meno z vyhľadávacej tabuľky ORSR.
+        Volá sa keď extrakcia z detailu zlyhá."""
+        try:
+            # Naviguj späť na vyhľadávanie
+            search_url = f"{self.base_url}?ICO={ico}&SID=0"
+            await page.goto(search_url, timeout=30000, wait_until="domcontentloaded")
+            
+            rows = page.locator("table tr")
+            count = await rows.count()
+            for i in range(count):
+                row = rows.nth(i)
+                cells = row.locator("td")
+                cell_count = await cells.count()
+                for c in range(cell_count):
+                    try:
+                        val = (await cells.nth(c).inner_text(timeout=2000)).strip()
+                    except PlaywrightTimeoutError:
+                        continue
+                    if ico in val and c + 1 < cell_count:
+                        name_val = (await cells.nth(c + 1).inner_text(timeout=2000)).strip()
+                        if name_val:
+                            return self._clean_company_name(name_val)
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Fallback extrakcia mena zlyhala: {e}")
+        return None

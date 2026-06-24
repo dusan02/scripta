@@ -7,6 +7,9 @@ from .fs import FinancnaSpravaScraper
 from .fs_dph_rusenie import FsDphRusenieScraper
 from .fs_dph_vymazani import FsDphVymazaniScraper
 from .fs_danove_subjekty import FsDanoveSubjektyScraper
+from .sp_dlznici import SpDlzniciScraper
+from .vszp_dlznici import VszpDlzniciScraper
+from .dovera_dlznici import DoveraDlzniciScraper
 from .registry import get_scraper, run_scrapers
 
 __all__ = [
@@ -20,6 +23,9 @@ __all__ = [
     "FsDphRusenieScraper",
     "FsDphVymazaniScraper",
     "FsDanoveSubjektyScraper",
+    "SpDlzniciScraper",
+    "VszpDlzniciScraper",
+    "DoveraDlzniciScraper",
     "get_scraper",
     "run_scrapers",
 ]

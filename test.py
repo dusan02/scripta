@@ -6,14 +6,10 @@ def run(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)
     context = browser.new_context()
     page = context.new_page()
-    page.goto("https://www.orsr.sk/")
-    page.get_by_role("link", name="identifikačného čísla").click()
-    page.get_by_role("textbox", name="Sem zadajte celé identifikačn").click()
-    page.get_by_role("textbox", name="Sem zadajte celé identifikačn").click()
-    page.get_by_role("textbox", name="Sem zadajte celé identifikačn").fill("31562141")
-    page.get_by_role("button", name="Hľadaj").click()
-    page.get_by_role("link", name="Aktuálny").click()
-    page.get_by_role("link", name="Úplný").click()
+    page.goto("https://portal.unionzp.sk/pub/dlznici")
+    page.get_by_role("textbox", name="Zadajte priezvisko, IČO,").click()
+    page.get_by_role("textbox", name="Zadajte priezvisko, IČO,").fill("37501453")
+    page.get_by_role("button", name="Hľadať").click()
 
     # ---------------------
     context.close()

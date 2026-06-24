@@ -279,16 +279,26 @@ export default function HistoryPage() {
                         {report.targetType === "COMPANY" ? "🏢" : "👤"}
                       </span>
                       <div className="min-w-0">
-                        <span className="text-sm font-semibold truncate block" style={{ color: "var(--text)", letterSpacing: "-0.01em" }}>
-                          {report.targetType === "COMPANY" && report.ico ? (
-                            <CopyableText text={report.ico} />
-                          ) : (
-                            identifier
-                          )}
-                        </span>
-                        {report.targetType === "COMPANY" && report.companyName && (
-                          <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                            {report.companyName}
+                        {report.targetType === "COMPANY" && report.companyName ? (
+                          <>
+                            <span
+                              className="text-sm font-semibold truncate block"
+                              style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                            >
+                              {report.companyName}
+                            </span>
+                            {report.ico && (
+                              <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
+                                <CopyableText text={report.ico} />
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span
+                            className="text-sm font-semibold truncate block"
+                            style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                          >
+                            {identifier}
                           </span>
                         )}
                       </div>
@@ -382,16 +392,26 @@ export default function HistoryPage() {
                           {report.targetType === "COMPANY" ? "🏢" : "👤"}
                         </span>
                         <div className="min-w-0">
-                          <span className="text-sm font-semibold truncate block" style={{ color: "var(--text)", letterSpacing: "-0.01em" }}>
-                            {report.targetType === "COMPANY" && report.ico ? (
-                              <CopyableText text={report.ico} />
-                            ) : (
-                              identifier
-                            )}
-                          </span>
-                          {report.targetType === "COMPANY" && report.companyName && (
-                            <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                              {report.companyName}
+                          {report.targetType === "COMPANY" && report.companyName ? (
+                            <>
+                              <span
+                                className="text-sm font-semibold truncate block"
+                                style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                              >
+                                {report.companyName}
+                              </span>
+                              {report.ico && (
+                                <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
+                                  <CopyableText text={report.ico} />
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span
+                              className="text-sm font-semibold truncate block"
+                              style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                            >
+                              {identifier}
                             </span>
                           )}
                         </div>

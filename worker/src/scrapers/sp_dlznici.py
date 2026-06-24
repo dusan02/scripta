@@ -1,9 +1,6 @@
 from __future__ import annotations
 import logging
-import re
-import time
 from pathlib import Path
-from typing import Optional
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
@@ -11,6 +8,15 @@ from .base import BaseScraper, ScraperUnavailableError
 from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
+
+_SP_FIELD_MAP = {
+    "views-field-name":       "Názov / Meno",
+    "views-field-ico":        "IČO",
+    "views-field-address":    "Adresa",
+    "views-field-city":       "Mesto",
+    "views-field-debt-amount": "Dlžná suma",
+    "views-field-missing-documents": "Chýbajúce podklady za obdobie",
+}
 
 
 class SpDlzniciScraper(BaseScraper):
@@ -22,43 +28,15 @@ class SpDlzniciScraper(BaseScraper):
     source_type = "SP_DLZNICI"
     base_url = "https://socpoist.sk/nastroje-sluzby/zoznam-dlznikov"
 
-    async def _get_stealth_page(self) -> Page:
-        """SP blokuje headless detekciu — vytvorí page s realistickým user-agentom bez resource blocking."""
-        if self.browser is None:
-            from playwright.async_api import async_playwright
-            self._playwright = await async_playwright().start()
-            self.browser = await self._playwright.chromium.launch(
-                headless=True,
-                args=['--disable-blink-features=AutomationDetected'],
-            )
-            self._owned_browser = True
-        ctx = await self.browser.new_context(
-            user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-            viewport={'width': 1920, 'height': 1080},
-            locale='sk-SK',
-        )
-        self._contexts.append(ctx)
-        page = await ctx.new_page()
-        return page
-
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
-        page: Optional[Page] = None
-        ctx = None
-        try:
+        async def _scrape(page: Page) -> ScrapedSource:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
-            _t = time.perf_counter()
-            page = await self._get_stealth_page()
-            ctx = page.context
-            print(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
-            _t = time.perf_counter()
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
                 await page.goto(self.base_url, timeout=30000, wait_until='networkidle')
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"SP nedostupná: {e}")
-            print(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
-            _t = time.perf_counter()
             logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
 
             # Skontrolovať či nás zablokovali
@@ -96,17 +74,12 @@ class SpDlzniciScraper(BaseScraper):
                     status_message="Nepodarilo sa nájsť tlačidlo Potvrdiť na stránke Sociálnej poisťovne.",
                 )
 
-            print(f"[{self.source_type}] ⏱ fill IČO + Potvrdiť: {time.perf_counter() - _t:.2f}s")
-            _t = time.perf_counter()
-
             # Počkať na výsledky
             await page.wait_for_timeout(2000)
             try:
                 await page.wait_for_load_state("networkidle", timeout=15000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] networkidle timeout — pokračujem.")
-            print(f"[{self.source_type}] ⏱ wait_results: {time.perf_counter() - _t:.2f}s")
-            _t = time.perf_counter()
 
             # Skontrolovať či sú výsledky
             text_content = await page.inner_text("body")
@@ -127,7 +100,7 @@ class SpDlzniciScraper(BaseScraper):
             findings = None
             is_debtor = False
             if not is_empty:
-                findings = await self._extract_findings(page, ico)
+                findings = await self._extract_table_findings(page, ico, source_name="Sociálnej poisťovne", field_map=_SP_FIELD_MAP)
                 is_debtor = findings is not None and ico in findings
 
             if not is_debtor:
@@ -137,31 +110,12 @@ class SpDlzniciScraper(BaseScraper):
             # Generovať PDF z výsledkovej stránky vždy — aj keď nie je dlžník
             pdf_output = output_dir / f"sp_dlznici_{ico}.pdf"
             try:
-                await page.add_style_tag(content="""
-                    header, footer, nav, .header, .footer, .navigation, .menu,
-                    .breadcrumb, .sidebar, #header, #footer, #navigation,
-                    .cookie-bar, .skip-link, .region-header, .region-footer,
-                    .page-header, .field--name-body, .text-content, .intro,
-                    .block-system-breadcrumb-block, .tabs, h1, .page-title,
-                    form .description, .form-item--description {
-                        display: none !important;
-                    }
-                    main, .main-content, .content, .region-content {
-                        margin: 0 !important; padding: 0 !important;
-                    }
-                    table { width: 100% !important; font-size: 10px !important; table-layout: auto !important; }
-                    td, th { padding: 3px 5px !important; word-break: break-word !important; }
-                """)
-                await page.emulate_media(media="print")
-                await page.pdf(
-                    path=str(pdf_output),
+                await self._generate_clean_pdf(
+                    page, pdf_output,
+                    title="Zoznam dlžníkov Sociálnej poisťovne",
                     format="A4",
-                    landscape=True,
-                    print_background=True,
                     scale=0.9,
-                    margin={"top": "0.8cm", "bottom": "0.8cm", "left": "0.8cm", "right": "0.8cm"},
                 )
-                logger.info(f"[{self.source_type}] PDF vygenerované: {pdf_output}")
             except Exception as e:
                 logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")
                 return self._make_result(
@@ -186,92 +140,4 @@ class SpDlzniciScraper(BaseScraper):
                     findings=findings,
                 )
 
-        except ScraperUnavailableError as e:
-            logger.error(f"[{self.source_type}] Nedostupné: {e}")
-            return self._make_result(
-                status="UNAVAILABLE",
-                status_message=f"Register Sociálnej poisťovne je nedostupný: {e}",
-            )
-        except PlaywrightError as e:
-            logger.error(f"[{self.source_type}] Playwright chyba: {e}")
-            return self._make_result(
-                status="FAILED",
-                status_message=f"Sieťová chyba pri spracovaní {self.source_type}: {e}",
-            )
-        except Exception as e:
-            logger.error(f"[{self.source_type}] Nečakaná chyba: {e}", exc_info=True)
-            return self._make_result(
-                status="FAILED",
-                status_message=f"Neznáma chyba pri spracovaní {self.source_type}: {type(e).__name__}: {e}",
-            )
-        finally:
-            if page:
-                await page.close()
-            if ctx:
-                await ctx.close()
-
-    async def _extract_findings(self, page: Page, ico: str) -> Optional[str]:
-        """Extrahuje nálezy z výsledkovej tabuľky — volané len ak sme prešli empty markers (subjekt JE dlžník)."""
-        try:
-            # Drupal Views tabuľka — td majú class "views-field views-field-<name>"
-            rows = page.locator("table tbody tr")
-            count = await rows.count()
-            if count == 0:
-                logger.warning(f"[{self.source_type}] Tabuľka s výsledkami sa nenašla.")
-                return None
-
-            # Mapovanie Drupal field class → názov stĺpca
-            field_map = {
-                "views-field-name":       "Názov / Meno",
-                "views-field-ico":        "IČO",
-                "views-field-address":    "Adresa",
-                "views-field-city":       "Mesto",
-                "views-field-debt-amount": "Dlžná suma",
-                "views-field-missing-documents": "Chýbajúce podklady za obdobie",
-            }
-
-            rows_data = []
-            for i in range(min(count, 5)):
-                cells = rows.nth(i).locator("td")
-                cell_count = await cells.count()
-                if cell_count == 0:
-                    continue
-                row = {}
-                for c in range(cell_count):
-                    try:
-                        cell = cells.nth(c)
-                        cls = await cell.get_attribute("class") or ""
-                        val = (await cell.inner_text(timeout=2000)).strip()
-                    except PlaywrightTimeoutError:
-                        val = ""
-                        cls = ""
-                    val = re.sub(r'\s*zoradiť podľa\s+.*$', '', val).strip()
-                    if not val or val == "-":
-                        continue
-                    for cls_key, cls_label in field_map.items():
-                        if cls_key in cls:
-                            row[cls_label] = val
-                            break
-                if row:
-                    rows_data.append(row)
-
-            if not rows_data:
-                return None
-
-            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Sociálnej poisťovne."]
-            for row in rows_data:
-                if "Názov / Meno" in row:
-                    name = row.pop("Názov / Meno").strip("'\"").strip()
-                    parts.append(f"Názov: {name}")
-                if "Dlžná suma" in row:
-                    parts.append(f"Dlžná suma: {row.pop('Dlžná suma')}")
-                for label in ("IČO", "Adresa", "Mesto", "Chýbajúce podklady za obdobie"):
-                    if label in row:
-                        parts.append(f"{label}: {row[label]}")
-            findings = "\n".join(parts)
-            logger.info(f"[{self.source_type}] Findings extrahované: {findings[:200]}")
-            return findings
-
-        except Exception as e:
-            logger.warning(f"[{self.source_type}] Extrakcia nálezov zlyhala: {e}")
-            return None
+        return await self._run_debtor_scraper(_scrape, unavailable_msg="Register Sociálnej poisťovne je nedostupný")

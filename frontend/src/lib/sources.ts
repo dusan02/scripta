@@ -43,7 +43,9 @@ export const SOURCES: SourceInfo[] = [
 
   // ── Poisťovne a inštitúcie ──
   { id: "SP_DLZNICI",  name: "Sociálna poisťovňa", short: "SP",  description: "Zoznam dlžníkov na sociálnom poistení", label: "Soc. poisťovňa", sublabel: "Dlžníci na sociálnom poistení", cost: 0, category: "inst", enabled: true },
-  { id: "ZP_DLZNICI",  name: "Zdravotné poisťovne", short: "ZP", description: "Dlžníci na zdravotnom poistení (VšZP, Dôvera, Union)", label: "Zdrav. poisťovne", sublabel: "Dlžníci na zdravotnom poistení", cost: 0, category: "inst", enabled: false },
+  { id: "VSZP_DLZNICI", name: "VšZP", short: "VšZP", description: "Zoznam dlžníkov na zdravotnom poistení — Všeobecná zdravotná poisťovňa", label: "VšZP", sublabel: "Dlžníci na zdravotnom poistení (VšZP)", cost: 0, category: "inst", enabled: true },
+  { id: "DOVERA_DLZNICI", name: "Dôvera", short: "Dôvera", description: "Zoznam dlžníkov na zdravotnom poistení — Dôvera zdravotná poisťovňa", label: "Dôvera", sublabel: "Dlžníci na zdravotnom poistení (Dôvera)", cost: 0, category: "inst", enabled: true },
+  { id: "UNION_DLZNICI", name: "UNION", short: "UNION", description: "Zoznam dlžníkov na zdravotnom poistení — UNION zdravotná poisťovňa", label: "UNION", sublabel: "Dlžníci na zdravotnom poistení (UNION)", cost: 0, category: "inst", enabled: true },
 ];
 
 export const ENABLED_SOURCES = SOURCES.filter(s => s.enabled);

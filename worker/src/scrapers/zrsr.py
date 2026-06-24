@@ -69,7 +69,7 @@ class ZrsrScraper(BaseScraper):
             await page.goto(self._base_url_company, timeout=45000, wait_until="domcontentloaded")
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError("Timeout pri načítaní stránky ZRSR.")
-        print(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
+        logger.debug(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
         _t = time.perf_counter()
 
         try:
@@ -103,7 +103,7 @@ class ZrsrScraper(BaseScraper):
                 status="FAILED",
                 status_message=f"Chyba pri odoslaní formulára ZRSR (firma): {e}",
             )
-        print(f"[{self.source_type}] ⏱ formulár + altcha + submit: {time.perf_counter() - _t:.2f}s")
+        logger.debug(f"[{self.source_type}] ⏱ formulár + altcha + submit: {time.perf_counter() - _t:.2f}s")
 
         return await self._process_zrsr_results(page, f"ico_{ico}", output_dir)
 
@@ -212,7 +212,7 @@ class ZrsrScraper(BaseScraper):
         except Exception as e:
             logger.warning(f"[{self.source_type}] Chyba pri klikaní na detail, pokračujem s aktuálnou stránkou: {e}")
 
-        print(f"[{self.source_type}] ⏱ detail + spracovanie: {time.perf_counter() - _t:.2f}s")
+        logger.debug(f"[{self.source_type}] ⏱ detail + spracovanie: {time.perf_counter() - _t:.2f}s")
         _t = time.perf_counter()
 
         logger.info(f"[{self.source_type}] Generujem PDF.")
@@ -220,7 +220,7 @@ class ZrsrScraper(BaseScraper):
         
         try:
             await self._print_page_to_pdf(page, pdf_output)
-            print(f"[{self.source_type}] ⏱ print_pdf: {time.perf_counter() - _t:.2f}s")
+            logger.debug(f"[{self.source_type}] ⏱ print_pdf: {time.perf_counter() - _t:.2f}s")
             logger.info(f"[{self.source_type}] PDF úspešne vygenerované na {pdf_output}")
         except Exception as e:
             logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")

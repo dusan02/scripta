@@ -185,6 +185,13 @@ export default function SearchForm() {
               required
             />
 
+            {/* Validity indicator */}
+            {ico.length === 8 && !icoError && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mr-1" style={{ color: "var(--accent)" }}>
+                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+
             {/* Clear (x) button */}
             {ico && (
               <button
@@ -197,13 +204,6 @@ export default function SearchForm() {
                   <path d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            )}
-
-            {/* Validity indicator */}
-            {ico.length === 8 && !icoError && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mr-1" style={{ color: "var(--accent)" }}>
-                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
             )}
 
             {/* Submit button — dominant tyrkysov */}

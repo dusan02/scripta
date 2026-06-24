@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
+import logging
 import time
 
 import traceback
@@ -20,6 +21,8 @@ from .db import (
 from .models import ReportTask
 from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Scripta Worker", version="0.1.0")
 
@@ -55,15 +58,15 @@ async def _save_company_name(pool: asyncpg.Pool, report_request_id: str, company
             company_name,
             report_request_id,
         )
-        print(f"[WORKER] Company name saved: {company_name}")
+        logger.debug(f"[WORKER] Company name saved: {company_name}")
     except Exception as e:
-        print(f"[WORKER] Failed to save company name: {e}")
+        logger.warning(f"[WORKER] Failed to save company name: {e}")
 
 
 async def _execute_report(task: ReportTask) -> None:
     """Background job: stiahne výpisy, vygeneruje Cover Page a zlúči PDF."""
     t_start = time.perf_counter()
-    print(f"[WORKER] Starting report {task.report_request_id} for ICO {task.ico}")
+    logger.info(f"[WORKER] Starting report {task.report_request_id} for ICO {task.ico}")
     report_dir = settings.results_dir / task.report_request_id
     report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -73,20 +76,20 @@ async def _execute_report(task: ReportTask) -> None:
 
     try:
         pool = await get_db_pool()
-        print(f"[WORKER] DB pool acquired")
+        logger.debug("[WORKER] DB pool acquired")
         await update_report_status(pool, task.report_request_id, "PROCESSING")
-        print(f"[WORKER] Status set to PROCESSING")
+        logger.debug("[WORKER] Status set to PROCESSING")
 
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(headless=settings.playwright_headless)
         t_browser = time.perf_counter()
-        print(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
+        logger.debug(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
 
         # Callback — upsertne každý zdroj do DB ihneď ako skončí
         import asyncio as _asyncio
 
         def _on_source_done(source) -> None:
-            print(f"[WORKER] Source done: {source.source_type}:{source.status}")
+            logger.debug(f"[WORKER] Source done: {source.source_type}:{source.status}")
             try:
                 loop = _asyncio.get_running_loop()
                 _asyncio.ensure_future(
@@ -113,15 +116,15 @@ async def _execute_report(task: ReportTask) -> None:
             on_source_done=_on_source_done,
         )
         t_scrape = time.perf_counter()
-        print(f"[WORKER] Scrapers done ({t_scrape - t_browser:.2f}s): {[f'{s.source_type}:{s.status}' for s in sources]}")
+        logger.debug(f"[WORKER] Scrapers done ({t_scrape - t_browser:.2f}s): {[f'{s.source_type}:{s.status}' for s in sources]}")
 
         # Finálny upsert všetkých zdrojov (pre istotu — pokryje prípadné preteky callbacku)
         await upsert_report_sources(pool, task.report_request_id, sources)
-        print(f"[WORKER] Sources upserted (final)")
+        logger.debug("[WORKER] Sources upserted (final)")
 
         # Vrátime kredity za platené registre, ktoré nezbehli úspešne (napr. CRE UNAVAILABLE).
         await refund_unavailable_paid_sources(pool, task.report_request_id)
-        print(f"[WORKER] Refund check done")
+        logger.debug("[WORKER] Refund check done")
 
         # Extrahujeme obchodné meno, ak ho niektorý úspešný scraper získal
         company_name = None
@@ -132,7 +135,7 @@ async def _execute_report(task: ReportTask) -> None:
                     break
 
         # Zlúčime PDF aj ak niektorý zdroj zlyhal — report pokračuje.
-        print(f"[WORKER] Starting PDF compile...")
+        logger.debug("[WORKER] Starting PDF compile...")
         compiler = PdfCompiler(settings.results_dir)
         final_path = compiler.compile(
             report_request_id=task.report_request_id,
@@ -142,7 +145,7 @@ async def _execute_report(task: ReportTask) -> None:
             company_name=company_name,
         )
         t_compile = time.perf_counter()
-        print(f"[WORKER] PDF compiled ({t_compile - t_scrape:.2f}s): {final_path}")
+        logger.debug(f"[WORKER] PDF compiled ({t_compile - t_scrape:.2f}s): {final_path}")
 
         # Rozhodneme finálny status reportu.
         any_unavailable = any(s.status == "UNAVAILABLE" for s in sources)
@@ -150,7 +153,7 @@ async def _execute_report(task: ReportTask) -> None:
         all_success = all(s.status == "SUCCESS" for s in sources)
 
         final_status = "COMPLETED" if all_success else ("PARTIAL" if any_unavailable or any_failed else "FAILED")
-        print(f"[WORKER] Final status: {final_status}")
+        logger.info(f"[WORKER] Final status: {final_status}")
 
         await update_report_status(
             pool,
@@ -160,7 +163,7 @@ async def _execute_report(task: ReportTask) -> None:
             company_name=company_name,
         )
         t_end = time.perf_counter()
-        print(f"[WORKER] Report completed successfully — total {t_end - t_start:.2f}s (browser {t_browser - t_start:.2f}s, scrapers {t_scrape - t_browser:.2f}s, compile {t_compile - t_scrape:.2f}s)")
+        logger.info(f"[WORKER] Report completed — total {t_end - t_start:.2f}s (browser {t_browser - t_start:.2f}s, scrapers {t_scrape - t_browser:.2f}s, compile {t_compile - t_scrape:.2f}s)")
     except Exception:
         # Ak celý worker zlyhá, report označíme ako FAILED.
         traceback.print_exc()
