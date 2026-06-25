@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
 import CopyableText from "@/components/CopyableText";
-import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP } from "@/lib/sources";
+import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP, SOURCE_DOT_COLOR } from "@/lib/sources";
 
 interface ReportSource {
   sourceType: string;
@@ -23,14 +23,6 @@ interface Report {
   createdAt: string;
   sources: ReportSource[];
 }
-
-const SOURCE_DOT_COLOR: Record<string, string> = {
-  SUCCESS:     "#10b981",
-  UNAVAILABLE: "#f59e0b",
-  FAILED:      "#ef4444",
-  PENDING:     "var(--border-strong)",
-  PROCESSING:  "#3b82f6",
-};
 
 const STATUS_FILTERS = [
   { value: "ALL", label: "Všetky" },
@@ -532,9 +524,9 @@ export default function HistoryPage() {
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="flex items-center justify-center rounded-full flex-shrink-0"
-                style={{ width: 40, height: 40, background: "rgba(239,68,68,0.1)" }}
+                style={{ width: 40, height: 40, background: "var(--danger-bg)" }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "#ef4444" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "var(--danger)" }}>
                   <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
@@ -566,7 +558,7 @@ export default function HistoryPage() {
                 onClick={confirmDelete}
                 disabled={deletingId !== null || deletingAll}
                 className="px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2"
-                style={{ background: "#ef4444", color: "white", border: "none" }}
+                style={{ background: "var(--danger)", color: "var(--accent-button-text)", border: "none" }}
               >
                 {(deletingId !== null || deletingAll) ? (
                   <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">

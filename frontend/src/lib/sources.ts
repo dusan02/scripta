@@ -67,3 +67,11 @@ export function getSourceDescription(id: string): string {
 }
 
 export const DEFAULT_SELECTED_SOURCES = ENABLED_SOURCES.map(s => s.id);
+
+export const SOURCE_DOT_COLOR: Record<string, string> = {
+  SUCCESS:     "var(--success)",
+  UNAVAILABLE: "var(--warning)",
+  FAILED:      "var(--danger)",
+  PENDING:     "var(--border-strong)",
+  PROCESSING:  "var(--info)",
+};

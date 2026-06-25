@@ -7,12 +7,12 @@ interface StatusBadgeProps {
 
 const STATUS_CONFIG: Record<string, { label: string; dotColor: string; badgeClass: string }> = {
   PENDING:    { label: "Čaká",       dotColor: "var(--text-muted)", badgeClass: "badge-pending" },
-  PROCESSING: { label: "Prebieha",   dotColor: "#3b82f6",           badgeClass: "badge-processing" },
-  COMPLETED:  { label: "Dokončené",  dotColor: "#10b981",           badgeClass: "badge-success" },
-  PARTIAL:    { label: "Čiastočné",  dotColor: "#f59e0b",           badgeClass: "badge-warning" },
-  FAILED:     { label: "Zlyhalo",    dotColor: "#ef4444",           badgeClass: "badge-error" },
-  SUCCESS:    { label: "OK",         dotColor: "#10b981",           badgeClass: "badge-success" },
-  UNAVAILABLE:{ label: "Nedostupné", dotColor: "#f59e0b",           badgeClass: "badge-warning" },
+  PROCESSING: { label: "Prebieha",   dotColor: "var(--info)",        badgeClass: "badge-processing" },
+  COMPLETED:  { label: "Dokončené",  dotColor: "var(--success)",     badgeClass: "badge-success" },
+  PARTIAL:    { label: "Čiastočné",  dotColor: "var(--warning)",     badgeClass: "badge-warning" },
+  FAILED:     { label: "Zlyhalo",    dotColor: "var(--danger)",      badgeClass: "badge-error" },
+  SUCCESS:    { label: "OK",         dotColor: "var(--success)",     badgeClass: "badge-success" },
+  UNAVAILABLE:{ label: "Nedostupné", dotColor: "var(--warning)",     badgeClass: "badge-warning" },
 };
 
 export default function StatusBadge({ status, size = "md" }: StatusBadgeProps) {

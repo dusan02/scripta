@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
 import CopyableText from "@/components/CopyableText";
-import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP, ENABLED_SOURCES } from "@/lib/sources";
+import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP, ENABLED_SOURCES, SOURCE_DOT_COLOR } from "@/lib/sources";
 
 interface ReportSource {
   sourceType: string;
@@ -23,14 +23,6 @@ interface Report {
   createdAt: string;
   sources: ReportSource[];
 }
-
-const SOURCE_DOT_COLOR: Record<string, string> = {
-  SUCCESS:     "#10b981",
-  UNAVAILABLE: "#f59e0b",
-  FAILED:      "#ef4444",
-  PENDING:     "var(--border-strong)",
-  PROCESSING:  "#3b82f6",
-};
 
 function timeAgo(date: string) {
   const now = new Date();
@@ -302,7 +294,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                       title="Vymazať"
                       className="transition-all duration-150 rounded-md p-0.5"
                       style={{ color: "var(--text-secondary)" }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)"; (e.currentTarget as HTMLElement).style.color = "#ef4444"; }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--danger-bg)"; (e.currentTarget as HTMLElement).style.color = "var(--danger)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
                     >
                       {deletingId === report.id ? (
@@ -459,10 +451,10 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                 style={{
                   width: 40,
                   height: 40,
-                  background: "rgba(239,68,68,0.1)",
+                  background: "var(--danger-bg)",
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "#ef4444" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "var(--danger)" }}>
                   <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
@@ -499,8 +491,8 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                 disabled={deletingId !== null || deletingAll}
                 className="px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2"
                 style={{
-                  background: "#ef4444",
-                  color: "white",
+                  background: "var(--danger)",
+                  color: "var(--accent-button-text)",
                   border: "none",
                 }}
               >

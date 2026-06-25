@@ -83,10 +83,10 @@ function ProgressTimeline({ status, sources }: { status: string; sources: Report
           let color = "var(--text-muted)";
           let border = "var(--border)";
 
-          if (isFailed) { bg = "rgba(239,68,68,0.1)"; color = "#ef4444"; border = "rgba(239,68,68,0.2)"; }
-          else if (isPartial) { bg = "rgba(245,158,11,0.1)"; color = "#f59e0b"; border = "rgba(245,158,11,0.2)"; }
-          else if (done) { bg = "rgba(16,185,129,0.1)"; color = "#10b981"; border = "rgba(16,185,129,0.2)"; }
-          else if (active) { bg = "rgba(59,130,246,0.1)"; color = "#3b82f6"; border = "rgba(59,130,246,0.2)"; }
+          if (isFailed) { bg = "var(--danger-bg)"; color = "var(--danger)"; border = "var(--danger)"; }
+          else if (isPartial) { bg = "var(--warning-bg)"; color = "var(--warning)"; border = "var(--warning)"; }
+          else if (done) { bg = "var(--success-bg)"; color = "var(--success)"; border = "var(--success)"; }
+          else if (active) { bg = "var(--info-bg)"; color = "var(--info)"; border = "var(--info)"; }
 
           return (
             <div key={step.key} className="flex items-center">

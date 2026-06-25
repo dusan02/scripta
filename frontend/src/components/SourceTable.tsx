@@ -13,7 +13,7 @@ interface Source {
 function StatusIcon({ status }: { status: string }) {
   if (status === "PENDING" || status === "PROCESSING") {
     return (
-      <svg className="animate-spin w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" style={{ color: "#3b82f6" }}>
+      <svg className="animate-spin w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" style={{ color: "var(--info)" }}>
         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
         <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>

@@ -293,7 +293,7 @@ export default function SearchForm() {
 
       {/* ── IČO error ─────────────────────────── */}
       {icoError && (
-        <p className="text-xs mt-2 text-center fade-in" style={{ color: "#ef4444" }}>
+        <p className="text-xs mt-2 text-center fade-in" style={{ color: "var(--danger)" }}>
           {icoError}
         </p>
       )}
@@ -429,9 +429,9 @@ export default function SearchForm() {
         <div
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs mt-4 fade-in"
           style={{
-            background: "rgba(239,68,68,0.06)",
-            border: "1px solid rgba(239,68,68,0.15)",
-            color: "#ef4444",
+            background: "var(--danger-bg)",
+            border: "1px solid var(--danger)",
+            color: "var(--danger)",
           }}
         >
           <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

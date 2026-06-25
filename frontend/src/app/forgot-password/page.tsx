@@ -107,9 +107,9 @@ export default function ForgotPasswordPage() {
                 borderRadius: "8px",
                 fontSize: "13px",
                 marginBottom: "24px",
-                background: "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.15)",
-                color: "#ef4444",
+                background: "var(--danger-bg)",
+                border: "1px solid var(--danger)",
+                color: "var(--danger)",
               }}
               role="alert"
             >
@@ -125,7 +125,7 @@ export default function ForgotPasswordPage() {
             <div style={{ textAlign: "center", padding: "16px 0" }}>
               <div style={{ 
                 width: "48px", height: "48px", borderRadius: "50%", 
-                background: "rgba(16,185,129,0.1)", color: "#10b981", 
+                background: "var(--success-bg)", color: "var(--success)", 
                 display: "flex", alignItems: "center", justifyContent: "center", 
                 margin: "0 auto 16px auto" 
               }}>

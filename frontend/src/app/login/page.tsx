@@ -122,9 +122,9 @@ export default function LoginPage() {
                 borderRadius: "8px",
                 fontSize: "13px",
                 marginBottom: "24px",
-                background: "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.15)",
-                color: "#ef4444",
+                background: "var(--danger-bg)",
+                border: "1px solid var(--danger)",
+                color: "var(--danger)",
               }}
               role="alert"
             >
