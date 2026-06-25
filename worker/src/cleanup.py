@@ -11,7 +11,6 @@ import asyncio
 import logging
 import shutil
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from typing import List, Tuple
 
 import asyncpg
@@ -21,7 +20,7 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 
-async def _get_db_pool() -> asyncpg.Pool:
+async def _get_db_conn() -> asyncpg.Connection:
     """Get a short-lived DB connection for cleanup queries."""
     return await asyncpg.connect(settings.database_url)
 
@@ -40,7 +39,7 @@ async def cleanup_old_reports() -> Tuple[int, int]:
 
     conn = None
     try:
-        conn = await _get_db_pool()
+        conn = await _get_db_conn()
     except Exception as e:
         logger.warning(f"[CLEANUP] DB connection failed, will skip DB cleanup: {e}")
 
@@ -85,7 +84,7 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
 
     conn = None
     try:
-        conn = await _get_db_pool()
+        conn = await _get_db_conn()
     except Exception as e:
         logger.warning(f"[CLEANUP] DB connection failed, skipping excess cleanup: {e}")
         return 0, 0

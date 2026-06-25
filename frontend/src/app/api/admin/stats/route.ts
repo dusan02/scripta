@@ -41,37 +41,27 @@ export async function GET(req: NextRequest) {
       prisma.reportRequest.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     ]);
 
-    // ── Reports per day (last 30 days) ────────────────────
-    const reportsPerDay = await prisma.reportRequest.groupBy({
-      by: ["createdAt"],
-      where: { createdAt: { gte: thirtyDaysAgo } },
-      _count: { id: true },
-      orderBy: { createdAt: "asc" },
-    });
-
-    // Group by day (strip time)
-    const dailyMap: Record<string, number> = {};
-    for (const r of reportsPerDay) {
-      const day = r.createdAt.toISOString().slice(0, 10);
-      dailyMap[day] = (dailyMap[day] || 0) + r._count.id;
-    }
-    const dailyData = Object.entries(dailyMap).map(([date, count]) => ({ date, count }));
-
-    // ── Unique active users per day (last 30 days) ────────
+    // ── Reports per day + unique active users per day (last 30 days) ───
+    // Single query, derive both metrics in JS
     const recentReports = await prisma.reportRequest.findMany({
       where: { createdAt: { gte: thirtyDaysAgo } },
       select: { userId: true, createdAt: true },
     });
+
+    const dailyMap: Record<string, number> = {};
     const usersPerDayMap: Record<string, Set<string>> = {};
     for (const r of recentReports) {
       const day = r.createdAt.toISOString().slice(0, 10);
+      dailyMap[day] = (dailyMap[day] || 0) + 1;
       if (!usersPerDayMap[day]) usersPerDayMap[day] = new Set();
       usersPerDayMap[day].add(r.userId);
     }
-    const usersPerDay = Object.entries(usersPerDayMap).map(([date, users]) => ({
-      date,
-      count: users.size,
-    }));
+    const dailyData = Object.entries(dailyMap)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const usersPerDay = Object.entries(usersPerDayMap)
+      .map(([date, users]) => ({ date, count: users.size }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     // ── Most requested registers ──────────────────────────
     const sourceCounts = await prisma.reportSource.groupBy({
