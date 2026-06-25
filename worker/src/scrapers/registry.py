@@ -36,9 +36,9 @@ _FS_SOURCE_TYPES = {
     "FS_DAN_Z_PRIJMOV", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI",
     "FS_DAN_PRIJMOV_REG",
 }
-_fs_semaphore = asyncio.Semaphore(4)
+_fs_semaphore = asyncio.Semaphore(3)
 
-# Globálny limit súbežných scraperov — Chromium utiahne ~8 contextov plynule
+# Globálny limit súbežných scraperov — 8 contextov je bezpečné pre 8GB server
 _global_semaphore = asyncio.Semaphore(8)
 
 logger = logging.getLogger(__name__)
