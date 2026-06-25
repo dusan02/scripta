@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTheme } from "@/components/ThemeProvider";
 
 function Spinner() {
   return (
@@ -24,6 +25,8 @@ import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { theme, toggle } = useTheme();
+  const isDark = theme === "dark";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -89,6 +92,33 @@ export default function LoginPage() {
           WebkitMaskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
         }}
       />
+
+      {/* Dark mode toggle */}
+      <button
+        onClick={toggle}
+        title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
+        className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
+        style={{
+          position: "absolute",
+          top: 24,
+          right: 24,
+          zIndex: 20,
+          background: "var(--bg-muted)",
+          border: "1px solid var(--border)",
+          color: "var(--text-secondary)",
+        }}
+      >
+        {isDark ? (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+          </svg>
+        )}
+      </button>
 
       <div style={{ width: "100%", maxWidth: "380px", position: "relative", zIndex: 10 }}>
 

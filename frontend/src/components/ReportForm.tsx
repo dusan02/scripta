@@ -137,12 +137,9 @@ export default function SearchForm() {
             className="flex items-center rounded-xl transition-all duration-200"
             style={{
               background: "var(--surface)",
-              border: "1.5px solid var(--border)",
+              border: "1px solid var(--accent)",
               boxShadow: "var(--shadow-md)",
-            }}
-            onFocus={() => {
-              const el = document.getElementById("search-wrap");
-              if (el) el.style.borderColor = "var(--accent)";
+              height: "44px",
             }}
             id="search-wrap"
           >
@@ -179,7 +176,7 @@ export default function SearchForm() {
                 fontSize: "0.95rem",
                 letterSpacing: "-0.01em",
                 color: "var(--text)",
-                padding: "12px 0",
+                padding: "0",
                 caretColor: "var(--accent)",
                 fontFamily: "inherit",
               }}
@@ -206,13 +203,15 @@ export default function SearchForm() {
               id="submit-report-btn"
               type="submit"
               disabled={loading || !isValid}
-              className="flex items-center justify-center gap-1.5 px-4 rounded-r-xl font-semibold text-sm transition-all duration-150 flex-shrink-0"
+              className="flex items-center justify-center gap-1.5 px-4 font-semibold text-sm transition-all duration-150 flex-shrink-0"
               style={{
-                height: "44px",
+                height: "100%",
                 background: isValid ? "var(--accent)" : "var(--bg-muted)",
                 color: isValid ? "var(--accent-button-text)" : "var(--text-muted)",
                 cursor: isValid ? "pointer" : "default",
-                border: isValid ? "1px solid var(--accent)" : "1px solid var(--border)",
+                border: "none",
+                borderLeft: `1px solid ${isValid ? "var(--accent)" : "var(--border)"}`,
+                borderRadius: "0 12px 12px 0",
                 outline: "none",
               }}
             >
