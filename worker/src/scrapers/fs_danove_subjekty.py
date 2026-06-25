@@ -18,6 +18,7 @@ class FsDanoveSubjektyScraper(FinancnaSpravaBase):
     source_type = "FS_DANOVE_SUBJEKTY"
     zoznam_link_name = "Zoznam daňových subjektov, ktorým bol určený index daňovej spoľahlivosti"
     file_prefix = "fs_danove_subjekty"
+    pdf_title = "Zoznam daňových subjektov — index daňovej spoľahlivosti"
     search_by = "ico"
 
     async def _extract_findings(self, page: Page, search_term: str) -> str:

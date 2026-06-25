@@ -17,6 +17,7 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
     source_type = "FINANCNA_SPRAVA"
     zoznam_link_name = "Zoznam daňových dlžníkov"
     file_prefix = "financna_sprava_dlznici"
+    pdf_title = "Zoznam daňových dlžníkov — Finančná správa SR"
 
     async def _extract_findings(self, page: Page, search_term: str) -> str:
         """Extrahuje nálezy z výsledkovej tabuľky zoznamu daňových dlžníkov."""

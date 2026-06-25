@@ -18,6 +18,7 @@ class FsDphRegistrovaniScraper(FinancnaSpravaBase):
     source_type = "FS_DPH_REGISTROVANI"
     zoznam_link_name = "Zoznam daňových subjektov registrovaných pre DPH"
     file_prefix = "fs_dph_registrovani"
+    pdf_title = "Zoznam daňových subjektov registrovaných pre DPH"
     search_by = "ico"
 
     async def _extract_findings(self, page: Page, search_term: str) -> str:

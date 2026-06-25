@@ -239,7 +239,7 @@ export default function ReportDetailPage() {
       : `${report.name} ${report.surname}`;
 
   const canDownload = report.status === "COMPLETED" || report.status === "PARTIAL";
-  const canRetry = report.status === "FAILED";
+  const canRetry = report.status === "FAILED" || report.status === "PARTIAL";
 
   return (
     <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
@@ -338,13 +338,13 @@ export default function ReportDetailPage() {
                 disabled={retrying}
                 className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
                 style={{
-                  background: "var(--accent)",
-                  color: "var(--accent-button-text)",
+                  background: "#2563eb",
+                  color: "#ffffff",
                   height: "40px",
                   padding: "0 18px",
                   fontSize: "13.5px",
                   fontWeight: 600,
-                  border: "1px solid var(--accent)",
+                  border: "1px solid #2563eb",
                 }}
               >
                 {retrying ? (

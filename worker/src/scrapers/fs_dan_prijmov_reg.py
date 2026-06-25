@@ -18,6 +18,7 @@ class FsDanPrijmovRegistrovaniScraper(FinancnaSpravaBase):
     source_type = "FS_DAN_PRIJMOV_REG"
     zoznam_link_name = "Zoznam daňových subjektov registrovaných na daň z príjmov"
     file_prefix = "fs_dan_prijmov_reg"
+    pdf_title = "Zoznam daňových subjektov registrovaných na daň z príjmov"
     search_by = "ico"
 
     async def _extract_findings(self, page: Page, search_term: str) -> str:

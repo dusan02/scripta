@@ -12,6 +12,16 @@ from .base import BaseScraper, ScraperUnavailableError
 from ..config import settings
 from ..models import ScrapedSource
 
+_PDF_TITLE_AVAILABLE = True
+try:
+    from PyPDF2 import PdfReader, PdfWriter
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    import io
+except ImportError:
+    _PDF_TITLE_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +40,7 @@ class FinancnaSpravaBase(BaseScraper):
     base_url = "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy"
     zoznam_link_name: str = ""
     file_prefix: str = "financna_sprava"
+    pdf_title: str = ""
     # 'ico' = vyhľadávanie podľa IČO (nie je potrebný ORSR)
     # 'name' = vyhľadávanie podľa názvu subjektu (vyžaduje ORSR pre company_name)
     search_by: str = "name"
@@ -316,6 +327,7 @@ class FinancnaSpravaBase(BaseScraper):
 
             if downloaded:
                 logger.info(f"[{self.source_type}] PDF úspešne stiahnuté: {pdf_output}")
+                self._prepend_title_page(pdf_output, self.pdf_title or self.zoznam_link_name)
                 return self._make_result(
                     status="SUCCESS",
                     file_path=str(pdf_output),
@@ -560,3 +572,38 @@ class FinancnaSpravaBase(BaseScraper):
     def _empty_findings(self) -> str:
         """Override v subclassi pre špecifický text prázdneho zoznamu."""
         return "Žiadny záznam — subjekt nie je v zozname."
+
+    def _prepend_title_page(self, pdf_path: Path, title: str) -> None:
+        """Pridá nadpis do hornej časti prvej stránky PDF (overlay, nie samostatná stránka)."""
+        if not _PDF_TITLE_AVAILABLE:
+            logger.warning(f"[{self.source_type}] PyPDF2/ReportLab nedostupné — preskakujem nadpis.")
+            return
+        try:
+            fonts_dir = Path(__file__).parent.parent / "pdf" / "fonts"
+            pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
+            pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+
+            reader = PdfReader(str(pdf_path))
+            first_page = reader.pages[0]
+            page_w = float(first_page.mediabox.width)
+            page_h = float(first_page.mediabox.height)
+
+            buf = io.BytesIO()
+            c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
+            c.setFont("Inter-Bold", 13)
+            c.drawCentredString(page_w / 2, page_h - 25, title)
+            c.showPage()
+            c.save()
+            buf.seek(0)
+
+            overlay_reader = PdfReader(buf)
+            first_page.merge_page(overlay_reader.pages[0])
+
+            writer = PdfWriter()
+            for page in reader.pages:
+                writer.add_page(page)
+            with open(pdf_path, "wb") as f:
+                writer.write(f)
+            logger.info(f"[{self.source_type}] Nadpis pridaný do PDF: {pdf_path}")
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Pridanie nadpisu zlyhalo: {e}")

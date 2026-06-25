@@ -18,6 +18,7 @@ class FsDphVymazaniScraper(FinancnaSpravaBase):
     source_type = "FS_DPH_VYMAZANI"
     zoznam_link_name = "Zoznam vymazaných platiteľov DPH podľa §52 ods.8 zákona 563/2009 Z. z."
     file_prefix = "fs_dph_vymazani"
+    pdf_title = "Zoznam vymazaných platiteľov DPH"
     search_by = "ico"
 
     async def _extract_findings(self, page: Page, search_term: str) -> str:

@@ -6,7 +6,7 @@ from typing import List, Optional
 from PyPDF2 import PdfWriter, PdfReader
 from PyPDF2.generic import ArrayObject, NumberObject, NameObject
 
-from .cover_page import CoverPageGenerator, _SOURCE_CATEGORIES
+from .cover_page import CoverPageGenerator, _SOURCE_CATEGORIES, _SOURCE_LABELS
 from ..models import ScrapedSource
 
 # Canonical order of sources for PDF compilation (matches cover page categories)
@@ -94,7 +94,8 @@ class PdfCompiler:
         for source in sources:
             if source.start_page is not None and source.file_path:
                 writer.append(source.file_path)
-                writer.add_outline_item(source.source_type, source.start_page - 1)
+                label = _SOURCE_LABELS.get(source.source_type, source.source_type)
+                writer.add_outline_item(label, source.start_page - 1)
 
         # 4. Nahradenie falošných URL odkazov z Cover Page za vnútorné prelinkovania na stránky (GoTo Action)
         # Cover page môže mať viac stránok — spracujeme anotácie na každej z nich.
@@ -134,6 +135,9 @@ class PdfCompiler:
                 "/RegistroReportId": report_request_id,
             }
         )
+
+        # Nastavíme page mode na zobrazenie panelu záložiek (obsahu) pri otvorení PDF.
+        writer.page_mode = "/UseOutlines"
 
         final_path = output_dir / "evidence_binder.pdf"
         with open(final_path, "wb") as f:

@@ -87,6 +87,56 @@ class NcrdScraper(BaseScraper):
                 )
 
             logger.info(f"[{self.source_type}] Generujem PDF z výsledkov pre IČO {ico}")
+
+            # Zbierame všetky riadky z pagination stránok
+            all_rows_html = []
+            page_num = 1
+
+            while True:
+                rows_html = await page.evaluate("""() => {
+                    const tbody = document.querySelector('table tbody');
+                    if (!tbody) return [];
+                    return Array.from(tbody.querySelectorAll('tr')).map(tr => tr.outerHTML);
+                }""")
+                if rows_html:
+                    all_rows_html.extend(rows_html)
+                    logger.info(f"[{self.source_type}] Strana {page_num}: {len(rows_html)} riadkov (celkom {len(all_rows_html)})")
+
+                # Hľadáme pagination — čísla odkazov (2, 3, ...)
+                next_link = None
+                try:
+                    pagination_links = page.locator("a:has-text('2'), a:has-text('3'), a:has-text('4'), a:has-text('5'), a:has-text('6'), a:has-text('7'), a:has-text('8'), a:has-text('9'), a:has-text('10')")
+                    count = await pagination_links.count()
+                    for i in range(count):
+                        link = pagination_links.nth(i)
+                        link_text = (await link.inner_text()).strip()
+                        if link_text == str(page_num + 1):
+                            next_link = link
+                            break
+                except Exception:
+                    pass
+
+                if not next_link:
+                    break
+
+                page_num += 1
+                logger.info(f"[{self.source_type}] Prechádzam na stranu {page_num}")
+                await next_link.click()
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=10000)
+                except PlaywrightTimeoutError:
+                    pass
+                await page.wait_for_timeout(500)
+
+            # Spojíme všetky riadky do jednej tabuľky a vygenerujeme PDF
+            if all_rows_html:
+                await page.evaluate("""(rowsHtml) => {
+                    const tbody = document.querySelector('table tbody');
+                    if (tbody) {
+                        tbody.innerHTML = rowsHtml.join('');
+                    }
+                }""", all_rows_html)
+
             await self._generate_clean_pdf(
                 page,
                 file_path,
@@ -102,7 +152,7 @@ class NcrdScraper(BaseScraper):
                 status="SUCCESS",
                 file_path=str(file_path),
                 page_count=1,
-                status_message=f"Výpis z {self.source_type} úspešne vygenerovaný.",
+                status_message=f"Výpis z {self.source_type} úspešne vygenerovaný ({page_num} strán, {len(all_rows_html)} záznamov).",
                 findings=findings or f"Subjekt bol nájdený v {self._title}.",
             )
 

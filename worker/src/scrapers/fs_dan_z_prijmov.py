@@ -18,6 +18,7 @@ class FsDanZPrijmovScraper(FinancnaSpravaBase):
     source_type = "FS_DAN_Z_PRIJMOV"
     zoznam_link_name = "Zoznam subjektov s výškou dane z príjmov právnickej osoby"
     file_prefix = "fs_dan_z_prijmov"
+    pdf_title = "Zoznam subjektov s výškou dane z príjmov"
     search_by = "ico"
 
     async def _extract_findings(self, page: Page, search_term: str) -> str:
