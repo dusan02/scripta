@@ -15,7 +15,7 @@ _pool: Optional[asyncpg.Pool] = None
 async def get_db_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(settings.database_url)
+        _pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
     return _pool
 
 
@@ -92,10 +92,10 @@ async def _upsert_one(conn, report_request_id: str, source: ScrapedSource) -> No
         """
         INSERT INTO "ReportSource" (
             id, "reportRequestId", "sourceType", status, "statusMessage",
-            "filePath", "pageCount", "costCredits", findings, "createdAt", "updatedAt"
+            "filePath", "pageCount", findings, "createdAt", "updatedAt"
         )
         VALUES (
-            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
         )
         ON CONFLICT ("reportRequestId", "sourceType")
         DO UPDATE SET
@@ -112,83 +112,7 @@ async def _upsert_one(conn, report_request_id: str, source: ScrapedSource) -> No
         source.status_message,
         source.file_path,
         source.page_count,
-        0,
         source.findings,
     )
 
 
-async def refund_unavailable_paid_sources(
-    pool: asyncpg.Pool,
-    report_request_id: str,
-) -> None:
-    """
-    Vráti kredity za platené registre (napr. CRE), ktoré neskončili so statusom SUCCESS.
-    Idempotentné — ak už pre tento report existuje REFUND transakcia, neurobí nič.
-    """
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            # Nájdeme peňaženku používateľa daného reportu.
-            wallet = await conn.fetchrow(
-                """
-                SELECT w.id AS wallet_id
-                FROM "ReportRequest" r
-                JOIN "Wallet" w ON w."userId" = r."userId"
-                WHERE r.id = $1
-                """,
-                report_request_id,
-            )
-            if not wallet:
-                return
-
-            wallet_id = wallet["wallet_id"]
-
-            # Idempotencia — refund pre tento report už prebehol.
-            existing = await conn.fetchval(
-                """
-                SELECT 1 FROM "WalletTransaction"
-                WHERE "reportRequestId" = $1 AND type = 'REFUND'
-                LIMIT 1
-                """,
-                report_request_id,
-            )
-            if existing:
-                return
-
-            # Spočítame kredity za platené zdroje, ktoré nezbehli úspešne.
-            refund_amount = await conn.fetchval(
-                """
-                SELECT COALESCE(SUM("costCredits"), 0)
-                FROM "ReportSource"
-                WHERE "reportRequestId" = $1
-                  AND "costCredits" > 0
-                  AND status <> 'SUCCESS'
-                """,
-                report_request_id,
-            )
-
-            if not refund_amount or refund_amount <= 0:
-                return
-
-            await conn.execute(
-                """
-                UPDATE "Wallet"
-                SET balance = balance + $1, version = version + 1, "updatedAt" = NOW()
-                WHERE id = $2
-                """,
-                refund_amount,
-                wallet_id,
-            )
-
-            await conn.execute(
-                """
-                INSERT INTO "WalletTransaction" (
-                    id, "walletId", amount, type, status,
-                    "reportRequestId", description, "createdAt"
-                )
-                VALUES (gen_random_uuid(), $1, $2, 'REFUND', 'COMPLETED', $3, $4, NOW())
-                """,
-                wallet_id,
-                refund_amount,
-                report_request_id,
-                f"Refund for unavailable/failed paid sources in report {report_request_id}",
-            )

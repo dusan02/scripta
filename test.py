@@ -10,6 +10,8 @@ def run(playwright: Playwright) -> None:
     page.get_by_role("textbox", name="Zadajte priezvisko, IČO,").click()
     page.get_by_role("textbox", name="Zadajte priezvisko, IČO,").fill("37501453")
     page.get_by_role("button", name="Hľadať").click()
+    page.goto("https://portal.unionzp.sk/pub/dlznici")
+    page.close()
 
     # ---------------------
     context.close()

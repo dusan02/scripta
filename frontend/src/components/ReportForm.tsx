@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SOURCES, SOURCE_CATEGORIES, ENABLED_SOURCES, DEFAULT_SELECTED_SOURCES, calculateCost } from "@/lib/sources";
+import { SOURCES, SOURCE_CATEGORIES, ENABLED_SOURCES, DEFAULT_SELECTED_SOURCES } from "@/lib/sources";
 
 function isValidIco(ico: string): boolean {
   if (!/^\d{8}$/.test(ico)) return false;
@@ -49,8 +49,6 @@ export default function SearchForm() {
   const toggleSource = (id: string) =>
     setSelected((p) => (p.includes(id) ? p.filter((s) => s !== id) : [...p, id]));
 
-  const totalCost = calculateCost(selected);
-
   const isValid =
     selected.length > 0 &&
     !icoError &&
@@ -84,9 +82,7 @@ export default function SearchForm() {
       if (!res.ok) {
         const detail = data.details ? ` (${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)})` : '';
         setError(
-          res.status === 402
-            ? `Nedostatok kreditov. Potrebujete ${data.required} kr., máte ${data.balance} kr.`
-            : (data.error ?? "Nastala chyba.") + detail
+          (data.error ?? "Nastala chyba.") + detail
         );
         return;
       }
@@ -150,11 +146,17 @@ export default function SearchForm() {
             }}
             id="search-wrap"
           >
-            {/* Search icon */}
+            {/* Icon — tick when valid IČO, magnifying glass otherwise */}
             <div className="pl-4 pr-2 flex-shrink-0">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--text-muted)" }}>
-                <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+              {ico.length === 8 && !icoError ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--accent)" }}>
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--text-muted)" }}>
+                  <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              )}
             </div>
 
             {/* Input */}
@@ -185,13 +187,6 @@ export default function SearchForm() {
               required
             />
 
-            {/* Validity indicator */}
-            {ico.length === 8 && !icoError && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mr-1" style={{ color: "var(--accent)" }}>
-                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-
             {/* Clear (x) button */}
             {ico && (
               <button
@@ -215,9 +210,9 @@ export default function SearchForm() {
               style={{
                 height: "44px",
                 background: isValid ? "var(--accent)" : "var(--bg-muted)",
-                color: isValid ? "white" : "var(--text-muted)",
+                color: isValid ? "var(--accent-button-text)" : "var(--text-muted)",
                 cursor: isValid ? "pointer" : "default",
-                border: "none",
+                border: isValid ? "1px solid var(--accent)" : "1px solid var(--border)",
                 outline: "none",
               }}
             >
@@ -271,9 +266,9 @@ export default function SearchForm() {
                 style={{
                   height: "40px",
                   background: isValid ? "var(--accent)" : "var(--bg-muted)",
-                  color: isValid ? "white" : "var(--text-muted)",
+                  color: isValid ? "var(--accent-button-text)" : "var(--text-muted)",
                   cursor: isValid ? "pointer" : "default",
-                  border: "none",
+                  border: isValid ? "1px solid var(--accent)" : "1px solid var(--border)",
                   outline: "none",
                 }}
               >
@@ -397,6 +392,7 @@ export default function SearchForm() {
                       type="button"
                       onClick={() => !disabled && toggleSource(source.id)}
                       disabled={disabled}
+                      title={source.description}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-150"
                       style={{
                         background: disabled ? "var(--bg-subtle)" : active ? "var(--accent-light)" : "var(--bg-muted)",
@@ -418,22 +414,6 @@ export default function SearchForm() {
                         </svg>
                       )}
                       {source.label}
-                      {disabled && !isFullyDisabled && (
-                        <span
-                          className="ml-0.5 px-1 py-0.5 rounded text-[8px] font-bold"
-                          style={{ background: "rgba(245,158,11,0.15)", color: "#d97706" }}
-                        >
-                          soon
-                        </span>
-                      )}
-                      {source.cost > 0 && !disabled && (
-                        <span
-                          className="ml-0.5 px-1 rounded text-[9px] font-semibold"
-                          style={{ background: active ? "rgba(16,185,129,0.15)" : "var(--border)", color: active ? "var(--accent)" : "var(--text-muted)" }}
-                        >
-                          {source.cost} kr
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -442,12 +422,6 @@ export default function SearchForm() {
           );
         })}
         </div>
-
-        {totalCost > 0 && (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            · {totalCost} kreditov
-          </span>
-        )}
       </div>
 
       {/* ── Global error ──────────────────────── */}

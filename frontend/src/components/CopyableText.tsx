@@ -4,11 +4,12 @@ import { useState, useCallback } from "react";
 
 interface CopyableTextProps {
   text: string;
+  label?: string;
   className?: string;
   style?: React.CSSProperties;
 }
 
-export default function CopyableText({ text, className, style }: CopyableTextProps) {
+export default function CopyableText({ text, label, className, style }: CopyableTextProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async (e: React.MouseEvent) => {
@@ -42,7 +43,7 @@ export default function CopyableText({ text, className, style }: CopyableTextPro
       className={`copyable-text ${className ?? ""}`}
       style={style}
     >
-      <span className="copyable-text-value">{text}</span>
+      <span className="copyable-text-value">{label ? `${label}: ${text}` : text}</span>
       <button
         type="button"
         onClick={handleCopy}

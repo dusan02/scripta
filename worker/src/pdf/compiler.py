@@ -122,7 +122,7 @@ class PdfCompiler:
             {
                 "/Title": f"Registro.sk — Due Diligence Report — {identifier}",
                 "/Author": "Registro.sk",
-                "/Producer": "Registro PDF Worker",
+                "/Producer": "Registro.sk PDF Worker",
                 "/CreationDate": generated_at.strftime("D:%Y%m%d%H%M%S+00'00'"),
                 "/RegistroGeneratedAt": generated_at.isoformat(),
                 "/RegistroReportId": report_request_id,

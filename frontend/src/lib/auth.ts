@@ -65,17 +65,6 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Ensure the user has a Wallet — create atomically if missing.
-        const existingWallet = await prisma.wallet.findUnique({
-          where: { userId: user.id },
-        });
-
-        if (!existingWallet) {
-          await prisma.wallet.create({
-            data: { userId: user.id },
-          });
-        }
-
         return {
           id: user.id,
           email: user.email,
@@ -97,15 +86,19 @@ export const authOptions: NextAuthOptions = {
         });
         token.tokenVersion = dbUser?.tokenVersion ?? 0;
       }
-      // On session update (e.g. after password change), re-check tokenVersion
-      if (trigger === "update") {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id },
-          select: { tokenVersion: true },
-        });
-        if (dbUser && dbUser.tokenVersion !== token.tokenVersion) {
-          // Version mismatch — invalidate session by clearing id
-          token.id = "";
+      // Verify user still exists (catches stale tokens after DB reset)
+      // Only on sign-in or update — not every request (perf)
+      if (user || trigger === "update") {
+        if (token.id) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: { id: true, tokenVersion: true },
+          });
+          if (!dbUser) {
+            token.id = "";
+          } else if (dbUser.tokenVersion !== token.tokenVersion) {
+            token.id = "";
+          }
         }
       }
       return token;

@@ -204,7 +204,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           </span>
                           {report.ico && (
                             <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                              <CopyableText text={report.ico} />
+                              <CopyableText text={report.ico} label="IČO" />
                             </span>
                           )}
                         </>
@@ -337,7 +337,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                             </span>
                             {report.ico && (
                               <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                <CopyableText text={report.ico} />
+                                <CopyableText text={report.ico} label="IČO" />
                               </span>
                             )}
                           </>

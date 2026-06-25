@@ -1,11 +1,12 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
+import asyncio
 import logging
 import time
 
-import traceback
 import asyncpg
+from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from playwright.async_api import async_playwright
 
@@ -15,16 +16,28 @@ from .db import (
     update_report_status,
     upsert_report_sources,
     upsert_single_report_source,
-    refund_unavailable_paid_sources,
     close_db_pool,
 )
 from .models import ReportTask
 from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
+from .cleanup import _cleanup_loop
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Scripta Worker", version="0.1.0")
+# Obmedzenie súčasných reportov — chráni pred OOM pri veľa paralelných browseroch.
+_report_semaphore = asyncio.Semaphore(3)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cleanup_task = asyncio.create_task(_cleanup_loop())
+    yield
+    cleanup_task.cancel()
+    await close_db_pool()
+
+
+app = FastAPI(title="Registro.sk Worker", version="0.1.0", lifespan=lifespan)
 
 
 async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=None)) -> None:
@@ -37,11 +50,6 @@ async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=N
         return
     if x_worker_secret != expected:
         raise HTTPException(status_code=401, detail="Invalid worker secret")
-
-
-@app.on_event("shutdown")
-async def _on_shutdown() -> None:
-    await close_db_pool()
 
 
 def _identifier(task: ReportTask) -> str:
@@ -65,6 +73,12 @@ async def _save_company_name(pool: asyncpg.Pool, report_request_id: str, company
 
 async def _execute_report(task: ReportTask) -> None:
     """Background job: stiahne výpisy, vygeneruje Cover Page a zlúči PDF."""
+    async with _report_semaphore:
+        await _execute_report_inner(task)
+
+
+async def _execute_report_inner(task: ReportTask) -> None:
+    """Interná implementácia — volaná pod semaphore."""
     t_start = time.perf_counter()
     logger.info(f"[WORKER] Starting report {task.report_request_id} for ICO {task.ico}")
     report_dir = settings.results_dir / task.report_request_id
@@ -86,18 +100,16 @@ async def _execute_report(task: ReportTask) -> None:
         logger.debug(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
 
         # Callback — upsertne každý zdroj do DB ihneď ako skončí
-        import asyncio as _asyncio
-
         def _on_source_done(source) -> None:
             logger.debug(f"[WORKER] Source done: {source.source_type}:{source.status}")
             try:
-                loop = _asyncio.get_running_loop()
-                _asyncio.ensure_future(
+                asyncio.get_running_loop()
+                asyncio.ensure_future(
                     upsert_single_report_source(pool, task.report_request_id, source)
                 )
                 # Ak ORSR extrahoval company_name, uložíme ho ihneď do ReportRequest
                 if source.source_type == "ORSR" and source.status == "SUCCESS" and getattr(source, "company_name", None):
-                    _asyncio.ensure_future(
+                    asyncio.ensure_future(
                         _save_company_name(pool, task.report_request_id, source.company_name)
                     )
             except RuntimeError:
@@ -121,10 +133,6 @@ async def _execute_report(task: ReportTask) -> None:
         # Finálny upsert všetkých zdrojov (pre istotu — pokryje prípadné preteky callbacku)
         await upsert_report_sources(pool, task.report_request_id, sources)
         logger.debug("[WORKER] Sources upserted (final)")
-
-        # Vrátime kredity za platené registre, ktoré nezbehli úspešne (napr. CRE UNAVAILABLE).
-        await refund_unavailable_paid_sources(pool, task.report_request_id)
-        logger.debug("[WORKER] Refund check done")
 
         # Extrahujeme obchodné meno, ak ho niektorý úspešný scraper získal
         company_name = None
@@ -166,7 +174,7 @@ async def _execute_report(task: ReportTask) -> None:
         logger.info(f"[WORKER] Report completed — total {t_end - t_start:.2f}s (browser {t_browser - t_start:.2f}s, scrapers {t_scrape - t_browser:.2f}s, compile {t_compile - t_scrape:.2f}s)")
     except Exception:
         # Ak celý worker zlyhá, report označíme ako FAILED.
-        traceback.print_exc()
+        logger.error(f"[WORKER] Report {task.report_request_id} failed", exc_info=True)
         if pool:
             await update_report_status(pool, task.report_request_id, "FAILED")
         raise

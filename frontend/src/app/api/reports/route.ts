@@ -117,13 +117,11 @@ export async function POST(req: NextRequest) {
         surname: surname ?? null,
         birthDate: birthDate ? new Date(birthDate) : null,
         selectedSources: sources as SourceType[],
-        totalCost: 0,
         status: "PENDING",
         sources: {
           create: (sources as SourceType[]).map((source) => ({
             sourceType: source,
             status: "PENDING",
-            costCredits: 0,
           })),
         },
       },

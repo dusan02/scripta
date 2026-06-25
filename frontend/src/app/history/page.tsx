@@ -289,7 +289,7 @@ export default function HistoryPage() {
                             </span>
                             {report.ico && (
                               <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                <CopyableText text={report.ico} />
+                                <CopyableText text={report.ico} label="IČO" />
                               </span>
                             )}
                           </>
@@ -402,7 +402,7 @@ export default function HistoryPage() {
                               </span>
                               {report.ico && (
                                 <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                  <CopyableText text={report.ico} />
+                                  <CopyableText text={report.ico} label="IČO" />
                                 </span>
                               )}
                             </>

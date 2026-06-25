@@ -18,18 +18,10 @@ async function main() {
       name: "Test Lawyer",
       passwordHash,
       role: "LAWYER",
-      wallet: {
-        create: {
-          balance: 100, // Starting balance of 100 credits for development
-          currency: "EUR",
-        },
-      },
     },
-    include: { wallet: true },
   });
 
   console.log(`✅  User created/updated: ${user.email} (id: ${user.id})`);
-  console.log(`   Wallet balance: ${user.wallet?.balance ?? "N/A"} credits`);
   console.log(`\n   Login credentials:`);
   console.log(`   Email:    ${email}`);
   console.log(`   Password: ${password}`);

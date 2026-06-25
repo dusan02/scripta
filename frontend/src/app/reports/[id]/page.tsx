@@ -6,7 +6,6 @@ import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
 import SourceTable from "@/components/SourceTable";
 import CopyableText from "@/components/CopyableText";
-import { getSourceDescription, SOURCE_CATEGORIES, SOURCES, SOURCE_MAP } from "@/lib/sources";
 
 interface ReportSource {
   sourceType: string;
@@ -14,7 +13,6 @@ interface ReportSource {
   statusMessage?: string | null;
   pageCount?: number | null;
   findings?: string | null;
-  costCredits: number | string;
 }
 
 interface Report {
@@ -27,7 +25,6 @@ interface Report {
   surname?: string | null;
   birthDate?: string | null;
   selectedSources?: string[];
-  totalCost: number;
   createdAt: string;
   completedAt?: string | null;
   resultUrl?: string | null;
@@ -128,66 +125,6 @@ function ProgressTimeline({ status, sources }: { status: string; sources: Report
         })}
       </div>
 
-      {/* Zoznam čiastkových úloh bežiacich paralelne — zoskupené podľa kategórie */}
-      {(current === 1 || current === 0) && sources.length > 0 && (
-        <div className="mt-10 fade-in">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[800px] mx-auto">
-            {SOURCE_CATEGORIES.map((cat) => {
-              const catSources = sources.filter(s => {
-                const src = SOURCE_MAP[s.sourceType];
-                return src && src.category === cat.id;
-              });
-              if (catSources.length === 0) return null;
-
-              return (
-                <div
-                  key={cat.id}
-                  className="rounded-xl overflow-hidden"
-                  style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
-                >
-                  <div
-                    className="px-3 py-2"
-                    style={{ background: "var(--bg-muted)" }}
-                  >
-                    <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
-                      {cat.label}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-                    {catSources.map(s => {
-                      const isDone = s.status === "COMPLETED";
-                      const isFailed = s.status === "FAILED";
-                      const isPending = s.status === "PENDING" || s.status === "PROCESSING";
-
-                      return (
-                        <div
-                          key={s.sourceType}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-medium"
-                          style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-                        >
-                          {isPending && (
-                            <svg className="animate-spin w-3 h-3 text-blue-500" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          )}
-                          {isDone && (
-                            <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none">
-                              <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                          {isFailed && <span className="text-red-500 font-bold text-[10px]">✗</span>}
-                          {getSourceDescription(s.sourceType)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -364,7 +301,7 @@ export default function ReportDetailPage() {
           
           <div className={report.companyName ? "text-lg font-medium" : "text-3xl font-bold tracking-tight"} style={{ color: report.companyName ? "var(--text-secondary)" : "var(--text)", letterSpacing: report.companyName ? undefined : "-0.02em" }}>
             {report.targetType === "COMPANY" ? (
-              <CopyableText text={report.ico ?? ""} />
+              <CopyableText text={report.ico ?? ""} label="IČO" />
             ) : (
               identifier
             )}
@@ -385,6 +322,9 @@ export default function ReportDetailPage() {
               </>
             )}
           </div>
+          <div className="mt-1 font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
+            ID: {params.id}
+          </div>
 
           <div className="flex items-center justify-end gap-3 mt-4 w-full">
             <div className="flex items-center gap-2">
@@ -399,13 +339,12 @@ export default function ReportDetailPage() {
                 className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
                 style={{
                   background: "var(--accent)",
-                  color: "white",
+                  color: "var(--accent-button-text)",
                   height: "40px",
                   padding: "0 18px",
                   fontSize: "13.5px",
                   fontWeight: 600,
-                  border: "none",
-                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
+                  border: "1px solid var(--accent)",
                 }}
               >
                 {retrying ? (
@@ -434,13 +373,12 @@ export default function ReportDetailPage() {
                   className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
                   style={{ 
                     background: "var(--accent)", 
-                    color: "white", 
+                    color: "var(--accent-button-text)", 
                     height: "40px", 
                     padding: "0 18px",
                     fontSize: "13.5px", 
                     fontWeight: 600,
-                    border: "none",
-                    boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2)"
+                    border: "1px solid var(--accent)",
                   }}
                 >
                   {downloading ? (
@@ -479,16 +417,6 @@ export default function ReportDetailPage() {
           <SourceTable sources={report.sources} />
         )}
       </div>
-
-      {/* Raw info */}
-      <details className="mt-4 opacity-50 hover:opacity-100 transition-opacity">
-        <summary className="text-xs cursor-pointer select-none" style={{ color: "var(--text-muted)" }}>
-          Technické informácie (ID)
-        </summary>
-        <div className="mt-2 p-3 rounded-lg font-mono text-[10px]" style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
-          {params.id}
-        </div>
-      </details>
     </div>
   );
 }
