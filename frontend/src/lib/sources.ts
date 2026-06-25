@@ -27,7 +27,7 @@ export const SOURCES: SourceInfo[] = [
 
   // ── Insolvenčný a majetkový register ──
   { id: "INSOLVENCY", name: "Register úpadcov",  short: "INS",  description: "Insolvenčný register",      label: "Insolvenčný reg.", sublabel: "Register úpadcov",     category: "asset",   enabled: true },
-  { id: "NCRZP",      name: "NCRZP",             short: "NCR",  description: "Notársky centrálny register záložných práv", label: "NCRZP", sublabel: "Register záložných práv", category: "asset", enabled: false },
+  { id: "NCRZP",      name: "NCRZP",             short: "NCR",  description: "Notársky centrálny register záložných práv", label: "NCRZP", sublabel: "Register záložných práv", category: "asset", enabled: true },
   { id: "DISQUAL",    name: "Register diskvalifikácií", short: "DIS", description: "Zoznam osôb so zákazom výkonu funkcie štatutára", label: "Diskvalifikácie", sublabel: "Zákaz výkonu funkcie štatutára", category: "asset", enabled: false },
 
   // ── Finančná správa SR ──

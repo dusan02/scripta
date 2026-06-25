@@ -3,6 +3,7 @@ from .base import BaseScraper, ScraperUnavailableError, ScraperInputError
 from .orsr import OrsrScraper
 from .zrsr import ZrsrScraper
 from .insolvency import InsolvencyScraper
+from .ncrzp import NcrzpScraper
 from .fs import FinancnaSpravaScraper
 from .fs_dph_rusenie import FsDphRusenieScraper
 from .fs_dph_vymazani import FsDphVymazaniScraper
@@ -19,6 +20,7 @@ __all__ = [
     "OrsrScraper",
     "ZrsrScraper",
     "InsolvencyScraper",
+    "NcrzpScraper",
     "FinancnaSpravaScraper",
     "FsDphRusenieScraper",
     "FsDphVymazaniScraper",
