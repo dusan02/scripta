@@ -48,7 +48,7 @@ export default function SettingsPage() {
           onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
         >
-          Dashboard
+          Overenie subjektu
         </Link>
         <span style={{ color: "var(--border-strong)" }}>/</span>
         <span style={{ color: "var(--text)" }}>Nastavenia</span>

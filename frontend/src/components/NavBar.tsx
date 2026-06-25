@@ -33,7 +33,7 @@ function LogOutIcon() {
 }
 
 const NAV_ITEMS = [
-  { href: "/", label: "Dashboard" },
+  { href: "/", label: "Overenie subjektu" },
   { href: "/history", label: "História" },
   { href: "/settings", label: "Nastavenia" },
 ];
@@ -60,7 +60,7 @@ export default function NavBar() {
 
           {/* Left: Logo + Nav */}
           <div className="flex items-center gap-6">
-            <Link href="/" aria-label="Registro dashboard" style={{ textDecoration: "none" }}>
+            <Link href="/" aria-label="Scripta — overenie subjektu" style={{ textDecoration: "none" }}>
               <Logo />
             </Link>
 

@@ -60,10 +60,10 @@ export default async function DashboardPage() {
         {/* Heading — compact */}
         <div className="text-center mb-5 fade-in">
           <h1
-            className="text-xl sm:text-2xl font-bold mb-1.5"
+            className="text-xl sm:text-2xl font-bold tracking-tight mb-1.5"
             style={{
               color: "var(--text)",
-              letterSpacing: "-0.04em",
+              letterSpacing: "-0.02em",
               lineHeight: 1.1,
             }}
           >

@@ -17,8 +17,8 @@ export default function Error({
       <div className="text-center max-w-md">
         <div className="text-5xl mb-4">⚠️</div>
         <h1
-          className="text-2xl font-bold mb-2"
-          style={{ color: "var(--text)" }}
+          className="text-2xl font-bold tracking-tight mb-2"
+          style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
         >
           Niečo sa pokazilo
         </h1>
@@ -36,7 +36,7 @@ export default function Error({
             Skúsiť znova
           </button>
           <Link href="/" className="btn-secondary">
-            Späť na Dashboard
+            Späť na overenie subjektu
           </Link>
         </div>
       </div>

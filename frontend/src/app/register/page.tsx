@@ -146,7 +146,8 @@ export default function RegisterPage() {
         {/* Card */}
         <div className="card scale-in" style={{ padding: "32px", width: "100%", boxSizing: "border-box" }}>
           <h2
-            style={{ fontSize: "20px", fontWeight: 600, color: "var(--text)", letterSpacing: "-0.01em", margin: "0 0 6px 0" }}
+            className="text-2xl font-bold tracking-tight"
+            style={{ color: "var(--text)", letterSpacing: "-0.02em", margin: "0 0 6px 0" }}
           >
             Nová registrácia
           </h2>

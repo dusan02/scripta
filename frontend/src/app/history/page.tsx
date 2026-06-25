@@ -144,7 +144,7 @@ export default function HistoryPage() {
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-lg font-bold" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
             História reportov
           </h1>
         </div>

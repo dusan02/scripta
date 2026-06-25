@@ -227,7 +227,7 @@ export default function ReportDetailPage() {
         <div className="card p-8 text-center border-red-500/20 bg-red-500/5">
           <div className="text-3xl mb-3">⚠️</div>
           <div className="text-sm font-medium text-red-500 mb-5">{error}</div>
-          <Link href="/" className="btn-primary" style={{ background: "var(--surface)", color: "var(--text)" }}>← Späť na Dashboard</Link>
+          <Link href="/" className="btn-primary" style={{ background: "var(--surface)", color: "var(--text)" }}>← Späť na overenie</Link>
         </div>
       </div>
     );
@@ -248,7 +248,7 @@ export default function ReportDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2 text-xs">
           <Link href="/" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
-            Dashboard
+            Overenie subjektu
           </Link>
           <span style={{ color: "var(--border-strong)" }}>/</span>
           <span style={{ color: "var(--text-muted)" }}>Report</span>
@@ -294,12 +294,12 @@ export default function ReportDetailPage() {
           <span className="text-3xl">{report.targetType === "COMPANY" ? "🏢" : "👤"}</span>
           
           {report.targetType === "COMPANY" && report.companyName && (
-            <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
               {report.companyName}
             </h1>
           )}
           
-          <div className={report.companyName ? "text-lg font-medium" : "text-3xl font-bold tracking-tight"} style={{ color: report.companyName ? "var(--text-secondary)" : "var(--text)", letterSpacing: report.companyName ? undefined : "-0.02em" }}>
+          <div className={report.companyName ? "text-lg font-medium" : "text-2xl font-bold tracking-tight"} style={{ color: report.companyName ? "var(--text-secondary)" : "var(--text)", letterSpacing: report.companyName ? undefined : "-0.02em" }}>
             {report.targetType === "COMPANY" ? (
               <CopyableText text={report.ico ?? ""} label="IČO" />
             ) : (
