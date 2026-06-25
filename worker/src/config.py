@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # Debug screenshoty počas scrapovania — vypnuté v produkcii (spomaľujú a zapisujú na disk)
     debug_screenshots: bool = False
 
+    # Cleanup — automatické mazanie starých reportov
+    cleanup_max_age_days: int = 30          # reporty staršie ako X dní sa zmažú
+    cleanup_max_reports_per_user: int = 50  # max počet reportov per user (najstaršie sa zmažú)
+    cleanup_interval_hours: int = 6         # ako často beží cleanup loop
+
     # Shared-secret medzi Next.js API a workerom (voliteľné v dev; povinné v produkcii)
     worker_secret: Optional[str] = None
 

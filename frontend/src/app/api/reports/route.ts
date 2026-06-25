@@ -20,6 +20,10 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") ?? "";
 
     const where: Record<string, unknown> = { userId: user.id };
+    // Show only reports from last 30 days
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 30);
+    where.createdAt = { gte: cutoffDate };
     if (status && status !== "ALL") {
       where.status = status as ReportStatus;
     }
