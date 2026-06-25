@@ -41,6 +41,8 @@ _SOURCE_ICONS = {
     "VSZP_DLZNICI": ("VšZP", "#2563eb"),
     "DOVERA_DLZNICI": ("Dôv", "#7c3aed"),
     "UNION_DLZNICI": ("UNI", "#0891b2"),
+    "NCRZP": ("NCR", "#6366f1"),
+    "NCRD": ("NCD", "#9333ea"),
 }
 
 # Friendly názvy zdrojov pre cover page (raw enum je príliš dlhý pre tabuľku)
@@ -61,12 +63,14 @@ _SOURCE_LABELS = {
     "VSZP_DLZNICI": "VšZP",
     "DOVERA_DLZNICI": "Dôvera",
     "UNION_DLZNICI": "UNION",
+    "NCRZP": "NCRZP",
+    "NCRD": "NCRD",
 }
 
 # Zoskupenie zdrojov do kategórií pre prehľadnejšie zobrazenie
 _SOURCE_CATEGORIES = [
     ("Základné firemné a podnikateľské registre", ["ORSR", "ZRSR", "RPVS"]),
-    ("Insolvenčný a majetkový register", ["INSOLVENCY"]),
+    ("Insolvenčný a majetkový register", ["INSOLVENCY", "NCRZP", "NCRD"]),
     ("Finančná správa SR — DPH", ["FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI"]),
     ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
@@ -267,6 +271,18 @@ class CoverPageGenerator:
         def _build_findings(source) -> Paragraph:
             findings = source.findings or source.message or "Bez záznamu."
             findings = xml_escape(findings)
+            
+            # Skrátenie príliš dlhých nálezov pre cover page — plné znenie je v PDF zdroja
+            max_chars = 350
+            if len(findings) > max_chars:
+                # Zober len prvé záznamy a pridaj poznámku
+                truncated = findings[:max_chars]
+                # Orež na posledný nový riadok
+                last_nl = truncated.rfind("\n")
+                if last_nl > 100:
+                    truncated = truncated[:last_nl]
+                findings = truncated + "\n… (ďalšie záznamy v PDF výpise)"
+            
             # Konverzia nových riadkov na <br/> — ReportLab Paragraph ignoruje \n
             findings = findings.replace("\n", "<br/>")
 

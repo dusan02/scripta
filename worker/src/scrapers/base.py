@@ -288,6 +288,93 @@ class BaseScraper(ABC):
             logger.warning(f"[{self.source_type}] Extrakcia nálezov zlyhala: {e}")
             return None
 
+    async def _generate_no_results_pdf(
+        self, page: Page, output_path: Path, ico: str, *, title: str, message: str
+    ) -> None:
+        """Vygeneruje PDF s textom, že pre dané IČO sa nenašiel žiadny záznam."""
+        await page.set_viewport_size({"width": 1920, "height": 1080})
+        await page.evaluate(
+            """(params) => {
+                const { title, message } = params;
+                const body = document.body;
+                while (body.firstChild) body.removeChild(body.firstChild);
+                const h1 = document.createElement('h1');
+                h1.textContent = title;
+                h1.style.cssText = 'font-size: 24px; font-weight: 700; margin: 0 0 20px 0; padding: 0; text-align: center;';
+                body.appendChild(h1);
+                const p = document.createElement('p');
+                p.textContent = message;
+                p.style.cssText = 'font-size: 16px; text-align: center; margin: 40px 0;';
+                body.appendChild(p);
+                body.style.margin = '0';
+                body.style.padding = '40px';
+            }""",
+            {"title": title, "message": message},
+        )
+        await page.pdf(
+            path=str(output_path),
+            format="A4",
+            print_background=True,
+            margin={"top": "2cm", "bottom": "2cm", "left": "2cm", "right": "2cm"},
+        )
+        logger.info(f"[{self.source_type}] Negatívny PDF vygenerovaný: {output_path}")
+
+    async def _extract_table_findings_formatted(
+        self, page: Page, ico: str, *, source_name: str
+    ) -> Optional[str]:
+        """Extrahuje nálezy z tabuľky s prehľadným formátom — jeden údaj na riadok (Názov: hodnota),
+        záznamy oddelené prázdnym riadkom. Používa hlavičku tabuľky pre názvy stĺpcov."""
+        try:
+            rows = page.locator("table tbody tr")
+            count = await rows.count()
+            if count == 0:
+                return None
+
+            header_cells = page.locator("table thead th, table thead td")
+            header_count = await header_cells.count()
+            headers = []
+            for h in range(header_count):
+                try:
+                    hdr = (await header_cells.nth(h).inner_text(timeout=2000)).strip()
+                except Exception:
+                    hdr = ""
+                headers.append(hdr)
+
+            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov {source_name}."]
+
+            for i in range(min(count, 5)):
+                cells = rows.nth(i).locator("td")
+                cell_count = await cells.count()
+                if cell_count == 0:
+                    continue
+
+                row_fields = []
+                for c in range(cell_count):
+                    try:
+                        val = (await cells.nth(c).inner_text(timeout=2000)).strip()
+                    except Exception:
+                        val = ""
+                    val = re.sub(r'\s+', ' ', val).strip()
+                    if not val or val == "-":
+                        continue
+                    label = headers[c] if c < len(headers) else None
+                    if label:
+                        row_fields.append(f"{label}: {val}")
+                    else:
+                        row_fields.append(val)
+
+                if row_fields:
+                    parts.append("\n".join(row_fields))
+                    parts.append("")
+
+            findings = "\n".join(parts).strip()
+            logger.info(f"[{self.source_type}] Findings extrahované: {findings[:200]}")
+            return findings
+
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Extrakcia nálezov zlyhala: {e}")
+            return None
+
     async def _handle_cloudflare_challenge(self, page: Page, max_attempts: int = 3) -> None:
         """Detekuje a skúsi vyriešiť Cloudflare Turnstile challenge (kliknutie na iframe)."""
         for attempt in range(max_attempts):

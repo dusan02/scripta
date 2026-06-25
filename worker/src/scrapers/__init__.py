@@ -4,6 +4,7 @@ from .orsr import OrsrScraper
 from .zrsr import ZrsrScraper
 from .insolvency import InsolvencyScraper
 from .ncrzp import NcrzpScraper
+from .ncrd import NcrdScraper
 from .fs import FinancnaSpravaScraper
 from .fs_dph_rusenie import FsDphRusenieScraper
 from .fs_dph_vymazani import FsDphVymazaniScraper
@@ -21,6 +22,7 @@ __all__ = [
     "ZrsrScraper",
     "InsolvencyScraper",
     "NcrzpScraper",
+    "NcrdScraper",
     "FinancnaSpravaScraper",
     "FsDphRusenieScraper",
     "FsDphVymazaniScraper",

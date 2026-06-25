@@ -14,18 +14,18 @@ logger = logging.getLogger(__name__)
 _NO_RESULTS_TEXT = "Zadaným kritériám nezodpovedajú žiadne výsledky"
 
 
-class NcrzpScraper(BaseScraper):
+class NcrdScraper(BaseScraper):
     """
-    Scraper pre Notársky centrálny register záložných práv (NCRZP).
-    URL: https://www.notar.sk/zalozne-prava/
-    Vyhľadávanie podľa IČO záložcu.
+    Scraper pre Notársky centrálny register dražieb (NCRD).
+    URL: https://www.notar.sk/drazby/
+    Vyhľadávanie podľa IČO dražobníka.
     """
 
-    source_type = "NCRZP"
-    base_url = "https://www.notar.sk/zalozne-prava/"
-    _title = "Notársky centrálny register záložných práv (NCRZP)"
-    _field_label = "IČO záložcu"
-    _no_results_msg = "Subjekt nie je evidovaný v Notárskom centrálnom registri záložných práv."
+    source_type = "NCRD"
+    base_url = "https://www.notar.sk/drazby/"
+    _title = "Notársky centrálny register dražieb (NCRD)"
+    _field_label = "IČO dražobníka"
+    _no_results_msg = "Subjekt nie je evidovaný v Notárskom centrálnom registri dražieb."
 
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
         page: Optional[Page] = None

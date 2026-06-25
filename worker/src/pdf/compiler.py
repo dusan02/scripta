@@ -6,8 +6,11 @@ from typing import List, Optional
 from PyPDF2 import PdfWriter, PdfReader
 from PyPDF2.generic import ArrayObject, NumberObject, NameObject
 
-from .cover_page import CoverPageGenerator
+from .cover_page import CoverPageGenerator, _SOURCE_CATEGORIES
 from ..models import ScrapedSource
+
+# Canonical order of sources for PDF compilation (matches cover page categories)
+_SOURCE_ORDER = {sid: idx for idx, sid in enumerate(sid for _, ids in _SOURCE_CATEGORIES for sid in ids)}
 
 
 class PdfCompiler:
@@ -34,6 +37,9 @@ class PdfCompiler:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         generated_at = datetime.now(timezone.utc)
+
+        # 0. Zotriedime zdroje podľa kategorického poradia (rovnaké ako na cover page).
+        sources = sorted(sources, key=lambda s: _SOURCE_ORDER.get(s.source_type, 999))
 
         # 1. Spočítame skutočný počet strán pre všetky zdroje.
         # Cover page môže mať 1+ strán — nepoznáme ich ešte, tak predpokladáme 1 a opravíme neskôr.

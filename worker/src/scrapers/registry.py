@@ -13,6 +13,7 @@ from .zrsr import ZrsrScraper
 from .insolvency import InsolvencyScraper
 from .rpvs import RpvsScraper
 from .ncrzp import NcrzpScraper
+from .ncrd import NcrdScraper
 from .fs import FinancnaSpravaScraper
 from .fs_dph_rusenie import FsDphRusenieScraper
 from .fs_dph_vymazani import FsDphVymazaniScraper
@@ -45,6 +46,7 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "INSOLVENCY": InsolvencyScraper,
     "RPVS": RpvsScraper,
     "NCRZP": NcrzpScraper,
+    "NCRD": NcrdScraper,
     "FINANCNA_SPRAVA": FinancnaSpravaScraper,
     "FS_DPH_RUSENIE": FsDphRusenieScraper,
     "FS_DPH_VYMAZANI": FsDphVymazaniScraper,

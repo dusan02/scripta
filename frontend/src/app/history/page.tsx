@@ -117,16 +117,36 @@ export default function HistoryPage() {
     setModal(null);
   }, [modal, fetchReports]);
 
-  const handleSearchAgain = useCallback((e: React.MouseEvent, report: Report) => {
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+
+  const handleSearchAgain = useCallback(async (e: React.MouseEvent, report: Report) => {
     e.preventDefault();
     e.stopPropagation();
-    if (report.targetType === "COMPANY" && report.ico) {
-      router.push(`/?ico=${report.ico}`);
-    } else if (report.targetType === "PERSON") {
-      const params = new URLSearchParams();
-      if (report.name) params.set("name", report.name);
-      if (report.surname) params.set("surname", report.surname);
-      router.push(`/?${params.toString()}`);
+    setRetryingId(report.id);
+    try {
+      const body: Record<string, unknown> = {
+        targetType: report.targetType,
+        sources: report.sources.map(s => s.sourceType),
+      };
+      if (report.targetType === "COMPANY" && report.ico) {
+        body.ico = report.ico;
+      } else if (report.targetType === "PERSON") {
+        body.name = report.name;
+        body.surname = report.surname;
+      }
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok && data.reportRequestId) {
+        router.push(`/reports/${data.reportRequestId}`);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRetryingId(null);
     }
   }, [router]);
 
@@ -335,13 +355,22 @@ export default function HistoryPage() {
                     <div className="flex items-center justify-end gap-2.5">
                       <button
                         onClick={(e) => handleSearchAgain(e, report)}
-                        title="Vyhľadať znova"
+                        disabled={retryingId === report.id}
+                        title="Spustiť nové hľadanie"
                         className="transition-colors hover:text-blue-500"
                         style={{ color: "var(--text-secondary)" }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        </svg>
+                        {retryingId === report.id ? (
+                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                            <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
                       </button>
                       {canDownload && (
                         <button
@@ -441,13 +470,22 @@ export default function HistoryPage() {
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={(e) => handleSearchAgain(e, report)}
-                          title="Vyhľadať znova"
+                          disabled={retryingId === report.id}
+                          title="Spustiť nové hľadanie"
                           className="transition-colors hover:text-blue-500"
                           style={{ color: "var(--text-secondary)" }}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                          </svg>
+                          {retryingId === report.id ? (
+                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
                         </button>
                         <button
                           onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
