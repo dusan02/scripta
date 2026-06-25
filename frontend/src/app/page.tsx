@@ -52,7 +52,7 @@ export default async function DashboardPage() {
 
       {/* ── HERO: compact centered search ─────────── */}
       <section
-        className="flex flex-col items-center px-4 sm:px-6 pt-6 sm:pt-8 pb-4 sm:pb-6"
+        className="flex flex-col items-center px-4 sm:px-6 pt-8 pb-4 sm:pb-6"
         style={{
           borderBottom: reports.length > 0 ? "1px solid var(--border)" : "none",
         }}

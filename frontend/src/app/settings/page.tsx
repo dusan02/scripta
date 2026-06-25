@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 export default function SettingsPage() {
   const [orsrExtractType, setOrsrExtractType] = useState<"CURRENT" | "FULL">("CURRENT");
@@ -11,7 +10,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetch("/api/settings")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("Not authorized");
+        return r.json();
+      })
       .then((data) => {
         if (data.orsrExtractType) setOrsrExtractType(data.orsrExtractType);
       })
@@ -38,31 +40,18 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-[600px] mx-auto px-4 sm:px-6 py-8 animate-fade-in">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs mb-6">
-        <Link
-          href="/"
-          className="transition-colors"
-          style={{ color: "var(--text-muted)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+    <div className="max-w-[600px] mx-auto px-4 sm:px-6 pt-8 pb-8 animate-fade-in">
+      <div className="text-center mb-8">
+        <h1
+          className="text-2xl font-bold tracking-tight mb-1"
+          style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
         >
-          Overenie subjektu
-        </Link>
-        <span style={{ color: "var(--border-strong)" }}>/</span>
-        <span style={{ color: "var(--text)" }}>Nastavenia</span>
-      </div>
-
-      <h1
-        className="text-2xl font-bold tracking-tight mb-1"
-        style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
-      >
-        Nastavenia
-      </h1>
+          Nastavenia
+        </h1>
       <p className="text-sm mb-8" style={{ color: "var(--text-muted)" }}>
         Prispôsobte si správanie aplikácie.
       </p>
+      </div>
 
       {/* ORSR Extract Type */}
       <div className="card p-6 mb-6">
