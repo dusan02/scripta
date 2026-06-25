@@ -16,6 +16,7 @@ export const SOURCE_CATEGORIES: { id: string; label: string }[] = [
   { id: "fs_dan",   label: "Finančná správa SR — Daň z príjmov" },
   { id: "fs_ost",   label: "Finančná správa SR — Ostatné" },
   { id: "inst",     label: "Poisťovne a inštitúcie" },
+  { id: "acct",     label: "Účtovné závierky" },
 ];
 
 export const SOURCES: SourceInfo[] = [
@@ -23,7 +24,7 @@ export const SOURCES: SourceInfo[] = [
   { id: "ORSR",       name: "ORSR",              short: "ORSR", description: "Obchodný register SR",     label: "ORSR",            sublabel: "Obchodný register",     category: "basic",   enabled: true },
   { id: "ZRSR",       name: "ŽRSR",              short: "ZRSR", description: "Živnostenský register SR",  label: "ŽRSR",            sublabel: "Živnostenský register", category: "basic",   enabled: true },
   { id: "RPVS",       name: "RPVS",              short: "RPVS", description: "Register partnerov verejného sektora", label: "RPVS", sublabel: "Register part. ver. sektora", category: "basic", enabled: true },
-  { id: "RUZ",        name: "Register účtovných závierok", short: "RUZ", description: "Súvaha, výkaz ziskov a strát, kľúčové finančné ukazovatele", label: "Účtovné závierky", sublabel: "Register účtovných závierok (RUZ)", category: "basic", enabled: false },
+  { id: "REGISTER_UZ",  name: "Register účtovných závierok", short: "RUZ", description: "Súvaha, výkaz ziskov a strát, kľúčové finančné ukazovatele", label: "Účtovné závierky", sublabel: "Register účtovných závierok (RUZ)", category: "acct", enabled: true },
 
   // ── Insolvenčný a majetkový register ──
   { id: "INSOLVENCY", name: "Register úpadcov",  short: "INS",  description: "Insolvenčný register",      label: "Insolvenčný reg.", sublabel: "Register úpadcov",     category: "asset",   enabled: true },

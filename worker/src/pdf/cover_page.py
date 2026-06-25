@@ -43,6 +43,7 @@ _SOURCE_ICONS = {
     "UNION_DLZNICI": ("UNI", "#0891b2"),
     "NCRZP": ("NCR", "#6366f1"),
     "NCRD": ("NCD", "#9333ea"),
+    "REGISTER_UZ": ("RUZ", "#059669"),
 }
 
 # Friendly názvy zdrojov pre cover page (raw enum je príliš dlhý pre tabuľku)
@@ -65,6 +66,7 @@ _SOURCE_LABELS = {
     "UNION_DLZNICI": "UNION",
     "NCRZP": "NCRZP",
     "NCRD": "NCRD",
+    "REGISTER_UZ": "Register úč. závierok",
 }
 
 # Zoskupenie zdrojov do kategórií pre prehľadnejšie zobrazenie
@@ -75,6 +77,7 @@ _SOURCE_CATEGORIES = [
     ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
     ("Poisťovne a inštitúcie", ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
+    ("Účtovné závierky", ["REGISTER_UZ"]),
 ]
 
 # Mapa source_type -> category label pre rýchle hľadanie

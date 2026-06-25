@@ -22,6 +22,7 @@ from .fs_dan_z_prijmov import FsDanZPrijmovScraper
 from .fs_dph_nadmerny_odpocet import FsDphNadmernyOdpocetScraper
 from .fs_dph_registrovani import FsDphRegistrovaniScraper
 from .fs_dan_prijmov_reg import FsDanPrijmovRegistrovaniScraper
+from .registeruz import RegisterUzScraper
 from .sp_dlznici import SpDlzniciScraper
 from .vszp_dlznici import VszpDlzniciScraper
 from .dovera_dlznici import DoveraDlzniciScraper
@@ -59,6 +60,7 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "VSZP_DLZNICI": VszpDlzniciScraper,
     "DOVERA_DLZNICI": DoveraDlzniciScraper,
     "UNION_DLZNICI": UnionDlzniciScraper,
+    "REGISTER_UZ": RegisterUzScraper,
 }
 
 # Scrapery, ktoré závisia na výsledku iného scraperu (potrebujú company_name).
