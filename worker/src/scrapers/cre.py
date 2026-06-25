@@ -110,7 +110,10 @@ class CreScraper(BaseScraper):
             await page.fill("input[name='username'], input[type='email']", cre_username, timeout=10_000)
             await page.fill("input[name='password'], input[type='password']", cre_password, timeout=10_000)
             await page.click("button[type='submit'], input[type='submit']", timeout=10_000)
-            await page.wait_for_load_state("networkidle", timeout=30_000)
+            try:
+                await page.wait_for_load_state("domcontentloaded", timeout=15_000)
+            except PlaywrightTimeoutError:
+                pass
 
             # Overenie prihlásenia — odhlasovací prvok / chybová hláška.
             login_error = await page.locator("text=Nesprávne prihlasovacie údaje").count()
@@ -139,7 +142,10 @@ class CreScraper(BaseScraper):
             await self._safe_goto(page, self._search_url)
             await page.fill("input[name='ico'], input[id*='ico']", ico, timeout=10_000)
             await page.click("button[type='submit'], input[type='submit']", timeout=10_000)
-            await page.wait_for_load_state("networkidle", timeout=30_000)
+            try:
+                await page.wait_for_load_state("domcontentloaded", timeout=15_000)
+            except PlaywrightTimeoutError:
+                pass
         except Exception as e:
             return self._make_result(
                 status="FAILED",
@@ -171,7 +177,10 @@ class CreScraper(BaseScraper):
             if birth_date:
                 await page.fill("input[name='datumNarodenia'], input[id*='datumNar']", birth_date, timeout=5_000)
             await page.click("button[type='submit'], input[type='submit']", timeout=10_000)
-            await page.wait_for_load_state("networkidle", timeout=30_000)
+            try:
+                await page.wait_for_load_state("domcontentloaded", timeout=15_000)
+            except PlaywrightTimeoutError:
+                pass
         except Exception as e:
             return self._make_result(
                 status="FAILED",

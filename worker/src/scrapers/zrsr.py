@@ -88,11 +88,9 @@ class ZrsrScraper(BaseScraper):
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Altcha widget sa nenašiel alebo nebol zakliknutý: {e}")
 
-            # Simulácia správania človeka pred vyhľadaním
-            logger.info(f"[{self.source_type}] Čakám ako človek pred odoslaním.")
-            import random
-            await page.wait_for_timeout(random.randint(1500, 2500))
-            
+            # Krátke čakanie na Altcha validáciu pred odoslaním
+            await page.wait_for_timeout(500)
+
             async with page.expect_navigation(timeout=45000):
                 await page.click("input[name='cmdPotvrdit']", timeout=10000)
         except PlaywrightTimeoutError:
@@ -144,9 +142,8 @@ class ZrsrScraper(BaseScraper):
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Altcha widget sa nenašiel: {e}")
 
-            # Simulácia správania človeka pred vyhľadaním
-            logger.info(f"[{self.source_type}] Čakám ako človek pred odoslaním.")
-            await page.wait_for_timeout(1800)
+            # Krátke čakanie na Altcha validáciu pred odoslaním
+            await page.wait_for_timeout(500)
 
             submit_btn = page.locator("input[name='cmdPotvrdit']")
             async with page.expect_navigation(timeout=45000):
@@ -187,16 +184,10 @@ class ZrsrScraper(BaseScraper):
             
             detail_link = page.locator("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']").first
             if await detail_link.count() > 0:
-                logger.info(f"[{self.source_type}] Našiel som detail. Simulujem čítanie pred kliknutím.")
-                await page.wait_for_timeout(2500)  # 2.5 sekundy pozerá na výsledky
-                
                 logger.info(f"[{self.source_type}] Klikám na detail.")
                 async with page.expect_navigation(timeout=30000):
                     await detail_link.click(timeout=10000)
-                    
-                logger.info(f"[{self.source_type}] Detail načítaný, simulujem čítanie Výpisu.")
-                await page.wait_for_timeout(2000)  # 2 sekundy pozerá na detail
-                
+
                 # Verifikácia, že sme na správnej stránke
                 try:
                     await page.wait_for_selector("text=Výpis zo živnostenského registra", timeout=10000)

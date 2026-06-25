@@ -38,6 +38,9 @@ _FS_SOURCE_TYPES = {
 }
 _fs_semaphore = asyncio.Semaphore(4)
 
+# Globálny limit súbežných scraperov — Chromium utiahne ~8 contextov plynule
+_global_semaphore = asyncio.Semaphore(8)
+
 logger = logging.getLogger(__name__)
 
 # Registrácia scraperov podľa SourceType.
@@ -108,10 +111,26 @@ async def run_scrapers(
         logger.debug(f"[TIMING] ▶ {source_type} START")
         try:
             if is_fs:
-                async with _fs_semaphore:
+                async with _global_semaphore:
+                    async with _fs_semaphore:
+                        _t_run = time.perf_counter()
+                        if _t_run - _t_start > 0.05:
+                            logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
+                        result = await scraper.run(
+                            output_dir=output_dir,
+                            target_type=target_type,
+                            ico=ico,
+                            name=name,
+                            surname=surname,
+                            birth_date=birth_date,
+                            orsr_extract_type=orsr_extract_type,
+                            **extra_kwargs,
+                        )
+            else:
+                async with _global_semaphore:
                     _t_run = time.perf_counter()
                     if _t_run - _t_start > 0.05:
-                        logger.debug(f"[TIMING] {source_type} čakal na FS semafor: {_t_run - _t_start:.2f}s")
+                        logger.debug(f"[TIMING] {source_type} čakal na globálny semafor: {_t_run - _t_start:.2f}s")
                     result = await scraper.run(
                         output_dir=output_dir,
                         target_type=target_type,
@@ -122,17 +141,6 @@ async def run_scrapers(
                         orsr_extract_type=orsr_extract_type,
                         **extra_kwargs,
                     )
-            else:
-                result = await scraper.run(
-                    output_dir=output_dir,
-                    target_type=target_type,
-                    ico=ico,
-                    name=name,
-                    surname=surname,
-                    birth_date=birth_date,
-                    orsr_extract_type=orsr_extract_type,
-                    **extra_kwargs,
-                )
             logger.debug(f"[TIMING] ✔ {source_type} HOTOVO za {time.perf_counter() - _t_start:.2f}s → {result.status if result else '?'}")
             # Ihneď reportujeme dokončenie
             if on_source_done and result:

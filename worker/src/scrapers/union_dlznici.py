@@ -56,12 +56,13 @@ class UnionDlzniciScraper(BaseScraper):
                     status_message="Nepodarilo sa nájsť tlačidlo Hľadať na stránke UNION.",
                 )
 
-            # Počkať na výsledky
-            await page.wait_for_timeout(3000)
+            # Počkať na výsledky — čakáme na tabuľku alebo text o prázdnych výsledkoch
+            empty_locator = page.locator("text=Nenašli sa žiadne záznamy")
+            table_locator = page.locator("table tbody tr, .table tbody tr, .result-table tr")
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                await empty_locator.or_(table_locator).first.wait_for(timeout=15000)
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] domcontentloaded timeout — pokračujem.")
+                logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 
             # Skontrolovať výsledky
             body_text = await page.inner_text("body")

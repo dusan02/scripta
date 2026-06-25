@@ -34,7 +34,8 @@ class SpDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=30000, wait_until='networkidle')
+                await page.goto(self.base_url, timeout=20000, wait_until='commit')
+                await page.wait_for_load_state('domcontentloaded', timeout=10000)
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"SP nedostupná: {e}")
             logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
@@ -74,12 +75,13 @@ class SpDlzniciScraper(BaseScraper):
                     status_message="Nepodarilo sa nájsť tlačidlo Potvrdiť na stránke Sociálnej poisťovne.",
                 )
 
-            # Počkať na výsledky
-            await page.wait_for_timeout(2000)
+            # Počkať na výsledky — čakáme na tabuľku alebo text o prázdnych výsledkoch
+            empty_locator = page.locator("text=neobsahuje žiadne položky")
+            table_locator = page.locator("table tbody tr, .table tbody tr, .result-table tr")
             try:
-                await page.wait_for_load_state("networkidle", timeout=15000)
+                await empty_locator.or_(table_locator).first.wait_for(timeout=15000)
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] networkidle timeout — pokračujem.")
+                logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 
             # Skontrolovať či sú výsledky
             text_content = await page.inner_text("body")

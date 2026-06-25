@@ -41,7 +41,8 @@ class VszpDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=30000, wait_until='networkidle')
+                await page.goto(self.base_url, timeout=20000, wait_until='commit')
+                await page.wait_for_load_state('domcontentloaded', timeout=10000)
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"VšZP nedostupná: {e}")
 
@@ -99,12 +100,13 @@ class VszpDlzniciScraper(BaseScraper):
                     status_message="Nepodarilo sa nájsť tlačidlo Vyhľadať na stránke VšZP.",
                 )
 
-            # Počkať na výsledky
-            await page.wait_for_timeout(2000)
+            # Počkať na výsledky — čakáme na tabuľku alebo text "Nenašli sa žiadne záznamy"
+            empty_locator = page.locator("text=Nenašli sa žiadne záznamy")
+            table_locator = page.locator("table tbody tr, .table tbody tr, .result-table tr")
             try:
-                await page.wait_for_load_state("networkidle", timeout=15000)
+                await empty_locator.or_(table_locator).first.wait_for(timeout=15000)
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] networkidle timeout — pokračujem.")
+                logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 
             # Skontrolovať výsledky
             text_content = await page.inner_text("body")

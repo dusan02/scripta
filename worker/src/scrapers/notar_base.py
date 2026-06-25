@@ -55,14 +55,14 @@ class NotarBaseScraper(BaseScraper):
                 await page.locator("button:has-text('Hľadať'), input[value*='Hľadať']").first.click()
 
             try:
-                await page.wait_for_load_state("networkidle", timeout=15000)
+                await page.wait_for_load_state("domcontentloaded", timeout=10000)
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] networkidle timeout, pokračujem...")
+                logger.warning(f"[{self.source_type}] domcontentloaded timeout, pokračujem...")
 
             no_results_locator = page.locator(f"text={_NO_RESULTS_TEXT}")
             table_row_locator = page.locator("table tbody tr")
             try:
-                await no_results_locator.or_(table_row_locator).first.wait_for(timeout=20000)
+                await no_results_locator.or_(table_row_locator).first.wait_for(timeout=15000)
                 logger.info(f"[{self.source_type}] Výsledky vyhľadávania načítané.")
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem...")
@@ -156,10 +156,14 @@ class NotarBaseScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Prechádzam na stranu {page_num}")
             await next_link.click()
             try:
-                await page.wait_for_load_state("networkidle", timeout=10000)
+                await page.wait_for_load_state("domcontentloaded", timeout=8000)
             except PlaywrightTimeoutError:
                 pass
-            await page.wait_for_timeout(500)
+            # Počkáme na nové riadky v tabuľke
+            try:
+                await page.locator("table tbody tr").first.wait_for(timeout=8000)
+            except PlaywrightTimeoutError:
+                pass
 
         return all_rows_html, page_num
 

@@ -93,7 +93,11 @@ class BaseScraper(ABC):
         last_error: Optional[Exception] = None
         for attempt in range(retries + 1):
             try:
-                await page.goto(url, timeout=settings.playwright_timeout, wait_until="networkidle")
+                await page.goto(url, timeout=20000, wait_until="commit")
+                try:
+                    await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                except PlaywrightTimeout:
+                    pass
                 return
             except (PlaywrightTimeout, PlaywrightError) as e:
                 last_error = e
