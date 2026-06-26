@@ -213,13 +213,45 @@ class CoverPageGenerator:
         story.append(Paragraph(f"<b>Vygenerované:</b> {generated_at.strftime('%d.%m.%Y %H:%M:%S')}", subtitle_style))
         total_pages = sum(s.page_count or 0 for s in sources if s.status == "SUCCESS")
         story.append(Paragraph(f"<b>Počet strán:</b> {total_pages}", subtitle_style))
+        story.append(Spacer(1, 0.4 * cm))
+
+        # ── Summary at top ─────────────────────────────────────────
+        from xml.sax.saxutils import escape as xml_escape
+
+        def _effective_status(source) -> str:
+            """Vráti efektívny status — ak findings obsahujú POZOR, ide o varovanie."""
+            findings = (source.findings or source.message or "").upper()
+            if "POZOR" in findings:
+                return "WARNING"
+            return source.status
+
+        _total = len(sources)
+        _warnings = sum(1 for s in sources if _effective_status(s) == "WARNING")
+        _successful = sum(1 for s in sources if s.status == "SUCCESS" and _effective_status(s) != "WARNING")
+        _unavailable = sum(1 for s in sources if s.status == "UNAVAILABLE")
+        _failed = _total - _successful - _unavailable - _warnings
+
+        _summary_parts = []
+        if _successful:
+            _summary_parts.append(f'<font color="#10b981"><b>✓ {_successful}</b></font> V poriadku')
+        if _warnings:
+            _summary_parts.append(f'<font color="#ef4444"><b>⚠ {_warnings}</b></font> Upozornenie')
+        if _unavailable:
+            _summary_parts.append(f'<font color="#f59e0b"><b>⚠ {_unavailable}</b></font> Nedostupné')
+        if _failed:
+            _summary_parts.append(f'<font color="#ef4444"><b>✗ {_failed}</b></font> Zlyhal')
+        _summary_text = "  •  ".join(_summary_parts) if _summary_parts else "Žiadne zdroje."
+
+        _summary_style = ParagraphStyle(
+            "SummaryStyle", parent=subtitle_style,
+            fontSize=10, leading=14, textColor=colors.HexColor("#18181b"),
+        )
+        story.append(Paragraph(f"<b>Zhrnutie:</b> {_summary_text}", _summary_style))
         story.append(Spacer(1, 0.6 * cm))
 
         # ── Section heading ────────────────────────────────────────
         story.append(Paragraph("Prehľad zdrojov", section_style))
         story.append(Spacer(1, 0.35 * cm))
-
-        from xml.sax.saxutils import escape as xml_escape
 
         # Stĺpce: Icon (1.0cm) | Zdroj (3.3cm) | Strana (1.5cm) | Stav (2.5cm) | Nálezy (7.8cm)
         col_widths = [1.0 * cm, 3.3 * cm, 1.5 * cm, 2.5 * cm, 7.8 * cm]
@@ -230,13 +262,6 @@ class CoverPageGenerator:
             "UNAVAILABLE": "#f59e0b",
             "FAILED":      "#ef4444",
         }
-
-        def _effective_status(source) -> str:
-            """Vráti efektívny status — ak findings obsahujú POZOR, ide o varovanie."""
-            findings = (source.findings or source.message or "").upper()
-            if "POZOR" in findings:
-                return "WARNING"
-            return source.status
 
         def _build_source_icon(source_type: str) -> Drawing:
             """Farebný badge so skratkou zdroja."""
@@ -415,30 +440,6 @@ class CoverPageGenerator:
             story.append(_build_category_block("Ostatné", remaining))
 
         story.append(Spacer(1, 0.4 * cm))
-
-        # ── Summary with status counts ─────────────────────────────
-        total = len(sources)
-        warnings = sum(1 for s in sources if _effective_status(s) == "WARNING")
-        successful = sum(1 for s in sources if s.status == "SUCCESS" and _effective_status(s) != "WARNING")
-        unavailable = sum(1 for s in sources if s.status == "UNAVAILABLE")
-        failed = total - successful - unavailable - warnings
-
-        summary_parts = []
-        if successful:
-            summary_parts.append(f'<font color="#10b981"><b>✓ {successful}</b></font> V poriadku')
-        if warnings:
-            summary_parts.append(f'<font color="#ef4444"><b>⚠ {warnings}</b></font> Upozornenie')
-        if unavailable:
-            summary_parts.append(f'<font color="#f59e0b"><b>⚠ {unavailable}</b></font> Nedostupné')
-        if failed:
-            summary_parts.append(f'<font color="#ef4444"><b>✗ {failed}</b></font> Zlyhal')
-        summary_text = "  •  ".join(summary_parts) if summary_parts else "Žiadne zdroje."
-
-        summary_style = ParagraphStyle(
-            "SummaryStyle", parent=subtitle_style,
-            fontSize=10, leading=14, textColor=colors.HexColor("#18181b"),
-        )
-        story.append(Paragraph(f"<b>Zhrnutie:</b> {summary_text}", summary_style))
 
         doc.build(story)
 
