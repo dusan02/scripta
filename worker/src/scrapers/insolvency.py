@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -159,7 +160,6 @@ class InsolvencyScraper(BaseScraper):
         # Dodatočné overenie cez text vygenerovaného PDF (double-check bezpečnosti)
         try:
             from PyPDF2 import PdfReader
-            import re
             
             reader = PdfReader(str(pdf_output))
             pdf_text = "".join([p.extract_text() or "" for p in reader.pages])
@@ -228,7 +228,6 @@ class InsolvencyScraper(BaseScraper):
                 return True, "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt môže byť v konkurze/reštrukturalizácii."
 
             # Kontrola textov počtu výsledkov cez regulárny výraz (napr. "Počet výsledkov: 1")
-            import re
             match = re.search(r"Počet výsledkov:\s*(\d+)", text_content)
             if match:
                 count = int(match.group(1))

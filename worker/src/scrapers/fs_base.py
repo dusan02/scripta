@@ -74,6 +74,7 @@ class FinancnaSpravaBase(BaseScraper):
                         pass
                     await asyncio.sleep(delay)
                     page = await self._get_page()
+                    self._contexts.append(page.context)
         raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
 
     # Zoznam textov indikujúcich prázdny výsledok — zdieľané medzi run() a _extract_findings()

@@ -198,10 +198,8 @@ class BaseScraper(ABC):
         Spravuje page lifecycle, error handling a cleanup.
         scrape_fn je async funkcia ktorá prijíma (page: Page) a vracia ScrapedSource."""
         page: Optional[Page] = None
-        ctx = None
         try:
             page = await self._get_stealth_page()
-            ctx = page.context
             return await scrape_fn(page)
         except ScraperUnavailableError as e:
             logger.error(f"[{self.source_type}] Nedostupné: {e}")
@@ -214,9 +212,10 @@ class BaseScraper(ABC):
             return self._make_result(status="FAILED", status_message=f"Neznáma chyba pri spracovaní {self.source_type}: {type(e).__name__}: {e}")
         finally:
             if page:
-                await page.close()
-            if ctx:
-                await ctx.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     async def _extract_table_findings(
         self,

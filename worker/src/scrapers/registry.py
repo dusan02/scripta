@@ -111,8 +111,8 @@ async def run_scrapers(
         logger.debug(f"[TIMING] ▶ {source_type} START")
         try:
             if is_fs:
-                async with _global_semaphore:
-                    async with _fs_semaphore:
+                async with _fs_semaphore:
+                    async with _global_semaphore:
                         _t_run = time.perf_counter()
                         if _t_run - _t_start > 0.05:
                             logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
