@@ -10,6 +10,13 @@ from playwright.async_api import Page, Browser, async_playwright, TimeoutError a
 
 from ..config import settings
 from ..models import ScrapedSource
+from ..stealth import (
+    get_rotating_proxy,
+    get_random_user_agent,
+    get_random_viewport,
+    get_random_locale,
+    STEALTH_JS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +53,31 @@ class BaseScraper(ABC):
         """Lazily start a browser if one was not injected.
         block_images: ak True, blokuje obrázky/fonty/media pre rýchlosť (text-only scraping).
         Scrapery ktoré generujú PDF s obrázkami (ORSR, RPVS) musia dať block_images=False.
-        Každý scraper dostáva vlastný browser context (izolované cookies/session)."""
+        Každý scraper dostáva vlastný browser context (izolované cookies/session)
+        s rotáciou User-Agent, proxy a stealth JS pre anti-detekciu."""
         if self.browser is None:
             self._playwright = await async_playwright().start()
-            self.browser = await self._playwright.chromium.launch(headless=settings.playwright_headless)
+            self.browser = await self._playwright.chromium.launch(
+                headless=settings.playwright_headless,
+                args=['--disable-blink-features=AutomationDetected'],
+            )
             self._owned_browser = True
-        context = await self.browser.new_context()
+
+        context_kwargs = {
+            "user_agent": get_random_user_agent(),
+            "viewport": get_random_viewport(),
+            "locale": get_random_locale(),
+        }
+        proxy = get_rotating_proxy()
+        if proxy:
+            context_kwargs["proxy"] = proxy
+
+        context = await self.browser.new_context(**context_kwargs)
         self._contexts.append(context)
+
+        # Stealth JS — injektuje sa pred každou stránkou v tomto contexte
+        await context.add_init_script(STEALTH_JS)
+
         page = await context.new_page()
 
         # Block unnecessary resources to speed up page loads (len ak block_images=True).
@@ -167,11 +192,10 @@ class BaseScraper(ABC):
 
     # ── Shared helpers for debtor-list scrapers ──────────────────────
 
-    _STEALTH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
-
     async def _get_stealth_page(self) -> Page:
-        """Vytvorí page s realistickým user-agentom pre anti-bot detekciu.
-        Scrapery ktoré potrebujú stealth mode (VšZP, SP, Dôvera) volajú túto metódu."""
+        """Vytvorí page s plnou stealth ochranou pre anti-bot detekciu.
+        Scrapery ktoré potrebujú stealth mode (VšZP, SP, Dôvera) volajú túto metódu.
+        Zahŕňa: rotáciu UA, proxy, viewport, locale + stealth JS injekciu."""
         if self.browser is None:
             self._playwright = await async_playwright().start()
             self.browser = await self._playwright.chromium.launch(
@@ -179,12 +203,22 @@ class BaseScraper(ABC):
                 args=['--disable-blink-features=AutomationDetected'],
             )
             self._owned_browser = True
-        ctx = await self.browser.new_context(
-            user_agent=self._STEALTH_UA,
-            viewport={'width': 1920, 'height': 1080},
-            locale='sk-SK',
-        )
+
+        context_kwargs = {
+            "user_agent": get_random_user_agent(),
+            "viewport": get_random_viewport(),
+            "locale": get_random_locale(),
+        }
+        proxy = get_rotating_proxy()
+        if proxy:
+            context_kwargs["proxy"] = proxy
+
+        ctx = await self.browser.new_context(**context_kwargs)
         self._contexts.append(ctx)
+
+        # Stealth JS — rovnaký ako v _get_page, ale pre debtor scrapery je kritický
+        await ctx.add_init_script(STEALTH_JS)
+
         page = await ctx.new_page()
         return page
 

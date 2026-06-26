@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     cre_username: Optional[str] = None
     cre_password: Optional[str] = None
 
+    # Proxy rotation — pre anti-detekciu (voliteľné)
+    # Formát: "http://user:pass@host:port" alebo "http://host:port"
+    # Viacero proxy oddelených čiarkou — round-robin medzi scrapermi
+    proxy_list: Optional[str] = None
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
