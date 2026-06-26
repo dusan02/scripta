@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CrzScraper(BaseScraper):
     """
     Scraper pre Centrálny register zmlúv (crz.gov.sk).
-    Vyhľadáva podľa IČO dodávateľa s dátumovým rozsahom (today-1year ~ today).
+    Vyhľadáva podľa IČO dodávateľa s dátumom "od" (default 1 rok dozadu, alebo user setting).
     Podporuje pagination — scrapne všetky strany a spojí ich do jedného PDF.
     """
 
@@ -32,150 +32,31 @@ class CrzScraper(BaseScraper):
             _t = time.perf_counter()
             page = await self._get_page(block_images=False)
 
-            # ── 1. Navigácia ───────────────────────────────────────────
-            logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
-            try:
-                await page.goto(self.base_url, timeout=30000, wait_until="domcontentloaded")
-            except (PlaywrightTimeoutError, PlaywrightError) as e:
-                raise ScraperUnavailableError(f"CRZ nedostupná: {e}")
-            logger.debug(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
+            await self._navigate(page)
+            await self._accept_cookies(page)
+            await self._open_advanced_search(page)
+            await self._fill_ico(page, ico)
 
-            # ── 2. Cookie banner ───────────────────────────────────────
-            try:
-                btn = page.get_by_role("button", name="Prijať všetko")
-                await btn.wait_for(timeout=5000)
-                await btn.click()
-                logger.info(f"[{self.source_type}] Cookie banner prijatý.")
-            except PlaywrightTimeoutError:
-                logger.info(f"[{self.source_type}] Cookie banner sa nezobrazil.")
+            date_from_str = self._resolve_date_from(crz_date_from)
+            await self._set_date_from(page, date_from_str)
+            await self._click_search(page)
+            await self._wait_for_results(page)
 
-            # ── 3. Rozšírené vyhľadávanie ──────────────────────────────
-            try:
-                adv_btn = page.get_by_role("button", name="Rozšírené vyhľadávanie")
-                await adv_btn.wait_for(timeout=10000)
-                await adv_btn.click()
-                logger.info(f"[{self.source_type}] Rozšírené vyhľadávanie otvorené.")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Tlačidlo 'Rozšírené vyhľadávanie' sa nenašlo.")
-                return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa otvoriť rozšírené vyhľadávanie na CRZ.",
-                )
+            if await self._check_no_results(page):
+                return await self._make_no_results_result(page, ico, output_dir, date_from_str)
 
-            # ── 4. Vyplniť IČO dodávateľa ───────────────────────────────
-            try:
-                ico_input = page.get_by_role("textbox", name="IČO dodávateľa:")
-                await ico_input.wait_for(timeout=10000)
-                await ico_input.click()
-                await ico_input.fill(ico)
-                logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Pole 'IČO dodávateľa' sa nenašlo.")
-                return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť pole IČO dodávateľa na CRZ.",
-                )
-
-            # ── 5. Dátum "od" ──────────────────────────────────────────
-            # Použi user setting crz_date_from (YYYY-MM-DD), alebo default 1 rok dozadu
-            if crz_date_from:
-                try:
-                    date_from = date.fromisoformat(crz_date_from)
-                except ValueError:
-                    logger.warning(f"[{self.source_type}] Neplatný crz_date_from '{crz_date_from}', používam default 1 rok.")
-                    date_from = date.today() - timedelta(days=365)
-            else:
-                date_from = date.today() - timedelta(days=365)
-            date_from_str = date_from.strftime("%d.%m.%Y")
-
-            logger.info(f"[{self.source_type}] Dátum od: {date_from_str}")
-
-            try:
-                from_input = page.get_by_role("textbox", name="Zverejnené: od")
-                await from_input.wait_for(timeout=10000)
-                await from_input.click()
-                await from_input.fill(date_from_str)
-                # Stlač Enter pre potvrdenie dátumu v datepicker
-                await page.keyboard.press("Enter")
-                # Klik mimo pre zatvorenie datepicker
-                await page.locator("body").click(position={"x": 0, "y": 0})
-                # Overíme že hodnota zostala
-                actual_val = await from_input.input_value()
-                logger.info(f"[{self.source_type}] Dátum od vyplnený: {actual_val}")
-                if not date_from_str.split(".")[0] in actual_val:
-                    logger.warning(f"[{self.source_type}] Dátum sa nepodarilo nastaviť, skúšam JS fallback.")
-                    await from_input.evaluate(f'(el) => {{ el.value = "{date_from_str}"; el.dispatchEvent(new Event("change", {{bubbles: true}})); el.dispatchEvent(new Event("input", {{bubbles: true}})); }}')
-                    await page.wait_for_timeout(500)
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Pole 'Zverejnené: od' sa nenašlo.")
-                return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa vyplniť dátum 'od' na CRZ.",
-                )
-
-            # ── 6. Vyhľadať ─────────────────────────────────────────────
-            try:
-                search_btn = page.get_by_role("button", name="Vyhľadať")
-                await search_btn.wait_for(timeout=10000)
-                await search_btn.click()
-                logger.info(f"[{self.source_type}] Vyhľadávanie odoslané.")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Tlačidlo 'Vyhľadať' sa nenašlo.")
-                return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť tlačidlo Vyhľadať na CRZ.",
-                )
-
-            # ── 7. Počkať na výsledky ───────────────────────────────────
-            try:
-                await page.wait_for_load_state("domcontentloaded", timeout=15000)
-            except PlaywrightTimeoutError:
-                pass
-
-            # Skontrolovať či sú výsledky
-            body_text = await page.inner_text("body")
-            no_results_markers = [
-                "nenašli sa žiadne",
-                "žiadne záznamy",
-                "neobsahuje žiadne",
-                "0 záznamov",
-            ]
-            is_empty = any(marker in body_text.lower() for marker in no_results_markers)
-
-            if is_empty:
-                logger.info(f"[{self.source_type}] Žiadne záznamy pre IČO {ico}.")
-                pdf_output = output_dir / f"crz_{ico}.pdf"
-                await self._generate_no_results_pdf(
-                    page, pdf_output, ico,
-                    title="Centrálny register zmlúv (CRZ)",
-                    message=f"Pre IČO {ico} sa v CRZ nenašli žiadne zmluvy od {date_from_str}.",
-                )
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
-                    status_message=f"IČO {ico} – žiadne zmluvy v CRZ.",
-                    findings="Žiadny záznam v Centrálnom registri zmlúv v zadanom období.",
-                )
-
-            # ── 8. Pagination — scrapne všetky strany ────────────────────
             all_rows_html, pages_collected = await self._collect_all_rows(page)
 
-            # Spojí všetky riadky do jednej tabuľky
             if all_rows_html:
-                await page.evaluate("""(rowsHtml) => {
-                    const tbody = document.querySelector('table tbody');
-                    if (tbody) {
-                        tbody.innerHTML = rowsHtml.join('');
-                    }
-                }""", all_rows_html)
+                await page.evaluate(
+                    "(rowsHtml) => { const tbody = document.querySelector('table tbody'); if (tbody) tbody.innerHTML = rowsHtml.join(''); }",
+                    all_rows_html,
+                )
 
-            # ── 9. Generovať PDF ────────────────────────────────────────
             pdf_output = output_dir / f"crz_{ico}.pdf"
             try:
                 await self._generate_clean_pdf(
-                    page,
-                    pdf_output,
+                    page, pdf_output,
                     title=f"Centrálny register zmlúv — IČO {ico}",
                     content_selector="table",
                     format="A4",
@@ -184,13 +65,10 @@ class CrzScraper(BaseScraper):
                 logger.info(f"[{self.source_type}] PDF vygenerované: {pdf_output}")
             except Exception as e:
                 logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")
-                return self._make_result(
-                    status="FAILED",
-                    status_message=f"Chyba pri generovaní PDF z CRZ: {e}",
-                )
+                return self._make_result(status="FAILED", status_message=f"Chyba pri generovaní PDF z CRZ: {e}")
 
-            # ── 10. Findings ────────────────────────────────────────────
             findings = await self._extract_findings(page, ico, pages_collected, len(all_rows_html))
+            logger.info(f"[{self.source_type}] Hotovo za {time.perf_counter() - _t:.1f}s — {pages_collected} strán, {len(all_rows_html)} zmlúv")
 
             return self._make_result(
                 status="SUCCESS",
@@ -204,17 +82,126 @@ class CrzScraper(BaseScraper):
             raise
         except Exception as e:
             logger.exception(f"[{self.source_type}] Nečakaná chyba pri IČO {ico}: {e}")
-            return self._make_result(
-                status="FAILED",
-                file_path=None,
-                status_message=f"Interná chyba scrapera: {str(e)}",
-            )
+            return self._make_result(status="FAILED", file_path=None, status_message=f"Interná chyba scrapera: {str(e)}")
         finally:
             if page:
                 try:
                     await page.close()
                 except Exception:
                     pass
+
+    # ── Step methods ────────────────────────────────────────────────
+
+    async def _navigate(self, page: Page) -> None:
+        logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
+        try:
+            await page.goto(self.base_url, timeout=30000, wait_until="domcontentloaded")
+        except (PlaywrightTimeoutError, PlaywrightError) as e:
+            raise ScraperUnavailableError(f"CRZ nedostupná: {e}")
+
+    async def _accept_cookies(self, page: Page) -> None:
+        try:
+            btn = page.get_by_role("button", name="Prijať všetko")
+            await btn.wait_for(timeout=5000)
+            await btn.click()
+            logger.info(f"[{self.source_type}] Cookie banner prijatý.")
+        except PlaywrightTimeoutError:
+            logger.info(f"[{self.source_type}] Cookie banner sa nezobrazil.")
+
+    async def _open_advanced_search(self, page: Page) -> None:
+        try:
+            adv_btn = page.get_by_role("button", name="Rozšírené vyhľadávanie")
+            await adv_btn.wait_for(timeout=10000)
+            await adv_btn.click()
+            logger.info(f"[{self.source_type}] Rozšírené vyhľadávanie otvorené.")
+        except PlaywrightTimeoutError:
+            raise ScraperUnavailableError("Nepodarilo sa otvoriť rozšírené vyhľadávanie na CRZ.")
+
+    async def _fill_ico(self, page: Page, ico: str) -> None:
+        try:
+            ico_input = page.get_by_role("textbox", name="IČO dodávateľa:")
+            await ico_input.wait_for(timeout=10000)
+            await ico_input.click()
+            await ico_input.fill(ico)
+            logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
+        except PlaywrightTimeoutError:
+            raise ScraperUnavailableError("Nepodarilo sa nájsť pole IČO dodávateľa na CRZ.")
+
+    @staticmethod
+    def _resolve_date_from(crz_date_from: Optional[str]) -> str:
+        if crz_date_from:
+            try:
+                date_from = date.fromisoformat(crz_date_from)
+            except ValueError:
+                logger.warning(f"[CRZ] Neplatný crz_date_from '{crz_date_from}', používam default 1 rok.")
+                date_from = date.today() - timedelta(days=365)
+        else:
+            date_from = date.today() - timedelta(days=365)
+        return date_from.strftime("%d.%m.%Y")
+
+    async def _set_date_from(self, page: Page, date_from_str: str) -> None:
+        logger.info(f"[{self.source_type}] Dátum od: {date_from_str}")
+        try:
+            date_input = page.locator("#frm_filter_3_art_datum_zverejnene_od")
+            await date_input.wait_for(timeout=10000)
+            await page.evaluate(
+                "(dateStr) => {"
+                "  const el = document.getElementById('frm_filter_3_art_datum_zverejnene_od');"
+                "  if (!el) return;"
+                "  $(el).datepicker('update', dateStr);"
+                "  el.dispatchEvent(new Event('change', { bubbles: true }));"
+                "}",
+                date_from_str,
+            )
+            actual = await date_input.input_value()
+            logger.info(f"[{self.source_type}] Dátum od nastavený: {actual}")
+        except PlaywrightTimeoutError:
+            raise ScraperUnavailableError("Nepodarilo sa vyplniť dátum 'od' na CRZ.")
+
+    async def _click_search(self, page: Page) -> None:
+        try:
+            search_btn = page.get_by_role("button", name="Vyhľadať")
+            await search_btn.wait_for(timeout=10000)
+            await search_btn.click()
+            logger.info(f"[{self.source_type}] Vyhľadávanie odoslané.")
+        except PlaywrightTimeoutError:
+            raise ScraperUnavailableError("Nepodarilo sa nájsť tlačidlo Vyhľadať na CRZ.")
+
+    async def _wait_for_results(self, page: Page) -> None:
+        try:
+            await page.wait_for_function(
+                """() => {
+                    if (!document.body) return false;
+                    const body = document.body.innerText ? document.body.innerText.toLowerCase() : '';
+                    const hasTable = document.querySelector('table tbody tr') !== null;
+                    const hasNoResults = ['nenašli sa žiadne','žiadne záznamy','neobsahuje žiadne','0 záznamov'].some(m => body.includes(m));
+                    return hasTable || hasNoResults;
+                }""",
+                timeout=20000,
+            )
+        except PlaywrightTimeoutError:
+            logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem s aktuálnym obsahom.")
+
+    async def _check_no_results(self, page: Page) -> bool:
+        body_text = await page.inner_text("body")
+        lowered = body_text.lower()
+        return any(marker in lowered for marker in ["nenašli sa žiadne", "žiadne záznamy", "neobsahuje žiadne", "0 záznamov"])
+
+    async def _make_no_results_result(self, page: Page, ico: str, output_dir: Path, date_from_str: str) -> ScrapedSource:
+        logger.info(f"[{self.source_type}] Žiadne záznamy pre IČO {ico}.")
+        pdf_output = output_dir / f"crz_{ico}.pdf"
+        await self._generate_no_results_pdf(
+            page, pdf_output, ico,
+            title="Centrálny register zmlúv (CRZ)",
+            message=f"Pre IČO {ico} sa v CRZ nenašli žiadne zmluvy od {date_from_str}.",
+        )
+        return self._make_result(
+            status="SUCCESS",
+            file_path=str(pdf_output),
+            page_count=1,
+            status_message=f"IČO {ico} – žiadne zmluvy v CRZ.",
+            findings="Žiadny záznam v Centrálnom registri zmlúv.",
+        )
 
     async def _collect_all_rows(self, page: Page) -> tuple[list[str], int]:
         """Zbiera všetky riadky tabuľky cez pagination stránky. Vráti (rows_html, page_count)."""
@@ -239,11 +226,10 @@ class CrzScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Prechádzam na stranu {page_num}")
             await next_link.click()
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=10000)
-            except PlaywrightTimeoutError:
-                pass
-            try:
-                await page.locator("table tbody tr").first.wait_for(timeout=8000)
+                await page.wait_for_function(
+                    "() => document.querySelector('table tbody tr') !== null",
+                    timeout=10000,
+                )
             except PlaywrightTimeoutError:
                 pass
 
