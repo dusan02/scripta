@@ -69,6 +69,8 @@ _SOURCE_LABELS = {
     "NCRD": "NCRD",
     "REGISTER_UZ": "Register úč. závierok",
     "CRZ": "Register zmlúv",
+    "UVO": "Verejné obstarávanie",
+    "POVERENIA": "Poverenia na exekúcie",
 }
 
 # Zoskupenie zdrojov do kategórií pre prehľadnejšie zobrazenie
@@ -79,7 +81,7 @@ _SOURCE_CATEGORIES = [
     ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
     ("Poisťovne a inštitúcie", ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
-    ("Ostatné", ["REGISTER_UZ", "CRZ"]),
+    ("Ostatné", ["REGISTER_UZ", "CRZ", "UVO", "POVERENIA"]),
 ]
 
 # Mapa source_type -> category label pre rýchle hľadanie

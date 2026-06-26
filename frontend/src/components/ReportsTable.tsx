@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
 import CopyableText from "@/components/CopyableText";
-import { getSourceShort, SOURCE_CATEGORIES, SOURCE_MAP, ENABLED_SOURCES, SOURCE_DOT_COLOR } from "@/lib/sources";
+import { SOURCE_CATEGORIES, SOURCE_MAP, ENABLED_SOURCES, SOURCE_DOT_COLOR } from "@/lib/sources";
 
 interface ReportSource {
   sourceType: string;
@@ -240,7 +240,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                                   border: "1px solid var(--border)",
                                 }}
                               >
-                                {getSourceShort(s.sourceType)}
+                                {SOURCE_MAP[s.sourceType]?.label ?? s.sourceType}
                               </span>
                             ))}
                           </div>
@@ -374,7 +374,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                                     border: "1px solid var(--border)",
                                   }}
                                 >
-                                  {getSourceShort(s.sourceType)}
+                                  {SOURCE_MAP[s.sourceType]?.label ?? s.sourceType}
                                 </span>
                               ))}
                             </div>

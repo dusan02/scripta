@@ -24,6 +24,8 @@ from .fs_dph_registrovani import FsDphRegistrovaniScraper
 from .fs_dan_prijmov_reg import FsDanPrijmovRegistrovaniScraper
 from .registeruz import RegisterUzScraper
 from .crz import CrzScraper
+from .uvo import UvoScraper
+from .poverenia import PovereniaScraper
 from .sp_dlznici import SpDlzniciScraper
 from .vszp_dlznici import VszpDlzniciScraper
 from .dovera_dlznici import DoveraDlzniciScraper
@@ -66,6 +68,8 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "UNION_DLZNICI": UnionDlzniciScraper,
     "REGISTER_UZ": RegisterUzScraper,
     "CRZ": CrzScraper,
+    "UVO": UvoScraper,
+    "POVERENIA": PovereniaScraper,
 }
 
 # Scrapery, ktoré závisia na výsledku iného scraperu (potrebujú company_name).
@@ -167,18 +171,28 @@ async def run_scrapers(
     async def _run_dependent_after(dep_source_type: str, dep_result: ScrapedSource) -> None:
         """Spustí závislé scrapery čo najskôr po dokončení dependencie."""
         company_name = None
+        ic_dph = None
         if dep_result and dep_result.status == "SUCCESS":
             company_name = getattr(dep_result, "company_name", None)
+            ic_dph = getattr(dep_result, "ic_dph", None)
 
         for source in dependent:
             if _DEPENDS_ON.get(source) != dep_source_type:
                 continue
-            if not company_name:
-                logger.info(f"[{source}] Preskakujem — dependencia {dep_source_type} neposkytla company_name.")
+
+            # Zisti čo závislý scraper potrebuje
+            extra_kwargs = {}
+            if company_name:
+                extra_kwargs["company_name"] = company_name
+            if ic_dph:
+                extra_kwargs["ic_dph"] = ic_dph
+
+            if not extra_kwargs:
+                logger.info(f"[{source}] Preskakujem — dependencia {dep_source_type} neposkytla potrebné údaje.")
                 skip_result = ScrapedSource(
                     source_type=source,
                     status="UNAVAILABLE",
-                    status_message=f"Závislosť {dep_source_type} neposkytla názov subjektu.",
+                    status_message=f"Závislosť {dep_source_type} neposkytla potrebné údaje.",
                 )
                 results_by_source[source] = skip_result
                 if on_source_done:
@@ -188,7 +202,7 @@ async def run_scrapers(
                         logger.warning(f"on_source_done callback zlyhal pre {source}: {cb_err}")
                 continue
 
-            task = asyncio.ensure_future(run_one(source, company_name=company_name))
+            task = asyncio.ensure_future(run_one(source, **extra_kwargs))
             pending_dependent[source] = task
 
     async def _run_independent(source_type: str) -> ScrapedSource:

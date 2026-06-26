@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
-import ReportForm from "@/components/ReportForm";
+import SearchSection from "@/components/SearchSection";
 import ReportsTable from "@/components/ReportsTable";
 import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -48,41 +47,8 @@ export default async function DashboardPage() {
   }));
 
   return (
-    <div style={{ minHeight: "calc(100vh - 56px)" }}>
-
-      {/* ── HERO: compact centered search ─────────── */}
-      <section
-        className="flex flex-col items-center px-4 sm:px-6 pt-8 pb-4 sm:pb-6"
-        style={{
-          borderBottom: reports.length > 0 ? "1px solid var(--border)" : "none",
-        }}
-      >
-        {/* Heading — compact */}
-        <div className="text-center mb-5 fade-in">
-          <h1
-            className="text-xl sm:text-2xl font-bold tracking-tight mb-1.5"
-            style={{
-              color: "var(--text)",
-              letterSpacing: "-0.02em",
-              lineHeight: 1.1,
-            }}
-          >
-            Overenie subjektu
-          </h1>
-          <p className="text-xs sm:text-sm px-2" style={{ color: "var(--text-muted)" }}>
-            Zadajte IČO alebo meno osoby a vyberte registre, ktoré chcete preveriť
-          </p>
-        </div>
-
-        {/* Search form */}
-        <div className="w-full" style={{ maxWidth: 560 }}>
-          <Suspense fallback={null}>
-            <ReportForm />
-          </Suspense>
-        </div>
-      </section>
-
-      {/* ── REPORTS TABLE (Client Component) ─────── */}
+    <div className="max-w-[1000px] mx-auto px-4 sm:px-6" style={{ minHeight: "calc(100vh - 56px)" }}>
+      <SearchSection />
       <ReportsTable reports={serializedReports} />
     </div>
   );

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
-import SourceTable from "@/components/SourceTable";
+import RegistryGrid from "@/components/RegistryGrid";
 import CopyableText from "@/components/CopyableText";
 
 interface ReportSource {
@@ -212,7 +212,7 @@ export default function ReportDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-[1000px] mx-auto px-6 py-8">
+      <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-8">
         <div className="card p-6 animate-pulse">
           <SkeletonRow />
           <SkeletonRow />
@@ -223,7 +223,7 @@ export default function ReportDetailPage() {
 
   if (error || !report) {
     return (
-      <div className="max-w-[1000px] mx-auto px-6 py-12">
+      <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-12">
         <div className="card p-8 text-center border-red-500/20 bg-red-500/5">
           <div className="text-3xl mb-3">⚠️</div>
           <div className="text-sm font-medium text-red-500 mb-5">{error}</div>
@@ -242,91 +242,93 @@ export default function ReportDetailPage() {
   const canRetry = report.status === "FAILED" || report.status === "PARTIAL";
 
   return (
-    <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
-      
-      {/* ── Breadcrumb + Nové hľadanie ── */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2 text-xs">
-          <Link href="/" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
-            Overenie subjektu
-          </Link>
-          <span style={{ color: "var(--border-strong)" }}>/</span>
-          <span style={{ color: "var(--text-muted)" }}>Report</span>
-          <span style={{ color: "var(--border-strong)" }}>/</span>
-          <span className="font-mono" style={{ color: "var(--text-secondary)" }}>{params.id.slice(0, 8)}…</span>
-        </div>
-        <Link
-          id="new-search-btn"
-          href="/"
-          className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg border text-center"
-          style={{ 
-            background: "var(--surface)", 
-            color: "var(--text-secondary)", 
-            height: "40px", 
-            padding: "0 18px",
-            fontSize: "13.5px", 
-            fontWeight: 600,
-            borderColor: "var(--border)",
-            boxShadow: "var(--shadow-sm)",
-            textDecoration: "none"
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "var(--border-strong)";
-            e.currentTarget.style.color = "var(--text)";
-            e.currentTarget.style.background = "var(--surface-hover)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--border)";
-            e.currentTarget.style.color = "var(--text-secondary)";
-            e.currentTarget.style.background = "var(--surface)";
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
-          Nové hľadanie
-        </Link>
-      </div>
+    <div className="max-w-[1000px] mx-auto px-4 sm:px-6 animate-fade-in" style={{ minHeight: "calc(100vh - 56px)" }}>
 
-      {/* ── Header Card ── */}
-      <div className="card p-4 sm:p-6 mb-6">
-        <div className="flex flex-col items-center text-center gap-2">
-          <span className="text-3xl">{report.targetType === "COMPANY" ? "🏢" : "👤"}</span>
-          
+      {/* ── TOP SECTION: Report header (fixed height, same as home page) ── */}
+      <section
+        className="flex flex-col items-center justify-center px-2 pt-6 pb-5"
+        style={{
+          borderBottom: "1px solid var(--border)",
+          minHeight: "180px",
+        }}
+      >
+        {/* Breadcrumb + Nové hľadanie */}
+        <div className="flex items-center justify-between w-full mb-3">
+          <div className="flex items-center gap-2 text-xs">
+            <Link href="/" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+              Overenie subjektu
+            </Link>
+            <span style={{ color: "var(--border-strong)" }}>/</span>
+            <span className="font-mono" style={{ color: "var(--text-secondary)" }}>{params.id.slice(0, 8)}…</span>
+          </div>
+          <Link
+            id="new-search-btn"
+            href="/"
+            className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg border text-center"
+            style={{
+              background: "var(--surface)",
+              color: "var(--text-secondary)",
+              height: "36px",
+              padding: "0 14px",
+              fontSize: "12.5px",
+              fontWeight: 600,
+              borderColor: "var(--border)",
+              boxShadow: "var(--shadow-sm)",
+              textDecoration: "none"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--border-strong)";
+              e.currentTarget.style.color = "var(--text)";
+              e.currentTarget.style.background = "var(--surface-hover)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--border)";
+              e.currentTarget.style.color = "var(--text-secondary)";
+              e.currentTarget.style.background = "var(--surface)";
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+            Nové hľadanie
+          </Link>
+        </div>
+
+        {/* Subject info — centered */}
+        <div className="flex flex-col items-center text-center gap-1.5">
+          <span className="text-2xl">{report.targetType === "COMPANY" ? "🏢" : "👤"}</span>
+
           {report.targetType === "COMPANY" && report.companyName && (
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
               {report.companyName}
             </h1>
           )}
-          
-          <div className={report.companyName ? "text-lg font-medium" : "text-2xl font-bold tracking-tight"} style={{ color: report.companyName ? "var(--text-secondary)" : "var(--text)", letterSpacing: report.companyName ? undefined : "-0.02em" }}>
+
+          <div className={report.companyName ? "text-base font-medium" : "text-xl font-bold tracking-tight"} style={{ color: report.companyName ? "var(--text-secondary)" : "var(--text)", letterSpacing: report.companyName ? undefined : "-0.02em" }}>
             {report.targetType === "COMPANY" ? (
               <CopyableText text={report.ico ?? ""} label="IČO" />
             ) : (
               identifier
             )}
           </div>
-          
+
           {report.targetType === "PERSON" && report.birthDate && (
-            <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+            <div className="text-xs" style={{ color: "var(--text-muted)" }}>
               Nar.: {new Intl.DateTimeFormat("sk-SK", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(report.birthDate))}
             </div>
           )}
-          
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-            <span>Vytvorené: {formatDate(report.createdAt)}</span>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span>{formatDate(report.createdAt)}</span>
             {report.completedAt && (
               <>
                 <span style={{ color: "var(--border-strong)" }}>·</span>
-                <span>Dokončené: {formatDate(report.completedAt)}</span>
+                <span>{formatDate(report.completedAt)}</span>
               </>
             )}
           </div>
-          <div className="mt-1 font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
-            ID: {params.id}
-          </div>
 
-          <div className="flex items-center justify-end gap-3 mt-4 w-full">
+          <div className="flex items-center gap-3 mt-2">
             <div className="flex items-center gap-2">
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>Stav:</span>
               <StatusBadge status={report.status} />
@@ -340,16 +342,16 @@ export default function ReportDetailPage() {
                 style={{
                   background: "#2563eb",
                   color: "#ffffff",
-                  height: "40px",
-                  padding: "0 18px",
-                  fontSize: "13.5px",
+                  height: "36px",
+                  padding: "0 14px",
+                  fontSize: "12.5px",
                   fontWeight: 600,
                   border: "1px solid #2563eb",
                 }}
               >
                 {retrying ? (
                   <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
                       <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
@@ -357,7 +359,7 @@ export default function ReportDetailPage() {
                   </>
                 ) : (
                   <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                       <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                     </svg>
                     Znovu overiť
@@ -366,57 +368,53 @@ export default function ReportDetailPage() {
               </button>
             )}
             {canDownload && (
-                <button
-                  id="download-pdf-btn"
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
-                  style={{ 
-                    background: "var(--accent)", 
-                    color: "var(--accent-button-text)", 
-                    height: "40px", 
-                    padding: "0 18px",
-                    fontSize: "13.5px", 
-                    fontWeight: 600,
-                    border: "1px solid var(--accent)",
-                  }}
-                >
-                  {downloading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                      </svg>
-                      Sťahujem…
-                    </>
-                  ) : (
-                    <>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      Stiahnuť dokument
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                id="download-pdf-btn"
+                onClick={handleDownload}
+                disabled={downloading}
+                className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
+                style={{
+                  background: "var(--accent)",
+                  color: "var(--accent-button-text)",
+                  height: "36px",
+                  padding: "0 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  border: "1px solid var(--accent)",
+                }}
+              >
+                {downloading ? (
+                  <>
+                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Sťahujem…
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Stiahnuť dokument
+                  </>
+                )}
+              </button>
+            )}
           </div>
-
         </div>
-      </div>
+      </section>
 
-      {/* ── Sources Table ── */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold mb-3 ml-1" style={{ color: "var(--text)", letterSpacing: "-0.01em" }}>
-          Prehľad zdrojov
-        </h2>
+      {/* ── BOTTOM SECTION: Registry grid (same as home page) ── */}
+      <section className="px-2 pt-5 pb-8">
         {report.sources.length === 0 ? (
           <div className="card p-8 text-center text-xs" style={{ color: "var(--text-muted)" }}>
             Zdroje sa pripravujú…
           </div>
         ) : (
-          <SourceTable sources={report.sources} />
+          <RegistryGrid mode="status" sources={report.sources} />
         )}
-      </div>
+      </section>
     </div>
   );
 }

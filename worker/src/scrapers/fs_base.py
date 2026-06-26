@@ -321,6 +321,13 @@ class FinancnaSpravaBase(BaseScraper):
                 logger.info(f"[{self.source_type}] Findings: nepodarilo sa extrahovať, pokračujem s PDF.")
                 findings = None
 
+            # Extrahovať IČ DPH (ak scraper podporuje)
+            ic_dph = None
+            if hasattr(self, '_extract_ic_dph'):
+                ic_dph = await self._extract_ic_dph(page)
+                if ic_dph:
+                    logger.info(f"[{self.source_type}] IČ DPH extrahované: {ic_dph}")
+
             # Ak sú výsledky, skúsime PDF export
             pdf_output = output_dir / f"{self.file_prefix}_{ico}.pdf"
             downloaded = await self._download_pdf(page, pdf_output)
@@ -336,6 +343,7 @@ class FinancnaSpravaBase(BaseScraper):
                     status_message=f"Výpis z {self.source_type} úspešne stiahnutý.",
                     findings=findings or f"Výpis úspešne stiahnutý z {self.source_type}.",
                     company_name=company_name,
+                    ic_dph=ic_dph,
                 )
             else:
                 # PDF sa nepodarilo — ak sú findings, stále SUCCESS bez PDF
@@ -347,6 +355,7 @@ class FinancnaSpravaBase(BaseScraper):
                         status_message="Výsledky nájdené, ale PDF export zlyhal.",
                         findings=findings,
                         company_name=company_name,
+                        ic_dph=ic_dph,
                     )
                 else:
                     # Negatívny scenár — nič nenašlo, PDF nie je dostupné
@@ -357,6 +366,7 @@ class FinancnaSpravaBase(BaseScraper):
                         status_message=findings or "Žiadny záznam v registri.",
                         findings=findings,
                         company_name=company_name,
+                        ic_dph=ic_dph,
                     )
 
         except ScraperUnavailableError as e:

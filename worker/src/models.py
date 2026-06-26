@@ -24,6 +24,7 @@ class ScrapedSource(BaseModel):
     start_page: Optional[int] = None
     findings: Optional[str] = None
     company_name: Optional[str] = None
+    ic_dph: Optional[str] = None
 
     @property
     def message(self) -> Optional[str]:  # backward compat alias
