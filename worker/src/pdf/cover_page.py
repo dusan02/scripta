@@ -256,13 +256,6 @@ class CoverPageGenerator:
         # Stĺpce: Icon (1.0cm) | Zdroj (3.3cm) | Strana (1.5cm) | Stav (2.5cm) | Nálezy (7.8cm)
         col_widths = [1.0 * cm, 3.3 * cm, 1.5 * cm, 2.5 * cm, 7.8 * cm]
 
-        # Status farby
-        _STATUS_COLORS = {
-            "SUCCESS":     "#10b981",
-            "UNAVAILABLE": "#f59e0b",
-            "FAILED":      "#ef4444",
-        }
-
         def _build_source_icon(source_type: str) -> Drawing:
             """Farebný badge so skratkou zdroja."""
             abbr, color_hex = _SOURCE_ICONS.get(source_type, ("?", "#71717a"))
@@ -442,25 +435,3 @@ class CoverPageGenerator:
         story.append(Spacer(1, 0.4 * cm))
 
         doc.build(story)
-
-    @staticmethod
-    def _status_color(status: str) -> str:
-        if status == "SUCCESS":
-            return "#16a34a"  # zelená
-        if status == "UNAVAILABLE":
-            return "#ea580c"  # oranžová
-        return "#dc2626"  # červená (FAILED / PENDING)
-
-    @staticmethod
-    def _build_summary(sources: List[ScrapedSource]) -> str:
-        total = len(sources)
-        successful = sum(1 for s in sources if s.status == "SUCCESS")
-        unavailable = sum(1 for s in sources if s.status == "UNAVAILABLE")
-        failed = total - successful - unavailable
-
-        parts = [f"{successful}/{total} zdrojov úspešne stiahnutých."]
-        if unavailable:
-            parts.append(f"{unavailable} nedostupných." )
-        if failed:
-            parts.append(f"{failed} zlyhalo.")
-        return " ".join(parts)
