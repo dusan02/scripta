@@ -1,6 +1,6 @@
 "use client";
 
-import { SOURCE_CATEGORIES, SOURCES, ENABLED_SOURCES, SOURCE_MAP } from "@/lib/sources";
+import { SOURCE_CATEGORIES, SOURCES, ENABLED_SOURCES, SOURCE_MAP, type SourceInfo } from "@/lib/sources";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -14,54 +14,53 @@ type Mode = "selection" | "status";
 
 interface RegistryGridProps {
   mode: Mode;
-  // selection mode
   selected?: string[];
   onToggle?: (id: string) => void;
   onSelectAll?: () => void;
   onSelectNone?: () => void;
-  // status mode
   sources?: SourceStatus[];
 }
 
-// ── Status icon (for status mode) ────────────────────────────────
+// ── Pill state type ──────────────────────────────────────────────
 
-function StatusIcon({ status }: { status: string }) {
-  if (status === "PENDING" || status === "PROCESSING") {
-    return (
-      <svg className="animate-spin w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" style={{ color: "var(--info)" }}>
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (status === "SUCCESS") {
-    return (
-      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" style={{ color: "var(--success)" }}>
-        <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  if (status === "FAILED") {
-    return (
-      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" style={{ color: "var(--danger)" }}>
-        <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (status === "UNAVAILABLE") {
-    return (
-      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" style={{ color: "var(--warning)" }}>
-        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" />
-        <path d="M12 8v4M12 15.5v.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
+type PillState = "idle_selected" | "idle_deselected" | "disabled" | "loading" | "success" | "warning" | "error";
+
+// ── Icons ────────────────────────────────────────────────────────
+
+function CheckIcon({ size = 10 }: { size?: number }) {
   return (
-    <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--border-strong)" }} />
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-// ── Info icon (shared) ───────────────────────────────────────────
+function SpinnerIcon({ size = 10 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="flex-shrink-0 animate-spin">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function AlertIcon({ size = 10 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+      <path d="M12 9v4M12 17h.01" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function LockIcon({ size = 10 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0110 0v4" />
+    </svg>
+  );
+}
 
 function InfoIcon() {
   return (
@@ -74,7 +73,7 @@ function InfoIcon() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="flex-shrink-0 opacity-50 hover:opacity-100 transition-opacity"
+      className="flex-shrink-0 opacity-40 hover:opacity-100 transition-opacity"
     >
       <circle cx="12" cy="12" r="10" />
       <path d="M12 16v-4M12 8h.01" />
@@ -82,24 +81,82 @@ function InfoIcon() {
   );
 }
 
-// ── Check icon (for selection mode) ──────────────────────────────
+// ── Pill style config per state ──────────────────────────────────
 
-function CheckIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+const PILL_STYLES: Record<PillState, { bg: string; border: string; color: string; opacity: number }> = {
+  idle_selected:   { bg: "var(--accent-light)",   border: "var(--accent-border)",  color: "var(--accent)",          opacity: 1 },
+  idle_deselected: { bg: "var(--bg-muted)",       border: "var(--border)",          color: "var(--text-muted)",      opacity: 1 },
+  disabled:        { bg: "var(--bg-subtle)",      border: "var(--border)",          color: "var(--text-muted)",      opacity: 0.5 },
+  loading:         { bg: "var(--bg-muted)",       border: "var(--border)",          color: "var(--text-muted)",      opacity: 0.6 },
+  success:         { bg: "var(--success-bg)",     border: "var(--success)",         color: "var(--success-text)",    opacity: 1 },
+  warning:         { bg: "var(--warning-bg)",     border: "var(--warning)",         color: "var(--warning-text)",    opacity: 1 },
+  error:           { bg: "var(--danger-bg)",      border: "var(--danger)",          color: "var(--danger-text)",     opacity: 1 },
+};
+
+function LeftIcon({ state }: { state: PillState }) {
+  switch (state) {
+    case "idle_selected":
+    case "success":
+      return <CheckIcon />;
+    case "loading":
+      return <SpinnerIcon />;
+    case "warning":
+    case "error":
+      return <AlertIcon />;
+    case "disabled":
+      return <LockIcon />;
+    default:
+      return null;
+  }
 }
 
-// ── Lock icon (for disabled sources) ─────────────────────────────
+// ── RegistryPill (shared) ────────────────────────────────────────
 
-function LockIcon() {
+interface RegistryPillProps {
+  label: string;
+  state: PillState;
+  title?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+
+function RegistryPill({ label, state, title, onClick, disabled }: RegistryPillProps) {
+  const style = PILL_STYLES[state];
+  const isButton = !!onClick;
+
+  const className = "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors duration-300 max-w-full";
+  const sharedProps = {
+    className,
+    title,
+    style: {
+      background: style.bg,
+      border: `1px solid ${style.border}`,
+      color: style.color,
+      opacity: style.opacity,
+      cursor: disabled ? "not-allowed" : onClick ? "pointer" : "default",
+    },
+  };
+
+  const content = (
+    <>
+      <LeftIcon state={state} />
+      <span className="truncate whitespace-nowrap">{label}</span>
+      <InfoIcon />
+    </>
+  );
+
+  if (isButton) {
+    return (
+      <button type="button" onClick={onClick} disabled={disabled} {...sharedProps}>
+        {content}
+      </button>
+    );
+  }
+
   return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-      <rect x="3" y="11" width="18" height="11" rx="2" />
-      <path d="M7 11V7a5 5 0 0110 0v4" />
-    </svg>
+    <div {...sharedProps}>
+      {content}
+    </div>
   );
 }
 
@@ -115,7 +172,6 @@ export default function RegistryGrid({
 }: RegistryGridProps) {
   const isSelection = mode === "selection";
 
-  // Build a lookup for status mode
   const statusMap: Record<string, SourceStatus> = Object.fromEntries(
     sources.map(s => [s.sourceType, s])
   );
@@ -156,52 +212,52 @@ export default function RegistryGrid({
           const catSources = SOURCES.filter((s) => s.category === cat.id);
           if (catSources.length === 0) return null;
 
-          // Selection mode
+          // Selection mode helpers
           const catEnabled = catSources.filter(s => s.enabled);
           const catSelected = catEnabled.filter(s => selected.includes(s.id));
           const allCatSelected = catEnabled.length > 0 && catSelected.length === catEnabled.length;
           const someCatSelected = catSelected.length > 0 && !allCatSelected;
 
-          // Status mode
+          // Status mode counter
           const catStatusSources = catSources
             .map(s => statusMap[s.id])
             .filter(Boolean);
-          const allSuccess = catStatusSources.length > 0 && catStatusSources.every(s => s.status === "SUCCESS");
-          const allFailed = catStatusSources.length > 0 && catStatusSources.every(s => s.status === "FAILED");
-          const allUnavailable = catStatusSources.length > 0 && catStatusSources.every(s => s.status === "UNAVAILABLE");
-
-          const catBorder = !isSelection
-            ? allSuccess ? "var(--success)" : allFailed ? "var(--danger)" : allUnavailable ? "var(--warning)" : "var(--border-strong)"
-            : "var(--border)";
-          const catHeaderBg = !isSelection
-            ? allSuccess ? "var(--success-bg)" : allFailed ? "var(--danger-bg)" : allUnavailable ? "var(--warning-bg)" : "var(--bg-muted)"
-            : "var(--bg-muted)";
-          const catHeaderColor = !isSelection
-            ? allSuccess ? "var(--success-text)" : allFailed ? "var(--danger-text)" : allUnavailable ? "var(--warning-text)" : "var(--text-secondary)"
-            : "var(--text-secondary)";
 
           const counterText = isSelection
             ? `${catSelected.length}/${catSources.length}`
             : `${catStatusSources.length}/${catSources.length}`;
 
+          // Determine pill state for a source
+          function getPillState(source: SourceInfo): PillState {
+            if (isSelection) {
+              if (!source.enabled) return "disabled";
+              return selected.includes(source.id) ? "idle_selected" : "idle_deselected";
+            }
+            const s = statusMap[source.id];
+            if (!s) return "idle_deselected";
+            if (s.status === "SUCCESS") return "success";
+            if (s.status === "FAILED") return "error";
+            if (s.status === "UNAVAILABLE") return "warning";
+            return "loading";
+          }
+
           return (
             <div
               key={cat.id}
-              className="rounded-xl overflow-hidden break-inside-avoid mb-6 transition-all duration-300"
+              className="rounded-xl overflow-hidden break-inside-avoid mb-6"
               style={{
-                border: `1.5px solid ${catBorder}`,
+                border: "1px solid var(--border)",
                 background: "var(--surface)",
               }}
             >
-              {/* Category header */}
+              {/* Category header — always identical styling */}
               <div
                 className={`flex items-center justify-between px-3 py-2 select-none ${isSelection ? "cursor-pointer transition-colors hover:bg-opacity-50" : ""}`}
-                style={{ background: catHeaderBg, borderBottom: `1px solid ${catBorder}`, minHeight: "44px" }}
+                style={{ background: "var(--bg-muted)", borderBottom: "1px solid var(--border)", minHeight: "44px" }}
                 onClick={isSelection ? () => {
                   if (allCatSelected) {
                     onSelectAll?.();
                   } else {
-                    // Select all enabled in this category
                     catEnabled.forEach(s => {
                       if (!selected.includes(s.id)) onToggle?.(s.id);
                     });
@@ -217,13 +273,13 @@ export default function RegistryGrid({
                         borderColor: allCatSelected || someCatSelected ? "var(--accent)" : "var(--border)",
                       }}
                     >
-                      {allCatSelected && <CheckIcon />}
+                      {allCatSelected && <CheckIcon size={10} />}
                       {someCatSelected && (
                         <span style={{ background: "var(--accent)", width: "6px", height: "2px", borderRadius: "1px" }} />
                       )}
                     </span>
                   )}
-                  <span className="text-[11px] font-semibold transition-colors duration-300" style={{ color: catHeaderColor }}>
+                  <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
                     {cat.label}
                   </span>
                 </div>
@@ -238,57 +294,20 @@ export default function RegistryGrid({
                   const meta = SOURCE_MAP[source.id];
                   if (!meta) return null;
 
-                  if (isSelection) {
-                    const active = selected.includes(source.id);
-                    const disabled = !source.enabled;
-                    return (
-                      <button
-                        key={source.id}
-                        type="button"
-                        onClick={() => !disabled && onToggle?.(source.id)}
-                        disabled={disabled}
-                        title={source.description}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-150 max-w-full"
-                        style={{
-                          background: disabled ? "var(--bg-subtle)" : active ? "var(--accent-light)" : "var(--bg-muted)",
-                          color: disabled ? "var(--text-muted)" : active ? "var(--accent)" : "var(--text-muted)",
-                          border: `1px solid ${disabled ? "var(--border)" : active ? "var(--accent-border)" : "var(--border)"}`,
-                          opacity: disabled ? 0.5 : 1,
-                          cursor: disabled ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {disabled && <LockIcon />}
-                        {active && !disabled && <CheckIcon />}
-                        <span className="truncate whitespace-nowrap">{source.label}</span>
-                        <InfoIcon />
-                      </button>
-                    );
-                  } else {
-                    const s = statusMap[source.id];
-                    if (!s) return null;
-                    const isSuccess = s.status === "SUCCESS";
-                    const isFailed = s.status === "FAILED";
-                    const isUnavailable = s.status === "UNAVAILABLE";
-                    const isPending = s.status === "PENDING" || s.status === "PROCESSING";
+                  const state = getPillState(source);
+                  const statusEntry = !isSelection ? statusMap[source.id] : undefined;
+                  const tooltip = meta.description ?? statusEntry?.statusMessage ?? undefined;
 
-                    return (
-                      <div
-                        key={source.id}
-                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all duration-500 max-w-full"
-                        style={{
-                          background: isSuccess ? "var(--success-bg)" : isFailed ? "var(--danger-bg)" : isUnavailable ? "var(--warning-bg)" : "var(--bg-muted)",
-                          border: `1px solid ${isSuccess ? "var(--success)" : isFailed ? "var(--danger)" : isUnavailable ? "var(--warning)" : "var(--border)"}`,
-                          color: isSuccess ? "var(--success-text)" : isFailed ? "var(--danger-text)" : isUnavailable ? "var(--warning-text)" : "var(--text-secondary)",
-                          opacity: isPending ? 0.5 : 1,
-                        }}
-                        title={meta.description ?? s.statusMessage ?? undefined}
-                      >
-                        <span className="truncate whitespace-nowrap">{meta.label}</span>
-                        <InfoIcon />
-                        <StatusIcon status={s.status} />
-                      </div>
-                    );
-                  }
+                  return (
+                    <RegistryPill
+                      key={source.id}
+                      label={meta.label}
+                      state={state}
+                      title={tooltip}
+                      onClick={isSelection && source.enabled ? () => onToggle?.(source.id) : undefined}
+                      disabled={isSelection && !source.enabled}
+                    />
+                  );
                 })}
               </div>
             </div>

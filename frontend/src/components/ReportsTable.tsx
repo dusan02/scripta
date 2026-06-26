@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
 import CopyableText from "@/components/CopyableText";
-import { SOURCE_CATEGORIES, SOURCE_MAP, ENABLED_SOURCES, SOURCE_DOT_COLOR } from "@/lib/sources";
+import { ENABLED_SOURCES } from "@/lib/sources";
+import SourceBadges from "@/components/SourceBadges";
 
 interface ReportSource {
   sourceType: string;
@@ -221,31 +222,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         {report.sources.length}/{ENABLED_SOURCES.length} registrov
                       </span>
                     ) : (
-                      SOURCE_CATEGORIES.map((cat) => {
-                        const catSources = report.sources.filter(s => {
-                          const meta = SOURCE_MAP[s.sourceType];
-                          return meta && meta.category === cat.id;
-                        });
-                        if (catSources.length === 0) return null;
-                        return (
-                          <div key={cat.id} className="flex items-center gap-1">
-                            {catSources.map((s) => (
-                              <span
-                                key={s.sourceType}
-                                title={`${s.sourceType}: ${s.status}`}
-                                className="inline-flex items-center justify-center rounded text-[10px] font-bold px-2 py-1"
-                                style={{
-                                  background: "var(--bg-muted)",
-                                  color: SOURCE_DOT_COLOR[s.status] ?? "var(--text-muted)",
-                                  border: "1px solid var(--border)",
-                                }}
-                              >
-                                {SOURCE_MAP[s.sourceType]?.label ?? s.sourceType}
-                              </span>
-                            ))}
-                          </div>
-                        );
-                      })
+                      <SourceBadges sources={report.sources} />
                     )}
                   </div>
 
@@ -355,31 +332,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           {report.sources.length}/{ENABLED_SOURCES.length}
                         </span>
                       ) : (
-                        SOURCE_CATEGORIES.map((cat) => {
-                          const catSources = report.sources.filter(s => {
-                            const meta = SOURCE_MAP[s.sourceType];
-                            return meta && meta.category === cat.id;
-                          });
-                          if (catSources.length === 0) return null;
-                          return (
-                            <div key={cat.id} className="flex items-center gap-1">
-                              {catSources.map((s) => (
-                                <span
-                                  key={s.sourceType}
-                                  title={`${s.sourceType}: ${s.status}`}
-                                  className="inline-flex items-center justify-center rounded text-[10px] font-bold px-2 py-1"
-                                  style={{
-                                    background: "var(--bg-muted)",
-                                    color: SOURCE_DOT_COLOR[s.status] ?? "var(--text-muted)",
-                                    border: "1px solid var(--border)",
-                                  }}
-                                >
-                                  {SOURCE_MAP[s.sourceType]?.label ?? s.sourceType}
-                                </span>
-                              ))}
-                            </div>
-                          );
-                        })
+                        <SourceBadges sources={report.sources} />
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">

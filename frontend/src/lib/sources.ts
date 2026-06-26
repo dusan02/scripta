@@ -67,18 +67,6 @@ export const SOURCE_MAP: Record<string, SourceInfo> = Object.fromEntries(
   SOURCES.map(s => [s.id, s])
 );
 
-export function getSourceName(id: string): string {
-  return SOURCE_MAP[id]?.name ?? id;
-}
-
-export function getSourceShort(id: string): string {
-  return SOURCE_MAP[id]?.short ?? id;
-}
-
-export function getSourceDescription(id: string): string {
-  return SOURCE_MAP[id]?.description ?? id;
-}
-
 export const DEFAULT_SELECTED_SOURCES = ENABLED_SOURCES.map(s => s.id);
 
 export const SOURCE_DOT_COLOR: Record<string, string> = {
