@@ -25,7 +25,7 @@ class CrzScraper(BaseScraper):
     source_type = "CRZ"
     base_url = "https://www.crz.gov.sk/"
 
-    async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
+    async def run(self, *, ico: str, output_dir: Path, crz_date_from: Optional[str] = None, **kwargs) -> ScrapedSource:
         page: Optional[Page] = None
         try:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
@@ -76,40 +76,41 @@ class CrzScraper(BaseScraper):
                     status_message="Nepodarilo sa nájsť pole IČO dodávateľa na CRZ.",
                 )
 
-            # ── 5. Dátumy: od = today-1year, do = today ────────────────
-            today = date.today()
-            date_from = today - timedelta(days=365)
+            # ── 5. Dátum "od" ──────────────────────────────────────────
+            # Použi user setting crz_date_from (YYYY-MM-DD), alebo default 1 rok dozadu
+            if crz_date_from:
+                try:
+                    date_from = date.fromisoformat(crz_date_from)
+                except ValueError:
+                    logger.warning(f"[{self.source_type}] Neplatný crz_date_from '{crz_date_from}', používam default 1 rok.")
+                    date_from = date.today() - timedelta(days=365)
+            else:
+                date_from = date.today() - timedelta(days=365)
             date_from_str = date_from.strftime("%d.%m.%Y")
-            date_to_str = today.strftime("%d.%m.%Y")
 
-            logger.info(f"[{self.source_type}] Dátumy: od {date_from_str} do {date_to_str}")
+            logger.info(f"[{self.source_type}] Dátum od: {date_from_str}")
 
-            # Dátum "od"
             try:
                 from_input = page.get_by_role("textbox", name="Zverejnené: od")
                 await from_input.wait_for(timeout=10000)
                 await from_input.click()
                 await from_input.fill(date_from_str)
-                logger.info(f"[{self.source_type}] Dátum od vyplnený: {date_from_str}")
+                # Stlač Enter pre potvrdenie dátumu v datepicker
+                await page.keyboard.press("Enter")
+                # Klik mimo pre zatvorenie datepicker
+                await page.locator("body").click(position={"x": 0, "y": 0})
+                # Overíme že hodnota zostala
+                actual_val = await from_input.input_value()
+                logger.info(f"[{self.source_type}] Dátum od vyplnený: {actual_val}")
+                if not date_from_str.split(".")[0] in actual_val:
+                    logger.warning(f"[{self.source_type}] Dátum sa nepodarilo nastaviť, skúšam JS fallback.")
+                    await from_input.evaluate(f'(el) => {{ el.value = "{date_from_str}"; el.dispatchEvent(new Event("change", {{bubbles: true}})); el.dispatchEvent(new Event("input", {{bubbles: true}})); }}')
+                    await page.wait_for_timeout(500)
             except PlaywrightTimeoutError:
                 logger.error(f"[{self.source_type}] Pole 'Zverejnené: od' sa nenašlo.")
                 return self._make_result(
                     status="FAILED",
                     status_message="Nepodarilo sa vyplniť dátum 'od' na CRZ.",
-                )
-
-            # Dátum "do"
-            try:
-                to_input = page.get_by_role("textbox", name="Zverejnené: do")
-                await to_input.wait_for(timeout=10000)
-                await to_input.click()
-                await to_input.fill(date_to_str)
-                logger.info(f"[{self.source_type}] Dátum do vyplnený: {date_to_str}")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Pole 'Zverejnené: do' sa nenašlo.")
-                return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa vyplniť dátum 'do' na CRZ.",
                 )
 
             # ── 6. Vyhľadať ─────────────────────────────────────────────
@@ -147,7 +148,7 @@ class CrzScraper(BaseScraper):
                 await self._generate_no_results_pdf(
                     page, pdf_output, ico,
                     title="Centrálny register zmlúv (CRZ)",
-                    message=f"Pre IČO {ico} sa v CRZ nenašli žiadne zmluvy v období {date_from_str} – {date_to_str}.",
+                    message=f"Pre IČO {ico} sa v CRZ nenašli žiadne zmluvy od {date_from_str}.",
                 )
                 return self._make_result(
                     status="SUCCESS",

@@ -79,7 +79,7 @@ _SOURCE_CATEGORIES = [
     ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
     ("Poisťovne a inštitúcie", ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
-    ("Účtovné závierky a zmluvy", ["REGISTER_UZ", "CRZ"]),
+    ("Ostatné", ["REGISTER_UZ", "CRZ"]),
 ]
 
 # Mapa source_type -> category label pre rýchle hľadanie

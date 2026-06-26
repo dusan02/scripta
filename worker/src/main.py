@@ -125,6 +125,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             surname=task.surname,
             birth_date=task.birth_date,
             orsr_extract_type=task.orsr_extract_type,
+            crz_date_from=task.crz_date_from,
             on_source_done=_on_source_done,
         )
         t_scrape = time.perf_counter()

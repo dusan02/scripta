@@ -11,14 +11,17 @@ export async function GET(req: NextRequest) {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { orsrExtractType: true },
+      select: { orsrExtractType: true, crzDateFrom: true },
     });
 
     if (!dbUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ orsrExtractType: dbUser.orsrExtractType });
+    return NextResponse.json({
+      orsrExtractType: dbUser.orsrExtractType,
+      crzDateFrom: dbUser.crzDateFrom?.toISOString().split("T")[0] ?? null,
+    });
   } catch (error) {
     console.error("GET /api/settings error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -33,21 +36,45 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { orsrExtractType } = body;
+    const { orsrExtractType, crzDateFrom } = body;
 
-    if (orsrExtractType !== "CURRENT" && orsrExtractType !== "FULL") {
-      return NextResponse.json(
-        { error: "orsrExtractType must be 'CURRENT' or 'FULL'" },
-        { status: 400 }
-      );
+    const data: Record<string, unknown> = {};
+
+    if (orsrExtractType !== undefined) {
+      if (orsrExtractType !== "CURRENT" && orsrExtractType !== "FULL") {
+        return NextResponse.json(
+          { error: "orsrExtractType must be 'CURRENT' or 'FULL'" },
+          { status: 400 }
+        );
+      }
+      data.orsrExtractType = orsrExtractType;
+    }
+
+    if (crzDateFrom !== undefined) {
+      if (crzDateFrom === null || crzDateFrom === "") {
+        data.crzDateFrom = null;
+      } else {
+        const parsed = new Date(crzDateFrom);
+        if (isNaN(parsed.getTime())) {
+          return NextResponse.json(
+            { error: "crzDateFrom must be a valid date (YYYY-MM-DD)" },
+            { status: 400 }
+          );
+        }
+        data.crzDateFrom = parsed;
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { orsrExtractType },
+      data,
     });
 
-    return NextResponse.json({ ok: true, orsrExtractType });
+    return NextResponse.json({ ok: true, ...data });
   } catch (error) {
     console.error("PATCH /api/settings error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

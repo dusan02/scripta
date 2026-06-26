@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
   const [orsrExtractType, setOrsrExtractType] = useState<"CURRENT" | "FULL">("CURRENT");
+  const [crzDateFrom, setCrzDateFrom] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -16,6 +17,7 @@ export default function SettingsPage() {
       })
       .then((data) => {
         if (data.orsrExtractType) setOrsrExtractType(data.orsrExtractType);
+        if (data.crzDateFrom) setCrzDateFrom(data.crzDateFrom);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -28,7 +30,7 @@ export default function SettingsPage() {
       await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orsrExtractType }),
+        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -125,6 +127,54 @@ export default function SettingsPage() {
                 </div>
               </div>
             </label>
+          </div>
+        )}
+      </div>
+
+      {/* CRZ Date From */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2
+              className="text-sm font-semibold mb-1"
+              style={{ color: "var(--text)" }}
+            >
+              CRZ — dátum "od"
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Nastavte počiatočný dátum pre vyhľadávanie v Centrálnom registri zmlúv.
+              Ak ponecháte prázdne, použije sa default 1 rok dozadu.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div
+            className="h-10 rounded-lg animate-pulse"
+            style={{ background: "var(--bg-muted)" }}
+          />
+        ) : (
+          <div>
+            <input
+              type="date"
+              value={crzDateFrom}
+              onChange={(e) => setCrzDateFrom(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm"
+              style={{
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+            />
+            {crzDateFrom && (
+              <button
+                onClick={() => setCrzDateFrom("")}
+                className="text-xs mt-2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                ↺ Zrušiť a použiť default (1 rok dozadu)
+              </button>
+            )}
           </div>
         )}
       </div>

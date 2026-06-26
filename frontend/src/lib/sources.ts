@@ -16,7 +16,7 @@ export const SOURCE_CATEGORIES: { id: string; label: string }[] = [
   { id: "fs_dan",   label: "Finančná správa SR — Daň z príjmov" },
   { id: "fs_ost",   label: "Finančná správa SR — Ostatné" },
   { id: "inst",     label: "Poisťovne a inštitúcie" },
-  { id: "acct",     label: "Účtovné závierky" },
+  { id: "acct",     label: "Ostatné" },
 ];
 
 export const SOURCES: SourceInfo[] = [
