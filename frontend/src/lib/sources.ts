@@ -25,6 +25,7 @@ export const SOURCES: SourceInfo[] = [
   { id: "ZRSR",       name: "ŽRSR",              short: "ZRSR", description: "Živnostenský register SR",  label: "ŽRSR",            sublabel: "Živnostenský register", category: "basic",   enabled: true },
   { id: "RPVS",       name: "RPVS",              short: "RPVS", description: "Register partnerov verejného sektora", label: "RPVS", sublabel: "Register part. ver. sektora", category: "basic", enabled: true },
   { id: "REGISTER_UZ",  name: "Register účtovných závierok", short: "RUZ", description: "Súvaha, výkaz ziskov a strát, kľúčové finančné ukazovatele", label: "Účtovné závierky", sublabel: "Register účtovných závierok (RUZ)", category: "acct", enabled: true },
+  { id: "CRZ",          name: "Centrálny register zmlúv", short: "CRZ", description: "Zmluvy, objednávky a faktúry zverejnené podľa zákona o VFPO", label: "Register zmlúv", sublabel: "Centrálny register zmlúv (CRZ)", category: "acct", enabled: true },
 
   // ── Insolvenčný a majetkový register ──
   { id: "INSOLVENCY", name: "Register úpadcov",  short: "INS",  description: "Insolvenčný register",      label: "Insolvenčný reg.", sublabel: "Register úpadcov",     category: "asset",   enabled: true },
