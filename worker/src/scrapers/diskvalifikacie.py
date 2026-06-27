@@ -333,73 +333,145 @@ class DiskvalifikacieScraper(BaseScraper):
         return "\n".join(parts)
 
     async def _generate_summary_pdf(self, page: Page, output_path: Path, ico: str, results: list[dict]) -> None:
-        """Vygeneruje PDF so zhrnutím výsledkov."""
+        """Vygeneruje PDF — Executive Summary formát s sekciami pre riziká a osoby v poriadku."""
         try:
-            # Naviguj na prázdnu stránku aby sme sa vyhli SPA/React interferencii
             await page.goto("about:blank", timeout=5000)
             await page.set_viewport_size({"width": 1920, "height": 1080})
 
-            html_parts = ["<h1>Register diskvalifikácií</h1>"]
-            html_parts.append(f"<p style='text-align:center;color:#666;'>IČO: {ico}</p>")
-            html_parts.append("<table style='width:100%;border-collapse:collapse;font-size:12px;'>")
-            html_parts.append("<tr style='background:#f4f4f5;'><th style='padding:6px;border:1px solid #ddd;text-align:left;'>Osoba</th><th style='padding:6px;border:1px solid #ddd;'>Rola</th><th style='padding:6px;border:1px solid #ddd;'>Stav</th><th style='padding:6px;border:1px solid #ddd;'>ORSR adresa</th><th style='padding:6px;border:1px solid #ddd;'>Register adresa</th></tr>")
+            red_flags = [r for r in results if r["status"] == "red_flag"]
+            warnings = [r for r in results if r["status"] == "warning"]
+            clean = [r for r in results if r["status"] == "clean"]
 
-            for r in results:
-                if r["status"] == "red_flag":
-                    color = "#ef4444"
-                    label = "POZOR! Diskvalifikovaný"
-                elif r["status"] == "warning":
-                    color = "#f59e0b"
-                    label = "Upozornenie"
-                else:
-                    color = "#10b981"
-                    label = "V poriadku"
+            risk_count = len(red_flags) + len(warnings)
 
-                orsr_addr = f"{r['orsr_city'] or '?'} {r['orsr_zip'] or '?'}"
-                match_addr = f"{r['match_city'] or '—'} {r['match_zip'] or '—'}"
+            # Hlavička
+            if red_flags:
+                summary_text = f"Nájdených {len(red_flags)} potvrdených rizík (zhoda mena aj adresy)"
+                summary_color = "#ef4444"
+            elif warnings:
+                summary_text = f"Nájdené {len(warnings)} potenciálne riziká (zhoda mien — potrebné overenie)"
+                summary_color = "#f59e0b"
+            else:
+                summary_text = f"Všetkých {len(clean)} osôb je v poriadku — žiadne diskvalifikácie"
+                summary_color = "#10b981"
 
-                html_parts.append(
-                    f"<tr>"
-                    f"<td style='padding:6px;border:1px solid #ddd;'>{r['name']}</td>"
-                    f"<td style='padding:6px;border:1px solid #ddd;text-align:center;'>{r['role']}</td>"
-                    f"<td style='padding:6px;border:1px solid #ddd;text-align:center;color:{color};font-weight:bold;'>{label}</td>"
-                    f"<td style='padding:6px;border:1px solid #ddd;'>{orsr_addr}</td>"
-                    f"<td style='padding:6px;border:1px solid #ddd;'>{match_addr}</td>"
-                    f"</tr>"
-                )
+            _ROLE_LABELS = {"statutar": "Štatutár", "spolocnik": "Spoločník"}
 
-            html_parts.append("</table>")
-
-            if any(r["detail_url"] for r in results if r["status"] != "clean"):
-                html_parts.append("<h3>Odkazy na detaily:</h3><ul>")
-                for r in results:
-                    if r["detail_url"] and r["status"] != "clean":
-                        html_parts.append(f"<li>{r['name']}: <a href='{r['detail_url']}'>{r['detail_url']}</a></li>")
-                html_parts.append("</ul>")
-
-            html_content = "\n".join(html_parts)
-
-            await page.set_content(f"""<!DOCTYPE html>
+            html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>
-  body {{ margin: 0; padding: 40px; font-family: Inter, Arial, sans-serif; }}
-  h1 {{ font-size: 24px; font-weight: 700; margin: 0 0 8px 0; text-align: center; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
-  th {{ background: #f4f4f5; padding: 6px; border: 1px solid #ddd; }}
-  td {{ padding: 6px; border: 1px solid #ddd; }}
-  h3 {{ margin-top: 24px; font-size: 14px; }}
-  a {{ color: #2563eb; }}
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ font-family: Inter, -apple-system, Arial, sans-serif; padding: 40px; color: #1a1a1a; font-size: 13px; line-height: 1.6; }}
+  h1 {{ font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; }}
+  .subtitle {{ text-align: center; color: #666; font-size: 13px; margin-bottom: 24px; }}
+  .summary-box {{ padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 15px; font-weight: 600; }}
+  .summary-box.red {{ background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }}
+  .summary-box.orange {{ background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }}
+  .summary-box.green {{ background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }}
+  .intro {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; font-size: 12px; color: #475569; }}
+  .section-title {{ font-size: 15px; font-weight: 700; margin: 28px 0 14px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }}
+  .risk-card {{ border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; }}
+  .risk-card.red {{ background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #ef4444; }}
+  .risk-card.orange {{ background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; }}
+  .risk-name {{ font-size: 15px; font-weight: 700; margin-bottom: 4px; }}
+  .risk-role {{ font-size: 12px; color: #666; font-weight: 400; }}
+  .risk-status {{ font-size: 13px; font-weight: 600; margin: 8px 0; }}
+  .risk-status.red {{ color: #991b1b; }}
+  .risk-status.orange {{ color: #92400e; }}
+  .risk-explanation {{ font-size: 12px; color: #64748b; margin: 8px 0 12px 0; line-height: 1.7; }}
+  .addr-row {{ display: flex; gap: 20px; margin: 6px 0; font-size: 12px; }}
+  .addr-label {{ color: #666; min-width: 140px; }}
+  .addr-value {{ font-weight: 500; }}
+  .risk-link {{ margin-top: 10px; }}
+  .risk-link a {{ color: #2563eb; text-decoration: none; font-size: 12px; word-break: break-all; }}
+  .clean-list {{ list-style: none; padding: 0; }}
+  .clean-list li {{ padding: 8px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }}
+  .clean-list li:last-child {{ border-bottom: none; }}
+  .clean-dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 8px; }}
+  .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }}
 </style></head>
 <body>
-{html_content}
+
+<h1>Register diskvalifikácií</h1>
+<p class="subtitle">Previerka osôb z ORSR (IČO: {ico})</p>
+
+<div class="summary-box" style="background: {summary_color}15; color: {summary_color}; border: 1px solid {summary_color}40;">
+  Výsledok previerky: {summary_text}
+</div>
+
+<div class="intro">
+  <strong>Čo je Register diskvalifikácií?</strong> Obsahuje osoby, ktoré súdom dostali zákaz výkonu funkcie
+  štatutárneho orgánu alebo člena predstavenstva. Ak je štatutár diskvalifikovaný, jeho úkony za spoločnosť
+  môžu byť neplatné. Tento report porovnáva osoby z ORSR (štatutári a spoločníci) s registrom diskvalifikácií.
+</div>
+"""
+
+            # Sekcia 1: Riziká a upozornenia
+            if red_flags or warnings:
+                html += '<div class="section-title">Riziká a upozornenia</div>\n'
+
+                for r in red_flags:
+                    role_label = _ROLE_LABELS.get(r["role"], r["role"])
+                    orsr_addr = f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip()
+                    match_addr = f"{r['match_city'] or 'neznáma'} {r['match_zip'] or ''}".strip()
+                    html += f"""<div class="risk-card red">
+  <div class="risk-name">🔴 {r['name']} <span class="risk-role">({role_label})</span></div>
+  <div class="risk-status red">Potvrdené riziko: Zhoda mena aj adresy</div>
+  <div class="risk-explanation">
+    Táto osoba sa nachádza v Registri diskvalifikácií a jej adresa sa zhoduje s adresou v ORSR.
+    Odporúčame okamžite overiť platnosť jej úkonov za spoločnosť.
+  </div>
+  <div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
+  <div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
+  <div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
+</div>
+"""
+
+                for r in warnings:
+                    role_label = _ROLE_LABELS.get(r["role"], r["role"])
+                    orsr_addr = f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip()
+                    match_addr = f"{r['match_city'] or 'neznáma / iná'} {r['match_zip'] or ''}".strip()
+                    html += f"""<div class="risk-card orange">
+  <div class="risk-name">🟠 {r['name']} <span class="risk-role">({role_label})</span></div>
+  <div class="risk-status orange">Upozornenie na možnú zhodu (menovec)</div>
+  <div class="risk-explanation">
+    V registri sme našli osobu s rovnakým menom, ale evidovanou na inej adrese.
+    Vzhľadom na to, že osoby si často po problémoch menia trvalý pobyt, odporúčame
+    overiť totožnosť podľa dátumu narodenia alebo rodného čísla v detaile registra.
+  </div>
+  <div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
+  <div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
+  <div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
+</div>
+"""
+
+            # Sekcia 2: Osoby v poriadku
+            if clean:
+                html += '<div class="section-title">Osoby bez zistení (v poriadku)</div>\n'
+                html += '<p style="font-size:12px;color:#666;margin-bottom:12px;">Nasledujúce osoby neboli nájdené v Registri diskvalifikácií:</p>\n'
+                html += '<ul class="clean-list">\n'
+                for r in clean:
+                    role_label = _ROLE_LABELS.get(r["role"], r["role"])
+                    html += f'  <li><span class="clean-dot"></span>{r["name"]} <span style="color:#666;font-size:12px;">({role_label})</span></li>\n'
+                html += '</ul>\n'
+
+            if not red_flags and not warnings and not clean:
+                html += '<p style="text-align:center;color:#666;margin:40px 0;">Neboli k dispozícii žiadne osoby z ORSR na porovnanie.</p>\n'
+
+            html += f"""<div class="footer">
+  Generované {time.strftime("%d.%m.%Y %H:%M")} · Register diskvalifikácií · justice.gov.sk
+</div>
+
 </body>
-</html>""", wait_until="load")
+</html>"""
+
+            await page.set_content(html, wait_until="load")
 
             await page.pdf(
                 path=str(output_path),
                 format="A4",
                 print_background=True,
-                margin={"top": "2cm", "bottom": "2cm", "left": "2cm", "right": "2cm"},
+                margin={"top": "1.5cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"},
             )
             logger.info(f"[{self.source_type}] PDF vygenerované: {output_path}")
 

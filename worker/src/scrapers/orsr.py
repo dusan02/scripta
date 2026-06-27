@@ -261,6 +261,43 @@ class OrsrScraper(BaseScraper):
         # Parsovanie osôb z section_lines
         # Osoba = meno (obsahuje písmená, môže mať tituly), nasleduje adresa (ulica, mesto PSČ)
 
+        # Blacklist fráz zo štruktúry ORSR výpisu, ktoré nie sú mená osôb
+        _BLACKLIST_PHRASES = {
+            "konanie", "konanie menom", "za spoločnosť", "za spolocnost",
+            "výška", "vyska", "vklad", "imanie", "splatené", "splatene",
+            "základné", "zakladne", "podpisovanie", "podpis",
+            "spôsob", "spôsob konania", " obchodné", "obchodne meno",
+            "pripojí", "pripoji", "vykonáva", "vykonava",
+            "samostatne", "spoločne", "spolocne",
+        }
+
+        def _is_human_name(line: str) -> bool:
+            """Validuje či riadok vyzerá ako reálne meno osoby (nie štrukturálny text ORSR)."""
+            lowered = line.lower().strip()
+            # Nesmie obsahovať dvojbodku (štrukturálne labely)
+            if ":" in lowered:
+                return False
+            # Nesmie obsahovať čísla (ulice, výšky, dátumy)
+            if any(c.isdigit() for c in line):
+                return False
+            # Nesmie byť príliš dlhé (vety z ORSR štruktúry)
+            if len(line) > 60:
+                return False
+            # Blacklist fráz
+            for phrase in _BLACKLIST_PHRASES:
+                if phrase in lowered:
+                    return False
+            # Musí obsahovať aspoň 2 slová po odstránení titulov
+            words = line.split()
+            name_words = [w for w in words if w.lower().rstrip(".,") not in ACADEMIC_TITLES]
+            if len(name_words) < 2:
+                return False
+            # Všetky slová (okrem titulov) musia byť alfabetické
+            for w in name_words:
+                if not w.isalpha():
+                    return False
+            return True
+
         i = 0
         while i < len(section_lines):
             line = section_lines[i]
@@ -270,6 +307,10 @@ class OrsrScraper(BaseScraper):
                 continue
             # Skontrolovať či to vyzerá ako meno (obsahuje písmená, nie číslo na začiatku)
             if line[0].isdigit():
+                i += 1
+                continue
+            # Validovať či je to reálne meno osoby
+            if not _is_human_name(line):
                 i += 1
                 continue
             # Rozdeliť na slová
