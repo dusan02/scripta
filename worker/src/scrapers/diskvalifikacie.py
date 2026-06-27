@@ -54,11 +54,19 @@ class DiskvalifikacieScraper(BaseScraper):
             page = await self._get_page(block_images=True)
 
             results: list[dict] = []
+            seen_names: set[str] = set()
             for person in persons:
                 clean_name = person.clean_name or strip_titles(person.raw_name)
                 if not clean_name or len(clean_name.split()) < 2:
                     logger.warning(f"[{self.source_type}] Preskakujem osobu s neplatným menom: {person.raw_name}")
                     continue
+
+                # Deduplikácia — tá istá osoba môže byť aj štatutár aj spoločník
+                name_key = clean_name.lower().strip()
+                if name_key in seen_names:
+                    logger.info(f"[{self.source_type}] Preskakujem duplicitu: {clean_name} ({person.role})")
+                    continue
+                seen_names.add(name_key)
 
                 logger.info(f"[{self.source_type}] Hľadám: {clean_name} ({person.role})")
                 result = await self._check_person(page, clean_name, person)
