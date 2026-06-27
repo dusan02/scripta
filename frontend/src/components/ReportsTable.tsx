@@ -42,10 +42,15 @@ function timeAgo(date: string) {
 
 export default function ReportsTable({ reports }: { reports: Report[] }) {
   const router = useRouter();
+  const [localReports, setLocalReports] = useState<Report[]>(reports);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [modal, setModal] = useState<{ type: "single" | "all"; reportId?: string; subject?: string } | null>(null);
   const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => { setLocalReports(reports); }, [reports]);
+  
   useEffect(() => setMounted(true), []);
   const timeAgoSafe = useMemo(
     () => (date: string) => mounted ? timeAgo(date) : "",
@@ -62,6 +67,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
     if (!modal) return;
     if (modal.type === "all") {
       setDeletingAll(true);
+      setLocalReports([]); // Optimistic update
       try {
         const res = await fetch(`/api/reports?all=true`, { method: "DELETE" });
         if (res.ok) router.refresh();
@@ -72,6 +78,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
       }
     } else if (modal.reportId) {
       setDeletingId(modal.reportId);
+      setLocalReports(prev => prev.filter(r => r.id !== modal.reportId)); // Optimistic update
       try {
         const res = await fetch(`/api/reports?id=${modal.reportId}`, { method: "DELETE" });
         if (res.ok) router.refresh();
@@ -84,11 +91,38 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
     setModal(null);
   }, [modal, router]);
 
+  const handleRetry = useCallback(async (e: React.MouseEvent, report: Report) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setRetryingId(report.id);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetType: "COMPANY",
+          ico: report.ico,
+          sources: report.sources.map(s => s.sourceType),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        router.push(`/reports/${data.reportRequestId}`);
+      } else {
+        alert(data.error || "Nepodarilo sa zopakovať report.");
+      }
+    } catch {
+      alert("Sieťová chyba.");
+    } finally {
+      setRetryingId(null);
+    }
+  }, [router]);
+
   const handleDeleteAll = useCallback(() => {
     setModal({ type: "all" });
   }, []);
 
-  if (reports.length === 0) {
+  if (localReports.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 fade-in">
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -119,7 +153,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {reports.length} záznamov
+            {localReports.length} záznamov
           </span>
           <Link
             href="/history"
@@ -156,7 +190,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
 
         {/* Rows */}
         <div style={{ background: "var(--surface)" }}>
-          {reports.map((report, idx) => {
+          {localReports.map((report, idx) => {
             const identifier =
               report.targetType === "COMPANY"
                 ? `IČO: ${report.ico}`
@@ -170,7 +204,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                 href={`/reports/${report.id}`}
                 className="report-row slide-up"
                 style={{
-                  borderBottom: idx < reports.length - 1 ? "1px solid var(--border)" : "none",
+                  borderBottom: idx < localReports.length - 1 ? "1px solid var(--border)" : "none",
                   animationDelay: `${idx * 30}ms`,
                 }}
               >
@@ -265,6 +299,29 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         </svg>
                       </button>
                     )}
+                    {report.status === "FAILED" && (
+                      <button
+                        onClick={(e) => handleRetry(e, report)}
+                        disabled={retryingId === report.id}
+                        title="Zopakovať report"
+                        className="transition-all duration-150 rounded-md p-0.5"
+                        style={{ color: "var(--warning)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--warning-bg)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        {retryingId === report.id ? (
+                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                            <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                       disabled={deletingId === report.id}
@@ -351,6 +408,27 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--accent)" }}>
                           <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                         </svg>
+                      )}
+                      {report.status === "FAILED" && (
+                        <button
+                          onClick={(e) => handleRetry(e, report)}
+                          disabled={retryingId === report.id}
+                          title="Zopakovať report"
+                          className="transition-all duration-150 rounded-md p-0.5"
+                          style={{ color: "var(--warning)" }}
+                        >
+                          {retryingId === report.id ? (
+                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
                       )}
                       <button
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}

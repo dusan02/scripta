@@ -19,8 +19,11 @@ try:
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     import io
+    import io
 except ImportError:
     _PDF_TITLE_AVAILABLE = False
+
+_FONT_REGISTERED = False
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +77,6 @@ class FinancnaSpravaBase(BaseScraper):
                         pass
                     await asyncio.sleep(delay)
                     page = await self._get_page()
-                    self._contexts.append(page.context)
         raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
 
     # Zoznam textov indikujúcich prázdny výsledok — zdieľané medzi run() a _extract_findings()
@@ -581,7 +583,7 @@ class FinancnaSpravaBase(BaseScraper):
             logger.warning(f"[{self.source_type}] PDF download zlyhal: {e}")
             return False
 
-    async def _extract_findings(self, page: Page, search_term: str) -> str:
+    async def _extract_findings(self, page: Page, search_term: str) -> Optional[str]:
         """Override v subclassi pre špecifickú extrakciu nálezov."""
         return None
 
@@ -595,9 +597,12 @@ class FinancnaSpravaBase(BaseScraper):
             logger.warning(f"[{self.source_type}] PyPDF2/ReportLab nedostupné — preskakujem nadpis.")
             return
         try:
-            fonts_dir = Path(__file__).parent.parent / "pdf" / "fonts"
-            pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
-            pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+            global _FONT_REGISTERED
+            if not _FONT_REGISTERED:
+                fonts_dir = Path(__file__).parent.parent / "pdf" / "fonts"
+                pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
+                pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+                _FONT_REGISTERED = True
 
             reader = PdfReader(str(pdf_path))
             first_page = reader.pages[0]

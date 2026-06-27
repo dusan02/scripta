@@ -13,6 +13,11 @@ const config: Config = {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
+        background: "var(--bg)",
+        surface: "var(--surface)",
+        border: "var(--border)",
+        text: "var(--text)",
+        accent: "var(--accent)",
         navy: {
           950: "#060b18",
           900: "#0a1628",

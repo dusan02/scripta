@@ -80,6 +80,10 @@ class InsolvencyScraper(BaseScraper):
                 raise ScraperUnavailableError("Timeout pri vyhľadávaní v Registri úpadcov.")
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Zlyhalo vyhľadávanie. Chyba: {e}")
+                return self._make_result(
+                    status="FAILED",
+                    status_message=f"Vyhľadávanie v registri úpadcov zlyhalo: {e}"
+                )
             logger.debug(f"[{self.source_type}] ⏱ fill + search: {time.perf_counter() - _t:.2f}s")
 
             return await self._process_results(page, label, output_dir, search_query)

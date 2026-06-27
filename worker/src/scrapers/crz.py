@@ -148,7 +148,7 @@ class CrzScraper(BaseScraper):
                 "(dateStr) => {"
                 "  const el = document.getElementById('frm_filter_3_art_datum_zverejnene_od');"
                 "  if (!el) return;"
-                "  $(el).datepicker('update', dateStr);"
+                "  if (window.jQuery && $(el).datepicker) { $(el).datepicker('update', dateStr); } else { el.value = dateStr; }"
                 "  el.dispatchEvent(new Event('change', { bubbles: true }));"
                 "}",
                 date_from_str,

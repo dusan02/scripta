@@ -44,25 +44,19 @@ async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=N
     """Overí shared-secret medzi Next.js API a workerom.
 
     V produkcii: vyžaduje presnú zhodu s settings.worker_secret.
-    V dev režime: ak worker_secret nie je nastavený, vygeneruje sa náhodný a vypíše do logu.
+    V dev režime: ak nie je nastavený, umožní komunikáciu bez neho.
     """
-    expected = settings.worker_secret
-    if not expected:
+    if not settings.worker_secret:
         if settings.app_env == "production":
             raise HTTPException(status_code=500, detail="WORKER_SECRET must be set in production")
-        # Dev mode — generate a random secret and log it
-        import secrets as _secrets
-        expected = _secrets.token_hex(16)
-        logger.warning(f"[WORKER] No WORKER_SECRET set — generated dev secret: {expected}")
-        logger.warning("[WORKER] Set WORKER_SECRET in .env to suppress this warning.")
-    if x_worker_secret != expected:
+        return
+        
+    if x_worker_secret != settings.worker_secret:
         raise HTTPException(status_code=401, detail="Invalid worker secret")
 
 
 def _identifier(task: ReportTask) -> str:
-    if task.target_type == "COMPANY":
-        return f"IČO {task.ico}"
-    return f"{task.name} {task.surname}, nar. {task.birth_date}"
+    return f"IČO {task.ico}"
 
 
 async def _save_company_name(pool: asyncpg.Pool, report_request_id: str, company_name: str) -> None:
@@ -126,17 +120,24 @@ async def _execute_report_inner(task: ReportTask) -> None:
         t_browser = time.perf_counter()
         logger.debug(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
 
+        _background_tasks = set()
+
         def _on_source_done(source) -> None:
             logger.debug(f"[WORKER] Source done: {source.source_type}:{source.status}")
             try:
-                asyncio.get_running_loop()
-                asyncio.ensure_future(
+                loop = asyncio.get_running_loop()
+                t1 = loop.create_task(
                     upsert_single_report_source(pool, task.report_request_id, source)
                 )
+                _background_tasks.add(t1)
+                t1.add_done_callback(_background_tasks.discard)
+
                 if source.source_type == "ORSR" and source.status == "SUCCESS" and getattr(source, "company_name", None):
-                    asyncio.ensure_future(
+                    t2 = loop.create_task(
                         _save_company_name(pool, task.report_request_id, source.company_name)
                     )
+                    _background_tasks.add(t2)
+                    t2.add_done_callback(_background_tasks.discard)
             except RuntimeError:
                 pass
 
@@ -146,13 +147,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
             browser=browser,
             target_type=task.target_type,
             ico=task.ico,
-            name=task.name,
-            surname=task.surname,
-            birth_date=task.birth_date,
             orsr_extract_type=task.orsr_extract_type,
             crz_date_from=task.crz_date_from,
             on_source_done=_on_source_done,
         )
+        
+        if _background_tasks:
+            await asyncio.gather(*_background_tasks, return_exceptions=True)
+
         t_scrape = time.perf_counter()
         logger.debug(f"[WORKER] Scrapers done ({t_scrape - t_browser:.2f}s): {[f'{s.source_type}:{s.status}' for s in sources]}")
 
@@ -170,6 +172,19 @@ async def _execute_report_inner(task: ReportTask) -> None:
         )
         t_compile = time.perf_counter()
         logger.debug(f"[WORKER] PDF compiled ({t_compile - t_scrape:.2f}s): {final_path}")
+
+        # Cleanup medziproduktov — ponechať len evidence_binder.pdf
+        try:
+            import shutil
+            for f in report_dir.glob("*.pdf"):
+                if f.name != "evidence_binder.pdf":
+                    f.unlink()
+            debug_dir = report_dir / "debug"
+            if debug_dir.exists():
+                shutil.rmtree(debug_dir, ignore_errors=True)
+            logger.debug(f"[WORKER] Cleanup: medziprodukty zmazané z {report_dir}")
+        except Exception as cleanup_err:
+            logger.warning(f"[WORKER] Cleanup zlyhal: {cleanup_err}")
 
         final_status = _determine_final_status(sources)
         logger.info(f"[WORKER] Final status: {final_status}")
@@ -200,11 +215,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
 @app.post("/tasks", dependencies=[Depends(verify_worker_secret)])
 async def create_task(task: ReportTask, background_tasks: BackgroundTasks):
     """Prijme úlohu z Next.js API a okamžite vráti task ID."""
-    if task.target_type == "COMPANY" and not task.ico:
-        raise HTTPException(status_code=400, detail="ICO is required for COMPANY target")
-    if task.target_type == "PERSON" and (not task.name or not task.surname or not task.birth_date):
-        raise HTTPException(status_code=400, detail="Name, surname and birth_date are required for PERSON target")
-
     # Pre jednoduchosť použijeme report_request_id ako task ID.
     background_tasks.add_task(_execute_report, task)
     return {"taskId": task.report_request_id, "status": "accepted"}

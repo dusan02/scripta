@@ -5,11 +5,8 @@ const WORKER_SECRET = process.env.WORKER_SECRET;
 
 export interface EnqueueTaskPayload {
   reportRequestId: string;
-  targetType: "COMPANY" | "PERSON";
+  targetType: "COMPANY";
   ico?: string;
-  name?: string;
-  surname?: string;
-  birthDate?: string;
   sources: string[];
   orsrExtractType?: string;
   crzDateFrom?: string | null;
@@ -20,9 +17,6 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
     report_request_id: payload.reportRequestId,
     target_type: payload.targetType,
     ico: payload.ico,
-    name: payload.name,
-    surname: payload.surname,
-    birth_date: payload.birthDate,
     sources: payload.sources,
     orsr_extract_type: payload.orsrExtractType ?? "CURRENT",
     crz_date_from: payload.crzDateFrom ?? null,
@@ -33,11 +27,25 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
     headers["x-worker-secret"] = WORKER_SECRET;
   }
 
-  const res = await fetch(`${WORKER_URL}/tasks`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(workerPayload),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  let res: Response;
+  try {
+    res = await fetch(`${WORKER_URL}/tasks`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(workerPayload),
+      signal: controller.signal,
+    });
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === "AbortError" || error.message?.includes("aborted")) {
+      throw new Error(`Worker (Python) na adrese ${WORKER_URL} neodpovedá (Timeout 8s). Zrejme nebeží, alebo je port (napr. 8000) obsadený iným systémovým procesom. Uistite sa, že Worker je zapnutý.`);
+    }
+    throw error;
+  }
+  clearTimeout(timeoutId);
 
   if (!res.ok) {
     const text = await res.text().catch(() => "Worker error");
@@ -45,4 +53,17 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
   }
 
   return (await res.json()) as { taskId: string };
+}
+
+export async function checkWorkerHealth(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 sec timeout for health check
+  try {
+    const res = await fetch(`${WORKER_URL}/health`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return res.ok;
+  } catch {
+    clearTimeout(timeoutId);
+    return false;
+  }
 }

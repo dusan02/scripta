@@ -119,30 +119,16 @@ class RpoScraper(BaseScraper):
                     company_name=company_name,
                 )
 
-            # 6. Kliknúť na prvý výsledok — IČO je jednoznačné, takže prvý link je správny
-            # CSS selektor: td.idsk-table__cell a.govuk-link
-            link_clicked = False
-            try:
-                result_links = page.locator("td.idsk-table__cell a.govuk-link")
-                count = await result_links.count()
-                if count > 0:
-                    await result_links.first.click()
-                    link_clicked = True
-                    logger.info(f"[{self.source_type}] Kliknuté na prvý výsledok (z {count}).")
-            except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Kliknutie na výsledok zlyhalo.")
-
-            if not link_clicked:
-                # Fallback: skúsiť akýkoľvek link v tabuľke
-                try:
-                    any_link = page.locator("table tbody tr td a")
-                    count = await any_link.count()
-                    if count > 0:
-                        await any_link.first.click()
-                        link_clicked = True
-                        logger.info(f"[{self.source_type}] Kliknuté na prvý link v tabuľke (fallback).")
-                except PlaywrightTimeoutError:
-                    pass
+            # 6. Kliknúť na prvý výsledok
+            link_clicked = await page.evaluate("""() => {
+                let link = document.querySelector("td.idsk-table__cell a.govuk-link");
+                if (link) { link.click(); return true; }
+                link = document.querySelector("table tbody tr td a");
+                if (link) { link.click(); return true; }
+                return false;
+            }""")
+            if link_clicked:
+                logger.info(f"[{self.source_type}] Kliknuté na prvý výsledok.")
 
             if not link_clicked:
                 logger.warning(f"[{self.source_type}] Nepodarilo sa kliknúť na záznam.")
@@ -240,52 +226,25 @@ class RpoScraper(BaseScraper):
                     pass
 
     async def _expand_all_sections(self, page: Page) -> None:
-        """Klikne na všetky rozbaľovacie tlačidlá v detaile subjektu.
-        Tlačidlá majú CSS triedu 'mc-expandable-list-item__header-items-count'.
-        Nerazbalené tlačidlá majú aria-expanded='false' a SVG ikonu data-icon='plus'.
-        Rozbalené majú aria-expanded='true' a data-icon='minus'.
-        Zastaví sa keď nezostane žiadne s aria-expanded='false'."""
+        """Rozbalí všetky '+' sekcie pomocou rýchleho JS evaluate. Je to stabilnejšie voči SPA reloadom."""
         max_rounds = 15
         for round_num in range(max_rounds):
-            all_buttons = page.locator("button.mc-expandable-list-item__header-items-count")
-            total = await all_buttons.count()
-
-            if total == 0:
-                logger.info(f"[{self.source_type}] Žiadne rozbaľovacie tlačidlá — detail bez sekcií.")
-                return
-
-            # Nerazbalené: aria-expanded="false"
-            collapsed = page.locator("button.mc-expandable-list-item__header-items-count[aria-expanded='false']")
-            expanded = page.locator("button.mc-expandable-list-item__header-items-count[aria-expanded='true']")
-
-            collapsed_count = await collapsed.count()
-            expanded_count = await expanded.count()
-
-            logger.info(f"[{self.source_type}] Round {round_num}: {total} tlačidiel, nerozbalených: {collapsed_count}, rozbalených: {expanded_count}")
-
-            if collapsed_count == 0:
-                logger.info(f"[{self.source_type}] Všetky sekcie rozbalené ({expanded_count} rozbalených).")
-                return
-
-            # Kliknúť len na nerozbalené tlačidlá
-            clicked = 0
-            for i in range(collapsed_count):
-                try:
-                    btn = collapsed.nth(i)
-                    if await btn.is_visible():
-                        await btn.click(timeout=5000)
-                        clicked += 1
-                        await page.wait_for_timeout(300)
-                except PlaywrightTimeoutError:
-                    continue
-                except Exception:
-                    continue
-
+            clicked = await page.evaluate("""() => {
+                const buttons = document.querySelectorAll("button.mc-expandable-list-item__header-items-count[aria-expanded='false']");
+                let count = 0;
+                for (const btn of buttons) {
+                    btn.click();
+                    count++;
+                }
+                return count;
+            }""")
+            
             if clicked == 0:
-                logger.info(f"[{self.source_type}] Žiadne viditeľné nerozbalené tlačidlo (round {round_num}).")
+                logger.info(f"[{self.source_type}] Všetky sekcie rozbalené (round {round_num}).")
                 return
-
-            await page.wait_for_timeout(500)
+            
+            logger.info(f"[{self.source_type}] Round {round_num}: Rozbalených {clicked} sekcií, čakám na render...")
+            await page.wait_for_timeout(800)
 
         logger.warning(f"[{self.source_type}] Dosiahnutý maximálny počet kôl rozbalovania ({max_rounds}).")
 

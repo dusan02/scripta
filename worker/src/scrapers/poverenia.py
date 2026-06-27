@@ -26,7 +26,7 @@ _NO_RESULTS_MARKERS = [
 _SKIP_KEYWORDS = {
     "podľa ičo", "názov povinného", "vyplní ičo",
     "hľadať poverenie", "podľa ecli", "podľa mena",
-    "ohodnoťte", "spätná väzba", "nášli ste na stránke",
+    "ohodnoťte", "spätná väzba", "našli ste na stránke",
     "support links", "pomocník", "cookies", "vyhlásenie",
     "vytvorené v súlade", "prevádzkovateľ", "verzia",
     "na stranu", "ďalšie záznamy", "pdf výpise",
@@ -109,6 +109,7 @@ class PovereniaScraper(BaseScraper):
             viewport={"width": 1920, "height": 1080},
         )
         page = await context.new_page()
+        self._contexts.append(context)
         await page.route("**/*.{png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot}", lambda route: route.abort())
         return page
 
@@ -129,7 +130,7 @@ class PovereniaScraper(BaseScraper):
 
             body_text = await page.inner_text("body")
             lowered = body_text.lower()
-            has_poverenie = "poverenie ecli" in lowered and ico in body_text
+            has_poverenie = "poverenie ecli" in lowered
             no_results = any(m in lowered for m in _NO_RESULTS_MARKERS)
 
             pdf_output = output_dir / f"poverenia_{ico}.pdf"

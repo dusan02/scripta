@@ -51,7 +51,6 @@ class DiskvalifikacieScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Začínam pre {len(persons)} osôb (IČO: {ico})")
             _t = time.perf_counter()
-            page = await self._get_page(block_images=True)
 
             results: list[dict] = []
             seen_names: set[str] = set()
@@ -69,10 +68,15 @@ class DiskvalifikacieScraper(BaseScraper):
                 seen_names.add(name_key)
 
                 logger.info(f"[{self.source_type}] Hľadám: {clean_name} ({person.role})")
-                result = await self._check_person(page, clean_name, person)
-                results.append(result)
+                person_page = await self._get_page(block_images=True)
+                try:
+                    result = await self._check_person(person_page, clean_name, person)
+                    results.append(result)
+                finally:
+                    await person_page.close()
 
-            # Generovanie PDF so zhrnutím
+            # Zdieľaná page pre generovanie sumárneho PDF
+            page = await self._get_page(block_images=True)
             pdf_output = output_dir / f"diskvalifikacie_{ico}.pdf"
             await self._generate_summary_pdf(page, pdf_output, ico, results)
 
@@ -378,6 +382,9 @@ class DiskvalifikacieScraper(BaseScraper):
 
             _ROLE_LABELS = {"statutar": "Štatutár", "spolocnik": "Spoločník"}
 
+            import html as html_lib
+            safe_ico = html_lib.escape(ico)
+            
             html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>
@@ -414,7 +421,7 @@ h1 {{ font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px;
 <body>
 
 <h1>Register diskvalifikácií</h1>
-<p class="subtitle">Previerka osôb z ORSR (IČO: {ico})</p>
+<p class="subtitle">Previerka osôb z ORSR (IČO: {safe_ico})</p>
 
 <div class="summary-box" style="background: {summary_color}15; color: {summary_color}; border: 1px solid {summary_color}40;">
 Výsledok previerky: {summary_text}
@@ -432,11 +439,13 @@ môžu byť neplatné. Tento report porovnáva osoby z ORSR (štatutári a spolo
                 html += '<div class="section-title">Riziká a upozornenia</div>\n'
 
                 for r in red_flags:
-                    role_label = _ROLE_LABELS.get(r["role"], r["role"])
-                    orsr_addr = f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip()
-                    match_addr = f"{r['match_city'] or 'neznáma'} {r['match_zip'] or ''}".strip()
+                    role_label = html_lib.escape(_ROLE_LABELS.get(r["role"], r["role"]))
+                    safe_name = html_lib.escape(r['name'])
+                    orsr_addr = html_lib.escape(f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip())
+                    match_addr = html_lib.escape(f"{r['match_city'] or 'neznáma'} {r['match_zip'] or ''}".strip())
+                    safe_url = html_lib.escape(r['detail_url'] or "")
                     html += f"""<div class="risk-card red">
-<div class="risk-name">🔴 {r['name']} <span class="risk-role">({role_label})</span></div>
+<div class="risk-name">🔴 {safe_name} <span class="risk-role">({role_label})</span></div>
 <div class="risk-status red">Potvrdené riziko: Zhoda mena aj adresy</div>
 <div class="risk-explanation">
     Táto osoba sa nachádza v Registri diskvalifikácií a jej adresa sa zhoduje s adresou v ORSR.
@@ -444,16 +453,18 @@ môžu byť neplatné. Tento report porovnáva osoby z ORSR (štatutári a spolo
 </div>
 <div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
 <div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
-<div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
+<div class="risk-link"><a href="{safe_url}">{safe_url}</a></div>
 </div>
 """
 
                 for r in warnings:
-                    role_label = _ROLE_LABELS.get(r["role"], r["role"])
-                    orsr_addr = f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip()
-                    match_addr = f"{r['match_city'] or 'neznáma / iná'} {r['match_zip'] or ''}".strip()
+                    role_label = html_lib.escape(_ROLE_LABELS.get(r["role"], r["role"]))
+                    safe_name = html_lib.escape(r['name'])
+                    orsr_addr = html_lib.escape(f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip())
+                    match_addr = html_lib.escape(f"{r['match_city'] or 'neznáma / iná'} {r['match_zip'] or ''}".strip())
+                    safe_url = html_lib.escape(r['detail_url'] or "")
                     html += f"""<div class="risk-card orange">
-<div class="risk-name">🟠 {r['name']} <span class="risk-role">({role_label})</span></div>
+<div class="risk-name">🟠 {safe_name} <span class="risk-role">({role_label})</span></div>
 <div class="risk-status orange">Upozornenie na možnú zhodu (menovec)</div>
 <div class="risk-explanation">
     V registri sme našli osobu s rovnakým menom, ale evidovanou na inej adrese.
@@ -462,7 +473,7 @@ môžu byť neplatné. Tento report porovnáva osoby z ORSR (štatutári a spolo
 </div>
 <div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
 <div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
-<div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
+<div class="risk-link"><a href="{safe_url}">{safe_url}</a></div>
 </div>
 """
 
@@ -472,8 +483,9 @@ môžu byť neplatné. Tento report porovnáva osoby z ORSR (štatutári a spolo
                 html += '<p style="font-size:12px;color:#666;margin-bottom:12px;">Nasledujúce osoby neboli nájdené v Registri diskvalifikácií:</p>\n'
                 html += '<ul class="clean-list">\n'
                 for r in clean:
-                    role_label = _ROLE_LABELS.get(r["role"], r["role"])
-                    html += f'  <li><span class="clean-dot"></span>{r["name"]} <span style="color:#666;font-size:12px;">({role_label})</span></li>\n'
+                    role_label = html_lib.escape(_ROLE_LABELS.get(r["role"], r["role"]))
+                    safe_name = html_lib.escape(r["name"])
+                    html += f'  <li><span class="clean-dot"></span>{safe_name} <span style="color:#666;font-size:12px;">({role_label})</span></li>\n'
                 html += '</ul>\n'
 
             if not red_flags and not warnings and not clean:

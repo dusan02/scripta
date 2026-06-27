@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SourceType, ReportStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { enqueueReportTask } from "@/lib/worker";
+import { enqueueReportTask, checkWorkerHealth } from "@/lib/worker";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { reportRequestSchema } from "./schema";
 
@@ -31,8 +31,6 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { ico: { contains: search } },
         { companyName: { contains: search, mode: "insensitive" } },
-        { name: { contains: search, mode: "insensitive" } },
-        { surname: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -55,8 +53,6 @@ export async function GET(req: NextRequest) {
       targetType: r.targetType,
       ico:        r.ico,
       companyName: r.companyName,
-      name:       r.name,
-      surname:    r.surname,
       createdAt:  r.createdAt.toISOString(),
       sources:    r.sources,
     }));
@@ -96,30 +92,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { targetType, ico, name, surname, birthDate, sources } = parseResult.data;
+    const { ico, sources } = parseResult.data;
 
-    // Validácia: pre firmu IČO, pre osobu meno + priezvisko + dátum narodenia.
-    if (targetType === "COMPANY" && !ico) {
+    // Validácia: iba IČO
+    if (!ico) {
       return NextResponse.json(
-        { error: "IČO is required for company target" },
+        { error: "IČO is required" },
         { status: 400 }
       );
     }
-    if (targetType === "PERSON" && (!name || !surname || !birthDate)) {
+
+    // OVERENIE: Worker je online pred vytvorením DB záznamu
+    const isWorkerOnline = await checkWorkerHealth();
+    if (!isWorkerOnline) {
       return NextResponse.json(
-        { error: "Name, surname and birth date are required for person target" },
-        { status: 400 }
+        { error: "Worker pre extrakciu momentálne nie je spustený alebo neodpovedá. Zapnite ho a skúste znova. Vytváranie reportu bolo zrušené." },
+        { status: 503 }
       );
     }
 
     const reportRequest = await prisma.reportRequest.create({
       data: {
         userId: user.id,
-        targetType,
+        targetType: "COMPANY",
         ico: ico ?? null,
-        name: name ?? null,
-        surname: surname ?? null,
-        birthDate: birthDate ? new Date(birthDate) : null,
         selectedSources: sources as SourceType[],
         status: "PENDING",
         sources: {
@@ -139,24 +135,20 @@ export async function POST(req: NextRequest) {
       });
       await enqueueReportTask({
         reportRequestId: reportRequest.id,
-        targetType,
+        targetType: "COMPANY",
         ico,
-        name,
-        surname,
-        birthDate,
         sources,
         orsrExtractType: dbUser?.orsrExtractType ?? "CURRENT",
         crzDateFrom: dbUser?.crzDateFrom?.toISOString().split("T")[0] ?? null,
       });
     } catch (workerErr) {
       console.error("Worker enqueue failed", workerErr);
-      await prisma.reportRequest.update({
+      await prisma.reportRequest.delete({
         where: { id: reportRequest.id },
-        data: { status: "FAILED" },
       });
 
       return NextResponse.json(
-        { error: "Worker is unavailable, report marked as failed" },
+        { error: "Komunikácia s workerom zlyhala. Report nebol uložený, skúste znova." },
         { status: 503 }
       );
     }

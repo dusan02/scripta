@@ -53,8 +53,8 @@ export default function SearchSection() {
           >
             Overenie subjektu
           </h1>
-          <p className="text-xs sm:text-sm px-2" style={{ color: "var(--text-muted)" }}>
-            Zadajte IČO alebo meno osoby a vyberte registre, ktoré chcete preveriť
+          <p className="text-[13px] mb-6 slide-up text-center" style={{ color: "var(--text-muted)", animationDelay: "100ms", marginTop: "-4px" }}>
+            Zadajte IČO a vyberte registre, ktoré chcete preveriť
           </p>
         </div>
 

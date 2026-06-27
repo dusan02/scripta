@@ -4,6 +4,25 @@ import { useState } from "react";
 
 const PACKAGES = [
   {
+    id: "onetime",
+    name: "Jednorazový report",
+    reports: 1,
+    price: 4.99,
+    pricePerReport: "4,99",
+    features: [
+      "1 report",
+      "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
+      "Insolvenčný register a exekúcie",
+      "Finančná správa a DPH registre",
+      "Register diskvalifikácií",
+      "Záložné práva a dražby",
+      "Posudok",
+      "Záverečné skóre",
+      "PDF export s návodmi",
+    ],
+    highlight: false,
+  },
+  {
     id: "basic",
     name: "Basic",
     reports: 50,
@@ -16,13 +35,14 @@ const PACKAGES = [
       "Finan\u010dn\u00e1 spr\u00e1va a DPH registre",
       "Register diskvalifik\u00e1ci\u00ed",
       "Z\u00e1lo\u017en\u00e9 pr\u00e1va a dra\u017eby",
-      "AI posudok a z\u00e1vere\u010dn\u00e9 sk\u00f3re",
+      "Posudok",
+      "Z\u00e1vere\u010dn\u00e9 sk\u00f3re",
       "PDF export s n\u00e1vodmi",
     ],
     highlight: false,
   },
   {
-    id: "biznis",
+    id: "biznis", 
     name: "Biznis",
     reports: 200,
     price: 69,
@@ -34,13 +54,14 @@ const PACKAGES = [
       "Finan\u010dn\u00e1 spr\u00e1va a DPH registre",
       "Register diskvalifik\u00e1ci\u00ed",
       "Z\u00e1lo\u017en\u00e9 pr\u00e1va a dra\u017eby",
-      "AI posudok a z\u00e1vere\u010dn\u00e9 sk\u00f3re",
+      "Posudok",
+      "Z\u00e1vere\u010dn\u00e9 sk\u00f3re",
       "PDF export s n\u00e1vodmi",
     ],
     highlight: true,
   },
   {
-    id: "pro",
+    id: "pro", 
     name: "Pro",
     reports: 500,
     price: 149,
@@ -52,7 +73,8 @@ const PACKAGES = [
       "Finan\u010dn\u00e1 spr\u00e1va a DPH registre",
       "Register diskvalifik\u00e1ci\u00ed",
       "Z\u00e1lo\u017en\u00e9 pr\u00e1va a dra\u017eby",
-      "AI posudok a z\u00e1vere\u010dn\u00e9 sk\u00f3re",
+      "Posudok",
+      "Z\u00e1vere\u010dn\u00e9 sk\u00f3re",
       "PDF export s n\u00e1vodmi",
     ],
     highlight: false,
@@ -76,7 +98,7 @@ export default function PricingPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {PACKAGES.map((pkg) => {
           const isSelected = selectedPlan === pkg.id;
           return (
@@ -118,11 +140,11 @@ export default function PricingPage() {
                     {pkg.price}
                   </span>
                   <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-                    € / mesiac
+                    {pkg.id === "onetime" ? "€" : "€ / mesiac"}
                   </span>
                 </div>
                 <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {pkg.reports} reportov · {pkg.pricePerReport} € / report
+                  {pkg.id === "onetime" ? "Jednorazové" : `${pkg.reports} reportov · ${pkg.pricePerReport} € / report`}
                 </p>
               </div>
 

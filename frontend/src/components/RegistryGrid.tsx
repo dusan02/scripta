@@ -250,16 +250,12 @@ export default function RegistryGrid({
           return (
             <div
               key={cat.id}
-              className="rounded-xl break-inside-avoid mb-6"
-              style={{
-                border: "1px solid var(--border)",
-                background: "var(--surface)",
-              }}
+              className="rounded-xl break-inside-avoid mb-6 bg-surface border border-border"
             >
               {/* Category header — always identical styling */}
               <div
-                className={`flex items-center justify-between px-3 py-2 select-none rounded-t-xl ${isSelection ? "cursor-pointer transition-colors hover:bg-opacity-50" : ""}`}
-                style={{ background: "var(--bg-muted)", borderBottom: "1px solid var(--border)", minHeight: "44px" }}
+                className={`flex items-center justify-between px-3 py-2 select-none rounded-t-xl border-b border-border min-h-[44px] ${isSelection ? "cursor-pointer transition-colors hover:bg-opacity-50" : ""}`}
+                style={{ background: "var(--bg-muted)" }}
                 onClick={isSelection ? () => {
                   if (allCatSelected) {
                     onSelectAll?.();

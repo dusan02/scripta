@@ -24,7 +24,7 @@ export const SOURCES: SourceInfo[] = [
   { id: "ZRSR",            name: "Živnostenský register SR", short: "ŽRSR", description: "Živnostenský register SR — živnostenské oprávnenia", label: "ŽRSR",         sublabel: "Živnostenský register",      category: "basic", enabled: true },
   { id: "RPO",             name: "Register práv. osôb",     short: "RPO",  description: "Register právnických osôb, podnikateľov a orgánov verejnej moci — Štatistický úrad SR", label: "RPO",          sublabel: "Register práv. osôb",        category: "basic", enabled: true },
   { id: "RPVS",            name: "Register partnerov verejného sektora", short: "RPVS", description: "RPVS — partneri verejného sektora podľa zákona o VFPO", label: "RPVS", sublabel: "Register part. ver. sektora", category: "basic", enabled: true },
-  { id: "OBCHODNY_VESTNIK", name: "Obchodný vestník",       short: "OV",   description: "Obchodný vestník SR — zverejňovanie právnych skutočností", label: "Obchodný vestník", sublabel: "Obchodný vestník SR",     category: "basic", enabled: false },
+  { id: "OBCHODNY_VESTNIK", name: "Obchodný vestník",       short: "OV",   description: "Obchodný vestník SR — zverejňovanie právnych skutočností", label: "Obchodný vestník", sublabel: "Obchodný vestník SR",     category: "basic", enabled: true },
 
   // ── 2. Insolvencia, exekúcie a dlhy (7) ──
   { id: "INSOLVENCY",      name: "Register úpadcov",        short: "INS",  description: "Insolvenčný register — konania o úpadku a reštrukturalizácii", label: "Register úpadcov", sublabel: "Insolvenčný register",   category: "risk",  enabled: true },

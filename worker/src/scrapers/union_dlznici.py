@@ -91,16 +91,49 @@ class UnionDlzniciScraper(BaseScraper):
                     is_debtor = False
                     findings = None
 
+            # Ak subjekt nie je dlžník, rovno vygenerujeme 'No results' PDF a returneme
+            pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
             if not is_debtor or findings is None:
                 logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov UNION.")
                 findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov UNION."
+                try:
+                    await self._generate_no_results_pdf(
+                        page, pdf_output, ico,
+                        title="Zoznam dlžníkov UNION",
+                        message=f"Pre IČO {ico} sa v Zozname dlžníkov UNION nenašli žiadne nedoplatky.",
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo generovanie no-results PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Chyba pri PDF: {e}")
 
-            # Generovať PDF z výsledkovej stránky
-            pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov UNION.",
+                    findings=findings,
+                )
+
+            # Inak sme našli subjekt v tabuľke (is_debtor = True).
+            # Pred tlačením PDF schováme riadky, ktoré neobsahujú naše IČO (pre istotu)
+            try:
+                await page.evaluate("""(ico) => {
+                    const rows = document.querySelectorAll('table tbody tr, .table tbody tr, .result-table tr');
+                    for (const row of rows) {
+                        if (!row.innerText.includes(ico)) {
+                            row.style.display = 'none';
+                        }
+                    }
+                }""", ico)
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] DOM filter riadkov zlyhal: {e}")
+
+            # Generovať PDF z vyfiltrovanej výsledkovej stránky
             try:
                 await self._generate_clean_pdf(
                     page, pdf_output,
                     title="Zoznam dlžníkov UNION",
+                    content_selector="table, .table, .result-table",
                 )
             except Exception as e:
                 logger.error(f"[{self.source_type}] Zlyhalo generovanie PDF: {e}")
@@ -109,21 +142,12 @@ class UnionDlzniciScraper(BaseScraper):
                     status_message=f"Chyba pri generovaní PDF: {e}",
                 )
 
-            if is_debtor and findings and "POZOR" in findings:
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
-                    status_message=f"Subjekt {ico} je v zozname dlžníkov UNION.",
-                    findings=findings,
-                )
-            else:
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
-                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov UNION.",
-                    findings=findings,
-                )
+            return self._make_result(
+                status="SUCCESS",
+                file_path=str(pdf_output),
+                page_count=1,
+                status_message=f"Subjekt {ico} je v zozname dlžníkov UNION.",
+                findings=findings,
+            )
 
         return await self._run_debtor_scraper(_scrape, unavailable_msg="Register UNION je nedostupný")

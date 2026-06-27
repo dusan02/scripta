@@ -42,6 +42,14 @@ class RegisterUzScraper(BaseScraper):
 
             report_id = await self._navigate_to_report(page, ico)
             if not report_id:
+                if await self._has_no_results(page):
+                    return self._make_result(
+                        status="SUCCESS",
+                        file_path=None,
+                        status_message=f"IČO {ico} nebolo nájdené v {self._title}.",
+                        findings=self._no_results_msg,
+                    )
+                
                 file_path = output_dir / f"{self.source_type}_{ico}.pdf"
                 await self._generate_clean_pdf(
                     page, file_path, title=self._title,
@@ -84,7 +92,7 @@ class RegisterUzScraper(BaseScraper):
         await page.wait_for_timeout(1500)
 
         if await self._has_no_results(page):
-            raise ScraperUnavailableError(f"{self.source_type}: IČO {ico} nenájdené.")
+            return None
 
         await self._click_first_result(page)
         await page.wait_for_timeout(1500)

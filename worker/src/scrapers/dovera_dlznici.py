@@ -119,35 +119,47 @@ class DoveraDlzniciScraper(BaseScraper):
                     is_debtor = False
                     findings = None
 
+            # Generovať PDF
+            pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
+
             if not is_debtor or findings is None:
                 logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov Dôvery.")
                 findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov Dôvery."
+                try:
+                    await self._generate_no_results_pdf(
+                        page, pdf_output, ico,
+                        title="Zoznam dlžníkov Dôvera",
+                        message=f"Pre IČO {ico} sa v Zozname dlžníkov Dôvery nenašli žiadne nedoplatky.",
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo generovanie no-results PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Chyba pri PDF: {e}")
 
-            # Generovať PDF z výsledkovej stránky
-            pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov Dôvery.",
+                    findings=findings,
+                )
+
+            # Inak sme našli subjekt v tabuľke (is_debtor = True).
+            # Pred tlačením PDF schováme prvky, ktoré neobsahujú naše IČO (Dôvera často nemá <table>, ale <article> alebo list itemy)
             try:
-                # Keď nie sú výsledky, odstráň všetko okrem vyhľadávacieho formulára
-                if is_empty:
-                    await page.evaluate("""() => {
-                        // Nájdi main content / search form area
-                        const keep = document.querySelector('main, .main, .content, .search-form, form, [class*="content"], [class*="search"]');
-                        const body = document.body;
-                        if (keep && keep !== body) {
-                            while (body.firstChild) body.removeChild(body.firstChild);
-                            body.appendChild(keep);
+                await page.evaluate("""(ico) => {
+                    const cards = document.querySelectorAll('article, .card, .list-item, .table-row, [class*="item"], table tbody tr');
+                    for (const card of cards) {
+                        // Preskoč samotný kontajner stránky, aplikuj len na malé karty
+                        if (card.children.length > 5 || card.tagName === 'MAIN') continue;
+                        if (!card.innerText.includes(ico)) {
+                            card.style.display = 'none';
                         }
-                        // Odstráň všetky promo boxy aj keď zostali vo vnútri
-                        document.querySelectorAll('[class*="promo"], [class*="banner"], [class*="cta"], [class*="pay"]').forEach(el => el.remove());
-                        document.querySelectorAll('*').forEach(el => {
-                            if (el.children.length === 0) {
-                                const text = (el.textContent || '').trim();
-                                if (text.includes('Nenašli ste sa') || text.includes('Overte si') || text.includes('zaplatiť')) {
-                                    el.remove();
-                                }
-                            }
-                        });
-                    }""")
+                    }
+                }""", ico)
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] DOM filter riadkov zlyhal: {e}")
 
+            try:
                 await self._generate_clean_pdf(
                     page, pdf_output,
                     title="Zoznam dlžníkov Dôvera",
@@ -159,22 +171,13 @@ class DoveraDlzniciScraper(BaseScraper):
                     status_message=f"Chyba pri generovaní PDF: {e}",
                 )
 
-            if is_debtor and findings and "POZOR" in findings:
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
-                    status_message=f"Subjekt {ico} je v zozname dlžníkov Dôvery.",
-                    findings=findings,
-                )
-            else:
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
-                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov Dôvery.",
-                    findings=findings,
-                )
+            return self._make_result(
+                status="SUCCESS",
+                file_path=str(pdf_output),
+                page_count=1,
+                status_message=f"Subjekt {ico} je v zozname dlžníkov Dôvery.",
+                findings=findings,
+            )
 
         return await self._run_debtor_scraper(_scrape, unavailable_msg="Register Dôvery je nedostupný")
 

@@ -31,9 +31,6 @@ model ReportRequest {
   targetType      TargetType
   ico             String?
   companyName     String?
-  name            String?
-  surname         String?
-  birthDate       DateTime?
   selectedSources SourceType[]
   resultUrl       String?
   resultFilePath  String?
@@ -81,7 +78,6 @@ enum ReportStatus {
 
 enum TargetType {
   COMPANY
-  PERSON
 }
 
 enum SourceType {

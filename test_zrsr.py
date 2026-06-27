@@ -5,15 +5,21 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
-        await page.goto("https://www.zrsr.sk/")
-        
-        await page.fill("input#filter_ico", "31322832")
-        await page.click("input[name='cmdPotvrdit']")
-        await page.wait_for_load_state("domcontentloaded")
-        
+        print("Idem na ZRSR")
+        await page.goto("https://www.zrsr.sk/index")
+        print("Nacitane")
         html = await page.content()
-        with open("zrsr_result.html", "w") as f:
-            f.write(html)
+        if "altcha-widget" in html:
+            print("ALTCHA TAM JE")
+        else:
+            print("ALTCHA TAM NIE JE")
+            
+        print("Hladam ICO input")
+        el = await page.query_selector("input#filter_ico")
+        if el:
+            print("Nasiel som filter_ico")
+        else:
+            print("NENASIEL SOM filter_ico")
             
         await browser.close()
 

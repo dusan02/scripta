@@ -42,12 +42,13 @@ class UvoScraper(BaseScraper):
                 return await self._make_no_results_result(page, ico, output_dir)
 
             record_count = await self._extract_record_count(page)
-            all_html, pages_collected = await self._collect_all_pages(page)
+            all_html_parts, pages_collected = await self._collect_all_pages(page)
 
-            if all_html:
+            if all_html_parts:
+                all_html_str = "".join(all_html_parts)
                 await page.evaluate(
                     "(html) => { const c = document.querySelector('.gs-result-block'); if (c) c.innerHTML = html; }",
-                    all_html,
+                    all_html_str,
                 )
 
             pdf_output = output_dir / f"uvo_{ico}.pdf"
@@ -154,8 +155,8 @@ class UvoScraper(BaseScraper):
 
     # ── Pagination ───────────────────────────────────────────────────
 
-    async def _collect_all_pages(self, page: Page) -> tuple[str, int]:
-        all_html = ""
+    async def _collect_all_pages(self, page: Page) -> tuple[list[str], int]:
+        all_html_parts = []
         page_num = 1
 
         while True:
@@ -165,7 +166,7 @@ class UvoScraper(BaseScraper):
                 return block.innerHTML;
             }""")
             if block_html:
-                all_html += block_html
+                all_html_parts.append(block_html)
                 logger.info(f"[{self.source_type}] Strana {page_num}: obsah zachytený")
 
             next_link = await self._find_next_page_link(page)
@@ -183,7 +184,7 @@ class UvoScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 pass
 
-        return all_html, page_num
+        return all_html_parts, page_num
 
     async def _find_next_page_link(self, page: Page):
         try:

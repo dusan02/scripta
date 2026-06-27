@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 import logging
 import time
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
 from .base import BaseScraper, ScrapedSource, ScraperUnavailableError
 
@@ -49,12 +49,24 @@ class ZrsrScraper(BaseScraper):
                     status="FAILED",
                     status_message="Pre ZRSR je potrebné zadať IČO alebo Meno a Priezvisko.",
                 )
+        except PlaywrightError as e:
+            logger.error(f"[{self.source_type}] Playwright chyba: {e}")
+            return self._make_result(
+                status="FAILED",
+                status_message=f"Sieťová chyba pri spracovaní ZRSR: {e}"
+            )
         except Exception as e:
             logger.error(f"[{self.source_type}] Nečakaná chyba: {e}")
             return self._make_result(
                 status="FAILED",
                 status_message=f"Chyba pri spracovaní: {e}"
             )
+        finally:
+            if page:
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     async def _search_company(self, page: Page, *, ico: str, output_dir: Path) -> ScrapedSource:
         if not ico:
@@ -233,11 +245,11 @@ class ZrsrScraper(BaseScraper):
                         await page.wait_for_timeout(2000)
                     continue
 
-                # Skús 1: Klik na checkbox vnútri shadow DOM
+                # Skús 1: Klik na checkbox (light DOM alebo shadow DOM)
                 try:
-                    checkbox = page.locator("altcha-widget >> shadow >> input[type='checkbox']")
+                    checkbox = page.locator("altcha-widget input[type='checkbox'], altcha-widget >> shadow >> input[type='checkbox']")
                     if await checkbox.count() > 0:
-                        logger.info(f"[{self.source_type}] Klikám na Altcha checkbox (shadow DOM, attempt {attempt+1}/3).")
+                        logger.info(f"[{self.source_type}] Klikám na Altcha checkbox (attempt {attempt+1}/3).")
                         await checkbox.click(timeout=5000)
                     else:
                         raise Exception("No checkbox in shadow DOM")

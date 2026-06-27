@@ -1,0 +1,15 @@
+export { default } from "next-auth/middleware";
+
+export const config = {
+  matcher: [
+    /*
+     * Chránime všetky vnútorné routy, ktoré vyžadujú prihlásenie.
+     */
+    "/",
+    "/reports/:path*",
+    "/history/:path*",
+    "/settings/:path*",
+    "/messages/:path*",
+    "/admin/:path*"
+  ],
+};

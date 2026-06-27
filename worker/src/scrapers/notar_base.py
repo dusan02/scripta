@@ -148,6 +148,8 @@ class NotarBaseScraper(BaseScraper):
                 all_rows_html.extend(rows_html)
                 logger.info(f"[{self.source_type}] Strana {page_num}: {len(rows_html)} riadkov (celkom {len(all_rows_html)})")
 
+            rows_before = "\n".join(rows_html) if rows_html else ""
+            
             next_link = await self._find_next_page_link(page, page_num)
             if not next_link:
                 break
@@ -155,30 +157,33 @@ class NotarBaseScraper(BaseScraper):
             page_num += 1
             logger.info(f"[{self.source_type}] Prechádzam na stranu {page_num}")
             await next_link.click()
+            
+            # Počkáme, kým sa DOM tabuľky reálne zmení po kliknutí (ošetrenie partial SPA reloadu)
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=8000)
+                await page.wait_for_function(
+                    """(prev) => {
+                        const tbody = document.querySelector('table tbody');
+                        if (!tbody) return false;
+                        const current = Array.from(tbody.querySelectorAll('tr')).map(tr => tr.outerHTML).join('\\n');
+                        return current !== prev;
+                    }""",
+                    arg=rows_before,
+                    timeout=10000
+                )
             except PlaywrightTimeoutError:
-                pass
-            # Počkáme na nové riadky v tabuľke
-            try:
-                await page.locator("table tbody tr").first.wait_for(timeout=8000)
-            except PlaywrightTimeoutError:
-                pass
+                logger.warning(f"[{self.source_type}] Tabuľka sa po kliknutí na stranu {page_num} nezmenila včas.")
 
         return all_rows_html, page_num
 
     async def _find_next_page_link(self, page: Page, current_page: int):
         """Nájde pagination odkaz na nasledujúcu stranu."""
         try:
-            pagination_links = page.locator(
-                "a:has-text('2'), a:has-text('3'), a:has-text('4'), a:has-text('5'), "
-                "a:has-text('6'), a:has-text('7'), a:has-text('8'), a:has-text('9'), a:has-text('10')"
-            )
-            count = await pagination_links.count()
+            target_str = str(current_page + 1)
+            links = page.locator(f"a:has-text('{target_str}')")
+            count = await links.count()
             for i in range(count):
-                link = pagination_links.nth(i)
-                link_text = (await link.inner_text()).strip()
-                if link_text == str(current_page + 1):
+                link = links.nth(i)
+                if (await link.inner_text()).strip() == target_str:
                     return link
         except Exception:
             pass

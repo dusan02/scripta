@@ -168,23 +168,21 @@ class OrsrScraper(BaseScraper):
         """Extrahuje obchodné meno z detailnej stránky výpisu ORSR.
         Na detailnej stránke je aktuálny názov vždy uvedený ako hodnota v tabuľke."""
         try:
-            # ORSR detail má tabuľku s riadkami typu: <td>Obchodné meno:</td><td>Názov spoločnosti</td>
-            # Hľadáme riadok obsahujúci 'Obchodné meno' a berieme hodnotu z vedľajšej bunky
-            rows = page.locator("table tr")
-            count = await rows.count()
-            for i in range(count):
-                row = rows.nth(i)
-                cells = row.locator("td")
-                cell_count = await cells.count()
-                for c in range(cell_count):
-                    try:
-                        val = (await cells.nth(c).inner_text(timeout=2000)).strip()
-                    except PlaywrightTimeoutError:
-                        continue
-                    if "obchodné meno" in val.lower() and c + 1 < cell_count:
-                        name_val = (await cells.nth(c + 1).inner_text(timeout=2000)).strip()
-                        if name_val:
-                            return self._clean_company_name(name_val)
+            name_val = await page.evaluate("""() => {
+                const rows = document.querySelectorAll("table tr");
+                for (const row of rows) {
+                    const cells = row.querySelectorAll("td");
+                    for (let i = 0; i < cells.length; i++) {
+                        const text = cells[i].innerText || "";
+                        if (text.toLowerCase().includes("obchodné meno") && i + 1 < cells.length) {
+                            return cells[i + 1].innerText.trim();
+                        }
+                    }
+                }
+                return null;
+            }""")
+            if name_val:
+                return self._clean_company_name(name_val)
         except Exception as e:
             logger.warning(f"[{self.source_type}] Extrakcia mena z detailu zlyhala: {e}")
         return None
@@ -366,21 +364,21 @@ class OrsrScraper(BaseScraper):
             search_url = f"{self.base_url}?ICO={ico}&SID=0"
             await page.goto(search_url, timeout=30000, wait_until="domcontentloaded")
             
-            rows = page.locator("table tr")
-            count = await rows.count()
-            for i in range(count):
-                row = rows.nth(i)
-                cells = row.locator("td")
-                cell_count = await cells.count()
-                for c in range(cell_count):
-                    try:
-                        val = (await cells.nth(c).inner_text(timeout=2000)).strip()
-                    except PlaywrightTimeoutError:
-                        continue
-                    if ico in val and c + 1 < cell_count:
-                        name_val = (await cells.nth(c + 1).inner_text(timeout=2000)).strip()
-                        if name_val:
-                            return self._clean_company_name(name_val)
+            name_val = await page.evaluate("""(ico) => {
+                const rows = document.querySelectorAll("table tr");
+                for (const row of rows) {
+                    const cells = row.querySelectorAll("td");
+                    for (let i = 0; i < cells.length; i++) {
+                        const text = cells[i].innerText || "";
+                        if (text.includes(ico) && i + 1 < cells.length) {
+                            return cells[i + 1].innerText.trim();
+                        }
+                    }
+                }
+                return null;
+            }""", ico)
+            if name_val:
+                return self._clean_company_name(name_val)
         except Exception as e:
             logger.warning(f"[{self.source_type}] Fallback extrakcia mena zlyhala: {e}")
         return None

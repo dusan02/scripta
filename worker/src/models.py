@@ -23,11 +23,8 @@ def strip_titles(raw_name: str) -> str:
 
 class ReportTask(BaseModel):
     report_request_id: str
-    target_type: str = Field(..., pattern="^(COMPANY|PERSON)$")
-    ico: Optional[str] = None
-    name: Optional[str] = None
-    surname: Optional[str] = None
-    birth_date: Optional[str] = None
+    target_type: str = Field(..., pattern="^COMPANY$")
+    ico: str
     sources: List[str]
     orsr_extract_type: Optional[str] = "CURRENT"
     crz_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year

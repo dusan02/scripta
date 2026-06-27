@@ -123,16 +123,49 @@ class VszpDlzniciScraper(BaseScraper):
                     is_debtor = False
                     findings = None
 
+            # Generovať PDF
+            pdf_output = output_dir / f"vszp_dlznici_{ico}.pdf"
+            
             if not is_debtor:
                 logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov VšZP.")
                 findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov VšZP."
+                try:
+                    await self._generate_no_results_pdf(
+                        page, pdf_output, ico,
+                        title="Zoznam dlžníkov VšZP",
+                        message=f"Pre IČO {ico} sa v Zozname dlžníkov VšZP nenašli žiadne nedoplatky.",
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo generovanie no-results PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Chyba pri PDF: {e}")
 
-            # Generovať PDF z výsledkovej stránky
-            pdf_output = output_dir / f"vszp_dlznici_{ico}.pdf"
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov VšZP.",
+                    findings=findings,
+                )
+
+            # Inak sme našli subjekt v tabuľke (is_debtor = True).
+            # Pred tlačením PDF schováme riadky, ktoré neobsahujú naše IČO
+            try:
+                await page.evaluate("""(ico) => {
+                    const rows = document.querySelectorAll('table tbody tr, .table tbody tr, .result-table tr');
+                    for (const row of rows) {
+                        if (!row.innerText.includes(ico)) {
+                            row.style.display = 'none';
+                        }
+                    }
+                }""", ico)
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] DOM filter riadkov zlyhal: {e}")
+
             try:
                 await self._generate_clean_pdf(
                     page, pdf_output,
                     title="Zoznam dlžníkov VšZP",
+                    content_selector="table, .table, .result-table",
                     disclaimer_html=_VSZP_DISCLAIMER,
                 )
             except Exception as e:
@@ -142,21 +175,12 @@ class VszpDlzniciScraper(BaseScraper):
                     status_message=f"Chyba pri generovaní PDF: {e}",
                 )
 
-            if is_debtor:
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
-                    status_message=f"Subjekt {ico} je v zozname dlžníkov VšZP.",
-                    findings=findings,
-                )
-            else:
-                return self._make_result(
-                    status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
-                    status_message=f"Subjekt {ico} nie je v zozname dlžníkov VšZP.",
-                    findings=findings,
-                )
+            return self._make_result(
+                status="SUCCESS",
+                file_path=str(pdf_output),
+                page_count=1,
+                status_message=f"Subjekt {ico} je v zozname dlžníkov VšZP.",
+                findings=findings,
+            )
 
         return await self._run_debtor_scraper(_scrape, unavailable_msg="Register VšZP je nedostupný")

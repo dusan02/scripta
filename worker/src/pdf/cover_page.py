@@ -248,7 +248,7 @@ class CoverPageGenerator:
                     display_name = company_name[:idx].strip().rstrip(",").strip()
                     break
 
-        h1_style = self._style("CompanyH1", fontName="Inter-Bold", fontSize=24, leading=28,
+        h1_style = self._style("CompanyH1", fontName="Inter-Bold", fontSize=16, leading=20,
                                textColor=colors.HexColor("#0f172a"))
 
         if target_type == "COMPANY" and display_name:
@@ -503,30 +503,6 @@ class CoverPageGenerator:
             self._build_findings(source),
         ]
 
-    def _build_category_block(self, cat_label: str, cat_sources: list) -> KeepTogether:
-        rows = []
-        styles_list = list(_BASE_TABLE_STYLE)
-
-        cat_header_style = self._style("CatHeader", fontName="Inter-Bold", fontSize=10, leading=13,
-                                       textColor=colors.HexColor("#18181b"))
-        rows.append([Paragraph(f'<b>{cat_label}</b>', cat_header_style), "", "", "", ""])
-        styles_list.extend([
-            ("SPAN", (0, 0), (-1, 0)),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e4e4e7")),
-            ("TOPPADDING", (0, 0), (-1, 0), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-            ("LEFTPADDING", (0, 0), (-1, 0), 12),
-            ("LINEBELOW", (0, 0), (-1, 0), 1, colors.HexColor("#d4d4d8")),
-        ])
-
-        for i, source in enumerate(cat_sources, start=1):
-            rows.append(self._build_source_row(source))
-            styles_list.append(("LINEBELOW", (0, i), (-1, i), 0.5, colors.HexColor("#f0f0f0")))
-
-        mini_table = Table(rows, colWidths=_COL_WIDTHS, splitByRow=1)
-        mini_table.setStyle(TableStyle(styles_list))
-        return KeepTogether(mini_table)
-
     def _build_source_table(self, sources: List[ScrapedSource]) -> list:
         table_style = self._style("TableCell", fontName="Inter", fontSize=9, leading=12.5)
 
@@ -538,19 +514,43 @@ class CoverPageGenerator:
             Paragraph("<b>Stav</b>", table_style),
             Paragraph("<b>Súhrnný nález</b>", table_style),
         ]
-        header_table = Table([header_row], colWidths=_COL_WIDTHS)
-        header_table.setStyle(TableStyle(_BASE_TABLE_STYLE + [
+        
+        rows = [header_row]
+        styles_list = list(_BASE_TABLE_STYLE)
+        
+        styles_list.extend([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f4f4f5")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#18181b")),
             ("FONTNAME", (0, 0), (-1, 0), "Inter-Bold"),
             ("LINEBELOW", (0, 0), (-1, 0), 1, colors.HexColor("#e4e4e7")),
-        ]))
+        ])
 
-        story = [header_table]
-
-        # Per-category blocks
         source_map = {s.source_type: s for s in sources}
         rendered = set()
+
+        cat_header_style = self._style("CatHeader", fontName="Inter-Bold", fontSize=10, leading=13,
+                                       textColor=colors.HexColor("#18181b"))
+
+        row_idx = 1  # Pretože riadok 0 je header
+
+        def add_category(label: str, cat_sources: list):
+            nonlocal row_idx
+            rows.append([Paragraph(f'<b>{label}</b>', cat_header_style), "", "", "", ""])
+            
+            styles_list.extend([
+                ("SPAN", (0, row_idx), (-1, row_idx)),
+                ("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#e4e4e7")),
+                ("TOPPADDING", (0, row_idx), (-1, row_idx), 8),
+                ("BOTTOMPADDING", (0, row_idx), (-1, row_idx), 8),
+                ("LEFTPADDING", (0, row_idx), (-1, row_idx), 12),
+                ("LINEBELOW", (0, row_idx), (-1, row_idx), 1, colors.HexColor("#d4d4d8")),
+            ])
+            row_idx += 1
+
+            for source in cat_sources:
+                rows.append(self._build_source_row(source))
+                styles_list.append(("LINEBELOW", (0, row_idx), (-1, row_idx), 0.5, colors.HexColor("#f0f0f0")))
+                row_idx += 1
 
         for cat_label, cat_source_ids in _SOURCE_CATEGORIES:
             cat_sources = [source_map[sid] for sid in cat_source_ids if sid in source_map]
@@ -558,12 +558,14 @@ class CoverPageGenerator:
                 continue
             for s in cat_sources:
                 rendered.add(s.source_type)
-            story.append(self._build_category_block(cat_label, cat_sources))
+            add_category(cat_label, cat_sources)
 
         # Uncategorised sources
         remaining = [s for s in sources if s.source_type not in rendered]
         if remaining:
-            story.append(self._build_category_block("Ostatné", remaining))
+            add_category("Ostatné", remaining)
 
-        story.append(Spacer(1, 0.4 * cm))
-        return story
+        master_table = Table(rows, colWidths=_COL_WIDTHS, repeatRows=1)
+        master_table.setStyle(TableStyle(styles_list))
+
+        return [master_table, Spacer(1, 0.4 * cm)]
