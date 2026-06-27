@@ -87,19 +87,14 @@ export const authOptions: NextAuthOptions = {
         });
         token.tokenVersion = dbUser?.tokenVersion ?? 0;
       }
-      // Verify user still exists (catches stale tokens after DB reset)
-      // Only on sign-in or update — not every request (perf)
-      if (user || trigger === "update") {
-        if (token.id) {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.id },
-            select: { id: true, tokenVersion: true },
-          });
-          if (!dbUser) {
-            token.id = "";
-          } else if (dbUser.tokenVersion !== token.tokenVersion) {
-            token.id = "";
-          }
+      // Always verify user still exists (catches stale tokens after DB reset)
+      if (token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { id: true, tokenVersion: true },
+        });
+        if (!dbUser || dbUser.tokenVersion !== token.tokenVersion) {
+          token.id = "";
         }
       }
       return token;
