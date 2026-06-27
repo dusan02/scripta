@@ -8,7 +8,7 @@ from typing import Optional
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
 from .base import BaseScraper, ScraperUnavailableError
-from ..models import ScrapedSource
+from ..models import ScrapedSource, PersonInfo
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +76,7 @@ class OrsrScraper(BaseScraper):
                 return self._make_result(status="FAILED", status_message=f"Chyba pri generovaní PDF z ORSR: {e}")
 
             findings = await self._extract_findings(page)
+            persons = await self._extract_persons(page)
             return self._make_result(
                 status="SUCCESS",
                 file_path=str(pdf_output),
@@ -83,6 +84,7 @@ class OrsrScraper(BaseScraper):
                 status_message="Výpis z ORSR úspešne stiahnutý.",
                 findings=findings,
                 company_name=company_name,
+                persons=persons,
             )
         except ScraperUnavailableError as e:
             logger.error(f"[{self.source_type}] Nedostupný: {e}")
@@ -207,6 +209,119 @@ class OrsrScraper(BaseScraper):
         except Exception as e:
             logger.warning(f"[{self.source_type}] Nálezy zlyhali: {e}")
             return "Nálezy sa nepodarilo extrahovať."
+
+    async def _extract_persons(self, page: Page) -> list[PersonInfo]:
+        """Extrahuje osoby z sekcií 'Štatutárny orgán' a 'Spoločníci' z ORSR výpisu."""
+        persons: list[PersonInfo] = []
+        try:
+            text = await page.inner_text("body")
+            persons.extend(self._parse_persons_from_section(text, "Štatutárny orgán", "statutar"))
+            persons.extend(self._parse_persons_from_section(text, "Spoločníci", "spolocnik"))
+            if persons:
+                logger.info(f"[{self.source_type}] Extrahovaných {len(persons)} osôb z ORSR výpisu.")
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Extrakcia osôb zlyhala: {e}")
+        return persons
+
+    @staticmethod
+    def _parse_persons_from_section(text: str, section_label: str, role: str) -> list[PersonInfo]:
+        """Parsovanie osôb z konkrétnej sekcie ORSR výpisu.
+        ORSR výpis má formát:
+          Štatutárny orgán:    konatelia
+            (od: 11.03.2025)
+            Peter Kurucz
+            Kožušnícka 2661/23
+            Trenčín 911 05
+        """
+        persons: list[PersonInfo] = []
+        # Nájdeme sekciu — label je na začiatku riadku, nasleduje obsah
+        # Hľadáme ďalší label sekcie pre ukončenie
+        section_start = text.find(section_label + ":")
+        if section_start == -1:
+            return persons
+
+        # Získame text sekcie — od labelu do ďalšieho labelu (riadok začínajúci slovom a končiaci ':')
+        after_section = text[section_start + len(section_label) + 1:]
+        lines = after_section.split("\n")
+
+        # Nájdeme koniec sekcie — ďalší riadok ktorý vyzerá ako label (slovo + ':')
+        section_lines: list[str] = []
+        _LABEL_RE = re.compile(r'^[A-ZÁ-Ž][a-zá-ž]+\s*[a-zá-ž]*:')
+        for line in lines[1:]:  # preskočíme prvý riadok (label)
+            stripped = line.strip()
+            if not stripped:
+                if section_lines:
+                    # prázdny riadok môže byť medzi záznamami, ale ak už máme osoby, sekcia môže pokračovať
+                    continue
+                continue
+            if _LABEL_RE.match(stripped) and len(stripped) < 60:
+                break  # ďalší label — koniec sekcie
+            section_lines.append(stripped)
+
+        # Parsovanie osôb z section_lines
+        # Osoba = meno (obsahuje písmená, môže mať tituly), nasleduje adresa (ulica, mesto PSČ)
+        _TITLES = {
+            "ing.", "mgr.", "mudr.", "mddr.", "mvdr.", "bc.", "bca.", "judr.",
+            "phdr.", "rndr.", "pharmdr.", "thdr.", "thlic.", "paeddr.", "dr.",
+            "prof.", "doc.", "akad.", "phd.", "dba", "edd.", "dsc.", "drsc.", "csc.", "dis.",
+        }
+        _ZIP_RE = re.compile(r'\b(\d{3}\s*\d{2})\b')
+
+        i = 0
+        while i < len(section_lines):
+            line = section_lines[i]
+            # Preskočiť funkcie (konatelia, predstavenstvo, etc.) a dátumy (od: ...)
+            if line.lower().startswith("od:") or line.startswith("("):
+                i += 1
+                continue
+            # Skontrolovať či to vyzerá ako meno (obsahuje písmená, nie číslo na začiatku)
+            if line[0].isdigit():
+                i += 1
+                continue
+            # Rozdeliť na slová
+            words = line.split()
+            # Odstrániť tituly
+            name_words = [w for w in words if w.lower().rstrip(".,") not in _TITLES]
+            if len(name_words) < 2:
+                i += 1
+                continue
+            raw_name = line
+            clean_name = " ".join(name_words)
+
+            # Hľadať adresu v nasledujúcich riadkoch
+            city = None
+            zip_code = None
+            for j in range(i + 1, min(i + 4, len(section_lines))):
+                addr_line = section_lines[j]
+                # Ak ďalší riadok vyzerá ako ďalšie meno (nie adresa), skonči
+                if addr_line[0].isalpha() and not _ZIP_RE.search(addr_line) and "," not in addr_line and " " in addr_line:
+                    # Skontroluj či to nie je len mestský názov bez PSČ
+                    if not any(c.isdigit() for c in addr_line):
+                        # Mohlo by to byť mesto — skontroluj ďalší riadok
+                        continue
+                    break
+                zip_match = _ZIP_RE.search(addr_line)
+                if zip_match:
+                    zip_code = zip_match.group(1).replace(" ", "")
+                    # Mesto = zvyšok riadku bez PSČ
+                    city_part = _ZIP_RE.sub("", addr_line).strip(" ,")
+                    if city_part:
+                        city = city_part
+                    break
+                # Ak riadok obsahuje len písmená a je to posledný pred PSČ
+                if addr_line[0].isalpha() and not any(c.isdigit() for c in addr_line):
+                    city = addr_line.strip()
+
+            persons.append(PersonInfo(
+                raw_name=raw_name,
+                clean_name=clean_name,
+                city=city,
+                zip_code=zip_code,
+                role=role,
+            ))
+            i += 1
+
+        return persons
 
     async def _extract_company_name_from_search(self, page: Page, ico: str) -> Optional[str]:
         """Fallback: extrahuje obchodné meno z vyhľadávacej tabuľky ORSR.

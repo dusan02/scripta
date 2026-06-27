@@ -180,6 +180,7 @@ class BaseScraper(ABC):
         findings: Optional[str] = None,
         company_name: Optional[str] = None,
         ic_dph: Optional[str] = None,
+        persons: Optional[list] = None,
     ) -> ScrapedSource:
         return ScrapedSource(
             source_type=self.source_type,
@@ -190,6 +191,7 @@ class BaseScraper(ABC):
             findings=findings,
             company_name=company_name,
             ic_dph=ic_dph,
+            persons=persons,
         )
 
     # ── Shared helpers for debtor-list scrapers ──────────────────────

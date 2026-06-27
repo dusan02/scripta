@@ -6,12 +6,12 @@ def run(playwright: Playwright) -> None:
     browser = playwright.chromium.launch(headless=False)
     context = browser.new_context()
     page = context.new_page()
-    page.goto("https://obcan.justice.sk/pilot/poverenia/")
-    page.get_by_role("button", name="Prijať analytické cookies").click()
-    page.get_by_role("radio", name="podľa IČO, resp. názvu povinn").check()
-    page.get_by_role("textbox", name="IČO").click()
-    page.get_by_role("textbox", name="IČO").fill("31384315")
-    page.get_by_role("button", name="Hľadať poverenie").click()
+    page.goto("https://www.justice.gov.sk/registre/registerDiskvalifikacii/?pageNum=1&size=10")
+    page.locator("div").filter(has_text=re.compile(r"^Milan Súkeník$")).click()
+    page.get_by_role("textbox", name="Vyhľadajte podľa mena alebo").click()
+    page.get_by_role("textbox", name="Vyhľadajte podľa mena alebo").fill("Milan Súkeník")
+    page.get_by_role("button", name="Search").click()
+    page.get_by_role("link", name="Milan Súkeník").click()
 
     # ---------------------
     context.close()

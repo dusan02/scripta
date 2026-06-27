@@ -37,7 +37,7 @@ export const SOURCES: SourceInfo[] = [
 
   // ── 3. Súdy a sankcie (2) ──
   { id: "CRRS",            name: "Rozhodnutia súdov",       short: "CRRS", description: "Centrálny register rozhodnutí súdov — judikatúra a rozhodnutia", label: "Rozhodnutia súdov", sublabel: "Register rozhodnutí (CRRS)", category: "court", enabled: false },
-  { id: "DISQUAL",         name: "Register diskvalifikácií", short: "DIS", description: "Zoznam osôb so zákazom výkonu funkcie štatutára", label: "Diskvalifikácie", sublabel: "Zákaz výkonu funkcie štatutára", category: "court", enabled: false },
+  { id: "DISKVALIFIKACIE",  name: "Register diskvalifikácií", short: "DIS", description: "Zoznam osôb so zákazom výkonu funkcie štatutára — porovnanie s osobami z ORSR", label: "Diskvalifikácie", sublabel: "Zákaz výkonu funkcie štatutára", category: "court", enabled: true },
 
   // ── 4. Majetok a práva (3) ──
   { id: "NCRZP",           name: "Záložné práva",           short: "NCRZP", description: "Notársky centrálny register záložných práv", label: "Záložné práva",  sublabel: "Register záložných práv (NCRZP)", category: "asset", enabled: true },

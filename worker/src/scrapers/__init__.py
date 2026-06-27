@@ -13,6 +13,7 @@ from .registeruz import RegisterUzScraper
 from .sp_dlznici import SpDlzniciScraper
 from .vszp_dlznici import VszpDlzniciScraper
 from .dovera_dlznici import DoveraDlzniciScraper
+from .diskvalifikacie import DiskvalifikacieScraper
 from .registry import get_scraper, run_scrapers
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "SpDlzniciScraper",
     "VszpDlzniciScraper",
     "DoveraDlzniciScraper",
+    "DiskvalifikacieScraper",
     "get_scraper",
     "run_scrapers",
 ]

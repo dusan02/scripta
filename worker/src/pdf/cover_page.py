@@ -45,6 +45,8 @@ _SOURCE_ICONS = {
     "NCRD": ("NCD", "#9333ea"),
     "REGISTER_UZ": ("RUZ", "#059669"),
     "CRZ": ("CRZ", "#0891b2"),
+    "POVERENIA": ("POV", "#db2777"),
+    "DISKVALIFIKACIE": ("DIS", "#9333ea"),
 }
 
 # Friendly názvy zdrojov pre cover page (raw enum je príliš dlhý pre tabuľku)
@@ -71,6 +73,7 @@ _SOURCE_LABELS = {
     "CRZ": "Register zmlúv",
     "UVO": "Verejné obstarávanie",
     "POVERENIA": "Poverenia na exekúcie",
+    "DISKVALIFIKACIE": "Register diskvalifikácií",
 }
 
 # Zoskupenie zdrojov do kategórií pre prehľadnejšie zobrazenie
@@ -81,7 +84,7 @@ _SOURCE_CATEGORIES = [
     ("Finančná správa SR — Daň z príjmov", ["FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Finančná správa SR — Ostatné", ["FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY"]),
     ("Poisťovne a inštitúcie", ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
-    ("Ostatné", ["REGISTER_UZ", "CRZ", "UVO", "POVERENIA"]),
+    ("Ostatné", ["REGISTER_UZ", "CRZ", "UVO", "POVERENIA", "DISKVALIFIKACIE"]),
 ]
 
 # Mapa source_type -> category label pre rýchle hľadanie

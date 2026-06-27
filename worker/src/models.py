@@ -15,6 +15,15 @@ class ReportTask(BaseModel):
     crz_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year
 
 
+class PersonInfo(BaseModel):
+    """Informácie o osobe extrahovanej z ORSR (štatutár, spoločník)."""
+    raw_name: str           # Pôvodné meno s titulmi (Ing. Peter Kurucz, PhD.)
+    clean_name: str         # Meno bez titulov (Peter Kurucz)
+    city: Optional[str] = None
+    zip_code: Optional[str] = None
+    role: str               # "statutar" alebo "spolocnik"
+
+
 class ScrapedSource(BaseModel):
     source_type: str
     status: str  # SUCCESS, FAILED, UNAVAILABLE
@@ -25,6 +34,7 @@ class ScrapedSource(BaseModel):
     findings: Optional[str] = None
     company_name: Optional[str] = None
     ic_dph: Optional[str] = None
+    persons: Optional[List[PersonInfo]] = None
 
     @property
     def message(self) -> Optional[str]:  # backward compat alias

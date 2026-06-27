@@ -26,6 +26,7 @@ from .registeruz import RegisterUzScraper
 from .crz import CrzScraper
 from .uvo import UvoScraper
 from .poverenia import PovereniaScraper
+from .diskvalifikacie import DiskvalifikacieScraper
 from .sp_dlznici import SpDlzniciScraper
 from .vszp_dlznici import VszpDlzniciScraper
 from .dovera_dlznici import DoveraDlzniciScraper
@@ -70,12 +71,14 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "CRZ": CrzScraper,
     "UVO": UvoScraper,
     "POVERENIA": PovereniaScraper,
+    "DISKVALIFIKACIE": DiskvalifikacieScraper,
 }
 
 # Scrapery, ktoré závisia na výsledku iného scraperu (potrebujú company_name).
 # Mapa: source_type -> zdroj company_name
 _DEPENDS_ON: Dict[str, str] = {
     "FINANCNA_SPRAVA": "ORSR",
+    "DISKVALIFIKACIE": "ORSR",
 }
 
 
@@ -172,9 +175,11 @@ async def run_scrapers(
         """Spustí závislé scrapery čo najskôr po dokončení dependencie."""
         company_name = None
         ic_dph = None
+        persons = None
         if dep_result and dep_result.status == "SUCCESS":
             company_name = getattr(dep_result, "company_name", None)
             ic_dph = getattr(dep_result, "ic_dph", None)
+            persons = getattr(dep_result, "persons", None)
 
         for source in dependent:
             if _DEPENDS_ON.get(source) != dep_source_type:
@@ -186,6 +191,8 @@ async def run_scrapers(
                 extra_kwargs["company_name"] = company_name
             if ic_dph:
                 extra_kwargs["ic_dph"] = ic_dph
+            if persons:
+                extra_kwargs["persons"] = persons
 
             if not extra_kwargs:
                 logger.info(f"[{source}] Preskakujem — dependencia {dep_source_type} neposkytla potrebné údaje.")
