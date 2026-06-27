@@ -40,8 +40,6 @@ export default async function DashboardPage() {
     targetType: r.targetType,
     ico:        r.ico,
     companyName: r.companyName,
-    name:       r.name,
-    surname:    r.surname,
     createdAt:  r.createdAt.toISOString(),
     sources:    r.sources,
   }));
