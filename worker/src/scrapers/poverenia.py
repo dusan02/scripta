@@ -25,6 +25,7 @@ _SKIP_KEYWORDS = [
     "ohodnoťte", "spätná väzba", "nášli ste na stránke",
     "support links", "pomocník", "cookies", "vyhlásenie",
     "vytvorené v súlade", "prevádzkovateľ", "verzia",
+    "na stranu", "ďalšie záznamy", "pdf výpise",
 ]
 
 _LABELS = {"názov", "sídlo", "ičo"}
@@ -219,6 +220,12 @@ class PovereniaScraper(BaseScraper):
                     continue
                 ll = l.lower()
                 if any(s in ll for s in _SKIP_KEYWORDS):
+                    continue
+                # Preskočiť samostatné čísla (paginator strán)
+                if l.isdigit():
+                    continue
+                # Preskočiť "…" a podobné samostatné znaky
+                if len(l) <= 2 and not l.isalpha():
                     continue
                 raw_lines.append(l)
 
