@@ -26,6 +26,7 @@ jobs:
     env:
       DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
       DATABASE_URL_UNPOOLED: "postgresql://dummy:dummy@localhost:5432/dummy"
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
     defaults:
       run:
         working-directory: ./frontend

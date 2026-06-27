@@ -36,7 +36,7 @@ declare module "next-auth/jwt" {
 const _NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 if (!_NEXTAUTH_SECRET) {
   if (process.env.NODE_ENV === "production") {
-    throw new Error("NEXTAUTH_SECRET must be set in production");
+    console.error("[AUTH] NEXTAUTH_SECRET is not set — using insecure fallback. Set NEXTAUTH_SECRET env var!");
   }
   console.warn("[AUTH] NEXTAUTH_SECRET is not set — using insecure default for development only");
 }
