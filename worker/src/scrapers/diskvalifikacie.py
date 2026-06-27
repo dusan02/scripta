@@ -300,35 +300,56 @@ class DiskvalifikacieScraper(BaseScraper):
         if not results:
             return "Žiadne osoby na kontrolu."
 
+        _ROLE_LABELS = {"statutar": "Štatutár", "spolocnik": "Spoločník"}
+
+        def _role(role: str) -> str:
+            return _ROLE_LABELS.get(role, role)
+
+        def _addr(city: Optional[str], zip_code: Optional[str]) -> str:
+            parts = []
+            if city:
+                parts.append(city)
+            if zip_code:
+                parts.append(zip_code)
+            return " ".join(parts) if parts else "neznáma"
+
+        def _plural(n: int, singular: str, few: str, many: str) -> str:
+            if n == 1:
+                return f"1 {singular}"
+            if 2 <= n <= 4:
+                return f"{n} {few}"
+            return f"{n} {many}"
+
         parts = []
         red_flags = [r for r in results if r["status"] == "red_flag"]
         warnings = [r for r in results if r["status"] == "warning"]
         clean = [r for r in results if r["status"] == "clean"]
 
         if red_flags:
-            parts.append(f"POZOR! Nájdených {len(red_flags)} diskvalifikovaných osôb:")
+            parts.append(f"POZOR! Nájdená {_plural(len(red_flags), 'diskvalifikovaná osoba', 'diskvalifikované osoby', 'diskvalifikovaných osôb')}:")
             for r in red_flags:
                 parts.append(
-                    f"  • {r['name']} ({r['role']}) — zhoda mena aj adresy "
-                    f"(ORSR: {r['orsr_city']} {r['orsr_zip']} | Register: {r['match_city']} {r['match_zip']})"
+                    f"  • {r['name']} ({_role(r['role'])}) — zhoda mena aj adresy "
+                    f"(ORSR: {_addr(r['orsr_city'], r['orsr_zip'])} | Register: {_addr(r['match_city'], r['match_zip'])})"
                 )
                 if r["detail_url"]:
                     parts.append(f"    URL: {r['detail_url']}")
 
         if warnings:
-            parts.append(f"\nUpozornenie: {len(warnings)} osôb s zhodou mena (adresa sa nezhoduje — manuálne overenie):")
+            parts.append(f"\nUpozornenie: {_plural(len(warnings), 'osoba', 'osoby', 'osôb')} s zhodou mena (adresa sa nezhoduje — manuálne overenie):")
             for r in warnings:
                 parts.append(
-                    f"  • {r['name']} ({r['role']}) — ORSR: {r['orsr_city']} {r['orsr_zip']} | "
-                    f"Register: {r['match_city'] or '?'} {r['match_zip'] or '?'}"
+                    f"  • {r['name']} ({_role(r['role'])}) — "
+                    f"ORSR: {_addr(r['orsr_city'], r['orsr_zip'])} | "
+                    f"Register: {_addr(r['match_city'], r['match_zip'])}"
                 )
                 if r["detail_url"]:
                     parts.append(f"    URL: {r['detail_url']}")
 
         if clean:
-            parts.append(f"\nV poriadku: {len(clean)} osôb bez nálezu v registri diskvalifikácií.")
+            parts.append(f"\nV poriadku: {_plural(len(clean), 'osoba', 'osoby', 'osôb')} bez nálezu v registri diskvalifikácií.")
             for r in clean:
-                parts.append(f"  • {r['name']} ({r['role']})")
+                parts.append(f"  • {r['name']} ({_role(r['role'])})")
 
         return "\n".join(parts)
 
@@ -360,35 +381,35 @@ class DiskvalifikacieScraper(BaseScraper):
             html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>
-  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-  body {{ font-family: Inter, -apple-system, Arial, sans-serif; padding: 40px; color: #1a1a1a; font-size: 13px; line-height: 1.6; }}
-  h1 {{ font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; }}
-  .subtitle {{ text-align: center; color: #666; font-size: 13px; margin-bottom: 24px; }}
-  .summary-box {{ padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 15px; font-weight: 600; }}
-  .summary-box.red {{ background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }}
-  .summary-box.orange {{ background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }}
-  .summary-box.green {{ background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }}
-  .intro {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; font-size: 12px; color: #475569; }}
-  .section-title {{ font-size: 15px; font-weight: 700; margin: 28px 0 14px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }}
-  .risk-card {{ border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; }}
-  .risk-card.red {{ background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #ef4444; }}
-  .risk-card.orange {{ background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; }}
-  .risk-name {{ font-size: 15px; font-weight: 700; margin-bottom: 4px; }}
-  .risk-role {{ font-size: 12px; color: #666; font-weight: 400; }}
-  .risk-status {{ font-size: 13px; font-weight: 600; margin: 8px 0; }}
-  .risk-status.red {{ color: #991b1b; }}
-  .risk-status.orange {{ color: #92400e; }}
-  .risk-explanation {{ font-size: 12px; color: #64748b; margin: 8px 0 12px 0; line-height: 1.7; }}
-  .addr-row {{ display: flex; gap: 20px; margin: 6px 0; font-size: 12px; }}
-  .addr-label {{ color: #666; min-width: 140px; }}
-  .addr-value {{ font-weight: 500; }}
-  .risk-link {{ margin-top: 10px; }}
-  .risk-link a {{ color: #2563eb; text-decoration: none; font-size: 12px; word-break: break-all; }}
-  .clean-list {{ list-style: none; padding: 0; }}
-  .clean-list li {{ padding: 8px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }}
-  .clean-list li:last-child {{ border-bottom: none; }}
-  .clean-dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 8px; }}
-  .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }}
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ font-family: Inter, -apple-system, Arial, sans-serif; padding: 40px; color: #1a1a1a; font-size: 13px; line-height: 1.6; }}
+h1 {{ font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; }}
+.subtitle {{ text-align: center; color: #666; font-size: 13px; margin-bottom: 24px; }}
+.summary-box {{ padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; font-size: 15px; font-weight: 600; }}
+.summary-box.red {{ background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }}
+.summary-box.orange {{ background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }}
+.summary-box.green {{ background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }}
+.intro {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 28px; font-size: 12px; color: #475569; }}
+.section-title {{ font-size: 15px; font-weight: 700; margin: 28px 0 14px 0; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }}
+.risk-card {{ border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; }}
+.risk-card.red {{ background: #fef2f2; border: 1px solid #fecaca; border-left: 4px solid #ef4444; }}
+.risk-card.orange {{ background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; }}
+.risk-name {{ font-size: 15px; font-weight: 700; margin-bottom: 4px; }}
+.risk-role {{ font-size: 12px; color: #666; font-weight: 400; }}
+.risk-status {{ font-size: 13px; font-weight: 600; margin: 8px 0; }}
+.risk-status.red {{ color: #991b1b; }}
+.risk-status.orange {{ color: #92400e; }}
+.risk-explanation {{ font-size: 12px; color: #64748b; margin: 8px 0 12px 0; line-height: 1.7; }}
+.addr-row {{ display: flex; gap: 20px; margin: 6px 0; font-size: 12px; }}
+.addr-label {{ color: #666; min-width: 140px; }}
+.addr-value {{ font-weight: 500; }}
+.risk-link {{ margin-top: 10px; }}
+.risk-link a {{ color: #2563eb; text-decoration: none; font-size: 12px; word-break: break-all; }}
+.clean-list {{ list-style: none; padding: 0; }}
+.clean-list li {{ padding: 8px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }}
+.clean-list li:last-child {{ border-bottom: none; }}
+.clean-dot {{ display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 8px; }}
+.footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }}
 </style></head>
 <body>
 
@@ -396,13 +417,13 @@ class DiskvalifikacieScraper(BaseScraper):
 <p class="subtitle">Previerka osôb z ORSR (IČO: {ico})</p>
 
 <div class="summary-box" style="background: {summary_color}15; color: {summary_color}; border: 1px solid {summary_color}40;">
-  Výsledok previerky: {summary_text}
+Výsledok previerky: {summary_text}
 </div>
 
 <div class="intro">
-  <strong>Čo je Register diskvalifikácií?</strong> Obsahuje osoby, ktoré súdom dostali zákaz výkonu funkcie
-  štatutárneho orgánu alebo člena predstavenstva. Ak je štatutár diskvalifikovaný, jeho úkony za spoločnosť
-  môžu byť neplatné. Tento report porovnáva osoby z ORSR (štatutári a spoločníci) s registrom diskvalifikácií.
+<strong>Čo je Register diskvalifikácií?</strong> Obsahuje osoby, ktoré súdom dostali zákaz výkonu funkcie
+štatutárneho orgánu alebo člena predstavenstva. Ak je štatutár diskvalifikovaný, jeho úkony za spoločnosť
+môžu byť neplatné. Tento report porovnáva osoby z ORSR (štatutári a spoločníci) s registrom diskvalifikácií.
 </div>
 """
 
@@ -415,15 +436,15 @@ class DiskvalifikacieScraper(BaseScraper):
                     orsr_addr = f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip()
                     match_addr = f"{r['match_city'] or 'neznáma'} {r['match_zip'] or ''}".strip()
                     html += f"""<div class="risk-card red">
-  <div class="risk-name">🔴 {r['name']} <span class="risk-role">({role_label})</span></div>
-  <div class="risk-status red">Potvrdené riziko: Zhoda mena aj adresy</div>
-  <div class="risk-explanation">
+<div class="risk-name">🔴 {r['name']} <span class="risk-role">({role_label})</span></div>
+<div class="risk-status red">Potvrdené riziko: Zhoda mena aj adresy</div>
+<div class="risk-explanation">
     Táto osoba sa nachádza v Registri diskvalifikácií a jej adresa sa zhoduje s adresou v ORSR.
     Odporúčame okamžite overiť platnosť jej úkonov za spoločnosť.
-  </div>
-  <div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
-  <div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
-  <div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
+</div>
+<div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
+<div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
+<div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
 </div>
 """
 
@@ -432,16 +453,16 @@ class DiskvalifikacieScraper(BaseScraper):
                     orsr_addr = f"{r['orsr_city'] or 'neznáma'} {r['orsr_zip'] or ''}".strip()
                     match_addr = f"{r['match_city'] or 'neznáma / iná'} {r['match_zip'] or ''}".strip()
                     html += f"""<div class="risk-card orange">
-  <div class="risk-name">🟠 {r['name']} <span class="risk-role">({role_label})</span></div>
-  <div class="risk-status orange">Upozornenie na možnú zhodu (menovec)</div>
-  <div class="risk-explanation">
+<div class="risk-name">🟠 {r['name']} <span class="risk-role">({role_label})</span></div>
+<div class="risk-status orange">Upozornenie na možnú zhodu (menovec)</div>
+<div class="risk-explanation">
     V registri sme našli osobu s rovnakým menom, ale evidovanou na inej adrese.
     Vzhľadom na to, že osoby si často po problémoch menia trvalý pobyt, odporúčame
     overiť totožnosť podľa dátumu narodenia alebo rodného čísla v detaile registra.
-  </div>
-  <div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
-  <div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
-  <div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
+</div>
+<div class="addr-row"><span class="addr-label">Adresa v ORSR:</span><span class="addr-value">{orsr_addr}</span></div>
+<div class="addr-row"><span class="addr-label">Adresa v Registri:</span><span class="addr-value">{match_addr}</span></div>
+<div class="risk-link"><a href="{r['detail_url']}">{r['detail_url']}</a></div>
 </div>
 """
 
@@ -459,7 +480,7 @@ class DiskvalifikacieScraper(BaseScraper):
                 html += '<p style="text-align:center;color:#666;margin:40px 0;">Neboli k dispozícii žiadne osoby z ORSR na porovnanie.</p>\n'
 
             html += f"""<div class="footer">
-  Generované {time.strftime("%d.%m.%Y %H:%M")} · Register diskvalifikácií · justice.gov.sk
+Generované {time.strftime("%d.%m.%Y %H:%M")} · Register diskvalifikácií · justice.gov.sk
 </div>
 
 </body>
