@@ -159,6 +159,16 @@ class DiskvalifikacieScraper(BaseScraper):
             link_count = await result_links.count()
 
             if link_count == 0:
+                # Skúsiť prehodené poradie mena (Kurucz Peter namiesto Peter Kurucz)
+                name_parts = clean_name.split()
+                if len(name_parts) >= 2:
+                    reversed_name = " ".join([name_parts[-1]] + name_parts[:-1])
+                    result_links = page.get_by_role("link", name=reversed_name)
+                    link_count = await result_links.count()
+                    if link_count > 0:
+                        logger.info(f"[{self.source_type}] Nájdené s prehodeným menom: {reversed_name}")
+
+            if link_count == 0:
                 # Skúsiť čiastočnú zhodu — hľadať odkazy ktoré obsahujú priezvisko
                 surname = clean_name.split()[-1] if len(clean_name.split()) > 1 else clean_name
                 all_links = page.locator(f"a:has-text('{surname}')")

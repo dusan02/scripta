@@ -17,7 +17,7 @@ _OUTDATED_MARKER = "Výpis je neaktuálny"
 _TRANSFERRED_MARKER = "Spis odstúpený na iný registrový súd"
 
 _LEGAL_FORM_RE = re.compile(
-    r'((?:spol\.\s*s\s*r\.\s*o\.|s\.?\s*r\.?\s*o\.|a\.\s*s\.|v\.\s*o\.\s*s\.|k\.\s*s\.))\.?\s.*$',
+    r'((?:spol\.\s*s\s*r\.\s*o\.|s\.?\s*r\.?\s*o\.|a\.\s*s\.|v\.\s*o\.\s*s\.|k\.\s*s\.|družstvo|š\.?\s*p\.))\.?\s.*$',
     re.IGNORECASE,
 )
 _QUOTE_RE = re.compile(r'^["\']+(.+?)["\']+')
