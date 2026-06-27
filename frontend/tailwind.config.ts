@@ -18,6 +18,7 @@ const config: Config = {
         border: "var(--border)",
         text: "var(--text)",
         accent: "var(--accent)",
+        "accent-button-text": "var(--accent-button-text)",
         navy: {
           950: "#060b18",
           900: "#0a1628",

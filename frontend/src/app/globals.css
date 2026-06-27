@@ -56,13 +56,13 @@
     --dark-text-muted: #71717a;
     --dark-text-placeholder: #52525b;
 
-    --dark-accent: #34d399;
-    --dark-accent-light: rgba(52, 211, 153, 0.10);
-    --dark-accent-border: rgba(52, 211, 153, 0.20);
-    --dark-accent-button-text: #374151;
+    --dark-accent: #10b981;
+    --dark-accent-light: rgba(16, 185, 129, 0.15);
+    --dark-accent-border: rgba(16, 185, 129, 0.30);
+    --dark-accent-button-text: #ffffff;
 
-    --dark-success: #34d399;
-    --dark-success-bg: rgba(52, 211, 153, 0.08);
+    --dark-success: #10b981;
+    --dark-success-bg: rgba(16, 185, 129, 0.10);
     --dark-success-text: #6ee7b7;
     --dark-danger: #f87171;
     --dark-danger-bg: rgba(248, 113, 113, 0.06);
