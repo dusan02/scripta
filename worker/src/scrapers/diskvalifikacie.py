@@ -317,6 +317,8 @@ class DiskvalifikacieScraper(BaseScraper):
     async def _generate_summary_pdf(self, page: Page, output_path: Path, ico: str, results: list[dict]) -> None:
         """Vygeneruje PDF so zhrnutím výsledkov."""
         try:
+            # Naviguj na prázdnu stránku aby sme sa vyhli SPA/React interferencii
+            await page.goto("about:blank", timeout=5000)
             await page.set_viewport_size({"width": 1920, "height": 1080})
 
             html_parts = ["<h1>Register diskvalifikácií</h1>"]
@@ -359,15 +361,21 @@ class DiskvalifikacieScraper(BaseScraper):
 
             html_content = "\n".join(html_parts)
 
-            await page.evaluate(
-                """(html) => {
-                    document.body.innerHTML = html;
-                    document.body.style.margin = '0';
-                    document.body.style.padding = '40px';
-                    document.body.style.fontFamily = 'Inter, Arial, sans-serif';
-                }""",
-                html_content,
-            )
+            await page.set_content(f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><style>
+  body {{ margin: 0; padding: 40px; font-family: Inter, Arial, sans-serif; }}
+  h1 {{ font-size: 24px; font-weight: 700; margin: 0 0 8px 0; text-align: center; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+  th {{ background: #f4f4f5; padding: 6px; border: 1px solid #ddd; }}
+  td {{ padding: 6px; border: 1px solid #ddd; }}
+  h3 {{ margin-top: 24px; font-size: 14px; }}
+  a {{ color: #2563eb; }}
+</style></head>
+<body>
+{html_content}
+</body>
+</html>""", wait_until="load")
 
             await page.pdf(
                 path=str(output_path),
