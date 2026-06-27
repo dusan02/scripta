@@ -8,7 +8,7 @@ from typing import Optional
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
 from .base import BaseScraper, ScraperUnavailableError
-from ..models import ScrapedSource, PersonInfo
+from ..models import ScrapedSource, PersonInfo, ACADEMIC_TITLES, ZIP_RE
 
 logger = logging.getLogger(__name__)
 
@@ -260,12 +260,6 @@ class OrsrScraper(BaseScraper):
 
         # Parsovanie osôb z section_lines
         # Osoba = meno (obsahuje písmená, môže mať tituly), nasleduje adresa (ulica, mesto PSČ)
-        _TITLES = {
-            "ing.", "mgr.", "mudr.", "mddr.", "mvdr.", "bc.", "bca.", "judr.",
-            "phdr.", "rndr.", "pharmdr.", "thdr.", "thlic.", "paeddr.", "dr.",
-            "prof.", "doc.", "akad.", "phd.", "dba", "edd.", "dsc.", "drsc.", "csc.", "dis.",
-        }
-        _ZIP_RE = re.compile(r'\b(\d{3}\s*\d{2})\b')
 
         i = 0
         while i < len(section_lines):
@@ -281,7 +275,7 @@ class OrsrScraper(BaseScraper):
             # Rozdeliť na slová
             words = line.split()
             # Odstrániť tituly
-            name_words = [w for w in words if w.lower().rstrip(".,") not in _TITLES]
+            name_words = [w for w in words if w.lower().rstrip(".,") not in ACADEMIC_TITLES]
             if len(name_words) < 2:
                 i += 1
                 continue
@@ -294,17 +288,17 @@ class OrsrScraper(BaseScraper):
             for j in range(i + 1, min(i + 4, len(section_lines))):
                 addr_line = section_lines[j]
                 # Ak ďalší riadok vyzerá ako ďalšie meno (nie adresa), skonči
-                if addr_line[0].isalpha() and not _ZIP_RE.search(addr_line) and "," not in addr_line and " " in addr_line:
+                if addr_line[0].isalpha() and not ZIP_RE.search(addr_line) and "," not in addr_line and " " in addr_line:
                     # Skontroluj či to nie je len mestský názov bez PSČ
                     if not any(c.isdigit() for c in addr_line):
                         # Mohlo by to byť mesto — skontroluj ďalší riadok
                         continue
                     break
-                zip_match = _ZIP_RE.search(addr_line)
+                zip_match = ZIP_RE.search(addr_line)
                 if zip_match:
                     zip_code = zip_match.group(1).replace(" ", "")
                     # Mesto = zvyšok riadku bez PSČ
-                    city_part = _ZIP_RE.sub("", addr_line).strip(" ,")
+                    city_part = ZIP_RE.sub("", addr_line).strip(" ,")
                     if city_part:
                         city = city_part
                     break

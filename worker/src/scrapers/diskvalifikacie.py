@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import time
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -10,7 +9,7 @@ from typing import Optional
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .base import BaseScraper, ScraperUnavailableError
-from ..models import ScrapedSource, PersonInfo
+from ..models import ScrapedSource, PersonInfo, strip_titles, ZIP_RE
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +22,6 @@ _NO_RESULTS_MARKERS = [
     "zadaným kritériám nezodpovedajú",
     "nenašli sa žiadne záznamy",
 ]
-
-# Slovenské akademické tituly pre očistu mena
-_TITLES = {
-    "ing.", "mgr.", "mudr.", "mddr.", "mvdr.", "bc.", "bca.", "judr.",
-    "phdr.", "rndr.", "pharmdr.", "thdr.", "thlic.", "paeddr.", "dr.",
-    "prof.", "doc.", "akad.", "phd.", "dba", "edd.", "dsc.", "drsc.",
-    "csc.", "dis.", "etds.", "mba",
-}
-
-_ZIP_RE = re.compile(r'\b(\d{3}\s*\d{2})\b')
-
-
-def _strip_titles(raw_name: str) -> str:
-    """Odstráni akademické tituly z mena, vráti len Meno Priezvisko."""
-    words = raw_name.split()
-    name_words = [w for w in words if w.lower().rstrip(".,") not in _TITLES]
-    return " ".join(name_words).strip()
 
 
 def _fuzzy_ratio(a: str, b: str) -> float:
@@ -73,7 +55,7 @@ class DiskvalifikacieScraper(BaseScraper):
 
             results: list[dict] = []
             for person in persons:
-                clean_name = person.clean_name or _strip_titles(person.raw_name)
+                clean_name = person.clean_name or strip_titles(person.raw_name)
                 if not clean_name or len(clean_name.split()) < 2:
                     logger.warning(f"[{self.source_type}] Preskakujem osobu s neplatným menom: {person.raw_name}")
                     continue
@@ -265,7 +247,7 @@ class DiskvalifikacieScraper(BaseScraper):
         zip_code = None
 
         # Hľadať PSČ v texte
-        zip_match = _ZIP_RE.search(detail_text)
+        zip_match = ZIP_RE.search(detail_text)
         if zip_match:
             zip_code = zip_match.group(1).replace(" ", "")
 

@@ -1,6 +1,24 @@
 from __future__ import annotations
+import re
 from typing import List, Optional
 from pydantic import BaseModel, Field
+
+# Slovenské akademické tituly pre očistu mena
+ACADEMIC_TITLES = {
+    "ing.", "mgr.", "mudr.", "mddr.", "mvdr.", "bc.", "bca.", "judr.",
+    "phdr.", "rndr.", "pharmdr.", "thdr.", "thlic.", "paeddr.", "dr.",
+    "prof.", "doc.", "akad.", "phd.", "dba", "edd.", "dsc.", "drsc.",
+    "csc.", "dis.", "etds.", "mba",
+}
+
+ZIP_RE = re.compile(r'\b(\d{3}\s*\d{2})\b')
+
+
+def strip_titles(raw_name: str) -> str:
+    """Odstráni akademické tituly z mena, vráti len Meno Priezvisko."""
+    words = raw_name.split()
+    name_words = [w for w in words if w.lower().rstrip(".,") not in ACADEMIC_TITLES]
+    return " ".join(name_words).strip()
 
 
 class ReportTask(BaseModel):
