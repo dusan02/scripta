@@ -33,36 +33,21 @@ async def update_report_status(
     result_file_path: Optional[str] = None,
     company_name: Optional[str] = None,
 ) -> None:
-    if status in ("COMPLETED", "PARTIAL"):
-        completed_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    else:
-        completed_at = None
+    completed_at = datetime.now(timezone.utc).replace(tzinfo=None) if status in ("COMPLETED", "PARTIAL") else None
 
+    # Build dynamic SET clause — avoids duplicating the query for optional company_name
+    sets = ['status = $1', '"resultFilePath" = $2', '"completedAt" = $3', '"updatedAt" = NOW()']
+    args: list = [status, result_file_path, completed_at]
     if company_name:
-        await pool.execute(
-            """
-            UPDATE "ReportRequest"
-            SET status = $1, "resultFilePath" = $2, "completedAt" = $3, "companyName" = $4, "updatedAt" = NOW()
-            WHERE id = $5
-            """,
-            status,
-            result_file_path,
-            completed_at,
-            company_name,
-            report_request_id,
-        )
-    else:
-        await pool.execute(
-            """
-            UPDATE "ReportRequest"
-            SET status = $1, "resultFilePath" = $2, "completedAt" = $3, "updatedAt" = NOW()
-            WHERE id = $4
-            """,
-            status,
-            result_file_path,
-            completed_at,
-            report_request_id,
-        )
+        sets.append('"companyName" = $4')
+        args.append(company_name)
+    args.append(report_request_id)
+
+    placeholder = f"${len(args)}"
+    await pool.execute(
+        f'UPDATE "ReportRequest" SET {", ".join(sets)} WHERE id = {placeholder}',
+        *args,
+    )
 
 
 async def upsert_report_sources(

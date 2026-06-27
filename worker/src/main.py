@@ -43,11 +43,18 @@ app = FastAPI(title="Registro.sk Worker", version="0.1.0", lifespan=lifespan)
 async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=None)) -> None:
     """Overí shared-secret medzi Next.js API a workerom.
 
-    Ak nie je nastavený `worker_secret` (lokálny vývoj), kontrola sa preskočí.
+    V produkcii: vyžaduje presnú zhodu s settings.worker_secret.
+    V dev režime: ak worker_secret nie je nastavený, vygeneruje sa náhodný a vypíše do logu.
     """
     expected = settings.worker_secret
     if not expected:
-        return
+        if settings.app_env == "production":
+            raise HTTPException(status_code=500, detail="WORKER_SECRET must be set in production")
+        # Dev mode — generate a random secret and log it
+        import secrets as _secrets
+        expected = _secrets.token_hex(16)
+        logger.warning(f"[WORKER] No WORKER_SECRET set — generated dev secret: {expected}")
+        logger.warning("[WORKER] Set WORKER_SECRET in .env to suppress this warning.")
     if x_worker_secret != expected:
         raise HTTPException(status_code=401, detail="Invalid worker secret")
 
@@ -77,6 +84,28 @@ async def _execute_report(task: ReportTask) -> None:
         await _execute_report_inner(task)
 
 
+def _extract_company_name(sources, target_type: str) -> Optional[str]:
+    """Extract company name from first successful scraper that has it."""
+    if target_type != "COMPANY":
+        return None
+    for s in sources:
+        if s.status == "SUCCESS" and getattr(s, "company_name", None):
+            return s.company_name
+    return None
+
+
+def _determine_final_status(sources) -> str:
+    """Determine report final status from individual source statuses."""
+    any_unavailable = any(s.status == "UNAVAILABLE" for s in sources)
+    any_failed = any(s.status == "FAILED" for s in sources)
+    all_success = all(s.status == "SUCCESS" for s in sources)
+    if all_success:
+        return "COMPLETED"
+    if any_unavailable or any_failed:
+        return "PARTIAL"
+    return "FAILED"
+
+
 async def _execute_report_inner(task: ReportTask) -> None:
     """Interná implementácia — volaná pod semaphore."""
     t_start = time.perf_counter()
@@ -90,16 +119,13 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
     try:
         pool = await get_db_pool()
-        logger.debug("[WORKER] DB pool acquired")
         await update_report_status(pool, task.report_request_id, "PROCESSING")
-        logger.debug("[WORKER] Status set to PROCESSING")
 
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(headless=settings.playwright_headless)
         t_browser = time.perf_counter()
         logger.debug(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
 
-        # Callback — upsertne každý zdroj do DB ihneď ako skončí
         def _on_source_done(source) -> None:
             logger.debug(f"[WORKER] Source done: {source.source_type}:{source.status}")
             try:
@@ -107,7 +133,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 asyncio.ensure_future(
                     upsert_single_report_source(pool, task.report_request_id, source)
                 )
-                # Ak ORSR extrahoval company_name, uložíme ho ihneď do ReportRequest
                 if source.source_type == "ORSR" and source.status == "SUCCESS" and getattr(source, "company_name", None):
                     asyncio.ensure_future(
                         _save_company_name(pool, task.report_request_id, source.company_name)
@@ -131,20 +156,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
         t_scrape = time.perf_counter()
         logger.debug(f"[WORKER] Scrapers done ({t_scrape - t_browser:.2f}s): {[f'{s.source_type}:{s.status}' for s in sources]}")
 
-        # Finálny upsert všetkých zdrojov (pre istotu — pokryje prípadné preteky callbacku)
         await upsert_report_sources(pool, task.report_request_id, sources)
-        logger.debug("[WORKER] Sources upserted (final)")
 
-        # Extrahujeme obchodné meno, ak ho niektorý úspešný scraper získal
-        company_name = None
-        if task.target_type == "COMPANY":
-            for s in sources:
-                if s.status == "SUCCESS" and getattr(s, "company_name", None):
-                    company_name = s.company_name
-                    break
+        company_name = _extract_company_name(sources, task.target_type)
 
-        # Zlúčime PDF aj ak niektorý zdroj zlyhal — report pokračuje.
-        logger.debug("[WORKER] Starting PDF compile...")
         compiler = PdfCompiler(settings.results_dir)
         final_path = compiler.compile(
             report_request_id=task.report_request_id,
@@ -156,12 +171,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         t_compile = time.perf_counter()
         logger.debug(f"[WORKER] PDF compiled ({t_compile - t_scrape:.2f}s): {final_path}")
 
-        # Rozhodneme finálny status reportu.
-        any_unavailable = any(s.status == "UNAVAILABLE" for s in sources)
-        any_failed = any(s.status == "FAILED" for s in sources)
-        all_success = all(s.status == "SUCCESS" for s in sources)
-
-        final_status = "COMPLETED" if all_success else ("PARTIAL" if any_unavailable or any_failed else "FAILED")
+        final_status = _determine_final_status(sources)
         logger.info(f"[WORKER] Final status: {final_status}")
 
         await update_report_status(

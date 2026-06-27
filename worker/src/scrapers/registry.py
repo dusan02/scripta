@@ -10,6 +10,7 @@ from playwright.async_api import Browser
 from .base import BaseScraper
 from .orsr import OrsrScraper
 from .zrsr import ZrsrScraper
+from .rpo import RpoScraper
 from .insolvency import InsolvencyScraper
 from .rpvs import RpvsScraper
 from .ncrzp import NcrzpScraper
@@ -51,6 +52,7 @@ logger = logging.getLogger(__name__)
 _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "ORSR": OrsrScraper,
     "ZRSR": ZrsrScraper,
+    "RPO": RpoScraper,
     "INSOLVENCY": InsolvencyScraper,
     "RPVS": RpvsScraper,
     "NCRZP": NcrzpScraper,
@@ -79,6 +81,7 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
 _DEPENDS_ON: Dict[str, str] = {
     "FINANCNA_SPRAVA": "ORSR",
     "DISKVALIFIKACIE": "ORSR",
+    "RPO": "ORSR",
 }
 
 

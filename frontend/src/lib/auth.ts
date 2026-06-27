@@ -33,8 +33,16 @@ declare module "next-auth/jwt" {
 
 // ─── Auth Options ─────────────────────────────────────────────────────────────
 
+const _NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
+if (!_NEXTAUTH_SECRET) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEXTAUTH_SECRET must be set in production");
+  }
+  console.warn("[AUTH] NEXTAUTH_SECRET is not set — using insecure default for development only");
+}
+
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: _NEXTAUTH_SECRET,
 
   session: {
     strategy: "jwt",

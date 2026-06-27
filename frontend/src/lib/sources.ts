@@ -22,7 +22,7 @@ export const SOURCES: SourceInfo[] = [
   // ── 1. Základné firemné a právne registre (5) ──
   { id: "ORSR",            name: "Obchodný register SR",   short: "ORSR", description: "Obchodný register SR — vyhľadanie firmy podľa IČO", label: "ORSR",             sublabel: "Obchodný register",          category: "basic", enabled: true },
   { id: "ZRSR",            name: "Živnostenský register SR", short: "ŽRSR", description: "Živnostenský register SR — živnostenské oprávnenia", label: "ŽRSR",         sublabel: "Živnostenský register",      category: "basic", enabled: true },
-  { id: "RPO",             name: "Register právnych osôb",  short: "RPO",  description: "Register právnych osôb SR — zoznam všetkých PO zapísaných v SR", label: "RPO",          sublabel: "Register práv. osôb",        category: "basic", enabled: false },
+  { id: "RPO",             name: "Register práv. osôb",     short: "RPO",  description: "Register právnických osôb, podnikateľov a orgánov verejnej moci — Štatistický úrad SR", label: "RPO",          sublabel: "Register práv. osôb",        category: "basic", enabled: true },
   { id: "RPVS",            name: "Register partnerov verejného sektora", short: "RPVS", description: "RPVS — partneri verejného sektora podľa zákona o VFPO", label: "RPVS", sublabel: "Register part. ver. sektora", category: "basic", enabled: true },
   { id: "OBCHODNY_VESTNIK", name: "Obchodný vestník",       short: "OV",   description: "Obchodný vestník SR — zverejňovanie právnych skutočností", label: "Obchodný vestník", sublabel: "Obchodný vestník SR",     category: "basic", enabled: false },
 

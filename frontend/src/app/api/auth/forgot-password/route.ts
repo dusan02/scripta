@@ -7,7 +7,7 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 5 });
+  const rl = await rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 5 });
   if (!rl.allowed) return rateLimitResponse(rl);
 
   try {

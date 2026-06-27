@@ -76,11 +76,20 @@ class UnionDlzniciScraper(BaseScraper):
             ]
             is_empty = any(marker in body_text.lower() for marker in empty_markers)
 
-            is_debtor = not is_empty and ico in body_text
-
+            # Najprv skúsime extrahovať nálezy z tabuľky — to je spoľahlivé
+            # (na rozdiel od kontroly "ico in body_text" ktorá môže matchnúť
+            # IČO v hlavičke/footri/JS kóde stránky)
             findings = None
-            if is_debtor:
+            is_debtor = False
+            if not is_empty:
                 findings = await self._extract_table_findings(page, ico, source_name="UNION")
+                # _extract_table_findings vracia POZOR len ak našla riadky v tabuľke
+                is_debtor = findings is not None and "POZOR" in findings
+                # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
+                if is_debtor and ico not in findings:
+                    logger.warning(f"[{self.source_type}] Tabuľka nájdená, ale IČO {ico} nie je v náleze — pravdepodobne false positive.")
+                    is_debtor = False
+                    findings = None
 
             if not is_debtor or findings is None:
                 logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov UNION.")

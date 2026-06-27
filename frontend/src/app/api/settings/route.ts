@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { orsrExtractType: true, crzDateFrom: true },
+      select: { orsrExtractType: true, crzDateFrom: true, defaultSources: true },
     });
 
     if (!dbUser) {
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       orsrExtractType: dbUser.orsrExtractType,
       crzDateFrom: dbUser.crzDateFrom?.toISOString().split("T")[0] ?? null,
+      defaultSources: dbUser.defaultSources,
     });
   } catch (error) {
     console.error("GET /api/settings error", error);
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { orsrExtractType, crzDateFrom } = body;
+    const { orsrExtractType, crzDateFrom, defaultSources } = body;
 
     const data: Record<string, unknown> = {};
 
@@ -63,6 +64,16 @@ export async function PATCH(req: NextRequest) {
         }
         data.crzDateFrom = parsed;
       }
+    }
+
+    if (defaultSources !== undefined) {
+      if (!Array.isArray(defaultSources)) {
+        return NextResponse.json(
+          { error: "defaultSources must be an array of strings" },
+          { status: 400 }
+        );
+      }
+      data.defaultSources = defaultSources.filter((s: unknown) => typeof s === "string");
     }
 
     if (Object.keys(data).length === 0) {

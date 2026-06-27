@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 20 });
+  const rl = await rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 20 });
   if (!rl.allowed) return rateLimitResponse(rl);
 
   try {

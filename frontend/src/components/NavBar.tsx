@@ -6,6 +6,7 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import Logo from "@/components/Logo";
+import FeedbackModal from "@/components/FeedbackModal";
 
 function SunIcon() {
   return (
@@ -36,6 +37,8 @@ const NAV_ITEMS = [
   { href: "/", label: "Overenie subjektu" },
   { href: "/history", label: "História reportov" },
   { href: "/settings", label: "Nastavenia" },
+  { href: "/pricing", label: "Cenník" },
+  { href: "/messages", label: "Správy" },
 ];
 
 export default function NavBar() {
@@ -44,6 +47,7 @@ export default function NavBar() {
   const { theme, toggle } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -54,13 +58,14 @@ export default function NavBar() {
   const isDark = theme === "dark";
 
   return (
+    <>
     <header className="glass-nav sticky top-0 z-50">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
 
           {/* Left: Logo + Nav */}
           <div className="flex items-center gap-6">
-            <Link href="/" aria-label="Scripta — overenie subjektu" style={{ textDecoration: "none" }}>
+            <Link href="/" aria-label="Registro.sk — overenie subjektu" style={{ textDecoration: "none" }}>
               <Logo />
             </Link>
 
@@ -87,6 +92,23 @@ export default function NavBar() {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
+
+            {/* Report button */}
+            <button
+              onClick={() => setFeedbackOpen(true)}
+              title="Nahlásiť chybu alebo poslať spätnú väzbu"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+              style={{
+                background: "var(--bg-muted)",
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              </svg>
+              Reportovať
+            </button>
 
             {/* Divider */}
             <div
@@ -181,6 +203,18 @@ export default function NavBar() {
                 </Link>
               );
             })}
+            {/* Mobile report button */}
+            <button
+              onClick={() => { setFeedbackOpen(true); setMobileOpen(false); }}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              </svg>
+              Reportovať
+            </button>
+
             {/* Mobile logout */}
             <button
               onClick={handleLogout}
@@ -193,6 +227,9 @@ export default function NavBar() {
           </div>
         )}
       </div>
-    </header>
+      </header>
+
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+    </>
   );
 }

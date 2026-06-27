@@ -22,6 +22,7 @@ async function main() {
   });
 
   console.log(`✅  User created/updated: ${user.email} (id: ${user.id})`);
+
   console.log(`\n   Login credentials:`);
   console.log(`   Email:    ${email}`);
   console.log(`   Password: ${password}`);

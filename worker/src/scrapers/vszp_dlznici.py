@@ -117,6 +117,11 @@ class VszpDlzniciScraper(BaseScraper):
             if not is_empty:
                 findings = await self._extract_table_findings(page, ico, source_name="VšZP")
                 is_debtor = findings is not None and "POZOR" in (findings or "")
+                # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
+                if is_debtor and ico not in findings:
+                    logger.warning(f"[{self.source_type}] Tabuľka nájdená, ale IČO {ico} nie je v náleze — pravdepodobne false positive.")
+                    is_debtor = False
+                    findings = None
 
             if not is_debtor:
                 logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov VšZP.")

@@ -12,7 +12,7 @@ const resetPasswordSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 10 });
+  const rl = await rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 10 });
   if (!rl.allowed) return rateLimitResponse(rl);
 
   try {

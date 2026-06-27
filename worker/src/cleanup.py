@@ -50,7 +50,7 @@ async def cleanup_old_reports() -> Tuple[int, int]:
             mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=timezone.utc)
             if mtime < cutoff:
                 report_id = child.name
-                shutil.rmtree(child, ignore_errors=True)
+                await asyncio.to_thread(shutil.rmtree, child, True)
                 removed += 1
                 logger.info(f"[CLEANUP] Removed old report dir: {report_id}")
                 # Clear resultFilePath in DB so download doesn't 404 on stale path
@@ -114,7 +114,7 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
                 # Delete files from disk
                 report_dir = results_dir / report_id
                 if report_dir.exists():
-                    shutil.rmtree(report_dir, ignore_errors=True)
+                    await asyncio.to_thread(shutil.rmtree, report_dir, True)
                     removed += 1
                     logger.info(f"[CLEANUP] Removed excess report dir for user {user_id}: {report_id}")
                 # Clear resultFilePath in DB
@@ -138,18 +138,56 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
     return removed, db_cleared
 
 
+async def recover_stale_reports() -> int:
+    """Mark PROCESSING reports older than 30 minutes as FAILED.
+
+    This handles cases where the worker crashed mid-task.
+    Returns count of recovered reports.
+    """
+    conn = None
+    try:
+        conn = await _get_db_conn()
+    except Exception as e:
+        logger.warning(f"[CLEANUP] DB connection failed, skipping stale recovery: {e}")
+        return 0
+
+    recovered = 0
+    try:
+        result = await conn.execute(
+            'UPDATE "ReportRequest" '
+            'SET status = \'FAILED\', "updatedAt" = NOW() '
+            'WHERE status = \'PROCESSING\' '
+            'AND "updatedAt" < NOW() - INTERVAL \'30 minutes\''
+        )
+        count_str = result.split()[-1] if result else "0"
+        recovered = int(count_str) if count_str.isdigit() else 0
+        if recovered > 0:
+            logger.warning(f"[CLEANUP] Marked {recovered} stale PROCESSING reports as FAILED")
+    except Exception as e:
+        logger.error(f"[CLEANUP] Stale recovery error: {e}", exc_info=True)
+    finally:
+        if conn:
+            await conn.close()
+
+    return recovered
+
+
 async def _cleanup_loop() -> None:
-    """Run cleanup periodically (age-based + count-based)."""
+    """Run cleanup periodically (age-based + count-based + stale recovery)."""
     interval = settings.cleanup_interval_hours * 60 * 60
+    # First run after 60s, then on schedule
+    await asyncio.sleep(60)
     while True:
         try:
+            stale = await recover_stale_reports()
             removed_age, db_age = await cleanup_old_reports()
             removed_excess, db_excess = await cleanup_excess_reports()
             total_removed = removed_age + removed_excess
             total_db = db_age + db_excess
-            if total_removed:
+            if total_removed or stale:
                 logger.info(
-                    f"[CLEANUP] Removed {total_removed} report dirs "
+                    f"[CLEANUP] Recovered {stale} stale, "
+                    f"removed {total_removed} report dirs "
                     f"({removed_age} old + {removed_excess} excess), "
                     f"cleared {total_db} DB rows"
                 )

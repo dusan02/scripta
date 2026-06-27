@@ -316,6 +316,11 @@ class FinancnaSpravaBase(BaseScraper):
             # Extrahovať findings
             findings = await self._extract_findings(page, search_query)
             if findings:
+                # Pre scrapery hľadajúce podľa IČO — overíme, že IČO je skutočne v náleze
+                # (zabraňuje false positives keď tabuľka obsahuje dáta z iného vyhľadávania)
+                if self.search_by == "ico" and "POZOR" in findings and ico and ico not in findings:
+                    logger.warning(f"[{self.source_type}] Tabuľka nájdená, ale IČO {ico} nie je v náleze — pravdepodobne false positive.")
+                    findings = self._empty_findings()
                 logger.info(f"[{self.source_type}] Findings: {findings[:200]}")
             else:
                 logger.info(f"[{self.source_type}] Findings: nepodarilo sa extrahovať, pokračujem s PDF.")

@@ -105,12 +105,19 @@ class DoveraDlzniciScraper(BaseScraper):
             no_results_marker = f"sme nenašli žiadne výsledky"
             is_empty = no_results_marker in body_text
 
-            is_debtor = not is_empty and ico in body_text
-
+            # Najprv skúsime extrahovať nálezy z tabuľky — to je spoľahlivé
+            # (na rozdiel od kontroly "ico in body_text" ktorá môže matchnúť
+            # IČO v hlavičke/footri/JS kóde stránky)
             findings = None
-            if is_debtor:
-                # Skús kliknúť na detail záznamu obsahujúci IČO
+            is_debtor = False
+            if not is_empty:
                 findings = await self._extract_findings(page, ico)
+                is_debtor = findings is not None and "POZOR" in (findings or "")
+                # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
+                if is_debtor and ico not in findings:
+                    logger.warning(f"[{self.source_type}] Nálezy nájdené, ale IČO {ico} nie je v nich — pravdepodobne false positive.")
+                    is_debtor = False
+                    findings = None
 
             if not is_debtor or findings is None:
                 logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov Dôvery.")

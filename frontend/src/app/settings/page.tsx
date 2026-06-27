@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import RegistryGrid from "@/components/RegistryGrid";
+import { DEFAULT_SELECTED_SOURCES, ENABLED_SOURCES } from "@/lib/sources";
 
 export default function SettingsPage() {
   const [orsrExtractType, setOrsrExtractType] = useState<"CURRENT" | "FULL">("CURRENT");
   const [crzDateFrom, setCrzDateFrom] = useState<string>("");
+  const [defaultSources, setDefaultSources] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -18,10 +21,16 @@ export default function SettingsPage() {
       .then((data) => {
         if (data.orsrExtractType) setOrsrExtractType(data.orsrExtractType);
         if (data.crzDateFrom) setCrzDateFrom(data.crzDateFrom);
+        if (data.defaultSources && Array.isArray(data.defaultSources) && data.defaultSources.length > 0) {
+          setDefaultSources(data.defaultSources);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const toggleSource = (id: string) =>
+    setDefaultSources((p) => (p.includes(id) ? p.filter((s) => s !== id) : [...p, id]));
 
   const handleSave = async () => {
     setSaving(true);
@@ -30,7 +39,7 @@ export default function SettingsPage() {
       await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null }),
+        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, defaultSources }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -176,6 +185,39 @@ export default function SettingsPage() {
               </button>
             )}
           </div>
+        )}
+      </div>
+
+      {/* Default Registries */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2
+              className="text-sm font-semibold mb-1"
+              style={{ color: "var(--text)" }}
+            >
+              Predvolené registre
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Vyberte, ktoré registre sa predvolene vyberú pri generovaní reportu.
+              Tieto nastavenia sa použijú ako východiskový stav na úvodnej stránke.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div
+            className="h-32 rounded-lg animate-pulse"
+            style={{ background: "var(--bg-muted)" }}
+          />
+        ) : (
+          <RegistryGrid
+            mode="selection"
+            selected={defaultSources}
+            onToggle={toggleSource}
+            onSelectAll={() => setDefaultSources(ENABLED_SOURCES.map(s => s.id))}
+            onSelectNone={() => setDefaultSources([])}
+          />
         )}
       </div>
 
