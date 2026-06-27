@@ -37,7 +37,7 @@ function CheckIcon({ size = 10 }: { size?: number }) {
 
 function SpinnerIcon({ size = 10 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="flex-shrink-0 animate-spin">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="flex-shrink-0 animate-spin" style={{ color: "var(--info)" }}>
       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
       <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
