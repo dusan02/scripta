@@ -127,7 +127,6 @@ function RegistryPill({ label, state, title, onClick, disabled }: RegistryPillPr
   const className = "flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors duration-300 max-w-full";
   const sharedProps = {
     className,
-    title,
     style: {
       background: style.bg,
       border: `1px solid ${style.border}`,
@@ -141,7 +140,14 @@ function RegistryPill({ label, state, title, onClick, disabled }: RegistryPillPr
     <>
       <LeftIcon state={state} />
       <span className="truncate whitespace-nowrap">{label}</span>
-      <InfoIcon />
+      {title ? (
+        <span className="pill-tooltip-wrap flex-shrink-0">
+          <InfoIcon />
+          <span className="pill-tooltip">{title}</span>
+        </span>
+      ) : (
+        <InfoIcon />
+      )}
     </>
   );
 
