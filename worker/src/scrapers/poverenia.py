@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -12,6 +13,8 @@ from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
 
+# ── Konfigurácia ──────────────────────────────────────────────────────────────
+
 _NO_RESULTS_MARKERS = [
     "nebolo nájdené žiadne poverenie",
     "neexistuje žiadne poverenie",
@@ -19,15 +22,16 @@ _NO_RESULTS_MARKERS = [
     "žiadne záznamy",
 ]
 
-_SKIP_KEYWORDS = [
-    "podľa ičo", "názov povinného (nepovinný", "vyplní ičo",
+# UI/navigation text ktorý sa nemá dostať do findings
+_SKIP_KEYWORDS = {
+    "podľa ičo", "názov povinného", "vyplní ičo",
     "hľadať poverenie", "podľa ecli", "podľa mena",
     "ohodnoťte", "spätná väzba", "nášli ste na stránke",
     "support links", "pomocník", "cookies", "vyhlásenie",
     "vytvorené v súlade", "prevádzkovateľ", "verzia",
     "na stranu", "ďalšie záznamy", "pdf výpise",
     "chybu", "hore",
-]
+}
 
 _LABELS = {"názov", "sídlo", "ičo"}
 _SECTION_LABELS = {"poverenie ecli", "aktuálny", "oprávnený", "povinný"}
@@ -51,6 +55,47 @@ _CLEANUP_JS = """() => {
     });
 }"""
 
+
+# ── Dátové modely ─────────────────────────────────────────────────────────────
+
+@dataclass
+class PoverenieParty:
+    """Účasník konania (oprávnený alebo povinný)."""
+    role: str = ""
+    name: str = ""
+    address: str = ""
+    ico: str = ""
+
+
+@dataclass
+class PoverenieRecord:
+    """Jeden záznam poverenia na exekúciu."""
+    ecli: str = ""
+    status: str = ""
+    parties: list[PoverenieParty] = field(default_factory=list)
+
+    def to_findings(self) -> list[str]:
+        """Konvertuje záznam na riadky pre findings text."""
+        lines = []
+        if self.ecli:
+            lines.append(f"Poverenie ECLI: {self.ecli}")
+        if self.status:
+            lines.append(self.status.upper())
+        for party in self.parties:
+            if not party.role:
+                continue
+            lines.append("")
+            lines.append(party.role.capitalize())
+            if party.name:
+                lines.append(f"Názov: {party.name}")
+            if party.address:
+                lines.append(f"Sídlo: {party.address}")
+            if party.ico:
+                lines.append(f"IČO: {party.ico}")
+        return lines
+
+
+# ── Scraper ───────────────────────────────────────────────────────────────────
 
 class PovereniaScraper(BaseScraper):
     """Scraper pre Register poverení na exekúcie (obcan.justice.sk/pilot/poverenia)."""
@@ -90,7 +135,7 @@ class PovereniaScraper(BaseScraper):
             pdf_output = output_dir / f"poverenia_{ico}.pdf"
 
             if has_poverenie:
-                logger.info(f"[{self.source_type}] Pozitívny záznam pre IČO {ico} (potvrdené IČO v texte).")
+                logger.info(f"[{self.source_type}] Pozitívny záznam pre IČO {ico}.")
                 result = await self._make_positive_result(page, pdf_output, ico)
             elif no_results:
                 logger.info(f"[{self.source_type}] Žiadne poverenie pre IČO {ico}.")
@@ -204,6 +249,8 @@ class PovereniaScraper(BaseScraper):
         )
         logger.info(f"[{self.source_type}] PDF vygenerované: {output_path}")
 
+    # ── Findings extraction ─────────────────────────────────────────
+
     async def _extract_findings(self, page: Page, ico: str) -> str:
         try:
             body_text = await page.inner_text("body")
@@ -211,50 +258,96 @@ class PovereniaScraper(BaseScraper):
             if "poverenie ecli" not in lowered:
                 return f"Pre IČO {ico} sa našli záznamy v registri poverení na exekúcie (detaily v PDF)."
 
-            idx = lowered.find("poverenie ecli")
-            relevant_text = body_text[idx:]
-
-            raw_lines = []
-            for l in relevant_text.split("\n"):
-                l = l.strip()
-                if not l:
-                    continue
-                ll = l.lower()
-                if any(s in ll for s in _SKIP_KEYWORDS):
-                    continue
-                # Preskočiť krátke čísla (paginator strán: 5, 10, 15, 20, 30)
-                if l.isdigit() and len(l) <= 3:
-                    continue
-                # Preskočiť "…" a podobné samostatné znaky
-                if len(l) <= 2 and not l.isalpha():
-                    continue
-                raw_lines.append(l)
-
-            grouped = []
-            i = 0
-            while i < len(raw_lines):
-                line = raw_lines[i]
-                ll = line.lower()
-
-                if ll in _LABELS and i + 1 < len(raw_lines):
-                    next_line = raw_lines[i + 1]
-                    if next_line.lower() not in _LABELS and next_line.lower() not in _SECTION_LABELS:
-                        grouped.append(f"{line}: {next_line}")
-                        i += 2
-                        continue
-
-                if ll in _SECTION_LABELS:
-                    if grouped:
-                        grouped.append("")
-                    grouped.append(line)
-                    i += 1
-                    continue
-
-                grouped.append(line)
-                i += 1
+            records = self._parse_records(body_text)
+            if not records:
+                return f"Pre IČO {ico} sa našli záznamy v registri poverení na exekúcie (detaily v PDF)."
 
             header = f"⚠ POZOR: Pre IČO {ico} bolo nájdené poverenie na vykonanie exekúcie!\n\n"
-            return header + "\n".join(grouped[:50])
+            parts = [header]
+            for record in records:
+                parts.extend(record.to_findings())
+                parts.append("")
+
+            return "\n".join(parts).strip()
         except Exception as e:
             logger.warning(f"[{self.source_type}] Extrakcia nálezov zlyhala: {e}")
             return f"Výpis z registra poverení pre IČO {ico} vygenerovaný (detaily v PDF)."
+
+    @staticmethod
+    def _filter_lines(text: str) -> list[str]:
+        """Vyfiltruje relevantné riadky z textu stránky."""
+        lines = []
+        for raw in text.split("\n"):
+            l = raw.strip()
+            if not l:
+                continue
+            ll = l.lower()
+            if any(kw in ll for kw in _SKIP_KEYWORDS):
+                continue
+            if l.isdigit() and len(l) <= 3:
+                continue
+            if len(l) <= 2 and not l.isalpha():
+                continue
+            lines.append(l)
+        return lines
+
+    def _parse_records(self, body_text: str) -> list[PoverenieRecord]:
+        """Parsovanie štruktúrovaných záznamov poverení z textu stránky."""
+        lowered = body_text.lower()
+        idx = lowered.find("poverenie ecli")
+        if idx == -1:
+            return []
+
+        relevant = body_text[idx:]
+        raw_lines = self._filter_lines(relevant)
+
+        records: list[PoverenieRecord] = []
+        current = PoverenieRecord()
+        current_party: Optional[PoverenieParty] = None
+        expecting_value_for: Optional[str] = None
+
+        for line in raw_lines:
+            ll = line.lower()
+
+            if ll == "poverenie ecli":
+                if current.ecli or current.parties:
+                    records.append(current)
+                current = PoverenieRecord()
+                current_party = None
+                expecting_value_for = "ecli"
+                continue
+
+            if ll in _SECTION_LABELS and ll != "poverenie ecli":
+                if ll == "aktuálny":
+                    expecting_value_for = "status"
+                    continue
+                if ll in ("oprávnený", "povinný"):
+                    current_party = PoverenieParty(role=ll)
+                    current.parties.append(current_party)
+                    expecting_value_for = None
+                    continue
+
+            if ll in _LABELS and current_party is not None:
+                expecting_value_for = ll
+                continue
+
+            if expecting_value_for == "ecli":
+                current.ecli = line
+                expecting_value_for = None
+            elif expecting_value_for == "status":
+                current.status = line
+                expecting_value_for = None
+            elif expecting_value_for == "názov" and current_party is not None:
+                current_party.name = line
+                expecting_value_for = None
+            elif expecting_value_for == "sídlo" and current_party is not None:
+                current_party.address = line
+                expecting_value_for = None
+            elif expecting_value_for == "ičo" and current_party is not None:
+                current_party.ico = line
+                expecting_value_for = None
+
+        if current.ecli or current.parties:
+            records.append(current)
+
+        return records
