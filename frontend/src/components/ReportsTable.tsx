@@ -175,7 +175,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
         <div
           className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider"
           style={{
-            gridTemplateColumns: "190px 1fr 90px 90px 90px",
+            gridTemplateColumns: "220px minmax(0, 1fr) 100px 110px 100px",
             background: "var(--bg-subtle)",
             borderBottom: "1px solid var(--border)",
             color: "var(--text-muted)",
@@ -211,7 +211,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                 {/* Desktop row */}
                 <div
                   className="hidden md:grid items-center px-4 py-3 transition-colors duration-100"
-                  style={{ gridTemplateColumns: "190px 1fr 90px 90px 90px" }}
+                  style={{ gridTemplateColumns: "220px minmax(0, 1fr) 100px 110px 100px" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >

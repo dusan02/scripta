@@ -12,7 +12,7 @@ from ..models import ScrapedSource, PersonInfo, ACADEMIC_TITLES, ZIP_RE
 
 logger = logging.getLogger(__name__)
 
-_EMPTY_MARKERS = ("Nenašli sa žiadne", "Podmienkam nevyhovuje žiadny")
+_EMPTY_MARKERS = ("Nenašli sa žiadne", "Podmienkam nevyhovuje žiadny", "Záznamy: 0 - 0 / 0")
 _OUTDATED_MARKER = "Výpis je neaktuálny"
 _TRANSFERRED_MARKER = "Spis odstúpený na iný registrový súd"
 
@@ -365,14 +365,24 @@ class OrsrScraper(BaseScraper):
             await page.goto(search_url, timeout=30000, wait_until="domcontentloaded")
             
             name_val = await page.evaluate("""(ico) => {
+                const links = Array.from(document.querySelectorAll("a"));
+                for (const link of links) {
+                    const href = link.getAttribute("href") || "";
+                    if (href.includes("vypis.asp") && !link.innerText.includes("Aktuálny") && !link.innerText.includes("Úplný")) {
+                        const text = link.innerText.trim();
+                        if (text.length > 0) return text;
+                    }
+                }
+                
                 const rows = document.querySelectorAll("table tr");
                 for (const row of rows) {
-                    const cells = row.querySelectorAll("td");
-                    for (let i = 0; i < cells.length; i++) {
-                        const text = cells[i].innerText || "";
-                        if (text.includes(ico) && i + 1 < cells.length) {
-                            return cells[i + 1].innerText.trim();
+                    if (row.innerText.includes(ico)) {
+                        const a = row.querySelector("a");
+                        if (a && !a.innerText.includes("Aktuálny") && !a.innerText.includes("Úplný")) {
+                            return a.innerText.trim();
                         }
+                        const b = row.querySelector("b");
+                        if (b) return b.innerText.trim();
                     }
                 }
                 return null;

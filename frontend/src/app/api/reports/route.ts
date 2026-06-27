@@ -111,11 +111,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Lookup názvu firmy z ORSR (best-effort, neblokuje vytvorenie reportu)
+    let companyName: string | null = null;
+    try {
+      const lookupRes = await fetch(`https://www.orsr.sk/hladaj_ico.asp?ICO=${ico}&SID=0`, {
+        signal: AbortSignal.timeout(5000),
+        headers: { "User-Agent": "Mozilla/5.0" },
+      });
+      if (lookupRes.ok) {
+        const buf = await lookupRes.arrayBuffer();
+        const html = new TextDecoder("windows-1250").decode(buf);
+        const nameMatch = /<a[^>]*alt="Aktuálny výpis"[^>]*>([^<]+)<\/a>/i.exec(html);
+        if (nameMatch) {
+          companyName = nameMatch[1]
+            .replace(/&amp;/g, "&")
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .trim();
+        }
+      }
+    } catch {
+      // best-effort — ak lookup zlyhá, report sa vytvorí bez názvu
+    }
+
     const reportRequest = await prisma.reportRequest.create({
       data: {
         userId: user.id,
         targetType: "COMPANY",
         ico: ico ?? null,
+        companyName,
         selectedSources: sources as SourceType[],
         status: "PENDING",
         sources: {

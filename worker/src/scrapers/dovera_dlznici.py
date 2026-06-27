@@ -144,20 +144,26 @@ class DoveraDlzniciScraper(BaseScraper):
                 )
 
             # Inak sme našli subjekt v tabuľke (is_debtor = True).
-            # Pred tlačením PDF schováme prvky, ktoré neobsahujú naše IČO (Dôvera často nemá <table>, ale <article> alebo list itemy)
+            # Stránka Dôvery vracia presné výsledky pre vyhľadané IČO,
+            # takže nie je potrebné skrývať ostatné prvky (čo spôsobovalo
+            # skrytie sumy a názvu spoločnosti, pretože neobsahovali text IČO).
+
+            # Schováme len reklamný banner s robotom ("Nenašli ste sa v zozname dlžníkov?"),
+            # aby PDF zaberalo menej miesta a nemalo zbytočnú druhú stranu.
             try:
-                await page.evaluate("""(ico) => {
-                    const cards = document.querySelectorAll('article, .card, .list-item, .table-row, [class*="item"], table tbody tr');
-                    for (const card of cards) {
-                        // Preskoč samotný kontajner stránky, aplikuj len na malé karty
-                        if (card.children.length > 5 || card.tagName === 'MAIN') continue;
-                        if (!card.innerText.includes(ico)) {
-                            card.style.display = 'none';
+                await page.evaluate("""() => {
+                    const allEls = document.querySelectorAll('div, section, article');
+                    for (const el of allEls) {
+                        if (el.innerText && el.innerText.includes('Nenašli ste sa v zozname dlžníkov')) {
+                            // Skryjeme len element, ktorý neobsahuje príliš veľa iného textu (aby sme neskryli celú stránku)
+                            if (el.innerText.length < 500) {
+                                el.style.display = 'none';
+                            }
                         }
                     }
-                }""", ico)
+                }""")
             except Exception as e:
-                logger.warning(f"[{self.source_type}] DOM filter riadkov zlyhal: {e}")
+                logger.warning(f"[{self.source_type}] Zlyhalo skrytie reklamného bannera: {e}")
 
             try:
                 await self._generate_clean_pdf(

@@ -45,7 +45,7 @@ export default async function DashboardPage() {
   }));
 
   return (
-    <div className="max-w-[1000px] mx-auto px-4 sm:px-6" style={{ minHeight: "calc(100vh - 56px)" }}>
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6" style={{ minHeight: "calc(100vh - 56px)" }}>
       <SearchSection />
       <ReportsTable reports={serializedReports} />
     </div>

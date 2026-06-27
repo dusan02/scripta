@@ -375,7 +375,7 @@ export default function ReportDetailPage() {
                 className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
                 style={{
                   background: "var(--accent)",
-                  color: "var(--accent-button-text)",
+                  color: "#000000",
                   height: "36px",
                   padding: "0 14px",
                   fontSize: "12.5px",

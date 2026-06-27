@@ -32,9 +32,20 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
 
   const toggle = () => {
     const next: Theme = theme === "dark" ? "light" : "dark";
+
+    // Temporarily disable all transitions to prevent flash/flicker
+    document.documentElement.classList.add("theme-switching");
+
     setTheme(next);
     localStorage.setItem("registro-theme", next);
     document.documentElement.setAttribute("data-theme", next);
+
+    // Re-enable transitions after CSS variables have swapped
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove("theme-switching");
+      });
+    });
   };
 
   return (

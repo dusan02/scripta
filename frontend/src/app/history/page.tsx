@@ -233,7 +233,7 @@ export default function HistoryPage() {
         <div
           className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider"
           style={{
-            gridTemplateColumns: "190px 1fr 120px 90px 90px",
+            gridTemplateColumns: "220px minmax(0, 1fr) 120px 110px 100px",
             background: "var(--bg-subtle)",
             borderBottom: "1px solid var(--border)",
             color: "var(--text-muted)",
@@ -282,7 +282,7 @@ export default function HistoryPage() {
                   {/* Desktop row */}
                   <div
                     className="hidden md:grid items-center px-4 py-3 transition-colors duration-100"
-                    style={{ gridTemplateColumns: "190px 1fr 120px 90px 90px" }}
+                    style={{ gridTemplateColumns: "220px minmax(0, 1fr) 120px 110px 100px" }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                   >
