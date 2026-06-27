@@ -208,15 +208,51 @@ class CoverPageGenerator:
         story.append(header_table)
         story.append(Spacer(1, 0.6 * cm))
 
-        # ── Subject info ────────────────────────────────────────────
+        # ── Subject info card ───────────────────────────────────────
         subject_label = "Subjekt" if target_type == "COMPANY" else "Fyzická osoba"
-        story.append(Paragraph(f"<b>{subject_label}:</b> {identifier}", subtitle_style))
-        if target_type == "COMPANY" and company_name:
-            story.append(Paragraph(f"<b>Obchodné meno:</b> {company_name}", subtitle_style))
-        story.append(Paragraph(f"<b>Vygenerované:</b> {generated_at.strftime('%d.%m.%Y %H:%M:%S')}", subtitle_style))
         total_pages = sum(s.page_count or 0 for s in sources if s.status == "SUCCESS")
-        story.append(Paragraph(f"<b>Počet strán:</b> {total_pages}", subtitle_style))
-        story.append(Spacer(1, 0.4 * cm))
+
+        # Label style: muted, right-aligned
+        _info_label_style = ParagraphStyle(
+            "InfoLabel",
+            parent=subtitle_style,
+            fontName="Inter",
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#71717a"),
+            alignment=2,  # right
+        )
+        # Value style: bold, dark
+        _info_value_style = ParagraphStyle(
+            "InfoValue",
+            parent=subtitle_style,
+            fontName="Inter-Bold",
+            fontSize=10,
+            leading=13,
+            textColor=colors.HexColor("#18181b"),
+        )
+
+        _info_rows = [
+            [Paragraph(subject_label, _info_label_style), Paragraph(identifier, _info_value_style)],
+        ]
+        if target_type == "COMPANY" and company_name:
+            _info_rows.append([Paragraph("Obchodné meno", _info_label_style), Paragraph(company_name, _info_value_style)])
+        _info_rows.append([Paragraph("Vygenerované", _info_label_style), Paragraph(generated_at.strftime('%d.%m.%Y %H:%M:%S'), _info_value_style)])
+        _info_rows.append([Paragraph("Počet strán", _info_label_style), Paragraph(str(total_pages), _info_value_style)])
+
+        _info_table = Table(_info_rows, colWidths=[3.5 * cm, 12.5 * cm])
+        _info_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 12),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("LINEBEFORE", (0, 0), (0, -1), 3, colors.HexColor("#10b981")),
+        ]))
+        story.append(_info_table)
+        story.append(Spacer(1, 0.5 * cm))
 
         # ── Summary at top ─────────────────────────────────────────
         from xml.sax.saxutils import escape as xml_escape
