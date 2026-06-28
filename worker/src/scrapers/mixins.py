@@ -219,6 +219,22 @@ class StealthDebtorMixin:
 
         await ctx.add_init_script(STEALTH_JS)
         page = await ctx.new_page()
+
+        async def _close_context_on_page_close(page_to_close: Page) -> None:
+            """Close browser context when page closes to prevent memory leaks."""
+            try:
+                await page_to_close.wait_for_event("close", timeout=0)
+            except Exception:
+                pass
+            finally:
+                try:
+                    if ctx in self._contexts:
+                        self._contexts.remove(ctx)
+                    await ctx.close()
+                except Exception:
+                    pass
+
+        asyncio.create_task(_close_context_on_page_close(page))
         return page
 
     async def _run_debtor_scraper(

@@ -26,9 +26,27 @@ class UnionDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=45000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=20000, wait_until='domcontentloaded')
             except (PlaywrightTimeoutError, PlaywrightError) as e:
-                raise ScraperUnavailableError(f"UNION nedostupná: {e}")
+                logger.warning(f"[{self.source_type}] UNION nedostupná ({e}) — generujem fallback PDF.")
+                pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="UNION",
+                        has_ico=False,
+                        has_no_results_text=False,
+                    )
+                except Exception as e2:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e2}")
+                    raise ScraperUnavailableError(f"UNION nedostupná: {e}")
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="UNION: stránka nedostupná (timeout/blokovanie).",
+                    findings="UNION: vyhľadávanie zlyhalo — stránka nedostupná.",
+                )
 
             # Vyplniť IČO do textového poľa
             try:
@@ -38,10 +56,24 @@ class UnionDlzniciScraper(BaseScraper):
                 await textbox.fill(ico)
                 logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
             except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Textové pole sa nenašlo.")
+                logger.error(f"[{self.source_type}] Textové pole sa nenašlo — generujem PDF z aktuálneho stavu.")
+                pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="UNION",
+                        has_ico=False,
+                        has_no_results_text=False,
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť pole na stránke UNION: {e}")
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť textové pole na stránke UNION.",
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="UNION: nepodarilo sa vykonať vyhľadávanie (zmena stránky).",
+                    findings="UNION: vyhľadávanie zlyhalo — textové pole sa nenašlo.",
                 )
 
             # Kliknúť "Hľadať"
@@ -51,10 +83,24 @@ class UnionDlzniciScraper(BaseScraper):
                 await search_btn.click()
                 logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté.")
             except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo.")
+                logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo — generujem PDF z aktuálneho stavu.")
+                pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="UNION",
+                        has_ico=True,
+                        has_no_results_text=False,
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť tlačidlo Hľadať: {e}")
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť tlačidlo Hľadať na stránke UNION.",
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="UNION: nepodarilo sa spustiť vyhľadávanie (zmena stránky).",
+                    findings="UNION: vyhľadávanie zlyhalo — tlačidlo sa nenašlo.",
                 )
 
             # Počkať na výsledky — čakáme na tabuľku alebo text o prázdnych výsledkoch
