@@ -1,0 +1,19 @@
+<svg width="500" height="150" viewBox="0 0 500 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .text-logo { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 800; font-size: 75px; letter-spacing: -3px; }
+      .text-sub { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 500; font-size: 24px; letter-spacing: -0.5px; }
+    </style>
+  </defs>
+  <g transform="translate(10, 10)">
+    <!-- Proposal 3: Interlocking Geometric V -->
+    <!-- Green Left Leg -->
+    <path d="M0 20 L22 20 L40 65 L30 90 L10 40 Z" fill="#589E78" />
+    <path d="M45 55 L75 15 L53 15 L32 45 Z" fill="#589E78" />
+    <!-- Dark Blue Right Leg -->
+    <path d="M40 65 L60 15 L82 15 L45 90 Z" fill="#20304C" />
+    
+    <text x="85" y="80" class="text-logo" fill="#20304C">erifa<tspan fill="#589E78">.sk</tspan></text>
+    <text x="0" y="125" class="text-sub" fill="#111827">Automatizovaná verifikácia firiem</text>
+  </g>
+</svg>

@@ -7,6 +7,11 @@ import StatusBadge from "@/components/StatusBadge";
 import CopyableText from "@/components/CopyableText";
 import { ENABLED_SOURCES } from "@/lib/sources";
 import SourceBadges from "@/components/SourceBadges";
+import { useT, useLang } from "@/components/LanguageProvider";
+import { LOCALE_MAP } from "@/lib/i18n";
+import { formatCompanyName } from "@/lib/format";
+import toast from "react-hot-toast";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface ReportSource {
   sourceType: string;
@@ -25,23 +30,26 @@ interface Report {
   sources: ReportSource[];
 }
 
-function timeAgo(date: string) {
+function timeAgo(date: string, t: (key: string, params?: Record<string, string | number>) => string, locale: string) {
   const now = new Date();
   const diff = now.getTime() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
   const days = Math.floor(hours / 24);
-  if (mins < 1) return "práve teraz";
-  if (mins < 60) return `pred ${mins} min`;
-  if (hours < 24) return `pred ${hours} h`;
-  if (days === 1) return "včera";
-  return new Intl.DateTimeFormat("sk-SK", {
+  if (mins < 1) return t("reports.praveTeraz");
+  if (mins < 60) return t("reports.predMin", { n: mins });
+  if (hours < 24) return t("reports.predH", { n: hours });
+  if (days === 1) return t("reports.vcera");
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit", month: "2-digit", year: "numeric",
   }).format(new Date(date));
 }
 
 export default function ReportsTable({ reports }: { reports: Report[] }) {
   const router = useRouter();
+  const t = useT();
+  const { lang } = useLang();
+  const locale = LOCALE_MAP[lang];
   const [localReports, setLocalReports] = useState<Report[]>(reports);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -53,8 +61,8 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
   
   useEffect(() => setMounted(true), []);
   const timeAgoSafe = useMemo(
-    () => (date: string) => mounted ? timeAgo(date) : "",
-    [mounted]
+    () => (date: string) => mounted ? timeAgo(date, t, locale) : "",
+    [mounted, t, locale]
   );
 
   const handleDelete = useCallback((e: React.MouseEvent, reportId: string, subject: string) => {
@@ -72,7 +80,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
         const res = await fetch(`/api/reports?all=true`, { method: "DELETE" });
         if (res.ok) router.refresh();
       } catch {
-        // ignore
+        toast.error(t("history.chybaMazania"));
       } finally {
         setDeletingAll(false);
       }
@@ -83,7 +91,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
         const res = await fetch(`/api/reports?id=${modal.reportId}`, { method: "DELETE" });
         if (res.ok) router.refresh();
       } catch {
-        // ignore
+        toast.error(t("history.chybaMazania"));
       } finally {
         setDeletingId(null);
       }
@@ -109,14 +117,14 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
       if (res.ok) {
         router.push(`/reports/${data.reportRequestId}`);
       } else {
-        alert(data.error || "Nepodarilo sa zopakovať report.");
+        toast.error(data.error || t("reports.nepodariloZopakovat"));
       }
     } catch {
-      alert("Sieťová chyba.");
+      toast.error(t("reports.sietovaChyba"));
     } finally {
       setRetryingId(null);
     }
-  }, [router]);
+  }, [router, t]);
 
   const handleDeleteAll = useCallback(() => {
     setModal({ type: "all" });
@@ -124,9 +132,10 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
 
   if (localReports.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 fade-in">
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Zatiaľ žiadne reporty.
+      <div className="flex flex-col items-center justify-center py-16 fade-in">
+        <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.4 }}>📋</div>
+        <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+          {t("reports.ziadneReporty")}
         </p>
       </div>
     );
@@ -140,7 +149,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
             className="text-sm font-semibold"
             style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
           >
-            Posledné reporty
+            {t("reports.posledne")}
           </h2>
           <button
             onClick={handleDeleteAll}
@@ -148,19 +157,19 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
             className="text-xs font-medium transition-colors hover:text-red-500"
             style={{ color: "var(--text-muted)" }}
           >
-            {deletingAll ? "Mažem…" : "Vymazať všetko"}
+            {deletingAll ? t("reports.mazem") : t("reports.vymazatVsetko")}
           </button>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            {localReports.length} záznamov
+            {t("reports.zaznamov", { n: localReports.length })}
           </span>
           <Link
             href="/history"
             className="text-xs font-medium transition-colors hover:opacity-80 flex items-center gap-1"
             style={{ color: "var(--accent)" }}
           >
-            Zobraziť celú históriu
+            {t("reports.zobrazitHistoriu")}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
               <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -173,19 +182,17 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
 
         {/* Header — desktop only */}
         <div
-          className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider"
+          className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider gap-3"
           style={{
-            gridTemplateColumns: "220px minmax(0, 1fr) 100px 110px 100px",
+            gridTemplateColumns: "200px minmax(0, 1fr) 130px",
             background: "var(--bg-subtle)",
             borderBottom: "1px solid var(--border)",
             color: "var(--text-muted)",
           }}
         >
-          <span>Subjekt</span>
-          <span>Registre</span>
-          <span>Čas</span>
-          <span>Stav</span>
-          <span className="text-right">Akcia</span>
+          <span className="text-center">{t("reports.subjekt")}</span>
+          <span>{t("reports.registre")}</span>
+          <span className="text-right">{t("reports.stav")}</span>
         </div>
 
         {/* Rows */}
@@ -193,7 +200,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
           {localReports.map((report, idx) => {
             const identifier =
               report.targetType === "COMPANY"
-                ? `IČO: ${report.ico}`
+                ? `${t("common.ico")}: ${report.ico}`
                 : `${report.name} ${report.surname}`;
             const canDownload =
               report.status === "COMPLETED" || report.status === "PARTIAL";
@@ -202,7 +209,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
               <Link
                 key={report.id}
                 href={`/reports/${report.id}`}
-                className="report-row slide-up"
+                className="report-row stagger-row"
                 style={{
                   borderBottom: idx < localReports.length - 1 ? "1px solid var(--border)" : "none",
                   animationDelay: `${idx * 30}ms`,
@@ -210,28 +217,30 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
               >
                 {/* Desktop row */}
                 <div
-                  className="hidden md:grid items-center px-4 py-3 transition-colors duration-100"
-                  style={{ gridTemplateColumns: "220px minmax(0, 1fr) 100px 110px 100px" }}
+                  className="hidden md:grid items-center px-4 py-3 transition-colors duration-100 gap-3"
+                  style={{ gridTemplateColumns: "200px minmax(0, 1fr) 130px" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
-                  {/* Identifier — company name first, IČO below */}
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  {/* Identifier — icon centered above company name */}
+                  <div className="flex flex-col items-center gap-1 min-w-0">
                     <span className="text-base flex-shrink-0">
                       {report.targetType === "COMPANY" ? "🏢" : "👤"}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 w-full text-center">
                       {report.targetType === "COMPANY" && report.companyName ? (
                         <>
                           <span
-                            className="text-sm font-semibold truncate block"
-                            style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                            className="text-sm font-semibold block"
+                            style={{ color: "var(--text)", letterSpacing: "-0.01em", wordBreak: "break-word" }}
                           >
-                            {report.companyName}
+                            {formatCompanyName(report.companyName).map((line, i) => (
+                              <span key={i} className="block">{line}</span>
+                            ))}
                           </span>
                           {report.ico && (
                             <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                              <CopyableText text={report.ico} label="IČO" />
+                              <CopyableText text={report.ico} label={t("common.ico")} />
                             </span>
                           )}
                         </>
@@ -253,117 +262,115 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         className="inline-flex items-center rounded text-[10px] font-bold px-2 py-1"
                         style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
                       >
-                        {report.sources.length}/{ENABLED_SOURCES.length} registrov
+                        {report.sources.length}/{ENABLED_SOURCES.length} {t("reports.registre").toLowerCase()}
                       </span>
                     ) : (
                       <SourceBadges sources={report.sources} />
                     )}
                   </div>
 
-                  {/* Time */}
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {timeAgoSafe(report.createdAt.toString())}
-                  </span>
-
-                  {/* Status */}
-                  <div>
-                    <StatusBadge status={report.status} size="sm" />
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-end gap-2.5">
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
-                      title="Zobraziť report"
-                      className="transition-all duration-150 rounded-md p-0.5"
-                      style={{ color: "var(--text-secondary)" }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    </button>
-                    {canDownload && (
+                  {/* Time + Status + Actions — merged column */}
+                  <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                        {timeAgoSafe(report.createdAt.toString())}
+                      </span>
+                      <StatusBadge status={report.status} size="sm" />
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
-                        title="Stiahnuť PDF"
+                        title={t("reports.zobrazitReport")}
                         className="transition-all duration-150 rounded-md p-0.5"
-                        style={{ color: "var(--accent)" }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--accent-light)"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        style={{ color: "var(--text-secondary)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
                         </svg>
                       </button>
-                    )}
-                    {report.status === "FAILED" && (
+                      {canDownload && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
+                          title={t("reports.stiahnutPdf")}
+                          className="transition-all duration-150 rounded-md p-0.5"
+                          style={{ color: "var(--accent)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--accent-light)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      )}
+                      {report.status === "FAILED" && (
+                        <button
+                          onClick={(e) => handleRetry(e, report)}
+                          disabled={retryingId === report.id}
+                          title={t("reports.zopakovatReport")}
+                          className="transition-all duration-150 rounded-md p-0.5"
+                          style={{ color: "var(--warning)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--warning-bg)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        >
+                          {retryingId === report.id ? (
+                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
                       <button
-                        onClick={(e) => handleRetry(e, report)}
-                        disabled={retryingId === report.id}
-                        title="Zopakovať report"
+                        onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
+                        disabled={deletingId === report.id}
+                        title={t("reports.vymazat")}
                         className="transition-all duration-150 rounded-md p-0.5"
-                        style={{ color: "var(--warning)" }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--warning-bg)"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                        style={{ color: "var(--text-secondary)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--danger-bg)"; (e.currentTarget as HTMLElement).style.color = "var(--danger)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
                       >
-                        {retryingId === report.id ? (
-                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        {deletingId === report.id ? (
+                          <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
                             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
                             <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                           </svg>
                         ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                       </button>
-                    )}
-                    <button
-                      onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
-                      disabled={deletingId === report.id}
-                      title="Vymazať"
-                      className="transition-all duration-150 rounded-md p-0.5"
-                      style={{ color: "var(--text-secondary)" }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--danger-bg)"; (e.currentTarget as HTMLElement).style.color = "var(--danger)"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
-                    >
-                      {deletingId === report.id ? (
-                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                          <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                        </svg>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Mobile card */}
                 <div className="md:hidden px-4 py-3.5">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex flex-col items-center gap-1 min-w-0">
                       <span className="text-base flex-shrink-0">
                         {report.targetType === "COMPANY" ? "🏢" : "👤"}
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 w-full text-center">
                         {report.targetType === "COMPANY" && report.companyName ? (
                           <>
                             <span
-                              className="text-sm font-semibold truncate block"
-                              style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                              className="text-sm font-semibold block"
+                              style={{ color: "var(--text)", letterSpacing: "-0.01em", wordBreak: "break-word" }}
                             >
-                              {report.companyName}
+                              {formatCompanyName(report.companyName).map((line, i) => (
+                                <span key={i} className="block">{line}</span>
+                              ))}
                             </span>
                             {report.ico && (
                               <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                <CopyableText text={report.ico} label="IČO" />
+                                <CopyableText text={report.ico} label={t("common.ico")} />
                               </span>
                             )}
                           </>
@@ -395,7 +402,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
-                        title="Zobraziť report"
+                        title={t("reports.zobrazitReport")}
                         className="transition-all duration-150 rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
@@ -413,7 +420,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         <button
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
-                          title="Zopakovať report"
+                          title={t("reports.zopakovatReport")}
                           className="transition-all duration-150 rounded-md p-0.5"
                           style={{ color: "var(--warning)" }}
                         >
@@ -433,7 +440,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                       <button
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                         disabled={deletingId === report.id}
-                        title="Vymazať"
+                        title={t("reports.vymazat")}
                         className="transition-all duration-150 rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
@@ -461,84 +468,17 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
       </div>
 
       {/* ── Confirm modal ── */}
-      {modal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(0,0,0,0.4)" }}
-          onClick={() => setModal(null)}
-        >
-          <div
-            className="rounded-2xl p-6 max-w-sm w-full fade-in"
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              boxShadow: "var(--shadow-md)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="flex items-center justify-center rounded-full flex-shrink-0"
-                style={{
-                  width: 40,
-                  height: 40,
-                  background: "var(--danger-bg)",
-                }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "var(--danger)" }}>
-                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                  {modal.type === "all" ? "Vymazať všetky reporty?" : "Vymazať report?"}
-                </h3>
-                {modal.subject && (
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                    {modal.subject}
-                  </p>
-                )}
-              </div>
-            </div>
-            <p className="text-xs mb-5" style={{ color: "var(--text-secondary)" }}>
-              {modal.type === "all"
-                ? "Túto akciu nie je možné vrátiť späť. Všetky reporty budú trvalo vymazané."
-                : "Tento report bude trvalo vymazaný."}
-            </p>
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={() => setModal(null)}
-                className="px-4 py-2 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  background: "var(--bg-muted)",
-                  color: "var(--text-secondary)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                Zrušiť
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deletingId !== null || deletingAll}
-                className="px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2"
-                style={{
-                  background: "var(--danger)",
-                  color: "var(--accent-button-text)",
-                  border: "none",
-                }}
-              >
-                {(deletingId !== null || deletingAll) ? (
-                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                    <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                ) : null}
-                Vymazať
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!modal}
+        title={modal?.type === "all" ? t("reports.vymazatVsetkyOtaznik") : t("reports.vymazatReportOtaznik")}
+        subject={modal?.subject}
+        message={modal?.type === "all" ? t("reports.nedaVratit") : t("reports.reportVymazany")}
+        confirmLabel={t("reports.vymazat")}
+        cancelLabel={t("reports.zrusit")}
+        onConfirm={confirmDelete}
+        onCancel={() => setModal(null)}
+        loading={deletingId !== null || deletingAll}
+      />
     </section>
   );
 }

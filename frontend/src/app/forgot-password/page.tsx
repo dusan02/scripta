@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import Logo from "@/components/Logo";
 import Link from "next/link";
 import { useTheme } from "@/components/ThemeProvider";
+import { useT } from "@/components/LanguageProvider";
 
 function Spinner() {
   return (
@@ -23,6 +24,7 @@ function Spinner() {
 export default function ForgotPasswordPage() {
   const { theme, toggle } = useTheme();
   const isDark = theme === "dark";
+  const t = useT();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -43,12 +45,12 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Nepodarilo sa odoslať žiadosť.");
+        setError(data.message || t("forgot.nepodarilo"));
       } else {
         setSuccess(true);
       }
     } catch {
-      setError("Neočakávaná chyba komunikácie so serverom.");
+      setError(t("forgot.neocakavana"));
     } finally {
       setLoading(false);
     }
@@ -62,30 +64,18 @@ export default function ForgotPasswordPage() {
         alignItems: "center",
         justifyContent: "center",
         padding: "24px",
-        background: "var(--bg)",
+        background: "url('/landing-bg-v2.jpg') no-repeat center center",
+        backgroundSize: "cover",
         position: "relative"
       }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: 0.4,
-          pointerEvents: "none",
-          backgroundImage:
-            "linear-gradient(var(--border) 1px, transparent 1px)," +
-            "linear-gradient(90deg, var(--border) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-          maskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-        }}
-      />
+      {/* Overlay */}
+      <div style={{ position: "absolute", inset: 0, background: isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.15)" }} />
 
       {/* Dark mode toggle */}
       <button
         onClick={toggle}
-        title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
+        title={isDark ? t("nav.svetly") : t("nav.tmavy")}
         className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
         style={{
           position: "absolute",
@@ -110,23 +100,24 @@ export default function ForgotPasswordPage() {
       </button>
 
       <div style={{ width: "100%", maxWidth: "380px", position: "relative", zIndex: 10 }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "36px", userSelect: "none" }}>
-          <Logo size="lg" />
-          <p style={{ fontSize: "15px", color: "var(--text-muted)", margin: "4px 0 0 0", fontWeight: 500 }}>
-            Due Diligence System
-          </p>
-        </div>
 
-        <div className="card scale-in" style={{ padding: "32px", width: "100%", boxSizing: "border-box" }}>
-          <h2
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--text)", letterSpacing: "-0.02em", margin: "0 0 6px 0" }}
-          >
-            Zabudnuté heslo
-          </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "0 0 24px 0" }}>
-            Zadajte e-mail pre obnovu hesla.
-          </p>
+        <div 
+          className="card scale-in" 
+          style={{ 
+            padding: "32px", 
+            width: "100%", 
+            boxSizing: "border-box", 
+            background: "#FFFFFF", 
+            borderRadius: "16px",
+            boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
+            border: "1px solid",
+            borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.4)"
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px", width: "100%" }}>
+            <Logo size="lg" />
+          </div>
 
           {error && (
             <div
@@ -164,22 +155,22 @@ export default function ForgotPasswordPage() {
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
               </div>
-              <h3 style={{ fontSize: "16px", margin: "0 0 8px 0", color: "var(--text)" }}>E-mail odoslaný</h3>
+              <h3 style={{ fontSize: "16px", margin: "0 0 8px 0", color: "var(--text)" }}>{t("forgot.emailOdoslany")}</h3>
               <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "0 0 24px 0", lineHeight: 1.5 }}>
-                Ak účet <strong>{email}</strong> existuje, zaslali sme Vám inštrukcie na obnovu hesla.
+                {t("forgot.emailInstrukcie", { email })}
               </p>
               <Link 
                 href="/login" 
                 className="btn-primary"
                 style={{ width: "100%", padding: "10px", display: "inline-block", textDecoration: "none", boxSizing: "border-box" }}
               >
-                Späť na prihlásenie
+                {t("forgot.spatPrihlasenie")}
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div>
-                <label htmlFor="forgot-email" className="label" style={{ display: "block", marginBottom: "8px" }}>Váš E-mail</label>
+                <label htmlFor="forgot-email" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("forgot.vasEmail")}</label>
                 <input
                   id="forgot-email"
                   name="email"
@@ -202,9 +193,9 @@ export default function ForgotPasswordPage() {
                 style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
               >
                 {loading ? (
-                  <><Spinner /> Odosielam…</>
+                  <><Spinner /> {t("forgot.odosielam")}</>
                 ) : (
-                  "Zaslať odkaz na obnovu"
+                  t("forgot.zaslatOdkaz")
                 )}
               </button>
             </form>
@@ -216,7 +207,7 @@ export default function ForgotPasswordPage() {
                 href="/login" 
                 style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
               >
-                Späť na prihlásenie
+                {t("forgot.spatPrihlasenie")}
               </Link>
             </div>
           )}

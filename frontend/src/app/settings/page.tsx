@@ -1,16 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import RegistryGrid from "@/components/RegistryGrid";
 import { DEFAULT_SELECTED_SOURCES, ENABLED_SOURCES } from "@/lib/sources";
+import { useT } from "@/components/LanguageProvider";
+import toast from "react-hot-toast";
 
 export default function SettingsPage() {
+  const t = useT();
   const [orsrExtractType, setOrsrExtractType] = useState<"CURRENT" | "FULL">("CURRENT");
   const [crzDateFrom, setCrzDateFrom] = useState<string>("");
   const [defaultSources, setDefaultSources] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", defaultSources: DEFAULT_SELECTED_SOURCES });
+
+  const hasUnsavedChanges =
+    orsrExtractType !== initialRef.current.orsrExtractType ||
+    crzDateFrom !== initialRef.current.crzDateFrom ||
+    JSON.stringify(defaultSources) !== JSON.stringify(initialRef.current.defaultSources);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -24,6 +44,11 @@ export default function SettingsPage() {
         if (data.defaultSources && Array.isArray(data.defaultSources) && data.defaultSources.length > 0) {
           setDefaultSources(data.defaultSources);
         }
+        initialRef.current = {
+          orsrExtractType: data.orsrExtractType || "CURRENT",
+          crzDateFrom: data.crzDateFrom || "",
+          defaultSources: data.defaultSources?.length > 0 ? data.defaultSources : DEFAULT_SELECTED_SOURCES,
+        };
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -42,9 +67,10 @@ export default function SettingsPage() {
         body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, defaultSources }),
       });
       setSaved(true);
+      toast.success(t("settings.ulozene"));
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      // ignore
+      toast.error(t("settings.chyba"));
     } finally {
       setSaving(false);
     }
@@ -57,10 +83,10 @@ export default function SettingsPage() {
           className="text-2xl font-bold tracking-tight mb-1"
           style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
         >
-          Nastavenia
+          {t("settings.nastavenia")}
         </h1>
       <p className="text-sm mb-8" style={{ color: "var(--text-muted)" }}>
-        Prispôsobte si správanie aplikácie.
+        {t("settings.prisposobte")}
       </p>
       </div>
 
@@ -72,10 +98,10 @@ export default function SettingsPage() {
               className="text-sm font-semibold mb-1"
               style={{ color: "var(--text)" }}
             >
-              Typ výpisu z ORSR
+              {t("settings.typVypisu")}
             </h2>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Vyberte, aký typ výpisu sa stiahne z Obchodného registra SR.
+              {t("settings.vyberteTyp")}
             </p>
           </div>
         </div>
@@ -104,10 +130,10 @@ export default function SettingsPage() {
               />
               <div>
                 <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
-                  Aktuálny výpis
+                  {t("settings.aktualny")}
                 </div>
                 <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Len aktuálne platné údaje o firme. Rýchlejšie, kratší dokument.
+                  {t("settings.aktualnyPopis")}
                 </div>
               </div>
             </label>
@@ -129,10 +155,10 @@ export default function SettingsPage() {
               />
               <div>
                 <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
-                  Úplný výpis
+                  {t("settings.uplny")}
                 </div>
                 <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Vrátane historickej zmeny (bývalé sídla, spoločníci, atď.). Rozsiahlejší dokument.
+                  {t("settings.uplnyPopis")}
                 </div>
               </div>
             </label>
@@ -148,11 +174,10 @@ export default function SettingsPage() {
               className="text-sm font-semibold mb-1"
               style={{ color: "var(--text)" }}
             >
-              CRZ — dátum "od"
+              {t("settings.crzDatum")}
             </h2>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Nastavte počiatočný dátum pre vyhľadávanie v Centrálnom registri zmlúv.
-              Ak ponecháte prázdne, použije sa default 1 rok dozadu.
+              {t("settings.crzPopis")}
             </p>
           </div>
         </div>
@@ -181,7 +206,7 @@ export default function SettingsPage() {
                 className="text-xs mt-2"
                 style={{ color: "var(--text-muted)" }}
               >
-                ↺ Zrušiť a použiť default (1 rok dozadu)
+                ↺ {t("settings.zrusitDefault").replace("↺ ", "")}
               </button>
             )}
           </div>
@@ -196,11 +221,10 @@ export default function SettingsPage() {
               className="text-sm font-semibold mb-1"
               style={{ color: "var(--text)" }}
             >
-              Predvolené registre
+              {t("settings.predvoleneRegistre")}
             </h2>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Vyberte, ktoré registre sa predvolene vyberú pri generovaní reportu.
-              Tieto nastavenia sa použijú ako východiskový stav na úvodnej stránke.
+              {t("settings.predvolenePopis")}
             </p>
           </div>
         </div>
@@ -240,14 +264,20 @@ export default function SettingsPage() {
             opacity: saving || loading ? 0.6 : 1,
           }}
         >
-          {saving ? "Ukladám…" : "Uložiť nastavenia"}
+          {saving ? t("settings.ukladam") : t("settings.ulozit")}
         </button>
+        {hasUnsavedChanges && !saved && (
+          <span className="text-xs flex items-center gap-1.5 fade-in" style={{ color: "var(--text-muted)" }}>
+            <span className="inline-block w-2 h-2 rounded-full" style={{ background: "var(--warning)" }} />
+            {t("settings.neulozeneZmeny")}
+          </span>
+        )}
         {saved && (
           <span
             className="text-xs font-medium fade-in"
             style={{ color: "var(--accent)" }}
           >
-            ✓ Uložené
+            ✓ {t("settings.ulozene")}
           </span>
         )}
       </div>

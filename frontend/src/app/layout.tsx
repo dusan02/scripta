@@ -2,11 +2,16 @@ import type { Metadata } from "next";
 import "./globals.css";
 import NavWrapper from "@/components/NavWrapper";
 import ThemeProvider from "@/components/ThemeProvider";
+import { LanguageProvider } from "@/components/LanguageProvider";
+import Footer from "@/components/Footer";
+import ToasterProvider from "@/components/ToasterProvider";
+import OfflineIndicator from "@/components/OfflineIndicator";
+import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: {
-    default: "Registro.sk — Due Diligence reporty pre advokátov",
-    template: "%s | Registro.sk",
+    default: "Verifa.sk — Due Diligence reporty",
+    template: "%s | Verifa.sk",
   },
   description:
     "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s titulnou stranou a semaformi nálezov.",
@@ -22,7 +27,7 @@ export const metadata: Metadata = {
 const themeScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('registro-theme');
+    var stored = localStorage.getItem('verifa-theme');
     if (stored === 'dark' || stored === 'light') {
       document.documentElement.setAttribute('data-theme', stored);
     } else {
@@ -52,18 +57,15 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
-          <NavWrapper />
-          <main style={{ minHeight: "calc(100vh - 56px)" }}>{children}</main>
-          <footer style={{ borderTop: "1px solid var(--border)", marginTop: "64px" }}>
-            <div className="max-w-[1200px] mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                © {new Date().getFullYear()} Registro.sk
-              </span>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Určené výhradne pre advokátov a právnikov
-              </span>
-            </div>
-          </footer>
+          <AuthProvider>
+            <LanguageProvider>
+              <NavWrapper />
+              <main style={{ minHeight: "calc(100vh - 56px)" }}>{children}</main>
+              <Footer />
+              <ToasterProvider />
+              <OfflineIndicator />
+            </LanguageProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

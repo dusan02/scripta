@@ -18,12 +18,27 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
     const search = searchParams.get("search") ?? "";
     const status = searchParams.get("status") ?? "";
+    const sortBy = searchParams.get("sortBy") ?? "createdAt";
+    const sortOrder = searchParams.get("sortOrder") ?? "desc";
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
 
     const where: Record<string, unknown> = { userId: user.id };
-    // Show only reports from last 30 days
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 30);
-    where.createdAt = { gte: cutoffDate };
+    // Date range filter (replaces hardcoded 30-day cutoff when provided)
+    if (dateFrom || dateTo) {
+      const dateFilter: Record<string, unknown> = {};
+      if (dateFrom) dateFilter.gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+      where.createdAt = dateFilter;
+    } else {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 30);
+      where.createdAt = { gte: cutoffDate };
+    }
     if (status && status !== "ALL") {
       where.status = status as ReportStatus;
     }
@@ -34,10 +49,14 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    const validSortFields = ["createdAt", "companyName"];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const order = sortOrder === "asc" ? "asc" : "desc";
+
     const [reports, total] = await Promise.all([
       prisma.reportRequest.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: { [sortField]: order },
         skip: (page - 1) * limit,
         take: limit,
         include: {
@@ -206,6 +225,19 @@ export async function DELETE(req: NextRequest) {
     if (deleteAll) {
       const result = await prisma.reportRequest.deleteMany({
         where: { userId: user.id },
+      });
+      return NextResponse.json({ deleted: result.count });
+    }
+
+    // Bulk delete by IDs
+    const ids = searchParams.get("ids");
+    if (ids) {
+      const idList = ids.split(",").filter(Boolean);
+      if (idList.length === 0) {
+        return NextResponse.json({ error: "No IDs provided" }, { status: 400 });
+      }
+      const result = await prisma.reportRequest.deleteMany({
+        where: { id: { in: idList }, userId: user.id },
       });
       return NextResponse.json({ deleted: result.count });
     }

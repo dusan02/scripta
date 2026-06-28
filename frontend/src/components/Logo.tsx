@@ -1,12 +1,20 @@
+"use client";
+
 import React from "react";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface LogoProps {
   size?: "md" | "lg";
+  forceLight?: boolean;
 }
 
-export default function Logo({ size = "md" }: LogoProps) {
-  // We use fontSize on the container, and use 'em' units for SVG to scale perfectly proportionally
-  const fontSize = size === "lg" ? "32px" : "24px";
+export default function Logo({ size = "md", forceLight = false }: LogoProps) {
+  const { theme } = useTheme();
+  // We use height based on size. The image has a wide aspect ratio.
+  const height = size === "lg" ? "72px" : "56px";
+  
+  // Auth cards (which often use size="lg" or pass forceLight) are always white, so we need the dark text version.
+  const isDark = theme === "dark" && !forceLight && size !== "lg";
 
   return (
     <div 
@@ -15,36 +23,10 @@ export default function Logo({ size = "md" }: LogoProps) {
         alignItems: "center", 
         userSelect: "none", 
         cursor: "pointer",
-        fontSize: fontSize,
         lineHeight: 1
       }}
     >
-      <svg 
-        width="1.3em" 
-        height="1.3em" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        style={{ 
-          color: "var(--accent)", 
-          flexShrink: 0, 
-          marginRight: "0.2em",
-          marginTop: "-0.1em"
-        }}
-      >
-        <rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" />
-        <rect x="14" y="3" width="7" height="7" rx="2" fill="currentColor" opacity="0.5" />
-        <rect x="3" y="14" width="7" height="7" rx="2" fill="currentColor" opacity="0.5" />
-        <rect x="14" y="14" width="7" height="7" rx="2" fill="currentColor" />
-      </svg>
-      <span
-        style={{ 
-          fontWeight: "bold", 
-          color: "var(--text)", 
-          letterSpacing: "-0.04em",
-        }}
-      >
-        Registro<span style={{ color: "var(--accent)" }}>.sk</span>
-      </span>
+      <img src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"} alt="Verifa.sk" style={{ height, width: "auto", display: "block" }} />
     </div>
   );
 }

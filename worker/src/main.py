@@ -26,18 +26,21 @@ from .cleanup import _cleanup_loop
 logger = logging.getLogger(__name__)
 
 # Obmedzenie súčasných reportov — chráni pred OOM pri veľa paralelných browseroch.
-_report_semaphore = asyncio.Semaphore(3)
+# Vytvára sa lazy v lifespan, aby sa naviazal na správny event loop.
+_report_semaphore: Optional[asyncio.Semaphore] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _report_semaphore
+    _report_semaphore = asyncio.Semaphore(3)
     cleanup_task = asyncio.create_task(_cleanup_loop())
     yield
     cleanup_task.cancel()
     await close_db_pool()
 
 
-app = FastAPI(title="Registro.sk Worker", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Verifa.sk Worker", version="0.1.0", lifespan=lifespan)
 
 
 async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=None)) -> None:
@@ -74,6 +77,9 @@ async def _save_company_name(pool: asyncpg.Pool, report_request_id: str, company
 
 async def _execute_report(task: ReportTask) -> None:
     """Background job: stiahne výpisy, vygeneruje Cover Page a zlúči PDF."""
+    if _report_semaphore is None:
+        await _execute_report_inner(task)
+        return
     async with _report_semaphore:
         await _execute_report_inner(task)
 

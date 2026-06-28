@@ -342,7 +342,6 @@ class FinancnaSpravaBase(BaseScraper):
 
             if downloaded:
                 logger.info(f"[{self.source_type}] PDF úspešne stiahnuté: {pdf_output}")
-                self._prepend_title_page(pdf_output, self.pdf_title or self.zoznam_link_name)
                 return self._make_result(
                     status="SUCCESS",
                     file_path=str(pdf_output),

@@ -27,12 +27,30 @@ class DoveraDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=45000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=20000, wait_until='domcontentloaded')
             except (PlaywrightTimeoutError, PlaywrightError) as e:
-                raise ScraperUnavailableError(f"Dôvera nedostupná: {e}")
+                logger.warning(f"[{self.source_type}] Dôvera nedostupná ({e}) — generujem fallback PDF.")
+                pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="Dôvera",
+                        has_ico=False,
+                        has_no_results_text=False,
+                    )
+                except Exception as e2:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e2}")
+                    raise ScraperUnavailableError(f"Dôvera nedostupná: {e}")
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="Dôvera: stránka nedostupná (timeout/blokovanie).",
+                    findings="Dôvera: vyhľadávanie zlyhalo — stránka nedostupná.",
+                )
 
             # Cloudflare Turnstile challenge — skús vyriešiť ak je zobrazený
-            await self._handle_cloudflare_challenge(page, max_attempts=3)
+            await self._handle_cloudflare_challenge(page, max_attempts=2)
 
             # Kliknúť "Prijať všetky" (cookie banner)
             try:
@@ -52,31 +70,142 @@ class DoveraDlzniciScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 logger.info(f"[{self.source_type}] Modálne okno sa nezobrazilo.")
 
-            # Vyplniť IČO do textového poľa
+            # Vyplniť IČO do textového poľa — skúšame viacero selektorov
             try:
-                textbox = page.get_by_role("textbox")
-                await textbox.wait_for(timeout=10000)
-                await textbox.click()
-                await textbox.fill(ico)
-                logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Textové pole sa nenašlo.")
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=8000)
+                except PlaywrightTimeoutError:
+                    pass
+
+                # Dôvera lazy-loaduje formulár — počkáme navyše
+                await page.wait_for_timeout(1000)
+
+                ico_filled = False
+                for selector in [
+                    "input[placeholder*='IČO']",
+                    "input[placeholder*='ico']",
+                    "input[placeholder*='Obchodné']",
+                    "input[type='text']",
+                    "input[type='search']",
+                    "#ico",
+                    "input.search-input",
+                    "input[name*='ico']",
+                    "input[name*='search']",
+                    "input[name*='query']",
+                ]:
+                    try:
+                        el = page.locator(selector).first
+                        await el.wait_for(timeout=3000)
+                        await el.click()
+                        await el.fill(ico)
+                        ico_filled = True
+                        logger.info(f"[{self.source_type}] IČO vyplnené (selector: {selector}): {ico}")
+                        break
+                    except (PlaywrightTimeoutError, PlaywrightError):
+                        continue
+
+                if not ico_filled:
+                    # Skús role-based ako posledný pokus
+                    try:
+                        textbox = page.get_by_role("textbox")
+                        await textbox.first.wait_for(timeout=5000)
+                        await textbox.first.click()
+                        await textbox.first.fill(ico)
+                        ico_filled = True
+                        logger.info(f"[{self.source_type}] IČO vyplnené cez get_by_role: {ico}")
+                    except (PlaywrightTimeoutError, PlaywrightError):
+                        pass
+
+                if not ico_filled:
+                    logger.error(f"[{self.source_type}] Textové pole sa nenašlo — generujem PDF z aktuálneho stavu.")
+                    pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
+                    try:
+                        await self._generate_debtor_no_results_pdf(
+                            page, pdf_output, ico,
+                            source_name="Dôvera",
+                            has_ico=False,
+                            has_no_results_text=False,
+                        )
+                    except Exception as e:
+                        logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
+                        return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť pole na stránke Dôvery: {e}")
+                    return self._make_result(
+                        status="SUCCESS",
+                        file_path=str(pdf_output),
+                        page_count=1,
+                        status_message="Dôvera: nepodarilo sa vykonať vyhľadávanie (zmena stránky).",
+                        findings="Dôvera: vyhľadávanie zlyhalo — stránka sa pravdepodobne zmenila.",
+                    )
+            except Exception as e:
+                logger.error(f"[{self.source_type}] Neočakávaná chyba pri vypĺňaní IČO: {e}")
+                pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="Dôvera",
+                        has_ico=False,
+                        has_no_results_text=False,
+                    )
+                except Exception as e2:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e2}")
+                    return self._make_result(status="FAILED", status_message=f"Chyba pri vypĺňaní IČO: {e}")
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť textové pole na stránke Dôvery.",
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="Dôvera: nepodarilo sa vykonať vyhľadávanie (zmena stránky).",
+                    findings="Dôvera: vyhľadávanie zlyhalo — stránka sa pravdepodobne zmenila.",
                 )
 
-            # Kliknúť "Hľadať"
-            try:
-                search_btn = page.get_by_text("Hľadať", exact=True)
-                await search_btn.wait_for(timeout=10000)
-                await search_btn.click()
-                logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté.")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo.")
+            # Kliknúť "Hľadať" — skúšame viacero selektorov
+            search_clicked = False
+            for selector in [
+                "button:has-text('Hľadať')",
+                "input[value='Hľadať']",
+                "button[type='submit']",
+                "a:has-text('Hľadať')",
+                ".search-button",
+                "button:has-text('Vyhľadať')",
+            ]:
+                try:
+                    btn = page.locator(selector).first
+                    await btn.wait_for(timeout=3000)
+                    await btn.click()
+                    search_clicked = True
+                    logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté (selector: {selector}).")
+                    break
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    continue
+
+            if not search_clicked:
+                try:
+                    search_btn = page.get_by_text("Hľadať", exact=True)
+                    await search_btn.wait_for(timeout=5000)
+                    await search_btn.click()
+                    search_clicked = True
+                    logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté cez get_by_text.")
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    pass
+
+            if not search_clicked:
+                logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo — generujem PDF z aktuálneho stavu.")
+                pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="Dôvera",
+                        has_ico=True,
+                        has_no_results_text=False,
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť tlačidlo Hľadať: {e}")
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť tlačidlo Hľadať na stránke Dôvery.",
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="Dôvera: nepodarilo sa spustiť vyhľadávanie (zmena stránky).",
+                    findings="Dôvera: vyhľadávanie zlyhalo — tlačidlo sa nenašlo.",
                 )
 
             # Cloudflare challenge môže zobraziť aj po vyhľadávaní
@@ -92,18 +221,19 @@ class DoveraDlzniciScraper(BaseScraper):
                 pass
 
             # Počkať na výsledky
-            await page.wait_for_timeout(3000)
+            await page.wait_for_timeout(2000)
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                await page.wait_for_load_state("domcontentloaded", timeout=8000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] domcontentloaded timeout — pokračujem.")
 
-            # Skontrolovať výsledky — hľadať IČO v textoch na stránke
+            # Skontrolovať výsledky — vyžadujeme obe podmienky pre negatívny výsledok
             body_text = await page.inner_text("body")
 
             # Dôvera zobrazuje "Pre „ICO" sme nenašli žiadne výsledky v zozname dlžníkov."
             no_results_marker = f"sme nenašli žiadne výsledky"
             is_empty = no_results_marker in body_text
+            has_ico_on_page = ico in re.findall(r"\d+", body_text)
 
             # Najprv skúsime extrahovať nálezy z tabuľky — to je spoľahlivé
             # (na rozdiel od kontroly "ico in body_text" ktorá môže matchnúť
@@ -114,7 +244,7 @@ class DoveraDlzniciScraper(BaseScraper):
                 findings = await self._extract_findings(page, ico)
                 is_debtor = findings is not None and "POZOR" in (findings or "")
                 # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
-                if is_debtor and ico not in findings:
+                if is_debtor and findings and ico not in findings:
                     logger.warning(f"[{self.source_type}] Nálezy nájdené, ale IČO {ico} nie je v nich — pravdepodobne false positive.")
                     is_debtor = False
                     findings = None
@@ -123,13 +253,17 @@ class DoveraDlzniciScraper(BaseScraper):
             pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
 
             if not is_debtor or findings is None:
-                logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov Dôvery.")
+                logger.info(
+                    f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov Dôvery "
+                    f"(IČO na stránke: {has_ico_on_page}, negatívny text: {is_empty})."
+                )
                 findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov Dôvery."
                 try:
-                    await self._generate_no_results_pdf(
+                    await self._generate_debtor_no_results_pdf(
                         page, pdf_output, ico,
-                        title="Zoznam dlžníkov Dôvera",
-                        message=f"Pre IČO {ico} sa v Zozname dlžníkov Dôvery nenašli žiadne nedoplatky.",
+                        source_name="Dôvera",
+                        has_ico=has_ico_on_page,
+                        has_no_results_text=is_empty,
                     )
                 except Exception as e:
                     logger.error(f"[{self.source_type}] Zlyhalo generovanie no-results PDF: {e}")

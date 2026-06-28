@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
 import CopyableText from "@/components/CopyableText";
 import SourceBadges from "@/components/SourceBadges";
+import { useT, useLang } from "@/components/LanguageProvider";
+import { LOCALE_MAP } from "@/lib/i18n";
+import { formatCompanyName } from "@/lib/format";
+import toast from "react-hot-toast";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface ReportSource {
   sourceType: string;
@@ -25,16 +30,16 @@ interface Report {
 }
 
 const STATUS_FILTERS = [
-  { value: "ALL", label: "Všetky" },
-  { value: "COMPLETED", label: "Dokončené" },
-  { value: "PARTIAL", label: "Čiastočné" },
-  { value: "PROCESSING", label: "Prebieha" },
-  { value: "PENDING", label: "Čaká" },
-  { value: "FAILED", label: "Zlyhané" },
+  { value: "ALL", key: "history.vsetky" },
+  { value: "COMPLETED", key: "history.dokoncene" },
+  { value: "PARTIAL", key: "history.ciastocne" },
+  { value: "PROCESSING", key: "history.prebieha" },
+  { value: "PENDING", key: "history.caka" },
+  { value: "FAILED", key: "history.zlyhanie" },
 ];
 
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("sk-SK", {
+function formatDate(date: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   }).format(new Date(date));
@@ -42,6 +47,9 @@ function formatDate(date: string) {
 
 export default function HistoryPage() {
   const router = useRouter();
+  const t = useT();
+  const { lang } = useLang();
+  const locale = LOCALE_MAP[lang];
   const [reports, setReports] = useState<Report[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -49,10 +57,50 @@ export default function HistoryPage() {
   const [limit] = useState(20);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [modal, setModal] = useState<{ type: "single" | "all"; reportId?: string; subject?: string } | null>(null);
+  const [modal, setModal] = useState<{ type: "single" | "all" | "bulk"; reportId?: string; subject?: string } | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [fadingId, setFadingId] = useState<string | null>(null);
+
+  const hasActiveFilters = search || statusFilter !== "ALL" || dateFrom || dateTo;
+
+  const toggleSort = useCallback((field: string) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("desc");
+    }
+  }, [sortBy]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === reports.length) return new Set();
+      return new Set(reports.map(r => r.id));
+    });
+  }, [reports]);
+
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setStatusFilter("ALL");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  }, []);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -62,6 +110,10 @@ export default function HistoryPage() {
       params.set("limit", String(limit));
       if (search) params.set("search", search);
       if (statusFilter !== "ALL") params.set("status", statusFilter);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
 
       const res = await fetch(`/api/reports?${params.toString()}`);
       const data = await res.json();
@@ -71,11 +123,11 @@ export default function HistoryPage() {
         setTotalPages(data.totalPages);
       }
     } catch {
-      // ignore
+      toast.error(t("history.chybaNacitania"));
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, statusFilter]);
+  }, [page, limit, search, statusFilter, sortBy, sortOrder, dateFrom, dateTo]);
 
   useEffect(() => {
     const debounce = setTimeout(fetchReports, 300);
@@ -95,27 +147,51 @@ export default function HistoryPage() {
       try {
         const res = await fetch(`/api/reports?all=true`, { method: "DELETE" });
         if (res.ok) {
+          setSelectedIds(new Set());
           setPage(1);
           fetchReports();
         }
       } catch {
-        // ignore
+        toast.error(t("history.chybaMazania"));
+      } finally {
+        setDeletingAll(false);
+      }
+    } else if (modal.type === "bulk") {
+      setDeletingAll(true);
+      try {
+        const ids = Array.from(selectedIds).join(",");
+        const res = await fetch(`/api/reports?ids=${ids}`, { method: "DELETE" });
+        if (res.ok) {
+          setSelectedIds(new Set());
+          fetchReports();
+        }
+      } catch {
+        toast.error(t("history.chybaMazania"));
       } finally {
         setDeletingAll(false);
       }
     } else if (modal.reportId) {
+      setFadingId(modal.reportId);
       setDeletingId(modal.reportId);
       try {
         const res = await fetch(`/api/reports?id=${modal.reportId}`, { method: "DELETE" });
-        if (res.ok) fetchReports();
+        if (res.ok) {
+          setTimeout(() => {
+            setFadingId(null);
+            fetchReports();
+          }, 300);
+        } else {
+          setFadingId(null);
+        }
       } catch {
-        // ignore
+        toast.error(t("history.chybaMazania"));
+        setFadingId(null);
       } finally {
         setDeletingId(null);
       }
     }
     setModal(null);
-  }, [modal, fetchReports]);
+  }, [modal, fetchReports, selectedIds]);
 
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
@@ -144,7 +220,7 @@ export default function HistoryPage() {
         router.push(`/reports/${data.reportRequestId}`);
       }
     } catch {
-      // ignore
+      toast.error(t("history.chybaZopakovania"));
     } finally {
       setRetryingId(null);
     }
@@ -166,16 +242,28 @@ export default function HistoryPage() {
           </Link>
         </div>
         <h1 className="text-2xl font-bold tracking-tight absolute left-1/2 -translate-x-1/2" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
-          História reportov
+          {t("history.historiaReportov")}
         </h1>
-        <button
-          onClick={() => setModal({ type: "all" })}
-          disabled={deletingAll}
-          className="text-xs font-medium transition-colors hover:text-red-500"
-          style={{ color: "var(--text-muted)" }}
-        >
-          {deletingAll ? "Mažem…" : "Vymazať všetko"}
-        </button>
+        <div className="flex items-center gap-3">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setModal({ type: "bulk" })}
+              disabled={deletingAll}
+              className="text-xs font-medium transition-colors hover:text-red-500"
+              style={{ color: "var(--danger-text)" }}
+            >
+              {t("history.vymazatVybrane")} ({selectedIds.size})
+            </button>
+          )}
+          <button
+            onClick={() => setModal({ type: "all" })}
+            disabled={deletingAll}
+            className="text-xs font-medium transition-colors hover:text-red-500"
+            style={{ color: "var(--danger-text)" }}
+          >
+            {deletingAll ? t("history.mazem") : t("history.vymazatVsetko")}
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -190,7 +278,7 @@ export default function HistoryPage() {
           </svg>
           <input
             type="text"
-            placeholder="Hľadať podľa IČO, mena, priezviska…"
+            placeholder={t("history.hladatPodla")}
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="w-full rounded-lg pl-10 pr-4 py-2 text-sm outline-none transition-colors"
@@ -200,6 +288,25 @@ export default function HistoryPage() {
               color: "var(--text)",
               fontFamily: "inherit",
             }}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            className="rounded-lg px-3 py-2 text-xs outline-none transition-colors"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", fontFamily: "inherit" }}
+            title={t("history.odDátumu")}
+          />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            className="rounded-lg px-3 py-2 text-xs outline-none transition-colors"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", fontFamily: "inherit" }}
+            title={t("history.doDátumu")}
           />
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -214,7 +321,7 @@ export default function HistoryPage() {
                 border: `1px solid ${statusFilter === f.value ? "var(--accent-border)" : "var(--border)"}`,
               }}
             >
-              {f.label}
+              {t(f.key)}
             </button>
           ))}
         </div>
@@ -223,49 +330,123 @@ export default function HistoryPage() {
       {/* Results count */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {loading ? "Načítavam…" : `${total} záznamov`}
+          {loading ? t("history.nacitavam") : t("history.zaznamov", { n: total })}
         </span>
+        {hasActiveFilters && !loading && reports.length === 0 && (
+          <button
+            onClick={clearFilters}
+            className="text-xs font-medium transition-colors hover:opacity-80"
+            style={{ color: "var(--accent)" }}
+          >
+            {t("history.vymazaťFiltre")}
+          </button>
+        )}
       </div>
 
       {/* Table */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
         {/* Header — desktop */}
         <div
-          className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider"
+          className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider gap-3 sticky top-0 z-10"
           style={{
-            gridTemplateColumns: "220px minmax(0, 1fr) 120px 110px 100px",
+            gridTemplateColumns: "32px 200px minmax(0, 1fr) 130px",
             background: "var(--bg-subtle)",
             borderBottom: "1px solid var(--border)",
             color: "var(--text-muted)",
           }}
         >
-          <span>Subjekt</span>
-          <span>Registre</span>
-          <span>Dátum</span>
-          <span>Stav</span>
-          <span className="text-right">Akcia</span>
+          <span className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === reports.length && reports.length > 0}
+              onChange={toggleSelectAll}
+              className="cursor-pointer"
+              style={{ accentColor: "var(--accent)" }}
+            />
+          </span>
+          <button
+            onClick={() => toggleSort("companyName")}
+            className="text-center flex items-center justify-center gap-1 hover:opacity-80 transition-opacity"
+          >
+            {t("history.subjekt")}
+            {sortBy === "companyName" && (
+              <span className="text-[8px]">{sortOrder === "asc" ? "▲" : "▼"}</span>
+            )}
+          </button>
+          <span>{t("history.registre")}</span>
+          <button
+            onClick={() => toggleSort("createdAt")}
+            className="text-right flex items-center justify-end gap-1 hover:opacity-80 transition-opacity"
+          >
+            {t("history.stav")}
+            {sortBy === "createdAt" && (
+              <span className="text-[8px]">{sortOrder === "asc" ? "▲" : "▼"}</span>
+            )}
+          </button>
         </div>
 
         {/* Rows */}
         <div style={{ background: "var(--surface)" }}>
           {loading ? (
-            <div className="px-4 py-12 text-center">
-              <svg className="animate-spin w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" style={{ color: "var(--text-muted)" }}>
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-            </div>
+            Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="hidden md:grid items-center px-4 py-3 gap-3"
+                style={{
+                  gridTemplateColumns: "32px 200px minmax(0, 1fr) 130px",
+                  borderBottom: i < 4 ? "1px solid var(--border)" : "none",
+                }}
+              >
+                <div className="h-4 w-4 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-5 w-5 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                  <div className="h-3 w-3/4 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                  <div className="h-2 w-1/2 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="h-5 w-12 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                  <div className="h-5 w-10 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                  <div className="h-5 w-8 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                </div>
+                <div className="flex flex-col items-end gap-1.5">
+                  <div className="h-3 w-20 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                  <div className="h-5 w-16 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                  <div className="flex gap-1.5">
+                    <div className="h-4 w-4 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                    <div className="h-4 w-4 rounded animate-pulse" style={{ background: "var(--bg-muted)" }} />
+                  </div>
+                </div>
+              </div>
+            ))
           ) : reports.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Žiadne reporty sa nenašli.
+            <div className="flex flex-col items-center justify-center py-20 fade-in">
+              <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>{hasActiveFilters ? "🔍" : "📋"}</div>
+              <p className="text-base font-semibold mb-2" style={{ color: "var(--text)" }}>
+                {hasActiveFilters ? t("history.ziadneVysledky") : t("history.ziadneNenasli")}
               </p>
+              {hasActiveFilters ? (
+                <button
+                  onClick={clearFilters}
+                  className="btn-primary mt-4"
+                  style={{ textDecoration: "none" }}
+                >
+                  {t("history.vymazaťFiltre")}
+                </button>
+              ) : (
+                <Link
+                  href="/"
+                  className="btn-primary mt-4"
+                  style={{ textDecoration: "none" }}
+                >
+                  {t("history.spustitHladanie")}
+                </Link>
+              )}
             </div>
           ) : (
             reports.map((report, idx) => {
               const identifier =
                 report.targetType === "COMPANY"
-                  ? `IČO: ${report.ico}`
+                  ? `${t("common.ico")}: ${report.ico}`
                   : `${report.name} ${report.surname}`;
               const canDownload =
                 report.status === "COMPLETED" || report.status === "PARTIAL";
@@ -274,34 +455,50 @@ export default function HistoryPage() {
                 <Link
                   key={report.id}
                   href={`/reports/${report.id}`}
-                  className="report-row"
+                  className="report-row stagger-row"
                   style={{
                     borderBottom: idx < reports.length - 1 ? "1px solid var(--border)" : "none",
+                    animationDelay: `${idx * 30}ms`,
+                    opacity: fadingId === report.id ? 0 : 1,
+                    transition: "opacity 300ms ease-out",
+                    background: idx % 2 === 1 ? "var(--bg-subtle)" : "transparent",
                   }}
                 >
                   {/* Desktop row */}
                   <div
-                    className="hidden md:grid items-center px-4 py-3 transition-colors duration-100"
-                    style={{ gridTemplateColumns: "220px minmax(0, 1fr) 120px 110px 100px" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    className="hidden md:grid items-center px-4 py-3 transition-colors duration-100 gap-3"
+                    style={{ gridTemplateColumns: "32px 200px minmax(0, 1fr) 130px" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = idx % 2 === 1 ? "var(--bg-subtle)" : "transparent"; }}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="flex items-center justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSelect(report.id); }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(report.id)}
+                        onChange={() => toggleSelect(report.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer"
+                        style={{ accentColor: "var(--accent)" }}
+                      />
+                    </span>
+                    <div className="flex flex-col items-center gap-1 min-w-0">
                       <span className="text-base flex-shrink-0">
                         {report.targetType === "COMPANY" ? "🏢" : "👤"}
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 w-full text-center">
                         {report.targetType === "COMPANY" && report.companyName ? (
                           <>
                             <span
-                              className="text-sm font-semibold truncate block"
-                              style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                              className="text-sm font-semibold block"
+                              style={{ color: "var(--text)", letterSpacing: "-0.01em", wordBreak: "break-word" }}
                             >
-                              {report.companyName}
+                              {formatCompanyName(report.companyName).map((line, i) => (
+                                <span key={i} className="block">{line}</span>
+                              ))}
                             </span>
                             {report.ico && (
                               <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                <CopyableText text={report.ico} label="IČO" />
+                                <CopyableText text={report.ico} label={t("common.ico")} />
                               </span>
                             )}
                           </>
@@ -320,100 +517,105 @@ export default function HistoryPage() {
                       <SourceBadges sources={report.sources} />
                     </div>
 
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      {formatDate(report.createdAt)}
-                    </span>
-
-                    <div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                        {formatDate(report.createdAt, locale)}
+                      </span>
                       <StatusBadge status={report.status} size="sm" />
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2.5">
-                      <button
-                        onClick={(e) => handleSearchAgain(e, report)}
-                        disabled={retryingId === report.id}
-                        title="Spustiť nové hľadanie"
-                        className="transition-colors hover:text-blue-500"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {retryingId === report.id ? (
-                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                            <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                          </svg>
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </button>
-                      {canDownload && (
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
-                          title="Stiahnuť PDF"
-                          className="transition-colors hover:text-green-600"
-                          style={{ color: "var(--accent)" }}
+                          onClick={(e) => handleSearchAgain(e, report)}
+                          disabled={retryingId === report.id}
+                          title={t("history.spustitHladanie")}
+                          className="transition-colors hover:text-blue-500 p-1.5 rounded-md"
+                          style={{ color: "var(--info-text)" }}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          </svg>
+                          {retryingId === report.id ? (
+                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
                         </button>
-                      )}
-                      <button
-                        onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
-                        disabled={deletingId === report.id}
-                        title="Vymazať"
-                        className="transition-colors hover:text-red-500"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {deletingId === report.id ? (
-                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                            <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                          </svg>
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                        {canDownload && (
+                          <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
+                            title={t("history.stiahnutPdf")}
+                            className="transition-colors hover:text-green-600 p-1.5 rounded-md"
+                            style={{ color: "var(--accent)" }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
+                          </button>
                         )}
-                      </button>
+                        <button
+                          onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
+                          disabled={deletingId === report.id}
+                          title={t("history.vymazat")}
+                          className="transition-colors hover:text-red-500 p-1.5 rounded-md"
+                          style={{ color: "var(--danger-text)" }}
+                        >
+                          {deletingId === report.id ? (
+                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   {/* Mobile card */}
                   <div className="md:hidden px-4 py-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-base flex-shrink-0">
-                          {report.targetType === "COMPANY" ? "🏢" : "👤"}
-                        </span>
-                        <div className="min-w-0">
-                          {report.targetType === "COMPANY" && report.companyName ? (
-                            <>
-                              <span
-                                className="text-sm font-semibold truncate block"
-                                style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
-                              >
-                                {report.companyName}
-                              </span>
-                              {report.ico && (
-                                <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                  <CopyableText text={report.ico} label="IČO" />
-                                </span>
-                              )}
-                            </>
-                          ) : (
+                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
+                      <span className="text-base flex-shrink-0">
+                        {report.targetType === "COMPANY" ? "🏢" : "👤"}
+                      </span>
+                      <div className="min-w-0 w-full text-center">
+                        {report.targetType === "COMPANY" && report.companyName ? (
+                          <>
                             <span
-                              className="text-sm font-semibold truncate block"
-                              style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                              className="text-sm font-semibold block"
+                              style={{ color: "var(--text)", letterSpacing: "-0.01em", wordBreak: "break-word" }}
                             >
-                              {identifier}
+                              {formatCompanyName(report.companyName).map((line, i) => (
+                                <span key={i} className="block">{line}</span>
+                              ))}
                             </span>
-                          )}
-                        </div>
+                            {report.ico && (
+                              <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
+                                <CopyableText text={report.ico} label={t("common.ico")} />
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span
+                            className="text-sm font-semibold truncate block"
+                            style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
+                          >
+                            {identifier}
+                          </span>
+                        )}
                       </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <StatusBadge status={report.status} size="sm" />
+                      <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                        {formatDate(report.createdAt, locale)}
+                      </span>
+                    </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-2">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -423,9 +625,9 @@ export default function HistoryPage() {
                         <button
                           onClick={(e) => handleSearchAgain(e, report)}
                           disabled={retryingId === report.id}
-                          title="Spustiť nové hľadanie"
+                          title={t("history.spustitHladanie")}
                           className="transition-colors hover:text-blue-500"
-                          style={{ color: "var(--text-secondary)" }}
+                          style={{ color: "var(--info-text)" }}
                         >
                           {retryingId === report.id ? (
                             <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -442,9 +644,9 @@ export default function HistoryPage() {
                         <button
                           onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                           disabled={deletingId === report.id}
-                          title="Vymazať"
+                          title={t("history.vymazat")}
                           className="transition-colors hover:text-red-500"
-                          style={{ color: "var(--text-secondary)" }}
+                          style={{ color: "var(--danger-text)" }}
                         >
                           {deletingId === report.id ? (
                             <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -458,7 +660,7 @@ export default function HistoryPage() {
                           )}
                         </button>
                         <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                          {formatDate(report.createdAt)}
+                          {formatDate(report.createdAt, locale)}
                         </span>
                       </div>
                     </div>
@@ -479,10 +681,10 @@ export default function HistoryPage() {
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
             style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
           >
-            ← Predošlá
+            ← {t("history.predosla").replace("← ", "")}
           </button>
           <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Strana {page} z {totalPages}
+            {t("history.strana", { page, total: totalPages })}
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
@@ -490,78 +692,29 @@ export default function HistoryPage() {
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
             style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
           >
-            Ďalšia →
+            {t("history.dalsia").replace(" →", "")} →
           </button>
         </div>
       )}
 
       {/* Confirm modal */}
-      {modal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(0,0,0,0.4)" }}
-          onClick={() => setModal(null)}
-        >
-          <div
-            className="rounded-2xl p-6 max-w-sm w-full fade-in"
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              boxShadow: "var(--shadow-md)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="flex items-center justify-center rounded-full flex-shrink-0"
-                style={{ width: 40, height: 40, background: "var(--danger-bg)" }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "var(--danger)" }}>
-                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                  {modal.type === "all" ? "Vymazať všetky reporty?" : "Vymazať report?"}
-                </h3>
-                {modal.subject && (
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                    {modal.subject}
-                  </p>
-                )}
-              </div>
-            </div>
-            <p className="text-xs mb-5" style={{ color: "var(--text-secondary)" }}>
-              {modal.type === "all"
-                ? "Túto akciu nie je možné vrátiť späť. Všetky reporty budú trvalo vymazané."
-                : "Tento report bude trvalo vymazaný."}
-            </p>
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={() => setModal(null)}
-                className="px-4 py-2 rounded-lg text-xs font-medium transition-all"
-                style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-              >
-                Zrušiť
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deletingId !== null || deletingAll}
-                className="px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2"
-                style={{ background: "var(--danger)", color: "var(--accent-button-text)", border: "none" }}
-              >
-                {(deletingId !== null || deletingAll) ? (
-                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                    <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                ) : null}
-                Vymazať
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!modal}
+        title={
+          modal?.type === "all" ? t("history.vymazatVsetkyOtaznik")
+          : modal?.type === "bulk" ? `${t("history.vymazatVybrane")}? (${selectedIds.size})`
+          : t("history.vymazatReportOtaznik")
+        }
+        subject={modal?.subject}
+        message={
+          modal?.type === "all" || modal?.type === "bulk" ? t("history.nedaVratit") : t("history.reportVymazany")
+        }
+        confirmLabel={t("history.vymazat")}
+        cancelLabel={t("history.zrusit")}
+        onConfirm={confirmDelete}
+        onCancel={() => setModal(null)}
+        loading={deletingId !== null || deletingAll}
+      />
     </div>
   );
 }

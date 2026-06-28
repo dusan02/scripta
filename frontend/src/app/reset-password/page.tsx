@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Logo from "@/components/Logo";
 import Link from "next/link";
 import { useTheme } from "@/components/ThemeProvider";
+import { useT } from "@/components/LanguageProvider";
 
 function Spinner() {
   return (
@@ -27,6 +28,7 @@ function ResetPasswordForm() {
   const token = searchParams.get("token");
   const { theme, toggle } = useTheme();
   const isDark = theme === "dark";
+  const t = useT();
 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ function ResetPasswordForm() {
 
   useEffect(() => {
     if (!token) {
-      setError("Neplatný alebo chýbajúci odkaz. Požiadajte o obnovu hesla znova.");
+      setError(t("reset.neplatnyOdkaz"));
     }
   }, [token]);
 
@@ -57,12 +59,12 @@ function ResetPasswordForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Nepodarilo sa obnoviť heslo.");
+        setError(data.message || t("reset.nepodarilo"));
       } else {
         setSuccess(true);
       }
     } catch {
-      setError("Neočakávaná chyba komunikácie so serverom.");
+      setError(t("reset.neocakavana"));
     } finally {
       setLoading(false);
     }
@@ -73,33 +75,22 @@ function ResetPasswordForm() {
       style={{
         minHeight: "100vh",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
-        background: "var(--bg)",
+        justifyContent: "flex-end",
+        paddingBottom: "6vh",
+        background: "url('/landing-bg-v2.jpg') no-repeat center center",
+        backgroundSize: "cover",
         position: "relative"
       }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: 0.4,
-          pointerEvents: "none",
-          backgroundImage:
-            "linear-gradient(var(--border) 1px, transparent 1px)," +
-            "linear-gradient(90deg, var(--border) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-          maskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-        }}
-      />
+      {/* Overlay */}
+      <div style={{ position: "absolute", inset: 0, background: isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.15)" }} />
 
       {/* Dark mode toggle */}
       <button
         onClick={toggle}
-        title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
+        title={isDark ? t("nav.svetly") : t("nav.tmavy")}
         className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
         style={{
           position: "absolute",
@@ -109,6 +100,7 @@ function ResetPasswordForm() {
           background: "var(--bg-muted)",
           border: "1px solid var(--border)",
           color: "var(--text-secondary)",
+          backdropFilter: "blur(4px)"
         }}
       >
         {isDark ? (
@@ -124,24 +116,25 @@ function ResetPasswordForm() {
       </button>
 
       <div style={{ width: "100%", maxWidth: "380px", position: "relative", zIndex: 10 }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "36px", userSelect: "none" }}>
-          <Logo size="lg" />
-          <p style={{ fontSize: "15px", color: "var(--text-muted)", margin: "4px 0 0 0", fontWeight: 500 }}>
-            Due Diligence System
-          </p>
-        </div>
 
-        <div className="card scale-in" style={{ padding: "32px", width: "100%", boxSizing: "border-box" }}>
-          <h2
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--text)", letterSpacing: "-0.02em", margin: "0 0 6px 0" }}
-          >
-            Nové heslo
-          </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "0 0 24px 0" }}>
-            Zadajte svoje nové silné heslo.
-          </p>
-
+        {/* Card */}
+        <div 
+          className="scale-in" 
+          style={{ 
+            padding: "32px", 
+            width: "100%", 
+            boxSizing: "border-box", 
+            background: "#FFFFFF", 
+            borderRadius: "16px",
+            boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
+            border: "1px solid",
+            borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.4)"
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px", width: "100%" }}>
+            <Logo size="lg" />
+          </div>
           {error && (
             <div
               style={{
@@ -178,22 +171,22 @@ function ResetPasswordForm() {
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
               </div>
-              <h3 style={{ fontSize: "16px", margin: "0 0 8px 0", color: "var(--text)" }}>Heslo bolo zmenené</h3>
+              <h3 style={{ fontSize: "16px", margin: "0 0 8px 0", color: "var(--text)" }}>{t("reset.hesloZmenene")}</h3>
               <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "0 0 24px 0", lineHeight: 1.5 }}>
-                Vaše heslo bolo úspešne aktualizované. Teraz sa môžete prihlásiť.
+                {t("reset.hesloAktualizovane")}
               </p>
               <Link 
                 href="/login" 
                 className="btn-primary"
                 style={{ width: "100%", padding: "10px", display: "inline-block", textDecoration: "none", boxSizing: "border-box" }}
               >
-                Prejsť na prihlásenie
+                {t("reset.prejstPrihlasenie")}
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div>
-                <label htmlFor="reset-password" className="label" style={{ display: "block", marginBottom: "8px" }}>Nové heslo (min. 8 znakov)</label>
+                <label htmlFor="reset-password" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("reset.noveHesloMin8")}</label>
                 <div style={{ position: "relative" }}>
                   <input
                     id="reset-password"
@@ -229,7 +222,7 @@ function ResetPasswordForm() {
                       justifyContent: "center",
                       zIndex: 10
                     }}
-                    aria-label={showPassword ? "Skryť" : "Zobraziť"}
+                    aria-label={showPassword ? t("form.skryt") : t("form.zobrazit")}
                   >
                     {showPassword ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -252,9 +245,9 @@ function ResetPasswordForm() {
                 style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
               >
                 {loading ? (
-                  <><Spinner /> Ukladám…</>
+                  <><Spinner /> {t("reset.ukladam")}</>
                 ) : (
-                  "Uložiť nové heslo"
+                  t("reset.ulozitHeslo")
                 )}
               </button>
             </form>
@@ -266,7 +259,7 @@ function ResetPasswordForm() {
                 href="/login" 
                 style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
               >
-                Zrušiť a späť na prihlásenie
+                {t("reset.zrusitSpat")}
               </Link>
             </div>
           )}

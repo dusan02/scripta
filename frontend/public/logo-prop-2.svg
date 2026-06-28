@@ -1,0 +1,18 @@
+<svg width="500" height="150" viewBox="0 0 500 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .text-logo { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 800; font-size: 75px; letter-spacing: -3px; }
+      .text-sub { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 500; font-size: 24px; letter-spacing: -0.5px; }
+    </style>
+  </defs>
+  <g transform="translate(10, 10)">
+    <!-- Proposal 2: The Notched V (True to original image) -->
+    <!-- Green Notched Left Leg -->
+    <path d="M0 25 L35 25 L28 40 L15 40 L35 90 L15 90 Z" fill="#589E78" />
+    <!-- Dark Blue Right Leg checkmark overlap -->
+    <path d="M78 15 L40 90 L20 90 L58 15 Z" fill="#20304C" />
+    
+    <text x="85" y="80" class="text-logo" fill="#20304C">erifa<tspan fill="#589E78">.sk</tspan></text>
+    <text x="0" y="125" class="text-sub" fill="#111827">Automatizovaná verifikácia firiem</text>
+  </g>
+</svg>

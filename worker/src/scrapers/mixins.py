@@ -56,32 +56,64 @@ class PdfGeneratorMixin:
     async def _generate_no_results_pdf(
         self, page: Page, output_path: Path, ico: str, *, title: str, message: str
     ) -> None:
+        """Vygeneruje PDF zo SKUTOČNEJ výsledkovej stránky (screenshot dôkaz).
+
+        Namiesto vymazania obsahu zachováme reálnu stránku — vyhľadávacie pole
+        s vyplneným IČO a prázdny výsledok ("Žiadne data") — ako dôkaz, že
+        vyhľadávanie prebehlo a nenašli sa žiadne záznamy. Odstránime len
+        navigáciu/pätu/cookie lišty a navrch pridáme informačný banner.
+        """
         await page.set_viewport_size({"width": 1920, "height": 1080})
-        await page.evaluate(
-            """(params) => {
-                const { title, message } = params;
-                const body = document.body;
-                while (body.firstChild) body.removeChild(body.firstChild);
-                const h1 = document.createElement('h1');
-                h1.textContent = title;
-                h1.style.cssText = 'font-size: 24px; font-weight: 700; margin: 0 0 20px 0; padding: 0; text-align: center;';
-                body.appendChild(h1);
-                const p = document.createElement('p');
-                p.textContent = message;
-                p.style.cssText = 'font-size: 16px; text-align: center; margin: 40px 0;';
-                body.appendChild(p);
-                body.style.margin = '0';
-                body.style.padding = '40px';
-            }""",
-            {"title": title, "message": message},
-        )
+        try:
+            await page.evaluate(
+                """(params) => {
+                    const { title, message } = params;
+                    // Odstrániť len chrome (cookie, nav, header, footer, modály).
+                    // NEodstraňujeme [class*="banner"] ani [id*="banner"] — môžu obsahovať hlavný obsah.
+                    document.querySelectorAll(
+                        'header, footer, nav, .header, .footer, .navigation, .menu, '
+                        + '.cookie-bar, .breadcrumb, .sidebar, #header, #footer, '
+                        + '.page-header, [class*="cookie"], '
+                        + '[class*="modal"], [id*="cookie"]'
+                    ).forEach(el => el.remove());
+
+                    // Skryť prebytočné veľké medzery / skryté elementy
+                    document.querySelectorAll('[style*="display:none"], [hidden]').forEach(el => el.remove());
+
+                    // Informačný banner navrch — dôkaz o vykonanom vyhľadávaní
+                    const banner = document.createElement('div');
+                    banner.style.cssText = 'font-family: Arial, sans-serif; '
+                        + 'border: 2px solid #10b981; background: #ecfdf5; '
+                        + 'border-radius: 8px; padding: 16px 20px; margin: 0 0 20px 0; '
+                        + 'page-break-inside: avoid;';
+                    const h1 = document.createElement('div');
+                    h1.textContent = title;
+                    h1.style.cssText = 'font-size: 20px; font-weight: 700; '
+                        + 'margin-bottom: 8px; color: #065f46;';
+                    const p = document.createElement('div');
+                    p.textContent = message;
+                    p.style.cssText = 'font-size: 14px; color: #047857;';
+                    banner.appendChild(h1);
+                    banner.appendChild(p);
+
+                    const body = document.body;
+                    body.insertBefore(banner, body.firstChild);
+                    body.style.margin = '0';
+                    body.style.padding = '24px';
+                }""",
+                {"title": title, "message": message},
+            )
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Banner injection zlyhal, fallback na čisté PDF: {e}")
+
         await page.pdf(
             path=str(output_path),
             format="A4",
             print_background=True,
-            margin={"top": "2cm", "bottom": "2cm", "left": "2cm", "right": "2cm"},
+            page_ranges="1",
+            margin={"top": "1.5cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"},
         )
-        logger.info(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Negatívny PDF vygenerovaný: {output_path}")
+        logger.info(f"[{getattr(self, 'source_type', 'UNKNOWN')}] No-results PDF (screenshot dôkaz) vygenerovaný: {output_path}")
 
     async def _generate_clean_pdf(
         self,
@@ -215,6 +247,139 @@ class StealthDebtorMixin:
                 except Exception:
                     pass
 
+    async def _generate_debtor_no_results_pdf(
+        self, page: Page, output_path: Path, ico: str,
+        *, source_name: str, has_ico: bool, has_no_results_text: bool,
+    ) -> None:
+        """Vygeneruje PDF s dôkazom negatívneho výsledku pre debtor scrapery.
+
+        Rebuildne body tak, aby bol dôkaz vždy viditeľný a neobsahoval
+        záznamy iných dlžníkov, ktoré môžu byť na pôvodnej stránke:
+        - Zelený banner s titulkom a správou
+        - Vyhľadávané IČO
+        - Text o negatívnom výsledku (ak je na stránke)
+        """
+        await page.set_viewport_size({"width": 1920, "height": 1080})
+
+        # Extrahujeme reálny obsah stránky ako dôkaz (len relevantné riadky)
+        try:
+            page_text = await page.inner_text("body")
+        except Exception:
+            page_text = ""
+
+        relevant_lines = []
+        for line in page_text.split("\n"):
+            l = line.strip()
+            if not l:
+                continue
+            ll = l.lower()
+            if any(skip in ll for skip in (
+                "cookie", "prihlásiť", "menu", "hľadať na stránke",
+                "facebook", "twitter", "youtube", "instagram",
+                "navigácia", "päta", "hlavička",
+            )):
+                continue
+            relevant_lines.append(l)
+
+        relevant_html = "<br>".join(
+            l.replace("<", "&lt;").replace(">", "&gt;")
+            for l in relevant_lines[:30]
+        )
+
+        title = f"Zoznam dlžníkov {source_name}"
+        message = f"Pre IČO {ico} sa v Zozname dlžníkov {source_name} nenašli žiadne nedoplatky."
+
+        try:
+            await page.evaluate(
+                """(params) => {
+                    const { title, message, ico, hasNoResultsText, relevantHtml } = params;
+
+                    const body = document.body;
+                    body.innerHTML = '';
+                    body.style.margin = '0';
+                    body.style.padding = '32px';
+                    body.style.fontFamily = 'Arial, sans-serif';
+                    body.style.fontSize = '14px';
+                    body.style.color = '#1a1a1a';
+                    body.style.background = '#ffffff';
+
+                    // Banner
+                    const banner = document.createElement('div');
+                    banner.style.cssText = 'border: 2px solid #10b981; background: #ecfdf5; '
+                        + 'border-radius: 8px; padding: 20px 24px; margin-bottom: 24px;';
+                    const h1 = document.createElement('div');
+                    h1.textContent = title;
+                    h1.style.cssText = 'font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #065f46;';
+                    const msg = document.createElement('div');
+                    msg.textContent = message;
+                    msg.style.cssText = 'font-size: 16px; color: #047857; line-height: 1.5;';
+                    banner.appendChild(h1);
+                    banner.appendChild(msg);
+                    body.appendChild(banner);
+
+                    // Dôkaz: vyhľadávané IČO
+                    const icoBlock = document.createElement('div');
+                    icoBlock.style.cssText = 'padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 16px;';
+                    const icoLabel = document.createElement('div');
+                    icoLabel.textContent = 'Vyhľadávané IČO:';
+                    icoLabel.style.cssText = 'font-weight: 600; margin-bottom: 4px; color: #475569;';
+                    const icoVal = document.createElement('div');
+                    icoVal.textContent = ico;
+                    icoVal.style.cssText = 'font-size: 18px; font-weight: 700; color: #1e40af;';
+                    icoBlock.appendChild(icoLabel);
+                    icoBlock.appendChild(icoVal);
+                    body.appendChild(icoBlock);
+
+                    // Dôkaz: text o negatívnom výsledku
+                    if (hasNoResultsText) {
+                        const resultBlock = document.createElement('div');
+                        resultBlock.style.cssText = 'padding: 12px 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; margin-bottom: 16px;';
+                        const resultLabel = document.createElement('div');
+                        resultLabel.textContent = 'Výsledok vyhľadávania:';
+                        resultLabel.style.cssText = 'font-weight: 600; margin-bottom: 4px; color: #991b1b;';
+                        const resultVal = document.createElement('div');
+                        resultVal.textContent = 'Nenašli sa žiadne záznamy.';
+                        resultVal.style.cssText = 'font-size: 16px; font-weight: 600; color: #b91c1c;';
+                        resultBlock.appendChild(resultLabel);
+                        resultBlock.appendChild(resultVal);
+                        body.appendChild(resultBlock);
+                    }
+
+                    // Reálny obsah stránky ako dodatočný dôkaz
+                    if (relevantHtml) {
+                        const contentBlock = document.createElement('div');
+                        contentBlock.style.cssText = 'padding: 12px 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 16px;';
+                        const contentLabel = document.createElement('div');
+                        contentLabel.textContent = 'Obsah stránky po vyhľadávaní:';
+                        contentLabel.style.cssText = 'font-weight: 600; margin-bottom: 8px; color: #475569;';
+                        const contentVal = document.createElement('div');
+                        contentVal.innerHTML = relevantHtml;
+                        contentVal.style.cssText = 'font-size: 13px; color: #374151; line-height: 1.6;';
+                        contentBlock.appendChild(contentLabel);
+                        contentBlock.appendChild(contentVal);
+                        body.appendChild(contentBlock);
+                    }
+                }""",
+                {
+                    "title": title,
+                    "message": message,
+                    "ico": ico,
+                    "hasNoResultsText": has_no_results_text,
+                    "relevantHtml": relevant_html,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Rebuild stránky zlyhal, generujem surové PDF: {e}")
+
+        await page.pdf(
+            path=str(output_path),
+            format="A4",
+            print_background=True,
+            page_ranges="1",
+            margin={"top": "1.5cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"},
+        )
+        logger.info(f"[{getattr(self, 'source_type', 'UNKNOWN')}] No-results PDF (dôkaz) vygenerovaný: {output_path}")
+
 
 class TableExtractorMixin:
     async def _extract_table_findings(
@@ -237,6 +402,21 @@ class TableExtractorMixin:
                 cells = rows.nth(i).locator("td")
                 cell_count = await cells.count()
                 if cell_count == 0:
+                    continue
+                # Najprv získame celý text riadku, aby sme overili zhodu s IČO.
+                # Tým zabránime false-positive nálezom z nesúvisiacich dlžníkov,
+                # keď vyhľadávanie vráti "Žiadne data" ale tabuľka obsahuje iné záznamy.
+                # Pozor: nemôžeme spojiť všetky číslice dokopy (re.sub \D),
+                # pretože zreťazenie čísiel z rôznych stĺpcov môže vytvoriť
+                # podreťazec, ktorý sa zhoduje s hľadaným IČO napriek tomu,
+                # že riadok neobsahuje to IČO ako samostatné číslo.
+                try:
+                    row_text = (await rows.nth(i).inner_text(timeout=2000))
+                except PlaywrightTimeout:
+                    row_text = ""
+                row_numbers = re.findall(r'\d+', row_text)
+                if ico not in row_numbers:
+                    logger.debug(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Riadok {i} neobsahuje IČO {ico} ako samostatné číslo — preskakujem.")
                     continue
                 if field_map:
                     row = {}

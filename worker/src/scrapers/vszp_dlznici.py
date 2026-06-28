@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import re
 from pathlib import Path
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
@@ -64,40 +65,127 @@ class VszpDlzniciScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 pass
 
-            # Zaškrtnúť checkbox "súhlasím" (3rd checkbox — súhlas so spracovaním)
-            try:
-                checkbox = page.locator("div:nth-child(3) > label > .cr > .cr-icon")
-                await checkbox.wait_for(timeout=5000)
-                await checkbox.click()
-                logger.info(f"[{self.source_type}] Checkbox súhlasu zaškrtnutý.")
-            except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Checkbox súhlasu sa nenašiel — pokračujem.")
+            # Zaškrtnuť checkbox "súhlasím" (súhlas so spracovaním)
+            # Skúšame viacero selektorov — stránka sa môže zmeniť.
+            checkbox_clicked = False
+            for selector in [
+                "div:nth-child(3) > label > .cr > .cr-icon",
+                "label:has-text('súhlas') .cr-icon",
+                "label:has-text('súhlas') input[type='checkbox']",
+                "input[type='checkbox']:nth-of-type(3)",
+                ".checkbox-wrap:nth-child(3) label",
+            ]:
+                try:
+                    cb = page.locator(selector).first
+                    await cb.wait_for(timeout=3000)
+                    await cb.click()
+                    logger.info(f"[{self.source_type}] Checkbox súhlasu zaškrtnutý (selector: {selector}).")
+                    checkbox_clicked = True
+                    break
+                except PlaywrightTimeoutError:
+                    continue
+            if not checkbox_clicked:
+                logger.warning(f"[{self.source_type}] Checkbox súhlasu sa nenašiel — pokračujem bez neho.")
 
-            # Vyplniť IČO do poľa "Nazov"
-            try:
-                nazov_input = page.get_by_role("textbox", name="Nazov")
-                await nazov_input.wait_for(timeout=10000)
-                await nazov_input.click()
-                await nazov_input.fill(ico)
-                logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Pole 'Nazov' sa nenašlo.")
+            # Vyplniť IČO do poľa "Nazov" — skúšame viacero selektorov
+            nazov_filled = False
+            for selector in [
+                "input[name='Nazov']",
+                "input[placeholder*='Názov']",
+                "input[placeholder*='Nazov']",
+                "input[type='text']",
+            ]:
+                try:
+                    nazov_input = page.locator(selector).first
+                    await nazov_input.wait_for(timeout=5000)
+                    await nazov_input.click()
+                    await nazov_input.fill(ico)
+                    logger.info(f"[{self.source_type}] IČO vyplnené: {ico} (selector: {selector}).")
+                    nazov_filled = True
+                    break
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    continue
+
+            if not nazov_filled:
+                # Fallback: skús get_by_role
+                try:
+                    nazov_input = page.get_by_role("textbox", name="Nazov")
+                    await nazov_input.wait_for(timeout=5000)
+                    await nazov_input.click()
+                    await nazov_input.fill(ico)
+                    nazov_filled = True
+                    logger.info(f"[{self.source_type}] IČO vyplnené cez get_by_role.")
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    pass
+
+            if not nazov_filled:
+                logger.error(f"[{self.source_type}] Pole pre IČO sa nenašlo — generujem PDF z aktuálneho stavu.")
+                pdf_output = output_dir / f"vszp_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="VšZP",
+                        has_ico=False,
+                        has_no_results_text=False,
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť pole na stránke VšZP: {e}")
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť pole 'Nazov' na stránke VšZP.",
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="VšZP: nepodarilo sa vykonať vyhľadávanie (zmena stránky).",
+                    findings="VšZP: vyhľadávanie zlyhalo — stránka sa pravdepodobne zmenila.",
                 )
 
-            # Kliknúť "Vyhľadať"
-            try:
-                search_btn = page.get_by_role("button", name="Vyhľadať")
-                await search_btn.wait_for(timeout=10000)
-                await search_btn.click()
-                logger.info(f"[{self.source_type}] Tlačidlo Vyhľadať kliknuté.")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Tlačidlo Vyhľadať sa nenašlo.")
+            # Kliknúť "Vyhľadať" — skúšame viacero selektorov
+            search_clicked = False
+            for selector in [
+                "button:has-text('Vyhľadať')",
+                "input[value='Vyhľadať']",
+                "button[type='submit']",
+                ".search-button",
+            ]:
+                try:
+                    btn = page.locator(selector).first
+                    await btn.wait_for(timeout=5000)
+                    await btn.click()
+                    logger.info(f"[{self.source_type}] Tlačidlo Vyhľadať kliknuté (selector: {selector}).")
+                    search_clicked = True
+                    break
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    continue
+
+            if not search_clicked:
+                try:
+                    search_btn = page.get_by_role("button", name="Vyhľadať")
+                    await search_btn.wait_for(timeout=5000)
+                    await search_btn.click()
+                    search_clicked = True
+                    logger.info(f"[{self.source_type}] Tlačidlo Vyhľadať kliknuté cez get_by_role.")
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    pass
+
+            if not search_clicked:
+                logger.error(f"[{self.source_type}] Tlačidlo Vyhľadať sa nenašlo — generujem PDF z aktuálneho stavu.")
+                pdf_output = output_dir / f"vszp_dlznici_{ico}.pdf"
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="VšZP",
+                        has_ico=True,
+                        has_no_results_text=False,
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
+                    return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť tlačidlo Vyhľadať: {e}")
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť tlačidlo Vyhľadať na stránke VšZP.",
+                    status="SUCCESS",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="VšZP: nepodarilo sa spustiť vyhľadávanie (zmena stránky).",
+                    findings="VšZP: vyhľadávanie zlyhalo — tlačidlo sa nenašlo.",
                 )
 
             # Počkať na výsledky — čakáme na tabuľku alebo text "Nenašli sa žiadne záznamy"
@@ -108,17 +196,20 @@ class VszpDlzniciScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 
-            # Skontrolovať výsledky
+            # Skontrolovať výsledky — vyžadujeme OBE podmienky pre negatívny výsledok:
+            # (1) IČO musí byť na stránke (dôkaz že sa hľadalo to správne IČO)
+            # (2) text "Nenašli sa žiadne záznamy." (dôkaz že nič nenašlo)
             text_content = await page.inner_text("body")
-            is_empty = "Nenašli sa žiadne záznamy" in text_content
+            has_no_results_text = "Nenašli sa žiadne záznamy" in text_content
+            has_ico_on_page = ico in re.findall(r"\d+", text_content)
 
             findings = None
             is_debtor = False
-            if not is_empty:
+            if not has_no_results_text:
                 findings = await self._extract_table_findings(page, ico, source_name="VšZP")
                 is_debtor = findings is not None and "POZOR" in (findings or "")
                 # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
-                if is_debtor and ico not in findings:
+                if is_debtor and findings and ico not in findings:
                     logger.warning(f"[{self.source_type}] Tabuľka nájdená, ale IČO {ico} nie je v náleze — pravdepodobne false positive.")
                     is_debtor = False
                     findings = None
@@ -127,13 +218,17 @@ class VszpDlzniciScraper(BaseScraper):
             pdf_output = output_dir / f"vszp_dlznici_{ico}.pdf"
             
             if not is_debtor:
-                logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov VšZP.")
+                logger.info(
+                    f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov VšZP "
+                    f"(IČO na stránke: {has_ico_on_page}, text 'Nenašli sa žiadne záznamy': {has_no_results_text})."
+                )
                 findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov VšZP."
                 try:
-                    await self._generate_no_results_pdf(
+                    await self._generate_debtor_no_results_pdf(
                         page, pdf_output, ico,
-                        title="Zoznam dlžníkov VšZP",
-                        message=f"Pre IČO {ico} sa v Zozname dlžníkov VšZP nenašli žiadne nedoplatky.",
+                        source_name="VšZP",
+                        has_ico=has_ico_on_page,
+                        has_no_results_text=has_no_results_text,
                     )
                 except Exception as e:
                     logger.error(f"[{self.source_type}] Zlyhalo generovanie no-results PDF: {e}")
@@ -149,11 +244,13 @@ class VszpDlzniciScraper(BaseScraper):
 
             # Inak sme našli subjekt v tabuľke (is_debtor = True).
             # Pred tlačením PDF schováme riadky, ktoré neobsahujú naše IČO
+            # Používame regex s word boundary, aby sme nezhodli IČO ako podreťazec iného čísla.
             try:
                 await page.evaluate("""(ico) => {
                     const rows = document.querySelectorAll('table tbody tr, .table tbody tr, .result-table tr');
+                    const re = new RegExp('\\\\b' + ico + '\\\\b');
                     for (const row of rows) {
-                        if (!row.innerText.includes(ico)) {
+                        if (!re.test(row.innerText)) {
                             row.style.display = 'none';
                         }
                     }

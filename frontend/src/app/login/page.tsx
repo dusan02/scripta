@@ -1,64 +1,55 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useTheme } from "@/components/ThemeProvider";
-
-function Spinner() {
-  return (
-    <svg 
-      className="animate-spin" 
-      style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }}
-      viewBox="0 0 24 24" 
-      fill="none"
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
-    </svg>
-  );
-}
-
+import { useLang } from "@/components/LanguageProvider";
+import { signIn } from "next-auth/react";
 import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { theme, toggle } = useTheme();
-  const isDark = theme === "dark";
+  const { lang, setLang, t } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("verifa-remembered-email");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setLoading(true);
+    setError("");
 
     try {
-      const result = await signIn("credentials", {
+      const res = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
       });
 
-      if (result?.error) {
-        setError(
-          result.error === "CredentialsSignin"
-            ? "Nesprávny e-mail alebo heslo."
-            : "Prihlásenie zlyhalo. Skúste znova."
-        );
-        return;
-      }
-
-      if (result?.ok) {
-        window.location.href = "/";
+      if (res?.error) {
+        setError(t("login.nespravne"));
+      } else {
+        if (rememberMe) {
+          localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
+        } else {
+          localStorage.removeItem("verifa-remembered-email");
+        }
+        router.push("/");
+        router.refresh();
       }
     } catch {
-      setError("Neočakávaná chyba. Skúste znova neskôr.");
+      setError(t("login.neocakavana"));
     } finally {
       setLoading(false);
     }
@@ -68,81 +59,60 @@ export default function LoginPage() {
     <div
       style={{
         minHeight: "100vh",
+        width: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "24px",
-        background: "var(--bg)",
+        background: "url('/landing-bg-v2.jpg') no-repeat center center",
+        backgroundSize: "cover",
         position: "relative"
       }}
     >
-      {/* Subtle background grid */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: 0.4,
-          pointerEvents: "none",
-          backgroundImage:
-            "linear-gradient(var(--border) 1px, transparent 1px)," +
-            "linear-gradient(90deg, var(--border) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-          maskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-        }}
-      />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.15)" }} />
 
-      {/* Dark mode toggle */}
-      <button
-        onClick={toggle}
-        title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
-        className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
-        style={{
-          position: "absolute",
-          top: 24,
-          right: 24,
-          zIndex: 20,
-          background: "var(--bg-muted)",
-          border: "1px solid var(--border)",
-          color: "var(--text-secondary)",
-        }}
-      >
-        {isDark ? (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-          </svg>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
-          </svg>
-        )}
-      </button>
-
-      <div style={{ width: "100%", maxWidth: "380px", position: "relative", zIndex: 10 }}>
-
-        {/* Logo */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "36px", userSelect: "none" }}>
-          <Logo size="lg" />
-          <p style={{ fontSize: "15px", color: "var(--text-muted)", margin: "4px 0 0 0", fontWeight: 500 }}>
-            Due Diligence System
-          </p>
-        </div>
-
-        {/* Card */}
-        <div className="card scale-in" style={{ padding: "32px", width: "100%", boxSizing: "border-box" }}>
-          <h2
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--text)", letterSpacing: "-0.02em", margin: "0 0 6px 0" }}
+      {/* Language Switcher */}
+      <div style={{ position: "absolute", top: 24, right: 24, zIndex: 20, display: "flex", gap: "8px" }}>
+        {(["sk", "en", "de"] as const).map((l) => (
+          <button
+            key={l}
+            onClick={() => setLang(l)}
+            style={{
+              padding: "6px 10px",
+              borderRadius: "6px",
+              background: lang === l ? "var(--accent)" : "rgba(255, 255, 255, 0.8)",
+              color: lang === l ? "#fff" : "#374151",
+              border: "1px solid",
+              borderColor: lang === l ? "var(--accent)" : "#D1D5DB",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "all 0.2s"
+            }}
           >
-            Prihlásenie do platformy
-          </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "0 0 24px 0" }}>
-            Zadajte svoje prihlasovacie údaje.
-          </p>
+            {l.toUpperCase()}
+          </button>
+        ))}
+      </div>
 
-          {/* Error */}
+      <div style={{ width: "100%", maxWidth: "400px", position: "relative", zIndex: 10, padding: "20px" }}>
+        
+        {/* Card */}
+        <div 
+          className="scale-in" 
+          style={{ 
+            padding: "40px 32px", 
+            width: "100%", 
+            boxSizing: "border-box", 
+            background: "#FFFFFF", 
+            borderRadius: "16px",
+            boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px", width: "100%" }}>
+            <Logo size="lg" />
+          </div>
+
           {error && (
             <div
               style={{
@@ -153,52 +123,56 @@ export default function LoginPage() {
                 borderRadius: "8px",
                 fontSize: "13px",
                 marginBottom: "24px",
-                background: "var(--danger-bg)",
-                border: "1px solid var(--danger)",
-                color: "var(--danger)",
+                background: "#FEF2F2",
+                border: "1px solid #F87171",
+                color: "#DC2626",
               }}
               role="alert"
             >
-              <svg style={{ width: "16px", height: "16px", flexShrink: 0, marginTop: "2px" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
-              </svg>
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate autoComplete="on" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {/* Email */}
             <div>
-              <label htmlFor="login-email" className="label" style={{ display: "block", marginBottom: "8px" }}>E-mail</label>
+              <label htmlFor="login-email" style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: 500, color: "#374151" }}>{t("login.email")}</label>
               <input
                 id="login-email"
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
-                placeholder="jan@advokacia.sk"
+                placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                className="input"
-                style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}
+                style={{ 
+                  width: "100%", 
+                  padding: "10px 12px", 
+                  boxSizing: "border-box",
+                  borderRadius: "8px",
+                  border: "1px solid #D1D5DB",
+                  background: "#FFFFFF",
+                  color: "#111827",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s"
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "var(--accent)";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(67, 160, 71, 0.1)"; // Adjust rgba based on accent color
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#D1D5DB";
+                  e.target.style.boxShadow = "none";
+                }}
               />
             </div>
 
             {/* Password */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                <label htmlFor="login-password" className="label" style={{ margin: 0 }}>Heslo</label>
-                <Link
-                  href="/forgot-password"
-                  style={{ fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-                >
-                  Zabudnuté heslo?
-                </Link>
-              </div>
+              <label htmlFor="login-password" style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: 500, color: "#374151" }}>{t("login.heslo")}</label>
               <div style={{ position: "relative" }}>
                 <input
                   id="login-password"
@@ -210,8 +184,26 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
-                  className="input"
-                  style={{ width: "100%", padding: "10px 36px 10px 12px", boxSizing: "border-box" }}
+                  style={{ 
+                    width: "100%", 
+                    padding: "10px 12px", 
+                    boxSizing: "border-box",
+                    borderRadius: "8px",
+                    border: "1px solid #D1D5DB",
+                    background: "#FFFFFF",
+                    color: "#111827",
+                    fontSize: "14px",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s"
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "var(--accent)";
+                    e.target.style.boxShadow = "0 0 0 3px rgba(67, 160, 71, 0.1)"; 
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#D1D5DB";
+                    e.target.style.boxShadow = "none";
+                  }}
                 />
                 <button
                   type="button"
@@ -221,76 +213,162 @@ export default function LoginPage() {
                   }}
                   style={{ 
                     position: "absolute", 
-                    right: "10px", 
+                    right: "12px", 
                     top: "50%", 
                     transform: "translateY(-50%)", 
-                    padding: "4px", 
                     background: "transparent", 
                     border: "none", 
                     cursor: "pointer", 
-                    color: "var(--text-muted)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 10
+                    color: "#9CA3AF",
+                    fontSize: "13px",
+                    fontWeight: 500
                   }}
-                  aria-label={showPassword ? "Skryť" : "Zobraziť"}
                 >
-                  {showPassword ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
+                  {showPassword ? t("form.skryt") : t("form.zobrazit")}
                 </button>
               </div>
             </div>
 
-            {/* Submit */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#4B5563", cursor: "pointer" }}>
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ accentColor: "var(--accent)", width: "16px", height: "16px", cursor: "pointer" }}
+                />
+                {t("login.zapamatatSiMa")}
+              </label>
+              <Link
+                href="/forgot-password"
+                style={{ fontSize: "14px", color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
+              >
+                {t("login.zabudnuteHeslo")}
+              </Link>
+            </div>
+
             <button
-              id="login-submit-btn"
               type="submit"
               disabled={loading}
-              className="btn-primary"
-              style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                marginTop: "4px",
+                background: "#111827",
+                color: "#FFFFFF",
+                fontWeight: 500,
+                fontSize: "14px",
+                borderRadius: "8px",
+                border: "none",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "transform 0.1s, opacity 0.2s, background 0.2s",
+                opacity: loading ? 0.7 : 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px"
+              }}
+              onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = "#1F2937"; }}
+              onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = "#111827"; }}
             >
-              {loading ? (
-                <><Spinner /> Overujem…</>
-              ) : (
-                "Prihlásiť sa"
-              )}
+              {loading ? t("login.overujem") : t("login.prihlasitSa")}
             </button>
           </form>
 
-          <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "var(--text-muted)" }}>
-            Nemáte účet?{" "}
-            <Link 
-              href="/register" 
-              style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
-            >
-              Zaregistrujte sa
-            </Link>
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", margin: "24px 0" }}>
+            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+            <span style={{ padding: "0 12px", fontSize: "12px", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("login.alebo")}</span>
+            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
           </div>
+
+          {/* Social Logins */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <button
+              type="button"
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "8px",
+                color: "#374151",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                transition: "background 0.2s, border-color 0.2s"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#F9FAFB";
+                e.currentTarget.style.borderColor = "#D1D5DB";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#FFFFFF";
+                e.currentTarget.style.borderColor = "#E5E7EB";
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              {t("login.pokracovatGoogle")}
+            </button>
+
+            <button
+              type="button"
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "8px",
+                color: "#374151",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                transition: "background 0.2s, border-color 0.2s"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#F9FAFB";
+                e.currentTarget.style.borderColor = "#D1D5DB";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#FFFFFF";
+                e.currentTarget.style.borderColor = "#E5E7EB";
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 0H0v10h10V0z" fill="#F25022"/>
+                <path d="M21 0H11v10h10V0z" fill="#7FBA00"/>
+                <path d="M10 11H0v10h10V11z" fill="#00A4EF"/>
+                <path d="M21 11H11v10h10V11z" fill="#FFB900"/>
+              </svg>
+              {t("login.pokracovatMicrosoft")}
+            </button>
+          </div>
+
         </div>
 
-        {/* Footer */}
-        <p
-          style={{ textAlign: "center", fontSize: "13px", marginTop: "24px", color: "var(--text-muted)" }}
-        >
-          Systém je určený výhradne pre advokátov.{" "}
-          <a
-            href="mailto:info@registro.sk"
-            style={{ color: "var(--text-secondary)", textDecoration: "none", fontWeight: 500 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "#4B5563" }}>
+          {t("login.nemateUcet")} {" "}
+          <Link 
+            href="/register" 
+            style={{ color: "#111827", textDecoration: "none", fontWeight: 600 }}
           >
-            Kontakt
-          </a>
-        </p>
+            {t("login.zaregistrovatSa")}
+          </Link>
+        </div>
+        
       </div>
     </div>
   );

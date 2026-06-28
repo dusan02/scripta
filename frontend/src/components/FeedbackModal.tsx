@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/components/LanguageProvider";
+import toast from "react-hot-toast";
 
 const CATEGORIES = [
-  { value: "BUG", label: "Chyba" },
-  { value: "IMPROVEMENT", label: "Nápad na zlepšenie" },
-  { value: "QUESTION", label: "Otázka" },
-  { value: "OTHER", label: "Iné" },
+  { value: "BUG", key: "feedback.chyba" },
+  { value: "IMPROVEMENT", key: "feedback.napad" },
+  { value: "QUESTION", key: "feedback.otazka" },
+  { value: "OTHER", key: "feedback.ine" },
 ];
 
 export default function FeedbackModal({
@@ -22,6 +24,7 @@ export default function FeedbackModal({
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   if (!open) return null;
 
@@ -43,9 +46,10 @@ export default function FeedbackModal({
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Odoslanie zlyhalo");
+        throw new Error(data.error || t("feedback.odslanieZlyhalo"));
       }
       setSuccess(true);
+      toast.success(t("feedback.uspech"));
       setTimeout(() => {
         setSuccess(false);
         setCategory("");
@@ -54,7 +58,9 @@ export default function FeedbackModal({
         onClose();
       }, 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Neznáma chyba");
+      const errMsg = err instanceof Error ? err.message : t("feedback.neznamaChyba");
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -76,7 +82,7 @@ export default function FeedbackModal({
             className="text-base font-bold"
             style={{ color: "var(--text)" }}
           >
-            Nahlásiť / Spätná väzba
+            {t("feedback.titulok")}
           </h2>
           <button
             onClick={onClose}
@@ -93,7 +99,7 @@ export default function FeedbackModal({
             style={{ color: "var(--success-text)" }}
           >
             <div className="text-2xl mb-2">✓</div>
-            <p className="text-sm font-medium">Ďakujeme! Správa bola odoslaná.</p>
+            <p className="text-sm font-medium">{t("feedback.dakujeme")}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -102,7 +108,7 @@ export default function FeedbackModal({
                 className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                Predmet <span style={{ color: "var(--danger)" }}>*</span>
+                {t("feedback.predmet")} <span style={{ color: "var(--danger)" }}>*</span>
               </label>
               <select
                 value={category}
@@ -115,10 +121,10 @@ export default function FeedbackModal({
                   color: "var(--text)",
                 }}
               >
-                <option value="">Vyberte kategóriu...</option>
+                <option value="">{t("feedback.vyberteKategoriu")}</option>
                 {CATEGORIES.map((cat) => (
                   <option key={cat.value} value={cat.value}>
-                    {cat.label}
+                    {t(cat.key)}
                   </option>
                 ))}
               </select>
@@ -129,7 +135,7 @@ export default function FeedbackModal({
                 className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                ID requestu <span style={{ color: "var(--text-muted)" }}>(nepovinné)</span>
+                {t("feedback.idRequestu")} <span style={{ color: "var(--text-muted)" }}>(nepovinné)</span>
               </label>
               <input
                 type="text"
@@ -150,14 +156,14 @@ export default function FeedbackModal({
                 className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                Text <span style={{ color: "var(--danger)" }}>*</span>
+                {t("feedback.text")} <span style={{ color: "var(--danger)" }}>*</span>
               </label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 required
                 rows={4}
-                placeholder="Popíšte nám problém, nápad alebo otázku..."
+                placeholder={t("feedback.popiste")}
                 className="w-full px-3 py-2 rounded-lg text-sm resize-none"
                 style={{
                   background: "var(--bg)",
@@ -185,7 +191,7 @@ export default function FeedbackModal({
                 opacity: submitting || !category || !message.trim() ? 0.6 : 1,
               }}
             >
-              {submitting ? "Odosielam..." : "Odoslať"}
+              {submitting ? t("feedback.odosielam") : t("feedback.odoslat")}
             </button>
           </form>
         )}

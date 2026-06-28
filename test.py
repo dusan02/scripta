@@ -14,6 +14,7 @@ def run(playwright: Playwright) -> None:
     page.get_by_text("Skryť výskyty nájdených kľúč").click()
     page.get_by_role("cell", name="Oznámenie o začatí konania o").click()
     page.get_by_role("cell", name="Detail").nth(2).click()
+    page.close()
 
     # ---------------------
     context.close()

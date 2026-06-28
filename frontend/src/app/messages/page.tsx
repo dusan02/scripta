@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/components/LanguageProvider";
 
 interface Message {
   id: string;
@@ -12,9 +13,9 @@ interface Message {
 }
 
 const TYPE_LABELS: Record<string, string> = {
-  ANNOUNCEMENT: "Novinka",
-  REPLY: "Odpoveď",
-  SYSTEM: "Systém",
+  ANNOUNCEMENT: "messages.novinka",
+  REPLY: "messages.odpoved",
+  SYSTEM: "messages.system",
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -24,6 +25,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function MessagesPage() {
+  const t = useT();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,10 +71,10 @@ export default function MessagesPage() {
           className="text-2xl font-bold tracking-tight mb-1"
           style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
         >
-          Správy
+          {t("messages.spravy")}
         </h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Novinky, odpovede na vaše podnety a systémové oznámenia.
+          {t("messages.popis")}
         </p>
       </div>
 
@@ -87,7 +89,7 @@ export default function MessagesPage() {
           style={{ border: "1px solid var(--border)" }}
         >
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Zatiaľ žiadne správy.
+            {t("messages.ziadneSpravy")}
           </p>
         </div>
       ) : (
@@ -110,7 +112,7 @@ export default function MessagesPage() {
                       color: TYPE_COLORS[msg.type] || "var(--text-muted)",
                     }}
                   >
-                    {TYPE_LABELS[msg.type] || msg.type}
+                    {t(TYPE_LABELS[msg.type] || msg.type)}
                   </span>
                   {!msg.read && (
                     <span

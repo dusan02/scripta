@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useT } from "@/components/LanguageProvider";
 import Logo from "@/components/Logo";
 import FeedbackModal from "@/components/FeedbackModal";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function SunIcon() {
   return (
@@ -34,20 +36,43 @@ function LogOutIcon() {
 }
 
 const NAV_ITEMS = [
-  { href: "/", label: "Overenie subjektu" },
-  { href: "/history", label: "História reportov" },
-  { href: "/settings", label: "Nastavenia" },
-  { href: "/pricing", label: "Cenník" },
-  { href: "/messages", label: "Správy" },
+  { href: "/", key: "nav.overenie" },
+  { href: "/history", key: "nav.historia" },
+  { href: "/settings", key: "nav.nastavenia" },
+  { href: "/pricing", key: "nav.cennik" },
+  { href: "/messages", key: "nav.spravy" },
 ];
 
 export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggle } = useTheme();
+  const t = useT();
+  const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
+
+  const userInitials = (() => {
+    const email = session?.user?.email ?? "";
+    const name = session?.user?.name;
+    if (name) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    if (email) return email.slice(0, 2).toUpperCase();
+    return "?";
+  })();
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetch("/api/credits")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setCreditsUsed(data.usedThisMonth); })
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -61,11 +86,11 @@ export default function NavBar() {
     <>
     <header className="glass-nav sticky top-0 z-50">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-14">
+        <div className="flex items-end justify-between h-20 py-3">
 
           {/* Left: Logo + Nav */}
-          <div className="flex items-center gap-6">
-            <Link href="/" aria-label="Registro.sk — overenie subjektu" style={{ textDecoration: "none" }}>
+          <div className="flex items-end gap-6">
+            <Link href="/" aria-label={`Verifa.sk — ${t("nav.overenie")}`} style={{ textDecoration: "none" }}>
               <Logo />
             </Link>
 
@@ -83,7 +108,7 @@ export default function NavBar() {
                       background: active ? "var(--accent-light)" : "transparent",
                     }}
                   >
-                    {item.label}
+                    {t(item.key)}
                   </Link>
                 );
               })}
@@ -91,13 +116,32 @@ export default function NavBar() {
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-end gap-2">
+
+            {/* Credits pill */}
+            <div
+              className="hidden sm:flex items-center gap-1.5 px-2.5 h-9 rounded-lg text-xs font-medium"
+              style={{
+                background: "var(--bg-muted)",
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)",
+              }}
+              title={t("nav.reportovTentoMesiac")}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+              </svg>
+              {creditsUsed !== null ? `${creditsUsed}×` : "—"}
+            </div>
+
+            {/* Language switcher */}
+            <LanguageSwitcher />
 
             {/* Report button */}
             <button
               onClick={() => setFeedbackOpen(true)}
-              title="Nahlásiť chybu alebo poslať spätnú väzbu"
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150"
+              title={t("nav.reportovatTitle")}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 h-9 rounded-lg text-xs font-medium transition-all duration-150"
               style={{
                 background: "var(--bg-muted)",
                 border: "1px solid var(--border)",
@@ -107,7 +151,7 @@ export default function NavBar() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
               </svg>
-              Reportovať
+              {t("nav.reportovat")}
             </button>
 
             {/* Divider */}
@@ -120,7 +164,7 @@ export default function NavBar() {
             <button
               id="theme-toggle-btn"
               onClick={toggle}
-              title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
+              title={isDark ? t("nav.svetly") : t("nav.tmavy")}
               className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
               style={{
                 background: isDark ? "var(--bg-muted)" : "var(--bg-muted)",
@@ -136,7 +180,7 @@ export default function NavBar() {
               id="logout-btn"
               onClick={handleLogout}
               disabled={loggingOut}
-              title="Odhlásiť sa"
+              title={t("nav.odhlasit")}
               className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg transition-all duration-150"
               style={{
                 background: "var(--bg-muted)",
@@ -156,14 +200,14 @@ export default function NavBar() {
 
             {/* Avatar */}
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
               style={{
                 background: "var(--bg-muted)",
                 border: "1px solid var(--border)",
                 color: isDark ? "var(--text)" : "var(--text-secondary)",
               }}
             >
-              JD
+              {userInitials}
             </div>
 
             {/* Mobile toggle */}
@@ -171,7 +215,7 @@ export default function NavBar() {
               className="md:hidden w-8 h-8 flex items-center justify-center rounded-md transition-colors"
               style={{ color: "var(--text-muted)" }}
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Menu"
+              aria-label={t("nav.menu")}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 {mobileOpen
@@ -199,7 +243,7 @@ export default function NavBar() {
                     background: active ? "var(--accent-light)" : "transparent",
                   }}
                 >
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               );
             })}
@@ -212,7 +256,7 @@ export default function NavBar() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
               </svg>
-              Reportovať
+              {t("nav.reportovat")}
             </button>
 
             {/* Mobile logout */}
@@ -222,7 +266,7 @@ export default function NavBar() {
               style={{ color: "var(--text-muted)" }}
             >
               <LogOutIcon />
-              Odhlásiť sa
+              {t("nav.odhlasit")}
             </button>
           </div>
         )}

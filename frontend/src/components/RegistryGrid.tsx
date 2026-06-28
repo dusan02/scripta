@@ -1,6 +1,7 @@
 "use client";
 
 import { SOURCE_CATEGORIES, SOURCES, ENABLED_SOURCES, SOURCE_MAP, type SourceInfo } from "@/lib/sources";
+import { useT } from "@/components/LanguageProvider";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -177,6 +178,7 @@ export default function RegistryGrid({
   sources = [],
 }: RegistryGridProps) {
   const isSelection = mode === "selection";
+  const t = useT();
 
   const statusMap: Record<string, SourceStatus> = Object.fromEntries(
     sources.map(s => [s.sourceType, s])
@@ -188,7 +190,7 @@ export default function RegistryGrid({
       {isSelection && (
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
-            {selected.length} z {ENABLED_SOURCES.length} registrov
+            {selected.length} {t("grid.zRegistrov", { total: ENABLED_SOURCES.length })}
           </span>
           <div className="flex items-center gap-3">
             <button
@@ -197,7 +199,7 @@ export default function RegistryGrid({
               className="text-[11px] font-medium transition-colors hover:opacity-80"
               style={{ color: "var(--accent)" }}
             >
-              Označiť všetko
+              {t("grid.oznacitVsetko")}
             </button>
             <span style={{ color: "var(--border)" }}>·</span>
             <button
@@ -206,7 +208,7 @@ export default function RegistryGrid({
               className="text-[11px] font-medium transition-colors hover:opacity-80"
               style={{ color: "var(--text-muted)" }}
             >
-              Odznačiť všetko
+              {t("grid.odznacitVsetko")}
             </button>
           </div>
         </div>
@@ -282,7 +284,7 @@ export default function RegistryGrid({
                     </span>
                   )}
                   <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>
-                    {cat.label}
+                    {t(`cat.${cat.id}`)}
                   </span>
                 </div>
                 <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>

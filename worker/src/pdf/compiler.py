@@ -1,4 +1,6 @@
 from __future__ import annotations
+import io
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -6,8 +8,34 @@ from typing import List, Optional
 from PyPDF2 import PdfWriter, PdfReader
 from PyPDF2.generic import ArrayObject, NumberObject, NameObject
 
+from reportlab.pdfgen import canvas as rl_canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
 from .cover_page import CoverPageGenerator, _SOURCE_CATEGORIES, _SOURCE_LABELS
 from ..models import ScrapedSource
+
+logger = logging.getLogger(__name__)
+
+_FONTS_REGISTERED = False
+
+# Zdroje, ktoré už majú vlastný nadpis vložený scraperom (_generate_clean_pdf / _generate_no_results_pdf).
+# Pre tieto zdroje compiler nepridáva ďalší overlay nadpis, aby sa neduplikoval.
+_SOURCES_WITH_EMBEDDED_TITLE = frozenset({
+    "ORSR",
+    "OBCHODNY_VESTNIK",
+    "SP_DLZNICI",
+    "VSZP_DLZNICI",
+    "UNION_DLZNICI",
+    "DOVERA_DLZNICI",
+    "CRZ",
+    "UVO",
+    "NCRZP",
+    "NCRD",
+    "REGISTER_UZ",
+    "RPO",
+    "DISKVALIFIKACIE",
+})
 
 # Canonical order of sources for PDF compilation (matches cover page categories)
 _SOURCE_ORDER = {sid: idx for idx, sid in enumerate(sid for _, ids in _SOURCE_CATEGORIES for sid in ids)}
@@ -93,6 +121,10 @@ class PdfCompiler:
 
         for source in sources:
             if source.start_page is not None and source.file_path:
+                # Pridáme nadpis na prvú stránku zdrojového PDF pred zlúčením.
+                # Preskakujeme zdroje, ktoré už majú vlastný nadpis od scrapera.
+                if source.source_type not in _SOURCES_WITH_EMBEDDED_TITLE:
+                    self._overlay_title_on_source(source)
                 writer.append(source.file_path)
                 label = _SOURCE_LABELS.get(source.source_type, source.source_type)
                 writer.add_outline_item(label, source.start_page - 1)
@@ -127,12 +159,15 @@ class PdfCompiler:
         # 5. Opečiatkujeme metadata časovou pečiatkou.
         writer.add_metadata(
             {
-                "/Title": f"Registro.sk — Due Diligence Report — {identifier}",
-                "/Author": "Registro.sk",
-                "/Producer": "Registro.sk PDF Worker",
+                "/Title": f"Verifa.sk — Due Diligence Report — {identifier}",
+                "/Author": "Verifa.sk",
+                "/Subject": "Due Diligence Report — automatizovaný výpis zo štátnych registrov SR",
+                "/Keywords": "due diligence, verifa, report, ORSR, ZRSR, insolvencia, exekúcie, RPVS",
+                "/Producer": "Verifa.sk PDF Worker",
+                "/Creator": "Verifa.sk (https://verifa.sk)",
                 "/CreationDate": generated_at.strftime("D:%Y%m%d%H%M%S+00'00'"),
-                "/RegistroGeneratedAt": generated_at.isoformat(),
-                "/RegistroReportId": report_request_id,
+                "/VerifaGeneratedAt": generated_at.isoformat(),
+                "/VerifaReportId": report_request_id,
             }
         )
 
@@ -145,6 +180,46 @@ class PdfCompiler:
         writer.close()
 
         return final_path
+
+    def _overlay_title_on_source(self, source: ScrapedSource) -> None:
+        """Pridá nadpis (názov zdroja) na prvú stránku zdrojového PDF pred zlúčením."""
+        if not source.file_path or not Path(source.file_path).exists():
+            return
+
+        global _FONTS_REGISTERED
+        if not _FONTS_REGISTERED:
+            fonts_dir = Path(__file__).parent / "fonts"
+            pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
+            pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+            _FONTS_REGISTERED = True
+
+        label = _SOURCE_LABELS.get(source.source_type, source.source_type)
+        try:
+            reader = PdfReader(source.file_path)
+            first_page = reader.pages[0]
+            page_w = float(first_page.mediabox.width)
+            page_h = float(first_page.mediabox.height)
+
+            buf = io.BytesIO()
+            c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
+            c.setFont("Inter-Bold", 13)
+            c.drawCentredString(page_w / 2, page_h - 25, label)
+            c.showPage()
+            c.save()
+            buf.seek(0)
+
+            overlay_reader = PdfReader(buf)
+            first_page.merge_page(overlay_reader.pages[0])
+
+            writer = PdfWriter()
+            for page in reader.pages:
+                writer.add_page(page)
+            with open(source.file_path, "wb") as f:
+                writer.write(f)
+            writer.close()
+            logger.info(f"[PdfCompiler] Nadpis '{label}' pridaný do {source.file_path}")
+        except Exception as e:
+            logger.warning(f"[PdfCompiler] Pridanie nadpisu pre {source.source_type} zlyhalo: {e}")
 
     @staticmethod
     def read_page_count(file_path: Path) -> Optional[int]:

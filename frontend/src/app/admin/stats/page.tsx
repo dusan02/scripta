@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/components/LanguageProvider";
 
 interface Stats {
   overview: {
@@ -20,6 +21,7 @@ interface Stats {
 }
 
 export default function AdminStatsPage() {
+  const t = useT();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export default function AdminStatsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">Načítavam štatistiky…</p>
+        <p className="text-muted-foreground">{t("admin.nacitavam")}</p>
       </div>
     );
   }
@@ -63,30 +65,30 @@ export default function AdminStatsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-bold">Štatistiky</h1>
+      <h1 className="text-2xl font-bold">{t("admin.statistiky")}</h1>
 
       {/* ── Overview cards ──────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard label="Userov celkom" value={stats.overview.totalUsers} />
-        <StatCard label="Reportov celkom" value={stats.overview.totalReports} />
-        <StatCard label="Reportov (30 dní)" value={stats.overview.reportsLast30d} />
-        <StatCard label="Reportov (7 dní)" value={stats.overview.reportsLast7d} />
-        <StatCard label="Dnes" value={stats.overview.reportsToday} />
+        <StatCard label={t("admin.userovCelkom")} value={stats.overview.totalUsers} />
+        <StatCard label={t("admin.reportovCelkom")} value={stats.overview.totalReports} />
+        <StatCard label={t("admin.reportov30dni")} value={stats.overview.reportsLast30d} />
+        <StatCard label={t("admin.reportov7dni")} value={stats.overview.reportsLast7d} />
+        <StatCard label={t("admin.dnes")} value={stats.overview.reportsToday} />
       </div>
 
       {/* ── Reports per day ─────────────────────────── */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">Reporty za deň (posledných 30 dní)</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("admin.reportyZaDen")}</h2>
         <div className="flex items-end gap-1 h-40 bg-muted/30 rounded-lg p-3">
           {stats.dailyData.length === 0 ? (
-            <p className="text-sm text-muted-foreground m-auto">Žiadne dáta</p>
+            <p className="text-sm text-muted-foreground m-auto">{t("admin.ziadneData")}</p>
           ) : (
             stats.dailyData.map((d) => (
               <div
                 key={d.date}
                 className="flex-1 bg-blue-500/70 rounded-t hover:bg-blue-500 transition-colors"
                 style={{ height: `${(d.count / maxDaily) * 100}%` }}
-                title={`${d.date}: ${d.count} reportov`}
+                title={`${d.date}: ${d.count}`}
               />
             ))
           )}
@@ -101,17 +103,17 @@ export default function AdminStatsPage() {
 
       {/* ── Active users per day ────────────────────── */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">Aktívni useri za deň (posledných 30 dní)</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("admin.aktivniUseri")}</h2>
         <div className="flex items-end gap-1 h-32 bg-muted/30 rounded-lg p-3">
           {stats.usersPerDay.length === 0 ? (
-            <p className="text-sm text-muted-foreground m-auto">Žiadne dáta</p>
+            <p className="text-sm text-muted-foreground m-auto">{t("admin.ziadneData")}</p>
           ) : (
             stats.usersPerDay.map((d) => (
               <div
                 key={d.date}
                 className="flex-1 bg-green-500/70 rounded-t hover:bg-green-500 transition-colors"
                 style={{ height: `${(d.count / maxUsers) * 100}%` }}
-                title={`${d.date}: ${d.count} userov`}
+                title={`${d.date}: ${d.count}`}
               />
             ))
           )}
@@ -120,7 +122,7 @@ export default function AdminStatsPage() {
 
       {/* ── Top registers ───────────────────────────── */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">Najvyhľadávanejšie registre (30 dní)</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("admin.najvyhladavanejsie")}</h2>
         <div className="space-y-2">
           {stats.topRegisters.map((r) => (
             <div key={r.source} className="flex items-center gap-3">
@@ -139,14 +141,14 @@ export default function AdminStatsPage() {
 
       {/* ── Hourly distribution ─────────────────────── */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">Rozloženie počas dňa (posledných 7 dní)</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("admin.rozlozenieDna")}</h2>
         <div className="flex items-end gap-1 h-32 bg-muted/30 rounded-lg p-3">
           {stats.hourlyDistribution.map((d) => (
             <div
               key={d.hour}
               className="flex-1 bg-orange-500/70 rounded-t hover:bg-orange-500 transition-colors"
               style={{ height: `${(d.count / maxHourly) * 100}%` }}
-              title={`${d.hour}:00 — ${d.count} reportov`}
+              title={`${d.hour}:00 — ${d.count}`}
             />
           ))}
         </div>
@@ -162,7 +164,7 @@ export default function AdminStatsPage() {
       {/* ── Status + target type ────────────────────── */}
       <div className="grid sm:grid-cols-2 gap-6">
         <section>
-          <h2 className="text-lg font-semibold mb-3">Stav reportov (30 dní)</h2>
+          <h2 className="text-lg font-semibold mb-3">{t("admin.stavReportov")}</h2>
           <div className="space-y-2">
             {stats.statusBreakdown.map((s) => (
               <div key={s.status} className="flex justify-between text-sm">
@@ -174,12 +176,12 @@ export default function AdminStatsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Typ vyhľadávania (30 dní)</h2>
+          <h2 className="text-lg font-semibold mb-3">{t("admin.typVyhladavania")}</h2>
           <div className="space-y-2">
-            {stats.targetTypeBreakdown.map((t) => (
-              <div key={t.targetType} className="flex justify-between text-sm">
-                <span>{t.targetType === "COMPANY" ? "Firma (IČO)" : "Osoba"}</span>
-                <span className="font-mono">{t.count}</span>
+            {stats.targetTypeBreakdown.map((tt) => (
+              <div key={tt.targetType} className="flex justify-between text-sm">
+                <span>{tt.targetType === "COMPANY" ? t("admin.firmaIco") : t("admin.osoba")}</span>
+                <span className="font-mono">{tt.count}</span>
               </div>
             ))}
           </div>
@@ -188,17 +190,17 @@ export default function AdminStatsPage() {
 
       {/* ── Source success/failure table ────────────── */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">Úspešnosť scraperov (30 dní)</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("admin.uspesnostScraperov")}</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
-                <th className="text-left py-2 px-3">Register</th>
+                <th className="text-left py-2 px-3">{t("admin.register")}</th>
                 <th className="text-right py-2 px-3 text-green-600">SUCCESS</th>
                 <th className="text-right py-2 px-3 text-red-500">FAILED</th>
                 <th className="text-right py-2 px-3 text-yellow-600">UNAVAILABLE</th>
-                <th className="text-right py-2 px-3">Celkom</th>
-                <th className="text-right py-2 px-3">Úspešnosť</th>
+                <th className="text-right py-2 px-3">{t("admin.celkom")}</th>
+                <th className="text-right py-2 px-3">{t("admin.uspesnost")}</th>
               </tr>
             </thead>
             <tbody>

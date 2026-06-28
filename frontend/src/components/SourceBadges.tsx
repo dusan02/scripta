@@ -20,7 +20,7 @@ export default function SourceBadges({ sources }: SourceBadgesProps) {
             {catSources.map((s) => (
               <span
                 key={s.sourceType}
-                title={`${s.sourceType}: ${s.status}`}
+                title={`${SOURCE_MAP[s.sourceType]?.name ?? s.sourceType}: ${s.status}`}
                 className="inline-flex items-center justify-center rounded text-[10px] font-bold px-2 py-1"
                 style={{
                   background: "var(--bg-muted)",

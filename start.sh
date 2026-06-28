@@ -1,5 +1,5 @@
 #!/bin/bash
-# ─── Scripta dev startup ───────────────────────────────────────────
+# ─── Verifa dev startup ───────────────────────────────────────────
 # Spustí PostgreSQL, frontend (localhost:3000) a worker (localhost:8000).
 # Použitie:  ./start.sh
 # ────────────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ fi
 # ─── Summary ───────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════════════════"
-echo "  Scripta beží:"
+echo "  Verifa beží:"
 echo "    Frontend:  http://localhost:3000"
 echo "    Worker:    http://localhost:8000"
 echo "    Health:    http://localhost:8000/health"

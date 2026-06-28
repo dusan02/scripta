@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useT } from "@/components/LanguageProvider";
+import toast from "react-hot-toast";
 
 interface CopyableTextProps {
   text: string;
@@ -10,6 +12,7 @@ interface CopyableTextProps {
 }
 
 export default function CopyableText({ text, label, className, style }: CopyableTextProps) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async (e: React.MouseEvent) => {
@@ -18,6 +21,7 @@ export default function CopyableText({ text, label, className, style }: Copyable
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      toast.success(t("copy.skopirovane"));
       setTimeout(() => setCopied(false), 1500);
     } catch {
       // fallback for older browsers
@@ -30,9 +34,10 @@ export default function CopyableText({ text, label, className, style }: Copyable
       try {
         document.execCommand("copy");
         setCopied(true);
+        toast.success(t("copy.skopirovane"));
         setTimeout(() => setCopied(false), 1500);
       } catch {
-        // ignore
+        toast.error(t("copy.chyba"));
       }
       document.body.removeChild(textarea);
     }
@@ -47,7 +52,7 @@ export default function CopyableText({ text, label, className, style }: Copyable
       <button
         type="button"
         onClick={handleCopy}
-        aria-label={copied ? "Skopírované" : "Kopírovať"}
+        aria-label={copied ? t("copy.skopirovane") : t("copy.kopirovat")}
         className="copyable-text-btn"
       >
         {copied ? (

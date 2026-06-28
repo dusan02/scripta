@@ -42,10 +42,9 @@ _FS_SOURCE_TYPES = {
     "FS_DAN_Z_PRIJMOV", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI",
     "FS_DAN_PRIJMOV_REG",
 }
-_fs_semaphore = asyncio.Semaphore(3)
 
 # Globálny limit súbežných scraperov — 8 contextov je bezpečné pre 8GB server
-_global_semaphore = asyncio.Semaphore(8)
+# Semafóry sa vytvárajú lazy vnútri run_scrapers, aby sa naviazali na správny event loop.
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +108,10 @@ async def run_scrapers(
     dependencia skončí (paralelne s ostatnými nezávislými).
     Ak je zadaný on_source_done, zavolá sa ihneď po dokončení každého scraperu."""
 
+    # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
+    fs_semaphore = asyncio.Semaphore(3)
+    global_semaphore = asyncio.Semaphore(8)
+
     # Rozdelíme na nezávislé a závislé scrapery
     independent = [s for s in sources if s not in _DEPENDS_ON]
     dependent = [s for s in sources if s in _DEPENDS_ON]
@@ -123,8 +126,8 @@ async def run_scrapers(
         logger.debug(f"[TIMING] ▶ {source_type} START")
         try:
             if is_fs:
-                async with _global_semaphore:
-                    async with _fs_semaphore:
+                async with global_semaphore:
+                    async with fs_semaphore:
                         _t_run = time.perf_counter()
                         if _t_run - _t_start > 0.05:
                             logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
@@ -137,7 +140,7 @@ async def run_scrapers(
                             **extra_kwargs,
                         )
             else:
-                async with _global_semaphore:
+                async with global_semaphore:
                     _t_run = time.perf_counter()
                     if _t_run - _t_start > 0.05:
                         logger.debug(f"[TIMING] {source_type} čakal na globálny semafor: {_t_run - _t_start:.2f}s")

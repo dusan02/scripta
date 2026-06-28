@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import Link from "next/link";
 import { useTheme } from "@/components/ThemeProvider";
+import { useT } from "@/components/LanguageProvider";
 
 function Spinner() {
   return (
@@ -26,12 +27,27 @@ export default function RegisterPage() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
   const isDark = theme === "dark";
+  const t = useT();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  const passwordStrength = (() => {
+    if (!password) return 0;
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    return Math.min(score, 4);
+  })();
+
+  const strengthLabels = [t("register.velmiSlabe"), t("register.slabe"), t("register.stredne"), t("register.silne"), t("register.velmiSilne")];
+  const strengthColors = ["#EF4444", "#F59E0B", "#EAB308", "#22C55E", "#16A34A"];
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -52,7 +68,7 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Registrácia zlyhala. Skúste znova.");
+        setError(data.message || t("register.zlyhalo"));
         setLoading(false);
         return;
       }
@@ -65,13 +81,13 @@ export default function RegisterPage() {
       });
 
       if (result?.error) {
-        setError("Registrácia prebehla, ale automatické prihlásenie zlyhalo.");
+        setError(t("register.uspechPrihlasenieZlyhalo"));
       } else {
         router.push("/");
         router.refresh();
       }
     } catch {
-      setError("Neočakávaná chyba komunikácie so serverom.");
+      setError(t("register.neocakavana"));
     } finally {
       setLoading(false);
     }
@@ -82,34 +98,22 @@ export default function RegisterPage() {
       style={{
         minHeight: "100vh",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
-        background: "var(--bg)",
+        justifyContent: "flex-end",
+        paddingBottom: "6vh",
+        background: "url('/landing-bg-v2.jpg') no-repeat center center",
+        backgroundSize: "cover",
         position: "relative"
       }}
     >
-      {/* Subtle background grid */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: 0.4,
-          pointerEvents: "none",
-          backgroundImage:
-            "linear-gradient(var(--border) 1px, transparent 1px)," +
-            "linear-gradient(90deg, var(--border) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-          maskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse 60% 50% at 50% 0%, black 70%, transparent 100%)",
-        }}
-      />
+      {/* Overlay */}
+      <div style={{ position: "absolute", inset: 0, background: isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.15)" }} />
 
       {/* Dark mode toggle */}
       <button
         onClick={toggle}
-        title={isDark ? "Prepnúť na svetlý režim" : "Prepnúť na tmavý režim"}
+        title={isDark ? t("nav.svetly") : t("nav.tmavy")}
         className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
         style={{
           position: "absolute",
@@ -119,6 +123,7 @@ export default function RegisterPage() {
           background: "var(--bg-muted)",
           border: "1px solid var(--border)",
           color: "var(--text-secondary)",
+          backdropFilter: "blur(4px)"
         }}
       >
         {isDark ? (
@@ -135,25 +140,24 @@ export default function RegisterPage() {
 
       <div style={{ width: "100%", maxWidth: "380px", position: "relative", zIndex: 10 }}>
 
-        {/* Logo */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "36px", userSelect: "none" }}>
-          <Logo size="lg" />
-          <p style={{ fontSize: "15px", color: "var(--text-muted)", margin: "4px 0 0 0", fontWeight: 500 }}>
-            Due Diligence System
-          </p>
-        </div>
-
         {/* Card */}
-        <div className="card scale-in" style={{ padding: "32px", width: "100%", boxSizing: "border-box" }}>
-          <h2
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--text)", letterSpacing: "-0.02em", margin: "0 0 6px 0" }}
-          >
-            Nová registrácia
-          </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)", margin: "0 0 24px 0" }}>
-            Vytvorte si účet pre prístup do platformy.
-          </p>
+        <div 
+          className="scale-in" 
+          style={{ 
+            padding: "32px", 
+            width: "100%", 
+            boxSizing: "border-box", 
+            background: "#FFFFFF", 
+            borderRadius: "16px",
+            boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
+            border: "1px solid",
+            borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.4)"
+          }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px", width: "100%" }}>
+            <Logo size="lg" />
+          </div>
 
           {/* Error */}
           {error && (
@@ -183,7 +187,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} noValidate autoComplete="on" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {/* Name */}
             <div>
-              <label htmlFor="register-name" className="label" style={{ display: "block", marginBottom: "8px" }}>Meno a Priezvisko</label>
+              <label htmlFor="register-name" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("register.menoPriezvisko")}</label>
               <input
                 id="register-name"
                 name="name"
@@ -201,7 +205,7 @@ export default function RegisterPage() {
 
             {/* Email */}
             <div>
-              <label htmlFor="register-email" className="label" style={{ display: "block", marginBottom: "8px" }}>E-mail</label>
+              <label htmlFor="register-email" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("register.email")}</label>
               <input
                 id="register-email"
                 name="email"
@@ -219,7 +223,7 @@ export default function RegisterPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="register-password" className="label" style={{ display: "block", marginBottom: "8px" }}>Heslo (min. 8 znakov)</label>
+              <label htmlFor="register-password" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("register.hesloMin8")}</label>
               <div style={{ position: "relative" }}>
                 <input
                   id="register-password"
@@ -255,7 +259,7 @@ export default function RegisterPage() {
                     justifyContent: "center",
                     zIndex: 10
                   }}
-                  aria-label={showPassword ? "Skryť" : "Zobraziť"}
+                  aria-label={showPassword ? t("form.skryt") : t("form.zobrazit")}
                 >
                   {showPassword ? (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -269,6 +273,22 @@ export default function RegisterPage() {
                   )}
                 </button>
               </div>
+              {password && (
+                <div className="mt-2 fade-in">
+                  <div className="flex gap-1">
+                    {[0, 1, 2, 3].map(i => (
+                      <div
+                        key={i}
+                        className="h-1 flex-1 rounded-full transition-colors duration-200"
+                        style={{ background: i < passwordStrength ? strengthColors[passwordStrength] : "var(--border)" }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[11px] mt-1 block" style={{ color: strengthColors[passwordStrength] }}>
+                    {strengthLabels[passwordStrength]}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Submit */}
@@ -280,20 +300,20 @@ export default function RegisterPage() {
               style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
             >
               {loading ? (
-                <><Spinner /> Spracúvam…</>
+                <><Spinner /> {t("register.spracuvam")}</>
               ) : (
-                "Zaregistrovať sa"
+                t("register.zaregistrovatSa")
               )}
             </button>
           </form>
           
           <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "var(--text-muted)" }}>
-            Už máte účet?{" "}
-            <Link 
-              href="/login" 
+            {t("register.uzMateUcet")}{" "}
+            <Link
+              href="/login"
               style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
             >
-              Prihlásiť sa
+              {t("register.prihlasitSa")}
             </Link>
           </div>
         </div>
@@ -302,14 +322,14 @@ export default function RegisterPage() {
         <p
           style={{ textAlign: "center", fontSize: "13px", marginTop: "24px", color: "var(--text-muted)" }}
         >
-          Systém je určený výhradne pre advokátov.{" "}
+          {t("register.urceneAdvokatom")}{" "}
           <a
-            href="mailto:info@registro.sk"
+            href="mailto:info@verifa.sk"
             style={{ color: "var(--text-secondary)", textDecoration: "none", fontWeight: 500 }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
           >
-            Kontakt
+            {t("register.kontakt")}
           </a>
         </p>
       </div>

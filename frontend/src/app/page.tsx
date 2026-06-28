@@ -8,8 +8,8 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Registro",
-  description: "Registro.sk — previerka subjektov zo štátnych registrov SR",
+  title: "Verifa",
+  description: "Verifa.sk — previerka subjektov zo štátnych registrov SR",
 };
 
 async function getRecentReports(userId: string) {

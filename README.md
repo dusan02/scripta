@@ -1,4 +1,4 @@
-# Registro.sk — B2B Legal-Tech SaaS
+# Verifa.sk — B2B Legal-Tech SaaS
 
 Automatizovaná príprava `Evidence Binder` (zlúčené PDF výpisy zo štátnych registrov + titulná strana s nálezmi) pre advokátov.
 

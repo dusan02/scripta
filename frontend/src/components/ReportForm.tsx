@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_SELECTED_SOURCES } from "@/lib/sources";
+import { useT } from "@/components/LanguageProvider";
 
 function isValidIco(ico: string): boolean {
   if (!/^\d{8}$/.test(ico)) return false;
@@ -20,12 +21,14 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
   const router = useRouter();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
+  const t = useT();
 
   const [ico, setIco] = useState("");
   const [internalSelected, setInternalSelected] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [icoError, setIcoError] = useState<string | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   // Use external state if provided, otherwise internal
   const selected = extSelected ?? internalSelected;
@@ -46,12 +49,12 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
     setError(null);
 
     if (selected.length === 0) {
-      setError("Musíte zvoliť aspoň jeden register na preverenie.");
+      setError(t("form.zvoliteRegister"));
       return;
     }
 
     if (ico.length !== 8) {
-      setError("IČO musí obsahovať presne 8 číslic.");
+      setError(t("form.ico8cislic"));
       return;
     }
 
@@ -70,14 +73,14 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
       if (!res.ok) {
         const detail = data.details ? ` (${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)})` : '';
         setError(
-          (data.error ?? "Nastala chyba.") + detail
+          (data.error ?? t("form.chyba")) + detail
         );
         return;
       }
 
       router.push(`/reports/${data.reportRequestId}`);
     } catch {
-      setError("Sieťová chyba. Skúste znova.");
+      setError(t("form.sietovaChyba"));
     } finally {
       setLoading(false);
     }
@@ -88,8 +91,9 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
       {/* ── Main search bar — narrower, centered ── */}
       <div className="mx-auto" style={{ maxWidth: 480 }}>
         <div
-          className="flex items-center rounded-xl transition-all duration-200 bg-surface border border-accent shadow-md h-[44px]"
+          className="flex items-center rounded-xl transition-all duration-200 bg-surface border shadow-md h-[44px]"
           id="search-wrap"
+          style={{ borderColor: isFocused ? "var(--accent)" : "var(--border)" }}
         >
           {/* Icon — tick when valid IČO, magnifying glass otherwise */}
           <div className="pl-4 pr-2 flex-shrink-0">
@@ -110,16 +114,18 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
             id="ico"
             type="text"
             inputMode="numeric"
-            placeholder="Zadajte IČO..."
+            placeholder={t("form.zadajteIco")}
             value={ico}
             onChange={(e) => {
               const val = e.target.value.replace(/\D/g, "").slice(0, 8);
               setIco(val);
               if (val.length === 8)
-                setIcoError(isValidIco(val) ? null : "Neplatné IČO — nesprávna kontrolná číslica.");
+                setIcoError(isValidIco(val) ? null : t("form.neplatneIco"));
               else setIcoError(null);
             }}
-            className="flex-1 bg-transparent outline-none text-[0.95rem] tracking-tight text-primary p-0 caret-accent"
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className="flex-1 bg-transparent outline-none focus-visible:outline-none text-[0.95rem] tracking-tight text-primary p-0 caret-accent"
             autoFocus
             required
           />
@@ -154,7 +160,8 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
               </svg>
             ) : (
               <>
-                Overiť
+                {t("form.overit")}
+                <span className="opacity-60">({selected.length})</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>

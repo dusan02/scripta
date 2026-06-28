@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import re
 from pathlib import Path
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
@@ -64,17 +65,22 @@ class UnionDlzniciScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 
-            # Skontrolovať výsledky
+            # Skontrolovať výsledky — vyžadujeme obe podmienky pre negatívny výsledok:
+            # (1) IČO musí byť na stránke (dôkaz že sa hľadalo to správne IČO)
+            # (2) text o negatívnom výsledku
             body_text = await page.inner_text("body")
 
             # UNION zobrazuje "Nenašli sa žiadne záznamy" alebo podobné keď nie sú výsledky
             empty_markers = [
                 "nenašli sa žiadne",
                 "žiadne výsledky",
+                "žiadne data",
+                "žiadne dáta",
                 "bez výsledkov",
                 "neboli nájdené žiadne",
             ]
             is_empty = any(marker in body_text.lower() for marker in empty_markers)
+            has_ico_on_page = ico in re.findall(r"\d+", body_text)
 
             # Najprv skúsime extrahovať nálezy z tabuľky — to je spoľahlivé
             # (na rozdiel od kontroly "ico in body_text" ktorá môže matchnúť
@@ -86,7 +92,7 @@ class UnionDlzniciScraper(BaseScraper):
                 # _extract_table_findings vracia POZOR len ak našla riadky v tabuľke
                 is_debtor = findings is not None and "POZOR" in findings
                 # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
-                if is_debtor and ico not in findings:
+                if is_debtor and findings and ico not in findings:
                     logger.warning(f"[{self.source_type}] Tabuľka nájdená, ale IČO {ico} nie je v náleze — pravdepodobne false positive.")
                     is_debtor = False
                     findings = None
@@ -94,13 +100,17 @@ class UnionDlzniciScraper(BaseScraper):
             # Ak subjekt nie je dlžník, rovno vygenerujeme 'No results' PDF a returneme
             pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
             if not is_debtor or findings is None:
-                logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov UNION.")
+                logger.info(
+                    f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov UNION "
+                    f"(IČO na stránke: {has_ico_on_page}, negatívny text: {is_empty})."
+                )
                 findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov UNION."
                 try:
-                    await self._generate_no_results_pdf(
+                    await self._generate_debtor_no_results_pdf(
                         page, pdf_output, ico,
-                        title="Zoznam dlžníkov UNION",
-                        message=f"Pre IČO {ico} sa v Zozname dlžníkov UNION nenašli žiadne nedoplatky.",
+                        source_name="UNION",
+                        has_ico=has_ico_on_page,
+                        has_no_results_text=is_empty,
                     )
                 except Exception as e:
                     logger.error(f"[{self.source_type}] Zlyhalo generovanie no-results PDF: {e}")
@@ -116,11 +126,13 @@ class UnionDlzniciScraper(BaseScraper):
 
             # Inak sme našli subjekt v tabuľke (is_debtor = True).
             # Pred tlačením PDF schováme riadky, ktoré neobsahujú naše IČO (pre istotu)
+            # Používame regex s word boundary, aby sme nezhodli IČO ako podreťazec iného čísla.
             try:
                 await page.evaluate("""(ico) => {
                     const rows = document.querySelectorAll('table tbody tr, .table tbody tr, .result-table tr');
+                    const re = new RegExp('\\\\b' + ico + '\\\\b');
                     for (const row of rows) {
-                        if (!row.innerText.includes(ico)) {
+                        if (!re.test(row.innerText)) {
                             row.style.display = 'none';
                         }
                     }

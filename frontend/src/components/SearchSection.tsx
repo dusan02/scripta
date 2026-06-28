@@ -4,8 +4,10 @@ import { useState, useEffect, Suspense } from "react";
 import ReportForm from "@/components/ReportForm";
 import RegistryGrid from "@/components/RegistryGrid";
 import { DEFAULT_SELECTED_SOURCES, ENABLED_SOURCES } from "@/lib/sources";
+import { useT } from "@/components/LanguageProvider";
 
 export default function SearchSection() {
+  const t = useT();
   const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
 
   // Načítať používateľove predvolené registre po prihlásení
@@ -44,17 +46,17 @@ export default function SearchSection() {
       >
         <div className="text-center mb-4 fade-in">
           <h1
-            className="text-xl sm:text-2xl font-bold tracking-tight mb-1"
+            className="text-xl sm:text-2xl font-bold tracking-tight mb-2"
             style={{
               color: "var(--text)",
               letterSpacing: "-0.02em",
               lineHeight: 1.1,
             }}
           >
-            Overenie subjektu
+            {t("home.overenieSubjektu")}
           </h1>
-          <p className="text-[13px] mb-6 slide-up text-center" style={{ color: "var(--text-muted)", animationDelay: "100ms", marginTop: "-4px" }}>
-            Zadajte IČO a vyberte registre, ktoré chcete preveriť
+          <p className="text-[13px] mb-6 slide-up text-center" style={{ color: "var(--text-muted)", animationDelay: "100ms" }}>
+            {t("home.zadajteIco")}
           </p>
         </div>
 
