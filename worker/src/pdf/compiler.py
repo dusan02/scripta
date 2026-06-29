@@ -12,7 +12,7 @@ from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from .cover_page import CoverPageGenerator, _SOURCE_CATEGORIES, _SOURCE_LABELS
+from ..report_generator import SOURCE_CATEGORIES as _SOURCE_CATEGORIES, SOURCE_LABELS as _SOURCE_LABELS
 from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
@@ -43,16 +43,15 @@ _SOURCE_ORDER = {sid: idx for idx, sid in enumerate(sid for _, ids in _SOURCE_CA
 
 class PdfCompiler:
     """
-    Zlúči Cover Page + všetky stiahnuté PDF do jedného Evidence Binder.
+    Zlúči HTML Cover Page (s AI posudkom a prehľadom zdrojov) + všetky stiahnuté PDF do jedného Evidence Binder.
     Pridáva časovú pečiatku do metadata (placeholder pre digitálny podpis).
     """
 
     def __init__(self, results_dir: Path):
         self.results_dir = results_dir
         self.results_dir.mkdir(parents=True, exist_ok=True)
-        self.cover_generator = CoverPageGenerator()
 
-    def compile(
+    async def compile(
         self,
         *,
         report_request_id: str,
@@ -65,6 +64,7 @@ class PdfCompiler:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         generated_at = datetime.now(timezone.utc)
+        generated_at_str = generated_at.strftime("%d.%m.%Y %H:%M:%S")
 
         # 0. Zotriedime zdroje podľa kategorického poradia (rovnaké ako na cover page).
         sources = sorted(sources, key=lambda s: _SOURCE_ORDER.get(s.source_type, 999))
@@ -80,39 +80,51 @@ class PdfCompiler:
             else:
                 source.page_count = 0
 
+        start_pages_map = {}
+
         # 2. Pomocná funkcia na priradenie start_page s predpokladaným počtom strán cover page.
         def _assign_start_pages(cover_pages: int):
             current = cover_pages + 1
             for source in sources:
                 if source.status == "SUCCESS" and source.file_path and source.page_count > 0:
                     source.start_page = current
+                    start_pages_map[source.source_type] = current
                     current += source.page_count
                 else:
                     source.start_page = None
 
-        # 3. Prvý pokus: predpokladáme 1-stranový cover, vygenerujeme a zistíme reálny počet.
+        from src.report_generator import generate_forensic_pdf_report
+        ico = identifier.replace("IČO ", "").strip()
+
+        # 3. Odhadneme počet strán cover page podľa počtu zdrojov (vyhneme sa dvojitej generácii).
+        success_sources = [s for s in sources if s.status == "SUCCESS"]
+        estimated_cover_pages = 1 if len(success_sources) <= 18 else 2
         cover_path = output_dir / "cover_page.pdf"
-        _assign_start_pages(1)
-        self.cover_generator.generate(
-            output_path=cover_path,
-            target_type=target_type,
-            identifier=identifier,
+        _assign_start_pages(estimated_cover_pages)
+
+        # Calculate total pages = cover_pages + sum of all source pages
+        total_sources_pages = sum(s.page_count for s in sources if s.page_count)
+
+        await generate_forensic_pdf_report(
+            ico=ico,
             sources=sources,
-            generated_at=generated_at,
-            company_name=company_name,
+            start_pages_map=start_pages_map,
+            total_pages=estimated_cover_pages + total_sources_pages,
+            generated_at=generated_at_str,
+            target_path=str(cover_path)
         )
         actual_cover_pages = len(PdfReader(str(cover_path)).pages)
 
-        # 4. Ak má cover page viac strán, opravíme start_page a regenerujeme.
-        if actual_cover_pages != 1:
+        # 4. Ak sa odhad mýli, regenerujeme s opravenými start_page.
+        if actual_cover_pages != estimated_cover_pages:
             _assign_start_pages(actual_cover_pages)
-            self.cover_generator.generate(
-                output_path=cover_path,
-                target_type=target_type,
-                identifier=identifier,
+            await generate_forensic_pdf_report(
+                ico=ico,
                 sources=sources,
-                generated_at=generated_at,
-                company_name=company_name,
+                start_pages_map=start_pages_map,
+                total_pages=actual_cover_pages + total_sources_pages,
+                generated_at=generated_at_str,
+                target_path=str(cover_path)
             )
 
         # 5. Zlúčime cover page + PDF zdrojov pomocou PdfWriter.
@@ -143,18 +155,22 @@ class PdfCompiler:
                         a_obj = a_val.get_object() if hasattr(a_val, "get_object") else a_val
                     if a_obj and a_obj.get("/S") == "/URI":
                         uri = a_obj.get("/URI")
-                        if isinstance(uri, str) and uri.startswith("http://PAGE_"):
-                            target_page_idx = int(uri.replace("http://PAGE_", "")) - 1
-                            if 0 <= target_page_idx < len(writer.pages):
-                                target_page = writer.pages[target_page_idx]
-                                del annot_obj["/A"]
-                                annot_obj[NameObject("/Dest")] = ArrayObject([
-                                    target_page.indirect_reference, 
-                                    NameObject("/XYZ"), 
-                                    NumberObject(0), 
-                                    target_page.mediabox.top, 
-                                    NumberObject(0)
-                                ])
+                        if isinstance(uri, str) and "http://page_" in uri.lower():
+                            import re
+                            match = re.search(r'page_(\d+)', uri, re.IGNORECASE)
+                            if match:
+                                target_page_idx = int(match.group(1)) - 1
+                                if 0 <= target_page_idx < len(writer.pages):
+                                    target_page = writer.pages[target_page_idx]
+                                    if "/A" in annot_obj:
+                                        del annot_obj["/A"]
+                                    annot_obj[NameObject("/Dest")] = ArrayObject([
+                                        target_page.indirect_reference, 
+                                        NameObject("/XYZ"), 
+                                        NumberObject(0), 
+                                        target_page.mediabox.top, 
+                                        NumberObject(0)
+                                    ])
 
         # 5. Opečiatkujeme metadata časovou pečiatkou.
         writer.add_metadata(

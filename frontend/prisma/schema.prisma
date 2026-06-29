@@ -35,6 +35,8 @@ model ReportRequest {
   resultUrl       String?
   resultFilePath  String?
   completedAt     DateTime?
+  aiStatus        String?
+  eta             Int?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -173,3 +175,93 @@ model UserMessage {
   @@index([userId])
   @@index([read])
 }
+
+generator client_python {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
+model Company {
+  ico                 String               @id
+  name                String?
+  financialStatements FinancialStatement[]
+  vestnikEvents       VestnikEvent[]
+  auditVerdict        AuditVerdict?
+}
+
+model VestnikEvent {
+  id              String   @id @default(uuid())
+  companyIco      String
+  eventType       String   // Konkurz, Exekúcia, Zmena...
+  severityLevel   String   // CRITICAL, HIGH, MEDIUM, LOW
+  summary         String   @db.Text
+  publishedAt     DateTime // Dátum vydania vo vestníku
+  sourceId        String?  // Identifikátor z XML feedu (napr. číslo vydania/záznamu)
+  createdAt       DateTime @default(now())
+
+  company         Company  @relation(fields: [companyIco], references: [ico])
+
+  @@index([companyIco])
+  @@index([severityLevel])
+}
+
+model FinancialStatement {
+  id                                    String          @id @default(uuid())
+  companyIco                            String
+  year                                  Int
+  totalAssets                           Float
+  currentAssets                         Float           @default(0)
+  equity                                Float
+  shortTermLiabilities                  Float
+  mainActivityRevenue                   Float
+  netProfitLoss                         Float
+  cashAndEquivalents                    Float
+  operatingCashFlow                     Float
+  createdAt                             DateTime        @default(now())
+  
+  company                               Company         @relation(fields: [companyIco], references: [ico])
+  auditorOpinion                        AuditorOpinion?
+  narrativeRisk                         NarrativeRiskAnalysis?
+
+  @@unique([companyIco, year]) // Zabezpečí, že nebudeme mať duplicitné výkazy za jeden rok
+}
+
+model AuditorOpinion {
+  id                   String             @id @default(uuid())
+  financialStatementId String             @unique
+  opinionType          String             
+  goingConcernRisk     Boolean
+  reservationText      String?
+  
+  statement            FinancialStatement @relation(fields: [financialStatementId], references: [id])
+}
+
+model NarrativeRiskAnalysis {
+  id                    String             @id @default(uuid())
+  financialStatementId  String             @unique
+  managementChanges     String?            @db.Text
+  litigationRisks       String?            @db.Text
+  goingConcernDoubts    Boolean
+  plannedInvestments    String?            @db.Text
+  forensicRedFlags      String[]
+  synthesis             String             @db.Text
+  createdAt             DateTime           @default(now())
+
+  statement             FinancialStatement @relation(fields: [financialStatementId], references: [id])
+}
+
+model AuditVerdict {
+  id              String   @id @default(uuid())
+  companyIco      String   @unique
+  verifaScore     Int
+  riskCategory    String
+  debtExposureRating Int?
+  finalVerdict    String   @db.Text
+  justification   String   @db.Text
+  keyRisk         String   @db.Text
+  createdAt       DateTime @default(now())
+
+  company         Company  @relation(fields: [companyIco], references: [ico])
+}
+

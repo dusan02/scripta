@@ -147,6 +147,12 @@ async def _execute_report_inner(task: ReportTask) -> None:
             except RuntimeError:
                 pass
 
+        ai_task = None
+        if task.target_type == "COMPANY" and task.ico:
+            from src.pipeline import process_company
+            logger.info(f"[WORKER] Spúšťam AI Forenznú Pipeline paralelne pre IČO: {task.ico}")
+            ai_task = asyncio.create_task(process_company(task.ico, task.report_request_id))
+
         sources = await run_scrapers(
             sources=task.sources,
             output_dir=report_dir,
@@ -168,8 +174,28 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         company_name = _extract_company_name(sources, task.target_type)
 
+        # Počkáme na dokončenie paralelnej AI Forenznej Pipeline pred kompiláciou
+        if ai_task:
+            try:
+                await ai_task
+            except Exception as ai_err:
+                logger.error(f"[WORKER] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
+
+        # Chief Auditor (sudca) sa spúšťa PO dokončení scraperov aj AI pipeline,
+        # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia)
+        # aj k DB dátam (finančné výkazy, naratív, vestník).
+        if task.target_type == "COMPANY" and task.ico:
+            from src.pipeline import run_and_save_audit_verdict
+            try:
+                await run_and_save_audit_verdict(task.ico)
+            except Exception as verdict_err:
+                logger.error(f"[WORKER] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
+
+        from src.db import update_report_ai_status
+        await update_report_ai_status(pool, task.report_request_id, "Kompilácia vizuálneho PDF reportu", 5)
+
         compiler = PdfCompiler(settings.results_dir)
-        final_path = compiler.compile(
+        final_path = await compiler.compile(
             report_request_id=task.report_request_id,
             target_type=task.target_type,
             identifier=_identifier(task),
@@ -178,6 +204,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
         )
         t_compile = time.perf_counter()
         logger.debug(f"[WORKER] PDF compiled ({t_compile - t_scrape:.2f}s): {final_path}")
+
+        # Aktualizujeme pageCount v DB podľa reálnych hodnôt zistených compilerom
+        from src.db import update_source_page_counts
+        await update_source_page_counts(pool, task.report_request_id, sources)
 
         # Cleanup medziproduktov — ponechať len evidence_binder.pdf
         try:

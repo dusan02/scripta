@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #ffffff; 
+            color: #0f172a; 
+            /* Fix for Playwright printing */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .page-break { page-break-before: always; }
+        .page-break-after { page-break-after: always; }
+        
+        /* Table styling for sources */
+        .source-table th {
+            padding: 8px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            font-weight: 700;
+            border-bottom: 2px solid #10b981;
+            text-align: left;
+        }
+        .source-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+            font-size: 12px;
+        }
+        .category-row td {
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 14px;
+            border-left: 4px solid #10b981;
+            padding-top: 12px;
+            padding-bottom: 12px;
+        }
+    </style>
+</head>
+<body class="p-10 mx-auto" style="width: 210mm;">
+    
+    <!-- 1. HEADER (Logo + Title) -->
+    <div class="flex flex-col items-center mb-8 border-b pb-6 border-slate-200">
+        {% if logo_base64 %}
+        <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-16 mb-4">
+        {% else %}
+        <h1 class="text-3xl font-black text-[#10b981] mb-4">Verifa.sk</h1>
+        {% endif %}
+        <h2 class="text-lg font-bold uppercase tracking-widest text-slate-400 mb-1">Due Diligence Report</h2>
+        <h3 class="text-2xl font-black text-slate-900 tracking-tight text-center">{{ company.name }}</h3>
+    </div>
+
+    <!-- 2. METADATA & SEMAPHORE PILLS -->
+    <div class="flex justify-between items-start mb-10">
+        <!-- Left: Meta -->
+        <div class="space-y-1">
+            <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">IČO</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
+            <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">Vygenerované</span> <span class="text-sm font-bold">{{ generated_at }}</span></div>
+            <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">Počet strán</span> <span class="text-sm font-bold">{{ total_pages }}</span></div>
+        </div>
+        
+        <!-- Right: Semaphore -->
+        <div class="flex flex-col gap-2">
+            {% if counts.SUCCESS > 0 %}
+            <div class="flex items-center gap-3 bg-[#dcfce7] border border-[#bbf7d0] px-3 py-1.5 rounded-md w-48 shadow-sm">
+                <span class="text-[#166534] font-bold text-sm">✓</span>
+                <span class="text-base font-black text-[#166534] w-6 text-center">{{ counts.SUCCESS }}</span>
+                <span class="text-xs text-[#166534] font-semibold">V poriadku</span>
+            </div>
+            {% endif %}
+            
+            {% if counts.WARNING > 0 %}
+            <div class="flex items-center gap-3 bg-[#fee2e2] border border-[#fecaca] px-3 py-1.5 rounded-md w-48 shadow-sm">
+                <span class="text-[#991b1b] font-bold text-sm">⚠</span>
+                <span class="text-base font-black text-[#991b1b] w-6 text-center">{{ counts.WARNING }}</span>
+                <span class="text-xs text-[#991b1b] font-semibold">Upozornení</span>
+            </div>
+            {% endif %}
+            
+            {% if counts.INFO > 0 %}
+            <div class="flex items-center gap-3 bg-[#dbeafe] border border-[#bfdbfe] px-3 py-1.5 rounded-md w-48 shadow-sm">
+                <span class="bg-[#1e40af] text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[9px] font-bold">i</span>
+                <span class="text-base font-black text-[#1e40af] w-6 text-center">{{ counts.INFO }}</span>
+                <span class="text-xs text-[#1e40af] font-semibold">Informácia</span>
+            </div>
+            {% endif %}
+            
+            {% if counts.UNAVAILABLE > 0 %}
+            <div class="flex items-center gap-3 bg-[#fef9c3] border border-[#fef08a] px-3 py-1.5 rounded-md w-48 shadow-sm">
+                <span class="bg-[#854d0e] text-white rounded w-3.5 h-3.5 flex items-center justify-center text-[9px] font-bold">?</span>
+                <span class="text-base font-black text-[#854d0e] w-6 text-center">{{ counts.UNAVAILABLE }}</span>
+                <span class="text-xs text-[#854d0e] font-semibold">Nedostupné</span>
+            </div>
+            {% endif %}
+            
+            {% if counts.FAILED > 0 %}
+            <div class="flex items-center gap-3 bg-[#fee2e2] border border-[#fecaca] px-3 py-1.5 rounded-md w-48 shadow-sm">
+                <span class="text-[#991b1b] font-bold text-sm">✗</span>
+                <span class="text-base font-black text-[#991b1b] w-6 text-center">{{ counts.FAILED }}</span>
+                <span class="text-xs text-[#991b1b] font-semibold">Zlyhal</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 3. AI POSUDOK + STAMP -->
+    <div class="mb-10 relative">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 mb-3 border-b pb-1">AI Forenzný Posudok</h2>
+        
+        <div class="flex gap-6">
+            <!-- Text part -->
+            <div class="flex-1">
+                <p class="text-lg font-bold text-slate-800 leading-tight mb-4">
+                    {% if verdict.riskCategory == 'AAA' %}Bezpečný partner na spoluprácu.{% elif verdict.riskCategory == 'A' %}Stabilná spoločnosť s drobnými rizikami.{% elif verdict.riskCategory == 'B' %}Odporúčame zvýšenú opatrnosť a dodatočnú kontrolu.{% else %}Dôrazne neodporúčame vstupovať do obchodného vzťahu.{% endif %}
+                </p>
+                <p class="text-sm text-slate-700 leading-relaxed text-justify">{{ verdict.justification }}</p>
+                
+                {% if verdict.keyRisk and verdict.keyRisk != "Žiadne" and verdict.keyRisk != "N/A" %}
+                <div class="mt-4 p-3 bg-rose-50 border-l-4 border-rose-500 rounded-r text-sm text-rose-800">
+                    <strong>Kľúčové zistenie:</strong> {{ verdict.keyRisk }}
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Stamp part -->
+            <div class="w-32 flex-shrink-0 flex flex-col items-center justify-start pt-2">
+                <div class="relative w-28 h-28 rounded-full border-4 shadow-md flex flex-col items-center justify-center transform rotate-[-5deg]
+                    {% if verdict.verifaScore >= 70 %}border-[#10b981] text-[#10b981] bg-emerald-50
+                    {% elif verdict.verifaScore >= 40 %}border-[#f59e0b] text-[#f59e0b] bg-amber-50
+                    {% else %}border-[#e11d48] text-[#e11d48] bg-rose-50{% endif %}">
+                    
+                    <span class="text-[10px] font-bold uppercase tracking-widest opacity-80 absolute top-3">Skóre</span>
+                    
+                    <div class="flex items-baseline mt-2">
+                        <span class="text-4xl font-black">{{ verdict.verifaScore }}</span>
+                    </div>
+                    
+                    <div class="border-t-2 border-current w-16 my-1 opacity-40"></div>
+                    <span class="text-xs font-black tracking-widest">{{ verdict.riskCategory }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. FINANČNÝ VÝVOJ — grafy a KPI pred posudkom -->
+    <div class="mb-10">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 border-b pb-1">Finančný vývoj a štruktúra</h2>
+        
+        {% if chart_image_base64 %}
+        <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4">
+            <img src="data:image/png;base64,{{ chart_image_base64 }}" alt="Financial Chart" class="max-w-full h-auto" style="height: 210px;">
+        </div>
+        {% endif %}
+
+        {% if latest_stmt %}
+        <!-- KPI karty pre posledný rok (5 kartí) -->
+        <div class="grid grid-cols-5 gap-2 mb-4">
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
+                <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Aktíva ({{ latest_stmt.year }})</p>
+                <p class="text-sm font-bold text-slate-800">{{ latest_stmt.totalAssets | format_currency }}</p>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
+                <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Tržby ({{ latest_stmt.year }})</p>
+                <p class="text-sm font-bold text-slate-800">{{ latest_stmt.mainActivityRevenue | format_currency }}</p>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
+                <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Vlastné Imanie</p>
+                <p class="text-sm font-bold {% if latest_stmt.equity < 0 %}text-rose-600{% else %}text-slate-800{% endif %}">{{ latest_stmt.equity | format_currency }}</p>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
+                <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Zisk / Strata</p>
+                <p class="text-sm font-bold {% if latest_stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ latest_stmt.netProfitLoss | format_currency }}</p>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
+                <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Cash Flow (prev.)</p>
+                {% if latest_stmt.operatingCashFlow is not none and latest_stmt.operatingCashFlow != 0 %}
+                <p class="text-sm font-bold {% if latest_stmt.operatingCashFlow < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ latest_stmt.operatingCashFlow | format_currency }}</p>
+                {% else %}
+                <p class="text-sm font-medium text-slate-400">N/A</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if company.financialStatements and company.financialStatements|length >= 1 %}
+        <!-- Tabuľka historických ročníkov s YoY deltami -->
+        <table class="w-full text-xs border-collapse mt-2">
+            <thead>
+                <tr class="bg-slate-100">
+                    <th class="text-left py-1.5 px-2 font-bold text-slate-600">Rok</th>
+                    <th class="text-right py-1.5 px-2 font-bold text-slate-600">Tržby</th>
+                    <th class="text-right py-1.5 px-2 font-bold text-slate-600">Δ YoY</th>
+                    <th class="text-right py-1.5 px-2 font-bold text-slate-600">Zisk / Strata</th>
+                    <th class="text-right py-1.5 px-2 font-bold text-slate-600">Δ YoY</th>
+                    <th class="text-right py-1.5 px-2 font-bold text-slate-600">Vlastné imanie</th>
+                    <th class="text-right py-1.5 px-2 font-bold text-slate-600">Celk. aktíva</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
+            {% for stmt in stmts_sorted %}
+                {% set loop_idx = loop.index0 %}
+                {% if loop_idx > 0 %}
+                    {% set prev_stmt = stmts_sorted[loop_idx - 1] %}
+                    {% if prev_stmt.mainActivityRevenue and prev_stmt.mainActivityRevenue != 0 %}
+                        {% set rev_delta = ((stmt.mainActivityRevenue - prev_stmt.mainActivityRevenue) / prev_stmt.mainActivityRevenue * 100) | round(1) %}
+                    {% else %}
+                        {% set rev_delta = none %}
+                    {% endif %}
+                    {% if prev_stmt.netProfitLoss and prev_stmt.netProfitLoss != 0 %}
+                        {% set pnl_delta = ((stmt.netProfitLoss - prev_stmt.netProfitLoss) / (prev_stmt.netProfitLoss | abs) * 100) | round(1) %}
+                    {% else %}
+                        {% set pnl_delta = none %}
+                    {% endif %}
+                {% else %}
+                    {% set rev_delta = none %}
+                    {% set pnl_delta = none %}
+                {% endif %}
+                <tr class="border-b border-slate-100">
+                    <td class="py-1.5 px-2 font-semibold text-slate-700">{{ stmt.year }}</td>
+                    <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.mainActivityRevenue | format_currency }}</td>
+                    <td class="py-1.5 px-2 text-right text-[10px] font-semibold">
+                        {% if rev_delta is not none %}
+                        <span class="{% if rev_delta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                            {% if rev_delta >= 0 %}+{% endif %}{{ rev_delta }}%
+                        </span>
+                        {% else %}<span class="text-slate-300">—</span>{% endif %}
+                    </td>
+                    <td class="py-1.5 px-2 text-right font-semibold {% if stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ stmt.netProfitLoss | format_currency }}</td>
+                    <td class="py-1.5 px-2 text-right text-[10px] font-semibold">
+                        {% if pnl_delta is not none %}
+                        <span class="{% if pnl_delta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
+                            {% if pnl_delta >= 0 %}+{% endif %}{{ pnl_delta }}%
+                        </span>
+                        {% else %}<span class="text-slate-300">—</span>{% endif %}
+                    </td>
+                    <td class="py-1.5 px-2 text-right {% if stmt.equity < 0 %}text-rose-600{% else %}text-slate-700{% endif %}">{{ stmt.equity | format_currency }}</td>
+                    <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.totalAssets | format_currency }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% elif not chart_image_base64 and not latest_stmt %}
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+            Finančné závierky z RÚZ neboli dostupné pre toto IČO.
+        </div>
+        {% endif %}
+
+        {% if altman_scores and altman_scores|length > 0 %}
+        <!-- Altman Z-score blok -->
+        <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+            <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score — Prediktívny model rizika bankrotu</p>
+            <div class="flex gap-3 flex-wrap">
+            {% for z in altman_scores %}
+                {% if z.z_score is not none %}
+                {% set z_color = '#10b981' if z.zone == 'SAFE' else '#f59e0b' if z.zone == 'GREY' else '#ef4444' %}
+                {% set z_bg = '#ecfdf5' if z.zone == 'SAFE' else '#fffbeb' if z.zone == 'GREY' else '#fef2f2' %}
+                <div class="flex flex-col items-center rounded-lg px-3 py-2 min-w-[70px]" style="background: {{ z_bg }}; border: 1px solid {{ z_color }}33;">
+                    <span class="text-[9px] text-slate-500 font-bold">{{ z.year }}</span>
+                    <span class="text-base font-black" style="color: {{ z_color }};">{{ z.z_score }}</span>
+                    <span class="text-[8px] font-semibold" style="color: {{ z_color }};">{{ z.zone }}</span>
+                </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+            <p class="text-[8px] text-slate-400 mt-2">Interpretácia: Z'' &gt; 2.6 = Bezpečná zóna &nbsp;|&nbsp; 1.1–2.6 = Šedá zóna &nbsp;|&nbsp; &lt; 1.1 = Núdz. zóna (riziko bankrotu)</p>
+        </div>
+        {% endif %}
+    </div>
+
+
+    <!-- 5. PRÁVNE RIZIKÁ (Obchodný vestník a AI Red flags) -->
+    <div class="mb-10">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 mb-3 border-b pb-1">Právne riziká</h2>
+        
+        {% if vestnik_events and vestnik_events|length > 0 %}
+            <div class="space-y-2">
+            {% for event in vestnik_events %}
+                {% set severity_color = 'border-rose-500 bg-rose-50' if event.severityLevel == 'CRITICAL' else 'border-amber-500 bg-amber-50' if event.severityLevel == 'HIGH' else 'border-blue-500 bg-blue-50' %}
+                {% set text_color = 'text-rose-700' if event.severityLevel == 'CRITICAL' else 'text-amber-700' if event.severityLevel == 'HIGH' else 'text-blue-700' %}
+                <div class="border-l-4 {{ severity_color }} p-3 rounded-r-lg border border-slate-200">
+                    <div class="flex justify-between items-center mb-1">
+                        <h3 class="font-bold text-xs text-slate-800">{{ event.eventType }}</h3>
+                        <span class="text-[9px] text-slate-500">{{ event.publishedAt.strftime('%d.%m.%Y') }}</span>
+                    </div>
+                    <p class="text-xs text-slate-700">{{ event.summary.split('\nRed Flags: ')[0] }}</p>
+                </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg flex items-center gap-2">
+                <span class="text-emerald-500 text-sm font-bold">✓</span>
+                <p class="text-emerald-700 font-medium text-xs">Firma nemá žiadne negatívne záznamy v aktuálnom Obchodnom vestníku.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- PAGE BREAK przed tabuľkou (aby bola tabuľka pekná na novej strane ak sa nezmestí, 
+         ale tu môžeme dať page break natvrdo alebo nechať prehliadač rozdeliť) -->
+    <div class="page-break"></div>
+
+    <!-- 6. PREHĽAD ZDROJOV (Table) -->
+    <div>
+        <h2 class="text-lg font-bold text-slate-800 mb-4">Prehľad zdrojov</h2>
+        
+        <table class="w-full source-table border-collapse text-left">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Zdroj & Stav</th>
+                    <th style="width: 65%;">Súhrnný nález</th>
+                    <th style="width: 10%; text-align: center;">Str.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat_name, cat_sources in grouped_sources %}
+                <tr class="category-row">
+                    <td colspan="3">{{ cat_name }}</td>
+                </tr>
+                    {% for source in cat_sources %}
+                    {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ"] %}
+                    {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
+                    
+                    {% set status_class = "" %}
+                    {% set status_icon = "" %}
+                    {% set status_label = "" %}
+                    
+                    {% if source.status == "SUCCESS" and not has_pozor %}
+                        {% set status_class = "bg-[#10b981]" %}
+                        {% set status_icon = "✓" %}
+                        {% set status_label = "V poriadku" %}
+                    {% elif source.status == "SUCCESS" and has_pozor and is_info %}
+                        {% set status_class = "bg-[#2563eb]" %}
+                        {% set status_icon = "i" %}
+                        {% set status_label = "Informácia" %}
+                    {% elif source.status == "SUCCESS" and has_pozor and not is_info %}
+                        {% set status_class = "bg-[#ef4444]" %}
+                        {% set status_icon = "⚠" %}
+                        {% set status_label = "Upozornenie" %}
+                    {% elif source.status == "UNAVAILABLE" %}
+                        {% set status_class = "bg-[#f59e0b]" %}
+                        {% set status_icon = "?" %}
+                        {% set status_label = "Nedostupné" %}
+                    {% else %}
+                        {% set status_class = "bg-[#ef4444]" %}
+                        {% set status_icon = "✗" %}
+                        {% set status_label = "Zlyhal" %}
+                    {% endif %}
+                    
+                    <tr>
+                        <td>
+                            <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                                {% if start_pages_map.get(source.source_type) %}
+                                <a href="http://PAGE_{{ start_pages_map[source.source_type] }}" class="hover:underline">
+                                    {{ labels.get(source.source_type, source.source_type) }} ↗
+                                </a>
+                                {% else %}
+                                {{ labels.get(source.source_type, source.source_type) }}
+                                {% endif %}
+                            </div>
+                            <div class="inline-flex items-center gap-1.5 {{ status_class }} text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                                {% if status_icon == 'i' or status_icon == '?' %}
+                                <span class="bg-white text-current rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-black">{{ status_icon }}</span>
+                                {% else %}
+                                <span>{{ status_icon }}</span>
+                                {% endif %}
+                                {{ status_label }}
+                            </div>
+                        </td>
+                        <td class="text-slate-700 leading-snug">
+                            {{ source | format_findings | safe }}
+                        </td>
+                        <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                            {{ start_pages_map.get(source.source_type, '—') }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-12 pt-4 border-t border-slate-200 text-center text-[9px] text-slate-400">
+        <p>Vygenerované systémom Verifa.sk. Tento dokument má informatívny charakter a nenahrádza oficiálny audit.</p>
+    </div>
+
+</body>
+</html>

@@ -50,6 +50,19 @@ async def update_report_status(
     )
 
 
+async def update_report_ai_status(
+    pool: asyncpg.Pool,
+    report_request_id: str,
+    ai_status: str,
+    eta: Optional[int] = None,
+) -> None:
+    """Aktualizuje informačný status pre AI pipeline a odhadovaný čas."""
+    await pool.execute(
+        'UPDATE "ReportRequest" SET "aiStatus" = $1, "eta" = $2, "updatedAt" = NOW() WHERE id = $3',
+        ai_status, eta, report_request_id
+    )
+
+
 async def upsert_report_sources(
     pool: asyncpg.Pool,
     report_request_id: str,
@@ -70,6 +83,25 @@ async def upsert_single_report_source(
     async with pool.acquire() as conn:
         async with conn.transaction():
             await _upsert_one(conn, report_request_id, source)
+
+
+async def update_source_page_counts(
+    pool: asyncpg.Pool,
+    report_request_id: str,
+    sources: List[ScrapedSource],
+) -> None:
+    """Aktualizuje pageCount v DB podľa reálnych hodnôt zistených compilerom."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            for source in sources:
+                if source.status == "SUCCESS" and source.page_count and source.page_count > 0:
+                    await conn.execute(
+                        'UPDATE "ReportSource" SET "pageCount" = $1, "updatedAt" = NOW() '
+                        'WHERE "reportRequestId" = $2 AND "sourceType" = $3',
+                        source.page_count,
+                        report_request_id,
+                        source.source_type,
+                    )
 
 
 async def _upsert_one(conn, report_request_id: str, source: ScrapedSource) -> None:
