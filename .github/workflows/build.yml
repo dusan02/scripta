@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: '3.9'
       - name: Install Prisma Python generator
-        run: pip install prisma-client-py
+        run: pip install prisma
       - name: Install Dependencies
         run: npm ci
       - name: Build Next.js
