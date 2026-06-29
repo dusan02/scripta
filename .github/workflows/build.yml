@@ -38,12 +38,6 @@ jobs:
           node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: './frontend/package-lock.json'
-      - name: Setup Python (for Prisma Python generator)
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-      - name: Install Prisma Python generator
-        run: pip install prisma
       - name: Install Dependencies
         run: npm ci
       - name: Build Next.js
@@ -63,3 +57,8 @@ jobs:
           cache: 'pip'
       - name: Install Dependencies
         run: pip install -r requirements.txt
+      - name: Generate Prisma Python Client
+        run: python -m prisma generate --schema ../frontend/prisma/schema.prisma
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL_UNPOOLED: "postgresql://dummy:dummy@localhost:5432/dummy"
