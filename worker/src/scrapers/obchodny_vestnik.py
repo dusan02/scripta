@@ -7,6 +7,7 @@ from typing import List, Optional, Dict
 from prisma import Prisma
 
 from src.llm_extractor import extract_vestnik_event, VestnikExtraction
+from ..models import ScrapedSource
 from .base import BaseScraper, ScraperInputError
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
     """
     source_type: str = "OBCHODNY_VESTNIK"
 
-    async def run(self, **kwargs) -> 'ScrapedSource':
+    async def run(self, **kwargs) -> ScrapedSource:
         res = await self.run_xml(**kwargs)
         findings = json.dumps(res.get("events", []), ensure_ascii=False) if res.get("events") else None
         return self._make_result(status=res["status"], findings=findings)

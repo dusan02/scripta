@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div style="width: 200px; height: 200px; transform: rotate(-8deg);">
+        <svg viewBox="0 0 200 200" width="100%" height="100%">
+            <defs>
+                <filter id="grunge" x="-10%" y="-10%" width="120%" height="120%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="3" result="noise" />
+                    <!-- adjust alpha threshold to create speckles -->
+                    <feComponentTransfer in="noise" result="speckles">
+                        <feFuncA type="linear" slope="3" intercept="-1.2" />
+                    </feComponentTransfer>
+                    <!-- invert the alpha to punch holes -->
+                    <feComponentTransfer in="speckles" result="holes">
+                        <feFuncA type="table" tableValues="1 0" />
+                    </feComponentTransfer>
+                    <feComposite operator="in" in="SourceGraphic" in2="holes" />
+                </filter>
+                <path id="topCurve" d="M 25 100 A 75 75 0 0 1 175 100" />
+                <path id="bottomCurve" d="M 25 100 A 75 75 0 0 0 175 100" />
+            </defs>
+            <g filter="url(#grunge)" fill="#10b981" stroke="#10b981">
+                <!-- Outer rings -->
+                <circle cx="100" cy="100" r="96" fill="none" stroke-width="2" />
+                <circle cx="100" cy="100" r="90" fill="none" stroke-width="5" />
+                <!-- Inner rings -->
+                <circle cx="100" cy="100" r="60" fill="none" stroke-width="3" />
+                <circle cx="100" cy="100" r="54" fill="none" stroke-width="1" />
+                
+                <!-- Curved text -->
+                <text font-family="'Inter', sans-serif" font-weight="900" font-size="18" letter-spacing="0.1em" stroke="none">
+                    <textPath href="#topCurve" startOffset="50%" text-anchor="middle" dominant-baseline="central">★  VERIFA  ★</textPath>
+                </text>
+                <text font-family="'Inter', sans-serif" font-weight="900" font-size="18" letter-spacing="0.1em" stroke="none">
+                    <textPath href="#bottomCurve" startOffset="50%" text-anchor="middle" dominant-baseline="central">★  SKÓRE  ★</textPath>
+                </text>
+
+                <!-- Center Score -->
+                <text x="100" y="90" text-anchor="middle" font-size="46" font-weight="900" stroke="none">100</text>
+                <line x1="65" y1="102" x2="135" y2="102" stroke-width="2" />
+                <text x="100" y="125" text-anchor="middle" font-size="18" font-weight="900" letter-spacing="0.15em" stroke="none">AAA</text>
+            </g>
+        </svg>
+    </div>
+</body>
+</html>

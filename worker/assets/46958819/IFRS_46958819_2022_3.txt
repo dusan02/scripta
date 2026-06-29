@@ -1,0 +1,338 @@
+IFRS/ÚČTOVNÁ ZÁVIERKA 2022
+IČO: 46958819
+
+
+--- TITULNÁ STRANA ---
+Register účtovných závierok
+Čo je register účtovných závierok
+Často kladené otázky
+Kontakty
+ENG | SK
+Preskočiť na hlavný obsah
+Zadajte názov účtovnej jednotky, IČO alebo DIČ
+VYHĽADAJ ZNOVA
+ROZŠÍRENÉ VYHĽADÁVANIE
+Zdroj údajov: FRSR,
+aktualizované: 09.02.2023
+Vyhľadávanie ÚJ
+ Zoznam ÚJ
+ Detail ÚJ a jej ÚZ
+ Detail výkazu
+LOCOTEC s. r. o.
+Úč MUJ
+Účtovná závierka k 31.12.2022
+ Dokument: PDF veľkosť 145 KB
+Stiahnuť
+ Dokument: PDF veľkosť 175 KB
+Stiahnuť
+ Tlačová zostava: XLSX <200KB
+Stiahnuť
+Titulná strana Strana aktív Strana pasív Výkaz ziskov a strát
+Účtovná závierka
+Riadna
+Daňové identifikačné číslo:
+2023676831
+IČO:
+46958819
+SK NACE:
+82990 Ost.pomocné obchod.čin.
+Za obdobie
+od:
+01/2022
+do:
+12/2022
+Bezprostredne predchádzajúce obdobie
+od:
+01/2021
+do:
+12/2021
+Obchodné meno (názov) účtovnej jednotky:
+LOCOTEC s.r.o.
+Sídlo účtovnej jednotky
+Ulica:
+Mraziarenská
+Číslo:
+19
+PSČ:
+82108
+Obec:
+Bratislava - Ružinov
+Označenie obchodného registra a číslo zápisu obchodnej spoločnosti:
+OR OS BA I. odd.:Sro vložka: 86439/B
+Telefónne číslo:
+-
+Faxové číslo:
+-
+E-mailová adresa:
+-
+Zostavená dňa:
+03.02.2022
+Schválená dňa:
+03.02.2022
+Copyright © 2011-2026 , Ministerstvo financií Slovenskej republiky
+🍪 Správa cookies  Príručka používateľa  Ochrana osobných údajov Verejné API Vyhlásenie o prístupnosti Mapa stránok
+
+--- STRANA AKTÍV ---
+Register účtovných závierok
+Čo je register účtovných závierok
+Často kladené otázky
+Kontakty
+ENG | SK
+Preskočiť na hlavný obsah
+Zadajte názov účtovnej jednotky, IČO alebo DIČ
+VYHĽADAJ ZNOVA
+ROZŠÍRENÉ VYHĽADÁVANIE
+Zdroj údajov: FRSR,
+aktualizované: 09.02.2023
+Vyhľadávanie ÚJ
+ Zoznam ÚJ
+ Detail ÚJ a jej ÚZ
+ Detail výkazu
+LOCOTEC s. r. o.
+Úč MUJ
+Účtovná závierka k 31.12.2022
+ Dokument: PDF veľkosť 145 KB
+Stiahnuť
+ Dokument: PDF veľkosť 175 KB
+Stiahnuť
+ Tlačová zostava: XLSX <200KB
+Stiahnuť
+Titulná strana Strana aktív Strana pasív Výkaz ziskov a strát
+Označenie	STRANA AKTÍV	Číslo riadku	Bežné účtovné obdobie	Bezprostredne predchádzajúce účtovné obdobie
+a	b	c	Netto 1	Netto 2
+				
+
+	SPOLU MAJETOK r. 02 + r. 14	1	59 842	57 270
+
+A.	Neobežný majetok r. 03 + r. 04 + r. 09	2	42 861	7 671
+
+A.I.	Dlhodobý nehmotný majetok (012, 013, 014, 015, 019, 01X, 041, 051) - /072, 073, 074, 075, 079, 07X, 091, 093, 095A/	3		
+
+A.II.	Dlhodobý hmotný majetok súčet (r. 05 až r. 08)	4	42 861	7 671
+
+A.II.1.	Pozemky a stavby (021, 031, 042A, 052A) - /081, 092A, 094A, 095A/	5		
+
+2.	Samostatné hnuteľné veci a súbory hnuteľných vecí (022, 02X, 042A, 052A) - /082, 08XA, 092A, 094A, 095A/	6	42 861	7 671
+
+3.	Ostatný dlhodobý hmotný majetok (025, 026, 029, 02X, 032, 042A, 052A) - /085, 086, 089, 08XA, 092A, 094A, 095A/	7		
+
+4.	Opravná položka k nadobudnutému majetku (+/- 097 ) - /+/- 098/	8		
+
+A.III.	Dlhodobý finančný majetok súčet (r. 10 až r. 13)	9		
+
+A.III.1.	Podielové cenné papiere (061, 062, 063, 043A, 053A) - /095A, 096A/	10		
+
+2.	Ostatný dlhodobý finančný majetok (065A, 066A, 067A, 069, 06XA, 043A, 053A) - /095A, 096A/	11		
+
+3.	Účty v bankách s dobou viazanosti dlhšou ako jeden rok (22XA)	12		
+
+4.	Ostatný dlhodobý finančný majetok so zostatkovou dobou splatnosti najviac jeden rok (065A, 066A, 067A, 06XA) - /096A/	13		
+
+B.	Obežný majetok r. 15 + r. 16 + r. 17 + r. 21	14	16 981	49 599
+
+B.I.	Zásoby (112, 119, 11X, 121, 122, 123, 124, 12X, 132, 133, 13X, 139, 314A) - /191, 192, 193, 194, 195, 196, 19X, 391A/	15		
+
+B.II.	Dlhodobé pohľadávky (311A, 312A, 313A, 314A, 315A, 316A, 31XA, 335A, 336A, 33XA, 354A, 355A, 358A, 35XA, 371A, 374A, 375A, 378A, 381A, 382A, 385A) - 391A	16		
+
+B.III.	Krátkodobé pohľadávky súčet (r. 18 až r. 20)	17	11 843	2 133
+
+B.III.1.	Pohľadávky z obchodného styku (311A, 312A, 313A, 314A, 315A, 316A, 31XA) - /391A/	18	4 146	1 848
+
+2.	Sociálne poistenie, daňové pohľadávky a dotácie (336A, 341A, 342A, 343A, 345A, 346A, 347A, 34XA) - /391A/	19	7 520	210
+
+3.	Ostatné pohľadávky (335A, 336A, 33XA, 354A, 355A, 358A, 35XA, 371A, 374A, 375A, 378A, 381A, 382A, 385A, 398A) - /391A/	20	177	75
+
+B.IV.	Finančný majetok r. 22 + r. 23	21	5 138	47 466
+
+B.IV.1.	Peniaze a účty v bankách (211, 213, 21X, 221A, 22XA, +/- 261)	22	5 138	47 466
+
+2.	Ostatné finančné účty (251, 252, 253, 256, 257, 25X, 259, 314A) - /291, 29X/	23		
+
+Copyright © 2011-2026 , Ministerstvo financií Slovenskej republiky
+🍪 Správa cookies  Príručka používateľa  Ochrana osobných údajov Verejné API Vyhlásenie o prístupnosti Mapa stránok
+
+--- STRANA PASÍV ---
+Register účtovných závierok
+Čo je register účtovných závierok
+Často kladené otázky
+Kontakty
+ENG | SK
+Preskočiť na hlavný obsah
+Zadajte názov účtovnej jednotky, IČO alebo DIČ
+VYHĽADAJ ZNOVA
+ROZŠÍRENÉ VYHĽADÁVANIE
+Zdroj údajov: FRSR,
+aktualizované: 09.02.2023
+Vyhľadávanie ÚJ
+ Zoznam ÚJ
+ Detail ÚJ a jej ÚZ
+ Detail výkazu
+LOCOTEC s. r. o.
+Úč MUJ
+Účtovná závierka k 31.12.2022
+ Dokument: PDF veľkosť 145 KB
+Stiahnuť
+ Dokument: PDF veľkosť 175 KB
+Stiahnuť
+ Tlačová zostava: XLSX <200KB
+Stiahnuť
+Titulná strana Strana aktív Strana pasív Výkaz ziskov a strát
+Označenie	STRANA PASÍV	Číslo riadku	Bežné účtovné obdobie	Bezprostredne predchádzajúce účtovné obdobie
+a	b	c	3	4
+				
+
+	SPOLU VLASTNÉ IMANIE A ZÁVÄZKY r. 25 + r. 34	24	59 842	57 270
+
+A.	Vlastné imanie r. 26 + r. 29 + r. 30 + r. 31 + r. 32 + r. 33	25	45 833	43 406
+
+A.I.	Základné imanie r. 27 + r. 28	26	5 000	5 000
+
+A.I.1.	Základné imanie a zmeny základného imania (411, +/- 419) alebo (+/- 491)	27	5 000	5 000
+
+2.	Pohľadávky za upísané vlastné imanie (/-/353)	28		
+
+A.II.	Kapitálové fondy (412, 413, 417, 418)	29		
+
+A.III.	Fondy zo zisku (421, 422, 423, 427, 42X)	30	359	359
+
+A.IV.	Oceňovacie rozdiely (+/- 415, 416)	31		
+
+A.V.	Nerozdelený zisk alebo neuhradená strata minulých rokov (428, /-/429)	32	37 627	37 396
+
+A.VI.	Výsledok hospodárenia za účtovné obdobie po zdanení (+/-) r. 01 - (r. 26 + r. 29 + r. 30 + r. 31 + r. 32 + r. 34)	33	2 847	651
+
+B.	Záväzky r. 35 + r. 36 + r. 37 + r. 38 + r. 43 + r. 44 + r. 45	34	14 009	13 864
+
+B.I.	Dlhodobé záväzky okrem rezerv a úverov (316A, 321A, 32XA, 372A, 471A, 472A, 473A, 474A, 475A, 476A, 478A, 479A, 47XA, /-/255A, 383A, 384A)	35		1 807
+
+B.II.	Dlhodobé rezervy (451A, 459A, 45XA)	36		
+
+B.III.	Dlhodobé bankové úvery (461A, 46XA)	37		
+
+B.IV.	Krátkodobé záväzky okrem rezerv, úverov a výpomoci súčet (r. 39 až r. 42)	38	13 649	11 937
+
+B.IV.1.	Krátkodobé záväzky z obchodného styku (316A, 321A, 32XA, 322, 324, 325, 326, 32X, 475A, 476A, 478A, 479A, 47XA)	39		
+
+2.	Záväzky voči zamestnancom a zo sociálneho poistenia (331, 333, 336A, 33X, 479A)	40		
+
+3.	Daňové záväzky a dotácie (341A, 342A, 343A, 345A, 346A, 347A, 34XA)	41	684	152
+
+4.	Ostatné krátkodobé záväzky (364, 365, 366, 367, 368A, 36X, 372A, 379, 383A, 384A, 398A, 471A, 472A, 474A, 478A, 479A, 47XA)	42	12 965	11 785
+
+B.V.	Krátkodobé rezervy (323, 32XA, 451A, 459A, 45XA)	43	360	120
+
+B.VI.	Bežné bankové úvery (221A, 231, 232, 23X, 461A, 46XA)	44		
+
+B.VII.	Krátkodobé finančné výpomoci (241, 249, 24X, 473A, /-/255A)	45		
+
+Copyright © 2011-2026 , Ministerstvo financií Slovenskej republiky
+🍪 Správa cookies  Príručka používateľa  Ochrana osobných údajov Verejné API Vyhlásenie o prístupnosti Mapa stránok
+
+--- VÝKAZ ZISKOV A STRÁT ---
+Register účtovných závierok
+Čo je register účtovných závierok
+Často kladené otázky
+Kontakty
+ENG | SK
+Preskočiť na hlavný obsah
+Zadajte názov účtovnej jednotky, IČO alebo DIČ
+VYHĽADAJ ZNOVA
+ROZŠÍRENÉ VYHĽADÁVANIE
+Zdroj údajov: FRSR,
+aktualizované: 09.02.2023
+Vyhľadávanie ÚJ
+ Zoznam ÚJ
+ Detail ÚJ a jej ÚZ
+ Detail výkazu
+LOCOTEC s. r. o.
+Úč MUJ
+Účtovná závierka k 31.12.2022
+ Dokument: PDF veľkosť 145 KB
+Stiahnuť
+ Dokument: PDF veľkosť 175 KB
+Stiahnuť
+ Tlačová zostava: XLSX <200KB
+Stiahnuť
+Titulná strana Strana aktív Strana pasív Výkaz ziskov a strát
+Označenie	Text	Číslo riadku	Bežné účtovné obdobie	Bezprostredne predchádzajúce účtovné obdobie
+a	b	c	1	2
+				
+
+*	Výnosy z hospodárskej činnosti spolu súčet (r. 02 až r. 07)	1	31 348	14 851
+
+I.	Tržby z predaja tovaru (604, 607)	2	2 930	1 356
+
+II.	Tržby z predaja vlastných výrobkov a služieb (601, 602, 606)	3	27 754	13 495
+
+III.	Zmena stavu vnútroorganizačných zásob (+/-) (účtová skupina 61)	4		
+
+IV.	Aktivácia (účtová skupina 62)	5		
+
+V.	Tržby z predaja dlhodobého nehmotného majetku, dlhodobého hmotného majetku a materiálu (641, 642)	6		
+
+VI.	Ostatné výnosy z hospodárskej činnosti (644, 645, 646, 648, 655, 657)	7	664	
+
+*	Náklady na hospodársku činnosť spolu súčet (r. 09 až r. 17)	8	27 774	14 491
+
+A.	Náklady vynaložené na obstaranie predaného tovaru (504, (+/- ) 505A, 507)	9	4 150	902
+
+B.	Spotreba materiálu, energie a ostatných neskladovateľných dodávok (501, 502, 503, (+/-) 505A)	10	7 340	3 834
+
+C.	Služby (účtová skupina 51)	11	5 296	1 979
+
+D.	Osobné náklady (účtová skupina 52)	12		
+
+E.	Dane a poplatky (účtová skupina 53)	13	148	111
+
+F.	Odpisy a opravné položky k dlhodobému nehmotnému majetku a dlhodobému hmotnému majetku (551, (+/-) 553)	14	8 391	6 575
+
+G.	Zostatková cena predaného dlhodobého majetku a predaného materiálu (541, 542)	15		
+
+H.	Opravné položky k pohľadávkam (+/- 547)	16		
+
+I.	Ostatné náklady na hospodársku činnosť (543, 544, 545, 546, 548, 549, 555, 557)	17	2 449	1 090
+
+**	Výsledok hospodárenia z hospodárskej činnosti (+/-) (r. 01 - r. 08)	18	3 574	360
+
+*	Pridaná hodnota (r. 02 - r. 09) + (r. 03 + r. 04 + r. 05) - (r. 10 + r. 11)	19	13 898	8 136
+
+*	Výnosy z finančnej činnosti spolu súčet (r. 21 až r. 26)	20		
+
+VII.	Tržby z predaja cenných papierov a podielov (661)	21		
+
+VIII.	Výnosy z dlhodobého finančného majetku (665)	22		
+
+IX.	Výnosy z krátkodobého finančného majetku (666)	23		
+
+X.	Výnosové úroky (662)	24		
+
+XI.	Kurzové zisky (663)	25		
+
+XII.	Ostatné výnosy z finančnej činnosti (668)	26		
+
+*	Náklady na finančnú činnosť spolu súčet (r. 28 až r. 33)	27	179	87
+
+J.	Predané cenné papiere a podiely (561)	28		
+
+K.	Náklady na krátkodobý finančný majetok (566)	29		
+
+L.	Opravné položky k finančnému majetku (+/-) (565)	30		
+
+M.	Nákladové úroky (562)	31	90	
+
+N.	Kurzové straty (563)	32		
+
+O.	Ostatné náklady na finančnú činnosť (568, 569)	33	89	87
+
+**	Výsledok hospodárenia z finančnej činnosti (+/-) (r. 20 - r. 27)	34	-179	-87
+
+**	Výsledok hospodárenia za účtovné obdobie pred zdanením (+/-) (r. 18 + r. 34)	35	3 395	273
+
+P.	Daň z príjmov (591, 595)	36	548	41
+
+Q.	Prevod podielov na výsledku hospodárenia spoločníkom (+/-) (596)	37		
+
+***	Výsledok hospodárenia za účtovné obdobie po zdanení (+/-) (r. 35 - r. 36 - r. 37)	38	2 847	232
+
+Copyright © 2011-2026 , Ministerstvo financií Slovenskej republiky
+🍪 Správa cookies  Príručka používateľa  Ochrana osobných údajov Verejné API Vyhlásenie o prístupnosti Mapa stránok

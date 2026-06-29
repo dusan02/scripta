@@ -16,6 +16,7 @@ async def get_db_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
+        assert _pool is not None, "asyncpg.create_pool returned None"
     return _pool
 
 

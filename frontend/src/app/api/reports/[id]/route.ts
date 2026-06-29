@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -25,6 +27,8 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    console.log("DEBUG API route report.aiStatus:", report.aiStatus);
+
     return NextResponse.json({
       id: report.id,
       status: report.status,
@@ -35,6 +39,8 @@ export async function GET(
       createdAt: report.createdAt,
       completedAt: report.completedAt,
       resultUrl: report.resultUrl,
+      aiStatus: report.aiStatus,
+      eta: report.eta,
       sources: report.sources.map((s) => ({
         id: s.id,
         sourceType: s.sourceType,

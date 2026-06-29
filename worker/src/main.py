@@ -192,7 +192,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 logger.error(f"[WORKER] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
 
         from src.db import update_report_ai_status
-        await update_report_ai_status(pool, task.report_request_id, "Kompilácia vizuálneho PDF reportu", 5)
+        await update_report_ai_status(pool, task.report_request_id, "Kompilácia vizuálneho PDF reportu", 50)
 
         compiler = PdfCompiler(settings.results_dir)
         final_path = await compiler.compile(

@@ -238,11 +238,20 @@ async def generate_forensic_pdf_report(
         if other_sources:
             grouped_sources.append(("Ostatné", other_sources))
             
+        import json
+        evidence_list = []
+        try:
+            if verdict and verdict.justification:
+                evidence_list = json.loads(verdict.justification)
+        except Exception:
+            pass
+            
         template = env.get_template("report_template.html")
         
         html_content = template.render(
             company=company,
             verdict=verdict,
+            evidence_list=evidence_list,
             latest_stmt=latest_stmt,
             vestnik_events=vestnik_events,
             chart_image_base64=chart_base64,

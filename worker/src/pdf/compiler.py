@@ -86,7 +86,7 @@ class PdfCompiler:
         def _assign_start_pages(cover_pages: int):
             current = cover_pages + 1
             for source in sources:
-                if source.status == "SUCCESS" and source.file_path and source.page_count > 0:
+                if source.status == "SUCCESS" and source.file_path and source.page_count is not None and source.page_count > 0:
                     source.start_page = current
                     start_pages_map[source.source_type] = current
                     current += source.page_count
@@ -147,7 +147,12 @@ class PdfCompiler:
         for cover_idx in range(cover_page_count):
             cover_page_obj = writer.pages[cover_idx]
             if "/Annots" in cover_page_obj:
-                for annot in cover_page_obj["/Annots"]:
+                annots = cover_page_obj["/Annots"]
+                if hasattr(annots, "get_object"):
+                    annots = annots.get_object()
+                if not annots or not hasattr(annots, "__iter__"):
+                    continue
+                for annot in annots:
                     annot_obj = annot.get_object()
                     a_obj = None
                     if "/A" in annot_obj:

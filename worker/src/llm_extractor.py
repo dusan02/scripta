@@ -51,13 +51,16 @@ class CompanyFinancialExtraction(BaseModel):
     audit: AuditorReportData
     metriky: FinancialMetrics
 
-SYSTEM_PROMPT = """Si expertný finančný a forenzný audítor. Tvojou úlohou je extrahovať fakty z IFRS účtovných závierok pre potreby advokátov, ktorí preverujú bonitu protistrany a hľadajú podozrivé aktivity (tzv. biele kone) alebo riziko úpadku.
+SYSTEM_PROMPT = """Si expertný finančný a forenzný audítor. Tvojou úlohou je extrahovať fakty z účtovných závierok (vrátane IFRS, národných štandardov a Mikro účtovných jednotiek - Úč MUJ) pre potreby advokátov, ktorí preverujú bonitu protistrany a hľadajú podozrivé aktivity (tzv. biele kone) alebo riziko úpadku.
 
 KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
 - Všetky finančné hodnoty extrahuj V EURÁCH (nie v tisícoch ani miliónoch EUR). Ak tabuľka uvádza "v tisícach EUR", vynásob hodnotu 1000. Ak uvádza "v miliónoch EUR", vynásob 1 000 000.
 - Pri číslach v zátvorkách (napr. (1500)) ich konvertuj na negatívne float hodnoty (-1500.0).
 - Ak narazíš na tabuľku s dvoma stĺpcami dát (rok X a rok X-1), extrahuj prioritne stĺpec pre rok X (aktuálne účtovné obdobie).
-- Nikdy nehalucinuj. Ak údaj vo výkaze chýba, vráť 0 alebo null podľa Pydantic schémy."""
+- Aj keď sa jedná o malú s.r.o. (Mikro účtovná jednotka) a dokument nemá hlavičku IFRS, MUSÍŠ extrahovať hodnoty do príslušných polí (Tržby, Zisk, Aktíva...). Neodmietaj extrakciu len preto, že to nie je IFRS!
+- Malé firmy (Úč MUJ) NEPOTREBUJÚ audítora. Ak v dokumente nie je správa audítora, nastav `nazor_auditora` VŽDY na 'Bez výhrad' a nevykazuj žiadne výhrady ani going concern riziká.
+- Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, doplň nulu, ale NEPOVAŽUJ to za negatívny indikátor v ďalších analýzach.
+- Nikdy nehalucinuj. Ak iný údaj vo výkaze skutočne chýba, vráť 0 alebo null podľa Pydantic schémy."""
 
 async def extract_financial_data(file_path: str, model: str = "gemini-2.5-flash") -> CompanyFinancialExtraction:
     """
@@ -98,12 +101,12 @@ async def extract_financial_data(file_path: str, model: str = "gemini-2.5-flash"
     
     data = CompanyFinancialExtraction.model_validate_json(response.text)
     
-    # Prepíšeme rok, ak ho LLM nenašlo (vrátilo 0), alebo ak veríme viac metadátam z RÚZ
-    if expected_year and (data.metriky.rok_zavierky == 0 or data.metriky.rok_zavierky != expected_year):
+    # Vždy prepíšeme rok a IČO metadátami z RÚZ (názvu súboru), ak sú k dispozícii.
+    # Zamedzíme tým ukladaniu pod IČO audítora (napr. KPMG 31348238).
+    if expected_year:
         data.metriky.rok_zavierky = expected_year
 
-    # Prepíšeme IČO, ak ho LLM nenašlo (slicing mohol odrezať stránku s IČO)
-    if expected_ico and (not data.ico or data.ico.strip() in ("", "0", "N/A", "null")):
+    if expected_ico:
         data.ico = expected_ico
 
     return data
@@ -154,6 +157,7 @@ class NarrativeRiskAnalysis(BaseModel):
     litigation_risks: Optional[str] = Field(description="Súdne spory, exekúcie alebo právne hrozby spomenuté v texte.")
     going_concern_doubts: bool = Field(description="Indície, že firma má problémy s likviditou alebo pokračovaním v činnosti.")
     planned_investments: Optional[str] = Field(description="Plánované investície, ktoré môžu naznačovať agresívny rast alebo naopak prípravu na predaj firmy.")
+    profitability_explanation: Optional[str] = Field(default=None, description="Vysvetlenie manažmentu k výkyvom v ziskovosti a cash-flow.")
     forensic_red_flags: List[str] = Field(description="Zoznam identifikovaných rizikových indikátorov v texte správy.")
     synthesis: str = Field(description="Krátka syntéza: Je táto firma v stabilnom stave, alebo vykazuje známky nestability?")
 
@@ -163,7 +167,8 @@ Tvoje pravidlá:
 2. Hľadaj 'Going Concern' signály: Buď mimoriadne citlivý na frázy o 'pochybnostiach o schopnosti pokračovať v činnosti', 'problémoch s financovaním' alebo 'závislosti od externých úverov'.
 3. Forenzný postoj: Hľadaj nesúlad medzi tým, čo firma deklaruje (plánované investície) a realitou (zhoršené cashflow z IFRS výkazov).
 4. Štruktúruj výstup: Použi priloženú Pydantic schému. Ak informácia v texte chýba, vráť null alebo false, nevymýšľaj si.
-5. Buď kritický: Ak firma v texte bagatelizuje súdny spor, označ to ako litigation_risks a uveď, prečo je to riziko."""
+5. Buď kritický: Ak firma v texte bagatelizuje súdny spor, označ to ako litigation_risks a uveď, prečo je to riziko.
+6. Analyzuj výkyvy zisku: Hľadaj pasáže, kde manažment vysvetľuje zníženie zisku alebo cash-flow. Ak firma vykazuje dlhodobú ziskovosť, hľadaj náznaky budúcich rizík (napr. zmena trhu, strata kľúčového zákazníka)."""
 
 async def extract_narrative_risk(file_path: str, model: str = "gemini-3.5-flash") -> NarrativeRiskAnalysis:
     """
@@ -193,49 +198,54 @@ async def extract_narrative_risk(file_path: str, model: str = "gemini-3.5-flash"
     _log_tokens(model, response.usage_metadata, "extract_narrative_risk")
     return NarrativeRiskAnalysis.model_validate_json(response.text)
 
+class EvidenceItem(BaseModel):
+    tvrdenie: str = Field(..., description="Tvrdenie o riziku alebo fakte.")
+    dokaz: str = Field(..., description="Konkrétne číslo alebo fakt z dát (napr. z výkazov alebo z PDF).")
+    zdroj: str = Field(..., description="Zdroj informácie (napr. názov súboru, 'analytics' alebo 'Vestník').")
+
 class AuditVerdict(BaseModel):
     verifa_score: int = Field(..., ge=0, le=100, description="Finálne skóre integrity a zdravia.")
     risk_category: Literal["AAA", "A", "B", "C", "INSUFFICIENT_DATA"]
     debt_exposure_rating: int = Field(..., ge=0, le=10, description="Hodnotenie expozície voči verejným dlhom (0=čisté, 10=katastrofa).")
     final_verdict: str = Field(..., description="Jedna veta, ktorá zhrnie verdikt pre investora/právnika.")
-    zdovodnenie: str = Field(..., description="Analytické zdôvodnenie skóre vrátane identifikovaných diskrepancií medzi zdrojmi.")
+    zdovodnenie: list[EvidenceItem] = Field(..., description="Analytické zdôvodnenie skóre. Zoznam tvrdení, dôkazov a zdrojov.")
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
 
 CHIEF_AUDITOR_PROMPT = """Si hlavný forenzný audítor Verifa.sk. Tvojou úlohou nie je extrahovať dáta, ale vykonať definitívne vyhodnotenie integrity a finančného zdravia spoločnosti na základe vstupov od troch špecializovaných analytikov (Finančný, Právny, Naratívny) a priamo na základe priložených PDF výpisov o verejných záväzkoch (Dlhy, Exekúcie).
 
 **Dôležité inštrukcie pre hodnotenie:**
-1. Ak spoločnosť nemá finančné výkazy alebo je novo založená (napr. má iba 1 rok), hodnoť skóre primerane s ohľadom na absenciu histórie (typicky priemerné skóre okolo 50-60, ak nemá iné negatíva).
-2. Vo vstupe dostaneš vypočítaný blok "_5_year_trend_analysis" (ak sú dáta k dispozícii). **Striktne sa riaď týmto abstraktom pri hodnotení trendov**. Ak trend ukazuje CAGR rast, považuj firmu za zdravú. Ak trend ukazuje súvislé straty alebo indikátory úpadku (napr. vlastné imanie < 0, rastúce dlhy prevyšujúce aktíva), rázne zníž Verifa skóre a priraď vysoké riziko.
-3. Neanalyzuj surové účtovné dáta za každý rok izolovane, spoliehaj sa na "_5_year_trend_analysis", ktorý zosumarizoval 5-ročný vývoj.
-4. Právne riziká (exekúcie, dlhy voči štátu) z PDF súborov predstavujú kritické riziko a mali by mať výrazný vplyv na zníženie skóre.
+1. Vo vstupe dostaneš '_5_year_trend_analysis' -> 'algorithmic_prescore'. **Toto je Základná Scorecard (Hard Score)**, ktorú vypočítal algoritmus z finančných výkazov a Vestníka. Tvojou úlohou je toto skóre **potvrdiť alebo upraviť o max +/- 10 bodov** na základe tvojho forenzného úsudku.
+2. **VÝNIMKA PRE PDF DÁTA:** Keďže algoritmus nevidí do priložených PDF súborov s dlhmi, máš povinnosť z tohto skóre strhnúť **-30 bodov**, ak v PDFkách objavíš aktívne exekúcie alebo chronické dlhy voči štátu. 
+   - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej Python odrátal body a prescore je nízke), znova ich neodpočítavaj z PDF súborov, aby nedošlo k dvojitej penalizácii.
+3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky zmeň odporúčanie na 'NEODPORÚČA SA OBCHODOVAŤ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre alebo zisk.
+4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, `algorithmic_prescore` bude zrejme nízke alebo chýbať, hodnoť primerane (okolo 50).
+5. Zlaté klietky (Riziko tunelovania): Ak vidíš rast tržieb, ale výrazný pokles hotovosti a rast záväzkov voči prepojeným osobám, uprav skóre smerom nadol v rámci svojho limitu.
 
 Tvoj výstup musí byť objektívny, nekompromisný a orientovaný na riziko.
 
 PROCES HODNOTENIA:
-1. KRÍŽOVÁ KONTROLA: Porovnaj "príbeh" (Narrative) s "číslami" (Financials). Ak manažment deklaruje rast, ale finančné metriky vykazujú pokles likvidity, je to silný indikátor nedôveryhodnosti (Red Flag).
-2. VÁHOVANIE RIZIKA: 
-   - Právne riziká (exekúcie, konkurzy z Vestníka) majú absolútnu prioritu a radikálne znižujú skóre.
-   - Nedôveryhodnosť manažmentu (zistená skeptickým analytikom) je druhým najvýznamnejším faktorom.
-   - Finančná strata je vnímaná v kontexte jej trendu (dočasná strata vs. štrukturálny úpadok).
-3. ANALÝZA VEREJNÝCH ZÁVÄZKOV A EXEKÚCIÍ (Z PDF súborov):
+1. KRÍŽOVÁ KONTROLA: Porovnaj "príbeh" (Narrative) s "číslami" (Financials). Zohľadni aj profitability_explanation. 
+2. ANALÝZA VEREJNÝCH ZÁVÄZKOV A EXEKÚCIÍ (Z PDF súborov):
    - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu s aktuálnou hotovosťou vo finančných výkazoch.
    - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti, nie len náhodnej chyby.
-   - Záverečná penalizácia: Ak súčet exekúcií a verejných dlhov presahuje 10 % z ročných tržieb, automaticky zníž skóre na úroveň 'C' (Kritické riziko), bez ohľadu na marketingové reči vo Výročnej správe.
    - Urči `debt_exposure_rating` (0-10), kde 0 znamená žiadne alebo zanedbateľné dlhy, a 10 znamená katastrofálnu dlhovú pascu.
-4. VÝPOČET SKÓRE (0-100):
-   - 90-100: AAA (Excelentná kondícia, žiadne riziká).
-   - 70-89: A (Stabilná firma, drobné administratívne riziká).
-   - 40-69: B (Varovný stav, nutná hĺbková previerka).
-   - 0-39: C (Kritické riziko, vysoká pravdepodobnosť zániku alebo podvodu).
+3. VÝPOČET SKÓRE (0-100):
+   - Vezmi `algorithmic_prescore`.
+   - Pridaj/Odober max 10 bodov podľa forenzného úsudku.
+   - Odober 30 bodov, ak sú v PDF objavené vážne exekúcie/dlhy (a neboli už započítané v prescore).
+   - Priraď kategóriu rizika (90-100: AAA, 70-89: A, 40-69: B, 0-39: C).
 
 PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
-- V poli 'zdovodnenie' musíš explicitne uviesť, prečo si pridelil dané skóre a na akú diskrepanciu medzi dátami si narazil. Ak sú dáta medzi zdrojmi (napr. IFRS výkaz a naratívna správa) v priamom konflikte, uprednostni zistenia z právnych udalostí (Vestník, verejné záväzky z PDF) a audítorskej správy, a v poli 'zdovodnenie' túto diskrepanciu explicitne pomenuj.
-- Ak nemáš dostatok dát, skóre neurčuj a uveď 'INSUFFICIENT_DATA'."""
+- V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`. 
+- V každom `EvidenceItem` musíš explicitne uviesť: 
+  Tvrdenie (tvoj záver), Dôkaz (konkrétne číslo alebo fakt) a Zdroj (z ktorého PDF/poľa to máš).
+- Ak sa tvoje skóre líši od 'algorithmic_prescore', vysvetli dôvod v jednom z bodov (napríklad penalizácia za PDF dlhy).
+- Ak nemáš dostatok dát (napr. chýbajúce PDF súbory pre dané IČO), skóre neurčuj a uveď 'INSUFFICIENT_DATA'."""
 
 import asyncio
 
-async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: str = "gemini-3.1-pro-preview") -> AuditVerdict:
+async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: str = "gemini-2.5-flash") -> AuditVerdict:
     """
     Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami a textom extrahovaným z PDF súborov registrov.
     """

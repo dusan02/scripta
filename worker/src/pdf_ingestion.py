@@ -9,6 +9,9 @@ def extract_core_financials(pdf_path: str) -> str:
     Saves the extracted pages to a temporary PDF and returns its file path.
     This optimized PDF is ready for Multimodal LLM ingestion.
     """
+    if not pdf_path.lower().endswith('.pdf'):
+        return None
+        
     doc = fitz.open(pdf_path)
     
     notes_pattern = re.compile(

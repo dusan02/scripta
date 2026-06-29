@@ -31,10 +31,12 @@ interface Report {
   createdAt: string;
   completedAt?: string | null;
   resultUrl?: string | null;
+  aiStatus?: string | null;
+  eta?: number | null;
   sources: ReportSource[];
 }
 
-const TERMINAL_STATUSES = ["COMPLETED", "FAILED"];
+const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "PARTIAL"];
 const POLL_INTERVAL_MS = 3000;
 
 function formatDate(iso: string, locale: string) {
@@ -139,6 +141,8 @@ function ErrorDetails({ sources }: { sources: ReportSource[] }) {
   const [expanded, setExpanded] = useState(false);
   const failedSources = sources.filter(s => s.status === "FAILED" || s.status === "UNAVAILABLE");
 
+  if (failedSources.length === 0) return null;
+
   return (
     <div className="mt-4 rounded-xl" style={{ border: "1px solid var(--border)", background: "var(--surface)" }}>
       <button
@@ -172,6 +176,109 @@ function ErrorDetails({ sources }: { sources: ReportSource[] }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── AI Progress Tracker ──────────────────────────────────────────
+const AI_PHASES = [
+  "Sťahovanie finančných závierok z RÚZ...",
+  "Forenzná analýza účtovných výkazov...",
+  "Právna analýza Obchodného vestníka...",
+  "Záverečný posudok — Chief Auditor...",
+  "Kompilácia forenzného reportu...",
+];
+
+function AiProgressTracker({
+  aiStatus,
+  eta,
+  sourcesCompleted,
+  sourcesTotal,
+}: {
+  aiStatus?: string | null;
+  eta?: number | null;
+  sourcesCompleted: number;
+  sourcesTotal: number;
+}) {
+  const [localEta, setLocalEta] = useState<number | null>(eta ?? 90);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+
+  useEffect(() => {
+    if (eta !== undefined && eta !== null) setLocalEta(eta);
+  }, [eta]);
+
+  useEffect(() => {
+    if (localEta === null || localEta <= 0) return;
+    const interval = setInterval(() => {
+      setLocalEta((prev) => (prev ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [localEta]);
+
+  // Cycle through phase hints every 5 s when aiStatus is not yet set by worker
+  useEffect(() => {
+    if (aiStatus) return;
+    const allDone = sourcesTotal > 0 && sourcesCompleted >= sourcesTotal;
+    if (!allDone) return;
+    const id = setInterval(() => {
+      setPhaseIdx((p) => (p + 1) % AI_PHASES.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [aiStatus, sourcesCompleted, sourcesTotal]);
+
+  const allSourcesDone = sourcesTotal > 0 && sourcesCompleted >= sourcesTotal;
+  const displayStatus =
+    aiStatus ||
+    (allSourcesDone ? AI_PHASES[phaseIdx] : "Spracovanie registrov...");
+
+  return (
+    <div className="mt-8 flex flex-col items-center justify-center p-6 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl max-w-2xl mx-auto w-full fade-in">
+      <div className="flex items-center gap-3 mb-2">
+        <svg className="animate-spin w-5 h-5 text-[var(--accent)]" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.2" />
+          <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+        <span className="font-semibold text-[var(--text)] text-center text-sm md:text-base">{displayStatus}</span>
+      </div>
+      {allSourcesDone && !aiStatus && (
+        <div className="mt-3 flex gap-1.5">
+          {AI_PHASES.map((_, i) => (
+            <div
+              key={i}
+              className="rounded-full transition-all duration-500"
+              style={{
+                width: i === phaseIdx ? "20px" : "6px",
+                height: "6px",
+                background: i === phaseIdx ? "var(--accent)" : "var(--border-strong)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+      {localEta !== null && localEta > 0 && (
+        <span className="text-xs font-medium mt-2 text-[var(--text-muted)]">
+          Odhadovaný čas dokončenia: ~{localEta} s
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── Aggregate Progress ───────────────────────────────────────────
+function AggregateProgress({ sources }: { sources: ReportSource[] }) {
+  const completed = sources.filter((s) => ["SUCCESS", "FAILED", "UNAVAILABLE"].includes(s.status)).length;
+  const total = sources.length;
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <div className="mt-6 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
+      <div className="w-full flex justify-between text-sm font-semibold text-[var(--text)] mb-2 px-1">
+        <span>Spracovanie štátnych registrov</span>
+        <span>{completed} / {total}</span>
+      </div>
+      <div className="w-full h-2 bg-[var(--border)] rounded-full overflow-hidden">
+         <div className="h-full bg-[var(--success)] transition-all duration-500 ease-out" style={{ width: `${percentage}%` }} />
+      </div>
     </div>
   );
 }
@@ -430,7 +537,7 @@ export default function ReportDetailPage() {
                 )}
               </button>
             )}
-            {canDownload && (
+            {canDownload && !isFinished && (
               <button
                 id="download-pdf-btn"
                 onClick={handleDownload}
@@ -474,13 +581,136 @@ export default function ReportDetailPage() {
           <div className="card p-8 text-center text-xs" style={{ color: "var(--text-muted)" }}>
             {t("report.zdrojePripravuju")}
           </div>
-        ) : (
+        ) : !isFinished ? (
           <>
-            <RegistryGrid mode="status" sources={report.sources} />
+            <AiProgressTracker
+              aiStatus={report.aiStatus}
+              eta={report.eta}
+              sourcesCompleted={report.sources.filter(s => ["SUCCESS","FAILED","UNAVAILABLE"].includes(s.status)).length}
+              sourcesTotal={report.sources.length}
+            />
+            <AggregateProgress sources={report.sources} />
             {report.sources.some(s => s.status === "FAILED" || s.status === "UNAVAILABLE") && (
-              <ErrorDetails sources={report.sources} />
+              <div className="max-w-2xl mx-auto mt-4 w-full">
+                 <ErrorDetails sources={report.sources} />
+              </div>
             )}
           </>
+        ) : (
+          <div className="fade-in flex flex-col items-center justify-center pt-6 pb-10 px-4">
+
+            {/* Checkmark hero */}
+            <div
+              className="flex items-center justify-center rounded-full mb-5"
+              style={{
+                width: 72, height: 72,
+                background: "var(--success-bg)",
+                border: "2px solid var(--success)",
+              }}
+            >
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <path d="M5 13l4 4L19 7" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+
+            {/* Title */}
+            <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text)" }}>
+              Analýza dokončená
+            </h2>
+            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+              Všetky dostupné registre boli preverené a forenzný posudok bol vygenerovaný.
+            </p>
+
+            {/* Stats row */}
+            <div className="flex gap-4 mb-7 flex-wrap justify-center">
+              {[
+                {
+                  value: report.sources.filter(s => s.status === "SUCCESS").length,
+                  label: "Zdrojov overených",
+                  color: "var(--success)",
+                  bg: "var(--success-bg)",
+                },
+                {
+                  value: report.sources.filter(s => s.status === "FAILED" || s.status === "UNAVAILABLE").length,
+                  label: "Nedostupných zdrojov",
+                  color: "var(--warning)",
+                  bg: "var(--warning-bg)",
+                },
+                {
+                  value: report.sources.reduce((acc, s) => acc + (s.pageCount ?? 0), 0),
+                  label: "Strán dokumentácie",
+                  color: "var(--info)",
+                  bg: "var(--info-bg)",
+                },
+              ].map(({ value, label, color, bg }) => (
+                <div
+                  key={label}
+                  className="flex flex-col items-center rounded-xl px-5 py-3 min-w-[100px]"
+                  style={{ background: bg, border: `1px solid ${color}22` }}
+                >
+                  <span className="text-2xl font-bold" style={{ color }}>{value}</span>
+                  <span className="text-[11px] font-medium mt-0.5 text-center" style={{ color: "var(--text-muted)" }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Download CTA */}
+            {canDownload && (
+              <button
+                id="download-pdf-btn-completion"
+                onClick={handleDownload}
+                disabled={downloading}
+                className="flex items-center justify-center gap-2.5 rounded-xl transition-all hover:brightness-105 active:scale-[0.98]"
+                style={{
+                  background: "var(--accent)",
+                  color: "#000",
+                  height: "48px",
+                  padding: "0 28px",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  border: "1px solid var(--accent)",
+                  boxShadow: "0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent)",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                {downloading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Sťahujem…
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Stiahnuť forenzný report
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Retry for partial */}
+            {canRetry && (
+              <button
+                onClick={handleRetry}
+                disabled={retrying}
+                className="mt-3 text-xs underline underline-offset-2 transition-opacity hover:opacity-70"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {retrying ? "Odosielam…" : "Zopakovať overenie"}
+              </button>
+            )}
+
+            {/* Expandable source details */}
+            {report.sources.some(s => s.status === "FAILED" || s.status === "UNAVAILABLE") && (
+              <div className="mt-6 max-w-lg w-full">
+                <ErrorDetails sources={report.sources} />
+              </div>
+            )}
+          </div>
         )}
       </section>
     </div>

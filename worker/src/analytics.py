@@ -74,6 +74,7 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
     """
     try:
         total_assets = getattr(stmt, 'totalAssets', 0) or 0
+        current_assets = getattr(stmt, 'currentAssets', 0) or 0
         equity = getattr(stmt, 'equity', 0) or 0
         net_profit = getattr(stmt, 'netProfitLoss', 0) or 0
         short_liabilities = getattr(stmt, 'shortTermLiabilities', 0) or 0
@@ -86,9 +87,11 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
 
         # 1. Current Ratio (Likvidita) — krátkodobé krytie
         if short_liabilities > 0:
-            ratios["current_ratio"] = round(cash / short_liabilities, 2)
+            ratios["current_ratio"] = round(current_assets / short_liabilities, 2) if current_assets > 0 else None
+            ratios["cash_ratio"] = round(cash / short_liabilities, 2)
         else:
             ratios["current_ratio"] = None
+            ratios["cash_ratio"] = None
 
         # 2. Debt-to-Equity (Zadlženosť)
         if equity > 0:
@@ -118,6 +121,57 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
     except Exception:
         return {}
 
+
+def compute_forensic_scorecard(company_dict: Dict[str, Any], trends: Dict[str, Any]) -> int:
+    """
+    Vypočíta tvrdé Checklist skóre z dostupných dát v DB.
+    """
+    score = 100
+
+    # 1. V likvidácii / Konkurze (Short-circuit)
+    vestnik_events = company_dict.get("vestnikEvents", [])
+    for event in vestnik_events:
+        event_type = event.get("eventType", "").lower() if isinstance(event, dict) else getattr(event, "eventType", "").lower()
+        if "konkurz" in event_type or "likvidáci" in event_type or "reštrukturalizáci" in event_type:
+            return 0  # Short-circuit
+
+    last_ratios = trends.get("ratios_by_year", [{}])[-1] if trends.get("ratios_by_year") else {}
+    last_z = trends.get("altman_z_scores", [{}])[-1] if trends.get("altman_z_scores") else {}
+    
+    # 2. Záporné vlastné imanie
+    if last_z.get("components", {}).get("x4_equity_to_debt", 1) < 0:
+        score -= 20
+        
+    # 3. Súvislá strata (3+ rokov)
+    if trends.get("consecutive_losses", 0) >= 3:
+        score -= 15
+        
+    # 4. Kritická likvidita
+    cr = last_ratios.get("current_ratio")
+    if cr is not None and cr < 0.5:
+        score -= 15
+        
+    # 5. Audit s výhradami
+    stmts = company_dict.get("financialStatements", [])
+    # Získame najnovší výkaz s názorom
+    for stmt in reversed(sorted(stmts, key=lambda x: x.year if hasattr(x, 'year') else x.get('year', 0))):
+        opinion = stmt.auditorOpinion if hasattr(stmt, 'auditorOpinion') else stmt.get("auditorOpinion")
+        if opinion:
+            op_type = opinion.opinionType if hasattr(opinion, 'opinionType') else opinion.get("opinionType", "")
+            if op_type and "bez výhrad" not in op_type.lower():
+                score -= 10
+            break
+            
+    # 6. 5 rokov stabilného zisku
+    if trends.get("consecutive_losses", 0) == 0 and trends.get("average_profit", 0) > 0 and len(trends.get("analyzed_years", [])) >= 5:
+        score += 10
+        
+    # 7. Rast tržieb
+    cagr = trends.get("cagr_revenue")
+    if cagr is not None and cagr > 5.0:
+        score += 5
+        
+    return max(0, min(100, score))
 
 def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     """
@@ -149,6 +203,7 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         "altman_z_scores": [],
         # Nové: Finančné ukazovatele pre každý rok
         "ratios_by_year": [],
+        "algorithmic_prescore": None
     }
     
     # Výpočet CAGR (Zložená ročná miera rastu) pre Tržby
@@ -193,7 +248,7 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
                 f"Altman Z-score {yr}: {z['z_score']} — {z['zone_label']}"
             )
         
-    # Medziročné zmeny (YoY) — teraz vrátane delta stĺpcov
+    # Medziročné zmeny (YoY)
     for i in range(1, len(sorted_stmts)):
         prev = sorted_stmts[i-1]
         curr = sorted_stmts[i]
@@ -224,6 +279,8 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
             "value": curr_equity,
             "yoy_pct": round(equity_delta_pct, 2) if equity_delta_pct is not None else None
         })
+        
+    # (Skóre sa teraz počíta v pipeline.py volaním compute_forensic_scorecard)
         
     return trends
 
