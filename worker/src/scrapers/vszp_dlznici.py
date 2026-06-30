@@ -42,15 +42,15 @@ class VszpDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=20000, wait_until='commit')
-                await page.wait_for_load_state('domcontentloaded', timeout=10000)
+                await page.goto(self.base_url, timeout=10000, wait_until='commit')
+                await page.wait_for_load_state('domcontentloaded', timeout=5000)
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"VšZP nedostupná: {e}")
 
             # Kliknúť "Povoliť všetko" (cookie banner)
             try:
                 btn = page.get_by_role("button", name="Povoliť všetko")
-                await btn.wait_for(timeout=5000)
+                await btn.wait_for(timeout=3000)
                 await btn.click()
                 logger.info(f"[{self.source_type}] Cookie banner prijatý.")
             except PlaywrightTimeoutError:
@@ -59,7 +59,7 @@ class VszpDlzniciScraper(BaseScraper):
             # Zavrieť prípadný popup/predu banner
             try:
                 predu_close = page.locator("#predu-close-button")
-                await predu_close.wait_for(timeout=5000)
+                await predu_close.wait_for(timeout=3000)
                 await predu_close.click()
                 logger.info(f"[{self.source_type}] Predu banner zatvorený.")
             except PlaywrightTimeoutError:
@@ -77,7 +77,7 @@ class VszpDlzniciScraper(BaseScraper):
             ]:
                 try:
                     cb = page.locator(selector).first
-                    await cb.wait_for(timeout=3000)
+                    await cb.wait_for(timeout=2000)
                     await cb.click()
                     logger.info(f"[{self.source_type}] Checkbox súhlasu zaškrtnutý (selector: {selector}).")
                     checkbox_clicked = True
@@ -97,7 +97,7 @@ class VszpDlzniciScraper(BaseScraper):
             ]:
                 try:
                     nazov_input = page.locator(selector).first
-                    await nazov_input.wait_for(timeout=5000)
+                    await nazov_input.wait_for(timeout=3000)
                     await nazov_input.click()
                     await nazov_input.fill(ico)
                     logger.info(f"[{self.source_type}] IČO vyplnené: {ico} (selector: {selector}).")
@@ -110,7 +110,7 @@ class VszpDlzniciScraper(BaseScraper):
                 # Fallback: skús get_by_role
                 try:
                     nazov_input = page.get_by_role("textbox", name="Nazov")
-                    await nazov_input.wait_for(timeout=5000)
+                    await nazov_input.wait_for(timeout=3000)
                     await nazov_input.click()
                     await nazov_input.fill(ico)
                     nazov_filled = True
@@ -149,7 +149,7 @@ class VszpDlzniciScraper(BaseScraper):
             ]:
                 try:
                     btn = page.locator(selector).first
-                    await btn.wait_for(timeout=5000)
+                    await btn.wait_for(timeout=3000)
                     await btn.click()
                     logger.info(f"[{self.source_type}] Tlačidlo Vyhľadať kliknuté (selector: {selector}).")
                     search_clicked = True
@@ -160,7 +160,7 @@ class VszpDlzniciScraper(BaseScraper):
             if not search_clicked:
                 try:
                     search_btn = page.get_by_role("button", name="Vyhľadať")
-                    await search_btn.wait_for(timeout=5000)
+                    await search_btn.wait_for(timeout=3000)
                     await search_btn.click()
                     search_clicked = True
                     logger.info(f"[{self.source_type}] Tlačidlo Vyhľadať kliknuté cez get_by_role.")
@@ -192,7 +192,7 @@ class VszpDlzniciScraper(BaseScraper):
             empty_locator = page.locator("text=Nenašli sa žiadne záznamy")
             table_locator = page.locator("table tbody tr, .table tbody tr, .result-table tr")
             try:
-                await empty_locator.or_(table_locator).first.wait_for(timeout=15000)
+                await empty_locator.or_(table_locator).first.wait_for(timeout=8000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 

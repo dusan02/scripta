@@ -26,7 +26,7 @@ class UnionDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=20000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=10000, wait_until='domcontentloaded')
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] UNION nedostupná ({e}) — generujem fallback PDF.")
                 pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
@@ -51,7 +51,7 @@ class UnionDlzniciScraper(BaseScraper):
             # Vyplniť IČO do textového poľa
             try:
                 textbox = page.get_by_role("textbox", name="Zadajte priezvisko, IČO,")
-                await textbox.wait_for(timeout=10000)
+                await textbox.wait_for(timeout=5000)
                 await textbox.click()
                 await textbox.fill(ico)
                 logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
@@ -79,7 +79,7 @@ class UnionDlzniciScraper(BaseScraper):
             # Kliknúť "Hľadať"
             try:
                 search_btn = page.get_by_role("button", name="Hľadať")
-                await search_btn.wait_for(timeout=10000)
+                await search_btn.wait_for(timeout=5000)
                 await search_btn.click()
                 logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté.")
             except PlaywrightTimeoutError:
@@ -107,7 +107,7 @@ class UnionDlzniciScraper(BaseScraper):
             empty_locator = page.locator("text=Nenašli sa žiadne záznamy")
             table_locator = page.locator("table tbody tr, .table tbody tr, .result-table tr")
             try:
-                await empty_locator.or_(table_locator).first.wait_for(timeout=15000)
+                await empty_locator.or_(table_locator).first.wait_for(timeout=8000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 

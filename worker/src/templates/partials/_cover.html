@@ -1,5 +1,5 @@
 <!-- COVER PAGE -->
-<div class="flex flex-col items-center justify-center page-break-after" style="min-height: 240mm;">
+<div class="flex flex-col items-center justify-center page-break-after" style="min-height: 275mm;">
     {% if logo_base64 %}
     <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-24 mb-10">
     {% else %}
@@ -73,10 +73,9 @@
         </div>
     </div>
 
-    <!-- BOTTOM FOOTER AREA -->
-    <div class="mt-auto w-full">
-        <!-- METADATA & SEMAPHORE PILLS -->
-        <div class="flex justify-between items-end w-full mb-8">
+    <!-- METADATA & SEMAPHORE PILLS -->
+    <div class="w-full mb-8">
+        <div class="flex justify-between items-end w-full">
             <!-- Left: Meta -->
             <div class="space-y-1">
                 <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">IČO</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
@@ -127,10 +126,11 @@
                 {% endif %}
             </div>
         </div>
+    </div>
 
-        <div class="border-t border-slate-200 pt-8 text-center text-xs text-slate-400">
-            <p>Vygenerované: {{ generated_at }}</p>
-            <p class="mt-1">Dôverný dokument pre vnútornú potrebu. Nenahrádza právne a daňové poradenstvo.</p>
-        </div>
+    <!-- BOTTOM FOOTER AREA -->
+    <div class="mt-auto w-full border-t border-slate-200 pt-8 text-center text-xs text-slate-400">
+        <p>Vygenerované: {{ generated_at }}</p>
+        <p class="mt-1">Dôverný dokument pre vnútornú potrebu. Nenahrádza právne a daňové poradenstvo.</p>
     </div>
 </div>

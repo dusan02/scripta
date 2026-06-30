@@ -89,19 +89,38 @@ class RegisterUzScraper(BaseScraper):
         await self._accept_cookies(page)
 
         await self._fill_search(page, ico)
-        await page.wait_for_timeout(1500)
+        # Počkáme kým sa objaví výsledok (detail link) alebo text o žiadnych výsledkoch
+        try:
+            await page.wait_for_selector(
+                "a[href*='accountingentity/show'], text=Neboli nájdené žiadne výsledky",
+                timeout=5000
+            )
+        except PlaywrightTimeoutError:
+            pass
 
         if await self._has_no_results(page):
             return None
 
         await self._click_first_result(page)
-        await page.wait_for_timeout(1500)
+        # Počkáme kým sa načíta detail stránka s collapse sekciami
+        try:
+            await page.wait_for_selector("span.js-collapse, a.js-collapse", timeout=5000)
+        except PlaywrightTimeoutError:
+            pass
 
         await self._click_collapse_arrow(page)
-        await page.wait_for_timeout(800)
+        # Počkáme kým sa rozbalí sekcia s linkami na závierky
+        try:
+            await page.wait_for_selector("a[href*='financialreport/show']", timeout=3000)
+        except PlaywrightTimeoutError:
+            pass
 
         await self._click_ucpod(page)
-        await page.wait_for_timeout(1500)
+        # Počkáme kým sa načíta URL s reportom (event-driven)
+        try:
+            await page.wait_for_url("**/financialreport/show/**", timeout=5000)
+        except PlaywrightTimeoutError:
+            pass
 
         url = page.url
         m = re.search(r'/financialreport/show/(\d+)', url)
@@ -121,7 +140,7 @@ class RegisterUzScraper(BaseScraper):
     async def _accept_cookies(self, page: Page) -> None:
         try:
             btn = page.get_by_role("link", name="Povoliť všetko")
-            await btn.wait_for(state="visible", timeout=5000)
+            await btn.wait_for(state="visible", timeout=3000)
             await btn.click()
         except PlaywrightTimeoutError:
             pass
@@ -129,14 +148,14 @@ class RegisterUzScraper(BaseScraper):
     async def _fill_search(self, page: Page, ico: str) -> None:
         try:
             inp = page.locator("#input_search")
-            await inp.wait_for(state="visible", timeout=10000)
+            await inp.wait_for(state="visible", timeout=5000)
             await inp.fill(ico)
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError(f"{self.source_type}: Nenájdené #input_search.")
 
         try:
             btn = page.locator("button:has-text('Vyhľadať')")
-            await btn.wait_for(state="visible", timeout=10000)
+            await btn.wait_for(state="visible", timeout=5000)
             await btn.click()
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError(f"{self.source_type}: Nenájdené tlačidlo Vyhľadať.")
@@ -197,8 +216,12 @@ class RegisterUzScraper(BaseScraper):
             url = _REPORT_URL.format(rid=report_id, tid=tab_id)
             try:
                 # Rýchla navigácia — domcontentloaded namiesto networkidle
-                await page.goto(url, wait_until="domcontentloaded", timeout=20000)
-                await page.wait_for_timeout(1500)
+                await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+                # Počkáme kým sa načítajú tabuľky na záložke
+                try:
+                    await page.wait_for_selector("table, .table", timeout=3000)
+                except PlaywrightTimeoutError:
+                    pass
 
                 tab_pdf = output_dir / f"{self.source_type}_{ico}_tab{tab_id}.pdf"
                 await page.pdf(

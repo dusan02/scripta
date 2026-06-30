@@ -1,6 +1,7 @@
 from __future__ import annotations
 import io
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -11,6 +12,7 @@ from PyPDF2.generic import ArrayObject, NumberObject, NameObject
 from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib import colors
 
 from ..report_generator import SOURCE_CATEGORIES as _SOURCE_CATEGORIES, SOURCE_LABELS as _SOURCE_LABELS
 from ..models import ScrapedSource
@@ -135,12 +137,18 @@ class PdfCompiler:
         writer = PdfWriter()
         writer.append(cover_path)
 
+        # Paralelizácia overlay nadpisov — každý overlay je nezávislý (vlastný súbor).
+        sources_needing_overlay = [
+            s for s in sources
+            if s.start_page is not None and s.file_path
+            and s.source_type not in _SOURCES_WITH_EMBEDDED_TITLE
+        ]
+        if sources_needing_overlay:
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                list(pool.map(self._overlay_title_on_source, sources_needing_overlay))
+
         for source in sources:
             if source.start_page is not None and source.file_path:
-                # Pridáme nadpis na prvú stránku zdrojového PDF pred zlúčením.
-                # Preskakujeme zdroje, ktoré už majú vlastný nadpis od scrapera.
-                if source.source_type not in _SOURCES_WITH_EMBEDDED_TITLE:
-                    self._overlay_title_on_source(source)
                 writer.append(source.file_path)
                 label = _SOURCE_LABELS.get(source.source_type, source.source_type)
                 writer.add_outline_item(label, source.start_page - 1)
@@ -231,14 +239,14 @@ class PdfCompiler:
             
             # section-title štýl (text-sm, uppercase, text-slate-500)
             c.setFont("Inter-Bold", 10)
-            c.setFillColorHex("#64748b")
+            c.setFillColor(colors.HexColor("#64748b"))
             
             x_margin = 35
             y_pos = page_h - 35
             c.drawString(x_margin, y_pos, label)
             
             # border-b (border-slate-200)
-            c.setStrokeColorHex("#e2e8f0")
+            c.setStrokeColor(colors.HexColor("#e2e8f0"))
             c.setLineWidth(1)
             c.line(x_margin, y_pos - 8, page_w - x_margin, y_pos - 8)
             

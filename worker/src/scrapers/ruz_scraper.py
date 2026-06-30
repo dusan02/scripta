@@ -4,7 +4,7 @@ import logging
 import re
 from pathlib import Path
 from typing import Optional
-from playwright.async_api import async_playwright, Page, Locator, BrowserContext
+from playwright.async_api import async_playwright, Page, Locator, BrowserContext, TimeoutError as PlaywrightTimeout
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -99,8 +99,8 @@ async def _download_pdf_if_available(dl_page: Page, out_path: Path, item: tuple[
             "a:has-text('Download'), a:has-text('Stiahnit')"
         ).first
         if await btn.count() > 0 and await btn.is_visible():
-            async with dl_page.expect_download(timeout=15000) as download_info:
-                await btn.click(timeout=5000)
+            async with dl_page.expect_download(timeout=10000) as download_info:
+                await btn.click(timeout=3000)
 
             download = await download_info.value
             suggested_name = download.suggested_filename or ""
@@ -143,10 +143,12 @@ async def _extract_html_tabs(dl_page: Page, out_path: Path, item: tuple[str, str
                 for loc in tab_locs:
                     href = await loc.get_attribute("href")
                     if href and "/cruz-public/domain/financialreport/show/" in href:
-                        await dl_page.goto("https://www.registeruz.sk" + href)
-                        # RegisterUZ naťahuje tabuľky asynchrónne (AJAX). 
-                        # Explicitný wait 3s je najspoľahlivejší spôsob, ako sa vyhnúť race-condition.
-                        await dl_page.wait_for_timeout(3000)
+                        await dl_page.goto("https://www.registeruz.sk" + href, wait_until="domcontentloaded")
+                        # Počkáme kým sa načítajú tabuľky (AJAX) — čakáme na prvý <table> alebo <tbody>
+                        try:
+                            await dl_page.wait_for_selector("table tbody tr, table tr", timeout=5000)
+                        except PlaywrightTimeout:
+                            pass
 
                         # Parsujeme HTML tabuľku štruktúrovane cez JS
                         rows = await dl_page.evaluate("""() => {
@@ -201,8 +203,7 @@ async def _process_single_report(context: BrowserContext, out_path: Path, item: 
 
     dl_page = await context.new_page()
     try:
-        await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=20000)
-        await dl_page.wait_for_timeout(800)
+        await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=10000)
 
         # 1. Pokus HTML (najlepšie pre Úč MUJ, má presné čísla v tabuľkách)
         file_path = await _extract_html_tabs(dl_page, out_path, item, index)
@@ -238,7 +239,11 @@ async def _expand_all_sections(page: Page) -> None:
         return count;
     }""")
     logger.info(f"[RUZ] Expandovaných {expanded} sekcií")
-    await page.wait_for_timeout(1500)
+    # Počkáme kým sa rozbalené sekcie načítajú — čakáme na linky závierok
+    try:
+        await page.wait_for_selector("a[href*='/cruz-public/domain/financialreport/show/']", timeout=5000)
+    except PlaywrightTimeout:
+        pass
 
     # Varianta 2: staré .item elementy
     items_expanded = await page.evaluate("""() => {
@@ -251,7 +256,10 @@ async def _expand_all_sections(page: Page) -> None:
         return count;
     }""")
     if items_expanded > 0:
-        await page.wait_for_timeout(1000)
+        try:
+            await page.wait_for_selector("a[href*='/cruz-public/domain/financialreport/show/']", timeout=3000)
+        except PlaywrightTimeout:
+            pass
 
 
 async def _collect_all_report_links(page: Page) -> tuple[list[tuple[str, str, str, str]], list[tuple[str, str, str, str]]]:
@@ -299,6 +307,10 @@ async def _collect_all_report_links(page: Page) -> tuple[list[tuple[str, str, st
                 ifrs_items.append((href, "IFRS", year, ""))
 
     logger.info(f"[RUZ] Nájdené závierky: {len(ifrs_items)}, výročné správy: {len(vs_items)}")
+    for item in ifrs_items:
+        logger.info(f"[RUZ]   IFRS link: href={item[0]} year={item[2]} text='{item[3]}'")
+    for item in vs_items:
+        logger.info(f"[RUZ]   VS link: href={item[0]} year={item[2]} text='{item[3]}'")
     return ifrs_items, vs_items
 
 
@@ -342,7 +354,14 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
             # Vyhľadanie IČO
             await page.get_by_role("textbox", name="Zadajte názov účtovnej").fill(ico)
             await page.get_by_role("button", name="Vyhľadaj").first.click()
-            await page.wait_for_timeout(2000)
+            # Počkáme kým sa objaví detail link entity (event-driven)
+            try:
+                await page.wait_for_selector(
+                    "a[href*='/cruz-public/domain/accountingentity/show/'], text=Neboli nájdené žiadne výsledky",
+                    timeout=5000
+                )
+            except PlaywrightTimeout:
+                pass
 
             detail_links = await page.locator(
                 "a[href*='/cruz-public/domain/accountingentity/show/']"
@@ -356,7 +375,11 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
                 return []
 
             await page.goto("https://www.registeruz.sk" + href, wait_until="domcontentloaded")
-            await page.wait_for_timeout(2000)
+            # Počkáme kým sa načítajú sekcie s collapse prvkami (event-driven)
+            try:
+                await page.wait_for_selector("span.js-collapse, a.js-collapse, .item a.js-collapse", timeout=5000)
+            except PlaywrightTimeout:
+                pass
 
             # ── Expandovanie VŠETKÝCH sekcií (nie len Individuálne) ──────────
             await _expand_all_sections(page)

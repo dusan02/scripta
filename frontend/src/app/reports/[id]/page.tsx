@@ -34,6 +34,7 @@ interface Report {
   resultUrl?: string | null;
   aiStatus?: string | null;
   eta?: number | null;
+  verifaScore?: number;
   sources: ReportSource[];
 }
 
@@ -423,6 +424,21 @@ export default function ReportDetailPage() {
   const canDownload = report.status === "COMPLETED" || report.status === "PARTIAL";
   const canRetry = report.status === "FAILED" || report.status === "PARTIAL";
 
+  const score = report.verifaScore ?? 100;
+  let scoreColorText = "text-emerald-600";
+  let scoreColorBorder = "border-emerald-500";
+  let scoreBg = "bg-emerald-500";
+  
+  if (score < 50) {
+    scoreColorText = "text-red-600";
+    scoreColorBorder = "border-red-500";
+    scoreBg = "bg-red-500";
+  } else if (score < 80) {
+    scoreColorText = "text-amber-500";
+    scoreColorBorder = "border-amber-500";
+    scoreBg = "bg-amber-500";
+  }
+
   return (
     <div className="max-w-[1000px] mx-auto px-4 sm:px-6 animate-fade-in" style={{ minHeight: "calc(100vh - 56px)" }}>
 
@@ -600,6 +616,22 @@ export default function ReportDetailPage() {
               sourcesTotal={report.sources.length}
             />
             <AggregateProgress sources={report.sources} />
+            {report.eta != null && report.eta > 0 && (
+              <div className="text-center mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                {(() => {
+                  const s = report.eta!;
+                  if (s < 60) return `Približný čas dokončenia: ~${s} s`;
+                  const m = Math.floor(s / 60);
+                  const r = s % 60;
+                  return `Približný čas dokončenia: ~${m} min${r > 0 ? ` ${r} s` : ""}`;
+                })()}
+              </div>
+            )}
+            {report.aiStatus && (
+              <div className="text-center mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                {report.aiStatus}
+              </div>
+            )}
             {report.sources.some(s => s.status === "FAILED" || s.status === "UNAVAILABLE") && (
               <div className="max-w-2xl mx-auto mt-4 w-full">
                  <ErrorDetails sources={report.sources} />
@@ -609,85 +641,112 @@ export default function ReportDetailPage() {
         ) : (
           <div className="fade-in flex flex-col items-center justify-center pt-6 pb-10 px-4">
 
-            {/* Premium Success Card */}
+            {/* PDF Preview Success Card */}
             {canDownload ? (
-              <div
-                className="flex flex-col items-center justify-center rounded-2xl mb-8 w-full max-w-[440px] transition-all"
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid color-mix(in srgb, var(--success) 30%, var(--border) 70%)",
-                  boxShadow: "0 12px 32px -8px color-mix(in srgb, var(--success) 15%, transparent), 0 2px 6px -1px color-mix(in srgb, var(--success) 8%, transparent)",
-                  padding: "36px 24px",
-                  position: "relative",
-                  overflow: "hidden"
-                }}
-              >
-                {/* Subtle top glow */}
-                <div 
-                  className="absolute top-0 left-0 right-0 h-1" 
-                  style={{ background: "linear-gradient(90deg, transparent 0%, var(--success) 50%, transparent 100%)", opacity: 0.7 }}
-                />
+              <div className="flex flex-col items-center justify-center mb-8 w-full transition-all fade-in">
                 
-                {/* Background ambient glow */}
-                <div 
-                  className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-[200px] h-[100px] rounded-full blur-3xl"
-                  style={{ background: "var(--success)", opacity: 0.1, pointerEvents: "none" }}
-                />
-                
-                {downloading ? (
-                  <div className="flex flex-col items-center gap-4 py-2 z-10">
-                    <svg className="animate-spin w-10 h-10 text-[var(--success)]" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                    <span className="font-bold text-[15px]" style={{ color: "var(--text)" }}>Sťahujem report…</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center z-10">
-                    <div className="mb-4 pointer-events-none drop-shadow-sm">
-                      <Logo size="lg" />
+                <h2 className="text-xl font-bold mb-2 flex items-center gap-2" style={{ color: "var(--success)" }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  Analýza úspešne dokončená
+                </h2>
+                <p className="text-[13.5px] text-center mb-6 max-w-[280px]" style={{ color: "var(--text-muted)" }}>
+                  Všetky štátne registre boli preverené a forenzný posudok je pripravený.
+                </p>
+
+                {/* PDF Preview Button */}
+                <button
+                  id="download-pdf-btn-completion"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="group relative flex flex-col items-center bg-white rounded-xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] w-full max-w-[280px] aspect-[1/1.414]"
+                  style={{
+                    border: "2px solid var(--success)",
+                    boxShadow: "0 12px 32px -8px color-mix(in srgb, var(--success) 35%, transparent), 0 2px 8px -1px color-mix(in srgb, var(--success) 15%, transparent)",
+                  }}
+                >
+                  {downloading && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-4 z-20">
+                      <svg className="animate-spin w-10 h-10 text-[var(--success)]" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      <span className="font-bold text-[14px]" style={{ color: "var(--success)" }}>Sťahujem report…</span>
+                    </div>
+                  )}
+
+                  {/* Inner content resembling the PDF cover page */}
+                  <div className="w-full h-full p-6 flex flex-col items-center text-center relative z-0 bg-white">
+                    <div className="mb-6 opacity-90"><Logo size="md" /></div>
+                    
+                    <div className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">
+                      Forenzný Due Diligence Report
                     </div>
                     
-                    <h2 className="text-lg font-bold mb-1.5" style={{ color: "var(--text)" }}>
-                      Analýza úspešne dokončená
-                    </h2>
+                    <div className="text-[15px] font-black text-slate-800 leading-tight mb-6">
+                      {report.companyName || identifier}
+                    </div>
                     
-                    <p className="text-[13.5px] text-center mb-8 max-w-[280px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                      Všetky štátne registre boli preverené a forenzný posudok je pripravený.
-                    </p>
-                    
-                    <div className="flex flex-col gap-3 w-full">
-                      <button
-                        id="download-pdf-btn-completion"
-                        onClick={handleDownload}
-                        className="group flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-[14px] transition-all hover:scale-[1.02] active:scale-[0.98] w-full"
-                        style={{ 
-                          background: "var(--accent)", 
-                          color: "#000",
-                          boxShadow: "0 6px 16px -4px color-mix(in srgb, var(--accent) 40%, transparent)",
-                          border: "1px solid color-mix(in srgb, var(--accent) 80%, #000 20%)"
-                        }}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform group-hover:-translate-y-0.5">
-                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        Stiahnuť forenzný report
-                      </button>
+                    {/* Mock Stamp */}
+                    <div className="mt-auto mb-auto relative w-24 h-24 flex items-center justify-center transform rotate-[-8deg] opacity-80">
+                      <div className={`absolute inset-0 rounded-full border-[2.5px] ${scoreColorBorder} border-dashed opacity-60`} />
+                      <div className={`absolute inset-[4px] rounded-full border-[1.5px] ${scoreColorBorder} opacity-90`} />
+                      <div className={`absolute inset-[12px] rounded-full border ${scoreColorBorder} border-dashed opacity-40`} />
                       
-                      <button
-                        onClick={handleShareEmail}
-                        className="flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-semibold text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800 w-full"
-                        style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                          <polyline points="22,6 12,13 2,6"></polyline>
-                        </svg>
-                        Poslať e-mailom (s PDF v prílohe)
-                      </button>
+                      <div className={`${scoreColorText} font-black text-[8px] tracking-widest absolute top-[18px]`}>★ VERIFA ★</div>
+                      <div className={`${scoreColorText} font-black text-2xl mt-1`}>
+                        {score}
+                      </div>
+                      <div className={`w-8 h-[2px] ${scoreBg} absolute bottom-7 opacity-50`} />
+                      <div className={`${scoreColorText} font-bold text-[7px] tracking-widest absolute bottom-[16px]`}>SKÓRE</div>
+                    </div>
+
+                    {/* Mock Footer Area */}
+                    <div className="w-full mt-auto">
+                      <div className="flex justify-between items-end mb-4">
+                        <div className="space-y-1.5">
+                          <div className="w-12 h-[3px] bg-slate-200 rounded-full"></div>
+                          <div className="w-16 h-[3px] bg-slate-200 rounded-full"></div>
+                          <div className="w-10 h-[3px] bg-slate-200 rounded-full"></div>
+                        </div>
+                        <div className="w-14 h-4 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center px-1 gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                          <div className="w-6 h-1.5 bg-emerald-200 rounded-full"></div>
+                        </div>
+                      </div>
+                      <div className="w-full border-t border-slate-200 pt-3">
+                        <div className="w-24 h-[2px] bg-slate-200 rounded-full mx-auto mb-1.5"></div>
+                        <div className="w-32 h-[2px] bg-slate-200 rounded-full mx-auto"></div>
+                      </div>
                     </div>
                   </div>
-                )}
+
+                  {/* Overlay Success message and Download Icon on Hover */}
+                  <div className="absolute inset-0 bg-emerald-900/5 flex flex-col items-center justify-center backdrop-blur-[1.5px] opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
+                    <div className="bg-emerald-500 text-white p-4 rounded-full mb-3 shadow-xl transform translate-y-3 group-hover:translate-y-0 transition-all duration-300">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="font-bold text-emerald-700 bg-white px-5 py-2 rounded-full text-[13px] shadow-md transform translate-y-3 group-hover:translate-y-0 transition-all duration-300 delay-75">
+                      Stiahnuť PDF report
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handleShareEmail}
+                  className="mt-5 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                  </svg>
+                  Poslať e-mailom (s PDF v prílohe)
+                </button>
               </div>
             ) : (
               <>

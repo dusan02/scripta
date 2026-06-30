@@ -32,7 +32,7 @@ class RpvsScraper(BaseScraper):
             # 1. Načítaj úvodnú stránku
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=30000, wait_until="domcontentloaded")
+                await page.goto(self.base_url, timeout=15000, wait_until="domcontentloaded")
             except PlaywrightTimeoutError:
                 logger.error(f"[{self.source_type}] Timeout pri načítaní úvodnej stránky RPVS.")
                 raise ScraperUnavailableError("Timeout pri načítaní stránky RPVS.")
@@ -40,14 +40,14 @@ class RpvsScraper(BaseScraper):
             # 2. Klikni na "Rozšírené vyhľadávanie"
             advanced_link = page.get_by_role("link", name="Rozšírené vyhľadávanie")
             try:
-                await advanced_link.wait_for(state="visible", timeout=10000)
+                await advanced_link.wait_for(state="visible", timeout=5000)
                 await advanced_link.click()
-                await page.wait_for_url("**/VyhladavaniePartnera*", timeout=15000)
+                await page.wait_for_url("**/VyhladavaniePartnera*", timeout=10000)
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Zlyhal klik na 'Rozšírené vyhľadávanie' ({e}), navigujem priamo.")
                 await page.goto(
                     "https://rpvs.gov.sk/rpvs/Partner/Partner/VyhladavaniePartnera?zachovatFiltre=false",
-                    timeout=20000,
+                    timeout=10000,
                     wait_until="domcontentloaded",
                 )
 
@@ -57,7 +57,7 @@ class RpvsScraper(BaseScraper):
             # 3. Zadaj IČO do políčka "IČO"
             ico_input = page.get_by_role("textbox", name="IČO")
             try:
-                await ico_input.wait_for(state="visible", timeout=10000)
+                await ico_input.wait_for(state="visible", timeout=5000)
                 await ico_input.fill(ico)
             except PlaywrightTimeoutError:
                 logger.error(f"[{self.source_type}] Nenájdené pole IČO.")
@@ -66,7 +66,7 @@ class RpvsScraper(BaseScraper):
             # 4. Klikni "Hľadať"
             search_btn = page.get_by_role("button", name="Hľadať")
             try:
-                await search_btn.wait_for(state="visible", timeout=10000)
+                await search_btn.wait_for(state="visible", timeout=5000)
                 await search_btn.click()
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] 'Hľadať' tlačidlo nenájdené cez get_by_role, skúšam CSS.")
@@ -85,7 +85,7 @@ class RpvsScraper(BaseScraper):
                         return hasIco || hasNoResults;
                     }""",
                     arg=ico,
-                    timeout=20000
+                    timeout=10000
                 )
                 logger.info(f"[{self.source_type}] Výsledky vyhľadávania načítané.")
             except Exception as e:
@@ -98,7 +98,7 @@ class RpvsScraper(BaseScraper):
             company_link = page.locator("tbody tr td:nth-child(2) a").first
             company_name = None
             try:
-                await company_link.wait_for(state="visible", timeout=15000)
+                await company_link.wait_for(state="visible", timeout=8000)
                 company_name = await company_link.inner_text()
                 if company_name:
                     company_name = company_name.strip()
@@ -123,8 +123,8 @@ class RpvsScraper(BaseScraper):
             try:
                 heading_partner = page.get_by_role("heading", name="Partner verejného sektora")
                 heading_data = page.get_by_role("heading", name="Aktuálne údaje")
-                await heading_partner.wait_for(state="visible", timeout=15000)
-                await heading_data.wait_for(state="visible", timeout=15000)
+                await heading_partner.wait_for(state="visible", timeout=8000)
+                await heading_data.wait_for(state="visible", timeout=8000)
                 logger.info(f"[{self.source_type}] Stránka detailu úspešne overená.")
             except PlaywrightTimeoutError:
                 logger.error(f"[{self.source_type}] Načítanie detailu zlyhalo alebo chýbajú očakávané nadpisy.")
@@ -137,7 +137,7 @@ class RpvsScraper(BaseScraper):
             try:
                 # Skúsime kliknúť na viditeľné tlačidlo/odkaz obsahujúci text "Stiahnuť výpis"
                 download_selector = "a:has-text('Stiahnuť výpis'):visible"
-                await page.locator(download_selector).first.wait_for(state="visible", timeout=10000)
+                await page.locator(download_selector).first.wait_for(state="visible", timeout=5000)
                 await self._download_pdf(page, download_selector, file_path)
                 logger.debug(f"[{self.source_type}] ⏱ detail + download_pdf: {time.perf_counter() - _t:.2f}s")
                 logger.info(f"[{self.source_type}] Oficiálny PDF výpis úspešne stiahnutý do {file_path}")

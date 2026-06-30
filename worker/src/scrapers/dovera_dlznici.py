@@ -27,7 +27,7 @@ class DoveraDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=20000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=10000, wait_until='domcontentloaded')
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] Dôvera nedostupná ({e}) — generujem fallback PDF.")
                 pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
@@ -55,7 +55,7 @@ class DoveraDlzniciScraper(BaseScraper):
             # Kliknúť "Prijať všetky" (cookie banner)
             try:
                 btn = page.get_by_role("button", name="Prijať všetky")
-                await btn.wait_for(timeout=5000)
+                await btn.wait_for(timeout=3000)
                 await btn.click()
                 logger.info(f"[{self.source_type}] Cookie banner prijatý.")
             except PlaywrightTimeoutError:
@@ -73,12 +73,17 @@ class DoveraDlzniciScraper(BaseScraper):
             # Vyplniť IČO do textového poľa — skúšame viacero selektorov
             try:
                 try:
-                    await page.wait_for_load_state("networkidle", timeout=8000)
+                    await page.wait_for_load_state("networkidle", timeout=5000)
                 except PlaywrightTimeoutError:
                     pass
 
-                # Dôvera lazy-loaduje formulár — počkáme navyše
-                await page.wait_for_timeout(1000)
+                # Dôvera lazy-loaduje formulár — počkáme na input pole (event-driven)
+                try:
+                    await page.wait_for_selector(
+                    "input[placeholder*='IČO'], input[placeholder*='ico'], input[type='text'], input[type='search'], #ico, input.search-input",
+                    timeout=3000)
+                except PlaywrightTimeoutError:
+                    pass
 
                 ico_filled = False
                 for selector in [
@@ -95,7 +100,7 @@ class DoveraDlzniciScraper(BaseScraper):
                 ]:
                     try:
                         el = page.locator(selector).first
-                        await el.wait_for(timeout=3000)
+                        await el.wait_for(timeout=2000)
                         await el.click()
                         await el.fill(ico)
                         ico_filled = True
@@ -108,7 +113,7 @@ class DoveraDlzniciScraper(BaseScraper):
                     # Skús role-based ako posledný pokus
                     try:
                         textbox = page.get_by_role("textbox")
-                        await textbox.first.wait_for(timeout=5000)
+                        await textbox.first.wait_for(timeout=3000)
                         await textbox.first.click()
                         await textbox.first.fill(ico)
                         ico_filled = True
@@ -169,7 +174,7 @@ class DoveraDlzniciScraper(BaseScraper):
             ]:
                 try:
                     btn = page.locator(selector).first
-                    await btn.wait_for(timeout=3000)
+                    await btn.wait_for(timeout=2000)
                     await btn.click()
                     search_clicked = True
                     logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté (selector: {selector}).")
@@ -180,7 +185,7 @@ class DoveraDlzniciScraper(BaseScraper):
             if not search_clicked:
                 try:
                     search_btn = page.get_by_text("Hľadať", exact=True)
-                    await search_btn.wait_for(timeout=5000)
+                    await search_btn.wait_for(timeout=3000)
                     await search_btn.click()
                     search_clicked = True
                     logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté cez get_by_text.")
@@ -220,12 +225,13 @@ class DoveraDlzniciScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 pass
 
-            # Počkať na výsledky
-            await page.wait_for_timeout(2000)
+            # Počkať na výsledky — čakáme kým sa objaví buď tabuľka s dĺžníkmi alebo text o žiadnych výsledkoch
+            no_results_locator = page.locator("text=sme nenašli žiadne výsledky")
+            table_locator = page.locator("table tbody tr, .result-table tr, .table tbody tr")
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=8000)
+                await no_results_locator.or_(table_locator).first.wait_for(timeout=8000)
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] domcontentloaded timeout — pokračujem.")
+                logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 
             # Skontrolovať výsledky — vyžadujeme obe podmienky pre negatívny výsledok
             body_text = await page.inner_text("body")

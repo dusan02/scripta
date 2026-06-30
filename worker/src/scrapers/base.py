@@ -110,9 +110,9 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         last_error: Optional[Exception] = None
         for attempt in range(retries + 1):
             try:
-                await page.goto(url, timeout=20000, wait_until="commit")
+                await page.goto(url, timeout=10000, wait_until="commit")
                 try:
-                    await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                    await page.wait_for_load_state("domcontentloaded", timeout=5000)
                 except PlaywrightTimeout:
                     logger.debug(f"[{self.source_type}] DOM load timeout, continuing anyway")
                 return

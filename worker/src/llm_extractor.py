@@ -26,25 +26,25 @@ def _log_tokens(model: str, usage, label: str) -> None:
 class AuditorReportData(BaseModel):
     nazor_auditora: str = Field(..., description="Typ názoru: 'Bez výhrad', 'S výhradou', 'Záporný', 'Odmietnutie vyjadriť názor'.")
     going_concern_riziko: bool = Field(..., description="True, ak audítor spomína významnú neistotu týkajúcu sa going concern. Inak False.")
-    auditor_vyhrady_text: Optional[str] = Field(None, description="Zhrnutie výhrad audítora, ak existujú.")
+    auditor_vyhrady_text: Optional[str] = Field(..., description="Zhrnutie výhrad audítora, ak existujú.")
 
 class FinancialMetrics(BaseModel):
     rok_zavierky: int = Field(...)
     celkove_aktiva: float = Field(...)
-    obezny_majetok: float = Field(0, description="Obežný majetok (current assets) — zásoby, pohľadávky, krátkodobý finančný majetok. Ak chýba, vráť 0.")
+    obezny_majetok: float = Field(..., description="Obežný majetok (current assets) — zásoby, pohľadávky, krátkodobý finančný majetok. Ak chýba, vráť 0.")
     vlastne_imanie_celkom: float = Field(...)
     kratkodobe_zavazky: float = Field(...)
-    dlhodobeZavazky: float = Field(0, description="Dlhodobé záväzky (long-term liabilities) — bankové úvery, dlhopisy, lízingové záväzky > 1 rok. Ak chýba alebo neexistuje, vráť 0.")
+    dlhodobeZavazky: float = Field(..., description="Dlhodobé záväzky (long-term liabilities) — bankové úvery, dlhopisy, lízingové záväzky > 1 rok. Ak chýba alebo neexistuje, vráť 0.")
     trzby_z_hlavnej_cinnosti: float = Field(...)
-    hruba_marza: float = Field(0, description="Hrubý zisk = Tržby - Náklady na predaný tovar (COGS). Pre servisné firmy kde COGS nie je vykazovaný, vráť 0.")
+    hruba_marza: float = Field(..., description="Hrubý zisk = Tržby - Náklady na predaný tovar (COGS). Pre servisné firmy kde COGS nie je vykazovaný, vráť 0.")
     zisk_alebo_strata_po_zdaneni: float = Field(...)
     peniaze_a_penazne_ekvivalenty_k_31_12: float = Field(...)
     ciste_penazne_toky_z_prevadzkovej_cinnosti: float = Field(...)
-    osobne_naklady: float = Field(0, description="Personálne/osobné náklady (Staff costs). Ak chýbajú (0 zamestnancov), vráť 0.")
-    pohladavky_z_obchodneho_styku: float = Field(0, description="Pohľadávky z obchodného styku (Trade receivables). Ak chýba, vráť 0.")
-    zavazky_z_obchodneho_styku: float = Field(0, description="Záväzky z obchodného styku (Trade payables). Ak chýba, vráť 0.")
-    mena: str = Field("EUR", description="Mena výkazu: 'EUR', 'CZK', 'USD'. Ak výkaz uvádza 'v tisícoch EUR', mena je stále EUR (konverzia sa rieši v iných pravidlách).")
-    typ_zavierky: str = Field("SK_GAAP", description="Typ závierky: 'IFRS' ak dokument explicitne uvádza IFRS, 'MICRO' pre Úč MUJ mikro jednotky, inak 'SK_GAAP'.")
+    osobne_naklady: float = Field(..., description="Personálne/osobné náklady (Staff costs). Ak chýbajú (0 zamestnancov), vráť 0.")
+    pohladavky_z_obchodneho_styku: float = Field(..., description="Pohľadávky z obchodného styku (Trade receivables). Ak chýba, vráť 0.")
+    zavazky_z_obchodneho_styku: float = Field(..., description="Záväzky z obchodného styku (Trade payables). Ak chýba, vráť 0.")
+    mena: str = Field(..., description="Mena výkazu: 'EUR', 'CZK', 'USD'. Ak výkaz uvádza 'v tisícoch EUR', mena je stále EUR (konverzia sa rieši v iných pravidlách).")
+    typ_zavierky: str = Field(..., description="Typ závierky: 'IFRS' ak dokument explicitne uvádza IFRS, 'MICRO' pre Úč MUJ mikro jednotky, inak 'SK_GAAP'.")
 
 class CompanyFinancialExtraction(BaseModel):
     ico: str = Field(...)
@@ -89,7 +89,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     ico_match = re.search(r'IFRS_(\d{8})_', filename)
     expected_ico = ico_match.group(1) if ico_match else None
 
-    client = genai.Client()
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     
     # Upload the file to Gemini via File API
     uploaded_file = client.files.upload(file=file_path)
@@ -151,7 +151,7 @@ async def extract_vestnik_event(text: str, model: str = settings.model_vestnik) 
     """
     Spracuje surový textový blok z XML Obchodného vestníka a vráti Pydantic objekt VestnikExtraction.
     """
-    client = genai.Client()
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     
     config = types.GenerateContentConfig(
         system_instruction=VESTNIK_SYSTEM_PROMPT,
@@ -169,13 +169,13 @@ async def extract_vestnik_event(text: str, model: str = settings.model_vestnik) 
     return VestnikExtraction.model_validate_json(response.text)
 
 class NarrativeRiskAnalysis(BaseModel):
-    management_changes: Optional[str] = Field(description="Zmeny v štatutárnych orgánoch alebo kľúčovom manažmente a ich forenzný dopad.")
-    litigation_risks: Optional[str] = Field(description="Súdne spory, exekúcie alebo právne hrozby spomenuté v texte.")
-    going_concern_doubts: bool = Field(description="Indície, že firma má problémy s likviditou alebo pokračovaním v činnosti.")
-    planned_investments: Optional[str] = Field(description="Plánované investície, ktoré môžu naznačovať agresívny rast alebo naopak prípravu na predaj firmy.")
-    profitability_explanation: Optional[str] = Field(default=None, description="Vysvetlenie manažmentu k výkyvom v ziskovosti a cash-flow.")
-    forensic_red_flags: List[str] = Field(description="Zoznam identifikovaných rizikových indikátorov v texte správy.")
-    synthesis: str = Field(description="Krátka syntéza: Je táto firma v stabilnom stave, alebo vykazuje známky nestability?")
+    management_changes: Optional[str] = Field(..., description="Zmeny v štatutárnych orgánoch alebo kľúčovom manažmente a ich forenzný dopad.")
+    litigation_risks: Optional[str] = Field(..., description="Súdne spory, exekúcie alebo právne hrozby spomenuté v texte.")
+    going_concern_doubts: bool = Field(..., description="Indície, že firma má problémy s likviditou alebo pokračovaním v činnosti.")
+    planned_investments: Optional[str] = Field(..., description="Plánované investície, ktoré môžu naznačovať agresívny rast alebo naopak prípravu na predaj firmy.")
+    profitability_explanation: Optional[str] = Field(..., description="Vysvetlenie manažmentu k výkyvom v ziskovosti a cash-flow.")
+    forensic_red_flags: List[str] = Field(..., description="Zoznam identifikovaných rizikových indikátorov v texte správy.")
+    synthesis: str = Field(..., description="Krátka syntéza: Je táto firma v stabilnom stave, alebo vykazuje známky nestability?")
 
 NARRATIVE_SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je extrahovať z dokumentu len informácie, ktoré majú právnu alebo finančnú relevanciu.
 Tvoje pravidlá:
@@ -192,7 +192,7 @@ async def extract_narrative_risk(file_path: str, model: str = settings.model_nar
     ~15 strán (manažérska správa) v `pipeline.py`, aby sa ušetrili tokeny a zrýchlilo 
     vyhodnocovanie cez model 2.5-flash.
     """
-    client = genai.Client()
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     
     # Upload the file to Gemini via File API
     uploaded_file = client.files.upload(file=file_path)
@@ -226,7 +226,7 @@ class EvidenceItem(BaseModel):
     tvrdenie: str = Field(..., description="Stručné tvrdenie (napr. 'Firma má aktívne exekúcie', 'Silný rast tržieb', 'Nízka likvidita')")
     dokaz: str = Field(..., description="Konkrétny dôkaz a hodnota (napr. '2 aktívne záznamy od 12.5.2023', 'CAGR +15% YoY')")
     zdroj: str = Field(..., description="Názov sekcie alebo registra (napr. 'Slovenská komora exekútorov', 'Analýza trendov')")
-    impact: Literal["POSITIVE", "NEUTRAL", "WARNING", "CRITICAL"] = Field("NEUTRAL", description="Závažnosť zistenia.")
+    impact: Literal["POSITIVE", "NEUTRAL", "WARNING", "CRITICAL"] = Field(..., description="Závažnosť zistenia.")
 
 class AuditVerdict(BaseModel):
     verifa_score: int = Field(..., ge=0, le=100, description="Finálne skóre integrity a zdravia.")
@@ -287,7 +287,7 @@ async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: st
     """
     import fitz
 
-    client = genai.Client()
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
 
     # Príprava obsahu - začneme JSON dátami
     contents = [data_json]

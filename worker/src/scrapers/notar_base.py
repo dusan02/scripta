@@ -41,28 +41,28 @@ class NotarBaseScraper(BaseScraper):
 
             ico_input = page.get_by_role("textbox", name=self._field_label)
             try:
-                await ico_input.wait_for(state="visible", timeout=10000)
+                await ico_input.wait_for(state="visible", timeout=5000)
                 await ico_input.fill(ico)
             except PlaywrightTimeoutError:
                 raise ScraperUnavailableError(f"{self.source_type}: Nenájdené pole '{self._field_label}'.")
 
             search_btn = page.get_by_role("button", name="Hľadať")
             try:
-                await search_btn.wait_for(state="visible", timeout=10000)
+                await search_btn.wait_for(state="visible", timeout=5000)
                 await search_btn.click()
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] 'Hľadať' tlačidlo nenájdené cez get_by_role, skúšam CSS.")
                 await page.locator("button:has-text('Hľadať'), input[value*='Hľadať']").first.click()
 
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                await page.wait_for_load_state("domcontentloaded", timeout=5000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] domcontentloaded timeout, pokračujem...")
 
             no_results_locator = page.locator(f"text={_NO_RESULTS_TEXT}")
             table_row_locator = page.locator("table tbody tr")
             try:
-                await no_results_locator.or_(table_row_locator).first.wait_for(timeout=15000)
+                await no_results_locator.or_(table_row_locator).first.wait_for(timeout=8000)
                 logger.info(f"[{self.source_type}] Výsledky vyhľadávania načítané.")
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem...")
@@ -168,7 +168,7 @@ class NotarBaseScraper(BaseScraper):
                         return current !== prev;
                     }""",
                     arg=rows_before,
-                    timeout=10000
+                    timeout=5000
                 )
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Tabuľka sa po kliknutí na stranu {page_num} nezmenila včas.")

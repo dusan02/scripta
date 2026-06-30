@@ -29,6 +29,16 @@ export async function GET(
 
     console.log("DEBUG API route report.aiStatus:", report.aiStatus);
 
+    let verifaScore = 100;
+    if (report.ico) {
+      const verdict = await prisma.auditVerdict.findUnique({
+        where: { companyIco: report.ico }
+      });
+      if (verdict) {
+        verifaScore = verdict.verifaScore;
+      }
+    }
+
     return NextResponse.json({
       id: report.id,
       status: report.status,
@@ -41,6 +51,7 @@ export async function GET(
       resultUrl: report.resultUrl,
       aiStatus: report.aiStatus,
       eta: report.eta,
+      verifaScore: verifaScore,
       sources: report.sources.map((s) => ({
         id: s.id,
         sourceType: s.sourceType,

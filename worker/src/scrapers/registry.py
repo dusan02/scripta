@@ -110,7 +110,7 @@ async def run_scrapers(
 
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
     fs_semaphore = asyncio.Semaphore(3)
-    global_semaphore = asyncio.Semaphore(8)
+    global_semaphore = asyncio.Semaphore(12)
 
     # Rozdelíme na nezávislé a závislé scrapery
     independent = [s for s in sources if s not in _DEPENDS_ON]

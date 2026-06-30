@@ -99,7 +99,6 @@ class RpoScraper(BaseScraper):
                 await result_link.or_(empty_locator).first.wait_for(timeout=20000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
-            await page.wait_for_timeout(500)
 
             # 5. Skontrolovať prázdne výsledky
             body_text = await page.inner_text("body")
@@ -154,12 +153,11 @@ class RpoScraper(BaseScraper):
                 await page.wait_for_load_state("networkidle", timeout=15000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] networkidle timeout, pokračujem.")
-            await page.wait_for_timeout(2000)
 
             # 8. Rozbaliť všetky "+" sekcie
-            # Počkať na rozbaľovacie tlačidlá
+            # Počkáme na rozbaľovacie tlačidlá (event-driven namiesto wait_for_timeout)
             try:
-                await page.locator("button.mc-expandable-list-item__header-items-count").first.wait_for(timeout=10000)
+                await page.locator("button.mc-expandable-list-item__header-items-count").first.wait_for(timeout=5000)
             except PlaywrightTimeoutError:
                 logger.info(f"[{self.source_type}] Žiadne rozbaľovacie tlačidlá — možno detail bez sekcií.")
 
@@ -170,7 +168,6 @@ class RpoScraper(BaseScraper):
                 await page.wait_for_load_state("networkidle", timeout=10000)
             except PlaywrightTimeoutError:
                 pass
-            await page.wait_for_timeout(1000)
 
             # 9. Extrahovať findings z detailu
             findings = await self._extract_findings(page, ico, company_name)
@@ -244,7 +241,11 @@ class RpoScraper(BaseScraper):
                 return
             
             logger.info(f"[{self.source_type}] Round {round_num}: Rozbalených {clicked} sekcií, čakám na render...")
-            await page.wait_for_timeout(800)
+            # Počkáme kým sa nové sekcie načítajú (event-driven)
+            try:
+                await page.wait_for_selector(".mc-expandable-list-item__content:not(:empty)", timeout=3000)
+            except PlaywrightTimeoutError:
+                pass
 
         logger.warning(f"[{self.source_type}] Dosiahnutý maximálny počet kôl rozbalovania ({max_rounds}).")
 
@@ -327,8 +328,11 @@ class RpoScraper(BaseScraper):
         try:
             await page.set_viewport_size({"width": 1920, "height": 1080})
 
-            # Počkať na stabilizáciu DOMu (React SPA môže re-renderovať)
-            await page.wait_for_timeout(500)
+            # Počkať na stabilizáciu DOMu — čakáme kým React dokončí render (event-driven)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=3000)
+            except PlaywrightTimeoutError:
+                pass
 
             # Odstrániť navigáciu/header/footer pre čisté PDF
             await page.evaluate("""(title) => {
@@ -353,8 +357,6 @@ class RpoScraper(BaseScraper):
                 th { background: #f3f4f6 !important; font-weight: 600 !important; }
                 td, th { padding: 4px 8px !important; word-break: break-word !important; white-space: normal !important; }
             """)
-
-            await page.wait_for_timeout(300)
 
             await page.pdf(
                 path=str(output_path),

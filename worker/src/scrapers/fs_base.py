@@ -271,7 +271,6 @@ class FinancnaSpravaBase(BaseScraper):
 
             logger.info(f"[{self.source_type}] Vyplňujem: {search_query}")
             await search_input.fill(search_query)
-            await page.wait_for_timeout(500)
 
             # Kliknúť na Vyhľadať
             logger.info(f"[{self.source_type}] Hľadám tlačidlo Vyhľadať...")
@@ -430,7 +429,6 @@ class FinancnaSpravaBase(BaseScraper):
                 await rozumiem_btn.wait_for(timeout=3000)
                 await rozumiem_btn.click()
                 logger.info(f"[{self.source_type}] Modálny dialog — kliknuté 'Rozumiem'.")
-                await page.wait_for_timeout(1000)
             except PlaywrightTimeoutError:
                 logger.info(f"[{self.source_type}] Žiadny modal sa nenašiel, pokračujem.")
         except Exception as e:

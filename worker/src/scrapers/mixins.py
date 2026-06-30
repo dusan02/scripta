@@ -554,8 +554,7 @@ class CaptchaSolverMixin:
                 if frame:
                     await frame.locator("body").click(timeout=5000)
                     logger.info(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Cloudflare challenge kliknuté.")
-                    await page.wait_for_timeout(3000)
-                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    await page.wait_for_load_state("domcontentloaded", timeout=10000)
             except PlaywrightTimeout:
                 break
             except Exception as e:

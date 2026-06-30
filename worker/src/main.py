@@ -15,6 +15,8 @@ from .logging_setup import setup_logging
 from .db import (
     get_db_pool,
     update_report_status,
+    update_report_ai_status,
+    get_avg_completion_seconds,
     upsert_report_sources,
     upsert_single_report_source,
     close_db_pool,
@@ -123,6 +125,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
         pool = await get_db_pool()
         await update_report_status(pool, task.report_request_id, "PROCESSING")
 
+        # Nastavíme počiatočný ETA z historických dát, aby frontend zobrazil odhad hneď
+        avg_seconds = await get_avg_completion_seconds(pool)
+        initial_eta = int(avg_seconds) if avg_seconds and avg_seconds > 0 else 130
+        await update_report_ai_status(pool, task.report_request_id, "Preverovanie štátnych registrov", initial_eta)
+
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(headless=settings.playwright_headless)
         t_browser = time.perf_counter()
@@ -193,7 +200,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
             except Exception as verdict_err:
                 logger.error(f"[WORKER] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
 
-        from src.db import update_report_ai_status, get_avg_completion_seconds
         compile_eta = 50
         avg_seconds = await get_avg_completion_seconds(pool)
         if avg_seconds and float(avg_seconds) > 0:

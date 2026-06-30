@@ -134,7 +134,7 @@ class DiskvalifikacieScraper(BaseScraper):
             # Vyčistenie a vyplnenie search boxu
             search_input = page.get_by_role("textbox", name="Vyhľadajte podľa mena alebo")
             try:
-                await search_input.wait_for(state="visible", timeout=10000)
+                await search_input.wait_for(state="visible", timeout=5000)
                 await search_input.click()
                 await search_input.fill(clean_name)
             except PlaywrightTimeoutError:
@@ -152,11 +152,13 @@ class DiskvalifikacieScraper(BaseScraper):
                 await page.locator("button:has-text('Search'), button[type='submit']").first.click()
 
             # Čakať na výsledky
+            # Počkáme kým sa objaví zoznam výsledkov alebo text o žiadnych výsledkoch
+            no_results_loc = page.locator("text=žiadne výsledky, text=neboli nájdené žiadne, text=zadaným kritériám nezodpovedajú, text=nenašli sa žiadne záznamy")
+            results_loc = page.locator("table tbody tr, .result-table tr, .search-results tr")
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                await no_results_loc.or_(results_loc).first.wait_for(timeout=5000)
             except PlaywrightTimeoutError:
                 pass
-            await page.wait_for_timeout(1500)
 
             body_text = await page.inner_text("body")
             lowered = body_text.lower()
@@ -205,11 +207,11 @@ class DiskvalifikacieScraper(BaseScraper):
 
                 # Kliknúť na detail
                 await link.click()
+                # Počkáme kým sa načíta detail stránka (event-driven)
                 try:
-                    await page.wait_for_load_state("domcontentloaded", timeout=10000)
+                    await page.wait_for_load_state("domcontentloaded", timeout=5000)
                 except PlaywrightTimeoutError:
                     pass
-                await page.wait_for_timeout(1000)
 
                 detail_url = page.url
                 detail_text = await page.inner_text("body")
@@ -245,11 +247,11 @@ class DiskvalifikacieScraper(BaseScraper):
 
                 # Návrat na výsledky vyhľadávania
                 await page.go_back()
+                # Počkáme kým sa načíta zoznam výsledkov (event-driven)
                 try:
-                    await page.wait_for_load_state("domcontentloaded", timeout=5000)
+                    await page.wait_for_selector("table tbody tr, .result-table tr, text=žiadne výsledky", timeout=5000)
                 except PlaywrightTimeoutError:
                     pass
-                await page.wait_for_timeout(500)
 
                 return result
 

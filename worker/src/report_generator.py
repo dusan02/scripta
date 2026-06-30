@@ -47,6 +47,17 @@ def format_currency(value: float) -> str:
         return f"{value / 1_000:,.1f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
     return f"{value:,.0f} €".replace(",", " ")
 
+def format_number(value: float) -> str:
+    """Vráti číslo bez menovej prípony — pre tabuľky kde je jednotka uvedená v hlavičke."""
+    if value is None:
+        return "—"
+    abs_val = abs(value)
+    if abs_val >= 1_000_000:
+        return f"{value / 1_000_000:,.1f}".replace(",", "X").replace(".", ",").replace("X", " ")
+    elif abs_val >= 1_000:
+        return f"{value / 1_000:,.0f}".replace(",", "X").replace(".", ",").replace("X", " ")
+    return f"{value:,.0f}".replace(",", " ")
+
 def generate_financial_chart(statements) -> str:
     """
     Vygeneruje Matplotlib graf (Tržby vs. Zisk) v Corporate Minimalist štýle
@@ -321,6 +332,7 @@ def render_html_report(context: dict) -> str:
     templates_dir = current_dir / "templates"
     env = Environment(loader=FileSystemLoader(templates_dir))
     env.filters['format_currency'] = format_currency
+    env.filters['format_number'] = format_number
     env.filters['format_findings'] = format_findings
     
     template = env.get_template("report_template.html")

@@ -42,7 +42,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
         found_events = []
 
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            async with httpx.AsyncClient(timeout=30) as client:
                 # 1. Konkurz/reštrukturalizácia/likvidácia — najkritické
                 found_events.extend(
                     await self._fetch_and_filter(client, "konkurz_restrukturalizacia_issues", ico_int, ico_clean)

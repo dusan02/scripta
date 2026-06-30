@@ -126,7 +126,13 @@ class PovereniaScraper(BaseScraper):
             await self._wait_for_results(page)
 
             await page.evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
-            await page.wait_for_timeout(1000)
+            # Počkáme kým sa objaví výsledok — poverenie alebo text o žiadnych výsledkoch
+            no_results_loc = page.locator("text=neexistuje žiadne poverenie, text=nenašli sa žiadne, text=žiadne záznamy")
+            results_loc = page.locator("text=poverenie ecli")
+            try:
+                await no_results_loc.or_(results_loc).first.wait_for(timeout=5000)
+            except PlaywrightTimeoutError:
+                pass
 
             body_text = await page.inner_text("body")
             lowered = body_text.lower()
@@ -202,7 +208,6 @@ class PovereniaScraper(BaseScraper):
             btn = page.get_by_role("button", name="Prijať analytické cookies")
             await btn.wait_for(timeout=5000)
             await btn.click()
-            await page.wait_for_timeout(1000)
             logger.info(f"[{self.source_type}] Cookie banner prijatý.")
         except PlaywrightTimeoutError:
             logger.info(f"[{self.source_type}] Cookie banner sa nezobrazil.")
@@ -210,18 +215,21 @@ class PovereniaScraper(BaseScraper):
     async def _search(self, page: Page, ico: str) -> None:
         try:
             radio = page.get_by_role("radio", name="podľa IČO, resp. názvu povinn")
-            await radio.wait_for(timeout=10000)
+            await radio.wait_for(timeout=5000)
             await radio.check()
-            await page.wait_for_timeout(500)
+            # Počkáme kým sa objaví IČO input po zmene radio (event-driven)
+            try:
+                await page.get_by_role("textbox", name="IČO").wait_for(timeout=3000)
+            except PlaywrightTimeoutError:
+                pass
 
             ico_input = page.get_by_role("textbox", name="IČO")
-            await ico_input.wait_for(timeout=10000)
+            await ico_input.wait_for(timeout=5000)
             await ico_input.click()
             await ico_input.fill(ico)
-            await page.wait_for_timeout(300)
 
             search_btn = page.get_by_role("button", name="Hľadať poverenie")
-            await search_btn.wait_for(timeout=10000)
+            await search_btn.wait_for(timeout=5000)
             await search_btn.click()
             logger.info(f"[{self.source_type}] Vyhľadávanie odoslané pre IČO: {ico}")
         except PlaywrightTimeoutError as e:
@@ -230,12 +238,12 @@ class PovereniaScraper(BaseScraper):
 
     async def _wait_for_results(self, page: Page) -> None:
         try:
-            await page.wait_for_url("**/vysledky-vyhladavania*", timeout=20000)
+            await page.wait_for_url("**/vysledky-vyhladavania*", timeout=10000)
             logger.info(f"[{self.source_type}] URL výsledkov: {page.url}")
         except PlaywrightTimeoutError:
             logger.warning(f"[{self.source_type}] URL sa nezmenila. Aktuálna: {page.url}")
         try:
-            await page.wait_for_load_state("networkidle", timeout=10000)
+            await page.wait_for_load_state("networkidle", timeout=5000)
         except PlaywrightTimeoutError:
             pass
 

@@ -55,19 +55,20 @@
 
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
     <!-- Tabuľka historických ročníkov s YoY deltami -->
-    <table class="w-full text-xs border-collapse mt-2">
+    <p class="text-[9px] text-slate-400 mb-1">Sumy v mil. € (ak &gt; 1 mil.) alebo tis. €</p>
+    <table class="w-full text-xs border-collapse mt-1">
         <thead>
             <tr class="bg-slate-100">
                 <th class="text-left py-1.5 px-2 font-bold text-slate-600">Rok</th>
                 <th class="text-right py-1.5 px-2 font-bold text-slate-600">Tržby</th>
                 <th class="text-right py-1.5 px-2 font-bold text-slate-600">Δ YoY</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Zisk / Strata</th>
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Zisk /<br>Strata</th>
                 <th class="text-right py-1.5 px-2 font-bold text-slate-600">Δ YoY</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Celkový Dlh</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Osobné nákl.</th>
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Celkový<br>Dlh</th>
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Osobné<br>nákl.</th>
                 <th class="text-right py-1.5 px-2 font-bold text-slate-600">Pohľadávky</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Záväzky (OS)</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Celk. aktíva</th>
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Záväzky</th>
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Celk.<br>aktíva</th>
             </tr>
         </thead>
         <tbody>
@@ -90,18 +91,18 @@
                 {% set rev_delta = none %}
                 {% set pnl_delta = none %}
             {% endif %}
-            <tr class="border-b border-slate-100">
+            <tr class="border-b border-slate-100" style="white-space: nowrap;">
                 <td class="py-1.5 px-2 font-semibold text-slate-700">{{ stmt.year }}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.mainActivityRevenue | format_currency }}</td>
-                <td class="py-1.5 px-2 text-right text-[10px] font-semibold">
+                <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.mainActivityRevenue | format_number }}</td>
+                <td class="py-1.5 px-2 text-right font-semibold">
                     {% if rev_delta is not none %}
                     <span class="{% if rev_delta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
                         {% if rev_delta >= 0 %}+{% endif %}{{ rev_delta }}%
                     </span>
                     {% else %}<span class="text-slate-300">—</span>{% endif %}
                 </td>
-                <td class="py-1.5 px-2 text-right font-semibold {% if stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ stmt.netProfitLoss | format_currency }}</td>
-                <td class="py-1.5 px-2 text-right text-[10px] font-semibold">
+                <td class="py-1.5 px-2 text-right font-semibold {% if stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ stmt.netProfitLoss | format_number }}</td>
+                <td class="py-1.5 px-2 text-right font-semibold">
                     {% if pnl_delta is not none %}
                     <span class="{% if pnl_delta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
                         {% if pnl_delta >= 0 %}+{% endif %}{{ pnl_delta }}%
@@ -109,11 +110,11 @@
                     {% else %}<span class="text-slate-300">—</span>{% endif %}
                 </td>
                 {% set stmt_debt = stmt.shortTermLiabilities + stmt.longTermLiabilities %}
-                <td class="py-1.5 px-2 text-right text-rose-600">{{ stmt_debt | format_currency }}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.staffCosts %}{{ stmt.staffCosts | format_currency }}{% else %}—{% endif %}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.tradeReceivables %}{{ stmt.tradeReceivables | format_currency }}{% else %}—{% endif %}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.tradePayables %}{{ stmt.tradePayables | format_currency }}{% else %}—{% endif %}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.totalAssets | format_currency }}</td>
+                <td class="py-1.5 px-2 text-right text-rose-600">{{ stmt_debt | format_number }}</td>
+                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.staffCosts %}{{ stmt.staffCosts | format_number }}{% else %}—{% endif %}</td>
+                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.tradeReceivables %}{{ stmt.tradeReceivables | format_number }}{% else %}—{% endif %}</td>
+                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.tradePayables %}{{ stmt.tradePayables | format_number }}{% else %}—{% endif %}</td>
+                <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.totalAssets | format_number }}</td>
             </tr>
         {% endfor %}
         </tbody>

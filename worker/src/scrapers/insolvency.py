@@ -45,7 +45,7 @@ class InsolvencyScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=45000, wait_until="domcontentloaded")
+                await page.goto(self.base_url, timeout=15000, wait_until="domcontentloaded")
             except PlaywrightTimeoutError:
                 raise ScraperUnavailableError("Timeout pri načítaní stránky Registra úpadcov.")
             logger.debug(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
@@ -68,13 +68,13 @@ class InsolvencyScraper(BaseScraper):
             try:
                 logger.info(f"[{self.source_type}] Vypĺňam hľadaný reťazec: {search_query}")
                 search_input = page.locator("input[id*='searchQuery']").first
-                await search_input.fill(search_query, timeout=10000)
+                await search_input.fill(search_query, timeout=5000)
                 
                 logger.info(f"[{self.source_type}] Odosielam vyhľadávanie.")
                 search_btn = page.locator("a[id*='searchBoxForm:search'], button[id*='search']").first
                 
-                async with page.expect_navigation(timeout=30000):
-                    await search_btn.click(timeout=10000)
+                async with page.expect_navigation(timeout=15000):
+                    await search_btn.click(timeout=5000)
                     
             except PlaywrightTimeoutError:
                 raise ScraperUnavailableError("Timeout pri vyhľadávaní v Registri úpadcov.")
@@ -128,11 +128,11 @@ class InsolvencyScraper(BaseScraper):
             detail_link = page.locator("a[href*='konanieDetail.xhtml']").first
             try:
                 logger.info(f"[{self.source_type}] Klikám na prvý nájdený detail konania.")
-                async with page.expect_navigation(timeout=20000):
-                    await detail_link.click(timeout=10000)
-                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                async with page.expect_navigation(timeout=10000):
+                    await detail_link.click(timeout=5000)
+                await page.wait_for_load_state("domcontentloaded", timeout=8000)
                 # Počkáme na načítanie hlavných elementov detailu
-                await page.locator("text=Spisová značka").first.wait_for(state="visible", timeout=10000)
+                await page.locator("text=Spisová značka").first.wait_for(state="visible", timeout=5000)
                 logger.info(f"[{self.source_type}] Detail konania úspešne načítaný.")
             except Exception as click_err:
                 logger.warning(f"[{self.source_type}] Nepodarilo sa prejsť na detail konania: {click_err}. Vytlačí sa zoznam.")
@@ -202,8 +202,13 @@ class InsolvencyScraper(BaseScraper):
 
     async def _extract_findings(self, page: Page, search_query: str = "") -> tuple[bool, str]:
         try:
-            # Počkáme chvíľku kým PrimeFaces dogeneruje AJAX DOM elementy
-            await page.wait_for_timeout(2000)
+            # Počkáme kým PrimeFaces dogeneruje AJAX DOM elementy — čakáme na tabuľku alebo text o žiadnych výsledkoch
+            no_results = page.locator("text=Nenašli sa žiadne konania")
+            results_table = page.locator("table tbody tr, .ui-datatable-data tr")
+            try:
+                await no_results.or_(results_table).first.wait_for(timeout=5000)
+            except PlaywrightTimeoutError:
+                pass
             text_content = await page.inner_text("body")
             
             # Nový portál zobrazuje toto, ak nič nenájde
