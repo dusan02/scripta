@@ -12,3 +12,7 @@ pymupdf
 pymupdf4llm
 google-genai
 prisma
+sentry-sdk[fastapi]==2.8.0
+matplotlib
+seaborn
+celery[redis]>=5.4.0

@@ -84,6 +84,10 @@ class PdfCompiler:
 
         # 2. Pomocná funkcia na priradenie start_page s predpokladaným počtom strán cover page.
         def _assign_start_pages(cover_pages: int):
+            start_pages_map['FINANCNY_VYVOJ'] = cover_pages
+            start_pages_map['FORENZNY_POSUDOK'] = cover_pages - 1
+            start_pages_map['SCORING_BREAKDOWN'] = cover_pages - 2
+            
             current = cover_pages + 1
             for source in sources:
                 if source.status == "SUCCESS" and source.file_path and source.page_count is not None and source.page_count > 0:
@@ -98,7 +102,7 @@ class PdfCompiler:
 
         # 3. Odhadneme počet strán cover page podľa počtu zdrojov (vyhneme sa dvojitej generácii).
         success_sources = [s for s in sources if s.status == "SUCCESS"]
-        estimated_cover_pages = 1 if len(success_sources) <= 18 else 2
+        estimated_cover_pages = 4 if len(success_sources) <= 18 else 5
         cover_path = output_dir / "cover_page.pdf"
         _assign_start_pages(estimated_cover_pages)
 
@@ -215,6 +219,7 @@ class PdfCompiler:
             _FONTS_REGISTERED = True
 
         label = _SOURCE_LABELS.get(source.source_type, source.source_type)
+        label = label.upper()
         try:
             reader = PdfReader(source.file_path)
             first_page = reader.pages[0]
@@ -223,8 +228,20 @@ class PdfCompiler:
 
             buf = io.BytesIO()
             c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
-            c.setFont("Inter-Bold", 13)
-            c.drawCentredString(page_w / 2, page_h - 25, label)
+            
+            # section-title štýl (text-sm, uppercase, text-slate-500)
+            c.setFont("Inter-Bold", 10)
+            c.setFillColorHex("#64748b")
+            
+            x_margin = 35
+            y_pos = page_h - 35
+            c.drawString(x_margin, y_pos, label)
+            
+            # border-b (border-slate-200)
+            c.setStrokeColorHex("#e2e8f0")
+            c.setLineWidth(1)
+            c.line(x_margin, y_pos - 8, page_w - x_margin, y_pos - 8)
+            
             c.showPage()
             c.save()
             buf.seek(0)

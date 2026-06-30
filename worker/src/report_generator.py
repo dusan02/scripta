@@ -40,6 +40,11 @@ SOURCE_LABELS = {
 def format_currency(value: float) -> str:
     if value is None:
         return "N/A"
+    abs_val = abs(value)
+    if abs_val >= 1_000_000:
+        return f"{value / 1_000_000:,.1f} mil. €".replace(",", "X").replace(".", ",").replace("X", " ")
+    elif abs_val >= 1_000:
+        return f"{value / 1_000:,.1f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
     return f"{value:,.0f} €".replace(",", " ")
 
 def generate_financial_chart(statements) -> str:
@@ -77,6 +82,53 @@ def generate_financial_chart(statements) -> str:
     ax.set_title('Vývoj Tržieb a Zisku', fontsize=12, fontweight='bold', color='#0f172a', pad=15)
     
     # Formát y-osi na milióny/tisíce
+    def currency_formatter(x, pos):
+        if x >= 1e6:
+            return f'{x*1e-6:.1f}M'
+        elif x >= 1e3:
+            return f'{x*1e-3:.0f}k'
+        return f'{x:.0f}'
+        
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(currency_formatter))
+    
+    plt.tight_layout()
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+def generate_balance_sheet_chart(statements) -> str:
+    """
+    Vygeneruje Matplotlib graf pre štruktúru: Aktíva, Dlh a Vlastné imanie.
+    """
+    if not statements or len(statements) < 2:
+        return ""
+        
+    # Zoradiť chronologicky
+    statements = sorted(statements, key=lambda x: x.year)
+    
+    years = [str(s.year) for s in statements]
+    assets = [s.totalAssets for s in statements]
+    equity = [s.equity for s in statements]
+    debt = [(s.shortTermLiabilities + s.longTermLiabilities) for s in statements]
+    
+    sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
+    fig, ax = plt.subplots(figsize=(8, 4), dpi=150)
+    
+    ax.plot(years, assets, marker='D', color='#94a3b8', linewidth=2, markersize=6, label='Celkové Aktíva', linestyle='--')
+    ax.plot(years, debt, marker='^', color='#e11d48', linewidth=2.5, markersize=8, label='Celkový Dlh')
+    ax.plot(years, equity, marker='s', color='#10b981', linewidth=2.5, markersize=8, label='Vlastné Imanie')
+    
+    ax.set_ylabel('Suma v EUR', fontsize=10, color='#64748b', fontweight='bold')
+    ax.tick_params(axis='x', colors='#64748b')
+    ax.tick_params(axis='y', colors='#64748b')
+    
+    sns.despine(left=True, bottom=True)
+    
+    ax.legend(loc='upper left', frameon=False, fontsize=10, labelcolor='#475569')
+    ax.set_title('Štruktúra majetku a zdrojov', fontsize=12, fontweight='bold', color='#0f172a', pad=15)
+    
     def currency_formatter(x, pos):
         if abs(x) >= 1_000_000:
             return f'{x/1_000_000:.1f}M'
@@ -152,6 +204,157 @@ def format_findings(source) -> str:
     return findings
 
 
+def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at):
+    verdict = company.auditVerdict
+    stmts = company.financialStatements
+    latest_stmt = max(stmts, key=lambda s: s.year) if stmts else None
+    vestnik_events = company.vestnikEvents or []
+    
+    # Vygenerovanie grafov
+    chart_base64 = ""
+    balance_chart_base64 = ""
+    if stmts and len(stmts) >= 2:
+        chart_base64 = generate_financial_chart(stmts)
+        balance_chart_base64 = generate_balance_sheet_chart(stmts)
+    
+    # Načítanie Verifa loga
+    current_dir = Path(__file__).parent
+    logo_path = current_dir.parent.parent / "frontend" / "public" / "logo-verifa.png"
+    logo_base64 = ""
+    if logo_path.exists():
+        with open(logo_path, "rb") as lf:
+            logo_base64 = base64.b64encode(lf.read()).decode('utf-8')
+            
+    counts = {"SUCCESS": 0, "WARNING": 0, "INFO": 0, "FAILED": 0, "UNAVAILABLE": 0}
+    if sources:
+        for s in sources:
+            findings = (s.findings or s.message or "").upper()
+            if "POZOR" in findings:
+                if s.source_type in {"CRZ", "RPVS", "UVO", "REGISTER_UZ"}:
+                    counts["INFO"] += 1
+                else:
+                    counts["WARNING"] += 1
+            elif s.status == "SUCCESS":
+                counts["SUCCESS"] += 1
+            elif s.status in counts:
+                counts[s.status] += 1
+            else:
+                counts["FAILED"] += 1
+                
+    source_map = {s.source_type: s for s in sources} if sources else {}
+    grouped_sources = []
+    rendered_types = set()
+    for cat_name, types in SOURCE_CATEGORIES:
+        cat_sources = [source_map[t] for t in types if t in source_map]
+        if cat_sources:
+            grouped_sources.append((cat_name, cat_sources))
+            rendered_types.update(types)
+            
+    other_sources = [s for s in (sources or []) if s.source_type not in rendered_types]
+    if other_sources:
+        grouped_sources.append(("Ostatné", other_sources))
+        
+    import json
+    evidence_list = []
+    try:
+        if verdict and verdict.justification:
+            raw_list = json.loads(verdict.justification)
+            for item in raw_list:
+                z = item.get("zdroj", "")
+                if "profit_trend" in z: z = "Finančná analýza (Trend zisku)"
+                elif "ratios_by_year" in z: z = "Finančná analýza (Ukazovatele)"
+                elif "altman_z_scores" in z: z = "Finančná analýza (Altman Z'')"
+                elif "financialStatements" in z: z = "Účtovná závierka (RÚZ)"
+                elif "sp_dlznici" in z: z = "Sociálna poisťovňa (dlhy)"
+                elif "vszp_dlznici" in z or "union_dlznici" in z: z = "Zdravotné poisťovne (dlhy)"
+                elif "fs_danove" in z: z = "Finančná správa"
+                elif "insolvency" in z: z = "Register úpadcov"
+                elif "orsr" in z: z = "Obchodný register (ORSR)"
+                item["zdroj"] = z
+            evidence_list = raw_list
+    except Exception:
+        pass
+        
+    from src.analytics import compute_financial_trends, compute_forensic_scorecard
+    scorecard_breakdown = []
+    if stmts:
+        company_dict_for_scoring = {
+            "vestnikEvents": [
+                {"eventType": e.eventType, "severityLevel": getattr(e, "severityLevel", None)}
+                for e in vestnik_events
+            ],
+            "financialStatements": stmts,
+        }
+        trends_for_scoring = compute_financial_trends(stmts)
+        sc_result = compute_forensic_scorecard(company_dict_for_scoring, trends_for_scoring)
+        scorecard_breakdown = [
+            {"name": p.name, "score": p.score, "max_score": p.max_score, "detail": p.detail, "flags": p.flags}
+            for p in sc_result.pillars
+        ]
+
+    altman_scores = sorted(
+        [{"year": s.year, **compute_altman_z_score(s)} for s in (stmts or []) if s.year and s.year > 2000],
+        key=lambda z: z["year"]
+    )
+
+    return {
+        "company": company,
+        "verdict": verdict,
+        "evidence_list": evidence_list,
+        "latest_stmt": latest_stmt,
+        "vestnik_events": vestnik_events,
+        "chart_image_base64": chart_base64,
+        "balance_chart_base64": balance_chart_base64,
+        "logo_base64": logo_base64,
+        "start_pages_map": start_pages_map or {},
+        "total_pages": total_pages,
+        "generated_at": generated_at,
+        "counts": counts,
+        "grouped_sources": grouped_sources,
+        "labels": SOURCE_LABELS,
+        "scorecard_breakdown": scorecard_breakdown,
+        "altman_scores": altman_scores
+    }
+
+def render_html_report(context: dict) -> str:
+    current_dir = Path(__file__).parent
+    templates_dir = current_dir / "templates"
+    env = Environment(loader=FileSystemLoader(templates_dir))
+    env.filters['format_currency'] = format_currency
+    env.filters['format_findings'] = format_findings
+    
+    template = env.get_template("report_template.html")
+    return template.render(**context)
+
+async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
+    logger.info(f"Spúšťam Playwright pre konverziu do PDF ({pdf_path})...")
+    dir_name = os.path.dirname(pdf_path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=["--disable-gpu", "--no-sandbox"])
+        page = await browser.new_page()
+        # domcontentloaded je rýchlejšie ako networkidle — nepotrebujeme network pre inline HTML
+        await page.set_content(html_content, wait_until="domcontentloaded")
+        # Aktivujeme print media — Chrome optimalizuje rendering pre tlač
+        await page.emulate_media(media="print")
+        header_tpl = '<div></div>'
+        footer_tpl = f'<div style="font-size: 9px; color: #94a3b8; text-align: center; width: 100%; font-family: sans-serif; padding-bottom: 5px;">IČO: {ico} &nbsp;|&nbsp; Due Diligence Report &nbsp;|&nbsp; Strana <span class="pageNumber"></span> / <span class="totalPages"></span></div>'
+        
+        await page.pdf(
+            path=pdf_path, 
+            format="A4", 
+            margin={"top": "0mm", "bottom": "15mm", "left": "0mm", "right": "0mm"}, 
+            print_background=True,
+            display_header_footer=True,
+            header_template=header_tpl,
+            footer_template=footer_tpl,
+            prefer_css_page_size=True,
+        )
+        await browser.close()
+    logger.info(f"PDF úspešne vygenerované: {pdf_path}")
+    return pdf_path
+
 async def generate_forensic_pdf_report(
     ico: str, 
     sources: list = None,
@@ -169,16 +372,8 @@ async def generate_forensic_pdf_report(
             where={'ico': ico},
             include={
                 'auditVerdict': True,
-                'financialStatements': {
-                    'orderBy': {'year': 'desc'},
-                    'include': {
-                        'auditorOpinion': True,
-                        'narrativeRisk': True
-                    }
-                },
-                'vestnikEvents': {
-                    'orderBy': {'publishedAt': 'desc'}
-                }
+                'financialStatements': {'orderBy': {'year': 'asc'}, 'include': {'auditorOpinion': True, 'narrativeRisk': True}},
+                'vestnikEvents': {'orderBy': {'publishedAt': 'desc'}}
             }
         )
         
@@ -186,106 +381,12 @@ async def generate_forensic_pdf_report(
             logger.error(f"Nedostatok dát pre generovanie PDF (IČO: {ico})")
             return None
             
-        verdict = company.auditVerdict
-        stmts = company.financialStatements
-        latest_stmt = stmts[0] if stmts else None
-        vestnik_events = company.vestnikEvents or []
+        context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at)
+        html_content = render_html_report(context)
         
-        chart_base64 = generate_financial_chart(stmts)
-        
-        # Načítanie Verifa loga z frontend/public
-        current_dir = Path(__file__).parent
-        logo_path = current_dir.parent.parent / "frontend" / "public" / "logo-verifa.png"
-        logo_base64 = ""
-        if logo_path.exists():
-            with open(logo_path, "rb") as lf:
-                logo_base64 = base64.b64encode(lf.read()).decode('utf-8')
-        
-        # Nastavenie Jinja2 prostredia
-        templates_dir = current_dir / "templates"
-        env = Environment(loader=FileSystemLoader(templates_dir))
-        env.filters['format_currency'] = format_currency
-        env.filters['format_findings'] = format_findings
-        
-        # Spočítať summary "pills" pre semafor
-        counts = {"SUCCESS": 0, "WARNING": 0, "INFO": 0, "FAILED": 0, "UNAVAILABLE": 0}
-        if sources:
-            for s in sources:
-                findings = (s.findings or s.message or "").upper()
-                if "POZOR" in findings:
-                    if s.source_type in {"CRZ", "RPVS", "UVO", "REGISTER_UZ"}:
-                        counts["INFO"] += 1
-                    else:
-                        counts["WARNING"] += 1
-                elif s.status == "SUCCESS":
-                    counts["SUCCESS"] += 1
-                elif s.status in counts:
-                    counts[s.status] += 1
-                else:
-                    counts["FAILED"] += 1
-                    
-        # Zoskupíme zdroje pre ľahší render v Jinja2
-        source_map = {s.source_type: s for s in sources} if sources else {}
-        grouped_sources = []
-        rendered_types = set()
-        for cat_name, types in SOURCE_CATEGORIES:
-            cat_sources = [source_map[t] for t in types if t in source_map]
-            if cat_sources:
-                grouped_sources.append((cat_name, cat_sources))
-                rendered_types.update(types)
-                
-        other_sources = [s for s in (sources or []) if s.source_type not in rendered_types]
-        if other_sources:
-            grouped_sources.append(("Ostatné", other_sources))
-            
-        import json
-        evidence_list = []
-        try:
-            if verdict and verdict.justification:
-                evidence_list = json.loads(verdict.justification)
-        except Exception:
-            pass
-            
-        template = env.get_template("report_template.html")
-        
-        html_content = template.render(
-            company=company,
-            verdict=verdict,
-            evidence_list=evidence_list,
-            latest_stmt=latest_stmt,
-            vestnik_events=vestnik_events,
-            chart_image_base64=chart_base64,
-            logo_base64=logo_base64,
-            start_pages_map=start_pages_map or {},
-            total_pages=total_pages,
-            generated_at=generated_at,
-            counts=counts,
-            grouped_sources=grouped_sources,
-            labels=SOURCE_LABELS,
-            altman_scores=[
-                {"year": s.year, **compute_altman_z_score(s)}
-                for s in (stmts or [])
-                if s.year and s.year > 2000
-            ],
-        )
-
         pdf_path = target_path or f"assets/{ico}/Verifa_Forensic_Report_{ico}.pdf"
-        os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
+        await render_pdf_via_playwright(html_content, pdf_path, ico)
         
-        logger.info(f"Spúšťam Playwright pre konverziu do PDF ({pdf_path})...")
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            await page.set_content(html_content, wait_until="networkidle")
-            await page.pdf(
-                path=pdf_path, 
-                format="A4", 
-                margin={"top": "0mm", "bottom": "0mm", "left": "0mm", "right": "0mm"}, 
-                print_background=True
-            )
-            await browser.close()
-            
-        logger.info(f"PDF úspešne vygenerované: {pdf_path}")
         return pdf_path
         
     finally:

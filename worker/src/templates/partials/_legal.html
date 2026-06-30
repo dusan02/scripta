@@ -1,0 +1,21 @@
+<!-- 5. PRÁVNE RIZIKÁ (Obchodný vestník a AI Red flags) -->
+{% if vestnik_events and vestnik_events|length > 0 %}
+<div class="mb-10 mt-10 pt-8 border-t border-slate-200">
+    <h2 class="section-title">Právne riziká</h2>
+    <div class="space-y-2">
+    {% for event in vestnik_events %}
+        {% set severity_color = 'border-rose-500 bg-rose-50' if event.severityLevel == 'CRITICAL' else 'border-amber-500 bg-amber-50' if event.severityLevel == 'HIGH' else 'border-blue-500 bg-blue-50' %}
+        {% set text_color = 'text-rose-700' if event.severityLevel == 'CRITICAL' else 'text-amber-700' if event.severityLevel == 'HIGH' else 'text-blue-700' %}
+        <div class="border-l-4 {{ severity_color }} p-3 rounded-r-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-1">
+                <h3 class="font-bold text-xs text-slate-800">{{ event.eventType }}</h3>
+                <span class="text-[9px] text-slate-500">{{ event.publishedAt.strftime('%d.%m.%Y') }}</span>
+            </div>
+            <p class="text-xs text-slate-700">{{ event.summary.split('\nRed Flags: ')[0] }}</p>
+        </div>
+    {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+

@@ -11,6 +11,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from playwright.async_api import async_playwright
 
 from .config import settings
+from .logging_setup import setup_logging
 from .db import (
     get_db_pool,
     update_report_status,
@@ -23,6 +24,7 @@ from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 from .cleanup import _cleanup_loop
 
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Obmedzenie súčasných reportov — chráni pred OOM pri veľa paralelných browseroch.
@@ -191,8 +193,12 @@ async def _execute_report_inner(task: ReportTask) -> None:
             except Exception as verdict_err:
                 logger.error(f"[WORKER] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
 
-        from src.db import update_report_ai_status
-        await update_report_ai_status(pool, task.report_request_id, "Kompilácia vizuálneho PDF reportu", 50)
+        from src.db import update_report_ai_status, get_avg_completion_seconds
+        compile_eta = 50
+        avg_seconds = await get_avg_completion_seconds(pool)
+        if avg_seconds and float(avg_seconds) > 0:
+            compile_eta = max(10, int(float(avg_seconds) * 0.2))
+        await update_report_ai_status(pool, task.report_request_id, "Kompilácia vizuálneho PDF reportu", compile_eta)
 
         compiler = PdfCompiler(settings.results_dir)
         final_path = await compiler.compile(

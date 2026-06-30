@@ -155,11 +155,11 @@ class UvoScraper(BaseScraper):
 
     # ── Pagination ───────────────────────────────────────────────────
 
-    async def _collect_all_pages(self, page: Page) -> tuple[list[str], int]:
+    async def _collect_all_pages(self, page: Page, max_pages: int = 5) -> tuple[list[str], int]:
         all_html_parts = []
         page_num = 1
 
-        while True:
+        while page_num <= max_pages:
             block_html = await page.evaluate("""() => {
                 const block = document.querySelector('.gs-result-block');
                 if (!block) return '';
@@ -183,8 +183,12 @@ class UvoScraper(BaseScraper):
                 )
             except PlaywrightTimeoutError:
                 pass
+                
+            if page_num > max_pages:
+                logger.warning(f"[{self.source_type}] Dosiahnutý limit stránok ({max_pages}). Zvyšné záznamy sa neuložia do PDF.")
+                break
 
-        return all_html_parts, page_num
+        return all_html_parts, min(page_num, max_pages)
 
     async def _find_next_page_link(self, page: Page):
         try:

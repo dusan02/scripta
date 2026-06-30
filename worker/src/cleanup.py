@@ -33,7 +33,7 @@ async def cleanup_old_reports() -> Tuple[int, int]:
     if not results_dir.exists():
         return 0, 0
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=settings.cleanup_max_age_days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=settings.cleanup_max_age_days)
     removed = 0
     db_cleared = 0
 
@@ -42,33 +42,33 @@ async def cleanup_old_reports() -> Tuple[int, int]:
         conn = await _get_db_conn()
     except Exception as e:
         logger.warning(f"[CLEANUP] DB connection failed, will skip DB cleanup: {e}")
+        return 0, 0
 
-    for child in results_dir.iterdir():
-        if not child.is_dir():
-            continue
-        try:
-            mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=timezone.utc)
-            if mtime < cutoff:
-                report_id = child.name
-                await asyncio.to_thread(shutil.rmtree, child, True)
-                removed += 1
-                logger.info(f"[CLEANUP] Removed old report dir: {report_id}")
-                # Clear resultFilePath in DB so download doesn't 404 on stale path
-                if conn:
-                    try:
-                        result = await conn.execute(
-                            'UPDATE "ReportRequest" SET "resultFilePath" = NULL, "updatedAt" = NOW() '
-                            'WHERE id = $1 AND "resultFilePath" IS NOT NULL',
-                            report_id,
-                        )
-                        if result.endswith("1"):
-                            db_cleared += 1
-                    except Exception as db_err:
-                        logger.warning(f"[CLEANUP] Failed to clear DB for {report_id}: {db_err}")
-        except Exception as e:
-            logger.warning(f"[CLEANUP] Failed to check/remove {child.name}: {e}")
-
-    if conn:
+    try:
+        # Vymaž z DB záznamy staršie ako cutoff (Cascade vymaže aj ReportSource)
+        # Používame DELETE a vrátime si ich IDčka, aby sme ich zmazali aj z disku.
+        rows = await conn.fetch(
+            'DELETE FROM "ReportRequest" WHERE "createdAt" < $1 RETURNING id',
+            cutoff
+        )
+        
+        for row in rows:
+            report_id = row["id"]
+            db_cleared += 1
+            
+            # Zmaž zložku z disku
+            child = results_dir / report_id
+            if child.exists() and child.is_dir():
+                try:
+                    await asyncio.to_thread(shutil.rmtree, child, True)
+                    removed += 1
+                    logger.info(f"[CLEANUP] Removed old report completely: {report_id}")
+                except Exception as e:
+                    logger.warning(f"[CLEANUP] Failed to remove dir {child.name}: {e}")
+                    
+    except Exception as e:
+        logger.error(f"[CLEANUP] Error deleting old reports from DB: {e}", exc_info=True)
+    finally:
         await conn.close()
 
     return removed, db_cleared
@@ -111,23 +111,24 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
 
             for ex_row in excess:
                 report_id = ex_row["id"]
-                # Delete files from disk
-                report_dir = results_dir / report_id
-                if report_dir.exists():
-                    await asyncio.to_thread(shutil.rmtree, report_dir, True)
-                    removed += 1
-                    logger.info(f"[CLEANUP] Removed excess report dir for user {user_id}: {report_id}")
-                # Clear resultFilePath in DB
+                
+                # Zmaž záznam z DB (Cascade sa postará o ReportSource)
                 try:
                     result = await conn.execute(
-                        'UPDATE "ReportRequest" SET "resultFilePath" = NULL, "updatedAt" = NOW() '
-                        'WHERE id = $1 AND "resultFilePath" IS NOT NULL',
+                        'DELETE FROM "ReportRequest" WHERE id = $1',
                         report_id,
                     )
                     if result.endswith("1"):
                         db_cleared += 1
                 except Exception as db_err:
-                    logger.warning(f"[CLEANUP] Failed to clear DB for {report_id}: {db_err}")
+                    logger.warning(f"[CLEANUP] Failed to delete DB record for {report_id}: {db_err}")
+                    
+                # Delete files from disk
+                report_dir = results_dir / report_id
+                if report_dir.exists():
+                    await asyncio.to_thread(shutil.rmtree, report_dir, True)
+                    removed += 1
+                    logger.info(f"[CLEANUP] Removed excess report completely for user {user_id}: {report_id}")
 
     except Exception as e:
         logger.error(f"[CLEANUP] Excess cleanup error: {e}", exc_info=True)

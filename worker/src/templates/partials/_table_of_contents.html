@@ -1,0 +1,149 @@
+<!-- OBSAH (Table of Sources) -->
+<div class="pt-2">
+    <table class="w-full source-table border-collapse text-left">
+        <thead>
+            <tr>
+                <th colspan="3" class="border-b-0 pb-6 pt-6 bg-white">
+                    <div class="flex justify-between items-center w-full">
+                        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 mb-0">Obsah</h2>
+                        <div class="flex justify-end items-center">
+                            {% if logo_base64 %}
+                            <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-7">
+                            {% else %}
+                            <span class="text-lg font-black text-[#10b981]">Verifa.sk</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </th>
+            </tr>
+            <tr>
+                <th style="width: 25%;">Zdroj & Stav</th>
+                <th style="width: 65%;">Súhrnný nález</th>
+                <th style="width: 10%; text-align: center;">Str.</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="category-row">
+                <td colspan="3">Analytické výstupy</td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                        <a href="#forenzny_posudok" class="hover:underline">Forenzný posudok ↗</a>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        <span>✓</span> Súčasťou reportu
+                    </div>
+                </td>
+                <td class="text-slate-700 leading-snug">
+                    Algoritmické hodnotenie spoločnosti, zhrnutie kľúčových zistení a odporúčanie.
+                </td>
+                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                    {{ start_pages_map.get('FORENZNY_POSUDOK', '—') }}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                        <a href="#scoring_breakdown" class="hover:underline">Scoring Breakdown ↗</a>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        <span>✓</span> Súčasťou reportu
+                    </div>
+                </td>
+                <td class="text-slate-700 leading-snug">
+                    Detailný rozpad bodového hodnotenia do 5 kľúčových kategórií.
+                </td>
+                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                    {{ start_pages_map.get('SCORING_BREAKDOWN', '—') }}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                        <a href="#financny_vyvoj" class="hover:underline">Finančný vývoj a štruktúra ↗</a>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        <span>✓</span> Súčasťou reportu
+                    </div>
+                </td>
+                <td class="text-slate-700 leading-snug">
+                    Základné finančné ukazovatele, medziročný vývoj, Altman Z-Score a grafický vývoj tržieb.
+                </td>
+                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                    {{ start_pages_map.get('FINANCNY_VYVOJ', '—') }}
+                </td>
+            </tr>
+            {% for cat_name, cat_sources in grouped_sources %}
+            <tr class="category-row">
+                <td colspan="3">{{ cat_name }}</td>
+            </tr>
+                {% for source in cat_sources %}
+                {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ"] %}
+                {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
+                
+                {% set status_class = "" %}
+                {% set status_icon = "" %}
+                {% set status_label = "" %}
+                
+                {% if source.status == "SUCCESS" and not has_pozor %}
+                    {% set status_class = "bg-[#10b981]" %}
+                    {% set status_icon = "✓" %}
+                    {% set status_label = "V poriadku" %}
+                {% elif source.status == "SUCCESS" and has_pozor and is_info %}
+                    {% set status_class = "bg-[#2563eb]" %}
+                    {% set status_icon = "i" %}
+                    {% set status_label = "Informácia" %}
+                {% elif source.status == "SUCCESS" and has_pozor and not is_info %}
+                    {% set status_class = "bg-[#ef4444]" %}
+                    {% set status_icon = "⚠" %}
+                    {% set status_label = "Upozornenie" %}
+                {% elif source.status == "UNAVAILABLE" %}
+                    {% set status_class = "bg-[#f59e0b]" %}
+                    {% set status_icon = "?" %}
+                    {% set status_label = "Nedostupné" %}
+                {% else %}
+                    {% set status_class = "bg-[#ef4444]" %}
+                    {% set status_icon = "✗" %}
+                    {% set status_label = "Zlyhal" %}
+                {% endif %}
+                
+                <tr>
+                    <td>
+                        <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                            {% if start_pages_map.get(source.source_type) %}
+                            <a href="http://PAGE_{{ start_pages_map[source.source_type] }}" class="hover:underline">
+                                {{ labels.get(source.source_type, source.source_type) }} ↗
+                            </a>
+                            {% else %}
+                            {{ labels.get(source.source_type, source.source_type) }}
+                            {% endif %}
+                        </div>
+                        <div class="inline-flex items-center gap-1.5 {{ status_class }} text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                            {% if status_icon == 'i' or status_icon == '?' %}
+                            <span class="bg-white text-current rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-black">{{ status_icon }}</span>
+                            {% else %}
+                            <span>{{ status_icon }}</span>
+                            {% endif %}
+                            {{ status_label }}
+                        </div>
+                    </td>
+                    <td class="text-slate-700 leading-snug">
+                        {% if source.source_type == "OBCHODNY_VESTNIK" and (not vestnik_events or vestnik_events|length == 0) %}
+                        <div class="bg-emerald-50 border border-emerald-200 p-2 rounded flex items-center gap-2 mt-1 mb-1">
+                            <span class="text-emerald-500 text-sm font-bold">✓</span>
+                            <p class="text-emerald-700 font-medium text-xs">Firma nemá žiadne negatívne záznamy v aktuálnom Obchodnom vestníku.</p>
+                        </div>
+                        {% else %}
+                        {{ source | format_findings | safe }}
+                        {% endif %}
+                    </td>
+                    <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                        {{ start_pages_map.get(source.source_type, '—') }}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

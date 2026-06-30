@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #ffffff; 
+            color: #0f172a; 
+            /* Fix for Playwright printing */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .page-break { page-break-before: always; }
+        .page-break-after { page-break-after: always; }
+        
+        /* Table styling for sources */
+        .source-table th {
+            padding: 8px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            font-weight: 700;
+            border-bottom: 2px solid #10b981;
+            text-align: left;
+        }
+        .source-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+            font-size: 12px;
+        }
+        .category-row td {
+            background-color: #eff6ff;
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 14px;
+            border-left: 4px solid #10b981;
+            padding-top: 12px;
+            padding-bottom: 12px;
+        }
+        .section-title {
+            @apply text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 border-b pb-1;
+        }
+        .info-pill {
+            @apply flex items-center gap-3 px-3 py-1.5 rounded-md w-48 shadow-sm border;
+        }
+    </style>
+</head>
+<body class="px-10 pt-10 pb-4 mx-auto relative" style="width: 210mm;">
+    
+    {% block content %}{% endblock %}
+
+    <div class="mt-12 pt-4 border-t border-slate-200 text-center text-[9px] text-slate-400">
+        <p>Vygenerované systémom Verifa.sk. Tento dokument má informatívny charakter a nenahrádza oficiálny audit.</p>
+    </div>
+    
+</body>
+</html>

@@ -5,15 +5,9 @@ from typing import Optional
 from google import genai
 from google.genai import types
 
-logger = logging.getLogger(__name__)
+from src.config import settings
 
-# ── Cenové sádzby pre odhad nákladov (USD / 1M tokenov) ───────────────────
-_PRICING: dict[str, tuple[float, float]] = {
-    "gemini-2.5-flash":       (0.30,  2.50),
-    "gemini-3.5-flash":       (1.50,  9.00),
-    "gemini-3.1-pro-preview": (2.00, 12.00),
-    "gemini-3.1-pro":         (2.00, 12.00),
-}
+logger = logging.getLogger(__name__)
 
 def _log_tokens(model: str, usage, label: str) -> None:
     """Zaloguje spotrebu tokenov a odhadnuté náklady pre jedno LLM volanie."""
@@ -21,7 +15,7 @@ def _log_tokens(model: str, usage, label: str) -> None:
         return
     inp = getattr(usage, "prompt_token_count", 0) or 0
     out = getattr(usage, "candidates_token_count", 0) or 0
-    price_in, price_out = _PRICING.get(model, (0.0, 0.0))
+    price_in, price_out = settings.llm_pricing.get(model, (0.0, 0.0))
     cost_usd = (inp * price_in + out * price_out) / 1_000_000
     logger.info(
         f"[LLM] {label} | model={model} "
@@ -40,10 +34,17 @@ class FinancialMetrics(BaseModel):
     obezny_majetok: float = Field(0, description="Obežný majetok (current assets) — zásoby, pohľadávky, krátkodobý finančný majetok. Ak chýba, vráť 0.")
     vlastne_imanie_celkom: float = Field(...)
     kratkodobe_zavazky: float = Field(...)
+    dlhodobeZavazky: float = Field(0, description="Dlhodobé záväzky (long-term liabilities) — bankové úvery, dlhopisy, lízingové záväzky > 1 rok. Ak chýba alebo neexistuje, vráť 0.")
     trzby_z_hlavnej_cinnosti: float = Field(...)
+    hruba_marza: float = Field(0, description="Hrubý zisk = Tržby - Náklady na predaný tovar (COGS). Pre servisné firmy kde COGS nie je vykazovaný, vráť 0.")
     zisk_alebo_strata_po_zdaneni: float = Field(...)
     peniaze_a_penazne_ekvivalenty_k_31_12: float = Field(...)
     ciste_penazne_toky_z_prevadzkovej_cinnosti: float = Field(...)
+    osobne_naklady: float = Field(0, description="Personálne/osobné náklady (Staff costs). Ak chýbajú (0 zamestnancov), vráť 0.")
+    pohladavky_z_obchodneho_styku: float = Field(0, description="Pohľadávky z obchodného styku (Trade receivables). Ak chýba, vráť 0.")
+    zavazky_z_obchodneho_styku: float = Field(0, description="Záväzky z obchodného styku (Trade payables). Ak chýba, vráť 0.")
+    mena: str = Field("EUR", description="Mena výkazu: 'EUR', 'CZK', 'USD'. Ak výkaz uvádza 'v tisícoch EUR', mena je stále EUR (konverzia sa rieši v iných pravidlách).")
+    typ_zavierky: str = Field("SK_GAAP", description="Typ závierky: 'IFRS' ak dokument explicitne uvádza IFRS, 'MICRO' pre Úč MUJ mikro jednotky, inak 'SK_GAAP'.")
 
 class CompanyFinancialExtraction(BaseModel):
     ico: str = Field(...)
@@ -51,18 +52,28 @@ class CompanyFinancialExtraction(BaseModel):
     audit: AuditorReportData
     metriky: FinancialMetrics
 
-SYSTEM_PROMPT = """Si expertný finančný a forenzný audítor. Tvojou úlohou je extrahovať fakty z účtovných závierok (vrátane IFRS, národných štandardov a Mikro účtovných jednotiek - Úč MUJ) pre potreby advokátov, ktorí preverujú bonitu protistrany a hľadajú podozrivé aktivity (tzv. biele kone) alebo riziko úpadku.
+SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je extrahovať fakty z účtovných závierok (vrátane IFRS, národných štandardov a Mikro účtovných jednotiek - Úč MUJ) pre potreby advokátov, ktorí preverujú bonitu protistrany a hľadajú podozrivé aktivity (tzv. biele kone) alebo riziko úpadku.
 
 KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
-- Všetky finančné hodnoty extrahuj V EURÁCH (nie v tisícoch ani miliónoch EUR). Ak tabuľka uvádza "v tisícach EUR", vynásob hodnotu 1000. Ak uvádza "v miliónoch EUR", vynásob 1 000 000.
+- Všetky finančné hodnoty extrahuj V EURÁCH (nie v tisícoch ani miliónoch EUR). Ak tabuľka uvádza "v tisícoch EUR", vynásob hodnotu 1000. Ak uvádza "v miliónoch EUR", vynásob 1 000 000.
+- VÝNIMKA MENA: Ak je výkaz v CZK alebo USD (nie EUR), extrahuj čísla bez konverzie a nastav pole `mena` na 'CZK' alebo 'USD'. Ak je výkaz v EUR, nastav `mena` na 'EUR'.
 - Pri číslach v zátvorkách (napr. (1500)) ich konvertuj na negatívne float hodnoty (-1500.0).
 - Ak narazíš na tabuľku s dvoma stĺpcami dát (rok X a rok X-1), extrahuj prioritne stĺpec pre rok X (aktuálne účtovné obdobie).
 - Aj keď sa jedná o malú s.r.o. (Mikro účtovná jednotka) a dokument nemá hlavičku IFRS, MUSÍŠ extrahovať hodnoty do príslušných polí (Tržby, Zisk, Aktíva...). Neodmietaj extrakciu len preto, že to nie je IFRS!
 - Malé firmy (Úč MUJ) NEPOTREBUJÚ audítora. Ak v dokumente nie je správa audítora, nastav `nazor_auditora` VŽDY na 'Bez výhrad' a nevykazuj žiadne výhrady ani going concern riziká.
 - Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, doplň nulu, ale NEPOVAŽUJ to za negatívny indikátor v ďalších analýzach.
-- Nikdy nehalucinuj. Ak iný údaj vo výkaze skutočne chýba, vráť 0 alebo null podľa Pydantic schémy."""
 
-async def extract_financial_data(file_path: str, model: str = "gemini-2.5-flash") -> CompanyFinancialExtraction:
+PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
+- `dlhodobeZavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans". Ak firma nemá dlhodobé úvery, vráť 0.
+- `hruba_marza` (Gross profit): V SK GAAP = Obchodná marža + Výrobná spotreba; v IFRS = Revenue - Cost of sales. Ak výkaz vykazuje gross profit explicitne, použi tú hodnotu. Ak nie (servisné firms), vráť 0.
+- `osobne_naklady` (Staff costs): Hľadaj "Osobné náklady", "Mzdové náklady". Slúži na detekciu schránkových firiem. Ak chýba, = 0.
+- `pohladavky_z_obchodneho_styku` a `zavazky_z_obchodneho_styku`: Hľadaj Trade receivables / Trade payables. Kľúčové pre likviditu.
+- `typ_zavierky`: Nastav 'IFRS' ak dokument uvádza 'International Financial Reporting Standards' alebo 'IFRS'. Nastav 'MICRO' pre Úč MUJ mikro jednotky. Inak nastav 'SK_GAAP'.
+- Nikdy nehalucinuj. Ak údaj vo výkaze skutočne chýba, vráť 0 alebo null podľa Pydantic schémy."""
+
+
+
+async def extract_financial_data(file_path: str, model: str = settings.model_ifrs) -> CompanyFinancialExtraction:
     """
     Nahrá PDF súbor (napr. skenovanú závierku) do Gemini File API, a použije Multimodal model 
     na extrakciu faktov priamo z obrázkov strán podľa Pydantic schémy.
@@ -90,14 +101,19 @@ async def extract_financial_data(file_path: str, model: str = "gemini-2.5-flash"
         temperature=0.0
     )
     
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=[uploaded_file],
-        config=config,
-    )
-    _log_tokens(model, response.usage_metadata, "extract_financial_data")
-    # Optionally delete the file from Google servers to keep workspace clean
-    # client.files.delete(name=uploaded_file.name)
+    try:
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=[uploaded_file],
+            config=config,
+        )
+        _log_tokens(model, response.usage_metadata, "extract_financial_data")
+    finally:
+        # Vždy vymazať súbor z Google serverov, aby sa neplatilo za zbytočný storage
+        try:
+            client.files.delete(name=uploaded_file.name)
+        except Exception as e:
+            logger.warning(f"Nepodarilo sa vymazať súbor z Gemini: {e}")
     
     data = CompanyFinancialExtraction.model_validate_json(response.text)
     
@@ -119,7 +135,7 @@ class VestnikExtraction(BaseModel):
     zhrnutie: str = Field(..., description="Stručné a jasné zhrnutie udalosti.")
     red_flags: List[str] = Field(..., description="Zoznam identifikovaných varovných signálov.")
 
-VESTNIK_SYSTEM_PROMPT = """Si špičkový forenzný analytik so špecializáciou na slovenské obchodné právo. Tvojou úlohou je analyzovať text z Obchodného vestníka a extrahovať z neho forenzne relevantné informácie.
+VESTNIK_SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je analyzovať text z Obchodného vestníka a extrahovať z neho forenzne relevantné informácie.
 Pravidlá:
 1. Identifikuj typ udalosti (napr. 'Zmena konateľa', 'Konkurz', 'Exekúcia').
 2. Priraď 'rizikovost':
@@ -131,7 +147,7 @@ Pravidlá:
 4. Ak text obsahuje viacero subjektov, zameraj sa primárne na sledované IČO.
 5. Ak ide o zmenu konateľa, prever, či nejde o osobu figurujúcu v iných firmách (ak to z textu vyplýva)."""
 
-async def extract_vestnik_event(text: str, model: str = "gemini-2.5-flash") -> VestnikExtraction:
+async def extract_vestnik_event(text: str, model: str = settings.model_vestnik) -> VestnikExtraction:
     """
     Spracuje surový textový blok z XML Obchodného vestníka a vráti Pydantic objekt VestnikExtraction.
     """
@@ -161,7 +177,7 @@ class NarrativeRiskAnalysis(BaseModel):
     forensic_red_flags: List[str] = Field(description="Zoznam identifikovaných rizikových indikátorov v texte správy.")
     synthesis: str = Field(description="Krátka syntéza: Je táto firma v stabilnom stave, alebo vykazuje známky nestability?")
 
-NARRATIVE_SYSTEM_PROMPT = """Si forenzný analytik so špecializáciou na podnikové výročnej správy. Tvojou úlohou je extrahovať z dokumentu len informácie, ktoré majú právnu alebo finančnú relevanciu.
+NARRATIVE_SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je extrahovať z dokumentu len informácie, ktoré majú právnu alebo finančnú relevanciu.
 Tvoje pravidlá:
 1. Ignoruj marketingový balast: Preskoč pasáže o 'víziách', 'spoločenskej zodpovednosti' alebo 'spokojnosti zamestnancov', pokiaľ nemajú priamy dopad na finančnú stabilitu.
 2. Hľadaj 'Going Concern' signály: Buď mimoriadne citlivý na frázy o 'pochybnostiach o schopnosti pokračovať v činnosti', 'problémoch s financovaním' alebo 'závislosti od externých úverov'.
@@ -170,10 +186,11 @@ Tvoje pravidlá:
 5. Buď kritický: Ak firma v texte bagatelizuje súdny spor, označ to ako litigation_risks a uveď, prečo je to riziko.
 6. Analyzuj výkyvy zisku: Hľadaj pasáže, kde manažment vysvetľuje zníženie zisku alebo cash-flow. Ak firma vykazuje dlhodobú ziskovosť, hľadaj náznaky budúcich rizík (napr. zmena trhu, strata kľúčového zákazníka)."""
 
-async def extract_narrative_risk(file_path: str, model: str = "gemini-3.5-flash") -> NarrativeRiskAnalysis:
+async def extract_narrative_risk(file_path: str, model: str = settings.model_narrative) -> NarrativeRiskAnalysis:
     """
-    Spracuje celú Výročnú správu (VS_*.pdf) bez orezávania.
-    Využíva dlhý kontext Gemini na odhalenie forenzných rizík a anomálií.
+    Spracuje Výročnú správu (VS_*.pdf). V predvolenom nastavení sa PDF orezáva na prvých
+    ~15 strán (manažérska správa) v `pipeline.py`, aby sa ušetrili tokeny a zrýchlilo 
+    vyhodnocovanie cez model 2.5-flash.
     """
     client = genai.Client()
     
@@ -190,18 +207,26 @@ async def extract_narrative_risk(file_path: str, model: str = "gemini-3.5-flash"
     # Zvýšený timeout, pretože ide o dlhý dokument
     # V Google GenAI SDK sa to posiela štandardne, timeout by sme inak definovali na úrovni klienta/transportu,
     # ale tu stačí predvolený (býva dosť dlhý).
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=[uploaded_file],
-        config=config,
-    )
-    _log_tokens(model, response.usage_metadata, "extract_narrative_risk")
+    try:
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=[uploaded_file],
+            config=config,
+        )
+        _log_tokens(model, response.usage_metadata, "extract_narrative_risk")
+    finally:
+        # Vždy vymazať súbor z Google serverov pre úsporu nákladov na storage
+        try:
+            client.files.delete(name=uploaded_file.name)
+        except Exception as e:
+            logger.warning(f"Nepodarilo sa vymazať súbor z Gemini: {e}")
     return NarrativeRiskAnalysis.model_validate_json(response.text)
 
 class EvidenceItem(BaseModel):
-    tvrdenie: str = Field(..., description="Tvrdenie o riziku alebo fakte.")
-    dokaz: str = Field(..., description="Konkrétne číslo alebo fakt z dát (napr. z výkazov alebo z PDF).")
-    zdroj: str = Field(..., description="Zdroj informácie (napr. názov súboru, 'analytics' alebo 'Vestník').")
+    tvrdenie: str = Field(..., description="Stručné tvrdenie (napr. 'Firma má aktívne exekúcie', 'Silný rast tržieb', 'Nízka likvidita')")
+    dokaz: str = Field(..., description="Konkrétny dôkaz a hodnota (napr. '2 aktívne záznamy od 12.5.2023', 'CAGR +15% YoY')")
+    zdroj: str = Field(..., description="Názov sekcie alebo registra (napr. 'Slovenská komora exekútorov', 'Analýza trendov')")
+    impact: Literal["POSITIVE", "NEUTRAL", "WARNING", "CRITICAL"] = Field("NEUTRAL", description="Závažnosť zistenia.")
 
 class AuditVerdict(BaseModel):
     verifa_score: int = Field(..., ge=0, le=100, description="Finálne skóre integrity a zdravia.")
@@ -211,41 +236,52 @@ class AuditVerdict(BaseModel):
     zdovodnenie: list[EvidenceItem] = Field(..., description="Analytické zdôvodnenie skóre. Zoznam tvrdení, dôkazov a zdrojov.")
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
 
-CHIEF_AUDITOR_PROMPT = """Si hlavný forenzný audítor Verifa.sk. Tvojou úlohou nie je extrahovať dáta, ale vykonať definitívne vyhodnotenie integrity a finančného zdravia spoločnosti na základe vstupov od troch špecializovaných analytikov (Finančný, Právny, Naratívny) a priamo na základe priložených PDF výpisov o verejných záväzkoch (Dlhy, Exekúcie).
+CHIEF_AUDITOR_PROMPT = """Si Forenzný Sudca Verifa.sk. Tvojou úlohou nie je extrahovať dáta, ale vykonať definitívne vyhodnotenie integrity a finančného zdravia spoločnosti na základe podkladov od Finančného analytika a priamo na základe priložených PDF výpisov o verejných záväzkoch (Dlhy, Exekúcie).
+
+**NOVÝ 5-PILIEROVÝ SCORECARD MODEL:**
+Algoritmické skóre (algorithmic_prescore) bolo vypočítané pomocou 5-pilierového modelu:
+  1. Platobná schopnosť & Exekúcie  (max 30 bodov) — current ratio, vlastné imanie, kritické udalosti vo Vestníku
+  2. Finančné zdravie – Altman Z''  (max 25 bodov) — Z'' skóre (SAFE/GREY/DISTRESS, lineárna škála), Debt/Equity ratio
+  3. Ziskovosť & Stabilita          (max 20 bodov) — počet ziskových rokov, po-sebe idúce straty, čistá marža
+  4. Rast & Trendová sila           (max 15 bodov) — CAGR tržieb, rast vlastného imania YoY, pokles tržieb
+  5. Právna bezúhonnosť             (max 10 bodov) — závažnosť udalostí vo Vestníku, audítorský posudok
+
+Podrobný rozpis skóre (scorecard_breakdown) a historické dáta nájdeš v priloženej sekcii s trendmi. Pri tvorbe zdôvodnenia píš prirodzeným, ľudským jazykom a NIKDY do textu nevypisuj technické názvy premenných (ako napr. _5_year_trend_analysis alebo revenue_trend).
 
 **Dôležité inštrukcie pre hodnotenie:**
-1. Vo vstupe dostaneš '_5_year_trend_analysis' -> 'algorithmic_prescore'. **Toto je Základná Scorecard (Hard Score)**, ktorú vypočítal algoritmus z finančných výkazov a Vestníka. Tvojou úlohou je toto skóre **potvrdiť alebo upraviť o max +/- 10 bodov** na základe tvojho forenzného úsudku.
-2. **VÝNIMKA PRE PDF DÁTA:** Keďže algoritmus nevidí do priložených PDF súborov s dlhmi, máš povinnosť z tohto skóre strhnúť **-30 bodov**, ak v PDFkách objavíš aktívne exekúcie alebo chronické dlhy voči štátu. 
-   - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej Python odrátal body a prescore je nízke), znova ich neodpočítavaj z PDF súborov, aby nedošlo k dvojitej penalizácii.
-3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky zmeň odporúčanie na 'NEODPORÚČA SA OBCHODOVAŤ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre alebo zisk.
-4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, `algorithmic_prescore` bude zrejme nízke alebo chýbať, hodnoť primerane (okolo 50).
+1. `algorithmic_prescore` je výsledok deterministického 5-pilierového modelu. Tvojou úlohou je toto skóre **potvrdiť alebo upraviť o max ±10 bodov** na základe tvojho forenzného úsudku z naratívnych a právnych dát.
+2. **VÝNIMKA PRE PDF DÁTA:** Keďže algoritmus nevidí do priložených PDF súborov s dlhmi, máš povinnosť z tohto skóre strhnúť **-30 bodov**, ak v PDFkách objavíš aktívne exekúcie alebo chronické dlhy voči štátu.
+   - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej algoritmus v Pilieri 1 a 5 odrátal body), znova ich neodpočítavaj z PDF súborov, aby nedošlo k dvojitej penalizácii.
+3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky zmeň odporúčanie na 'NEODPORÚČA SA OBCHODOVAŤ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre.
+4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, niektoré piliere budú mať neutrálnu hodnotu (N/A). Hodnoť primerane (okolo 50).
 5. Zlaté klietky (Riziko tunelovania): Ak vidíš rast tržieb, ale výrazný pokles hotovosti a rast záväzkov voči prepojeným osobám, uprav skóre smerom nadol v rámci svojho limitu.
 
 Tvoj výstup musí byť objektívny, nekompromisný a orientovaný na riziko.
 
 PROCES HODNOTENIA:
-1. KRÍŽOVÁ KONTROLA: Porovnaj "príbeh" (Narrative) s "číslami" (Financials). Zohľadni aj profitability_explanation. 
+1. KRÍŽOVÁ KONTROLA: Porovnaj "príbeh" (Narrative) s "číslami" (Financials). Zohľadni profitability_explanation.
 2. ANALÝZA VEREJNÝCH ZÁVÄZKOV A EXEKÚCIÍ (Z PDF súborov):
-   - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu s aktuálnou hotovosťou vo finančných výkazoch.
-   - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti, nie len náhodnej chyby.
-   - Urči `debt_exposure_rating` (0-10), kde 0 znamená žiadne alebo zanedbateľné dlhy, a 10 znamená katastrofálnu dlhovú pascu.
-3. VÝPOČET SKÓRE (0-100):
-   - Vezmi `algorithmic_prescore`.
-   - Pridaj/Odober max 10 bodov podľa forenzného úsudku.
-   - Odober 30 bodov, ak sú v PDF objavené vážne exekúcie/dlhy (a neboli už započítané v prescore).
-   - Priraď kategóriu rizika (90-100: AAA, 70-89: A, 40-69: B, 0-39: C).
+   - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu s aktuálnou hotovosťou.
+   - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti.
+   - Urči `debt_exposure_rating` (0-10), kde 0 = žiadne dlhy, 10 = katastrofálna dlhová pasca.
+3. VÝPOČET FINÁLNEHO SKÓRE (0-100):
+   - Vezmi `algorithmic_prescore` (výsledok 5-pilierového modelu, rozsah 0–100).
+   - Pridaj/Odober max ±10 bodov podľa forenzného úsudku (naratíva, právne riziká, PDF analýza).
+   - Odober -30 bodov, ak sú v PDF objavené vážne exekúcie/dlhy (a neboli už zachytené v Pilieri 1 prescore).
+   - Priraď kategóriu rizika: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
 PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
-- V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`. 
-- V každom `EvidenceItem` musíš explicitne uviesť: 
-  Tvrdenie (tvoj záver), Dôkaz (konkrétne číslo alebo fakt) a Zdroj (z ktorého PDF/poľa to máš).
-- Ak sa tvoje skóre líši od 'algorithmic_prescore', vysvetli dôvod v jednom z bodov (napríklad penalizácia za PDF dlhy).
-- Ak nemáš dostatok dát (napr. chýbajúce PDF súbory pre dané IČO), skóre neurčuj a uveď 'INSUFFICIENT_DATA'."""
+- V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
+- Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelovanie a bankrot, NEUTRAL pre neutrálne info).
+- Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
+- Ak sa tvoje skóre líši od 'algorithmic_prescore', vysvetli dôvod (napr. penalizácia za PDF dlhy, naratívne riziká).
+- Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), skóre neurčuj a uveď 'INSUFFICIENT_DATA'."""
+
 
 import asyncio
 
-async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: str = "gemini-2.5-flash") -> AuditVerdict:
+async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: str = settings.model_verdict) -> AuditVerdict:
     """
     Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami a textom extrahovaným z PDF súborov registrov.
     """

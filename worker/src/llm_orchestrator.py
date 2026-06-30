@@ -1,19 +1,18 @@
 import asyncio
 import logging
 
+from src.config import settings
+
 logger = logging.getLogger(__name__)
 
-# ── Hybrid Model Routing ────────────────────────────────────────────────────
-# IFRS tabuľky: gemini-2.5-flash — spoľahlivý OCR/extraktor, ~20× lacnejší ako 3.5
-# Naratívna analýza (VS): gemini-3.5-flash — potrebuje hlbšie pochopenie nuancií
-# Vestník udalosti: gemini-2.5-flash — štruktúrovaná extrakcia textu
-_MODEL_IFRS = "gemini-2.5-flash"
-_MODEL_NARRATIVE = "gemini-3.5-flash"
-_MODEL_VESTNIK = "gemini-2.5-flash"
+# ── Hybrid Model Routing (centralized in config.py) ─────────────────────────
+_MODEL_IFRS = settings.model_ifrs
+_MODEL_NARRATIVE = settings.model_narrative
+_MODEL_VESTNIK = settings.model_vestnik
 
 # ── Exponential Backoff + Fallback Model ──────────────────────────────────
-_BACKOFF_SECONDS = [15, 45, 120, 300]
-_FALLBACK_MODEL = "gemini-3.5-flash"
+_BACKOFF_SECONDS = settings.llm_backoff_list
+_FALLBACK_MODEL = settings.model_fallback
 
 async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
     """

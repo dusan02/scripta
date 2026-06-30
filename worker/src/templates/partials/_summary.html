@@ -1,0 +1,115 @@
+<div class="page-break"></div>
+<!-- 3b. SCORING BREAKDOWN TABUĽKA -->
+{% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
+<div class="mb-8">
+    <h2 id="scoring_breakdown" class="section-title">Scoring Breakdown — Hodnotenie podľa kategórií</h2>
+    <table class="w-full border-collapse text-sm">
+        <thead>
+            <tr class="bg-slate-100">
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[38%]">Kategória</th>
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[35%]">Hlavný nález</th>
+                <th class="text-center py-2 px-3 font-bold text-slate-600 w-[15%]">Body</th>
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[12%]">Plnenie</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for pillar in scorecard_breakdown %}
+            {% set pct = ((pillar.score / pillar.max_score) * 100) | int %}
+            {% if pct >= 70 %}
+                {% set bar_color = "#10b981" %}
+                {% set score_color = "text-emerald-700" %}
+                {% set row_bg = "" %}
+            {% elif pct >= 40 %}
+                {% set bar_color = "#f59e0b" %}
+                {% set score_color = "text-amber-600" %}
+                {% set row_bg = "" %}
+            {% else %}
+                {% set bar_color = "#ef4444" %}
+                {% set score_color = "text-rose-600" %}
+                {% set row_bg = "background: #fff5f5;" %}
+            {% endif %}
+            <tr class="border-b border-slate-100" style="{{ row_bg }}">
+                <td class="py-2.5 px-3 font-semibold text-slate-800 text-xs">{{ pillar.name }}</td>
+                <td class="py-2.5 px-3 text-slate-600 text-[11px] leading-snug">{{ pillar.detail }}</td>
+                <td class="py-2.5 px-3 text-center font-black text-sm {{ score_color }}">
+                    {{ pillar.score }}<span class="text-slate-400 font-normal text-[10px]">/{{ pillar.max_score }}</span>
+                </td>
+                <td class="py-2.5 px-3">
+                    <div class="w-full bg-slate-200 rounded-full" style="height:6px;">
+                        <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
+                    </div>
+                    <span class="text-[9px] text-slate-400 mt-0.5 block text-right">{{ pct }}%</span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-slate-50 border-t-2 border-slate-300">
+                <td class="py-2.5 px-3 font-black text-slate-800 text-sm" colspan="2">CELKOVÉ ALGORITMICKÉ SKÓRE</td>
+                <td class="py-2.5 px-3 text-center font-black text-lg
+                    {% if verdict.verifaScore >= 70 %}text-emerald-700
+                    {% elif verdict.verifaScore >= 40 %}text-amber-600
+                    {% else %}text-rose-600{% endif %}">
+                    {{ verdict.verifaScore }}<span class="text-slate-400 font-normal text-[10px]">/100</span>
+                </td>
+                <td class="py-2.5 px-3">
+                    <span class="font-bold text-xs px-2 py-0.5 rounded
+                        {% if verdict.riskCategory == 'AAA' %}bg-emerald-100 text-emerald-700
+                        {% elif verdict.riskCategory == 'A' %}bg-emerald-50 text-emerald-600
+                        {% elif verdict.riskCategory == 'B' %}bg-amber-50 text-amber-600
+                        {% else %}bg-rose-50 text-rose-600{% endif %}">
+                        {{ verdict.riskCategory }}
+                    </span>
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+    <p class="text-[8px] text-slate-400 mt-1.5">
+        Algoritmické skóre (30% platobná schopnosť · 25% finančné zdravie · 20% ziskovosť · 15% rast · 10% právna bezúhonnosť).
+        Finálne skóre môže byť upravené forenzným audítorom o ±10 bodov na základe PDF výpisov (exekúcie, dlhy voči štátu).
+    </p>
+</div>
+{% endif %}
+
+    <div class="page-break"></div>
+    <h2 id="forenzny_posudok" class="pt-8 section-title">Forenzný Posudok</h2>
+    
+    <div class="flex gap-6">
+        <!-- Text part -->
+        <div class="flex-1">
+            <p class="text-lg font-bold text-slate-800 leading-tight mb-4">
+                {% if verdict.riskCategory == 'AAA' %}Bezpečný partner na spoluprácu.{% elif verdict.riskCategory == 'A' %}Stabilná spoločnosť s drobnými rizikami.{% elif verdict.riskCategory == 'B' %}Odporúčame zvýšenú opatrnosť a dodatočnú kontrolu.{% else %}Dôrazne neodporúčame vstupovať do obchodného vzťahu.{% endif %}
+            </p>
+            {% if evidence_list %}
+            <div class="mt-4 border border-slate-200 rounded-lg overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[47%]">Tvrdenie</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[43%]">Dôkaz</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[10%]">Zdroj</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        {% for item in evidence_list %}
+                        <tr>
+                            <td class="px-3 py-2 text-slate-700 align-top">{{ item.tvrdenie }}</td>
+                            <td class="px-3 py-2 text-slate-600 align-top">{{ item.dokaz }}</td>
+                            <td class="px-3 py-2 text-blue-600 align-top font-mono text-xs">{{ item.zdroj }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-slate-700 leading-relaxed text-justify">{{ verdict.justification }}</p>
+            {% endif %}
+            
+            {% if verdict.keyRisk and verdict.keyRisk != "Žiadne" and verdict.keyRisk != "N/A" %}
+            <div class="mt-4 p-3 bg-rose-50 border-l-4 border-rose-500 rounded-r text-sm text-rose-800">
+                <strong>Kľúčové zistenie:</strong> {{ verdict.keyRisk }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

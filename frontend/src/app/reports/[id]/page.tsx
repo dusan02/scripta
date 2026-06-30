@@ -6,6 +6,7 @@ import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
 import RegistryGrid from "@/components/RegistryGrid";
 import CopyableText from "@/components/CopyableText";
+import Logo from "@/components/Logo";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { LOCALE_MAP } from "@/lib/i18n";
 import toast from "react-hot-toast";
@@ -180,86 +181,68 @@ function ErrorDetails({ sources }: { sources: ReportSource[] }) {
   );
 }
 
-// ── AI Progress Tracker ──────────────────────────────────────────
-const AI_PHASES = [
-  "Sťahovanie finančných závierok z RÚZ...",
-  "Forenzná analýza účtovných výkazov...",
-  "Právna analýza Obchodného vestníka...",
-  "Záverečný posudok — Chief Auditor...",
-  "Kompilácia forenzného reportu...",
+// ── AI Magic Loader ──────────────────────────────────────────
+const LOADER_STEPS = [
+  "Inicializácia zabezpečeného analytického jadra",
+  "Validácia zhody s referenčnými databázami",
+  "Kvantitatívna analýza a prepočítavanie finančných výkazov",
+  "Výpočet metrík finančného zdravia a bankrotových modelov",
+  "Krížová kontrola záväzkov a nedoplatkov voči štátu",
+  "Hĺbková analýza reputačných rizík a exekúcií",
+  "Forenzná detekcia anomálií a sankcií",
+  "Generovanie záverečného forenzného posudku",
+  "Kompletizácia výsledkov do zabezpečeného reportu"
 ];
 
-function AiProgressTracker({
-  aiStatus,
-  eta,
-  sourcesCompleted,
-  sourcesTotal,
-}: {
-  aiStatus?: string | null;
-  eta?: number | null;
-  sourcesCompleted: number;
-  sourcesTotal: number;
-}) {
-  const [localEta, setLocalEta] = useState<number | null>(eta ?? 90);
-  const [phaseIdx, setPhaseIdx] = useState(0);
+function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: number, sourcesTotal: number }) {
+  const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
-    if (eta !== undefined && eta !== null) setLocalEta(eta);
-  }, [eta]);
-
-  useEffect(() => {
-    if (localEta === null || localEta <= 0) return;
     const interval = setInterval(() => {
-      setLocalEta((prev) => (prev ? prev - 1 : 0));
-    }, 1000);
+      setActiveStep(prev => {
+        if (prev < 7) return prev + 1;
+        const allDone = sourcesTotal > 0 && sourcesCompleted >= sourcesTotal;
+        if (allDone && prev < LOADER_STEPS.length - 1) return prev + 1;
+        return prev;
+      });
+    }, 1800);
     return () => clearInterval(interval);
-  }, [localEta]);
+  }, [sourcesCompleted, sourcesTotal]);
 
-  // Cycle through phase hints every 5 s when aiStatus is not yet set by worker
-  useEffect(() => {
-    if (aiStatus) return;
-    const allDone = sourcesTotal > 0 && sourcesCompleted >= sourcesTotal;
-    if (!allDone) return;
-    const id = setInterval(() => {
-      setPhaseIdx((p) => (p + 1) % AI_PHASES.length);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [aiStatus, sourcesCompleted, sourcesTotal]);
-
-  const allSourcesDone = sourcesTotal > 0 && sourcesCompleted >= sourcesTotal;
-  const displayStatus =
-    aiStatus ||
-    (allSourcesDone ? AI_PHASES[phaseIdx] : "Spracovanie registrov...");
+  const currentText = LOADER_STEPS[Math.min(activeStep, LOADER_STEPS.length - 1)];
 
   return (
-    <div className="mt-8 flex flex-col items-center justify-center p-6 bg-[var(--bg-muted)] border border-[var(--border)] rounded-xl max-w-2xl mx-auto w-full fade-in">
-      <div className="flex items-center gap-3 mb-2">
-        <svg className="animate-spin w-5 h-5 text-[var(--accent)]" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.2" />
-          <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        </svg>
-        <span className="font-semibold text-[var(--text)] text-center text-sm md:text-base">{displayStatus}</span>
-      </div>
-      {allSourcesDone && !aiStatus && (
-        <div className="mt-3 flex gap-1.5">
-          {AI_PHASES.map((_, i) => (
-            <div
-              key={i}
-              className="rounded-full transition-all duration-500"
-              style={{
-                width: i === phaseIdx ? "20px" : "6px",
-                height: "6px",
-                background: i === phaseIdx ? "var(--accent)" : "var(--border-strong)",
-              }}
-            />
-          ))}
+    <div className="mt-8 bg-white dark:bg-slate-900 rounded-2xl p-5 w-full max-w-2xl mx-auto shadow-sm relative fade-in" style={{ border: "1px solid var(--border)" }}>
+      <div className="flex items-center gap-4">
+        {/* Animated Icon */}
+        <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center relative">
+          <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400 animate-spin relative z-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <div className="absolute inset-0 rounded-full bg-emerald-400 opacity-20 animate-ping"></div>
         </div>
-      )}
-      {localEta !== null && localEta > 0 && (
-        <span className="text-xs font-medium mt-2 text-[var(--text-muted)]">
-          Odhadovaný čas dokončenia: ~{localEta} s
-        </span>
-      )}
+        
+        {/* Current Status */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-[11px] font-bold tracking-wider uppercase mb-1" style={{ color: "var(--text-muted)" }}>
+            Spracovávanie údajov
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 dark:text-slate-500 shrink-0 tabular-nums text-sm font-mono mt-0.5">
+              [{new Date().toLocaleTimeString('sk-SK', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]
+            </span>
+            <span className="text-[15px] font-medium text-emerald-600 dark:text-emerald-400 truncate">
+              {currentText}
+            </span>
+            <span className="flex gap-1 items-center ml-1 opacity-70">
+              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -344,6 +327,35 @@ export default function ReportDetailPage() {
       URL.revokeObjectURL(url);
     } catch {
       toast.error(t("report.stiahnutDokument"));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleShareEmail = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/reports/${params.id}/download`);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const namePart = report?.companyName || report?.ico || report?.id.slice(0, 8);
+      const fileName = `Verifa_${namePart}.pdf`.replace(/\\s+/g, '_');
+      const file = new File([blob], fileName, { type: "application/pdf" });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Forenzný Report - ${namePart}`,
+          text: `Dobrý deň,\\n\\nv prílohe posielam preverený forenzný report pre subjekt ${namePart}.`,
+          files: [file]
+        });
+      } else {
+        toast.error("Tento prehliadač nepodporuje priame zdieľanie súborov. Dokument sa klasicky stiahne.");
+        handleDownload();
+      }
+    } catch (e: any) {
+      if (e.name !== "AbortError") {
+        toast.error("Zdieľanie zlyhalo.");
+      }
     } finally {
       setDownloading(false);
     }
@@ -583,9 +595,7 @@ export default function ReportDetailPage() {
           </div>
         ) : !isFinished ? (
           <>
-            <AiProgressTracker
-              aiStatus={report.aiStatus}
-              eta={report.eta}
+            <MagicLoader
               sourcesCompleted={report.sources.filter(s => ["SUCCESS","FAILED","UNAVAILABLE"].includes(s.status)).length}
               sourcesTotal={report.sources.length}
             />
@@ -599,27 +609,106 @@ export default function ReportDetailPage() {
         ) : (
           <div className="fade-in flex flex-col items-center justify-center pt-6 pb-10 px-4">
 
-            {/* Checkmark hero */}
-            <div
-              className="flex items-center justify-center rounded-full mb-5"
-              style={{
-                width: 72, height: 72,
-                background: "var(--success-bg)",
-                border: "2px solid var(--success)",
-              }}
-            >
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M5 13l4 4L19 7" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-
-            {/* Title */}
-            <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text)" }}>
-              Analýza dokončená
-            </h2>
-            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-              Všetky dostupné registre boli preverené a forenzný posudok bol vygenerovaný.
-            </p>
+            {/* Premium Success Card */}
+            {canDownload ? (
+              <div
+                className="flex flex-col items-center justify-center rounded-2xl mb-8 w-full max-w-[440px] transition-all"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid color-mix(in srgb, var(--success) 30%, var(--border) 70%)",
+                  boxShadow: "0 12px 32px -8px color-mix(in srgb, var(--success) 15%, transparent), 0 2px 6px -1px color-mix(in srgb, var(--success) 8%, transparent)",
+                  padding: "36px 24px",
+                  position: "relative",
+                  overflow: "hidden"
+                }}
+              >
+                {/* Subtle top glow */}
+                <div 
+                  className="absolute top-0 left-0 right-0 h-1" 
+                  style={{ background: "linear-gradient(90deg, transparent 0%, var(--success) 50%, transparent 100%)", opacity: 0.7 }}
+                />
+                
+                {/* Background ambient glow */}
+                <div 
+                  className="absolute top-[-50px] left-1/2 -translate-x-1/2 w-[200px] h-[100px] rounded-full blur-3xl"
+                  style={{ background: "var(--success)", opacity: 0.1, pointerEvents: "none" }}
+                />
+                
+                {downloading ? (
+                  <div className="flex flex-col items-center gap-4 py-2 z-10">
+                    <svg className="animate-spin w-10 h-10 text-[var(--success)]" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    <span className="font-bold text-[15px]" style={{ color: "var(--text)" }}>Sťahujem report…</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center z-10">
+                    <div className="mb-4 pointer-events-none drop-shadow-sm">
+                      <Logo size="lg" />
+                    </div>
+                    
+                    <h2 className="text-lg font-bold mb-1.5" style={{ color: "var(--text)" }}>
+                      Analýza úspešne dokončená
+                    </h2>
+                    
+                    <p className="text-[13.5px] text-center mb-8 max-w-[280px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                      Všetky štátne registre boli preverené a forenzný posudok je pripravený.
+                    </p>
+                    
+                    <div className="flex flex-col gap-3 w-full">
+                      <button
+                        id="download-pdf-btn-completion"
+                        onClick={handleDownload}
+                        className="group flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-[14px] transition-all hover:scale-[1.02] active:scale-[0.98] w-full"
+                        style={{ 
+                          background: "var(--accent)", 
+                          color: "#000",
+                          boxShadow: "0 6px 16px -4px color-mix(in srgb, var(--accent) 40%, transparent)",
+                          border: "1px solid color-mix(in srgb, var(--accent) 80%, #000 20%)"
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform group-hover:-translate-y-0.5">
+                          <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Stiahnuť forenzný report
+                      </button>
+                      
+                      <button
+                        onClick={handleShareEmail}
+                        className="flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-semibold text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800 w-full"
+                        style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                          <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                        Poslať e-mailom (s PDF v prílohe)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div
+                  className="flex items-center justify-center rounded-full mb-5"
+                  style={{
+                    width: 72, height: 72,
+                    background: "var(--danger-bg)",
+                    border: "2px solid var(--danger)",
+                  }}
+                >
+                  <span className="text-3xl">⚠️</span>
+                </div>
+                <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text)" }}>
+                  Analýza zlyhala
+                </h2>
+                <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+                  Report nebolo možné vygenerovať.
+                </p>
+              </>
+            )}
 
             {/* Stats row */}
             <div className="flex gap-4 mb-7 flex-wrap justify-center">
@@ -654,43 +743,7 @@ export default function ReportDetailPage() {
               ))}
             </div>
 
-            {/* Download CTA */}
-            {canDownload && (
-              <button
-                id="download-pdf-btn-completion"
-                onClick={handleDownload}
-                disabled={downloading}
-                className="flex items-center justify-center gap-2.5 rounded-xl transition-all hover:brightness-105 active:scale-[0.98]"
-                style={{
-                  background: "var(--accent)",
-                  color: "#000",
-                  height: "48px",
-                  padding: "0 28px",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  border: "1px solid var(--accent)",
-                  boxShadow: "0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent)",
-                  letterSpacing: "0.01em",
-                }}
-              >
-                {downloading ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                    Sťahujem…
-                  </>
-                ) : (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Stiahnuť forenzný report
-                  </>
-                )}
-              </button>
-            )}
+
 
             {/* Retry for partial */}
             {canRetry && (

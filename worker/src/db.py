@@ -51,6 +51,28 @@ async def update_report_status(
     )
 
 
+async def get_avg_completion_seconds(pool: asyncpg.Pool, limit: int = 10) -> Optional[float]:
+    """Vráti priemerný čas dokončenia (v sekundách) z posledných N completed/partial reportov.
+    Vráti None ak nie sú žiadne historické dáta."""
+    rows = await pool.fetch(
+        """
+        SELECT EXTRACT(EPOCH FROM ("completedAt" - "createdAt")) AS duration
+        FROM "ReportRequest"
+        WHERE status IN ('COMPLETED', 'PARTIAL')
+          AND "completedAt" IS NOT NULL
+        ORDER BY "completedAt" DESC
+        LIMIT $1
+        """,
+        limit,
+    )
+    if not rows:
+        return None
+    durations = [r["duration"] for r in rows if r["duration"] and r["duration"] > 0]
+    if not durations:
+        return None
+    return sum(durations) / len(durations)
+
+
 async def update_report_ai_status(
     pool: asyncpg.Pool,
     report_request_id: str,

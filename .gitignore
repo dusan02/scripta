@@ -11,3 +11,21 @@ __pycache__/
 *.log
 .DS_Store
 frontend/.next/
+
+# Debug / one-off test scripts (keep worker/tests/ for real pytest tests)
+debug_*.py
+debug_*.js
+debug_*.html
+test_*.py
+test_*.js
+test_*.html
+!worker/tests/
+
+# Temp artifacts
+ru_results.html
+zrsr_debug_vypis.pdf
+dummy_financials.pdf
+job_log.txt
+results/
+test-results/
+worker/scratch/

@@ -153,6 +153,48 @@ export default async function DashboardPage({
                     </div>
                   )}
 
+                  {/* 5 Pilierov - Scorecard Breakdown */}
+                  {company.auditVerdict.scorecardBreakdown && Array.isArray(company.auditVerdict.scorecardBreakdown) && (
+                    <div className="mt-6 mb-4">
+                      <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-4">Hodnotenie 5 Pilierov (Algoritmické skóre)</h3>
+                      <div className="space-y-4">
+                        {(company.auditVerdict.scorecardBreakdown as any[]).map((pillar, idx) => {
+                          const percentage = pillar.max_score > 0 ? (pillar.score / pillar.max_score) * 100 : 0;
+                          let barColor = "bg-neutral-500";
+                          if (pillar.score < 0) barColor = "bg-rose-500"; // Penalizácie
+                          else if (percentage >= 80) barColor = "bg-emerald-500";
+                          else if (percentage >= 50) barColor = "bg-amber-500";
+                          else barColor = "bg-rose-500";
+                          
+                          return (
+                            <div key={idx} className="flex flex-col gap-1">
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-neutral-300 font-medium">{pillar.name}</span>
+                                <span className="text-neutral-400 text-xs font-mono">{pillar.score} / {pillar.max_score} b.</span>
+                              </div>
+                              <div className="w-full bg-neutral-800 rounded-full h-1.5 overflow-hidden flex">
+                                {pillar.score < 0 ? (
+                                  <div className="bg-rose-600 h-1.5 w-full animate-pulse"></div>
+                                ) : (
+                                  <div className={`${barColor} h-1.5 rounded-full`} style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}></div>
+                                )}
+                              </div>
+                              {pillar.flags && pillar.flags.length > 0 && (
+                                <ul className="mt-1 space-y-0.5">
+                                  {pillar.flags.map((flag: string, i: number) => (
+                                    <li key={i} className="text-[10px] text-neutral-500 flex items-start gap-1">
+                                      <span className="text-neutral-600 mt-0.5">•</span> <span>{flag}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-3">Forenzná Dôkazová Stopa</h3>
                     {(() => {
@@ -169,25 +211,42 @@ export default async function DashboardPage({
                         const evidenceList = JSON.parse(rawJson);
                         if (Array.isArray(evidenceList)) {
                           return (
-                            <div className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-900/30">
-                              <table className="w-full text-left border-collapse">
-                                <thead className="bg-neutral-900 border-b border-neutral-800">
-                                  <tr>
-                                    <th className="px-4 py-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider w-1/3">Tvrdenie</th>
-                                    <th className="px-4 py-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider w-1/2">Dôkaz</th>
-                                    <th className="px-4 py-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider w-1/6">Zdroj</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-neutral-800/50">
-                                  {evidenceList.map((item: any, i: number) => (
-                                    <tr key={i} className="hover:bg-neutral-800/30 transition-colors">
-                                      <td className="px-4 py-3 text-sm text-neutral-200 align-top">{item.tvrdenie}</td>
-                                      <td className="px-4 py-3 text-sm text-neutral-400 align-top">{item.dokaz}</td>
-                                      <td className="px-4 py-3 text-sm text-emerald-400/80 align-top font-mono text-xs cursor-pointer hover:text-emerald-300 hover:underline">{item.zdroj}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            <div className="space-y-3">
+                              {evidenceList.map((item: any, i: number) => {
+                                const impact = item.impact || "NEUTRAL";
+                                let bgClass = "bg-neutral-900/30 border-neutral-800";
+                                let icon = "ℹ️";
+                                let titleColor = "text-neutral-200";
+                                
+                                if (impact === "CRITICAL") {
+                                  bgClass = "bg-rose-500/10 border-rose-500/30";
+                                  icon = "🚨";
+                                  titleColor = "text-rose-400 font-bold";
+                                } else if (impact === "WARNING") {
+                                  bgClass = "bg-amber-500/10 border-amber-500/30";
+                                  icon = "⚠️";
+                                  titleColor = "text-amber-400 font-bold";
+                                } else if (impact === "POSITIVE") {
+                                  bgClass = "bg-emerald-500/10 border-emerald-500/30";
+                                  icon = "✅";
+                                  titleColor = "text-emerald-400 font-bold";
+                                }
+
+                                return (
+                                  <div key={i} className={`p-4 rounded-xl border ${bgClass} flex gap-4 transition-all hover:scale-[1.01]`}>
+                                    <div className="text-xl flex-shrink-0 mt-0.5">{icon}</div>
+                                    <div className="flex-1">
+                                      <h4 className={`text-sm mb-1 ${titleColor}`}>{item.tvrdenie}</h4>
+                                      <p className="text-sm text-neutral-300 mb-2">{item.dokaz}</p>
+                                      <div className="flex items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded bg-black/30 border border-white/5 text-[10px] text-neutral-400 font-mono uppercase tracking-wider">
+                                          Zdroj: {item.zdroj}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
                         }
@@ -452,6 +511,9 @@ export default async function DashboardPage({
                     <th className="px-6 py-4 font-medium">Aktíva</th>
                     <th className="px-6 py-4 font-medium">Tržby</th>
                     <th className="px-6 py-4 font-medium">Zisk/Strata</th>
+                    <th className="px-6 py-4 font-medium">Osobné náklady</th>
+                    <th className="px-6 py-4 font-medium">Pohľadávky (OS)</th>
+                    <th className="px-6 py-4 font-medium">Záväzky (OS)</th>
                     <th className="px-6 py-4 font-medium">Audítor</th>
                   </tr>
                 </thead>
@@ -464,6 +526,9 @@ export default async function DashboardPage({
                       <td className={`px-6 py-4 font-medium ${stmt.netProfitLoss < 0 ? "text-rose-400" : "text-emerald-400"}`}>
                         {formatCurrency(stmt.netProfitLoss)}
                       </td>
+                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.staffCosts || 0)}</td>
+                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.tradeReceivables || 0)}</td>
+                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.tradePayables || 0)}</td>
                       <td className="px-6 py-4 text-neutral-400">
                         {stmt.auditorOpinion?.opinionType || "N/A"}
                       </td>

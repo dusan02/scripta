@@ -214,10 +214,17 @@ model FinancialStatement {
   currentAssets                         Float           @default(0)
   equity                                Float
   shortTermLiabilities                  Float
+  longTermLiabilities                   Float           @default(0)   // Dlhodobé záväzky (bankové úvery, dlhopisy...)
   mainActivityRevenue                   Float
+  grossProfit                           Float           @default(0)   // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
   netProfitLoss                         Float
   cashAndEquivalents                    Float
   operatingCashFlow                     Float
+  staffCosts                            Float           @default(0)   // Osobné náklady
+  tradeReceivables                      Float           @default(0)   // Pohľadávky z obch. styku
+  tradePayables                         Float           @default(0)   // Záväzky z obch. styku
+  currency                              String          @default("EUR") // Mena výkazu (EUR, CZK, USD...)
+  statementType                         String          @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   createdAt                             DateTime        @default(now())
   
   company                               Company         @relation(fields: [companyIco], references: [ico])
@@ -226,6 +233,7 @@ model FinancialStatement {
 
   @@unique([companyIco, year]) // Zabezpečí, že nebudeme mať duplicitné výkazy za jeden rok
 }
+
 
 model AuditorOpinion {
   id                   String             @id @default(uuid())
@@ -260,6 +268,7 @@ model AuditVerdict {
   finalVerdict    String   @db.Text
   justification   String   @db.Text
   keyRisk         String   @db.Text
+  scorecardBreakdown Json?
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])

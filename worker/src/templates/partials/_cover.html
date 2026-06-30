@@ -1,0 +1,136 @@
+<!-- COVER PAGE -->
+<div class="flex flex-col items-center justify-center page-break-after" style="min-height: 240mm;">
+    {% if logo_base64 %}
+    <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-24 mb-10">
+    {% else %}
+    <h1 class="text-5xl font-black text-[#10b981] mb-10">Verifa.sk</h1>
+    {% endif %}
+    
+    <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">Forenzný Due Diligence Report</h2>
+    <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-6 leading-tight">{{ company.name }}</h3>
+    
+    <div class="bg-slate-50 border border-slate-200 rounded-lg px-8 py-4 text-center mb-16">
+        <p class="text-sm text-slate-500 uppercase tracking-widest font-bold mb-1">Identifikačné číslo (IČO)</p>
+        <p class="text-2xl font-black text-slate-800">{{ company.ico }}</p>
+    </div>
+
+    <div class="flex flex-col items-center justify-center mb-16">
+        {% set stamp_color_class = "text-[#10b981]" %}
+        {% set stamp_border_class = "border-[#10b981]" %}
+        {% set stamp_bg_class = "bg-emerald-50" %}
+        {% set stamp_hex = "#10b981" %}
+        
+        {% if verdict.verifaScore < 70 and verdict.verifaScore >= 40 %}
+            {% set stamp_color_class = "text-[#f59e0b]" %}
+            {% set stamp_border_class = "border-[#f59e0b]" %}
+            {% set stamp_bg_class = "bg-amber-50" %}
+            {% set stamp_hex = "#f59e0b" %}
+        {% elif verdict.verifaScore < 40 %}
+            {% set stamp_color_class = "text-[#e11d48]" %}
+            {% set stamp_border_class = "border-[#e11d48]" %}
+            {% set stamp_bg_class = "bg-rose-50" %}
+            {% set stamp_hex = "#e11d48" %}
+        {% endif %}
+
+        <div class="relative w-56 h-56 flex items-center justify-center transform rotate-[-8deg] opacity-90">
+            <svg viewBox="0 0 200 200" class="absolute inset-0 w-full h-full">
+                <defs>
+                    <filter id="grunge" x="-20%" y="-20%" width="140%" height="140%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" result="noise" />
+                        <feComponentTransfer in="noise" result="speckles">
+                            <feFuncA type="linear" slope="3.5" intercept="-1.3" />
+                        </feComponentTransfer>
+                        <feComponentTransfer in="speckles" result="holes">
+                            <feFuncA type="table" tableValues="1 0" />
+                        </feComponentTransfer>
+                        <feComposite operator="in" in="SourceGraphic" in2="holes" />
+                    </filter>
+                    <path id="topCurve" d="M 25 100 A 75 75 0 0 1 175 100" />
+                    <path id="bottomCurve" d="M 25 100 A 75 75 0 0 0 175 100" />
+                </defs>
+                <g filter="url(#grunge)" fill="{{ stamp_hex }}" stroke="{{ stamp_hex }}">
+                    <!-- Outer rings -->
+                    <circle cx="100" cy="100" r="96" fill="none" stroke-width="2.5" />
+                    <circle cx="100" cy="100" r="89" fill="none" stroke-width="6" />
+                    <!-- Inner rings -->
+                    <circle cx="100" cy="100" r="58" fill="none" stroke-width="3" />
+                    <circle cx="100" cy="100" r="53" fill="none" stroke-width="1.5" stroke-dasharray="3 3" />
+                    
+                    <!-- Curved text -->
+                    <text font-family="'Inter', sans-serif" font-weight="900" font-size="20" letter-spacing="0.1em" stroke="none">
+                        <textPath href="#topCurve" startOffset="50%" text-anchor="middle" dominant-baseline="central">★  VERIFA  ★</textPath>
+                    </text>
+                    <text font-family="'Inter', sans-serif" font-weight="900" font-size="20" letter-spacing="0.1em" stroke="none">
+                        <textPath href="#bottomCurve" startOffset="50%" text-anchor="middle" dominant-baseline="central">★  SKÓRE  ★</textPath>
+                    </text>
+
+                    <!-- Center Score -->
+                    <text x="100" y="88" text-anchor="middle" font-size="44" font-weight="900" stroke="none">{{ verdict.verifaScore }}</text>
+                    <line x1="63" y1="102" x2="137" y2="102" stroke-width="2.5" />
+                    <text x="100" y="125" text-anchor="middle" font-size="18" font-weight="900" letter-spacing="0.15em" stroke="none">{{ verdict.riskCategory }}</text>
+                </g>
+            </svg>
+        </div>
+    </div>
+
+    <!-- BOTTOM FOOTER AREA -->
+    <div class="mt-auto w-full">
+        <!-- METADATA & SEMAPHORE PILLS -->
+        <div class="flex justify-between items-end w-full mb-8">
+            <!-- Left: Meta -->
+            <div class="space-y-1">
+                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">IČO</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
+                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">Vygenerované</span> <span class="text-sm font-bold">{{ generated_at }}</span></div>
+                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">Počet strán</span> <span class="text-sm font-bold">{{ total_pages }}</span></div>
+            </div>
+            
+            <!-- Right: Semaphore -->
+            <div class="flex flex-col gap-2">
+                {% if counts.SUCCESS > 0 %}
+                <div class="info-pill bg-[#dcfce7] border-[#bbf7d0]">
+                    <span class="text-[#166534] font-bold text-sm">✓</span>
+                    <span class="text-base font-black text-[#166534] w-6 text-center">{{ counts.SUCCESS }}</span>
+                    <span class="text-xs text-[#166534] font-semibold">V poriadku</span>
+                </div>
+                {% endif %}
+                
+                {% if counts.WARNING > 0 %}
+                <div class="info-pill bg-[#fee2e2] border-[#fecaca]">
+                    <span class="text-[#991b1b] font-bold text-sm">⚠</span>
+                    <span class="text-base font-black text-[#991b1b] w-6 text-center">{{ counts.WARNING }}</span>
+                    <span class="text-xs text-[#991b1b] font-semibold">Upozornenie</span>
+                </div>
+                {% endif %}
+                
+                {% if counts.INFO > 0 %}
+                <div class="info-pill bg-[#dbeafe] border-[#bfdbfe]">
+                    <span class="bg-[#1e40af] text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[9px] font-bold">i</span>
+                    <span class="text-base font-black text-[#1e40af] w-6 text-center">{{ counts.INFO }}</span>
+                    <span class="text-xs text-[#1e40af] font-semibold">Informácia</span>
+                </div>
+                {% endif %}
+                
+                {% if counts.UNAVAILABLE > 0 %}
+                <div class="info-pill bg-[#fef9c3] border-[#fef08a]">
+                    <span class="bg-[#854d0e] text-white rounded w-3.5 h-3.5 flex items-center justify-center text-[9px] font-bold">?</span>
+                    <span class="text-base font-black text-[#854d0e] w-6 text-center">{{ counts.UNAVAILABLE }}</span>
+                    <span class="text-xs text-[#854d0e] font-semibold">Nedostupné</span>
+                </div>
+                {% endif %}
+                
+                {% if counts.FAILED > 0 %}
+                <div class="info-pill bg-[#fee2e2] border-[#fecaca]">
+                    <span class="text-[#991b1b] font-bold text-sm">✗</span>
+                    <span class="text-base font-black text-[#991b1b] w-6 text-center">{{ counts.FAILED }}</span>
+                    <span class="text-xs text-[#991b1b] font-semibold">Zlyhal</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="border-t border-slate-200 pt-8 text-center text-xs text-slate-400">
+            <p>Vygenerované: {{ generated_at }}</p>
+            <p class="mt-1">Dôverný dokument pre vnútornú potrebu. Nenahrádza právne a daňové poradenstvo.</p>
+        </div>
+    </div>
+</div>

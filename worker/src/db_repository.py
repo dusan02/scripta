@@ -26,11 +26,14 @@ async def save_to_db(data: CompanyFinancialExtraction):
 
         try:
             # 1. Vytvoríme alebo updatneme záznam o firme
+            # Neprepisujeme reálny názov z ORSR placeholderom z Gemini extrakcie
+            gemini_name = data.nazov_spolocnosti or ""
+            is_placeholder = gemini_name.startswith("Spoločnosť s IČO")
             await db.company.upsert(
                 where={'ico': data.ico},
                 data={
-                    'create': {'ico': data.ico, 'name': data.nazov_spolocnosti},
-                    'update': {'ico': data.ico, 'name': data.nazov_spolocnosti}
+                    'create': {'ico': data.ico, 'name': gemini_name if not is_placeholder else f"Spoločnosť s IČO {data.ico}"},
+                    'update': {'name': gemini_name} if gemini_name and not is_placeholder else {}
                 }
             )
 
@@ -51,20 +54,34 @@ async def save_to_db(data: CompanyFinancialExtraction):
                         'currentAssets': data.metriky.obezny_majetok,
                         'equity': data.metriky.vlastne_imanie_celkom,
                         'shortTermLiabilities': data.metriky.kratkodobe_zavazky,
+                        'longTermLiabilities': data.metriky.dlhodobeZavazky,
                         'mainActivityRevenue': data.metriky.trzby_z_hlavnej_cinnosti,
+                        'grossProfit': data.metriky.hruba_marza,
                         'netProfitLoss': data.metriky.zisk_alebo_strata_po_zdaneni,
                         'cashAndEquivalents': data.metriky.peniaze_a_penazne_ekvivalenty_k_31_12,
                         'operatingCashFlow': data.metriky.ciste_penazne_toky_z_prevadzkovej_cinnosti,
+                        'staffCosts': data.metriky.osobne_naklady,
+                        'tradeReceivables': data.metriky.pohladavky_z_obchodneho_styku,
+                        'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
+                        'currency': data.metriky.mena,
+                        'statementType': data.metriky.typ_zavierky,
                     },
                     'update': {
                         'totalAssets': data.metriky.celkove_aktiva,
                         'currentAssets': data.metriky.obezny_majetok,
                         'equity': data.metriky.vlastne_imanie_celkom,
                         'shortTermLiabilities': data.metriky.kratkodobe_zavazky,
+                        'longTermLiabilities': data.metriky.dlhodobeZavazky,
                         'mainActivityRevenue': data.metriky.trzby_z_hlavnej_cinnosti,
+                        'grossProfit': data.metriky.hruba_marza,
                         'netProfitLoss': data.metriky.zisk_alebo_strata_po_zdaneni,
                         'cashAndEquivalents': data.metriky.peniaze_a_penazne_ekvivalenty_k_31_12,
                         'operatingCashFlow': data.metriky.ciste_penazne_toky_z_prevadzkovej_cinnosti,
+                        'staffCosts': data.metriky.osobne_naklady,
+                        'tradeReceivables': data.metriky.pohladavky_z_obchodneho_styku,
+                        'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
+                        'currency': data.metriky.mena,
+                        'statementType': data.metriky.typ_zavierky,
                     }
                 }
             )
@@ -150,6 +167,40 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
         )
     finally:
         await db.disconnect()
+
+_avg_cache: dict = {}  # {"value": float, "ts": float}
+_AVG_CACHE_TTL = 300  # 5 minút
+
+async def get_avg_completion_seconds(db: Prisma, limit: int = 10) -> Optional[float]:
+    """Vráti priemerný čas dokončenia (v sekundách) z posledných N completed/partial reportov.
+    Cacheované na 5 minút."""
+    import time as _time
+    now = _time.perf_counter()
+    cached = _avg_cache.get("value")
+    if cached is not None and (now - _avg_cache.get("ts", 0)) < _AVG_CACHE_TTL:
+        return cached
+    try:
+        rows = await db.reportrequest.find_many(
+            where={"status": {"in": ["COMPLETED", "PARTIAL"]}},
+            order={"completedAt": "desc"},
+            take=limit,
+        )
+        durations = []
+        for r in rows:
+            if r.completedAt and r.createdAt:
+                dur = (r.completedAt - r.createdAt).total_seconds()
+                if dur > 0:
+                    durations.append(dur)
+        if not durations:
+            return None
+        avg = sum(durations) / len(durations)
+        _avg_cache["value"] = avg
+        _avg_cache["ts"] = now
+        return avg
+    except Exception as e:
+        logger.warning(f"Nepodarilo sa získať priemerný čas dokončenia: {e}")
+        return None
+
 
 async def update_ai_status(db: Prisma, report_request_id: Optional[str], ai_status: str, eta: int):
     """

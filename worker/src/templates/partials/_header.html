@@ -1,0 +1,8 @@
+<!-- 1. HEADER FOR SUBSEQUENT PAGES -->
+<div class="flex justify-end items-center mb-6 border-b pb-4 border-slate-200">
+    {% if logo_base64 %}
+    <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-8">
+    {% else %}
+    <span class="text-lg font-black text-[#10b981]">Verifa.sk</span>
+    {% endif %}
+</div>

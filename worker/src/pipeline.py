@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.db_repository import save_to_db, save_narrative_to_db, update_ai_status
+from src.db_repository import save_to_db, save_narrative_to_db, update_ai_status, get_avg_completion_seconds
 
 import os
 import glob
@@ -17,7 +17,8 @@ from src.scrapers.ruz_scraper import download_ifrs_reports
 from src.llm_extractor import extract_financial_data, extract_narrative_risk
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
-from src.pdf_ingestion import extract_core_financials
+from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf
+import re
 
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_VESTNIK
 
@@ -52,8 +53,20 @@ async def run_and_save_audit_verdict(ico: str):
         from src.analytics import compute_financial_trends, compute_forensic_scorecard
         if company.financialStatements:
             trends = compute_financial_trends(company.financialStatements)
-            trends["algorithmic_prescore"] = compute_forensic_scorecard(company_dict, trends)
-            company_dict["_5_year_trend_analysis"] = trends
+            scorecard = compute_forensic_scorecard(company_dict, trends)
+            trends["algorithmic_prescore"] = scorecard.total_score
+            trends["scorecard_breakdown"] = [
+                {
+                    "name": p.name,
+                    "score": p.score,
+                    "max_score": p.max_score,
+                    "detail": p.detail,
+                    "flags": p.flags,
+                }
+                for p in scorecard.pillars
+            ]
+            company_dict["analyza_trendov"] = trends
+
             
         import json
         company_data = json.dumps(company_dict, default=str)
@@ -66,16 +79,16 @@ async def run_and_save_audit_verdict(ico: str):
         results_dir = os.environ.get("RESULTS_DIR", "./results")
         for rid_dir in glob.glob(f"{results_dir}/*"):
             if os.path.isdir(rid_dir):
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/dovera_dlznici_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/sp_dlznici_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/vszp_dlznici_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/union_dlznici_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/insolvency_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/crz_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/diskvalifikacie_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_danove_subjekty_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_dph_*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_dan_*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/dovera_dlznici_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/sp_dlznici_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/vszp_dlznici_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/union_dlznici_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/insolvency_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/crz_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/diskvalifikacie_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_danove_subjekty_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_dph_*{ico}*.pdf"))
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_dan_*{ico}*.pdf"))
 
         # 2. Staré cesty: assets/{ico}/ (pre spätňu kompatibilitu)
         assets_dir = f"assets/{ico}"
@@ -95,6 +108,7 @@ async def run_and_save_audit_verdict(ico: str):
         
         logger.info(f"Ukladám AuditVerdict pre IČO {ico}: Skóre {verdict.verifa_score}, Debt Rating: {verdict.debt_exposure_rating}")
         
+        from prisma import Json
         await db.auditverdict.upsert(
             where={'companyIco': ico},
             data={
@@ -106,6 +120,7 @@ async def run_and_save_audit_verdict(ico: str):
                     'finalVerdict': verdict.final_verdict,
                     'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
                     'keyRisk': verdict.kľúčové_riziko,
+                    'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
                 },
                 'update': {
                     'verifaScore': verdict.verifa_score,
@@ -114,6 +129,7 @@ async def run_and_save_audit_verdict(ico: str):
                     'finalVerdict': verdict.final_verdict,
                     'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
                     'keyRisk': verdict.kľúčové_riziko,
+                    'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
                 }
             }
         )
@@ -133,13 +149,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Baselina pre celkový odhadovaný čas pipeline (sekundy)
-_PIPELINE_BASELINE_SECONDS = 130
+# Fallback baseline ak nie sú historické dáta (sekundy)
+from src.config import settings as _cfg
+_PIPELINE_BASELINE_FALLBACK = _cfg.pipeline_baseline_fallback
+
+# Dynamická baseline — nastaví sa pri štarte process_company z histórie behov
+_pipeline_baseline: float = _PIPELINE_BASELINE_FALLBACK
 
 def _remaining_eta(t_start: float) -> int:
     """Vypočíta dynamický remaining ETA z uplynutého času a baseliny."""
     elapsed = time.perf_counter() - t_start
-    return max(5, int(_PIPELINE_BASELINE_SECONDS - elapsed))
+    return max(5, int(_pipeline_baseline - elapsed))
 
 
 
@@ -154,32 +174,43 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
     _ifrs_count = 0
     _vs_count = 0
 
+    global _pipeline_baseline
+
     db = Prisma()
     await db.connect()
     try:
+        # Načítanie dynamickej baseliny z priemerného času posledných behov
+        avg_seconds = await get_avg_completion_seconds(db)
+        if avg_seconds and avg_seconds > 0:
+            _pipeline_baseline = avg_seconds
+            logger.info(f"[PIPELINE] Dynamická baseline ETA: {avg_seconds:.0f}s (z histórie behov)")
+        else:
+            _pipeline_baseline = _PIPELINE_BASELINE_FALLBACK
         company_name = None
         if report_request_id:
             req = await db.reportrequest.find_unique(where={'id': report_request_id})
             if req and req.companyName:
                 company_name = req.companyName
-                
-        await db.company.upsert(
-            where={'ico': ico},
-            data={
-                'create': {'ico': ico, 'name': company_name},
-                'update': {'name': company_name} if company_name else {}
-            }
-        )
+
+        # Fallback placeholder ak nemáme reálny názov z ORSR
+        fallback_name = company_name or f"Spoločnosť s IČO {ico}"
+
+        existing = await db.company.find_unique(where={'ico': ico})
+        if existing:
+            # Update len ak máme reálny názov a existujúci je placeholder alebo None
+            if company_name and (not existing.name or existing.name.startswith("Spoločnosť s IČO")):
+                await db.company.update(where={'ico': ico}, data={'name': company_name})
+        else:
+            await db.company.create(data={'ico': ico, 'name': fallback_name})
 
         await update_ai_status(db, report_request_id, "Sťahovanie dát a štrukturálna príprava", _remaining_eta(_t_start))
         
         # 1. Stiahnutie z RÚZ (IFRS a VS)
-        downloaded_files = await download_ifrs_reports(ico, max_years=5, output_dir=f"assets/{ico}")
+        downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
         
         await update_ai_status(db, report_request_id, "Analýza účtovných závierok", _remaining_eta(_t_start))
         
         # 2. Rozdelenie súborov na IFRS a VS
-        import re as _re
         ifrs_files = []
         vs_files = []
         for fp in downloaded_files:
@@ -229,33 +260,53 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
             async with sem:
                 try:
                     logger.info(f"Spracovávam výročnú správu (Narrative): {file_name} (model: {_MODEL_NARRATIVE})")
-                    yr_match = _re.search(r'_(\d{4})_', file_name)
+                    yr_match = re.search(r'_(\d{4})_', file_name)
                     narrative_year = int(yr_match.group(1)) if yr_match and int(yr_match.group(1)) > 2000 else 2024
+                    
+                    sliced_path = slice_narrative_pdf(file_path, max_pages=15)
+                    input_path = sliced_path if sliced_path else file_path
+                    
                     narrative = await safe_llm_call(
-                        extract_narrative_risk, file_path,
+                        extract_narrative_risk, input_path,
                         model=_MODEL_NARRATIVE, label=f"VS:{file_name}"
                     )
-                    await save_narrative_to_db(ico, narrative_year, narrative)
+                    if narrative:
+                        logger.info(f"[NARRATIVE OK] {file_name} → DB uložené")
+                        await save_narrative_to_db(ico, narrative_year, narrative)
+                    else:
+                        logger.warning(f"[NARRATIVE EMPTY] {file_name} → safe_llm_call vrátil None")
+                        
+                    if sliced_path and sliced_path != file_path:
+                        try:
+                            os.remove(sliced_path)
+                        except OSError:
+                            pass
                 except Exception as e:
                     logger.error(f"Chyba pri spracovaní súboru {file_name}: {e}", exc_info=True)
 
-        # Paralelné spracovanie s prísnym obmedzením concurrency na max 2 LLM volania naraz
-        _llm_sem = asyncio.Semaphore(2)
-        all_tasks = [_process_ifrs(fp, _llm_sem) for fp in ifrs_files] + [_process_vs(fp, _llm_sem) for fp in vs_files]
-        if all_tasks:
-            await asyncio.gather(*all_tasks)
+        # Vytvorenie asynchrónnej úlohy pre Vestník, aby bežala paralelne
+        async def _process_vestnik():
+            logger.info(f"Spracovávam Obchodný vestník pre IČO: {ico}")
+            ov_scraper = ObchodnyVestnikXmlScraper()
+            try:
+                ov_result = await ov_scraper.run_xml(ico=ico)
+                if ov_result.get("status") == "SUCCESS" and ov_result.get("events"):
+                    await save_vestnik_events_to_db(ico, ov_result["events"])
+            except Exception as e:
+                logger.error(f"Chyba pri paralelnom spracovaní Vestníka: {e}", exc_info=True)
 
-        await update_ai_status(db, report_request_id, "Analýza rizík a udalostí", _remaining_eta(_t_start))
+        vestnik_task = asyncio.create_task(_process_vestnik())
 
-        # 3. Scrapovanie Obchodného vestníka
-        logger.info(f"Spracovávam Obchodný vestník pre IČO: {ico}")
-        ov_scraper = ObchodnyVestnikXmlScraper()
-        try:
-            ov_result = await ov_scraper.run_xml(ico=ico)
-            if ov_result["status"] == "SUCCESS" and ov_result.get("events"):
-                await save_vestnik_events_to_db(ico, ov_result["events"])
-        except Exception as e:
-            logger.error(f"Chyba pri Obchodnom vestníku: {e}", exc_info=True)
+        # Paralelné spracovanie PDF s prísnym obmedzením concurrency na max 6 LLM volaní naraz (test limitov)
+        _llm_sem = asyncio.Semaphore(6)
+        pdf_tasks = [_process_ifrs(fp, _llm_sem) for fp in ifrs_files] + [_process_vs(fp, _llm_sem) for fp in vs_files]
+        if pdf_tasks:
+            await asyncio.gather(*pdf_tasks)
+
+        await update_ai_status(db, report_request_id, "Analýza rizík a udalostí (Vestník)", _remaining_eta(_t_start))
+        
+        # Počkáme, kým sa dokončí úloha s Vestníkom (väčšinou sa stihne počas PDF)
+        await vestnik_task
             
         await update_ai_status(db, report_request_id, "Záverečný forenzný posudok", _remaining_eta(_t_start))
         

@@ -1,0 +1,1957 @@
+
+
+
+    <div class="w-page d-flex flex-column">
+        
+
+
+
+
+
+
+
+
+
+
+<header class="s-header">
+	<nav class="navbar navbar-expand-lg bg-white px-1 px-lg-6 d-none d-lg-flex ml-auto">
+		<a href="/cruz-public/domain/accountingentity/simplesearch" class="navbar-brand btn btn-link fs-12 d-none d-lg-block font-weight-medium">Register účtovných závierok</a>
+
+		<ul class="navbar-nav d-none d-lg-flex ml-auto">
+			
+			<li class="nav-item active">
+				<a class="nav-link btn btn-link px-4" href="/cruz-public/home">Čo je register účtovných závierok</a>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link btn btn-link px-4" href="/cruz-public/home/faq">Často kladené otázky</a>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link btn btn-link px-4" href="/cruz-public/home/contact">Kontakty</a>
+			</li>
+		</ul>
+
+		
+
+
+
+<ul class="navbar-nav">
+	<li class="nav-item">
+		<div class="py-0 px-3">
+			
+			
+			<a href="/cruz-public/?lang=en" class="font-weight-bold p-1 btn btn-link">
+				ENG
+			</a>
+			<span>|</span>
+			<a class="font-weight-bold p-1 text-black">
+				SK
+			</a>
+		</div>
+	</li>
+</ul>
+
+
+		
+	</nav>
+</header>
+
+<!-- Extended search - mobile -->
+
+<div class="b-mobile-extended-search">
+	<div class="mt-auto mb-3 w-100 text-center px-4">
+		<a href="/cruz-public/domain/accountingentity/search" class="btn btn-primary fs-12 font-weight-bold text-uppercase d-block">
+			Zobraziť viac možností vyhľadávania
+		</a>
+	</div>
+</div>
+
+<!-- Aside -->
+<aside class="s-aside d-flex flex-column d-lg-none">
+	<header class="d-flex align-items-center pl-6 pr-4 py-5 box-shadow-xs">
+		<h4 class="fs-16 text-primary">
+			<a href="/cruz-public/domain/accountingentity/simplesearch" class="text-primary-light">Register účtovných závierok</a>
+		</h4>
+		<a href="#" class="text-black ml-auto js-toggle-aside icon icon-close fs-24"></a>
+	</header>
+
+	<div class="content">
+		<nav class="my-6">
+			
+			<a href="/cruz-public/home" class="d-block px-6 fs-14 text-black my-5">Čo je register účtovných závierok</a>
+			<a href="/cruz-public/home/faq" class="d-block px-6 fs-14 text-black my-5">Často kladené otázky</a>
+			<a href="/cruz-public/home/contact" class="d-block px-6 fs-14 text-black my-5">Kontakty</a>
+			<div class="px-3 fs-12">
+				
+
+
+
+<ul class="navbar-nav">
+	<li class="nav-item">
+		<div class="py-0 px-3">
+			
+			
+			<a href="/cruz-public/?lang=en" class="font-weight-bold p-1 btn btn-link">
+				ENG
+			</a>
+			<span>|</span>
+			<a class="font-weight-bold p-1 text-black">
+				SK
+			</a>
+		</div>
+	</li>
+</ul>
+
+			</div>
+		</nav>
+
+		<hr class="my-6">
+
+		<nav class="my-6">
+
+			<a href="#" id="cookie-manage-menu" class="d-block px-6 fs-14 text-black my-5"><span class="mx-1">🍪</span>Správa cookies</a>
+			
+			
+			<a href="/cruz-public/content/Manual-verejny.pdf" class="d-block px-6 fs-14 text-black my-5">
+				<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
+				Príručka používateľa
+				(&lt; 2MB)
+			</a>
+			
+			<a href="/cruz-public/content/Ochrana_osobnych_udajov_RUZ.pdf" class="d-block px-6 fs-14 text-black my-5">
+				<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
+				Ochrana osobných údajov
+				 (&lt; 500KB)
+			</a>
+			
+				<a href="/cruz-public/home/api" class="d-block px-6 fs-14 text-black my-5">Verejné API</a>
+			
+			<a href="/cruz-public/home/accessdetails" class="d-block px-6 fs-14 text-black my-5">Vyhlásenie o prístupnosti</a>
+			<a href="/cruz-public/home/sitemap" class="d-block px-6 fs-14 text-black my-5">Mapa stránok</a>
+		</nav>
+
+		
+	</div>
+
+	<div class="mt-auto text-gray-light text-center mb-3 pt-3">
+		
+		Copyright © 2011-2026<br>Ministerstvo financií Slovenskej republiky
+	</div>
+</aside>
+
+<script id="header">
+	$(document).on('click', '.js-toggle-aside', function (e) {
+		e.preventDefault();
+		$('.w-page').toggleClass('aside-on');
+	});
+
+    $(document).on('focusin', '.s-aside', function (e) {
+        const wrapper = $('.w-page');
+        if (!wrapper.hasClass('aside-on')) {
+            wrapper.addClass('aside-on');
+        }
+    });
+
+    $(document).on('focusout', '.s-aside', function (e) {
+        $('.w-page').removeClass('aside-on');
+    });
+</script>
+
+        
+	
+	<script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery.floatThead.js"></script>
+	<script>
+		$(document).ready(function() {
+			if (window.innerWidth >= 1200) {
+				$('.b-table').floatThead();
+			}
+		});
+	</script>
+
+	
+	
+	
+
+
+
+
+
+
+
+
+
+
+<script>
+	Search = {
+		init: function() {
+			$(document).on('click', '.js-mobile-search', function(e) {
+				e.preventDefault();
+
+				let search = $('.b-mobile-search');
+				let extendedSearch = $('.b-mobile-extended-search');
+
+				search.toggleClass('active');
+				extendedSearch.toggleClass('active');
+				setTimeout(function() {
+					search.find('input').focus();
+				}, 300);
+			});
+		}
+	};
+	Search.init();
+</script>
+
+<header class="s-header">
+	<nav class="navbar d-lg-none mx-auto bg-white px-1 px-lg-6">
+		<button class="navbar-toggler btn btn-link js-toggle-aside" tabindex="21">
+			<span class="icon icon-menu"></span>
+		</button>
+		<div class="d-lg-none mx-auto fs-16 text-truncate mobile-title">
+			Účtovný výkaz
+		</div>
+		
+			
+				<a href="#" id="search-toggle-mobile" class="navbar-action text-black d-lg-none js-mobile-search text-decoration-none"><span class="icon icon-search"></span></a>
+
+				<!-- Mobile search -->
+				
+				<form id="search_simple_form" class="b-mobile-search ui-front" action="/cruz-public/domain/accountingentity/simplesearch" method="GET">
+					
+
+
+
+<script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery-ui-1.13.2.js"></script>
+
+<script id="suggestion">
+$(document).ready(function() {
+	if ($('.js-search-input').length) {
+		$.each($('.js-search-input'), function() {
+			$(this).autocomplete({
+				source: function(request, response) {
+					$.ajax({
+						url: "/cruz-public/domain/suggestion/search",
+						dataType: "json",
+						data: {
+							query: request.term
+						},
+						success: function(data) {
+							response($.map(data, function(item) {
+								var entNumberLabel = item.entNumber ? 'IČO: ' + item.entNumber : "";
+								var taxNumberLabel = item.taxNumber ? 'DIČ: ' + item.taxNumber : "";
+								return {
+									value: $("<span clearBreadcrumb>").html(item.entityName).text(),
+									label: item.entityName,
+									url: "/cruz-public/domain/accountingentity/show/" + item.id + "?fromSuggestion=true",
+									entNumberLabel: entNumberLabel,
+									taxNumberLabel: taxNumberLabel
+								};
+							}));
+						},
+						error: function(e) {
+						}
+					});
+				},
+				select: function(event, ui) {
+					if (event.keyCode == 13) {
+						window.location = ui.item.url;
+					}
+					window.Cruz().writeLoader('');
+				},
+				minLength: 3
+			})
+
+				.data('ui-autocomplete')._renderItem = function(ul, item) {
+				return $("<li>")
+					.attr("title", item.value)
+					.append($("<a data-loader-on>")
+						.attr("href", item.url)
+						.append($("<span>")
+							.addClass("entityName")
+							.append(item.label)
+						)
+						.append($("<span>")
+							.addClass("entNumber")
+							.append(item.entNumberLabel)
+						)
+						.append($("<span>")
+							.addClass("taxNumber")
+							.append(item.taxNumberLabel)
+						)
+					)
+					.appendTo(ul);
+			};
+
+			$('.js-search-input').keyup(function(event) {
+				if (event.which == 13 || event.keyCode == 13) {
+					$('.js-search-input').autocomplete("close");
+				}
+			});
+		})
+	}
+
+});
+</script>
+
+					
+					<input id="input_search_mobile" name="accountingEntityName" class="js-search-input ui-autocomplete-input" placeholder="Zadajte názov účtovnej jednotky, IČO alebo DIČ" type="text" value="" autocomplete="off">
+					<button type="submit" class="submit">
+						<span class="icon icon-search"></span>
+					</button>
+					<a href="#" class="js-mobile-search close text-decoration-none"><span class="icon icon-close"></span></a>
+				<ul id="ui-id-1" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front" unselectable="on" style="display: none;"></ul></form>
+			
+			
+		
+	</nav>
+	
+		<div class="tabs d-flex d-md-none px-4">
+			
+				<a href="/cruz-public/domain/financialreport/show/8336152/0" class="" data-tab-id="1">
+					Titulná strana
+				</a>
+			
+			
+				
+					<a href="/cruz-public/domain/financialreport/show/8336152/543" class="active" data-tab-id="2">
+						Strana aktív
+					</a>
+				
+			
+				
+					<a href="/cruz-public/domain/financialreport/show/8336152/544" class="" data-tab-id="2">
+						Strana pasív
+					</a>
+				
+			
+				
+					<a href="/cruz-public/domain/financialreport/show/8336152/545" class="" data-tab-id="2">
+						Výkaz ziskov a strát
+					</a>
+				
+			
+		</div>
+	
+</header>
+
+<!-- Extended search - mobile -->
+<div class="b-mobile-extended-search">
+	<div class="mt-auto py-3 w-100 text-center px-4 footer">
+		
+		<a href="/cruz-public/domain/accountingentity/search" class="btn btn-primary fs-12 font-weight-bold text-uppercase d-block">
+			Zobraziť viac možností vyhľadávania
+		</a>
+	</div>
+</div>
+
+
+    
+
+
+<script src="/cruz-public/version/44a4ac6/static/scripts/custom/tippy.js"></script>
+<script src="/cruz-public/version/44a4ac6/static/scripts/custom/skip-to-content.js"></script>
+
+<div class="skip-to-content-wrapper">
+    <button id="skip-to-content" type="submit" class="btn btn-primary skip-to-content" tabindex="20">
+        Preskočiť na hlavný obsah
+    </button>
+</div>
+
+
+
+	
+	
+	
+
+	<div class="page-content d-flex py-4 py-md-8">
+		<div class="container">
+			<section>
+				<header class="d-none d-lg-block mb-6">
+					<div class="row align-items-center">
+						<div class="col-12 col-lg-9">
+							
+
+
+
+<div class="row align-items-center">
+	<div class="col-12 col-md-10 col-lg-11 col-xl-9">
+		<div class="row align-items-end">
+			<div class="col-12 col-md pr-md-0">
+				
+                <label for="input_search" class="b-search-label mb-1 ml-3">
+                    Zadajte názov účtovnej jednotky, IČO alebo DIČ
+                </label>
+				<form id="search_simple_form" class="b-search position-relative ui-front" action="/cruz-public/domain/accountingentity/simplesearch" method="GET">
+					
+
+
+
+<script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery-ui-1.13.2.js"></script>
+
+<script id="suggestion">
+$(document).ready(function() {
+	if ($('.js-search-input').length) {
+		$.each($('.js-search-input'), function() {
+			$(this).autocomplete({
+				source: function(request, response) {
+					$.ajax({
+						url: "/cruz-public/domain/suggestion/search",
+						dataType: "json",
+						data: {
+							query: request.term
+						},
+						success: function(data) {
+							response($.map(data, function(item) {
+								var entNumberLabel = item.entNumber ? 'IČO: ' + item.entNumber : "";
+								var taxNumberLabel = item.taxNumber ? 'DIČ: ' + item.taxNumber : "";
+								return {
+									value: $("<span clearBreadcrumb>").html(item.entityName).text(),
+									label: item.entityName,
+									url: "/cruz-public/domain/accountingentity/show/" + item.id + "?fromSuggestion=true",
+									entNumberLabel: entNumberLabel,
+									taxNumberLabel: taxNumberLabel
+								};
+							}));
+						},
+						error: function(e) {
+						}
+					});
+				},
+				select: function(event, ui) {
+					if (event.keyCode == 13) {
+						window.location = ui.item.url;
+					}
+					window.Cruz().writeLoader('');
+				},
+				minLength: 3
+			})
+
+				.data('ui-autocomplete')._renderItem = function(ul, item) {
+				return $("<li>")
+					.attr("title", item.value)
+					.append($("<a data-loader-on>")
+						.attr("href", item.url)
+						.append($("<span>")
+							.addClass("entityName")
+							.append(item.label)
+						)
+						.append($("<span>")
+							.addClass("entNumber")
+							.append(item.entNumberLabel)
+						)
+						.append($("<span>")
+							.addClass("taxNumber")
+							.append(item.taxNumberLabel)
+						)
+					)
+					.appendTo(ul);
+			};
+
+			$('.js-search-input').keyup(function(event) {
+				if (event.which == 13 || event.keyCode == 13) {
+					$('.js-search-input').autocomplete("close");
+				}
+			});
+		})
+	}
+
+});
+</script>
+
+					<div class="form-group m-0 search-group">
+						<span class="icon icon-search d-none d-md-block"></span>
+						<input id="input_search" name="accountingEntityName" type="text" class="input form-control fs-14 js-search-input ui-autocomplete-input" value="" autocomplete="off">
+						<button type="submit" class="btn btn-primary fs-12 font-weight-bold text-uppercase d-none d-md-block" data-loader-on="">
+							Vyhľadaj znova</button>
+						<button type="submit" class="submit-icon d-md-none btn btn-link"><span class="icon icon-search"></span></button>
+					</div>
+				<ul id="ui-id-2" tabindex="0" class="ui-menu ui-widget ui-widget-content ui-autocomplete ui-front" unselectable="on" style="display: none;"></ul></form>
+			</div>
+
+			
+			<div class="col-12 col-md-auto text-center pb-2 mt-4 mt-md-0">
+				<a href="/cruz-public/domain/accountingentity/search" class="text-uppercase btn btn-link font-weight-bold">
+					Rozšírené vyhľadávanie
+				</a>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+
+
+						</div>
+						<div class="col-12 col-lg-3 ml-auto fs-14 text-gray">
+							<div class="d-inline-block float-right">
+								
+
+
+
+
+
+
+								Zdroj údajov:
+								
+								FRSR,
+								<div>
+									aktualizované:
+									09.02.2023
+								</div>
+							</div>
+						</div>
+					</div>
+				</header>
+
+				<!-- Only for mobile devices -->
+				<div class="d-lg-none mb-3">
+					
+					<h3 class="fs-24 font-weight-light mb-3 text-truncate">
+						<a href="/cruz-public/domain/accountingentity/show/1506863">LOCOTEC s. r. o.</a>
+					</h3>
+					
+					<div class="d-lg-none d-flex">
+						<div class="fs-16 text-primary-faded text-truncate">Úč MUJ</div>
+						
+						<span class="icon icon-info text-primary-light" data-placement="bottom" aria-expanded="false"></span>
+					</div>
+				</div>
+
+				<!-- Desktop -->
+				<div class="d-none d-lg-block">
+					
+
+
+
+
+
+
+
+
+
+
+	<nav aria-label="breadcrumb">
+		<ol class="breadcrumb mb-3" id="breadcrumbs">
+			
+			<li class="breadcrumb-item">
+				<a href="/cruz-public/domain/accountingentity/simplesearch" class="btn btn-link px-1 py-0">
+					Vyhľadávanie ÚJ
+				</a>
+			</li>
+			
+			<li class="breadcrumb-item active" aria-current="page">
+				Detail výkazu
+			</li>
+			
+		</ol>
+	</nav>
+
+
+					
+					<h3 class="fs-36 font-weight-light mb-3">
+                        LOCOTEC s. r. o.
+					</h3>
+					
+					<div class="fs-20 text-primary-faded">
+						Úč MUJ
+					</div>
+				</div>
+
+				<div class="active d-md-block inactive-mobile" data-tab-container="1">
+					<div class="b-content px-4 py-2 px-lg-6 py-lg-4 my-1 my-md-3 mb-md-8">
+						<div class="row align-items-center">
+							
+							<div class="col-12 d-none d-lg-block col-lg-3 col-xl-4 text-gray fs-16 font-weight-medium">
+								
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Účtovná závierka
+	
+
+								k 31.12.2022
+							</div>
+							
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<noscript>
+	<style>
+		.dropdown-menu{
+			display: block;
+			position: inherit;
+		}
+
+		.box-shadow-lg {
+			 box-shadow: none;
+		}
+	</style>
+</noscript>
+
+
+	
+		
+			
+			
+
+			<div class="col-12 col-lg-auto ml-auto text-nowrap">
+				
+				<div class="d-block py-4 py-lg-1 clearfix text-decoration-none">
+					<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
+					<span class="d-inline-block align-middle ml-2">
+						<span class="text-gray fs-14">
+							Dokument:
+							<span class="font-weight-medium">
+								PDF
+								veľkosť 145 KB
+							</span>
+						</span>
+						<span class="d-none d-lg-block">
+							<a href="/cruz-public/domain/financialreport/attachment/9600606" aria-expanded="false">Stiahnuť</a>
+						</span>
+					</span>
+
+					<span class="mt-1 float-right d-lg-none font-weight-medium">
+                        <a href="/cruz-public/domain/financialreport/attachment/9600606" aria-expanded="false">Stiahnuť</a>
+					</span>
+				</div>
+			</div>
+
+			
+				<div class="col-12 d-lg-none p-0">
+					<hr>
+				</div>
+			
+		
+			
+			
+
+			<div class="col-12 col-lg-auto ml-auto text-nowrap">
+				
+				<div class="d-block py-4 py-lg-1 clearfix text-decoration-none">
+					<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
+					<span class="d-inline-block align-middle ml-2">
+						<span class="text-gray fs-14">
+							Dokument:
+							<span class="font-weight-medium">
+								PDF
+								veľkosť 175 KB
+							</span>
+						</span>
+						<span class="d-none d-lg-block">
+							<a href="/cruz-public/domain/financialreport/attachment/9600607" aria-expanded="false">Stiahnuť</a>
+						</span>
+					</span>
+
+					<span class="mt-1 float-right d-lg-none font-weight-medium">
+                        <a href="/cruz-public/domain/financialreport/attachment/9600607" aria-expanded="false">Stiahnuť</a>
+					</span>
+				</div>
+			</div>
+
+			
+				<div class="col-12 d-lg-none p-0">
+					<hr>
+				</div>
+			
+		
+	
+	
+
+
+
+	
+	
+		
+		
+			<div class="col-12 text-nowrap
+								col-lg">
+				
+				
+				<div class="d-block py-4 py-lg-1 clearfix text-decoration-none">
+					<span class="icon icon-xlsx d-inline-block align-middle text-black"></span>
+					<span class="d-inline-block align-middle ml-2">
+						<span class="text-gray fs-14">
+							Tlačová zostava:
+							<span class="font-weight-medium">
+								XLSX &lt;200KB
+							</span></span>
+                        <span class="d-none d-lg-block">
+                            <a href="/cruz-public/domain/financialreport/xls/8336152" aria-expanded="false">Stiahnuť</a>
+                        </span>
+					</span>
+					<div class="mt-1 float-right d-lg-none font-weight-medium">
+                        <a href="/cruz-public/domain/financialreport/xls/8336152" aria-expanded="false">Stiahnuť</a>
+					</div>
+				</div>
+			</div>
+		
+	
+
+
+						</div>
+					</div>
+				</div>
+
+				
+					
+						<div class="b-tabs d-none d-md-block">
+							
+								<a href="/cruz-public/domain/financialreport/show/8336152/0" class="js-tabs switch-tab " data-tab-id="2">
+									Titulná strana
+								</a>
+							
+							
+								
+									<a href="/cruz-public/domain/financialreport/show/8336152/543" class="js-tabs switch-tab active" data-tab-id="3">
+										Strana aktív
+									</a>
+								
+							
+								
+									<a href="/cruz-public/domain/financialreport/show/8336152/544" class="js-tabs switch-tab " data-tab-id="3">
+										Strana pasív
+									</a>
+								
+							
+								
+									<a href="/cruz-public/domain/financialreport/show/8336152/545" class="js-tabs switch-tab " data-tab-id="3">
+										Výkaz ziskov a strát
+									</a>
+								
+							
+						</div>
+						
+
+						<div class="b-content">
+							<!-- print form header -->
+							
+
+							<!-- print form table -->
+							
+								
+								
+								
+									<div class="p-2">
+										<div class="table-responsive">
+											<div aria-hidden="true" class="floatThead-container" style="overflow-x: hidden; position: fixed; margin-top: 0px; top: 0px; z-index: 1001; will-change: transform; transform: translateX(25px) translateY(463px); left: 0px; width: 1230px;"><table class="b-table floatThead-table" style="border-collapse: separate; border: 0px none rgb(128, 128, 128); display: table; width: 1230px; margin: 0px; table-layout: fixed;"><colgroup><col style="width: 94.1797px;"><col style="width: 374.906px;"><col style="width: 59.4688px;"><col style="width: 348.844px;"><col style="width: 352.602px;"></colgroup><thead>
+													<tr>
+														
+															
+														
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>Označenie</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>STRANA AKTÍV</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>Číslo riadku</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>Bežné účtovné obdobie</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>Bezprostredne predchádzajúce účtovné obdobie</span>
+														</th>
+														
+														
+													</tr>
+													<tr>
+														
+														
+															
+															
+																
+																
+															
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>a</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>b</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>c</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>Netto 1</span>
+														</th>
+														
+														
+														<th class="text-center " colspan="1" rowspan="1">
+															<span>Netto 2</span>
+														</th>
+														
+													</tr>
+													</thead></table></div><table id="table_report" class="b-table" style="table-layout: fixed; min-width: 1230px;"><colgroup><col style="width: 94.1797px;"><col style="width: 374.906px;"><col style="width: 59.4688px;"><col style="width: 348.844px;"><col style="width: 352.602px;"></colgroup>
+												
+												
+												
+													
+												
+												<!-- print form table rows -->
+												<thead><tr class="size-row" style="height: 103px;"><th class="floatThead-col" style="height: 103px;"><span aria-label="
+															Označenie
+														"></span></th><th class="floatThead-col" style="height: 103px;"><span aria-label="
+															STRANA AKTÍV
+														"></span></th><th class="floatThead-col" style="height: 103px;"><span aria-label="
+															Číslo riadku
+														"></span></th><th class="floatThead-col" style="height: 103px;"><span aria-label="
+															Bežné účtovné obdobie
+														"></span></th><th class="floatThead-col" style="height: 103px;"><span aria-label="
+															Bezprostredne predchádzajúce účtovné obdobie
+														"></span></th></tr></thead><tbody>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;"></span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	SPOLU MAJETOK r. 02 + r. 14
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">1</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			59 842
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			57 270
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">A.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Neobežný majetok r. 03 + r. 04 + r. 09
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">2</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			42 861
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			7 671
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">A.I.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Dlhodobý nehmotný majetok (012, 013, 014, 015, 019, 01X, 041, 051) - /072, 073, 074, 075, 079, 07X, 091, 093, 095A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">3</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">A.II.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Dlhodobý hmotný majetok súčet (r. 05 až r. 08)
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">4</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			42 861
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			7 671
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">A.II.1.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Pozemky a stavby (021, 031, 042A, 052A) - /081, 092A, 094A, 095A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">5</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">2.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Samostatné hnuteľné veci a súbory hnuteľných vecí (022, 02X, 042A, 052A) - /082, 08XA, 092A, 094A, 095A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">6</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			42 861
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			7 671
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">3.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Ostatný dlhodobý hmotný majetok (025, 026, 029, 02X, 032, 042A, 052A) - /085, 086, 089, 08XA, 092A, 094A, 095A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">7</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">4.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Opravná položka k nadobudnutému majetku (+/- 097 ) - /+/- 098/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">8</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">A.III.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Dlhodobý finančný majetok súčet (r. 10 až r. 13)
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">9</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">A.III.1.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Podielové cenné papiere (061, 062, 063, 043A, 053A) - /095A, 096A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">10</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">2.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Ostatný dlhodobý finančný majetok (065A, 066A, 067A, 069, 06XA, 043A, 053A) - /095A, 096A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">11</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">3.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Účty v bankách s dobou viazanosti dlhšou ako jeden rok (22XA)
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">12</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">4.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Ostatný dlhodobý finančný majetok so zostatkovou dobou splatnosti najviac jeden rok (065A, 066A, 067A, 06XA) - /096A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">13</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">B.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Obežný majetok r. 15 + r. 16 + r. 17 + r. 21
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">14</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			16 981
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			49 599
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">B.I.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Zásoby (112, 119, 11X, 121, 122, 123, 124, 12X, 132, 133, 13X, 139, 314A) - /191, 192, 193, 194, 195, 196, 19X, 391A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">15</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">B.II.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Dlhodobé pohľadávky (311A, 312A, 313A, 314A, 315A, 316A, 31XA, 335A, 336A, 33XA, 354A, 355A, 358A, 35XA, 371A, 374A, 375A, 378A, 381A, 382A, 385A) - 391A
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">16</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">B.III.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Krátkodobé pohľadávky súčet (r. 18 až r. 20)
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">17</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			11 843
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			2 133
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">B.III.1.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Pohľadávky z obchodného styku (311A, 312A, 313A, 314A, 315A, 316A, 31XA) - /391A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">18</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			4 146
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			1 848
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">2.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Sociálne poistenie, daňové pohľadávky a dotácie (336A, 341A, 342A, 343A, 345A, 346A, 347A, 34XA) - /391A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">19</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			7 520
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			210
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">3.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Ostatné pohľadávky (335A, 336A, 33XA, 354A, 355A, 358A, 35XA, 371A, 374A, 375A, 378A, 381A, 382A, 385A, 398A) - /391A/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">20</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			177
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			75
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="font-weight: bolder;">B.IV.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="font-weight: bolder;">
+																	Finančný majetok r. 22 + r. 23
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="font-weight: bolder;">21</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			5 138
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			47 466
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">B.IV.1.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Peniaze a účty v bankách (211, 213, 21X, 221A, 22XA, +/- 261)
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">22</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			5 138
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			47 466
+																	</td>
+																
+															
+														
+													</tr>
+												
+													<tr class="break height-md">
+														<td colspan="7"></td>
+													</tr>
+													<tr>
+														
+														
+														
+
+															
+															
+
+															<td class="firstTd tlabel_item" style="width: 4%">
+																	<span style="">2.</span></td><td style="width: 32%" class="tlabel_item">
+																<span style="">
+																	Ostatné finančné účty (251, 252, 253, 256, 257, 25X, 259, 314A) - /291, 29X/
+																</span>
+															</td>
+
+															
+																<td style="width: 4%" class="tcode_item text-center">
+																	<span style="">23</span>
+																</td>
+															
+
+															
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+																	
+																	<td style="width: 30.0%; white-space: nowrap;" class="tvalue_item text-right">
+																			
+																	</td>
+																
+															
+														
+													</tr>
+												
+												</tbody>
+											<fthfoot style="display: table-footer-group; border-spacing: 0px; height: 0px; border-collapse: collapse; visibility: hidden;"><fthtr style="display: table-row; border-spacing: 0px; height: 0px; border-collapse: collapse;"><fthtd style="display: table-cell; height: 0px; width: auto;"></fthtd><fthtd style="display: table-cell; height: 0px; width: auto;"></fthtd><fthtd style="display: table-cell; height: 0px; width: auto;"></fthtd><fthtd style="display: table-cell; height: 0px; width: auto;"></fthtd><fthtd style="display: table-cell; height: 0px; width: auto;"></fthtd></fthtr></fthfoot></table>
+										</div>
+									</div>
+								
+							
+						</div>
+					
+					
+				
+			</section>
+		</div>
+	</div>
+
+        <div id="loader" class="fullpage-preloader on-element active" style="display: none">
+            <div class="preload-spinner">
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+        </div>
+        
+
+
+
+
+<div class="b-cookies-bar" id="cookiebar">
+    <div class="container">
+        <div class="content px-4 py-2">
+            <div class="row align-items-center">
+                <div class="col py-2">
+                    <div class="row">
+                        <h4 class="col fs-16 fs-md-20 font-weight-medium mb-3">Môžeme, prosím, používať cookies?<span class="ml-1 fs-20">🍪</span></h4>
+                        <div class="col-auto">
+                            <span id="cookiebar-close" class="icon icon-close btn btn-link p-1 fs-20 cursor-pointer d-none" tabindex="19"></span>
+                        </div>
+                    </div>
+                    <p class="fs-14 text-gray-dark">S cieľom zabezpečenia správneho fungovania webovej stránky a zlepšovania našich služieb používame cookies. Prosíme o potvrdenie súhlasu alebo nastavenie Vašich preferencií.</p>
+
+                    <div id="extended-info" class="d-none">
+                        <div class="cookies-divider"></div>
+
+                        <div class="row justify-content-between fs-16">
+                            <div class="col font-weight-medium">
+                                Nevyhnutné cookies
+                            </div>
+                            <a class="col-auto p-0">
+                                Vždy aktívne
+                            </a>
+                            <div class="col-auto">
+                                <span id="expand-general" class="icon icon-collapsed btn btn-link p-0 cursor-pointer" tabindex="10"></span>
+                            </div>
+                        </div>
+                        <div id="general-more" class="fs-14 mt-1 d-none text-gray-dark">
+                            Zabezpečujú základnú použiteľnosť webovej stránky. Webová stránka nemôže správne fungovať bez týchto cookies. Tieto súbory cookie neukladajú žiadne informácie o vás.
+                        </div>
+
+                        <div class="cookies-divider"></div>
+
+                        <div>
+                            <div class="row justify-content-between fs-16">
+                                <div class="col font-weight-medium">
+                                    Analytické cookies
+                                </div>
+                                <div class="col-auto p-0">
+                                    <label class="switch">
+                                        <input type="checkbox" id="analytics-checkbox" tabindex="12">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                                <div class="col-auto">
+                                    <span id="expand-analytics" class="icon icon-collapsed btn btn-link p-0 cursor-pointer" tabindex="11"></span>
+                                </div>
+                            </div>
+                            <div id="analytics-more" class="fs-14 mt-1 d-none text-gray-dark">
+                                Pomáhajú lepšie porozumieť správaniu návštevníkov webovej stránky a tým prispievajú k lepšej funkcionalite tohto webu.
+                            </div>
+                        </div>
+                        <div class="cookies-divider"></div>
+                    </div>
+
+                    <div class="row align-items-center">
+                        <div class="col-12 col-md-auto">
+                            <a id="accept-button" href="#" class="btn btn-primary text-uppercase fs-12 px-3 border-radius-md my-1 w-100 concent" tabindex="13">
+                                Povoliť všetko
+                            </a>
+                        </div>
+                        <div class="col-12 col-md-auto">
+                            <a id="decline-button" href="#" class="btn btn-outline-info text-uppercase fs-12 px-3 border-radius-md my-1 w-100" tabindex="14">
+                                Odmietnuť
+                            </a>
+                        </div>
+                        <div class="col-12 col-md-auto" id="show-extended-section">
+                            <a id="show-extended-button" href="#" class="btn btn-outline-info text-uppercase fs-12 px-3 border-radius-md my-1 w-100" tabindex="15">
+                                Zobraziť detaily
+                            </a>
+                        </div>
+                        <div class="col-12 col-md-auto d-none" id="save-section">
+                            <a id="save-button" href="#" class="btn btn-outline-info text-uppercase fs-12 px-3 border-radius-md my-1 w-100" tabindex="16">
+                                Uložiť
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row align-items-center mt-2">
+                        <div class="col-auto p-0">
+                            <a href="/cruz-public/home/cookies" class="btn btn-link text-uppercase font-weight-bold" tabindex="17">
+                                Zásady používania cookies
+                            </a>
+                        </div>
+                        <div class="col-auto p-0">
+                            
+                            
+                            <a href="/cruz-public/content/Ochrana_osobnych_udajov_RUZ.pdf" class="btn btn-link text-uppercase font-weight-bold" tabindex="18">
+                                Vyhlásenie o ochrane súkromia
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+        
+
+
+
+
+
+
+<footer class="s-footer mt-auto my-4">
+	<div class="container-fluid">
+		<div class="row align-items-center">
+			<div class="col-12 col-lg-auto mb-2 mb-lg-0 text-center text-lg-left">
+				<div class="mt-1 text-gray-light">
+					
+					Copyright © 2011-2026
+					<span class="d-none d-md-inline">,</span>
+					<br class="d-md-none"> Ministerstvo financií Slovenskej republiky
+				</div>
+			</div>
+
+			<div class="d-none d-lg-block col-12 col-lg text-center text-lg-right">
+				<a href="#" id="cookie-manage" class="d-inline-block btn btn-link mt-1">
+                    <span>🍪</span>
+                    Správa cookies
+                </a>
+
+				
+				
+				
+				
+				<a href="/cruz-public/content/Manual-verejny.pdf" class="d-inline-block btn btn-link mt-1" data-placement="top" aria-expanded="false">
+					<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
+					Príručka používateľa
+				</a>
+
+				
+				
+				
+				<a href="/cruz-public/content/Ochrana_osobnych_udajov_RUZ.pdf" class="d-inline-block btn btn-link mt-1" data-placement="top" aria-expanded="false">
+					<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
+					Ochrana osobných údajov
+				</a>
+
+				
+					<a href="/cruz-public/home/api" class="d-inline-block btn btn-link mt-1">Verejné API</a>
+				
+				<a href="/cruz-public/home/accessdetails" class="d-inline-block btn btn-link mt-1">Vyhlásenie o prístupnosti</a>
+				<a href="/cruz-public/home/sitemap" class="d-inline-block btn btn-link mt-1">Mapa stránok</a>
+			</div>
+		</div>
+	</div>
+</footer>
+
+
+
+    </div>
+
+
+
+
+
+
+<div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div><div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div>
