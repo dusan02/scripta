@@ -91,10 +91,9 @@ class RegisterUzScraper(BaseScraper):
         await self._fill_search(page, ico)
         # Počkáme kým sa objaví výsledok (detail link) alebo text o žiadnych výsledkoch
         try:
-            await page.wait_for_selector(
-                "a[href*='accountingentity/show'], text=Neboli nájdené žiadne výsledky",
-                timeout=5000
-            )
+            result_link = page.locator("a[href*='accountingentity/show']")
+            no_results = page.locator("text=Neboli nájdené žiadne výsledky")
+            await no_results.or_(result_link).first.wait_for(timeout=5000)
         except PlaywrightTimeoutError:
             pass
 

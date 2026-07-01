@@ -555,7 +555,19 @@ class FinancnaSpravaBase(BaseScraper):
                 popup = page.context.pages[-1] if len(page.context.pages) > 1 else None
                 if popup and popup != page:
                     await popup.wait_for_load_state("domcontentloaded", timeout=10000)
-                    await popup.pdf(path=str(output_path))
+                    
+                    try:
+                        # Fix pre finančnú správu - tabuľky boli zhora odseknuté pri tlači
+                        await popup.add_style_tag(content="@media print { table, .table, .datagrid { margin-top: 60px !important; } }")
+                        # Pridáme aj malé oneskorenie, aby sa CSS aplikovalo
+                        await popup.wait_for_timeout(1000)
+                    except Exception as style_err:
+                        logger.debug(f"[{self.source_type}] Nepodarilo sa pridať CSS štýl (možno ide o raw PDF): {style_err}")
+
+                    await popup.pdf(
+                        path=str(output_path),
+                        margin={"top": "20mm", "bottom": "20mm", "left": "10mm", "right": "10mm"}
+                    )
                     await popup.close()
                     logger.info(f"[{self.source_type}] PDF uložené (print z popupu).")
                     return True

@@ -65,22 +65,65 @@ def compute_white_horse_indicator(statements: list) -> dict:
     }
 
 
+# ── Startup / Pre-revenue detekcia ────────────────────────────────────────────
+def detect_startup_profile(statements: list) -> dict:
+    """
+    Detekuje 'startup' profil — firma s nulovými/nízkymi tržbami ale s významným vlastným imaním.
+    Pre také firmy Altman Z-Score nie je spoľahlivý (X3=EBIT/Assets je záporné kvôli investíciám).
+
+    Kritériá:
+      - revenue <= 100_000 (alebo None)
+      - equity >= 500_000
+      - total_assets > 0
+      - len(statements) <= 2 (mladá firma — max 2 výkazy)
+    """
+    if not statements:
+        return {"is_startup": False}
+
+    latest = statements[-1]
+    revenue = getattr(latest, 'mainActivityRevenue', None)
+    equity = getattr(latest, 'equity', None)
+    assets = getattr(latest, 'totalAssets', None)
+    n_stmts = len(statements)
+
+    if assets is None or assets <= 0:
+        return {"is_startup": False}
+    if equity is None or equity < 500_000:
+        return {"is_startup": False}
+    if revenue is not None and revenue > 100_000:
+        return {"is_startup": False}
+    if n_stmts > 2:
+        return {"is_startup": False}
+
+    return {
+        "is_startup": True,
+        "revenue": revenue,
+        "equity": equity,
+        "assets": assets,
+        "n_years": n_stmts,
+    }
+
+
 def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
     """
     Vypočíta Altman Z''-score pre jedno účtovné obdobie.
     Vráti skóre, zónu a komponentné hodnoty.
     """
     try:
-        total_assets = getattr(stmt, 'totalAssets', 0) or 0
-        current_assets = getattr(stmt, 'currentAssets', 0) or 0
-        equity = getattr(stmt, 'equity', 0) or 0
-        net_profit = getattr(stmt, 'netProfitLoss', 0) or 0
-        short_liabilities = getattr(stmt, 'shortTermLiabilities', 0) or 0
-        long_liabilities = getattr(stmt, 'longTermLiabilities', 0) or 0
-        cash = getattr(stmt, 'cashAndEquivalents', 0) or 0
+        total_assets = getattr(stmt, 'totalAssets')
+        current_assets = getattr(stmt, 'currentAssets')
+        equity = getattr(stmt, 'equity')
+        net_profit = getattr(stmt, 'netProfitLoss')
+        short_liabilities = getattr(stmt, 'shortTermLiabilities')
+        long_liabilities = getattr(stmt, 'longTermLiabilities')
+        cash = getattr(stmt, 'cashAndEquivalents')
 
-        if total_assets <= 0:
-            return {"z_score": None, "zone": "N/A", "reason": "Nedostatok dát"}
+        if total_assets is None or total_assets <= 0 or net_profit is None or equity is None or short_liabilities is None:
+            return {"z_score": None, "zone": "N/A", "reason": "Nedostatok dát pre výpočet"}
+
+        current_assets = current_assets if current_assets is not None else 0
+        long_liabilities = long_liabilities if long_liabilities is not None else 0
+        cash = cash if cash is not None else 0
 
         # Working capital = Obežný majetok - Krátkodobé záväzky
         # Ak máme currentAssets z DB, použijeme ho. Inak fallback na hrubý odhad.
@@ -262,6 +305,11 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             ))
             return ScorecardResult(total_score=0, pillars=pillars, risk_category="C", hard_stop=True)
 
+    # ── Startup detekcia ─────────────────────────────────────────────────────
+    stmts_raw = company_dict.get("financialStatements", [])
+    sorted_stmts_raw = sorted(stmts_raw, key=lambda x: x.year if hasattr(x, "year") else x.get("year", 0))
+    startup_info = detect_startup_profile(sorted_stmts_raw)
+
     last_ratios = (trends.get("ratios_by_year") or [{}])[-1]
     last_z = (trends.get("altman_z_scores") or [{}])[-1]
     analyzed_years = trends.get("analyzed_years", [])
@@ -336,35 +384,54 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     z_score_val = last_z.get("z_score")
     z_zone = last_z.get("zone", "N/A")
 
-    # 2a. Altman Z''-score (max 22 bodov)
-    if z_score_val is None:
-        p2_score += 11  # Stred — bez dát
-        p2_flags.append("Altman Z'': N/A (chýbajú fin. výkazy)")
-    elif z_zone == "SAFE":
-        # Lineárna škála v rámci SAFE zóny: Z=2.6 → 17, Z≥5.0 → 22
-        safe_pts = int(min(22, 17 + (z_score_val - 2.6) / (5.0 - 2.6) * 5))
-        p2_score += safe_pts
-        p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Bezpečná zóna ✓")
-    elif z_zone == "GREY":
-        # Lineárna škála 1.1–2.6: → 8–16 bodov
-        grey_pts = int(8 + (z_score_val - 1.1) / (2.6 - 1.1) * 9)
-        p2_score += grey_pts
-        p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Šedá zóna ⚠")
-    else:  # DISTRESS
-        p2_score += max(0, int(z_score_val * 5)) if z_score_val is not None else 0
-        p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna (riziko bankrotu) ✗")
+    if startup_info.get("is_startup"):
+        # Pre startupy Altman Z-Score nie je spoľahlivý — nahradíme equity-based scoring
+        p2_score += 15  # Solídny základ — firma má kapitál
+        eq = startup_info.get("equity", 0)
+        p2_flags.append(f"STARTUP profil: Altman Z'' neaplikovateľné (pre-revenue firma s imaním {eq:,.0f} €)".replace(",", " "))
+        p2_flags.append("Hodnotenie založené na kapitálovej primeranosti, nie na ziskovosti")
 
-    # 2b. Debt-to-Equity (max 3 body)
-    de = last_ratios.get("debt_to_equity")
-    if de is not None:
-        if de < 1.0:
-            p2_score += 3
-            p2_flags.append(f"D/E = {de:.2f} — nízke zadlženie")
-        elif de <= 2.0:
-            p2_score += 1
-            p2_flags.append(f"D/E = {de:.2f} — mierne zadlženie")
-        else:
-            p2_flags.append(f"D/E = {de:.2f} — vysoké zadlženie")
+        # 2b. Debt-to-Equity (max 3 body) — stále relevantné
+        de = last_ratios.get("debt_to_equity")
+        if de is not None:
+            if de < 1.0:
+                p2_score += 3
+                p2_flags.append(f"D/E = {de:.2f} — nízke zadlženie")
+            elif de <= 2.0:
+                p2_score += 1
+                p2_flags.append(f"D/E = {de:.2f} — mierne zadlženie")
+            else:
+                p2_flags.append(f"D/E = {de:.2f} — vysoké zadlženie")
+    else:
+        # 2a. Altman Z''-score (max 22 bodov)
+        if z_score_val is None:
+            p2_score += 11  # Stred — bez dát
+            p2_flags.append("Altman Z'': N/A (chýbajú fin. výkazy)")
+        elif z_zone == "SAFE":
+            # Lineárna škála v rámci SAFE zóny: Z=2.6 → 17, Z≥5.0 → 22
+            safe_pts = int(min(22, 17 + (z_score_val - 2.6) / (5.0 - 2.6) * 5))
+            p2_score += safe_pts
+            p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Bezpečná zóna ✓")
+        elif z_zone == "GREY":
+            # Lineárna škála 1.1–2.6: → 8–16 bodov
+            grey_pts = int(8 + (z_score_val - 1.1) / (2.6 - 1.1) * 9)
+            p2_score += grey_pts
+            p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Šedá zóna ⚠")
+        else:  # DISTRESS
+            p2_score += max(0, int(z_score_val * 5)) if z_score_val is not None else 0
+            p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna (riziko bankrotu) ✗")
+
+        # 2b. Debt-to-Equity (max 3 body)
+        de = last_ratios.get("debt_to_equity")
+        if de is not None:
+            if de < 1.0:
+                p2_score += 3
+                p2_flags.append(f"D/E = {de:.2f} — nízke zadlženie")
+            elif de <= 2.0:
+                p2_score += 1
+                p2_flags.append(f"D/E = {de:.2f} — mierne zadlženie")
+            else:
+                p2_flags.append(f"D/E = {de:.2f} — vysoké zadlženie")
 
     p2_score = max(0, min(25, p2_score))
     p2_detail = " | ".join(p2_flags[:2])
@@ -686,14 +753,22 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         curr = sorted_stmts[i]
         curr_year = getattr(curr, 'year', 0)
         
-        prev_rev = getattr(prev, 'mainActivityRevenue', 0)
-        curr_rev = getattr(curr, 'mainActivityRevenue', 0)
-        prev_profit = getattr(prev, 'netProfitLoss', 0)
-        curr_profit = getattr(curr, 'netProfitLoss', 0)
-        prev_equity = getattr(prev, 'equity', 0)
-        curr_equity = getattr(curr, 'equity', 0)
+        prev_rev = getattr(prev, 'mainActivityRevenue', 0) or 0
+        curr_rev = getattr(curr, 'mainActivityRevenue', 0) or 0
         
-        rev_growth = ((curr_rev - prev_rev) / prev_rev * 100) if prev_rev != 0 else (100.0 if curr_rev > 0 else 0.0)
+        # Anualizácia tržieb pre korektný YoY výpočet pri posunutých hospodárskych rokoch
+        prev_months = getattr(prev, 'monthsInPeriod', 12) or 12
+        curr_months = getattr(curr, 'monthsInPeriod', 12) or 12
+        
+        ann_prev_rev = prev_rev * (12 / prev_months) if prev_months > 0 else prev_rev
+        ann_curr_rev = curr_rev * (12 / curr_months) if curr_months > 0 else curr_rev
+        
+        prev_profit = getattr(prev, 'netProfitLoss', 0) or 0
+        curr_profit = getattr(curr, 'netProfitLoss', 0) or 0
+        prev_equity = getattr(prev, 'equity', 0) or 0
+        curr_equity = getattr(curr, 'equity', 0) or 0
+        
+        rev_growth = ((ann_curr_rev - ann_prev_rev) / ann_prev_rev * 100) if ann_prev_rev != 0 else (100.0 if ann_curr_rev > 0 else 0.0)
         profit_delta_pct = ((curr_profit - prev_profit) / abs(prev_profit) * 100) if prev_profit != 0 else None
         equity_delta_pct = ((curr_equity - prev_equity) / abs(prev_equity) * 100) if prev_equity != 0 else None
 

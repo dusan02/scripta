@@ -6,6 +6,10 @@
     "test:headed": "playwright test --headed"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.1"
+    "@playwright/test": "^1.54.1",
+    "prisma": "^5.17.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.17.0"
   }
 }

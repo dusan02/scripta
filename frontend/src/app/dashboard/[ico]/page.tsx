@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import FinancialChart from "@/components/FinancialChart";
 
-function formatCurrency(value: number) {
+function formatCurrency(value: number | null) {
+  if (value === null || value === undefined) return "N/A";
   return new Intl.NumberFormat("sk-SK", {
     style: "currency",
     currency: "EUR",
@@ -313,7 +314,7 @@ export default async function DashboardPage({
           <MetricCard 
             title="Vlastné Imanie" 
             value={formatCurrency(latestStatement.equity)} 
-            isNegative={latestStatement.equity < 0}
+            isNegative={latestStatement.equity !== null && latestStatement.equity < 0}
           />
           <MetricCard 
             title="Tržby" 
@@ -322,7 +323,7 @@ export default async function DashboardPage({
           <MetricCard 
             title="Zisk / Strata" 
             value={formatCurrency(latestStatement.netProfitLoss)} 
-            isNegative={latestStatement.netProfitLoss < 0}
+            isNegative={latestStatement.netProfitLoss !== null && latestStatement.netProfitLoss < 0}
           />
           <MetricCard 
             title="Krátkodobé záväzky" 
@@ -335,7 +336,7 @@ export default async function DashboardPage({
           <MetricCard 
             title="CF z prevádzky" 
             value={formatCurrency(latestStatement.operatingCashFlow)} 
-            isNegative={latestStatement.operatingCashFlow < 0}
+            isNegative={latestStatement.operatingCashFlow !== null && latestStatement.operatingCashFlow < 0}
           />
         </section>
 
@@ -410,11 +411,65 @@ export default async function DashboardPage({
 
         {/* Recharts Vizuálny Trend */}
         {company.financialStatements.length > 0 && (
-          <FinancialChart data={company.financialStatements.map(s => ({
-            year: s.year,
-            netProfitLoss: s.netProfitLoss,
-            operatingCashFlow: s.operatingCashFlow
-          }))} />
+          <>
+            {(() => {
+              const isConsSet = new Set(company.financialStatements.map(s => s.isConsolidated));
+              const hasMixedConsolidation = isConsSet.size > 1;
+              const hasNonStandardMonths = company.financialStatements.some(s => s.monthsInPeriod !== null && s.monthsInPeriod !== 12);
+              
+              // Startup detekcia
+              let isStartup = false;
+              let equityStr = "0";
+              let nYears = company.financialStatements.length;
+              if (nYears > 0 && nYears <= 2) {
+                const latest = company.financialStatements[nYears - 1];
+                const rev = latest.mainActivityRevenue;
+                const eq = latest.equity;
+                const assets = latest.totalAssets;
+                if (assets !== null && assets > 0 && eq !== null && eq >= 500000 && (rev === null || rev <= 100000)) {
+                  isStartup = true;
+                  equityStr = formatCurrency(eq);
+                }
+              }
+              
+              return (
+                <>
+                  {isStartup && (
+                    <div className="mt-8 mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                      <p className="text-sm text-amber-400 font-medium flex items-center gap-2 mb-2">
+                        ⚡ Startup / Pre-revenue profil detekovaný
+                      </p>
+                      <p className="text-sm text-neutral-300">
+                        Altman Z-Score nie je spoľahlivý pre firmy bez tržieb alebo s minimálnymi tržbami, pretože X3 (EBIT/Assets) je záporné kvôli investíciám do vývoja. Hodnotenie je založené na kapitálovej primeranosti.
+                      </p>
+                      <p className="text-sm text-amber-500/80 mt-2 font-mono">
+                        Vlastné imanie: {equityStr} · Počet výkazov: {nYears}
+                      </p>
+                    </div>
+                  )}
+                  {hasMixedConsolidation && (
+                    <div className="mt-8 mb-[-1rem] p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                      <p className="text-sm text-amber-400 font-medium flex items-center gap-2">
+                        ⚠️ Upozornenie: V dátach je mix individuálnych a konsolidovaných závierok. Vývoj v grafe môže byť skreslený.
+                      </p>
+                    </div>
+                  )}
+                  {hasNonStandardMonths && (
+                    <div className="mt-8 mb-[-1rem] p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                      <p className="text-sm text-amber-400 font-medium flex items-center gap-2">
+                        ⚠️ Upozornenie: Niektoré účtovné obdobia nezodpovedajú 12 mesiacom. Medziročné porovnanie v grafe môže byť skreslené.
+                      </p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+            <FinancialChart data={company.financialStatements.map(s => ({
+              year: s.year,
+              netProfitLoss: s.netProfitLoss,
+              operatingCashFlow: s.operatingCashFlow
+            }))} />
+          </>
         )}
 
         {/* Forenzné Varovania */}
@@ -519,16 +574,21 @@ export default async function DashboardPage({
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {company.financialStatements.map((stmt) => (
-                    <tr key={stmt.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-6 py-4 font-medium text-white">{stmt.year}</td>
+                    <tr key={stmt.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                      <td className="px-6 py-4 font-medium text-white flex items-center gap-1">
+                        {stmt.year}
+                        {stmt.monthsInPeriod !== null && stmt.monthsInPeriod !== 12 && (
+                          <span className="text-amber-500 cursor-help" title={`${stmt.monthsInPeriod}-mesačné obdobie`}>*</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.totalAssets)}</td>
                       <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.mainActivityRevenue)}</td>
-                      <td className={`px-6 py-4 font-medium ${stmt.netProfitLoss < 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                      <td className={`px-6 py-4 font-medium ${stmt.netProfitLoss !== null && stmt.netProfitLoss < 0 ? "text-rose-400" : "text-emerald-400"}`}>
                         {formatCurrency(stmt.netProfitLoss)}
                       </td>
-                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.staffCosts || 0)}</td>
-                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.tradeReceivables || 0)}</td>
-                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.tradePayables || 0)}</td>
+                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.staffCosts)}</td>
+                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.tradeReceivables)}</td>
+                      <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.tradePayables)}</td>
                       <td className="px-6 py-4 text-neutral-400">
                         {stmt.auditorOpinion?.opinionType || "N/A"}
                       </td>

@@ -237,12 +237,24 @@ class PdfCompiler:
             buf = io.BytesIO()
             c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
             
+            # Posunúť obsah PDF o 50 bodov nižšie aby ho neprekryl nadpis (najmä pre Finančnú správu)
+            if source.source_type.startswith("FS_"):
+                try:
+                    from PyPDF2 import Transformation
+                    first_page.add_transformation(Transformation().translate(0, -60))
+                except Exception as trans_err:
+                    logger.debug(f"[PdfCompiler] Nepodarilo sa posunúť obsah PDF: {trans_err}")
+
+            # Biely background pre nadpis — aby neprekryval obsah PDF
+            c.setFillColor(colors.white)
+            c.rect(0, page_h - 50, page_w, 50, fill=1, stroke=0)
+            
             # section-title štýl (text-sm, uppercase, text-slate-500)
             c.setFont("Inter-Bold", 10)
             c.setFillColor(colors.HexColor("#64748b"))
             
             x_margin = 35
-            y_pos = page_h - 35
+            y_pos = page_h - 30
             c.drawString(x_margin, y_pos, label)
             
             # border-b (border-slate-200)

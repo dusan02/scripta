@@ -68,7 +68,7 @@ export default function LoginPage() {
         position: "relative"
       }}
     >
-      <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.15)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)" }} />
 
       {/* Language Switcher */}
       <div style={{ position: "absolute", top: 24, right: 24, zIndex: 20, display: "flex", gap: "8px" }}>
@@ -103,7 +103,7 @@ export default function LoginPage() {
             padding: "40px 32px", 
             width: "100%", 
             boxSizing: "border-box", 
-            background: "#FFFFFF", 
+            background: "var(--surface)", 
             borderRadius: "16px",
             boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
           }}
@@ -136,7 +136,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {/* Email */}
             <div>
-              <label htmlFor="login-email" style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: 500, color: "#374151" }}>{t("login.email")}</label>
+              <label htmlFor="login-email" style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: 500, color: "var(--text-secondary)" }}>{t("login.email")}</label>
               <input
                 id="login-email"
                 name="email"
@@ -152,19 +152,19 @@ export default function LoginPage() {
                   padding: "10px 12px", 
                   boxSizing: "border-box",
                   borderRadius: "8px",
-                  border: "1px solid #D1D5DB",
-                  background: "#FFFFFF",
-                  color: "#111827",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text)",
                   fontSize: "14px",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s"
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = "var(--accent)";
-                  e.target.style.boxShadow = "0 0 0 3px rgba(67, 160, 71, 0.1)"; // Adjust rgba based on accent color
+                  e.target.style.boxShadow = "0 0 0 3px rgba(67, 160, 71, 0.1)";
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = "#D1D5DB";
+                  e.target.style.borderColor = "var(--border)";
                   e.target.style.boxShadow = "none";
                 }}
               />
@@ -172,7 +172,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="login-password" style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: 500, color: "#374151" }}>{t("login.heslo")}</label>
+              <label htmlFor="login-password" style={{ display: "block", marginBottom: "6px", fontSize: "14px", fontWeight: 500, color: "var(--text-secondary)" }}>{t("login.heslo")}</label>
               <div style={{ position: "relative" }}>
                 <input
                   id="login-password"
@@ -189,9 +189,9 @@ export default function LoginPage() {
                     padding: "10px 12px", 
                     boxSizing: "border-box",
                     borderRadius: "8px",
-                    border: "1px solid #D1D5DB",
-                    background: "#FFFFFF",
-                    color: "#111827",
+                    border: "1px solid var(--border)",
+                    background: "var(--surface)",
+                    color: "var(--text)",
                     fontSize: "14px",
                     outline: "none",
                     transition: "border-color 0.2s, box-shadow 0.2s"
@@ -201,7 +201,7 @@ export default function LoginPage() {
                     e.target.style.boxShadow = "0 0 0 3px rgba(67, 160, 71, 0.1)"; 
                   }}
                   onBlur={(e) => {
-                    e.target.style.borderColor = "#D1D5DB";
+                    e.target.style.borderColor = "var(--border)";
                     e.target.style.boxShadow = "none";
                   }}
                 />
@@ -230,7 +230,7 @@ export default function LoginPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#4B5563", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "var(--text-secondary)", cursor: "pointer" }}>
                 <input 
                   type="checkbox" 
                   checked={rememberMe}
@@ -254,8 +254,8 @@ export default function LoginPage() {
                 width: "100%",
                 padding: "10px",
                 marginTop: "4px",
-                background: "#111827",
-                color: "#FFFFFF",
+                background: "var(--text)",
+                color: "var(--surface)",
                 fontWeight: 500,
                 fontSize: "14px",
                 borderRadius: "8px",
@@ -268,8 +268,8 @@ export default function LoginPage() {
                 justifyContent: "center",
                 gap: "8px"
               }}
-              onMouseEnter={(e) => { if(!loading) e.currentTarget.style.background = "#1F2937"; }}
-              onMouseLeave={(e) => { if(!loading) e.currentTarget.style.background = "#111827"; }}
+              onMouseEnter={(e) => { if(!loading) e.currentTarget.style.opacity = "0.85"; }}
+              onMouseLeave={(e) => { if(!loading) e.currentTarget.style.opacity = "1"; }}
             >
               {loading ? t("login.overujem") : t("login.prihlasitSa")}
             </button>
@@ -277,9 +277,9 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div style={{ display: "flex", alignItems: "center", margin: "24px 0" }}>
-            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
-            <span style={{ padding: "0 12px", fontSize: "12px", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("login.alebo")}</span>
-            <div style={{ flex: 1, height: "1px", background: "#E5E7EB" }} />
+            <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+            <span style={{ padding: "0 12px", fontSize: "12px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{t("login.alebo")}</span>
+            <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
           </div>
 
           {/* Social Logins */}
@@ -289,10 +289,10 @@ export default function LoginPage() {
               style={{
                 width: "100%",
                 padding: "10px",
-                background: "#FFFFFF",
-                border: "1px solid #E5E7EB",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
                 borderRadius: "8px",
-                color: "#374151",
+                color: "var(--text-secondary)",
                 fontSize: "14px",
                 fontWeight: 500,
                 cursor: "pointer",
@@ -303,12 +303,12 @@ export default function LoginPage() {
                 transition: "background 0.2s, border-color 0.2s"
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#F9FAFB";
-                e.currentTarget.style.borderColor = "#D1D5DB";
+                e.currentTarget.style.background = "var(--surface-hover)";
+                e.currentTarget.style.borderColor = "var(--border-strong)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#FFFFFF";
-                e.currentTarget.style.borderColor = "#E5E7EB";
+                e.currentTarget.style.background = "var(--surface)";
+                e.currentTarget.style.borderColor = "var(--border)";
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -325,10 +325,10 @@ export default function LoginPage() {
               style={{
                 width: "100%",
                 padding: "10px",
-                background: "#FFFFFF",
-                border: "1px solid #E5E7EB",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
                 borderRadius: "8px",
-                color: "#374151",
+                color: "var(--text-secondary)",
                 fontSize: "14px",
                 fontWeight: 500,
                 cursor: "pointer",
@@ -339,12 +339,12 @@ export default function LoginPage() {
                 transition: "background 0.2s, border-color 0.2s"
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#F9FAFB";
-                e.currentTarget.style.borderColor = "#D1D5DB";
+                e.currentTarget.style.background = "var(--surface-hover)";
+                e.currentTarget.style.borderColor = "var(--border-strong)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#FFFFFF";
-                e.currentTarget.style.borderColor = "#E5E7EB";
+                e.currentTarget.style.background = "var(--surface)";
+                e.currentTarget.style.borderColor = "var(--border)";
               }}
             >
               <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -359,11 +359,11 @@ export default function LoginPage() {
 
         </div>
 
-        <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "#4B5563" }}>
+        <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "var(--text-secondary)" }}>
           {t("login.nemateUcet")} {" "}
           <Link 
             href="/register" 
-            style={{ color: "#111827", textDecoration: "none", fontWeight: 600 }}
+            style={{ color: "var(--text)", textDecoration: "none", fontWeight: 600 }}
           >
             {t("login.zaregistrovatSa")}
           </Link>

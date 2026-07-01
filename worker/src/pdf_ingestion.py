@@ -58,11 +58,17 @@ def _detect_ifrs_from_text(text: str) -> bool:
 def _is_notes_page(page_text: str) -> bool:
     """Vráti True ak strana vyzerá ako začiatok poznámok."""
     # Vylúčime strany s obsahom (table of contents) — tie často obsahujú "Poznámky k účtovnej závierke" v zozname
-    if re.search(r"(?i)(?:^\s*obsah\s*:|^\s*contents\s*:)", page_text, re.MULTILINE):
+    if re.search(r"(?i)(?:^\s*obsah\s*[:\n]|^\s*contents\s*[:\n])", page_text, re.MULTILINE):
         return False
-    for pattern in _NOTES_COMPILED:
-        if pattern.search(page_text):
-            return True
+        
+    for line in page_text.split('\n'):
+        for pattern in _NOTES_COMPILED:
+            if pattern.search(line):
+                # Skontrolujeme, či riadok s "poznámkami" nie je súčasťou obsahu (TOC)
+                # Obsah často vyzerá ako: "Poznámky k účtovnej závierke ....... 15"
+                if re.search(r'(?:\.{3,}|\t{2,})\s*\d*', line) or re.search(r'\s{5,}\d+\s*$', line):
+                    continue
+                return True
     return False
 
 
@@ -184,3 +190,59 @@ def slice_narrative_pdf(pdf_path: str, max_pages: int = 15) -> str:
     )
 
     return new_pdf_path
+
+def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
+    """
+    Vyhľadá začiatok Poznámok (Notes) a vyextrahuje max. 25 strán do nového PDF,
+    čím obmedzí tokeny, no zachová najdôležitejšie sekcie ako Spriaznené osoby.
+    """
+    if not pdf_path.lower().endswith(".pdf"):
+        return None
+
+    doc = fitz.open(pdf_path)
+    total_pages = len(doc)
+    if total_pages == 0:
+        doc.close()
+        return None
+
+    # Najprv detekujeme typ závierky, aby sme vedeli kde začať hľadať poznámky
+    preview_text = ""
+    for i in range(min(10, total_pages)):
+        preview_text += doc[i].get_text("text")
+    is_ifrs = _detect_ifrs_from_text(preview_text)
+    
+    if not is_ifrs and len(preview_text.strip()) < 50 and total_pages >= settings.pdf_scanned_min_pages:
+        is_ifrs = True
+
+    notes_start_page = -1
+    min_notes_page = settings.pdf_ifrs_min_notes_page if is_ifrs else settings.pdf_sk_gaap_min_notes_page
+
+    for i in range(min_notes_page, total_pages):
+        page_text = doc[i].get_text("text")
+        if _is_notes_page(page_text):
+            notes_start_page = i
+            break
+
+    if notes_start_page == -1:
+        # Poznámky sa nenašli, vrátime None (nemá zmysel extrahovať celé PDF znova)
+        doc.close()
+        return None
+
+    new_pdf_path = pdf_path.replace(".pdf", "_sliced_notes.pdf")
+    new_doc = fitz.open()
+
+    end_page = min(notes_start_page + max_notes_pages, total_pages)
+    for i in range(notes_start_page, end_page):
+        new_doc.insert_pdf(doc, from_page=i, to_page=i)
+
+    new_doc.save(new_pdf_path)
+    new_doc.close()
+    doc.close()
+    
+    logger.info(
+        f"[PDF Notes Slicing] {os.path.basename(pdf_path)} | "
+        f"od_strany={notes_start_page} | extrahovaných={end_page - notes_start_page}"
+    )
+
+    return new_pdf_path
+

@@ -30,21 +30,23 @@ class AuditorReportData(BaseModel):
 
 class FinancialMetrics(BaseModel):
     rok_zavierky: int = Field(...)
-    celkove_aktiva: float = Field(...)
-    obezny_majetok: float = Field(..., description="Obežný majetok (current assets) — zásoby, pohľadávky, krátkodobý finančný majetok. Ak chýba, vráť 0.")
-    vlastne_imanie_celkom: float = Field(...)
-    kratkodobe_zavazky: float = Field(...)
-    dlhodobeZavazky: float = Field(..., description="Dlhodobé záväzky (long-term liabilities) — bankové úvery, dlhopisy, lízingové záväzky > 1 rok. Ak chýba alebo neexistuje, vráť 0.")
-    trzby_z_hlavnej_cinnosti: float = Field(...)
-    hruba_marza: float = Field(..., description="Hrubý zisk = Tržby - Náklady na predaný tovar (COGS). Pre servisné firmy kde COGS nie je vykazovaný, vráť 0.")
-    zisk_alebo_strata_po_zdaneni: float = Field(...)
-    peniaze_a_penazne_ekvivalenty_k_31_12: float = Field(...)
-    ciste_penazne_toky_z_prevadzkovej_cinnosti: float = Field(...)
-    osobne_naklady: float = Field(..., description="Personálne/osobné náklady (Staff costs). Ak chýbajú (0 zamestnancov), vráť 0.")
-    pohladavky_z_obchodneho_styku: float = Field(..., description="Pohľadávky z obchodného styku (Trade receivables). Ak chýba, vráť 0.")
-    zavazky_z_obchodneho_styku: float = Field(..., description="Záväzky z obchodného styku (Trade payables). Ak chýba, vráť 0.")
-    mena: str = Field(..., description="Mena výkazu: 'EUR', 'CZK', 'USD'. Ak výkaz uvádza 'v tisícoch EUR', mena je stále EUR (konverzia sa rieši v iných pravidlách).")
+    celkove_aktiva: Optional[float] = Field(..., description="Celkové aktíva (Total assets). Ak údaj chýba v závierke, vráť null.")
+    obezny_majetok: Optional[float] = Field(..., description="Obežný majetok (current assets) — zásoby, pohľadávky, krátkodobý finančný majetok. Ak chýba, vráť null.")
+    vlastne_imanie_celkom: Optional[float] = Field(..., description="Vlastné imanie celkom (Total equity). Ak chýba, vráť null.")
+    kratkodobe_zavazky: Optional[float] = Field(..., description="Krátkodobé záväzky (Short-term liabilities). Ak chýba, vráť null.")
+    dlhodobeZavazky: Optional[float] = Field(..., description="Dlhodobé záväzky (long-term liabilities) — bankové úvery, dlhopisy, lízingové záväzky > 1 rok. Ak chýba, vráť null.")
+    trzby_z_hlavnej_cinnosti: Optional[float] = Field(..., description="Tržby z hlavnej činnosti (Revenue/Turnover). Ak chýba, vráť null.")
+    hruba_marza: Optional[float] = Field(..., description="Hrubý zisk = Tržby - Náklady na predaný tovar (COGS). Ak chýba, vráť null.")
+    zisk_alebo_strata_po_zdaneni: Optional[float] = Field(..., description="Čistý zisk alebo strata (Net profit/loss). Ak chýba, vráť null.")
+    peniaze_a_penazne_ekvivalenty_k_31_12: Optional[float] = Field(..., description="Peniaze a peňažné ekvivalenty (Cash and equivalents). Ak chýba, vráť null.")
+    ciste_penazne_toky_z_prevadzkovej_cinnosti: Optional[float] = Field(..., description="Čisté peňažné toky z prevádzkovej činnosti (Operating cash flow). Ak chýba, vráť null.")
+    osobne_naklady: Optional[float] = Field(..., description="Personálne/osobné náklady (Staff costs). Ak chýba, vráť null.")
+    pohladavky_z_obchodneho_styku: Optional[float] = Field(..., description="Pohľadávky z obchodného styku (Trade receivables). Ak chýba, vráť null.")
+    zavazky_z_obchodneho_styku: Optional[float] = Field(..., description="Záväzky z obchodného styku (Trade payables). Ak chýba, vráť null.")
+    mena: str = Field(..., description="Mena výkazu: 'EUR', 'CZK', 'USD'. Ak výkaz uvádza 'v tisícoch EUR', mena je stále EUR.")
     typ_zavierky: str = Field(..., description="Typ závierky: 'IFRS' ak dokument explicitne uvádza IFRS, 'MICRO' pre Úč MUJ mikro jednotky, inak 'SK_GAAP'.")
+    pocet_mesiacov_obdobia: Optional[int] = Field(..., description="Zisti počet mesiacov (od - do) na prvej strane dokumentu. Dôkladne zisti, či výkaz pokrýva 12 mesiacov alebo kratšie/dlhšie obdobie. Ak to nie je možné určiť, vráť null.")
+    is_consolidated: bool = Field(..., description="Dôkladne prever prvú stranu. True ak ide o konsolidovanú závierku (hľadaj slová 'konsolidovaná', 'consolidated'). Zbystri pozornosť ak názov firmy obsahuje 'Holding' alebo 'Group'. Ak je to individuálna (samostatná) závierka, vráť False.")
 
 class CompanyFinancialExtraction(BaseModel):
     ico: str = Field(...)
@@ -54,8 +56,11 @@ class CompanyFinancialExtraction(BaseModel):
 
 SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je extrahovať fakty z účtovných závierok (vrátane IFRS, národných štandardov a Mikro účtovných jednotiek - Úč MUJ) pre potreby advokátov, ktorí preverujú bonitu protistrany a hľadajú podozrivé aktivity (tzv. biele kone) alebo riziko úpadku.
 
+UPOZORNENIE PRE ANGLICKÉ IFRS ZÁVIERKY:
+Mnoho veľkých a nadnárodných spoločností (ako napr. OMV) zverejňuje IFRS závierky výlučne v anglickom jazyku. Ak je dokument v angličtine, aktívne vyhľadávaj anglické ekvivalenty pre požadované metriky (napr. Total Assets pre aktíva, Revenue/Turnover pre tržby, Net Profit/Loss pre zisk, Total Equity pre vlastné imanie). Neextrahuj nuly len preto, že nenájdeš slovenské pojmy! Dôkladne prezri PDF.
+
 KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
-- Všetky finančné hodnoty extrahuj V EURÁCH (nie v tisícoch ani miliónoch EUR). Ak tabuľka uvádza "v tisícoch EUR", vynásob hodnotu 1000. Ak uvádza "v miliónoch EUR", vynásob 1 000 000.
+- Všetky finančné hodnoty extrahuj V EURÁCH (nie v tisícoch ani miliónoch EUR). Ak tabuľka uvádza "v tisícoch EUR" (alebo anglicky "in thousands of EUR" / "EUR '000" / "in ths. EUR"), vynásob hodnotu 1000. Ak uvádza "v miliónoch EUR" (alebo "in millions of EUR" / "EUR mn"), vynásob 1 000 000.
 - VÝNIMKA MENA: Ak je výkaz v CZK alebo USD (nie EUR), extrahuj čísla bez konverzie a nastav pole `mena` na 'CZK' alebo 'USD'. Ak je výkaz v EUR, nastav `mena` na 'EUR'.
 - Pri číslach v zátvorkách (napr. (1500)) ich konvertuj na negatívne float hodnoty (-1500.0).
 - Ak narazíš na tabuľku s dvoma stĺpcami dát (rok X a rok X-1), extrahuj prioritne stĺpec pre rok X (aktuálne účtovné obdobie).
@@ -64,12 +69,12 @@ KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
 - Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, doplň nulu, ale NEPOVAŽUJ to za negatívny indikátor v ďalších analýzach.
 
 PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
-- `dlhodobeZavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans". Ak firma nemá dlhodobé úvery, vráť 0.
-- `hruba_marza` (Gross profit): V SK GAAP = Obchodná marža + Výrobná spotreba; v IFRS = Revenue - Cost of sales. Ak výkaz vykazuje gross profit explicitne, použi tú hodnotu. Ak nie (servisné firms), vráť 0.
-- `osobne_naklady` (Staff costs): Hľadaj "Osobné náklady", "Mzdové náklady". Slúži na detekciu schránkových firiem. Ak chýba, = 0.
+- `dlhodobeZavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans".
+- `hruba_marza` (Gross profit): V SK GAAP = Obchodná marža + Výrobná spotreba; v IFRS = Revenue - Cost of sales.
+- `osobne_naklady` (Staff costs): Hľadaj "Osobné náklady", "Mzdové náklady". Slúži na detekciu schránkových firiem.
 - `pohladavky_z_obchodneho_styku` a `zavazky_z_obchodneho_styku`: Hľadaj Trade receivables / Trade payables. Kľúčové pre likviditu.
 - `typ_zavierky`: Nastav 'IFRS' ak dokument uvádza 'International Financial Reporting Standards' alebo 'IFRS'. Nastav 'MICRO' pre Úč MUJ mikro jednotky. Inak nastav 'SK_GAAP'.
-- Nikdy nehalucinuj. Ak údaj vo výkaze skutočne chýba, vráť 0 alebo null podľa Pydantic schémy."""
+- Nikdy nehalucinuj. Ak položka v závierke neexistuje alebo nie je uvedená, vráť null. Ak je fyzicky uvedená 0, vráť 0."""
 
 
 
@@ -117,6 +122,32 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     
     data = CompanyFinancialExtraction.model_validate_json(response.text)
     
+    # Sanity Check: Order of magnitude error (v tisícoch alebo miliónoch EUR odignorované)
+    m = data.metriky
+    if m.typ_zavierky != 'MICRO' and m.celkove_aktiva is not None:
+        multiplier = 1
+        if 0 < m.celkove_aktiva < 100 and m.typ_zavierky == 'IFRS' and (m.trzby_z_hlavnej_cinnosti is not None and m.trzby_z_hlavnej_cinnosti > 0):
+            logger.warning(f"Sanity Check [ICO={expected_ico}]: celkove_aktiva={m.celkove_aktiva} je pod 100. LLM odignorovalo 'v miliónoch'. Násobím hodnoty x1000000.")
+            multiplier = 1_000_000
+        elif 0 < m.celkove_aktiva < 10000 and (m.trzby_z_hlavnej_cinnosti is not None and m.trzby_z_hlavnej_cinnosti > 0):
+            logger.warning(f"Sanity Check [ICO={expected_ico}]: celkove_aktiva={m.celkove_aktiva} je pod 10,000. LLM odignorovalo 'v tisícoch'. Násobím hodnoty x1000.")
+            multiplier = 1_000
+            
+        if multiplier > 1:
+            if m.celkove_aktiva is not None: m.celkove_aktiva *= multiplier
+            if m.obezny_majetok is not None: m.obezny_majetok *= multiplier
+            if m.vlastne_imanie_celkom is not None: m.vlastne_imanie_celkom *= multiplier
+            if m.kratkodobe_zavazky is not None: m.kratkodobe_zavazky *= multiplier
+            if m.dlhodobeZavazky is not None: m.dlhodobeZavazky *= multiplier
+            if m.trzby_z_hlavnej_cinnosti is not None: m.trzby_z_hlavnej_cinnosti *= multiplier
+            if m.hruba_marza is not None: m.hruba_marza *= multiplier
+            if m.zisk_alebo_strata_po_zdaneni is not None: m.zisk_alebo_strata_po_zdaneni *= multiplier
+            if m.peniaze_a_penazne_ekvivalenty_k_31_12 is not None: m.peniaze_a_penazne_ekvivalenty_k_31_12 *= multiplier
+            if m.ciste_penazne_toky_z_prevadzkovej_cinnosti is not None: m.ciste_penazne_toky_z_prevadzkovej_cinnosti *= multiplier
+            if m.osobne_naklady is not None: m.osobne_naklady *= multiplier
+            if m.pohladavky_z_obchodneho_styku is not None: m.pohladavky_z_obchodneho_styku *= multiplier
+            if m.zavazky_z_obchodneho_styku is not None: m.zavazky_z_obchodneho_styku *= multiplier
+
     # Vždy prepíšeme rok a IČO metadátami z RÚZ (názvu súboru), ak sú k dispozícii.
     # Zamedzíme tým ukladaniu pod IČO audítora (napr. KPMG 31348238).
     if expected_year:
@@ -228,11 +259,48 @@ class EvidenceItem(BaseModel):
     zdroj: str = Field(..., description="Názov sekcie alebo registra (napr. 'Slovenská komora exekútorov', 'Analýza trendov')")
     impact: Literal["POSITIVE", "NEUTRAL", "WARNING", "CRITICAL"] = Field(..., description="Závažnosť zistenia.")
 
+class NotesRiskAnalysis(BaseModel):
+    related_party_transactions: Optional[str] = Field(..., description="Akékoľvek zmienky o pôžičkách spoločníkom, prepojeným firmám alebo neštandardných nákupoch služieb od spriaznených osôb.")
+    off_balance_sheet_liabilities: Optional[str] = Field(..., description="Podsúvahové záväzky (ručenia, vystavené bankové záruky, lízingové garancie).")
+    contingent_risks: Optional[str] = Field(..., description="Prebiehajúce súdne spory a potenciálne záväzky z nich plynúce.")
+
+NOTES_SYSTEM_PROMPT = """Si expertný Forenzný analytik. Analyzuješ "Poznámky k účtovnej závierke" (Notes).
+Tvojou jedinou úlohou je odhaliť riziká tunelovania, skrytých dlhov a právnych hrozieb, ktoré sa nepíšu priamo v číslach.
+1. Zameraj sa primárne na "Transakcie so spriaznenými osobami" (Related Party Transactions). Hľadaj, komu firma požičiava peniaze (vlastníkom, dcérskym firmám) a od koho nakupuje manažérske služby. Toto je najčastejšia metóda tunelovania.
+2. Hľadaj podsúvahové záväzky (garancie za iné firmy).
+3. Hľadaj prebiehajúce súdne spory (contingent liabilities).
+Ak v texte nenájdeš nič relevantné, vráť null. Nikdy si nevymýšľaj."""
+
+async def extract_notes_risks(file_path: str, model: str = settings.model_narrative) -> NotesRiskAnalysis:
+    """Extrahuje riziká z Poznámok k závierke (Related party transactions, atď)."""
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    uploaded_file = client.files.upload(file=file_path)
+    config = types.GenerateContentConfig(
+        system_instruction=NOTES_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_schema=NotesRiskAnalysis,
+        temperature=0.0
+    )
+    try:
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=[uploaded_file],
+            config=config,
+        )
+        _log_tokens(model, response.usage_metadata, "extract_notes_risks")
+    finally:
+        try:
+            client.files.delete(name=uploaded_file.name)
+        except Exception:
+            pass
+    return NotesRiskAnalysis.model_validate_json(response.text)
+
 class AuditVerdict(BaseModel):
     verifa_score: int = Field(..., ge=0, le=100, description="Finálne skóre integrity a zdravia.")
     risk_category: Literal["AAA", "A", "B", "C", "INSUFFICIENT_DATA"]
     debt_exposure_rating: int = Field(..., ge=0, le=10, description="Hodnotenie expozície voči verejným dlhom (0=čisté, 10=katastrofa).")
-    final_verdict: str = Field(..., description="Jedna veta, ktorá zhrnie verdikt pre investora/právnika.")
+    executive_summary: str = Field(..., description="Hlboká korelačná analýza a forenzná syntéza. Prepoj finančné anomálie so zisteniami z registrov do pútavého odstavca.")
+    final_verdict: str = Field(..., description="Jedna veta, ktorá zhrnie objektívny stav spoločnosti. Striktne sa vyhni subjektívnym obchodným či investičným odporúčaniam (nepoužívaj 'Odporúčame/Neodporúčame spoluprácu'). Zhodnoť výlučne fakty a mieru rizika (napr. 'Spoločnosť vykazuje stabilné finančné zdravie s nízkym rizikom' alebo 'Kriticky rizikový stav kvôli prebiehajúcim exekúciám').")
     zdovodnenie: list[EvidenceItem] = Field(..., description="Analytické zdôvodnenie skóre. Zoznam tvrdení, dôkazov a zdrojov.")
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
 
@@ -252,14 +320,16 @@ Podrobný rozpis skóre (scorecard_breakdown) a historické dáta nájdeš v pri
 1. `algorithmic_prescore` je výsledok deterministického 5-pilierového modelu. Tvojou úlohou je toto skóre **potvrdiť alebo upraviť o max ±10 bodov** na základe tvojho forenzného úsudku z naratívnych a právnych dát.
 2. **VÝNIMKA PRE PDF DÁTA:** Keďže algoritmus nevidí do priložených PDF súborov s dlhmi, máš povinnosť z tohto skóre strhnúť **-30 bodov**, ak v PDFkách objavíš aktívne exekúcie alebo chronické dlhy voči štátu.
    - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej algoritmus v Pilieri 1 a 5 odrátal body), znova ich neodpočítavaj z PDF súborov, aby nedošlo k dvojitej penalizácii.
-3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky zmeň odporúčanie na 'NEODPORÚČA SA OBCHODOVAŤ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre.
-4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, niektoré piliere budú mať neutrálnu hodnotu (N/A). Hodnoť primerane (okolo 50).
+3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky označ stav spoločnosti za 'KRITICKY RIZIKOVÝ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre. Prísne sa ale vyhni akýmkoľvek radám o tom, či s firmou obchodovať alebo nie.
+4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, niektoré piliere budú mať neutrálnu hodnotu (N/A). Hodnoť primerane (okeolo 50).
 5. Zlaté klietky (Riziko tunelovania): Ak vidíš rast tržieb, ale výrazný pokles hotovosti a rast záväzkov voči prepojeným osobám, uprav skóre smerom nadol v rámci svojho limitu.
 
-Tvoj výstup musí byť objektívny, nekompromisný a orientovaný na riziko.
-
-PROCES HODNOTENIA:
-1. KRÍŽOVÁ KONTROLA: Porovnaj "príbeh" (Narrative) s "číslami" (Financials). Zohľadni profitability_explanation.
+PROCES HODNOTENIA A SYNTÉZY:
+1. KRÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary):
+   - Tvojou najdôležitejšou úlohou je prepojiť izolované dáta do súvislostí v poli `executive_summary`.
+   - Nehádž na seba len fakty ("Firma má zisk. Firma má exekúciu."). Vysvetli anomálie!
+   - Príklad anomálie: "Hoci spoločnosť vykazuje stámiliónové tržby a vyhráva verejné obstarávania, z účtovnej závierky vyplýva, že nemá žiadnych zamestnancov (0 € osobné náklady) a všetok zisk sa prelieva do spriaznených firiem formou pôžičiek."
+   - Ak v dátach z Poznámok (NotesRisk) nájdeš transakcie so spriaznenými osobami, okamžite to prepoj s rastom dlhov alebo poklesom hotovosti.
 2. ANALÝZA VEREJNÝCH ZÁVÄZKOV A EXEKÚCIÍ (Z PDF súborov):
    - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu s aktuálnou hotovosťou.
    - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti.

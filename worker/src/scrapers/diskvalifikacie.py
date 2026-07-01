@@ -249,7 +249,9 @@ class DiskvalifikacieScraper(BaseScraper):
                 await page.go_back()
                 # Počkáme kým sa načíta zoznam výsledkov (event-driven)
                 try:
-                    await page.wait_for_selector("table tbody tr, .result-table tr, text=žiadne výsledky", timeout=5000)
+                    results_loc = page.locator("table tbody tr, .result-table tr")
+                    no_results_loc = page.locator("text=žiadne výsledky")
+                    await no_results_loc.or_(results_loc).first.wait_for(timeout=5000)
                 except PlaywrightTimeoutError:
                     pass
 

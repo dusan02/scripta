@@ -13,15 +13,16 @@ import {
 
 type ChartData = {
   year: number;
-  netProfitLoss: number;
-  operatingCashFlow: number;
+  netProfitLoss: number | null;
+  operatingCashFlow: number | null;
 };
 
 export default function FinancialChart({ data }: { data: ChartData[] }) {
   // Ak máme málo dát, napr. 1 rok, graf to síce vykreslí ako bod, ale lepšie je sortovať vzostupne
   const sortedData = [...data].sort((a, b) => a.year - b.year);
 
-  const formatValue = (val: number) => {
+  const formatValue = (val: number | null) => {
+    if (val === null || val === undefined) return "N/A";
     return new Intl.NumberFormat("sk-SK", {
       style: "currency",
       currency: "EUR",
@@ -69,6 +70,7 @@ export default function FinancialChart({ data }: { data: ChartData[] }) {
             name="Zisk / Strata"
             type="monotone"
             dataKey="netProfitLoss"
+            connectNulls={true}
             stroke="#6366f1" // Indigo-500
             strokeWidth={3}
             dot={{ fill: "#6366f1", r: 4, strokeWidth: 0 }}
@@ -78,6 +80,7 @@ export default function FinancialChart({ data }: { data: ChartData[] }) {
             name="Prevádzkový Cash-flow"
             type="monotone"
             dataKey="operatingCashFlow"
+            connectNulls={true}
             stroke="#10b981" // Emerald-500
             strokeWidth={3}
             dot={{ fill: "#10b981", r: 4, strokeWidth: 0 }}

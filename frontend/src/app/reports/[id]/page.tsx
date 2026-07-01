@@ -213,15 +213,15 @@ function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: num
   const currentText = LOADER_STEPS[Math.min(activeStep, LOADER_STEPS.length - 1)];
 
   return (
-    <div className="mt-8 bg-white dark:bg-slate-900 rounded-2xl p-5 w-full max-w-2xl mx-auto shadow-sm relative fade-in" style={{ border: "1px solid var(--border)" }}>
+    <div className="mt-8 rounded-2xl p-5 w-full max-w-2xl mx-auto shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-4">
         {/* Animated Icon */}
-        <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center relative">
-          <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400 animate-spin relative z-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center relative" style={{ background: "var(--success-bg)" }}>
+          <svg className="w-5 h-5 animate-spin relative z-10" style={{ color: "var(--success)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <div className="absolute inset-0 rounded-full bg-emerald-400 opacity-20 animate-ping"></div>
+          <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--success)" }}></div>
         </div>
         
         {/* Current Status */}
@@ -230,16 +230,16 @@ function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: num
             Spracovávanie údajov
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 dark:text-slate-500 shrink-0 tabular-nums text-sm font-mono mt-0.5">
+            <span className="shrink-0 tabular-nums text-sm font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
               [{new Date().toLocaleTimeString('sk-SK', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]
             </span>
-            <span className="text-[15px] font-medium text-emerald-600 dark:text-emerald-400 truncate">
+            <span className="text-[15px] font-medium truncate" style={{ color: "var(--success)" }}>
               {currentText}
             </span>
             <span className="flex gap-1 items-center ml-1 opacity-70">
-              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-              <span className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+              <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--success)", animationDelay: "0ms" }}></span>
+              <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--success)", animationDelay: "150ms" }}></span>
+              <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--success)", animationDelay: "300ms" }}></span>
             </span>
           </div>
         </div>
@@ -639,29 +639,18 @@ export default function ReportDetailPage() {
             )}
           </>
         ) : (
-          <div className="fade-in flex flex-col items-center justify-center pt-6 pb-10 px-4">
+          <div className="fade-in flex flex-col items-center justify-center pt-4 pb-16 px-4">
 
             {/* PDF Preview Success Card */}
             {canDownload ? (
               <div className="flex flex-col items-center justify-center mb-8 w-full transition-all fade-in">
                 
-                <h2 className="text-xl font-bold mb-2 flex items-center gap-2" style={{ color: "var(--success)" }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
-                  Analýza úspešne dokončená
-                </h2>
-                <p className="text-[13.5px] text-center mb-6 max-w-[280px]" style={{ color: "var(--text-muted)" }}>
-                  Všetky štátne registre boli preverené a forenzný posudok je pripravený.
-                </p>
-
                 {/* PDF Preview Button */}
                 <button
                   id="download-pdf-btn-completion"
                   onClick={handleDownload}
                   disabled={downloading}
-                  className="group relative flex flex-col items-center bg-white rounded-xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] w-full max-w-[280px] aspect-[1/1.414]"
+                  className="group relative flex flex-col items-center bg-white rounded-xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] w-full max-w-[220px] aspect-[1/1.414] mb-7"
                   style={{
                     border: "2px solid var(--success)",
                     boxShadow: "0 12px 32px -8px color-mix(in srgb, var(--success) 35%, transparent), 0 2px 8px -1px color-mix(in srgb, var(--success) 15%, transparent)",
@@ -678,19 +667,19 @@ export default function ReportDetailPage() {
                   )}
 
                   {/* Inner content resembling the PDF cover page */}
-                  <div className="w-full h-full p-6 flex flex-col items-center text-center relative z-0 bg-white">
-                    <div className="mb-6 opacity-90"><Logo size="md" /></div>
+                  <div className="w-full h-full p-4 flex flex-col items-center text-center relative z-0 bg-white">
+                    <div className="mb-4 opacity-90 transform scale-75"><Logo size="md" /></div>
                     
                     <div className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">
                       Forenzný Due Diligence Report
                     </div>
                     
-                    <div className="text-[15px] font-black text-slate-800 leading-tight mb-6">
+                    <div className="text-[15px] font-black text-slate-800 leading-tight mb-4">
                       {report.companyName || identifier}
                     </div>
                     
                     {/* Mock Stamp */}
-                    <div className="mt-auto mb-auto relative w-24 h-24 flex items-center justify-center transform rotate-[-8deg] opacity-80">
+                    <div className="mt-auto mb-auto relative w-24 h-24 shrink-0 flex items-center justify-center transform rotate-[-8deg] opacity-80">
                       <div className={`absolute inset-0 rounded-full border-[2.5px] ${scoreColorBorder} border-dashed opacity-60`} />
                       <div className={`absolute inset-[4px] rounded-full border-[1.5px] ${scoreColorBorder} opacity-90`} />
                       <div className={`absolute inset-[12px] rounded-full border ${scoreColorBorder} border-dashed opacity-40`} />
@@ -735,6 +724,17 @@ export default function ReportDetailPage() {
                     </div>
                   </div>
                 </button>
+
+                <h2 className="text-xl font-bold mb-2 flex items-center gap-2" style={{ color: "var(--success)" }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  Analýza úspešne dokončená
+                </h2>
+                <p className="text-[13.5px] text-center max-w-[280px]" style={{ color: "var(--text-muted)" }}>
+                  Všetky štátne registre boli preverené a forenzný posudok je pripravený.
+                </p>
 
                 <button
                   onClick={handleShareEmail}

@@ -185,6 +185,8 @@ generator client_python {
 model Company {
   ico                 String               @id
   name                String?
+  naceCode            String?
+  naceText            String?
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
   auditVerdict        AuditVerdict?
@@ -210,26 +212,29 @@ model FinancialStatement {
   id                                    String          @id @default(uuid())
   companyIco                            String
   year                                  Int
-  totalAssets                           Float
-  currentAssets                         Float           @default(0)
-  equity                                Float
-  shortTermLiabilities                  Float
-  longTermLiabilities                   Float           @default(0)   // Dlhodobé záväzky (bankové úvery, dlhopisy...)
-  mainActivityRevenue                   Float
-  grossProfit                           Float           @default(0)   // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
-  netProfitLoss                         Float
-  cashAndEquivalents                    Float
-  operatingCashFlow                     Float
-  staffCosts                            Float           @default(0)   // Osobné náklady
-  tradeReceivables                      Float           @default(0)   // Pohľadávky z obch. styku
-  tradePayables                         Float           @default(0)   // Záväzky z obch. styku
-  currency                              String          @default("EUR") // Mena výkazu (EUR, CZK, USD...)
-  statementType                         String          @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
+  totalAssets                           Float?
+  currentAssets                         Float?
+  equity                                Float?
+  shortTermLiabilities                  Float?
+  longTermLiabilities                   Float?        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
+  mainActivityRevenue                   Float?
+  grossProfit                           Float?        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
+  netProfitLoss                         Float?
+  cashAndEquivalents                    Float?
+  operatingCashFlow                     Float?
+  staffCosts                            Float?        // Osobné náklady
+  tradeReceivables                      Float?        // Pohľadávky z obch. styku
+  tradePayables                         Float?        // Záväzky z obch. styku
+  currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
+  statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
+  monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
+  isConsolidated                        Boolean       @default(false)
   createdAt                             DateTime        @default(now())
   
   company                               Company         @relation(fields: [companyIco], references: [ico])
   auditorOpinion                        AuditorOpinion?
   narrativeRisk                         NarrativeRiskAnalysis?
+  notesRisk                             NotesRiskAnalysis?
 
   @@unique([companyIco, year]) // Zabezpečí, že nebudeme mať duplicitné výkazy za jeden rok
 }
@@ -259,6 +264,17 @@ model NarrativeRiskAnalysis {
   statement             FinancialStatement @relation(fields: [financialStatementId], references: [id])
 }
 
+model NotesRiskAnalysis {
+  id                      String             @id @default(uuid())
+  financialStatementId    String             @unique
+  relatedPartyTransactions String?           @db.Text
+  offBalanceSheetLiabilities String?         @db.Text
+  contingentRisks         String?            @db.Text
+  createdAt               DateTime           @default(now())
+
+  statement               FinancialStatement @relation(fields: [financialStatementId], references: [id])
+}
+
 model AuditVerdict {
   id              String   @id @default(uuid())
   companyIco      String   @unique
@@ -266,6 +282,7 @@ model AuditVerdict {
   riskCategory    String
   debtExposureRating Int?
   finalVerdict    String   @db.Text
+  executiveSummary String? @db.Text
   justification   String   @db.Text
   keyRisk         String   @db.Text
   scorecardBreakdown Json?

@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import Optional
 from prisma import Prisma
+import httpx
 from src.llm_extractor import CompanyFinancialExtraction, NarrativeRiskAnalysis
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,22 @@ def get_db_lock():
         _db_lock = asyncio.Lock()
     return _db_lock
 
+async def _fetch_nace_from_api(ico: str):
+    """Získa NACE kód (napr. '64190') z verejnej API Registra UZ."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"https://www.registeruz.sk/cruz-public/api/accountingentity?ico={ico}")
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list) and len(data) > 0:
+                    ent = data[0]
+                    return ent.get("skNaceCategory"), ent.get("skNaceCategoryName")
+                elif isinstance(data, dict):
+                    return data.get("skNaceCategory"), data.get("skNaceCategoryName")
+    except Exception as e:
+        logger.warning(f"Zlyhal fetch NACE kódu pre {ico}: {e}")
+    return None, None
+
 async def save_to_db(data: CompanyFinancialExtraction):
     """
     Uloží extrahované finančné dáta a názor audítora do databázy pomocou Prisma Clienta.
@@ -26,14 +43,31 @@ async def save_to_db(data: CompanyFinancialExtraction):
 
         try:
             # 1. Vytvoríme alebo updatneme záznam o firme
-            # Neprepisujeme reálny názov z ORSR placeholderom z Gemini extrakcie
-            gemini_name = data.nazov_spolocnosti or ""
-            is_placeholder = gemini_name.startswith("Spoločnosť s IČO")
+            gemini_name = (data.nazov_spolocnosti or "").strip()
+            _INVALID_NAMES = {"", "n/a", "n/a.", "nie je známy", "neznámy", "none", "null", "-"}
+            is_placeholder = gemini_name.lower() in _INVALID_NAMES or gemini_name.startswith("Spoločnosť s IČO")
+            
+            # Fetch NACE kód
+            nace_code, nace_text = await _fetch_nace_from_api(data.ico)
+            
+            update_data = {}
+            if gemini_name and not is_placeholder:
+                update_data['name'] = gemini_name
+            if nace_code:
+                update_data['naceCode'] = nace_code
+            if nace_text:
+                update_data['naceText'] = nace_text
+
             await db.company.upsert(
                 where={'ico': data.ico},
                 data={
-                    'create': {'ico': data.ico, 'name': gemini_name if not is_placeholder else f"Spoločnosť s IČO {data.ico}"},
-                    'update': {'name': gemini_name} if gemini_name and not is_placeholder else {}
+                    'create': {
+                        'ico': data.ico, 
+                        'name': gemini_name if not is_placeholder else f"Spoločnosť s IČO {data.ico}",
+                        'naceCode': nace_code,
+                        'naceText': nace_text
+                    },
+                    'update': update_data
                 }
             )
 
@@ -65,6 +99,8 @@ async def save_to_db(data: CompanyFinancialExtraction):
                         'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
                         'currency': data.metriky.mena,
                         'statementType': data.metriky.typ_zavierky,
+                        'monthsInPeriod': data.metriky.pocet_mesiacov_obdobia if data.metriky.pocet_mesiacov_obdobia is not None else 12,
+                        'isConsolidated': data.metriky.is_consolidated,
                     },
                     'update': {
                         'totalAssets': data.metriky.celkove_aktiva,
@@ -82,6 +118,8 @@ async def save_to_db(data: CompanyFinancialExtraction):
                         'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
                         'currency': data.metriky.mena,
                         'statementType': data.metriky.typ_zavierky,
+                        'monthsInPeriod': data.metriky.pocet_mesiacov_obdobia if data.metriky.pocet_mesiacov_obdobia is not None else 12,
+                        'isConsolidated': data.metriky.is_consolidated,
                     }
                 }
             )
@@ -165,6 +203,47 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
                 }
             }
         )
+        logger.info(f"Naratívna analýza uložená pre IČO={ico}, ROK={year}")
+    finally:
+        await db.disconnect()
+
+async def save_notes_to_db(ico: str, year: int, notes_risk):
+    from prisma import Prisma
+    db = Prisma()
+    await db.connect()
+    try:
+        # Uistíme sa, že výkaz existuje
+        statement = await db.financialstatement.find_unique(
+            where={
+                'companyIco_year': {
+                    'companyIco': ico,
+                    'year': year
+                }
+            }
+        )
+        if not statement:
+            # Ak výkaz ešte neexistuje, museli by sme ho vytvoriť s nulami,
+            # ale on by mal existovať z IFRS extrakcie, ktorá beží prvá.
+            logger.warning(f"FinancialStatement pre IČO={ico}, ROK={year} neexistuje pri ukladaní notes_risk.")
+            return
+
+        await db.notesriskanalysis.upsert(
+            where={'financialStatementId': statement.id},
+            data={
+                'create': {
+                    'financialStatementId': statement.id,
+                    'relatedPartyTransactions': notes_risk.related_party_transactions,
+                    'offBalanceSheetLiabilities': notes_risk.off_balance_sheet_liabilities,
+                    'contingentRisks': notes_risk.contingent_risks
+                },
+                'update': {
+                    'relatedPartyTransactions': notes_risk.related_party_transactions,
+                    'offBalanceSheetLiabilities': notes_risk.off_balance_sheet_liabilities,
+                    'contingentRisks': notes_risk.contingent_risks
+                }
+            }
+        )
+        logger.info(f"Analýza poznámok uložená pre IČO={ico}, ROK={year}")
     finally:
         await db.disconnect()
 

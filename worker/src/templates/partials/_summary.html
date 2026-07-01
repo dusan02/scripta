@@ -45,19 +45,40 @@
         </tbody>
         <tfoot>
             <tr class="bg-slate-50 border-t-2 border-slate-300">
-                <td class="py-2.5 px-3 font-black text-slate-800 text-sm" colspan="2">CELKOVÉ ALGORITMICKÉ SKÓRE</td>
-                <td class="py-2.5 px-3 text-center font-black text-lg
+                <td class="py-2.5 px-3 font-semibold text-slate-700 text-sm" colspan="2">ALGORITMICKÉ SKÓRE (Pred audítom)</td>
+                <td class="py-2.5 px-3 text-center font-bold text-slate-700 text-lg">
+                    {{ algorithmic_total }}<span class="text-slate-400 font-normal text-[10px]">/100</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                    <span class="text-xs text-slate-500">Základný model</span>
+                </td>
+            </tr>
+            <tr class="bg-slate-50 border-b border-slate-200">
+                <td class="py-2.5 px-3 font-semibold text-slate-700 text-sm" colspan="2">KOREKCIA FORENZNÉHO AUDÍTORA</td>
+                <td class="py-2.5 px-3 text-center font-bold text-lg
+                    {% if verdict.verifaScore - algorithmic_total > 0 %}text-emerald-600
+                    {% elif verdict.verifaScore - algorithmic_total < 0 %}text-rose-600
+                    {% else %}text-slate-500{% endif %}">
+                    {% if verdict.verifaScore - algorithmic_total > 0 %}+{% endif %}{{ verdict.verifaScore - algorithmic_total }}
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                    <span class="text-xs text-slate-500">Na základe registrov/PDF</span>
+                </td>
+            </tr>
+            <tr class="bg-slate-100 border-t-2 border-slate-400">
+                <td class="py-3 px-3 font-black text-slate-900 text-sm uppercase tracking-wide" colspan="2">FINÁLNE FORENZNÉ SKÓRE</td>
+                <td class="py-3 px-3 text-center font-black text-xl
                     {% if verdict.verifaScore >= 70 %}text-emerald-700
                     {% elif verdict.verifaScore >= 40 %}text-amber-600
                     {% else %}text-rose-600{% endif %}">
                     {{ verdict.verifaScore }}<span class="text-slate-400 font-normal text-[10px]">/100</span>
                 </td>
-                <td class="py-2.5 px-3">
-                    <span class="font-bold text-xs px-2 py-0.5 rounded
-                        {% if verdict.riskCategory == 'AAA' %}bg-emerald-100 text-emerald-700
-                        {% elif verdict.riskCategory == 'A' %}bg-emerald-50 text-emerald-600
-                        {% elif verdict.riskCategory == 'B' %}bg-amber-50 text-amber-600
-                        {% else %}bg-rose-50 text-rose-600{% endif %}">
+                <td class="py-3 px-3">
+                    <span class="font-bold text-sm px-2 py-1 rounded shadow-sm
+                        {% if verdict.riskCategory == 'AAA' %}bg-emerald-100 text-emerald-800 border border-emerald-200
+                        {% elif verdict.riskCategory == 'A' %}bg-emerald-50 text-emerald-700 border border-emerald-100
+                        {% elif verdict.riskCategory == 'B' %}bg-amber-50 text-amber-700 border border-amber-100
+                        {% else %}bg-rose-50 text-rose-700 border border-rose-100{% endif %}">
                         {{ verdict.riskCategory }}
                     </span>
                 </td>
@@ -80,6 +101,31 @@
             <p class="text-lg font-bold text-slate-800 leading-tight mb-4">
                 {% if verdict.riskCategory == 'AAA' %}Bezpečný partner na spoluprácu.{% elif verdict.riskCategory == 'A' %}Stabilná spoločnosť s drobnými rizikami.{% elif verdict.riskCategory == 'B' %}Odporúčame zvýšenú opatrnosť a dodatočnú kontrolu.{% else %}Dôrazne neodporúčame vstupovať do obchodného vzťahu.{% endif %}
             </p>
+            
+            {% if verdict.executive_summary %}
+            <div class="mb-5 p-4 bg-slate-50 border-l-4 border-slate-600 rounded text-slate-700 text-sm leading-relaxed text-justify shadow-sm">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Executive Summary</h3>
+                {{ verdict.executive_summary }}
+            </div>
+            {% endif %}
+
+            {% if latest_stmt and latest_stmt.notesRisk %}
+            {% if latest_stmt.notesRisk.relatedPartyTransactions or latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
+            <div class="mb-5 p-4 bg-amber-50 border border-amber-200 rounded text-amber-900 text-sm shadow-sm">
+                <h3 class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 border-b border-amber-200 pb-1">Riziká z poznámok k účtovnej závierke</h3>
+                {% if latest_stmt.notesRisk.relatedPartyTransactions %}
+                <div class="mt-2"><strong>Spriaznené osoby:</strong> {{ latest_stmt.notesRisk.relatedPartyTransactions }}</div>
+                {% endif %}
+                {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
+                <div class="mt-2"><strong>Podsúvahové záväzky:</strong> {{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</div>
+                {% endif %}
+                {% if latest_stmt.notesRisk.contingentRisks %}
+                <div class="mt-2"><strong>Súdne spory (Contingent):</strong> {{ latest_stmt.notesRisk.contingentRisks }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+
             {% if evidence_list %}
             <div class="mt-4 border border-slate-200 rounded-lg overflow-hidden">
                 <table class="w-full text-left border-collapse text-sm">

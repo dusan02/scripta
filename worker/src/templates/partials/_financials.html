@@ -3,6 +3,24 @@
 <div class="mb-10 pt-6">
     <h2 id="financny_vyvoj" class="section-title">Finančný vývoj a štruktúra</h2>
     
+    {% if has_mixed_consolidation %}
+    <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-sm text-amber-800 font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            Upozornenie: V historických dátach je mix individuálnych a konsolidovaných závierok. Medziročné porovnanie (YoY) môže byť skreslené.
+        </p>
+    </div>
+    {% endif %}
+
+    {% if has_non_standard_months %}
+    <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-sm text-amber-800 font-medium flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            Upozornenie: Niektoré účtovné obdobia nezodpovedajú 12 mesiacom. Údaje v takýchto obdobiach nie sú anualizované a ich porovnanie môže byť skreslené.
+        </p>
+    </div>
+    {% endif %}
+    
     {% if chart_image_base64 or balance_chart_base64 %}
     <div class="grid grid-cols-2 gap-4 mb-4">
         {% if chart_image_base64 %}
@@ -31,16 +49,18 @@
         </div>
         <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
             <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Vlastné Imanie</p>
-            <p class="text-sm font-bold {% if latest_stmt.equity < 0 %}text-rose-600{% else %}text-slate-800{% endif %}">{{ latest_stmt.equity | format_currency }}</p>
+            <p class="text-sm font-bold {% if latest_stmt.equity is not none and latest_stmt.equity < 0 %}text-rose-600{% else %}text-slate-800{% endif %}">{{ latest_stmt.equity | format_currency }}</p>
         </div>
         <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
             <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Celkový Dlh (Záväzky)</p>
-            {% set total_debt = latest_stmt.shortTermLiabilities + latest_stmt.longTermLiabilities %}
+            {% set stl = latest_stmt.shortTermLiabilities if latest_stmt.shortTermLiabilities is not none else 0 %}
+            {% set ltl = latest_stmt.longTermLiabilities if latest_stmt.longTermLiabilities is not none else 0 %}
+            {% set total_debt = stl + ltl %}
             <p class="text-sm font-bold text-rose-600">{{ total_debt | format_currency }}</p>
         </div>
         <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
             <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Zisk / Strata</p>
-            <p class="text-sm font-bold {% if latest_stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ latest_stmt.netProfitLoss | format_currency }}</p>
+            <p class="text-sm font-bold {% if latest_stmt.netProfitLoss is not none and latest_stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ latest_stmt.netProfitLoss | format_currency }}</p>
         </div>
         <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
             <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Hotovosť a účty</p>
@@ -92,7 +112,12 @@
                 {% set pnl_delta = none %}
             {% endif %}
             <tr class="border-b border-slate-100" style="white-space: nowrap;">
-                <td class="py-1.5 px-2 font-semibold text-slate-700">{{ stmt.year }}</td>
+                <td class="py-1.5 px-2 font-semibold text-slate-700">
+                    {{ stmt.year }}
+                    {% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}
+                        <span class="text-amber-500 font-bold" title="{{ stmt.monthsInPeriod }}-mesačné obdobie">*</span>
+                    {% endif %}
+                </td>
                 <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.mainActivityRevenue | format_number }}</td>
                 <td class="py-1.5 px-2 text-right font-semibold">
                     {% if rev_delta is not none %}
@@ -101,7 +126,7 @@
                     </span>
                     {% else %}<span class="text-slate-300">—</span>{% endif %}
                 </td>
-                <td class="py-1.5 px-2 text-right font-semibold {% if stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ stmt.netProfitLoss | format_number }}</td>
+                <td class="py-1.5 px-2 text-right font-semibold {% if stmt.netProfitLoss is not none and stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ stmt.netProfitLoss | format_number }}</td>
                 <td class="py-1.5 px-2 text-right font-semibold">
                     {% if pnl_delta is not none %}
                     <span class="{% if pnl_delta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
@@ -109,7 +134,7 @@
                     </span>
                     {% else %}<span class="text-slate-300">—</span>{% endif %}
                 </td>
-                {% set stmt_debt = stmt.shortTermLiabilities + stmt.longTermLiabilities %}
+                {% set stmt_debt = (stmt.shortTermLiabilities or 0) + (stmt.longTermLiabilities or 0) %}
                 <td class="py-1.5 px-2 text-right text-rose-600">{{ stmt_debt | format_number }}</td>
                 <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.staffCosts %}{{ stmt.staffCosts | format_number }}{% else %}—{% endif %}</td>
                 <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.tradeReceivables %}{{ stmt.tradeReceivables | format_number }}{% else %}—{% endif %}</td>
@@ -125,7 +150,31 @@
     </div>
     {% endif %}
 
-    {% if altman_scores and altman_scores|length > 0 %}
+    {% if is_financial_institution %}
+    <!-- Altman Z-score blok (Vypnuté pre banky/poisťovne) -->
+    <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score — Prediktívny model rizika bankrotu</p>
+        <div class="flex gap-3 flex-wrap items-center bg-blue-50 text-blue-700 text-xs p-3 rounded-lg border border-blue-200">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Model Altman Z-Score nie je aplikovateľný pre finančné inštitúcie (Banky / Poisťovne) pre ich špecifickú štruktúru aktív a pasív.
+        </div>
+    </div>
+    {% elif is_startup %}
+    <!-- Altman Z-score blok (Vypnuté pre startupy / pre-revenue firmy) -->
+    <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score — Prediktívny model rizika bankrotu</p>
+        <div class="bg-amber-50 text-amber-800 text-xs p-3 rounded-lg border border-amber-200">
+            <div class="flex items-center gap-2 mb-1">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <strong>Startup / Pre-revenue profil detekovaný</strong>
+            </div>
+            <p class="ml-6">Altman Z-Score nie je spoľahlivý pre firmy bez tržieb alebo s minimálnymi tržbami, pretože X3 (EBIT/Assets) je záporné kvôli investíciám do vývoja. Hodnotenie je založené na kapitálovej primeranosti a kvalite imania namiesto ziskovosti.</p>
+            {% if startup_info and startup_info.equity %}
+            <p class="ml-6 mt-1 text-amber-600">Vlastné imanie: <strong>{{ startup_info.equity | format_number }} €</strong> · Počet výkazov: {{ startup_info.n_years }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% elif altman_scores and altman_scores|length > 0 %}
     <!-- Altman Z-score blok -->
     <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
         <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score — Prediktívny model rizika bankrotu</p>

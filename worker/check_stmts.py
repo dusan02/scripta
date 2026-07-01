@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 async def main():
     load_dotenv()
     conn = await asyncpg.connect(os.getenv("DATABASE_URL"))
-    rows = await conn.fetch("SELECT \"year\", \"mainActivityRevenue\", \"netProfitLoss\" FROM \"FinancialStatement\" WHERE \"companyIco\" = '54819032'")
+    rows = await conn.fetch("SELECT \"year\", \"mainActivityRevenue\", \"netProfitLoss\" FROM \"FinancialStatement\" WHERE \"companyIco\" = '00604381'")
     for row in rows:
         print(dict(row))
     await conn.close()

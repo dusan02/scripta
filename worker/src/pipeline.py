@@ -14,13 +14,13 @@ import glob
 import logging
 import time
 from src.scrapers.ruz_scraper import download_ifrs_reports
-from src.llm_extractor import extract_financial_data, extract_narrative_risk
+from src.llm_extractor import extract_financial_data, extract_narrative_risk, extract_notes_risks
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
-from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf
-import re
-
+from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf
+from src.db_repository import save_to_db, save_narrative_to_db, save_notes_to_db, update_ai_status, get_avg_completion_seconds
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_VESTNIK
+import re
 
 async def run_and_save_audit_verdict(ico: str):
     """
@@ -37,7 +37,8 @@ async def run_and_save_audit_verdict(ico: str):
                 'financialStatements': {
                     'include': {
                         'auditorOpinion': True,
-                        'narrativeRisk': True
+                        'narrativeRisk': True,
+                        'notesRisk': True
                     }
                 },
                 'vestnikEvents': True
@@ -103,6 +104,7 @@ async def run_and_save_audit_verdict(ico: str):
         logger.info(f"Spúšťam Chief Auditora (The Verifa Scorer) pre IČO: {ico}. Nájdené PDF na analýzu: {len(debt_pdfs)}")
         verdict = await safe_llm_call(
             evaluate_audit_verdict, company_data, debt_pdfs,
+            model="gemini-2.5-pro",
             label="Chief Auditor"
         )
         
@@ -196,9 +198,11 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         fallback_name = company_name or f"Spoločnosť s IČO {ico}"
 
         existing = await db.company.find_unique(where={'ico': ico})
+        _INVALID_NAMES = {"", "n/a", "n/a.", "none", "null", "-"}
         if existing:
-            # Update len ak máme reálny názov a existujúci je placeholder alebo None
-            if company_name and (not existing.name or existing.name.startswith("Spoločnosť s IČO")):
+            # Update ak máme reálny názov a existujúci je placeholder/N/A
+            existing_is_invalid = (not existing.name) or existing.name.lower() in _INVALID_NAMES or existing.name.startswith("Spoločnosť s IČO")
+            if company_name and existing_is_invalid:
                 await db.company.update(where={'ico': ico}, data={'name': company_name})
         else:
             await db.company.create(data={'ico': ico, 'name': fallback_name})
@@ -236,6 +240,26 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                         extract_financial_data, input_path,
                         model=_MODEL_IFRS, label=f"IFRS:{file_name}"
                     )
+                    
+                    # Auto-retry s celým PDF, ak chýbajú kľúčové polia (odrezané poznámky)
+                    if data and sliced_path and sliced_path != file_path:
+                        m = data.metriky
+                        if m.pohladavky_z_obchodneho_styku is None or m.zavazky_z_obchodneho_styku is None:
+                            import fitz
+                            doc = fitz.open(file_path)
+                            total_pages = len(doc)
+                            doc.close()
+                            if total_pages <= 80:
+                                logger.info(f"[RETRY] Dáta sú neúplné (chýbajú pohľadávky/záväzky). Spúšťam analýzu nad neskráteným PDF ({total_pages} strán): {file_name}")
+                                data2 = await safe_llm_call(
+                                    extract_financial_data, file_path,
+                                    model=_MODEL_IFRS, label=f"IFRS-RETRY:{file_name}"
+                                )
+                                if data2:
+                                    data = data2
+                            else:
+                                logger.warning(f"[RETRY SKIP] PDF má {total_pages} > 80 strán, preskakujem full-retry kvôli nákladom: {file_name}")
+
                     if data:
                         logger.info(
                             f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
@@ -244,6 +268,8 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                         )
                         await save_to_db(data)
                         logger.info(f"[IFRS SAVED] {file_name} → DB uložené")
+
+                        # Extrahovanie a uloženie rizík z poznámok (presunuté do post-procesingu)
                     else:
                         logger.warning(f"[IFRS EMPTY] {file_name} → safe_llm_call vrátil None")
                     if sliced_path and sliced_path != file_path:
@@ -302,6 +328,38 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         pdf_tasks = [_process_ifrs(fp, _llm_sem) for fp in ifrs_files] + [_process_vs(fp, _llm_sem) for fp in vs_files]
         if pdf_tasks:
             await asyncio.gather(*pdf_tasks)
+
+        # 3b. Extrakcia poznámok (len pre najnovší rok, s fallbackom na staršie ak zlyhá)
+        def _extract_year_from_fn(fp: str) -> int:
+            fn = os.path.basename(fp)
+            parts = fn.split('_')
+            if len(parts) >= 3 and parts[2].isdigit():
+                return int(parts[2])
+            return 0
+
+        sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
+        notes_attempts = 0
+        for fp in sorted_ifrs:
+            if notes_attempts >= 2:
+                break
+            year = _extract_year_from_fn(fp)
+            file_name = os.path.basename(fp)
+            sliced_notes_path = slice_notes_pdf(fp)
+            if sliced_notes_path:
+                notes_attempts += 1
+                logger.info(f"[NOTES] Spracovávam poznámky pre najnovší rok {year} z {file_name}")
+                notes_data = await safe_llm_call(
+                    extract_notes_risks, sliced_notes_path,
+                    model=_MODEL_NARRATIVE, label=f"NOTES:{file_name}"
+                )
+                if notes_data:
+                    await save_notes_to_db(ico, year, notes_data)
+                try:
+                    os.remove(sliced_notes_path)
+                except OSError:
+                    pass
+                if notes_data:
+                    break # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
 
         await update_ai_status(db, report_request_id, "Analýza rizík a udalostí (Vestník)", _remaining_eta(_t_start))
         

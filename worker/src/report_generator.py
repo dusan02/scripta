@@ -38,14 +38,19 @@ SOURCE_LABELS = {
 }
 
 def format_currency(value: float) -> str:
+    """Naformátuje číslo ako menu (napr. 1 234 567 €). Ak je None, vráti '-'."""
     if value is None:
-        return "N/A"
-    abs_val = abs(value)
-    if abs_val >= 1_000_000:
-        return f"{value / 1_000_000:,.1f} mil. €".replace(",", "X").replace(".", ",").replace("X", " ")
-    elif abs_val >= 1_000:
-        return f"{value / 1_000:,.1f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
-    return f"{value:,.0f} €".replace(",", " ")
+        return "-"
+    try:
+        val = float(value)
+        abs_val = abs(val)
+        if abs_val >= 1_000_000:
+            return f"{val / 1_000_000:,.1f} mil. €".replace(",", "X").replace(".", ",").replace("X", " ")
+        elif abs_val >= 1_000:
+            return f"{val / 1_000:,.1f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
+        return f"{val:,.0f} €".replace(",", " ")
+    except (ValueError, TypeError):
+        return "-"
 
 def format_number(value: float) -> str:
     """Vráti číslo bez menovej prípony — pre tabuľky kde je jednotka uvedená v hlavičke."""
@@ -224,6 +229,20 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Vygenerovanie grafov
     chart_base64 = ""
     balance_chart_base64 = ""
+    has_mixed_consolidation = False
+    has_non_standard_months = False
+    
+    if stmts:
+        is_cons_set = set(getattr(s, 'isConsolidated', False) for s in stmts)
+        if len(is_cons_set) > 1:
+            has_mixed_consolidation = True
+            
+        for s in stmts:
+            months = getattr(s, 'monthsInPeriod', 12)
+            if months is not None and months != 12:
+                has_non_standard_months = True
+                break
+
     if stmts and len(stmts) >= 2:
         chart_base64 = generate_financial_chart(stmts)
         balance_chart_base64 = generate_balance_sheet_chart(stmts)
@@ -288,6 +307,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         
     from src.analytics import compute_financial_trends, compute_forensic_scorecard
     scorecard_breakdown = []
+    algorithmic_total = 0
     if stmts:
         company_dict_for_scoring = {
             "vestnikEvents": [
@@ -298,15 +318,35 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         }
         trends_for_scoring = compute_financial_trends(stmts)
         sc_result = compute_forensic_scorecard(company_dict_for_scoring, trends_for_scoring)
+        algorithmic_total = sc_result.total_score
         scorecard_breakdown = [
             {"name": p.name, "score": p.score, "max_score": p.max_score, "detail": p.detail, "flags": p.flags}
             for p in sc_result.pillars
         ]
 
-    altman_scores = sorted(
-        [{"year": s.year, **compute_altman_z_score(s)} for s in (stmts or []) if s.year and s.year > 2000],
-        key=lambda z: z["year"]
-    )
+    # Vypnutie Altman Z-Score pre finančné inštitúcie (NACE 64, 65, 66) alebo "banka"/"poisťovňa" v názve
+    is_financial_institution = False
+    import re
+    if company.naceCode and company.naceCode.startswith(("64", "65", "66")):
+        is_financial_institution = True
+    elif company.name and re.search(r'\bbanka\b|\bpoisťovňa\b', company.name.lower()):
+        is_financial_institution = True
+
+    # Startup detekcia — pre pre-revenue firmy s veľkým imaním
+    from src.analytics import detect_startup_profile
+    sorted_stmts_for_startup = sorted(stmts or [], key=lambda s: s.year)
+    startup_info = detect_startup_profile(sorted_stmts_for_startup)
+    is_startup = startup_info.get("is_startup", False)
+
+    if is_financial_institution:
+        altman_scores = []
+    elif is_startup:
+        altman_scores = []  # Altman sa nezobrazí pre startupy — nahradené infoboxom
+    else:
+        altman_scores = sorted(
+            [{"year": s.year, **compute_altman_z_score(s)} for s in (stmts or []) if s.year and s.year > 2000],
+            key=lambda z: z["year"]
+        )
 
     return {
         "company": company,
@@ -324,7 +364,13 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "grouped_sources": grouped_sources,
         "labels": SOURCE_LABELS,
         "scorecard_breakdown": scorecard_breakdown,
-        "altman_scores": altman_scores
+        "algorithmic_total": algorithmic_total,
+        "altman_scores": altman_scores,
+        "is_financial_institution": is_financial_institution,
+        "is_startup": is_startup,
+        "startup_info": startup_info,
+        "has_mixed_consolidation": has_mixed_consolidation,
+        "has_non_standard_months": has_non_standard_months
     }
 
 def render_html_report(context: dict) -> str:
@@ -384,7 +430,7 @@ async def generate_forensic_pdf_report(
             where={'ico': ico},
             include={
                 'auditVerdict': True,
-                'financialStatements': {'orderBy': {'year': 'asc'}, 'include': {'auditorOpinion': True, 'narrativeRisk': True}},
+                'financialStatements': {'orderBy': {'year': 'asc'}, 'include': {'auditorOpinion': True, 'narrativeRisk': True, 'notesRisk': True}},
                 'vestnikEvents': {'orderBy': {'publishedAt': 'desc'}}
             }
         )

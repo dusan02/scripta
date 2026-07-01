@@ -89,10 +89,73 @@ async def _get_year_from_link(link: Locator) -> str:
 
 
 async def _download_pdf_if_available(dl_page: Page, out_path: Path, item: tuple[str, str, str, str], index: int) -> Optional[str]:
-    """Pokúsi sa nájsť a stiahnuť PDF. Ak PDF neexistuje alebo zlyhá sťahovanie, vráti None."""
+    """Pokúsi sa nájsť a stiahnuť PDF. Skúša 2 stratégie: direct attachment URL, expect_download on click."""
     href_d, ftype_d, year_d = item[0], item[1], item[2]
     ico = out_path.name
 
+    # Stratégia 1: Priame stiahnutie z attachment URL cez HTTP GET
+    import urllib.request, ssl
+    try:
+        attachment_links = await dl_page.locator("a[href*='/attachment/']").all()
+        logger.info(f"[RUZ] Počet attachment linkov na stránke: {len(attachment_links)}")
+        # Deduplikácia podľa href
+        seen_hrefs = set()
+        unique_links = []
+        for alink in attachment_links:
+            h = await alink.get_attribute("href") or ""
+            if h and h not in seen_hrefs:
+                seen_hrefs.add(h)
+                unique_links.append((h, alink))
+        logger.info(f"[RUZ] Unikátnych attachment linkov: {len(unique_links)}")
+        
+        downloaded_pdfs = []
+        
+        for att_href, alink in unique_links:
+            att_url = "https://www.registeruz.sk" + att_href
+            logger.info(f"[RUZ] Skúšam priame stiahnutie z: {att_url}")
+
+            def _fetch_pdf(url=att_url):
+                ctx = ssl.create_default_context()
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, context=ctx) as resp:
+                    ct = resp.headers.get("content-type", "")
+                    body = resp.read()
+                    return body, ct
+
+            try:
+                body, content_type = await asyncio.to_thread(_fetch_pdf)
+            except Exception as fetch_err:
+                logger.warning(f"[RUZ] Stiahnutie {att_url} zlyhalo: {fetch_err}")
+                continue
+
+            if len(body) > 100 and "application/pdf" in content_type:
+                downloaded_pdfs.append(body)
+                if year_d == "0":
+                    m = re.search(r'(20\d{2})', att_href)
+                    if m:
+                        year_d = m.group(1)
+            else:
+                logger.debug(f"[RUZ] {att_url} nie je PDF (content-type={content_type}, size={len(body)})")
+                
+        if downloaded_pdfs:
+            import fitz
+            merged_doc = fitz.open()
+            for pdf_body in downloaded_pdfs:
+                try:
+                    doc = fitz.open(stream=pdf_body, filetype="pdf")
+                    merged_doc.insert_pdf(doc)
+                except Exception as e:
+                    logger.warning(f"[RUZ] Chyba pri mergovaní PDF časti: {e}")
+            
+            out_file = out_path / f"{ftype_d}_{ico}_{year_d}_{index}.pdf"
+            merged_doc.save(out_file)
+            logger.info(f"Úspešne stiahnuté a spojené {len(downloaded_pdfs)} PDF (urllib): {out_file.name}")
+            return str(out_file)
+            
+    except Exception as e:
+        logger.warning(f"[RUZ] Priame sťahovanie PDF zlyhalo: {e}")
+
+    # Stratégia 2: expect_download na klik
     try:
         btn = dl_page.locator(
             "a:has-text('Stiahnuť'), a[href*='/attachment/'], "
@@ -113,7 +176,7 @@ async def _download_pdf_if_available(dl_page: Page, out_path: Path, item: tuple[
 
             out_file = out_path / f"{ftype_d}_{ico}_{year_d}_{index}.pdf"
             await download.save_as(out_file)
-            logger.info(f"Úspešne stiahnuté PDF: {out_file.name}")
+            logger.info(f"Úspešne stiahnuté PDF (click): {out_file.name}")
             return str(out_file)
     except Exception as e:
         logger.warning(f"Sťahovanie PDF pre {href_d} zlyhalo (bude fallback): {e}")
@@ -136,6 +199,31 @@ async def _extract_html_tabs(dl_page: Page, out_path: Path, item: tuple[str, str
         extracted_text = f"ÚČTOVNÁ ZÁVIERKA {year_d}\nIČO: {ico}\nTyp: {ftype_d}\n"
         extracted_text += f"Stĺpce: Bežné účtovné obdobie ({year_d}) | Predchádzajúce obdobie ({int(year_d)-1 if year_d.isdigit() else 'N/A'})\n\n"
         found_any = False
+
+        # Najprv skúsime tabuľky priamo na aktuálnej stránke (IFRS stránky ich často majú)
+        try:
+            rows = await dl_page.evaluate("""() => {
+                const results = [];
+                const tables = document.querySelectorAll('table');
+                tables.forEach(table => {
+                    const trs = table.querySelectorAll('tr');
+                    trs.forEach(tr => {
+                        const cells = Array.from(tr.querySelectorAll('td, th')).map(c => c.innerText.trim());
+                        if (cells.length >= 2) results.push(cells);
+                    });
+                });
+                return results;
+            }""")
+            if rows and len(rows) > 2:
+                tab_text = f"\n--- TABUĽKA ZO STRÁNKY ---\n"
+                for cells in rows:
+                    cleaned = [re.sub(r'(?<=\d)[\s\xa0](?=\d{3}\b)', '', c) for c in cells]
+                    tab_text += " | ".join(cleaned) + "\n"
+                extracted_text += tab_text
+                found_any = True
+                logger.info(f"[RUZ] Nájdená tabuľka priamo na stránke ({len(rows)} riadkov)")
+        except Exception as e:
+            logger.warning(f"[RUZ] Chyba pri čítaní tabuľky zo stránky: {e}")
 
         for tab_name in _HTML_TABS:
             try:
@@ -206,14 +294,21 @@ async def _process_single_report(context: BrowserContext, out_path: Path, item: 
         await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=10000)
 
         # 1. Pokus HTML (najlepšie pre Úč MUJ, má presné čísla v tabuľkách)
-        file_path = await _extract_html_tabs(dl_page, out_path, item, index)
+        if ftype_d == "IFRS":
+            # IFRS závierky majú zvyčajne iba PDF, HTML je prázdne
+            file_path = None
+        else:
+            file_path = await _extract_html_tabs(dl_page, out_path, item, index)
+            
         if file_path:
             return file_path
 
-        # 2. Pokus PDF (pre IFRS, anglické a veľké firmy kde HTML záložky nie sú)
-        file_path = await _download_pdf_if_available(dl_page, out_path, item, index)
-        if file_path:
-            return file_path
+        # 2. Pokus PDF
+        # Re-naviguj na pôvodnú URL, lebo _extract_html_tabs mohol zmeniť stránku
+        await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=10000)
+        pdf_path = await _download_pdf_if_available(dl_page, out_path, item, index)
+        if pdf_path:
+            return pdf_path
 
         logger.error(f"Zlyhalo získanie PDF aj HTML dát pre url {full_url}")
         return None
@@ -282,6 +377,11 @@ async def _collect_all_report_links(page: Page) -> tuple[list[tuple[str, str, st
         text_lower = text.lower()
 
         # Zatriedenie linku
+        # Vylúčenie nepodstatných linkov (oznámenia, správy audítora bez dát)
+        _EXCLUDE_KEYWORDS = ["oznámenie o dátume", "oznamenie o datume"]
+        if any(kw in text_lower for kw in _EXCLUDE_KEYWORDS):
+            continue
+
         is_vs = any(kw.lower() in text_lower for kw in _VS_LINK_TEXTS)
         is_ifrs = any(kw.lower() in text_lower for kw in _IFRS_LINK_TEXTS)
 
@@ -357,11 +457,18 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
             # Počkáme kým sa objaví detail link entity (event-driven)
             try:
                 await page.wait_for_selector(
-                    "a[href*='/cruz-public/domain/accountingentity/show/'], text=Neboli nájdené žiadne výsledky",
+                    "a[href*='/cruz-public/domain/accountingentity/show/']",
                     timeout=5000
                 )
             except PlaywrightTimeout:
-                pass
+                # Skontrolujeme, či sa zobrazila správa "Neboli nájdené žiadne výsledky"
+                try:
+                    no_results = await page.get_by_text("Neboli nájdené žiadne výsledky").count()
+                    if no_results > 0:
+                        logger.warning(f"[RUZ] Neboli nájdené žiadne výsledky pre IČO {ico}.")
+                        return []
+                except Exception:
+                    pass
 
             detail_links = await page.locator(
                 "a[href*='/cruz-public/domain/accountingentity/show/']"
@@ -397,15 +504,22 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
                 t = link_text.lower()
                 return ("ifrs" in t or "účtovná závierka" in t) and "výročná" not in t and "annual" not in t
 
+            def _is_konsolidovana(link_text: str) -> bool:
+                """True ak link explicitne označuje konsolidovanú závierku."""
+                return "konsolidovaná" in link_text.lower() or "consolidated" in link_text.lower()
+
             def _deduplicate_by_year(items: list, ftype: str, limit: int) -> list:
                 seen_years: set[str] = set()
                 result = []
-                # Zoradiť zostupne podľa roku, ale v rámci roka preferovať samostatnú IFRS závierku
+                # Zoradiť zostupne podľa roku, ale v rámci roka preferovať:
+                # 1. Konsolidovanú závierku (najvyššia priorita)
+                # 2. Samostatnú IFRS závierku nad audítorskou správou
                 sorted_items = sorted(
                     items,
                     key=lambda x: (
                         int(x[2]) if x[2].isdigit() else 0,
-                        0 if (len(x) > 3 and _is_standalone_ifrs(x[3])) else 1
+                        1 if (len(x) > 3 and _is_konsolidovana(x[3])) else 0,
+                        1 if (len(x) > 3 and _is_standalone_ifrs(x[3])) else 0
                     ),
                     reverse=True
                 )
