@@ -9,6 +9,3 @@ ALTER TABLE "ReportRequest" DROP COLUMN IF EXISTS "totalCost";
 
 -- ReportSource: costCredits was removed in the same refactor
 ALTER TABLE "ReportSource" DROP COLUMN IF EXISTS "costCredits";
-
--- TargetType enum: PERSON was removed
-ALTER TYPE "TargetType" DROP VALUE IF EXISTS "PERSON";

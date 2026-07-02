@@ -1,4 +1,6 @@
 from __future__ import annotations
+import asyncio
+import base64
 import logging
 import re
 from pathlib import Path
@@ -201,6 +203,40 @@ class RegisterUzScraper(BaseScraper):
 
     # ── PDF generation ──────────────────────────────────────────────────
 
+    async def _cdp_print_pdf(self, page: Page, file_path: Path) -> None:
+        """CDP Page.printToPDF — nečaká na networkidle ako page.pdf()."""
+        cdp = await page.context.new_cdp_session(page)
+        try:
+            result = await asyncio.wait_for(
+                cdp.send("Page.printToPDF", {
+                    "printBackground": True,
+                    "paperWidth": 8.27,
+                    "paperHeight": 11.69,
+                    "marginTop": 0.79,
+                    "marginBottom": 0.79,
+                    "marginLeft": 0.59,
+                    "marginRight": 0.59,
+                }),
+                timeout=15,
+            )
+            pdf_bytes = base64.b64decode(result["data"])
+            with open(file_path, "wb") as f:
+                f.write(pdf_bytes)
+        finally:
+            await cdp.detach()
+
+    async def _scrape_single_tab(
+        self, page: Page, url: str, tab_id: int, tab_name: str, ico: str, output_dir: Path,
+    ) -> None:
+        """Naviguje na tab a vygeneruje PDF cez CDP."""
+        await page.goto(url, wait_until="commit", timeout=15000)
+        try:
+            await page.wait_for_selector("table, .table", timeout=5000)
+        except PlaywrightTimeoutError:
+            pass
+        tab_pdf = output_dir / f"{self.source_type}_{ico}_tab{tab_id}.pdf"
+        await self._cdp_print_pdf(page, tab_pdf)
+
     async def _scrape_tabs(
         self, page: Page, report_id: str, ico: str,
         output_dir: Path, file_path: Path,
@@ -214,22 +250,15 @@ class RegisterUzScraper(BaseScraper):
         for tab_id, tab_name in _TABS:
             url = _REPORT_URL.format(rid=report_id, tid=tab_id)
             try:
-                # Rýchla navigácia — domcontentloaded namiesto networkidle
-                await page.goto(url, wait_until="domcontentloaded", timeout=10000)
-                # Počkáme kým sa načítajú tabuľky na záložke
-                try:
-                    await page.wait_for_selector("table, .table", timeout=3000)
-                except PlaywrightTimeoutError:
-                    pass
-
-                tab_pdf = output_dir / f"{self.source_type}_{ico}_tab{tab_id}.pdf"
-                await page.pdf(
-                    path=str(tab_pdf), format="A4", print_background=True,
-                    margin={"top": "20mm", "bottom": "20mm", "left": "15mm", "right": "15mm"},
+                await asyncio.wait_for(
+                    self._scrape_single_tab(page, url, tab_id, tab_name, ico, output_dir),
+                    timeout=30,
                 )
-                tab_pdfs.append(tab_pdf)
+                tab_pdfs.append(output_dir / f"{self.source_type}_{ico}_tab{tab_id}.pdf")
                 tab_labels.append(tab_name)
                 logger.info(f"[{self.source_type}] Záložka '{tab_name}' OK")
+            except asyncio.TimeoutError:
+                logger.warning(f"[{self.source_type}] Záložka '{tab_name}' timeout 30s — skip.")
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Záložka '{tab_name}' zlyhala: {e}")
 

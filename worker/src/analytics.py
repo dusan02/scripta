@@ -153,7 +153,7 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
             zone_label = "Šedá zóna"
         else:
             zone = "DISTRESS"
-            zone_label = "Núdzová zóna — riziko bankrotu"
+            zone_label = "Núdzová zóna — spoločnosť je pod finančným stresom"
 
         return {
             "z_score": z,
@@ -419,7 +419,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Šedá zóna ⚠")
         else:  # DISTRESS
             p2_score += max(0, int(z_score_val * 5)) if z_score_val is not None else 0
-            p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna (riziko bankrotu) ✗")
+            p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna (spoločnosť je pod finančným stresom) ✗")
 
         # 2b. Debt-to-Equity (max 3 body)
         de = last_ratios.get("debt_to_equity")
@@ -459,7 +459,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         # 3a. Počet ziskových rokov (max 14b — rezerva pre marža 4b + ROA 2b = 20b celkom)
         profitable_years = sum(
             1 for s in sorted_stmts
-            if (s.netProfitLoss if hasattr(s, "netProfitLoss") else s.get("netProfitLoss", 0) or 0) > 0
+            if ((s.netProfitLoss if hasattr(s, "netProfitLoss") else s.get("netProfitLoss")) or 0) > 0
         )
         if profitable_years >= 5:
             p3_score += 14
@@ -695,7 +695,7 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         "profit_trend": [],
         "equity_trend": [],
         "cagr_revenue": None,
-        "average_profit": sum(getattr(s, 'netProfitLoss', 0) for s in sorted_stmts) / len(sorted_stmts) if sorted_stmts else 0,
+        "average_profit": sum((getattr(s, 'netProfitLoss', 0) or 0) for s in sorted_stmts) / len(sorted_stmts) if sorted_stmts else 0,
         "consecutive_losses": 0,
         "bankruptcy_risk_indicators": [],
         # Nové: Altman Z-score pre každý rok
@@ -721,10 +721,10 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
             break
     trends["consecutive_losses"] = losses
     
-    # Indikátory rizika úpadku
+    # Indikátory finančného stresu
     last_equity = getattr(last, 'equity', 0)
     if last_equity < 0:
-        trends["bankruptcy_risk_indicators"].append("Záporné vlastné imanie (Firma v kríze / Predĺženie)")
+        trends["bankruptcy_risk_indicators"].append("Záporné vlastné imanie (Spoločnosť je pod finančným stresom)")
     if losses >= 3:
         trends["bankruptcy_risk_indicators"].append(f"{losses} roky po sebe idúcej čistej straty")
         
@@ -741,7 +741,7 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         trends["altman_z_scores"].append({"year": yr, **z})
         trends["ratios_by_year"].append({"year": yr, **ratios})
 
-        # Altman varovanie ako bankrotový indikátor
+        # Altman varovanie ako indikátor finančného stresu
         if z.get("zone") == "DISTRESS":
             trends["bankruptcy_risk_indicators"].append(
                 f"Altman Z-score {yr}: {z['z_score']} — {z['zone_label']}"

@@ -45,7 +45,7 @@ export default function LoginPage() {
         } else {
           localStorage.removeItem("verifa-remembered-email");
         }
-        router.push("/");
+        router.push("/dashboard");
         router.refresh();
       }
     } catch {

@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id               String          @id @default(cuid())
+  email            String          @unique
+  name             String?
+  passwordHash     String?
+  role             UserRole        @default(LAWYER)
+  orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
+  crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
+  defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
+  tokenVersion     Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  reportRequests   ReportRequest[]
+  feedback         Feedback[]
+}
+
+model ReportRequest {
+  id              String              @id @default(cuid())
+  userId          String
+  status          ReportStatus        @default(PENDING)
+  targetType      TargetType
+  ico             String?
+  companyName     String?
+  selectedSources SourceType[]
+  resultUrl       String?
+  resultFilePath  String?
+  completedAt     DateTime?
+  aiStatus        String?
+  eta             Int?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources         ReportSource[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model ReportSource {
+  id              String        @id @default(cuid())
+  reportRequestId String
+  sourceType      SourceType
+  status          SourceStatus  @default(PENDING)
+  statusMessage   String?
+  filePath        String?
+  pageCount       Int?
+  findings        String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  reportRequest   ReportRequest @relation(fields: [reportRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([reportRequestId, sourceType])
+  @@index([reportRequestId])
+  @@index([sourceType])
+  @@index([status])
+}
+
+enum UserRole {
+  LAWYER
+  ADMIN
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum TargetType {
+  COMPANY
+}
+
+enum SourceType {
+  ORSR
+  ZRSR
+  RPO
+  RPVS
+  OBCHODNY_VESTNIK
+  INSOLVENCY
+  POVERENIA
+  FINANCNA_SPRAVA
+  SP_DLZNICI
+  VSZP_DLZNICI
+  DOVERA_DLZNICI
+  UNION_DLZNICI
+  CRRS
+  DISKVALIFIKACIE
+  NCRZP
+  NCRD
+  OCHRANNE_ZNAMKY
+  FS_DANOVE_SUBJEKTY
+  FS_DPH_REGISTROVANI
+  FS_DPH_RUSENIE
+  FS_DPH_VYMAZANI
+  FS_DPH_NADMERNY_ODPOCET
+  FS_DPH_BANKOVE_UCTY
+  FS_DAN_Z_PRIJMOV
+  FS_DAN_PRIJMOV_REG
+  REGISTER_UZ
+  CRZ
+  UVO
+}
+
+enum SourceStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  UNAVAILABLE
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@index([email])
+  @@index([expires])
+}
+
+enum FeedbackCategory {
+  BUG
+  IMPROVEMENT
+  QUESTION
+  OTHER
+}
+
+model Feedback {
+  id         String          @id @default(cuid())
+  userId     String
+  category   FeedbackCategory
+  requestId  String?
+  message    String
+  status     String          @default("OPEN") // OPEN | RESOLVED | CLOSED
+  reply      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum MessageType {
+  ANNOUNCEMENT
+  REPLY
+  SYSTEM
+}
+
+model UserMessage {
+  id         String          @id @default(cuid())
+  userId     String?
+  type        MessageType
+  title       String
+  body        String
+  read        Boolean         @default(false)
+  feedbackId  String?
+  createdAt   DateTime        @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+generator client_python {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
+model Company {
+  ico                 String               @id
+  name                String?
+  naceCode            String?
+  naceText            String?
+  financialStatements FinancialStatement[]
+  vestnikEvents       VestnikEvent[]
+  auditVerdict        AuditVerdict?
+}
+
+model VestnikEvent {
+  id              String   @id @default(uuid())
+  companyIco      String
+  eventType       String   // Konkurz, Exekúcia, Zmena...
+  severityLevel   String   // CRITICAL, HIGH, MEDIUM, LOW
+  summary         String   @db.Text
+  publishedAt     DateTime // Dátum vydania vo vestníku
+  sourceId        String?  // Identifikátor z XML feedu (napr. číslo vydania/záznamu)
+  createdAt       DateTime @default(now())
+
+  company         Company  @relation(fields: [companyIco], references: [ico])
+
+  @@index([companyIco])
+  @@index([severityLevel])
+}
+
+model FinancialStatement {
+  id                                    String          @id @default(uuid())
+  companyIco                            String
+  year                                  Int
+  totalAssets                           Float?
+  currentAssets                         Float?
+  equity                                Float?
+  shortTermLiabilities                  Float?
+  longTermLiabilities                   Float?        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
+  mainActivityRevenue                   Float?
+  grossProfit                           Float?        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
+  netProfitLoss                         Float?
+  cashAndEquivalents                    Float?
+  operatingCashFlow                     Float?
+  staffCosts                            Float?        // Osobné náklady
+  tradeReceivables                      Float?        // Pohľadávky z obch. styku
+  tradePayables                         Float?        // Záväzky z obch. styku
+  currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
+  statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
+  monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
+  isConsolidated                        Boolean       @default(false)
+  createdAt                             DateTime        @default(now())
+  
+  company                               Company         @relation(fields: [companyIco], references: [ico])
+  auditorOpinion                        AuditorOpinion?
+  narrativeRisk                         NarrativeRiskAnalysis?
+  notesRisk                             NotesRiskAnalysis?
+
+  @@unique([companyIco, year]) // Zabezpečí, že nebudeme mať duplicitné výkazy za jeden rok
+}
+
+
+model AuditorOpinion {
+  id                   String             @id @default(uuid())
+  financialStatementId String             @unique
+  opinionType          String             
+  goingConcernRisk     Boolean
+  reservationText      String?
+  
+  statement            FinancialStatement @relation(fields: [financialStatementId], references: [id])
+}
+
+model NarrativeRiskAnalysis {
+  id                    String             @id @default(uuid())
+  financialStatementId  String             @unique
+  managementChanges     String?            @db.Text
+  litigationRisks       String?            @db.Text
+  goingConcernDoubts    Boolean
+  plannedInvestments    String?            @db.Text
+  forensicRedFlags      String[]
+  synthesis             String             @db.Text
+  createdAt             DateTime           @default(now())
+
+  statement             FinancialStatement @relation(fields: [financialStatementId], references: [id])
+}
+
+model NotesRiskAnalysis {
+  id                      String             @id @default(uuid())
+  financialStatementId    String             @unique
+  relatedPartyTransactions String?           @db.Text
+  offBalanceSheetLiabilities String?         @db.Text
+  contingentRisks         String?            @db.Text
+  createdAt               DateTime           @default(now())
+
+  statement               FinancialStatement @relation(fields: [financialStatementId], references: [id])
+}
+
+model AuditVerdict {
+  id              String   @id @default(uuid())
+  companyIco      String   @unique
+  verifaScore     Int
+  riskCategory    String
+  debtExposureRating Int?
+  finalVerdict    String   @db.Text
+  executiveSummary String? @db.Text
+  justification   String   @db.Text
+  keyRisk         String   @db.Text
+  scorecardBreakdown Json?
+  createdAt       DateTime @default(now())
+
+  company         Company  @relation(fields: [companyIco], references: [ico])
+}
+

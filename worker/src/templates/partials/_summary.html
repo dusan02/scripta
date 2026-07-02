@@ -14,7 +14,7 @@
         </thead>
         <tbody>
         {% for pillar in scorecard_breakdown %}
-            {% set pct = ((pillar.score / pillar.max_score) * 100) | int %}
+            {% set pct = ((pillar.max_score > 0) and ((pillar.score / pillar.max_score) * 100)) | int %}
             {% if pct >= 70 %}
                 {% set bar_color = "#10b981" %}
                 {% set score_color = "text-emerald-700" %}
@@ -85,9 +85,12 @@
             </tr>
         </tfoot>
     </table>
-    <p class="text-[8px] text-slate-400 mt-1.5">
+    <p class="text-[10px] text-slate-400 mt-1.5">
         Algoritmické skóre (30% platobná schopnosť · 25% finančné zdravie · 20% ziskovosť · 15% rast · 10% právna bezúhonnosť).
-        Finálne skóre môže byť upravené forenzným audítorom o ±10 bodov na základe PDF výpisov (exekúcie, dlhy voči štátu).
+        Finálne skóre môže byť upravené forenzným audítorom o ±10 bodov na základe forenzného úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
+    </p>
+    <p class="text-[9px] text-slate-300 mt-1 italic">
+        Verifa skóre je subjektívne hodnotenie vypočítané podľa interného modelu a v žiadnom prípade nenahrádza profesionálny audit. Používateľ by si mal vykonať vlastnú kontrolu due diligence.
     </p>
 </div>
 {% endif %}

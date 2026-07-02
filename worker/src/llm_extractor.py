@@ -82,6 +82,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     """
     Nahrá PDF súbor (napr. skenovanú závierku) do Gemini File API, a použije Multimodal model 
     na extrakciu faktov priamo z obrázkov strán podľa Pydantic schémy.
+    Pre .txt súbory (HTML extrakcia z registeruz.sk) pošle text priamo ako prompt.
     """
     import re
     
@@ -96,15 +97,36 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
 
     client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     
-    # Upload the file to Gemini via File API
-    uploaded_file = client.files.upload(file=file_path)
-    
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
         response_mime_type="application/json",
         response_schema=CompanyFinancialExtraction,
         temperature=0.0
     )
+    
+    # Pre .txt súbory (HTML extrakcia) — pošli text priamo ako prompt
+    if file_path.lower().endswith(".txt"):
+        with open(file_path, "r", encoding="utf-8") as f:
+            text_content = f.read()
+        logger.info(f"[LLM] Spracovávam .txt súbor: {filename} ({len(text_content)} chars)")
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=[text_content],
+            config=config,
+        )
+        _log_tokens(model, response.usage_metadata, "extract_financial_data")
+        data = CompanyFinancialExtraction.model_validate_json(response.text)
+        # Apply sanity checks and overrides (same as PDF path below)
+        m = data.metriky
+        if expected_year and (m.rok_zavierky is None or m.rok_zavierky != expected_year):
+            logger.info(f"[LLM] Prepisuj rok zavierky: {m.rok_zavierky} → {expected_year}")
+            m.rok_zavierky = expected_year
+        if expected_ico and (data.ico is None or data.ico != expected_ico):
+            data.ico = expected_ico
+        return data
+    
+    # Pre PDF súbory — upload do Gemini File API
+    uploaded_file = client.files.upload(file=file_path)
     
     try:
         response = await client.aio.models.generate_content(
@@ -116,7 +138,8 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     finally:
         # Vždy vymazať súbor z Google serverov, aby sa neplatilo za zbytočný storage
         try:
-            client.files.delete(name=uploaded_file.name)
+            if uploaded_file.name:
+                client.files.delete(name=uploaded_file.name)
         except Exception as e:
             logger.warning(f"Nepodarilo sa vymazať súbor z Gemini: {e}")
     
@@ -248,7 +271,8 @@ async def extract_narrative_risk(file_path: str, model: str = settings.model_nar
     finally:
         # Vždy vymazať súbor z Google serverov pre úsporu nákladov na storage
         try:
-            client.files.delete(name=uploaded_file.name)
+            if uploaded_file.name:
+                client.files.delete(name=uploaded_file.name)
         except Exception as e:
             logger.warning(f"Nepodarilo sa vymazať súbor z Gemini: {e}")
     return NarrativeRiskAnalysis.model_validate_json(response.text)
@@ -290,7 +314,8 @@ async def extract_notes_risks(file_path: str, model: str = settings.model_narrat
         _log_tokens(model, response.usage_metadata, "extract_notes_risks")
     finally:
         try:
-            client.files.delete(name=uploaded_file.name)
+            if uploaded_file.name:
+                client.files.delete(name=uploaded_file.name)
         except Exception:
             pass
     return NotesRiskAnalysis.model_validate_json(response.text)
@@ -343,7 +368,7 @@ PROCES HODNOTENIA A SYNTÉZY:
 PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
 - V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
-- Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelovanie a bankrot, NEUTRAL pre neutrálne info).
+- Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelovanie a vážny finančný stres, NEUTRAL pre neutrálne info).
 - Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
 - Ak sa tvoje skóre líši od 'algorithmic_prescore', vysvetli dôvod (napr. penalizácia za PDF dlhy, naratívne riziká).
 - Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), skóre neurčuj a uveď 'INSUFFICIENT_DATA'."""

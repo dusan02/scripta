@@ -7,7 +7,8 @@
     {% endif %}
     
     <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">Forenzný Due Diligence Report</h2>
-    <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-6 leading-tight">{{ company.name }}</h3>
+    {% set display_name = company.name if company.name and company.name not in ('Nezistené', 'Nezisten', 'N/A', 'n/a', '-') else 'IČO ' ~ company.ico %}
+    <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-6 leading-tight">{{ display_name }}</h3>
     
     <div class="bg-slate-50 border border-slate-200 rounded-lg px-8 py-4 text-center mb-16">
         <p class="text-sm text-slate-500 uppercase tracking-widest font-bold mb-1">Identifikačné číslo (IČO)</p>

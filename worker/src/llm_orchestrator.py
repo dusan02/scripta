@@ -25,7 +25,13 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
     model = kwargs.get("model", "unknown")
     for attempt, wait in enumerate(_BACKOFF_SECONDS):
         try:
-            return await func(*args, **kwargs)
+            return await asyncio.wait_for(func(*args, **kwargs), timeout=120)
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout 120s pre {label} (model={model}), pokus {attempt + 1}/{len(_BACKOFF_SECONDS)}")
+            if attempt < len(_BACKOFF_SECONDS) - 1:
+                await asyncio.sleep(wait)
+                continue
+            raise
         except Exception as e:
             error_str = str(e).lower()
             if "503" not in error_str and "429" not in error_str and "resource_exhausted" not in error_str:
@@ -43,7 +49,7 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
         logger.warning(f"Limity vyčerpané pre {label} (model={model}), skúšam fallback: {_FALLBACK_MODEL}")
         kwargs["model"] = _FALLBACK_MODEL
         try:
-            return await func(*args, **kwargs)
+            return await asyncio.wait_for(func(*args, **kwargs), timeout=120)
         except Exception as e:
             logger.error(f"Fallback {_FALLBACK_MODEL} tiež zlyhal pre {label}: {e}")
             raise

@@ -198,7 +198,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         fallback_name = company_name or f"Spoločnosť s IČO {ico}"
 
         existing = await db.company.find_unique(where={'ico': ico})
-        _INVALID_NAMES = {"", "n/a", "n/a.", "none", "null", "-"}
+        _INVALID_NAMES = {"", "n/a", "n/a.", "none", "null", "-", "nezistené"}
         if existing:
             # Update ak máme reálny názov a existujúci je placeholder/N/A
             existing_is_invalid = (not existing.name) or existing.name.lower() in _INVALID_NAMES or existing.name.startswith("Spoločnosť s IČO")

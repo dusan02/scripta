@@ -5,7 +5,7 @@ export const config = {
     /*
      * Chránime všetky vnútorné routy, ktoré vyžadujú prihlásenie.
      */
-    "/",
+    "/dashboard",
     "/reports/:path*",
     "/history/:path*",
     "/settings/:path*",

@@ -127,7 +127,7 @@ def generate_balance_sheet_chart(statements) -> str:
     years = [str(s.year) for s in statements]
     assets = [s.totalAssets for s in statements]
     equity = [s.equity for s in statements]
-    debt = [(s.shortTermLiabilities + s.longTermLiabilities) for s in statements]
+    debt = [((s.shortTermLiabilities or 0) + (s.longTermLiabilities or 0)) for s in statements]
     
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
     fig, ax = plt.subplots(figsize=(8, 4), dpi=150)

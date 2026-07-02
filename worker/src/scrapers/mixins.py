@@ -194,6 +194,30 @@ class PdfGeneratorMixin:
 
 
 class StealthDebtorMixin:
+    def _make_result(
+        self,
+        status: str,
+        file_path: Optional[str] = None,
+        page_count: Optional[int] = None,
+        status_message: Optional[str] = None,
+        findings: Optional[str] = None,
+        company_name: Optional[str] = None,
+        ic_dph: Optional[str] = None,
+        persons: Optional[list] = None,
+    ) -> ScrapedSource:
+        """Helper to create ScrapedSource results. Must be called on classes with source_type attribute."""
+        return ScrapedSource(
+            source_type=getattr(self, 'source_type', 'UNKNOWN'),
+            status=status,
+            file_path=file_path,
+            page_count=page_count,
+            status_message=status_message,
+            findings=findings,
+            company_name=company_name,
+            ic_dph=ic_dph,
+            persons=persons,
+        )
+
     async def _get_stealth_page(self) -> Page:
         if not hasattr(self, 'browser') or self.browser is None:
             self._playwright = await async_playwright().start()

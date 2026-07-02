@@ -17,6 +17,10 @@ _IFRS_LINK_TEXTS = [
     "Individuálna účtovná závierka",
     "účtovná závierka",
     "Účtovná závierka",
+    "Úč POD",
+    "Úč MUJ",
+    "Účtovná závierka (Zdroj údajov: FRSR)",
+    "Účtovná závierka (Zdroj údajov: ÚRSR)",
     "IFRS účtovná závierka",
     "Správa audítora",
     # IFRS explicit
@@ -293,12 +297,8 @@ async def _process_single_report(context: BrowserContext, out_path: Path, item: 
     try:
         await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=10000)
 
-        # 1. Pokus HTML (najlepšie pre Úč MUJ, má presné čísla v tabuľkách)
-        if ftype_d == "IFRS":
-            # IFRS závierky majú zvyčajne iba PDF, HTML je prázdne
-            file_path = None
-        else:
-            file_path = await _extract_html_tabs(dl_page, out_path, item, index)
+        # 1. Pokus HTML (najlepšie pre Úč MUJ aj Úč POD — má presné čísla v tabuľkách)
+        file_path = await _extract_html_tabs(dl_page, out_path, item, index)
             
         if file_path:
             return file_path
@@ -309,6 +309,13 @@ async def _process_single_report(context: BrowserContext, out_path: Path, item: 
         pdf_path = await _download_pdf_if_available(dl_page, out_path, item, index)
         if pdf_path:
             return pdf_path
+
+        # 3. Fallback: skús HTML extrakciu aj keď PDF zlyhal
+        logger.warning(f"[RUZ] PDF zlyhalo pre {full_url}, skúšam HTML fallback")
+        await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=10000)
+        html_path = await _extract_html_tabs(dl_page, out_path, item, index)
+        if html_path:
+            return html_path
 
         logger.error(f"Zlyhalo získanie PDF aj HTML dát pre url {full_url}")
         return None
@@ -322,79 +329,126 @@ async def _process_single_report(context: BrowserContext, out_path: Path, item: 
 async def _expand_all_sections(page: Page) -> None:
     """
     Rozbalí VŠETKY sekcie na stránke (Individuálne aj Konsolidované, SK GAAP aj IFRS).
-    Predchádzajúca verzia expandovala len 'Individuá' — čím sa IFRS sekcie preskakovali.
+    Robí 3 pokusy — registeruz.sk má dynamický obsah a niektoré sekcie sa môžu
+    načítať oneskorene.
     """
-    # Varianta 1: collapse šípky (nový dizajn registeruz.sk)
-    expanded = await page.evaluate("""() => {
-        let count = 0;
-        document.querySelectorAll('span.js-collapse.icon-collapsed, a.js-collapse').forEach(el => {
-            el.click();
-            count++;
-        });
-        return count;
-    }""")
-    logger.info(f"[RUZ] Expandovaných {expanded} sekcií")
-    # Počkáme kým sa rozbalené sekcie načítajú — čakáme na linky závierok
-    try:
-        await page.wait_for_selector("a[href*='/cruz-public/domain/financialreport/show/']", timeout=5000)
-    except PlaywrightTimeout:
-        pass
+    for attempt in range(3):
+        # Klikni na VŠETKY collapse elementy (nielen icon-collapsed)
+        expanded = await page.evaluate("""() => {
+            let count = 0;
+            // Nový dizajn: js-collapse šípky (aj collapsed aj expanded — pre istotu)
+            document.querySelectorAll('span.js-collapse, a.js-collapse').forEach(el => {
+                try { el.click(); count++; } catch(e) {}
+            });
+            // Starý dizajn: .item elementy
+            document.querySelectorAll('.item a.js-collapse, .card-header a, .accordion-button').forEach(a => {
+                if (!a.classList.contains('collapsed') || a.getAttribute('aria-expanded') === 'false') {
+                    try { a.click(); count++; } catch(e) {}
+                }
+            });
+            // ID-based collapse elements (collapse-o-*, collapse-k-*, atď.)
+            document.querySelectorAll('[id^="collapse-"]').forEach(el => {
+                try { el.click(); count++; } catch(e) {}
+            });
+            // Bootstrap collapse buttons
+            document.querySelectorAll('[data-bs-toggle="collapse"], [data-toggle="collapse"]').forEach(el => {
+                try { el.click(); count++; } catch(e) {}
+            });
+            return count;
+        }""")
+        logger.info(f"[RUZ] Pokus {attempt+1}: Expandovaných {expanded} sekcií")
 
-    # Varianta 2: staré .item elementy
-    items_expanded = await page.evaluate("""() => {
-        let count = 0;
-        document.querySelectorAll('.item a.js-collapse, .card-header a').forEach(a => {
-            if (!a.classList.contains('collapsed') || a.getAttribute('aria-expanded') === 'false') {
-                try { a.click(); count++; } catch(e) {}
-            }
-        });
-        return count;
-    }""")
-    if items_expanded > 0:
+        # Skrolni nadol pre lazy-loaded obsah
+        await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        await asyncio.sleep(1)
+
+        # Počkáme kým sa rozbalené sekcie načítajú
         try:
-            await page.wait_for_selector("a[href*='/cruz-public/domain/financialreport/show/']", timeout=3000)
+            await page.wait_for_selector(
+                "a[href*='/cruz-public/domain/financialreport/show/']",
+                timeout=5000,
+            )
+            logger.info(f"[RUZ] Linky na závierky nájdené po pokuse {attempt+1}")
+            break
         except PlaywrightTimeout:
-            pass
+            if attempt < 2:
+                logger.warning(f"[RUZ] Linky sa nenašli po pokuse {attempt+1}, skúšam znova")
+            else:
+                logger.warning("[RUZ] Linky sa nenašli ani po 3 pokusoch")
 
 
 async def _collect_all_report_links(page: Page) -> tuple[list[tuple[str, str, str, str]], list[tuple[str, str, str, str]]]:
     """
     Zbiera VŠETKY linky na závierky a výročné správy z rozbalenej stránky.
     Vracia (ifrs_items, vs_items) kde každý item je (href, ftype, year).
+    
+    Jednoduchší prístup: nájdeme všetky elementy s rokom (napr. "01/2024 - 12/2024"),
+    potom nájdeme najbližší link na financialreport pre každý.
     """
     ifrs_items = []
     vs_items = []
 
-    # Zozbierame všetky linky na stránke
-    all_links = await page.locator("a[href*='/cruz-public/domain/financialreport/show/']").all()
-
-    for link in all_links:
-        href = await link.get_attribute("href") or ""
-        if not href:
+    # Nájdeme všetky elementy obsahujúce rok
+    year_elements = await page.locator("*:text-matches('\\\\d{2}/20\\\\d{2}')").all()
+    
+    for elem in year_elements:
+        try:
+            text = await elem.inner_text()
+            # Extrahujeme rok z textu (napr. "01/2024 - 12/2024" -> "2024")
+            year_match = re.search(r'(20\\d{2})', text)
+            if not year_match:
+                continue
+            year = year_match.group(1)
+            
+            # Nájdeme najbližší link na financialreport
+            link = await elem.evaluate("""el => {
+                // Hľadáme najbližší <a> s href obsahujúcim financialreport
+                let current = el;
+                while (current && current !== document.body) {
+                    const link = current.querySelector('a[href*="financialreport"]');
+                    if (link) return link.href;
+                    current = current.parentElement;
+                }
+                return null;
+            }""")
+            
+            if not link:
+                continue
+            
+            href = link.replace("https://www.registeruz.sk", "")
+            # Získame text linku pre klasifikáciu
+            link_text = await elem.evaluate("""el => {
+                let current = el;
+                while (current && current !== document.body) {
+                    const link = current.querySelector('a[href*="financialreport"]');
+                    if (link) return link.innerText || link.textContent || "";
+                    current = current.parentElement;
+                }
+                return "";
+            }""")
+            
+            text_lower = link_text.lower()
+            
+            # Klasifikácia
+            is_vs = any(kw.lower() in text_lower for kw in _VS_LINK_TEXTS)
+            is_ifrs = any(kw.lower() in text_lower for kw in _IFRS_LINK_TEXTS)
+            
+            # Fallback na základe kľúčových slov
+            if not is_ifrs and not is_vs:
+                fallback_keywords = ["účtovn", "závierk", "úč pod", "úč muj", "ifrs", "financial"]
+                if any(kw in text_lower for kw in fallback_keywords):
+                    is_ifrs = True
+            
+            if is_vs and not is_ifrs:
+                if not any(u[0] == href for u in vs_items):
+                    vs_items.append((href, "VS", year, link_text))
+            elif is_ifrs or (not is_vs):
+                if not any(u[0] == href for u in ifrs_items):
+                    ifrs_items.append((href, "IFRS", year, link_text))
+                    
+        except Exception as e:
+            logger.debug(f"[RUZ] Chyba pri spracovaní elementu s rokom: {e}")
             continue
-
-        text = (await link.inner_text()).strip()
-        text_lower = text.lower()
-
-        # Zatriedenie linku
-        # Vylúčenie nepodstatných linkov (oznámenia, správy audítora bez dát)
-        _EXCLUDE_KEYWORDS = ["oznámenie o dátume", "oznamenie o datume"]
-        if any(kw in text_lower for kw in _EXCLUDE_KEYWORDS):
-            continue
-
-        is_vs = any(kw.lower() in text_lower for kw in _VS_LINK_TEXTS)
-        is_ifrs = any(kw.lower() in text_lower for kw in _IFRS_LINK_TEXTS)
-
-        # Detekcia roku
-        year = await _get_year_from_link(link)
-
-        if is_vs and not is_ifrs:
-            if not any(u[0] == href for u in vs_items):
-                vs_items.append((href, "VS", year, text))
-        elif is_ifrs or (not is_vs):
-            # Ak link smeruje na financialreport a nie je výlučne VS, berieme ho ako závierku
-            if not any(u[0] == href for u in ifrs_items):
-                ifrs_items.append((href, "IFRS", year, text))
 
     # Fallback — ak nič nenašli, zozbierame všetky linky na financialreport
     if not ifrs_items and not vs_items:
@@ -490,6 +544,19 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
 
             # ── Expandovanie VŠETKÝCH sekcií (nie len Individuálne) ──────────
             await _expand_all_sections(page)
+
+            # ── Klikni na "Zobraziť viac" ak existuje (pagination) ──────────
+            for _ in range(5):
+                try:
+                    show_more = page.locator("a:has-text('Zobraziť viac'), a:has-text('Zobraziť všetky'), button:has-text('Zobraziť viac')")
+                    if await show_more.count() > 0 and await show_more.first.is_visible():
+                        await show_more.first.click()
+                        await asyncio.sleep(1)
+                        logger.info("[RUZ] Kliknuté na 'Zobraziť viac'")
+                    else:
+                        break
+                except Exception:
+                    break
 
             # ── Zbieranie linkov na závierky ─────────────────────────────────
             ifrs_links, vs_links = await _collect_all_report_links(page)

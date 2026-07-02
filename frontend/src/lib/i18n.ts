@@ -19,6 +19,7 @@ const sk: Dict = {
   "nav.overenie": "Overenie subjektu",
   "nav.historia": "História reportov",
   "nav.nastavenia": "Nastavenia",
+  "nav.pausal": "Paušál",
   "nav.cennik": "Cenník",
   "nav.spravy": "Správy",
   "nav.reportovat": "Reportovať",
@@ -35,7 +36,7 @@ const sk: Dict = {
 
   // ── Home / SearchSection ──
   "home.overenieSubjektu": "Overenie subjektu",
-  "home.zadajteIco": "Zadajte IČO a vyberte registre, ktoré chcete preveriť",
+  "home.zadajteIco": "Zadajte IČO spoločnosti a my ju preveríme vo všetkých dostupných registroch",
 
   // ── ReportForm ──
   "form.zadajteIco": "Zadajte IČO...",
@@ -345,6 +346,7 @@ const en: Dict = {
   "nav.overenie": "Entity Verification",
   "nav.historia": "Report History",
   "nav.nastavenia": "Settings",
+  "nav.pausal": "Plan",
   "nav.cennik": "Pricing",
   "nav.spravy": "Messages",
   "nav.reportovat": "Report",
@@ -361,7 +363,7 @@ const en: Dict = {
 
   // ── Home / SearchSection ──
   "home.overenieSubjektu": "Entity Verification",
-  "home.zadajteIco": "Enter VAT number and select registries to check",
+  "home.zadajteIco": "Enter a company VAT number and we'll verify it across all available registries",
 
   // ── ReportForm ──
   "form.zadajteIco": "Enter VAT number...",
@@ -671,6 +673,7 @@ const de: Dict = {
   "nav.overenie": "Unternehmensprüfung",
   "nav.historia": "Berichtverlauf",
   "nav.nastavenia": "Einstellungen",
+  "nav.pausal": "Pauschale",
   "nav.cennik": "Preise",
   "nav.spravy": "Nachrichten",
   "nav.reportovat": "Melden",
@@ -687,7 +690,7 @@ const de: Dict = {
 
   // ── Home / SearchSection ──
   "home.overenieSubjektu": "Unternehmensprüfung",
-  "home.zadajteIco": "Geben Sie die USt-IdNr. ein und wählen Sie Register zur Prüfung",
+  "home.zadajteIco": "Geben Sie die USt-IdNr. eines Unternehmens ein und wir prüfen sie in allen verfügbaren Registern",
 
   // ── ReportForm ──
   "form.zadajteIco": "USt-IdNr. eingeben...",

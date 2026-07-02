@@ -28,8 +28,11 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     tokenVersion: number;
+    lastVerified?: number;
   }
 }
+
+const JWT_VERIFY_INTERVAL_MS = 5 * 60 * 1000; // 5 minút
 
 // ─── Auth Options ─────────────────────────────────────────────────────────────
 
@@ -95,14 +98,23 @@ export const authOptions: NextAuthOptions = {
         });
         token.tokenVersion = dbUser?.tokenVersion ?? 0;
       }
-      // Always verify user still exists (catches stale tokens after DB reset)
-      if (token.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id },
-          select: { id: true, tokenVersion: true },
-        });
-        if (!dbUser || dbUser.tokenVersion !== token.tokenVersion) {
-          token.id = "";
+      // Verify user still exists — but only every 5 minutes, not on every request.
+      // This prevents excessive DB queries during navigation and reduces the chance
+      // of accidental logout when the DB is temporarily busy (e.g., report processing).
+      const now = Date.now();
+      const shouldVerify = !token.lastVerified || (now - token.lastVerified) > JWT_VERIFY_INTERVAL_MS;
+      if (token.id && shouldVerify) {
+        token.lastVerified = now;
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: { id: true, tokenVersion: true },
+          });
+          if (!dbUser || dbUser.tokenVersion !== token.tokenVersion) {
+            token.id = "";
+          }
+        } catch {
+          // DB error — keep existing token, don't logout
         }
       }
       return token;

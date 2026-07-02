@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import StatusBadge from "@/components/StatusBadge";
@@ -257,7 +257,7 @@ function AggregateProgress({ sources }: { sources: ReportSource[] }) {
   return (
     <div className="mt-6 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
       <div className="w-full flex justify-between text-sm font-semibold text-[var(--text)] mb-2 px-1">
-        <span>Spracovanie štátnych registrov</span>
+        <span>Spracovanie registrov</span>
         <span>{completed} / {total}</span>
       </div>
       <div className="w-full h-2 bg-[var(--border)] rounded-full overflow-hidden">
@@ -279,6 +279,8 @@ export default function ReportDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [etaCountdown, setEtaCountdown] = useState<number | null>(null);
+  const etaRef = useRef<number | null>(null);
 
   const fetchReport = useCallback(async () => {
     try {
@@ -303,6 +305,25 @@ export default function ReportDetailPage() {
   }, [fetchReport]);
 
   const isFinished = report ? TERMINAL_STATUSES.includes(report.status) : false;
+
+  // Sync ETA from server when it changes
+  useEffect(() => {
+    if (report?.eta != null && report.eta > 0 && !isFinished) {
+      if (etaRef.current === null || Math.abs(report.eta - etaRef.current) > 10) {
+        etaRef.current = report.eta;
+        setEtaCountdown(report.eta);
+      }
+    }
+  }, [report?.eta, isFinished]);
+
+  // Client-side countdown timer
+  useEffect(() => {
+    if (etaCountdown === null || etaCountdown <= 0 || isFinished) return;
+    const timer = setInterval(() => {
+      setEtaCountdown(prev => prev !== null ? Math.max(0, prev - 1) : null);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [etaCountdown, isFinished]);
 
   // Polling for updates
   useEffect(() => {
@@ -422,7 +443,9 @@ export default function ReportDetailPage() {
       : `${report.name} ${report.surname}`;
 
   const canDownload = report.status === "COMPLETED" || report.status === "PARTIAL";
-  const canRetry = report.status === "FAILED" || report.status === "PARTIAL";
+  const canRetryFailed = report.status === "FAILED";
+  const canRetryPartial = report.status === "PARTIAL";
+  const canRetry = canRetryFailed || canRetryPartial;
 
   const score = report.verifaScore ?? 100;
   let scoreColorText = "text-emerald-600";
@@ -453,7 +476,7 @@ export default function ReportDetailPage() {
         {/* Breadcrumb + Nové hľadanie */}
         <div className="flex items-center justify-between w-full mb-3">
           <div className="flex items-center gap-2 text-xs">
-            <Link href="/" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+            <Link href="/dashboard" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
               {t("report.overenieSubjektu")}
             </Link>
             <span style={{ color: "var(--border-strong)" }}>/</span>
@@ -461,7 +484,7 @@ export default function ReportDetailPage() {
           </div>
           <Link
             id="new-search-btn"
-            href="/"
+            href="/dashboard"
             className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg border text-center"
             style={{
               background: "var(--surface)",
@@ -538,13 +561,13 @@ export default function ReportDetailPage() {
                 disabled={retrying}
                 className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
                 style={{
-                  background: "#2563eb",
+                  background: canRetryFailed ? "#8b5cf6" : "#2563eb",
                   color: "#ffffff",
                   height: "36px",
                   padding: "0 14px",
                   fontSize: "12.5px",
                   fontWeight: 600,
-                  border: "1px solid #2563eb",
+                  border: canRetryFailed ? "1px solid #8b5cf6" : "1px solid #2563eb",
                 }}
               >
                 {retrying ? (
@@ -564,6 +587,11 @@ export default function ReportDetailPage() {
                   </>
                 )}
               </button>
+            )}
+            {canRetryFailed && (
+              <div className="text-[10px] text-purple-400 mt-1">
+                Kredit neodpočítal
+              </div>
             )}
             {canDownload && !isFinished && (
               <button
@@ -616,10 +644,10 @@ export default function ReportDetailPage() {
               sourcesTotal={report.sources.length}
             />
             <AggregateProgress sources={report.sources} />
-            {report.eta != null && report.eta > 0 && (
+            {etaCountdown != null && etaCountdown > 0 && (
               <div className="text-center mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
                 {(() => {
-                  const s = report.eta!;
+                  const s = etaCountdown;
                   if (s < 60) return `Približný čas dokončenia: ~${s} s`;
                   const m = Math.floor(s / 60);
                   const r = s % 60;
@@ -725,7 +753,36 @@ export default function ReportDetailPage() {
                   </div>
                 </button>
 
-                <h2 className="text-xl font-bold mb-2 flex items-center gap-2" style={{ color: "var(--success)" }}>
+                {/* Always-visible green CTA bar */}
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="flex items-center justify-center gap-3 w-full max-w-[340px] px-6 py-4 rounded-xl font-bold text-[15px] transition-all hover:brightness-110 active:brightness-95 mb-2"
+                  style={{
+                    background: "var(--success)",
+                    color: "#ffffff",
+                    boxShadow: "0 8px 24px -6px color-mix(in srgb, var(--success) 40%, transparent)",
+                  }}
+                >
+                  {downloading ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Sťahujem report…
+                    </>
+                  ) : (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      Stiahnuť PDF report
+                    </>
+                  )}
+                </button>
+
+                <h2 className="text-xl font-bold mb-2 flex items-center gap-2 mt-4" style={{ color: "var(--success)" }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                     <polyline points="22 4 12 14.01 9 11.01"></polyline>
@@ -805,7 +862,7 @@ export default function ReportDetailPage() {
 
 
             {/* Retry for partial */}
-            {canRetry && (
+            {canRetryPartial && (
               <button
                 onClick={handleRetry}
                 disabled={retrying}

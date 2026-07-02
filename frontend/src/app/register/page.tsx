@@ -83,7 +83,7 @@ export default function RegisterPage() {
       if (result?.error) {
         setError(t("register.uspechPrihlasenieZlyhalo"));
       } else {
-        router.push("/");
+        router.push("/dashboard");
         router.refresh();
       }
     } catch {

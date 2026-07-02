@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SourceType, ReportStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask, checkWorkerHealth } from "@/lib/worker";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { reportRequestSchema } from "./schema";
+
+const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   try {
@@ -102,6 +104,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Ensure user has a wallet
+    let wallet = await prisma.wallet.findUnique({
+      where: { userId: user.id },
+    });
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: {
+          userId: user.id,
+          balance: 0,
+          currency: "EUR",
+        },
+      });
+    }
+
     const body = await req.json();
     const parseResult = reportRequestSchema.safeParse(body);
     if (!parseResult.success) {
@@ -121,6 +137,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // PREFILTRUJ zdroje podľa user settings (defaultSources z DB)
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { defaultSources: true },
+    });
+    if (dbUser?.defaultSources && Array.isArray(dbUser.defaultSources) && dbUser.defaultSources.length > 0) {
+      const userSources = dbUser.defaultSources as string[];
+      const filteredSources = sources.filter((s: string) => userSources.includes(s));
+      if (filteredSources.length === 0) {
+        return NextResponse.json(
+          { error: "Nemáte vybrané žiadne zdroje v Nastaveniach." },
+          { status: 400 }
+        );
+      }
+      // Použi prefiltrované zdroje
+      const body = parseResult.data;
+      body.sources = filteredSources as any;
+    }
+
     // OVERENIE: Worker je online pred vytvorením DB záznamu
     const isWorkerOnline = await checkWorkerHealth();
     if (!isWorkerOnline) {
@@ -130,28 +165,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Lookup názvu firmy z ORSR (best-effort, neblokuje vytvorenie reportu)
-    let companyName: string | null = null;
-    try {
-      const lookupRes = await fetch(`https://www.orsr.sk/hladaj_ico.asp?ICO=${ico}&SID=0`, {
-        signal: AbortSignal.timeout(5000),
-        headers: { "User-Agent": "Mozilla/5.0" },
-      });
-      if (lookupRes.ok) {
-        const buf = await lookupRes.arrayBuffer();
-        const html = new TextDecoder("windows-1250").decode(buf);
-        const nameMatch = /<a[^>]*alt="Aktuálny výpis"[^>]*>([^<]+)<\/a>/i.exec(html);
-        if (nameMatch) {
-          companyName = nameMatch[1]
-            .replace(/&amp;/g, "&")
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .trim();
-        }
-      }
-    } catch {
-      // best-effort — ak lookup zlyhá, report sa vytvorí bez názvu
-    }
+    // Company name sa nastaví workerom po ORSR scrape (správne handling neaktuálnych výpisov)
+    const companyName: string | null = null;
 
     const reportRequest = await prisma.reportRequest.create({
       data: {

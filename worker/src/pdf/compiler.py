@@ -37,6 +37,7 @@ _SOURCES_WITH_EMBEDDED_TITLE = frozenset({
     "REGISTER_UZ",
     "RPO",
     "DISKVALIFIKACIE",
+    "FINANCNA_SPRAVA",
 })
 
 # Canonical order of sources for PDF compilation (matches cover page categories)
@@ -237,7 +238,7 @@ class PdfCompiler:
             buf = io.BytesIO()
             c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
             
-            # Posunúť obsah PDF o 50 bodov nižšie aby ho neprekryl nadpis (najmä pre Finančnú správu)
+            # Posunúť obsah PDF o 60 bodov nižšie aby ho neprekryl nadpis (najmä pre Finančnú správu)
             if source.source_type.startswith("FS_"):
                 try:
                     from PyPDF2 import Transformation

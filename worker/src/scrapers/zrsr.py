@@ -198,6 +198,10 @@ class ZrsrScraper(BaseScraper):
                     html = await page.content()
                     if "Odkaz je neplatný" in html:
                         logger.error(f"[{self.source_type}] Štátny portál vrátil chybu 'Odkaz je neplatný'.")
+                        return self._make_result(
+                            status="UNAVAILABLE",
+                            status_message="ZRSR portál vrátil 'Odkaz je neplatný' — výpis nie je dostupný.",
+                        )
                     else:
                         logger.warning(f"[{self.source_type}] Nenašiel sa text 'Výpis zo živnostenského registra'.")
             else:

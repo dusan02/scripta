@@ -51,9 +51,9 @@ async def update_report_status(
     )
 
 
-async def get_avg_completion_seconds(pool: asyncpg.Pool, limit: int = 10) -> Optional[float]:
+async def get_avg_completion_seconds(pool: asyncpg.Pool, limit: int = 20) -> Optional[float]:
     """Vráti priemerný čas dokončenia (v sekundách) z posledných N completed/partial reportov.
-    Vráti None ak nie sú žiadne historické dáta."""
+    Filtruje outliery > 30 min (stuck/retried reporty). Vráti None ak nie sú dáta."""
     rows = await pool.fetch(
         """
         SELECT EXTRACT(EPOCH FROM ("completedAt" - "createdAt")) AS duration
@@ -67,7 +67,8 @@ async def get_avg_completion_seconds(pool: asyncpg.Pool, limit: int = 10) -> Opt
     )
     if not rows:
         return None
-    durations = [r["duration"] for r in rows if r["duration"] and r["duration"] > 0]
+    # Filter out stuck/retried reports (> 30 min = 1800s)
+    durations = [r["duration"] for r in rows if r["duration"] and 0 < r["duration"] < 1800]
     if not durations:
         return None
     return sum(durations) / len(durations)
@@ -125,6 +126,50 @@ async def update_source_page_counts(
                         report_request_id,
                         source.source_type,
                     )
+
+
+async def create_bug_report(
+    pool: asyncpg.Pool,
+    report_request_id: str,
+    error_details: str,
+) -> None:
+    """Vytvorí Feedback záznam s kategóriou BUG pre zlyhaný report.
+    Záznam sa vytvorí len ak ešte neexistuje pre daný report (idempotent)."""
+    try:
+        row = await pool.fetchrow(
+            'SELECT "userId", ico, "companyName" FROM "ReportRequest" WHERE id = $1',
+            report_request_id,
+        )
+        if not row:
+            return
+
+        existing = await pool.fetchval(
+            'SELECT id FROM "Feedback" WHERE "requestId" = $1 AND category = $2',
+            report_request_id, "BUG",
+        )
+        if existing:
+            return
+
+        ico = row["ico"] or "neznáme"
+        company = row["companyname"] or "neznáma"
+        message = (
+            f"[AUTO-BUG] Report {report_request_id} zlyhal.\n"
+            f"Firma: {company} (IČO: {ico})\n"
+            f"Chyba: {error_details[:2000]}"
+        )
+
+        await pool.execute(
+            """
+            INSERT INTO "Feedback" (id, "userId", category, "requestId", message, status, "createdAt", "updatedAt")
+            VALUES (gen_random_uuid(), $1, 'BUG', $2, $3, 'OPEN', NOW(), NOW())
+            """,
+            row["userId"],
+            report_request_id,
+            message,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Nepodarilo sa vytvoriť bug report pre {report_request_id}: {e}")
 
 
 async def _upsert_one(conn, report_request_id: str, source: ScrapedSource) -> None:

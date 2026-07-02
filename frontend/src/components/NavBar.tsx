@@ -36,10 +36,10 @@ function LogOutIcon() {
 }
 
 const NAV_ITEMS = [
-  { href: "/", key: "nav.overenie" },
+  { href: "/dashboard", key: "nav.overenie" },
   { href: "/history", key: "nav.historia" },
+  { href: "/plan", key: "nav.pausal" },
   { href: "/settings", key: "nav.nastavenia" },
-  { href: "/pricing", key: "nav.cennik" },
   { href: "/messages", key: "nav.spravy" },
 ];
 
@@ -90,7 +90,7 @@ export default function NavBar() {
 
           {/* Left: Logo + Nav */}
           <div className="flex items-end gap-6">
-            <Link href="/" aria-label={`Verifa.sk — ${t("nav.overenie")}`} style={{ textDecoration: "none" }}>
+            <Link href="/dashboard" aria-label={`Verifa.sk — ${t("nav.overenie")}`} style={{ textDecoration: "none" }}>
               <Logo />
             </Link>
 

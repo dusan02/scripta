@@ -131,17 +131,35 @@ class OrsrScraper(BaseScraper):
 
             body_text = await page.inner_text("body")
 
-            # Ak je výpis neaktuálny (zmena právnej formy), klikni na odkaz na aktuálny výpis
+            # Ak je výpis neaktuálny (zmena právnej formy), nasleduj reťaz odkazov na aktuálny výpis
             if _OUTDATED_MARKER in body_text:
                 logger.info(f"[{self.source_type}] Výpis je neaktuálny — nasledujem odkaz na aktuálny výpis.")
-                current_link = page.locator("a:has-text('aktuálny výpis')")
-                try:
-                    await current_link.wait_for(timeout=5000)
-                    await current_link.first.click()
+                for _depth in range(5):  # max 5 skokov, aby sme sa nezacyklili
+                    current_link = page.locator("a:has-text('aktuálny výpis')")
+                    try:
+                        await current_link.wait_for(timeout=5000)
+                        await current_link.first.click()
+                        await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                        body_text = await page.inner_text("body")
+                        if _OUTDATED_MARKER not in body_text and _TRANSFERRED_MARKER not in body_text:
+                            logger.info(f"[{self.source_type}] Nájdený platný výpis po {_depth + 1} skokoch.")
+                            break
+                        if _TRANSFERRED_MARKER in body_text:
+                            logger.info(f"[{self.source_type}] Nasledovaný výpis je odstúpený — skúšam ďalší odkaz.")
+                            await page.go_back()
+                            await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                            break
+                        logger.info(f"[{self.source_type}] Nasledovaný výpis je tiež neaktuálny — pokračujem v reťazi.")
+                    except PlaywrightTimeoutError:
+                        logger.warning(f"[{self.source_type}] Odkaz na aktuálny výpis sa nenašiel — skúšam ďalší odkaz v zozname.")
+                        await page.go_back()
+                        await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                        break
+                else:
+                    logger.warning(f"[{self.source_type}] Prekročený limit skokov — skúšam ďalší odkaz v zozname.")
+                    await page.go_back()
                     await page.wait_for_load_state("domcontentloaded", timeout=45000)
-                    body_text = await page.inner_text("body")
-                except PlaywrightTimeoutError:
-                    logger.warning(f"[{self.source_type}] Odkaz na aktuálny výpis sa nenašiel — používam tento výpis.")
+                    continue
 
             # Ak je spis odstúpený na iný súd, skús ďalší odkaz
             if _TRANSFERRED_MARKER in body_text:
@@ -169,8 +187,22 @@ class OrsrScraper(BaseScraper):
         Na detailnej stránke je aktuálny názov vždy uvedený ako hodnota v tabuľke."""
         try:
             name_val = await page.evaluate("""() => {
-                const rows = document.querySelectorAll("table tr");
+                // Hľadaj iba v prvej tabuľke (hlavička výpisu s aktuálnym menom)
+                const firstTable = document.querySelector("table");
+                if (!firstTable) return null;
+                const rows = firstTable.querySelectorAll("tr");
                 for (const row of rows) {
+                    const cells = row.querySelectorAll("td");
+                    for (let i = 0; i < cells.length; i++) {
+                        const text = cells[i].innerText || "";
+                        if (text.toLowerCase().includes("obchodné meno") && i + 1 < cells.length) {
+                            return cells[i + 1].innerText.trim();
+                        }
+                    }
+                }
+                // Fallback: prehľadaj všetky tabuľky
+                const allRows = document.querySelectorAll("table tr");
+                for (const row of allRows) {
                     const cells = row.querySelectorAll("td");
                     for (let i = 0; i < cells.length; i++) {
                         const text = cells[i].innerText || "";
@@ -201,7 +233,10 @@ class OrsrScraper(BaseScraper):
             text = (await page.inner_text("body")).lower()
             if "v likvidácii" in text:
                 return "POZOR: Spoločnosť je v likvidácii."
-            if "vymazaná" in text:
+            # ORSR pri výmaze spoločnosti zobrazuje špecifický text
+            # "vymazaná z obchodného registra" — nesmie sa spúšťať na výskyte
+            # slova "vymazaná" v historických záznamoch o osobách.
+            if "vymazaná z obchodného registra" in text:
                 return "POZOR: Spoločnosť je vymazaná z ORSR."
             return "Aktívna spoločnosť v ORSR (bez zistených anomálií)."
         except Exception as e:

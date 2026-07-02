@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, cast
 from prisma import Prisma
 import httpx
 from src.llm_extractor import CompanyFinancialExtraction, NarrativeRiskAnalysis
@@ -50,29 +50,66 @@ async def save_to_db(data: CompanyFinancialExtraction):
             # Fetch NACE kód
             nace_code, nace_text = await _fetch_nace_from_api(data.ico)
             
-            update_data = {}
-            if gemini_name and not is_placeholder:
-                update_data['name'] = gemini_name
-            if nace_code:
-                update_data['naceCode'] = nace_code
-            if nace_text:
-                update_data['naceText'] = nace_text
-
             await db.company.upsert(
                 where={'ico': data.ico},
                 data={
                     'create': {
-                        'ico': data.ico, 
+                        'ico': data.ico,
                         'name': gemini_name if not is_placeholder else f"Spoločnosť s IČO {data.ico}",
                         'naceCode': nace_code,
                         'naceText': nace_text
                     },
-                    'update': update_data
+                    'update': {}
                 }
             )
 
+            # Update fields separately if they have values
+            if gemini_name and not is_placeholder:
+                await db.company.update(
+                    where={'ico': data.ico},
+                    data={'name': gemini_name}
+                )
+            if nace_code:
+                await db.company.update(
+                    where={'ico': data.ico},
+                    data={'naceCode': nace_code}
+                )
+            if nace_text:
+                await db.company.update(
+                    where={'ico': data.ico},
+                    data={'naceText': nace_text}
+                )
+
             # 2. Uložíme finančné výkazy
             # Použijeme upsert namiesto create, aby sme predišli chybe UniqueConstraint
+            # Filter out None values — Python Prisma client throws "Null constraint violation"
+            # when None is explicitly passed for nullable Float? fields.
+            stmt_fields = {
+                'totalAssets': data.metriky.celkove_aktiva,
+                'currentAssets': data.metriky.obezny_majetok,
+                'equity': data.metriky.vlastne_imanie_celkom,
+                'shortTermLiabilities': data.metriky.kratkodobe_zavazky,
+                'longTermLiabilities': data.metriky.dlhodobeZavazky,
+                'mainActivityRevenue': data.metriky.trzby_z_hlavnej_cinnosti,
+                'grossProfit': data.metriky.hruba_marza,
+                'netProfitLoss': data.metriky.zisk_alebo_strata_po_zdaneni,
+                'cashAndEquivalents': data.metriky.peniaze_a_penazne_ekvivalenty_k_31_12,
+                'operatingCashFlow': data.metriky.ciste_penazne_toky_z_prevadzkovej_cinnosti,
+                'staffCosts': data.metriky.osobne_naklady,
+                'tradeReceivables': data.metriky.pohladavky_z_obchodneho_styku,
+                'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
+                'currency': data.metriky.mena,
+                'statementType': data.metriky.typ_zavierky,
+                'monthsInPeriod': data.metriky.pocet_mesiacov_obdobia if data.metriky.pocet_mesiacov_obdobia is not None else 12,
+                'isConsolidated': data.metriky.is_consolidated,
+            }
+            stmt_data = {k: v for k, v in stmt_fields.items() if v is not None}
+
+            # Build create dict with only fields that have values
+            create_data = {'companyIco': data.ico, 'year': data.metriky.rok_zavierky}
+            for key, value in stmt_data.items():
+                create_data[key] = value
+
             statement = await db.financialstatement.upsert(
                 where={
                     'companyIco_year': {
@@ -81,48 +118,97 @@ async def save_to_db(data: CompanyFinancialExtraction):
                     }
                 },
                 data={
-                    'create': {
-                        'companyIco': data.ico,
-                        'year': data.metriky.rok_zavierky,
-                        'totalAssets': data.metriky.celkove_aktiva,
-                        'currentAssets': data.metriky.obezny_majetok,
-                        'equity': data.metriky.vlastne_imanie_celkom,
-                        'shortTermLiabilities': data.metriky.kratkodobe_zavazky,
-                        'longTermLiabilities': data.metriky.dlhodobeZavazky,
-                        'mainActivityRevenue': data.metriky.trzby_z_hlavnej_cinnosti,
-                        'grossProfit': data.metriky.hruba_marza,
-                        'netProfitLoss': data.metriky.zisk_alebo_strata_po_zdaneni,
-                        'cashAndEquivalents': data.metriky.peniaze_a_penazne_ekvivalenty_k_31_12,
-                        'operatingCashFlow': data.metriky.ciste_penazne_toky_z_prevadzkovej_cinnosti,
-                        'staffCosts': data.metriky.osobne_naklady,
-                        'tradeReceivables': data.metriky.pohladavky_z_obchodneho_styku,
-                        'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
-                        'currency': data.metriky.mena,
-                        'statementType': data.metriky.typ_zavierky,
-                        'monthsInPeriod': data.metriky.pocet_mesiacov_obdobia if data.metriky.pocet_mesiacov_obdobia is not None else 12,
-                        'isConsolidated': data.metriky.is_consolidated,
-                    },
-                    'update': {
-                        'totalAssets': data.metriky.celkove_aktiva,
-                        'currentAssets': data.metriky.obezny_majetok,
-                        'equity': data.metriky.vlastne_imanie_celkom,
-                        'shortTermLiabilities': data.metriky.kratkodobe_zavazky,
-                        'longTermLiabilities': data.metriky.dlhodobeZavazky,
-                        'mainActivityRevenue': data.metriky.trzby_z_hlavnej_cinnosti,
-                        'grossProfit': data.metriky.hruba_marza,
-                        'netProfitLoss': data.metriky.zisk_alebo_strata_po_zdaneni,
-                        'cashAndEquivalents': data.metriky.peniaze_a_penazne_ekvivalenty_k_31_12,
-                        'operatingCashFlow': data.metriky.ciste_penazne_toky_z_prevadzkovej_cinnosti,
-                        'staffCosts': data.metriky.osobne_naklady,
-                        'tradeReceivables': data.metriky.pohladavky_z_obchodneho_styku,
-                        'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
-                        'currency': data.metriky.mena,
-                        'statementType': data.metriky.typ_zavierky,
-                        'monthsInPeriod': data.metriky.pocet_mesiacov_obdobia if data.metriky.pocet_mesiacov_obdobia is not None else 12,
-                        'isConsolidated': data.metriky.is_consolidated,
-                    }
+                    'create': create_data,  # type: ignore
+                    'update': {},
                 }
             )
+
+            # Update fields separately if they have values
+            if 'totalAssets' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'totalAssets': stmt_data['totalAssets']}
+                )
+            if 'currentAssets' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'currentAssets': stmt_data['currentAssets']}
+                )
+            if 'equity' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'equity': stmt_data['equity']}
+                )
+            if 'shortTermLiabilities' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'shortTermLiabilities': stmt_data['shortTermLiabilities']}
+                )
+            if 'longTermLiabilities' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'longTermLiabilities': stmt_data['longTermLiabilities']}
+                )
+            if 'mainActivityRevenue' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'mainActivityRevenue': stmt_data['mainActivityRevenue']}
+                )
+            if 'grossProfit' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'grossProfit': stmt_data['grossProfit']}
+                )
+            if 'netProfitLoss' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'netProfitLoss': stmt_data['netProfitLoss']}
+                )
+            if 'cashAndEquivalents' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'cashAndEquivalents': stmt_data['cashAndEquivalents']}
+                )
+            if 'operatingCashFlow' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'operatingCashFlow': stmt_data['operatingCashFlow']}
+                )
+            if 'staffCosts' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'staffCosts': stmt_data['staffCosts']}
+                )
+            if 'tradeReceivables' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'tradeReceivables': stmt_data['tradeReceivables']}
+                )
+            if 'tradePayables' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'tradePayables': stmt_data['tradePayables']}
+                )
+            if 'currency' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'currency': stmt_data['currency']}
+                )
+            if 'statementType' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'statementType': stmt_data['statementType']}
+                )
+            if 'monthsInPeriod' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'monthsInPeriod': stmt_data['monthsInPeriod']}
+                )
+            if 'isConsolidated' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'isConsolidated': stmt_data['isConsolidated']}
+                )
 
             # 3. Uložíme názor audítora (naviazaný na konkrétny výkaz)
             await db.auditoropinion.upsert(
@@ -250,9 +336,9 @@ async def save_notes_to_db(ico: str, year: int, notes_risk):
 _avg_cache: dict = {}  # {"value": float, "ts": float}
 _AVG_CACHE_TTL = 300  # 5 minút
 
-async def get_avg_completion_seconds(db: Prisma, limit: int = 10) -> Optional[float]:
+async def get_avg_completion_seconds(db: Prisma, limit: int = 20) -> Optional[float]:
     """Vráti priemerný čas dokončenia (v sekundách) z posledných N completed/partial reportov.
-    Cacheované na 5 minút."""
+    Filtruje outliery > 30 min (stuck/retried reporty). Cacheované na 5 minút."""
     import time as _time
     now = _time.perf_counter()
     cached = _avg_cache.get("value")
@@ -268,7 +354,7 @@ async def get_avg_completion_seconds(db: Prisma, limit: int = 10) -> Optional[fl
         for r in rows:
             if r.completedAt and r.createdAt:
                 dur = (r.completedAt - r.createdAt).total_seconds()
-                if dur > 0:
+                if 0 < dur < 1800:  # Filter stuck/retried reports > 30 min
                     durations.append(dur)
         if not durations:
             return None

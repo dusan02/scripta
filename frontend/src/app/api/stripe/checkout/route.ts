@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
     const checkout = await getStripe().checkout.sessions.create({
       mode: planId === "onetime" ? "payment" : "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/pricing?success=1`,
-      cancel_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/pricing?canceled=1`,
+      success_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/plan?success=1`,
+      cancel_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/plan?canceled=1`,
       customer_email: session.user.email,
       metadata: { userId: session.user.id, planId },
     });
