@@ -184,18 +184,21 @@ function ErrorDetails({ sources }: { sources: ReportSource[] }) {
 
 // ── AI Magic Loader ──────────────────────────────────────────
 const LOADER_STEPS = [
-  "Inicializácia zabezpečeného analytického jadra",
-  "Validácia zhody s referenčnými databázami",
-  "Kvantitatívna analýza a prepočítavanie finančných výkazov",
-  "Výpočet metrík finančného zdravia a bankrotových modelov",
-  "Krížová kontrola záväzkov a nedoplatkov voči štátu",
-  "Hĺbková analýza reputačných rizík a exekúcií",
-  "Forenzná detekcia anomálií a sankcií",
-  "Generovanie záverečného forenzného posudku",
-  "Kompletizácia výsledkov do zabezpečeného reportu"
+  "report.step1",
+  "report.step2",
+  "report.step3",
+  "report.step4",
+  "report.step5",
+  "report.step6",
+  "report.step7",
+  "report.step8",
+  "report.step9",
 ];
 
 function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: number, sourcesTotal: number }) {
+  const t = useT();
+  const { lang } = useLang();
+  const locale = LOCALE_MAP[lang];
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
@@ -210,7 +213,7 @@ function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: num
     return () => clearInterval(interval);
   }, [sourcesCompleted, sourcesTotal]);
 
-  const currentText = LOADER_STEPS[Math.min(activeStep, LOADER_STEPS.length - 1)];
+  const currentText = t(LOADER_STEPS[Math.min(activeStep, LOADER_STEPS.length - 1)]);
 
   return (
     <div className="mt-8 rounded-2xl p-5 w-full max-w-2xl mx-auto shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
@@ -227,11 +230,11 @@ function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: num
         {/* Current Status */}
         <div className="flex-1 min-w-0">
           <h3 className="text-[11px] font-bold tracking-wider uppercase mb-1" style={{ color: "var(--text-muted)" }}>
-            Spracovávanie údajov
+            {t("report.processing")}
           </h3>
           <div className="flex items-center gap-2">
             <span className="shrink-0 tabular-nums text-sm font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
-              [{new Date().toLocaleTimeString('sk-SK', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]
+              [{new Date().toLocaleTimeString(locale, {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]
             </span>
             <span className="text-[15px] font-medium truncate" style={{ color: "var(--success)" }}>
               {currentText}
@@ -250,6 +253,7 @@ function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: num
 
 // ── Aggregate Progress ───────────────────────────────────────────
 function AggregateProgress({ sources }: { sources: ReportSource[] }) {
+  const t = useT();
   const completed = sources.filter((s) => ["SUCCESS", "FAILED", "UNAVAILABLE"].includes(s.status)).length;
   const total = sources.length;
   const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -257,7 +261,7 @@ function AggregateProgress({ sources }: { sources: ReportSource[] }) {
   return (
     <div className="mt-6 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
       <div className="w-full flex justify-between text-sm font-semibold text-[var(--text)] mb-2 px-1">
-        <span>Spracovanie registrov</span>
+        <span>{t("report.registersProgress")}</span>
         <span>{completed} / {total}</span>
       </div>
       <div className="w-full h-2 bg-[var(--border)] rounded-full overflow-hidden">
@@ -648,16 +652,16 @@ export default function ReportDetailPage() {
               <div className="text-center mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
                 {(() => {
                   const s = etaCountdown;
-                  if (s < 60) return `Približný čas dokončenia: ~${s} s`;
+                  if (s < 60) return t("report.etaSeconds", { s });
                   const m = Math.floor(s / 60);
                   const r = s % 60;
-                  return `Približný čas dokončenia: ~${m} min${r > 0 ? ` ${r} s` : ""}`;
+                  return t("report.etaMinutes", { m, r: r > 0 ? r : "" }).replace("  s", "");
                 })()}
               </div>
             )}
             {report.aiStatus && (
               <div className="text-center mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                {report.aiStatus}
+                {t(report.aiStatus)}
               </div>
             )}
             {report.sources.some(s => s.status === "FAILED" || s.status === "UNAVAILABLE") && (

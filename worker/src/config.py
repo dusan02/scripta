@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     model_ifrs: str = "gemini-2.5-flash"        # IFRS tabuľky — spoľahlivý OCR/extraktor
     model_narrative: str = "gemini-2.5-flash"   # Naratívna analýza (VS)
     model_vestnik: str = "gemini-2.5-flash"     # Vestník udalosti — štruktúrovaná extrakcia
-    model_verdict: str = "gemini-2.5-flash"     # Audit verdict / forenzný posudok
-    model_fallback: str = "gemini-3.5-flash"    # Fallback pri vyčerpaní kvót
+    model_verdict: str = "gemini-2.5-flash"     # Audit verdict / forenzný posudok (konzistentné skóre)
+    model_fallback: str = "gemini-2.5-flash"    # Fallback pri vyčerpaní kvót (rovnaký model = konzistentné skóre)
     llm_backoff_seconds: str = "3,5,10"  # Exponential backoff pre 429/503 (platené API — krátke waits)
 
     # ── PDF Ingestion ─────────────────────────────────────────────────────────
@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     def llm_pricing(self) -> dict[str, tuple[float, float]]:
         return {
             "gemini-2.5-flash":       (0.075, 0.30),
+            "gemini-2.5-pro":         (1.25, 10.00),
             "gemini-3.5-flash":       (1.50,  9.00),
             "gemini-3.1-pro-preview": (2.00, 12.00),
             "gemini-3.1-pro":         (2.00, 12.00),

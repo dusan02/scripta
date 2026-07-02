@@ -193,8 +193,12 @@ def slice_narrative_pdf(pdf_path: str, max_pages: int = 15) -> str:
 
 def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
     """
-    Vyhľadá začiatok Poznámok (Notes) a vyextrahuje max. 25 strán do nového PDF,
-    čím obmedzí tokeny, no zachová najdôležitejšie sekcie ako Spriaznené osoby.
+    Vyhľadá začiatok Poznámok (Notes) a vyextrahuje relevantné strany do nového PDF.
+
+    Používa keyword-based slicing: namiesto slepého orezania prvých 25 strán
+    skenuje celý dokument pre kľúčové slová (spriaznené osoby, podsúvahové záväzky,
+    kontingentné riziká) a extrahuje len tie strany + 1 stranu kontextu.
+    Fallback na pôvodných 25 strán ak sa kľúčové slová nenájdu.
     """
     if not pdf_path.lower().endswith(".pdf"):
         return None
@@ -210,7 +214,7 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
     for i in range(min(10, total_pages)):
         preview_text += doc[i].get_text("text")
     is_ifrs = _detect_ifrs_from_text(preview_text)
-    
+
     if not is_ifrs and len(preview_text.strip()) < 50 and total_pages >= settings.pdf_scanned_min_pages:
         is_ifrs = True
 
@@ -224,25 +228,64 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
             break
 
     if notes_start_page == -1:
-        # Poznámky sa nenašli, vrátime None (nemá zmysel extrahovať celé PDF znova)
         doc.close()
         return None
+
+    # ── Keyword-based slicing ──────────────────────────────────────────────
+    # Kľúčové slová pre forenznú analýzu — slovenské aj anglické varianty
+    forensic_keywords = re.compile(
+        r"(?i)"
+        r"(spriaznen|sprevoden|prepojen[áé]\s+osob|related\s+part"
+        r"|podsúvah|off[\s-]?balance|ručen|guarantee|kontingent"
+        r"|contingent|súdn\w+\s+spor|litigation|legal\s+proceed)"
+    )
+
+    relevant_pages = set()
+    for i in range(notes_start_page, total_pages):
+        page_text = doc[i].get_text("text")
+        if forensic_keywords.search(page_text):
+            relevant_pages.add(i)
+            # Pridáme 1 stranu pred a po pre kontext
+            if i > notes_start_page:
+                relevant_pages.add(i - 1)
+            if i < total_pages - 1:
+                relevant_pages.add(i + 1)
 
     new_pdf_path = pdf_path.replace(".pdf", "_sliced_notes.pdf")
     new_doc = fitz.open()
 
-    end_page = min(notes_start_page + max_notes_pages, total_pages)
-    for i in range(notes_start_page, end_page):
-        new_doc.insert_pdf(doc, from_page=i, to_page=i)
+    if relevant_pages:
+        # Keyword-based: extrahuj len relevantné strany
+        pages_to_extract = sorted(relevant_pages)
+        # Limit na max_notes_pages + 10 (keyword-based môže byť o niečo viac)
+        hard_limit = max_notes_pages + 10
+        if len(pages_to_extract) > hard_limit:
+            pages_to_extract = pages_to_extract[:hard_limit]
+
+        for page_num in pages_to_extract:
+            new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+
+        logger.info(
+            f"[PDF Notes Slicing] {os.path.basename(pdf_path)} | "
+            f"KEYWORD-BASED | od_strany={notes_start_page} | "
+            f"relevantných_strán={len(pages_to_extract)} | "
+            f"strany={pages_to_extract[:10]}{'...' if len(pages_to_extract) > 10 else ''}"
+        )
+    else:
+        # Fallback: pôvodná logika — prvých 25 strán od začiatku Notes
+        end_page = min(notes_start_page + max_notes_pages, total_pages)
+        for i in range(notes_start_page, end_page):
+            new_doc.insert_pdf(doc, from_page=i, to_page=i)
+
+        logger.info(
+            f"[PDF Notes Slicing] {os.path.basename(pdf_path)} | "
+            f"FALLBACK (no keywords) | od_strany={notes_start_page} | "
+            f"extrahovaných={end_page - notes_start_page}"
+        )
 
     new_doc.save(new_pdf_path)
     new_doc.close()
     doc.close()
-    
-    logger.info(
-        f"[PDF Notes Slicing] {os.path.basename(pdf_path)} | "
-        f"od_strany={notes_start_page} | extrahovaných={end_page - notes_start_page}"
-    )
 
     return new_pdf_path
 

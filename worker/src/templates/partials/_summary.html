@@ -1,7 +1,7 @@
 <div class="page-break"></div>
 <!-- 3b. SCORING BREAKDOWN TABUĽKA -->
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
-<div class="mb-8">
+<div class="mb-10 pt-6">
     <h2 id="scoring_breakdown" class="section-title">Scoring Breakdown — Hodnotenie podľa kategórií</h2>
     <table class="w-full border-collapse text-sm">
         <thead>
@@ -89,21 +89,21 @@
         Algoritmické skóre (30% platobná schopnosť · 25% finančné zdravie · 20% ziskovosť · 15% rast · 10% právna bezúhonnosť).
         Finálne skóre môže byť upravené forenzným audítorom o ±10 bodov na základe forenzného úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
     </p>
-    <p class="text-[9px] text-slate-300 mt-1 italic">
-        Verifa skóre je subjektívne hodnotenie vypočítané podľa interného modelu a v žiadnom prípade nenahrádza profesionálny audit. Používateľ by si mal vykonať vlastnú kontrolu due diligence.
+    <p class="text-[10px] text-slate-500 mt-1.5 italic leading-relaxed">
+        Verifa skóre je automatizované hodnotenie vypočítané podľa interného modelu na základe verejne dostupných údajov. 
+        Slúži výhradne na informatívne účely a nenahrádza oficiálny audit, daňové, právne ani investičné poradenstvo. 
+        Verifa.sk nenesie zodpovednosť za presnosť ani úplnosť uvádzaných údajov. Používateľ si pri rozhodovaní povinne overí údaje u originálnych zdrojov.
     </p>
 </div>
 {% endif %}
 
     <div class="page-break"></div>
-    <h2 id="forenzny_posudok" class="pt-8 section-title">Forenzný Posudok</h2>
+    <div class="mb-10 pt-6">
+    <h2 id="forenzny_posudok" class="section-title">Forenzný Posudok</h2>
     
     <div class="flex gap-6">
         <!-- Text part -->
         <div class="flex-1">
-            <p class="text-lg font-bold text-slate-800 leading-tight mb-4">
-                {% if verdict.riskCategory == 'AAA' %}Bezpečný partner na spoluprácu.{% elif verdict.riskCategory == 'A' %}Stabilná spoločnosť s drobnými rizikami.{% elif verdict.riskCategory == 'B' %}Odporúčame zvýšenú opatrnosť a dodatočnú kontrolu.{% else %}Dôrazne neodporúčame vstupovať do obchodného vzťahu.{% endif %}
-            </p>
             
             {% if verdict.executive_summary %}
             <div class="mb-5 p-4 bg-slate-50 border-l-4 border-slate-600 rounded text-slate-700 text-sm leading-relaxed text-justify shadow-sm">

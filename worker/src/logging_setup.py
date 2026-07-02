@@ -1,6 +1,7 @@
 """Centralized logging + Sentry initialization."""
 import logging
 import sys
+from logging.handlers import RotatingFileHandler
 
 from src.config import settings
 
@@ -43,8 +44,10 @@ def setup_logging(level: int = logging.INFO) -> None:
     root.handlers.clear()
     root.addHandler(handler)
 
-    # File handler pre errors
-    file_handler = logging.FileHandler("errors.log")
+    # Rotating file handler pre errors (max 5MB, 3 backups)
+    file_handler = RotatingFileHandler(
+        "errors.log", maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+    )
     file_handler.setLevel(logging.ERROR)
     file_handler.setFormatter(
         logging.Formatter(
@@ -53,3 +56,14 @@ def setup_logging(level: int = logging.INFO) -> None:
         )
     )
     root.addHandler(file_handler)
+
+    # ── Noise reduction ──────────────────────────────────────────────
+    # matplotlib: kategorické warningy pri generovaní grafov
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+    logging.getLogger("matplotlib.category").setLevel(logging.WARNING)
+    # httpx: každý HTTP request na INFO je zbytočný noise
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    # google_genai: interné info logy
+    logging.getLogger("google_genai").setLevel(logging.WARNING)
+    # asyncio: "Future exception was never retrieved" spam
+    logging.getLogger("asyncio").setLevel(logging.WARNING)

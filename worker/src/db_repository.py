@@ -276,6 +276,7 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
                     'litigationRisks': narrative.litigation_risks,
                     'goingConcernDoubts': narrative.going_concern_doubts,
                     'plannedInvestments': narrative.planned_investments,
+                    'profitabilityExplanation': narrative.profitability_explanation,
                     'forensicRedFlags': narrative.forensic_red_flags,
                     'synthesis': narrative.synthesis
                 },
@@ -284,6 +285,7 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
                     'litigationRisks': narrative.litigation_risks,
                     'goingConcernDoubts': narrative.going_concern_doubts,
                     'plannedInvestments': narrative.planned_investments,
+                    'profitabilityExplanation': narrative.profitability_explanation,
                     'forensicRedFlags': narrative.forensic_red_flags,
                     'synthesis': narrative.synthesis
                 }
@@ -334,11 +336,11 @@ async def save_notes_to_db(ico: str, year: int, notes_risk):
         await db.disconnect()
 
 _avg_cache: dict = {}  # {"value": float, "ts": float}
-_AVG_CACHE_TTL = 300  # 5 minút
+_AVG_CACHE_TTL = 120  # 2 minúty
 
 async def get_avg_completion_seconds(db: Prisma, limit: int = 20) -> Optional[float]:
     """Vráti priemerný čas dokončenia (v sekundách) z posledných N completed/partial reportov.
-    Filtruje outliery > 30 min (stuck/retried reporty). Cacheované na 5 minút."""
+    Filtruje outliery > 10 min (stuck/retried reporty). Cacheované na 2 minúty."""
     import time as _time
     now = _time.perf_counter()
     cached = _avg_cache.get("value")
@@ -354,11 +356,14 @@ async def get_avg_completion_seconds(db: Prisma, limit: int = 20) -> Optional[fl
         for r in rows:
             if r.completedAt and r.createdAt:
                 dur = (r.completedAt - r.createdAt).total_seconds()
-                if 0 < dur < 1800:  # Filter stuck/retried reports > 30 min
+                if 10 < dur < 600:  # Filter stuck/retried reports > 10 min
                     durations.append(dur)
         if not durations:
             return None
-        avg = sum(durations) / len(durations)
+        # Použi median namiesto priemeru — odolnejší voči outliers
+        durations.sort()
+        mid = len(durations) // 2
+        avg = durations[mid] if len(durations) % 2 == 1 else (durations[mid - 1] + durations[mid]) / 2
         _avg_cache["value"] = avg
         _avg_cache["ts"] = now
         return avg

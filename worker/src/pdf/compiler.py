@@ -87,9 +87,12 @@ class PdfCompiler:
 
         # 2. Pomocná funkcia na priradenie start_page s predpokladaným počtom strán cover page.
         def _assign_start_pages(cover_pages: int):
-            start_pages_map['FINANCNY_VYVOJ'] = cover_pages
-            start_pages_map['FORENZNY_POSUDOK'] = cover_pages - 1
-            start_pages_map['SCORING_BREAKDOWN'] = cover_pages - 2
+            start_pages_map['FORENZNY_POSUDOK'] = cover_pages - 5
+            start_pages_map['SCORING_BREAKDOWN'] = cover_pages - 4
+            start_pages_map['SUVAHA'] = cover_pages - 3
+            start_pages_map['VYKAZ_ZISKOV'] = cover_pages - 2
+            start_pages_map['CASH_FLOW'] = cover_pages - 1
+            start_pages_map['FINANCNY_POSUDOK'] = cover_pages
             
             current = cover_pages + 1
             for source in sources:
@@ -105,7 +108,7 @@ class PdfCompiler:
 
         # 3. Odhadneme počet strán cover page podľa počtu zdrojov (vyhneme sa dvojitej generácii).
         success_sources = [s for s in sources if s.status == "SUCCESS"]
-        estimated_cover_pages = 4 if len(success_sources) <= 18 else 5
+        estimated_cover_pages = 7 if len(success_sources) <= 18 else 8
         cover_path = output_dir / "cover_page.pdf"
         _assign_start_pages(estimated_cover_pages)
 

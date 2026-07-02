@@ -1,181 +1,222 @@
-<!-- 3. FINANČNÝ VÝVOJ — grafy a KPI pred posudkom -->
+<!-- ===== PAGE 1: SÚVAHA ===== -->
 <div class="page-break"></div>
 <div class="mb-10 pt-6">
-    <h2 id="financny_vyvoj" class="section-title">Finančný vývoj a štruktúra</h2>
-    
+    <h2 id="suvaha" class="section-title">Súvaha (Balance Sheet)</h2>
     {% if has_mixed_consolidation %}
-    <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-        <p class="text-sm text-amber-800 font-medium flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            Upozornenie: V historických dátach je mix individuálnych a konsolidovaných závierok. Medziročné porovnanie (YoY) môže byť skreslené.
-        </p>
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.</p>
     </div>
     {% endif %}
-
     {% if has_non_standard_months %}
-    <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-        <p class="text-sm text-amber-800 font-medium flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            Upozornenie: Niektoré účtovné obdobia nezodpovedajú 12 mesiacom. Údaje v takýchto obdobiach nie sú anualizované a ich porovnanie môže byť skreslené.
-        </p>
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.</p>
     </div>
     {% endif %}
-    
-    {% if chart_image_base64 or balance_chart_base64 %}
-    <div class="grid grid-cols-2 gap-4 mb-4">
-        {% if chart_image_base64 %}
-        <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm">
-            <img src="data:image/png;base64,{{ chart_image_base64 }}" alt="Vývoj Tržieb a Zisku" class="max-w-full h-auto" style="height: 190px;">
-        </div>
-        {% endif %}
-        {% if balance_chart_base64 %}
-        <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm">
-            <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 190px;">
-        </div>
-        {% endif %}
+    {% if balance_chart_base64 %}
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-4">
+        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 220px;">
     </div>
     {% endif %}
-
-    {% if latest_stmt %}
-    <!-- KPI karty pre posledný rok (6 kartí) -->
-    <div class="grid grid-cols-6 gap-2 mb-4">
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
-            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Aktíva ({{ latest_stmt.year }})</p>
-            <p class="text-sm font-bold text-slate-800">{{ latest_stmt.totalAssets | format_currency }}</p>
-        </div>
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
-            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Tržby ({{ latest_stmt.year }})</p>
-            <p class="text-sm font-bold text-slate-800">{{ latest_stmt.mainActivityRevenue | format_currency }}</p>
-        </div>
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
-            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Vlastné Imanie</p>
-            <p class="text-sm font-bold {% if latest_stmt.equity is not none and latest_stmt.equity < 0 %}text-rose-600{% else %}text-slate-800{% endif %}">{{ latest_stmt.equity | format_currency }}</p>
-        </div>
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
-            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Celkový Dlh (Záväzky)</p>
-            {% set stl = latest_stmt.shortTermLiabilities if latest_stmt.shortTermLiabilities is not none else 0 %}
-            {% set ltl = latest_stmt.longTermLiabilities if latest_stmt.longTermLiabilities is not none else 0 %}
-            {% set total_debt = stl + ltl %}
-            <p class="text-sm font-bold text-rose-600">{{ total_debt | format_currency }}</p>
-        </div>
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
-            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Zisk / Strata</p>
-            <p class="text-sm font-bold {% if latest_stmt.netProfitLoss is not none and latest_stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ latest_stmt.netProfitLoss | format_currency }}</p>
-        </div>
-        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-center">
-            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Hotovosť a účty</p>
-            {% if latest_stmt.cashAndEquivalents is not none %}
-            <p class="text-sm font-bold text-emerald-600">{{ latest_stmt.cashAndEquivalents | format_currency }}</p>
-            {% else %}
-            <p class="text-sm font-medium text-slate-400">N/A</p>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
-    <!-- Tabuľka historických ročníkov s YoY deltami -->
-    <p class="text-[9px] text-slate-400 mb-1">Sumy v mil. € (ak &gt; 1 mil.) alebo tis. €</p>
-    <table class="w-full text-xs border-collapse mt-1">
+    {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
+    <p class="text-[9px] text-slate-400 mb-2">Hodnoty v mil. € (ak &gt; 1 mil.) alebo tis. € — zdroj: RÚZ</p>
+    <table class="w-full text-xs border-collapse">
         <thead>
             <tr class="bg-slate-100">
-                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Rok</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Tržby</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Δ YoY</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Zisk /<br>Strata</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Δ YoY</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Celkový<br>Dlh</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Osobné<br>nákl.</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Pohľadávky</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Záväzky</th>
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">Celk.<br>aktíva</th>
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka</th>
+                {% for stmt in stmts_sorted %}
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</th>
+                {% endfor %}
             </tr>
         </thead>
         <tbody>
-        {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
-        {% for stmt in stmts_sorted %}
-            {% set loop_idx = loop.index0 %}
-            {% if loop_idx > 0 %}
-                {% set prev_stmt = stmts_sorted[loop_idx - 1] %}
-                {% if prev_stmt.mainActivityRevenue and prev_stmt.mainActivityRevenue != 0 and stmt.mainActivityRevenue %}
-                    {% set rev_delta = ((stmt.mainActivityRevenue - prev_stmt.mainActivityRevenue) / prev_stmt.mainActivityRevenue * 100) | round(1) %}
-                {% else %}
-                    {% set rev_delta = none %}
-                {% endif %}
-                {% if prev_stmt.netProfitLoss and prev_stmt.netProfitLoss != 0 and stmt.netProfitLoss %}
-                    {% set pnl_delta = ((stmt.netProfitLoss - prev_stmt.netProfitLoss) / (prev_stmt.netProfitLoss | abs) * 100) | round(1) %}
-                {% else %}
-                    {% set pnl_delta = none %}
-                {% endif %}
-            {% else %}
-                {% set rev_delta = none %}
-                {% set pnl_delta = none %}
-            {% endif %}
-            <tr class="border-b border-slate-100" style="white-space: nowrap;">
-                <td class="py-1.5 px-2 font-semibold text-slate-700">
-                    {{ stmt.year }}
-                    {% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}
-                        <span class="text-amber-500 font-bold" title="{{ stmt.monthsInPeriod }}-mesačné obdobie">*</span>
-                    {% endif %}
-                </td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.mainActivityRevenue | format_number }}</td>
-                <td class="py-1.5 px-2 text-right font-semibold">
-                    {% if rev_delta is not none %}
-                    <span class="{% if rev_delta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                        {% if rev_delta >= 0 %}+{% endif %}{{ rev_delta }}%
-                    </span>
-                    {% else %}<span class="text-slate-300">—</span>{% endif %}
-                </td>
-                <td class="py-1.5 px-2 text-right font-semibold {% if stmt.netProfitLoss is not none and stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ stmt.netProfitLoss | format_number }}</td>
-                <td class="py-1.5 px-2 text-right font-semibold">
-                    {% if pnl_delta is not none %}
-                    <span class="{% if pnl_delta >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">
-                        {% if pnl_delta >= 0 %}+{% endif %}{{ pnl_delta }}%
-                    </span>
-                    {% else %}<span class="text-slate-300">—</span>{% endif %}
-                </td>
-                {% set stmt_debt = (stmt.shortTermLiabilities or 0) + (stmt.longTermLiabilities or 0) %}
-                <td class="py-1.5 px-2 text-right text-rose-600">{{ stmt_debt | format_number }}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.staffCosts %}{{ stmt.staffCosts | format_number }}{% else %}—{% endif %}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.tradeReceivables %}{{ stmt.tradeReceivables | format_number }}{% else %}—{% endif %}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{% if stmt.tradePayables %}{{ stmt.tradePayables | format_number }}{% else %}—{% endif %}</td>
-                <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt.totalAssets | format_number }}</td>
+            {% set balance_rows = [
+                ('Celkové aktíva', 'totalAssets'),
+                ('Obežný majetok', 'currentAssets'),
+                ('Vlastné imanie', 'equity'),
+                ('Krátkodobé záväzky', 'shortTermLiabilities'),
+                ('Dlhodobé záväzky', 'longTermLiabilities'),
+                ('Pohľadávky z obch. styku', 'tradeReceivables'),
+                ('Záväzky z obch. styku', 'tradePayables'),
+            ] %}
+            {% for label, field in balance_rows %}
+            <tr class="border-b border-slate-100">
+                <td class="py-1.5 px-2 font-semibold text-slate-700">{{ label }}</td>
+                {% for stmt in stmts_sorted %}
+                <td class="py-1.5 px-2 text-right text-slate-700">{{ stmt[field] | format_number }}</td>
+                {% endfor %}
             </tr>
-        {% endfor %}
+            {% endfor %}
         </tbody>
     </table>
-    {% elif not chart_image_base64 and not latest_stmt %}
+    {% if has_non_standard_months %}
+    <p class="text-[8px] text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    {% endif %}
+    {% elif not latest_stmt %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+        Finančné závierky z RÚZ neboli dostupné pre toto IČO.
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===== PAGE 2: VÝKAZ ZISKOV A STRÁT ===== -->
+<div class="page-break"></div>
+<div class="mb-10 pt-6">
+    <h2 id="vykaz_ziskov" class="section-title">Výkaz ziskov a strát (P&L)</h2>
+    {% if has_mixed_consolidation %}
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.</p>
+    </div>
+    {% endif %}
+    {% if has_non_standard_months %}
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.</p>
+    </div>
+    {% endif %}
+    {% if pnl_chart_base64 %}
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-4">
+        <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="Výkaz ziskov a strát" class="max-w-full h-auto" style="height: 220px;">
+    </div>
+    {% endif %}
+    {% if company.financialStatements and company.financialStatements|length >= 1 %}
+    {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
+    <p class="text-[9px] text-slate-400 mb-2">Hodnoty v mil. € (ak &gt; 1 mil.) alebo tis. € — zdroj: RÚZ</p>
+    <table class="w-full text-xs border-collapse">
+        <thead>
+            <tr class="bg-slate-100">
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka</th>
+                {% for stmt in stmts_sorted %}
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% set pnl_rows = [
+                ('Tržby z hlavnej činnosti', 'mainActivityRevenue'),
+                ('Hrubá marža', 'grossProfit'),
+                ('Čistý zisk / strata', 'netProfitLoss'),
+                ('Osobné náklady', 'staffCosts'),
+            ] %}
+            {% for label, field in pnl_rows %}
+            <tr class="border-b border-slate-100">
+                <td class="py-1.5 px-2 font-semibold text-slate-700">{{ label }}</td>
+                {% for stmt in stmts_sorted %}
+                <td class="py-1.5 px-2 text-right {% if field == 'netProfitLoss' and stmt[field] is not none and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_number }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if has_non_standard_months %}
+    <p class="text-[8px] text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    {% endif %}
+    {% if latest_stmt and latest_stmt.mainActivityRevenue and latest_stmt.mainActivityRevenue > 0 %}
+    {% set gross_margin = ((latest_stmt.grossProfit or 0) / latest_stmt.mainActivityRevenue * 100) | round(1) %}
+    {% set net_margin = ((latest_stmt.netProfitLoss or 0) / latest_stmt.mainActivityRevenue * 100) | round(1) %}
+    <div class="grid grid-cols-3 gap-3 mt-4">
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Hrubá marža ({{ latest_stmt.year }})</p>
+            {% if latest_stmt.grossProfit is not none %}
+            <p class="text-base font-bold text-slate-800">{{ gross_margin }}%</p>
+            {% else %}
+            <p class="text-base font-medium text-slate-400">N/A</p>
+            {% endif %}
+        </div>
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Čistá marža ({{ latest_stmt.year }})</p>
+            {% if latest_stmt.netProfitLoss is not none %}
+            <p class="text-base font-bold {% if net_margin < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ net_margin }}%</p>
+            {% else %}
+            <p class="text-base font-medium text-slate-400">N/A</p>
+            {% endif %}
+        </div>
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+            <p class="text-[8px] text-slate-500 uppercase font-bold mb-1">Tržby ({{ latest_stmt.year }})</p>
+            <p class="text-base font-bold text-slate-800">{{ latest_stmt.mainActivityRevenue | format_currency }}</p>
+        </div>
+    </div>
+    {% endif %}
+    {% elif not latest_stmt %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+        Finančné závierky z RÚZ neboli dostupné pre toto IČO.
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===== PAGE 3: CASH FLOW ===== -->
+<div class="page-break"></div>
+<div class="mb-10 pt-6">
+    <h2 id="cash_flow" class="section-title">Prehľad peňažných tokov (Cash Flow)</h2>
+    {% if has_mixed_consolidation %}
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.</p>
+    </div>
+    {% endif %}
+    {% if has_non_standard_months %}
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.</p>
+    </div>
+    {% endif %}
+    {% if cashflow_chart_base64 %}
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-4">
+        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 220px;">
+    </div>
+    {% endif %}
+    {% if company.financialStatements and company.financialStatements|length >= 1 %}
+    {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
+    <p class="text-[9px] text-slate-400 mb-2">Hodnoty v mil. € (ak &gt; 1 mil.) alebo tis. € — zdroj: RÚZ</p>
+    <table class="w-full text-xs border-collapse">
+        <thead>
+            <tr class="bg-slate-100">
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka</th>
+                {% for stmt in stmts_sorted %}
+                <th class="text-right py-1.5 px-2 font-bold text-slate-600">{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% set cf_rows = [
+                ('Peniaze a peňažné ekvivalenty', 'cashAndEquivalents'),
+                ('Prevádzkový cash flow', 'operatingCashFlow'),
+            ] %}
+            {% for label, field in cf_rows %}
+            <tr class="border-b border-slate-100">
+                <td class="py-1.5 px-2 font-semibold text-slate-700">{{ label }}</td>
+                {% for stmt in stmts_sorted %}
+                <td class="py-1.5 px-2 text-right {% if stmt[field] is not none and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_number }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if has_non_standard_months %}
+    <p class="text-[8px] text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    {% endif %}
+    {% elif not latest_stmt %}
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
         Finančné závierky z RÚZ neboli dostupné pre toto IČO.
     </div>
     {% endif %}
 
-    {% if is_financial_institution %}
-    <!-- Altman Z-score blok (Vypnuté pre banky/poisťovne) -->
+    {% if latest_stmt and is_financial_institution %}
     <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score — Prediktívny model finančného zdravia</p>
-        <div class="flex gap-3 flex-wrap items-center bg-blue-50 text-blue-700 text-xs p-3 rounded-lg border border-blue-200">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            Model Altman Z-Score nie je aplikovateľný pre finančné inštitúcie (Banky / Poisťovne) pre ich špecifickú štruktúru aktív a pasív.
+        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score</p>
+        <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg border border-blue-200">
+            Model Altman Z-Score nie je aplikovateľný pre finančné inštitúcie (Banky / Poisťovne).
         </div>
     </div>
     {% elif is_startup %}
-    <!-- Altman Z-score blok (Vypnuté pre startupy / pre-revenue firmy) -->
     <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score — Prediktívny model finančného zdravia</p>
+        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score</p>
         <div class="bg-amber-50 text-amber-800 text-xs p-3 rounded-lg border border-amber-200">
-            <div class="flex items-center gap-2 mb-1">
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                <strong>Startup / Pre-revenue profil detekovaný</strong>
-            </div>
-            <p class="ml-6">Altman Z-Score nie je spoľahlivý pre firmy bez tržieb alebo s minimálnymi tržbami, pretože X3 (EBIT/Assets) je záporné kvôli investíciám do vývoja. Hodnotenie je založené na kapitálovej primeranosti a kvalite imania namiesto ziskovosti.</p>
+            <strong>Startup / Pre-revenue profil detekovaný</strong>
+            <p class="mt-1">Altman Z-Score nie je spoľahlivý pre firmy bez tržieb. Hodnotenie je založené na kapitálovej primeranosti.</p>
             {% if startup_info and startup_info.equity %}
-            <p class="ml-6 mt-1 text-amber-600">Vlastné imanie: <strong>{{ startup_info.equity | format_number }} €</strong> · Počet výkazov: {{ startup_info.n_years }}</p>
+            <p class="mt-1 text-amber-600">Vlastné imanie: <strong>{{ startup_info.equity | format_number }} €</strong> · Počet výkazov: {{ startup_info.n_years }}</p>
             {% endif %}
         </div>
     </div>
     {% elif altman_scores and altman_scores|length > 0 %}
-    <!-- Altman Z-score blok -->
     <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
         <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score — Prediktívny model finančného zdravia</p>
         <div class="flex gap-3 flex-wrap">
@@ -195,4 +236,213 @@
         <p class="text-[8px] text-slate-400 mt-2">Interpretácia: Z'' &gt; 2.6 = Bezpečná zóna &nbsp;|&nbsp; 1.1–2.6 = Šedá zóna &nbsp;|&nbsp; &lt; 1.1 = Núdz. zóna (finančný stres)</p>
     </div>
     {% endif %}
+</div>
+
+<!-- ===== PAGE 4: FINANČNÝ POSUDOK ===== -->
+<div class="page-break"></div>
+<div class="mb-10 pt-6">
+    <h2 id="financny_posudok" class="section-title">Finančný posudok</h2>
+    <p class="text-xs text-slate-600 mb-4">Analytické zhodnotenie — kľúčové zistenia, poznámky pod čiarou a názor audítora.</p>
+
+    {% if has_mixed_consolidation %}
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.</p>
+    </div>
+    {% endif %}
+    {% if has_non_standard_months %}
+    <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-xs text-amber-800 font-medium">Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.</p>
+    </div>
+    {% endif %}
+
+    {% if verdict %}
+    <div class="mb-2 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Forenzný posudok</h3>
+        <div class="flex gap-3 mb-2">
+            <!-- Ľavý stĺpec: 2/3 — len text -->
+            <div style="width: 66%;">
+                {% if verdict.executiveSummary %}
+                <p class="text-[10px] text-slate-700 leading-snug">{{ verdict.executiveSummary }}</p>
+                {% endif %}
+            </div>
+            <!-- Pravý stĺpec: 1/3 — 5-pilierový rozpis -->
+            <div style="width: 34%;">
+                {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
+                <div class="bg-white p-2 rounded border border-slate-200">
+                    <p class="text-[8px] font-bold uppercase text-slate-500 mb-1.5 tracking-widest">5-pilierový rozpis</p>
+                    {% for pillar in scorecard_breakdown %}
+                    {% set pct = (pillar.score / pillar.max_score * 100) | round(0) | int %}
+                    {% set bar_color = '#10b981' if pct >= 70 else '#f59e0b' if pct >= 40 else '#ef4444' %}
+                    <div class="mb-1.5">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[8px] text-slate-600 font-semibold">{{ pillar.name }}</span>
+                            <span class="text-[8px] font-bold" style="color: {{ bar_color }};">{{ pillar.score }}/{{ pillar.max_score }}</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-1">
+                            <div class="h-1 rounded-full" style="width: {{ pct }}%; background: {{ bar_color }};"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Plná šírka: skóre karty -->
+        <div class="grid grid-cols-2 gap-2 mb-2">
+            <div class="bg-white p-1.5 rounded border border-slate-200">
+                <p class="text-[7px] text-slate-500 uppercase font-bold">Verifa Skóre</p>
+                <p class="text-sm font-black text-slate-800">{{ verdict.verifaScore }}<span class="text-[9px] text-slate-400">/100</span></p>
+                <p class="text-[8px] font-bold {% if verdict.riskCategory == 'AAA' %}text-emerald-600{% elif verdict.riskCategory == 'A' %}text-blue-600{% elif verdict.riskCategory == 'B' %}text-amber-600{% else %}text-rose-600{% endif %}">{{ verdict.riskCategory }}</p>
+            </div>
+            {% if verdict.debtExposureRating is not none %}
+            <div class="bg-white p-1.5 rounded border border-slate-200">
+                <p class="text-[7px] text-slate-500 uppercase font-bold">Expozícia dlhom</p>
+                <p class="text-sm font-black {% if verdict.debtExposureRating <= 3 %}text-emerald-600{% elif verdict.debtExposureRating <= 6 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ verdict.debtExposureRating }}<span class="text-[9px] text-slate-400">/10</span></p>
+            </div>
+            {% endif %}
+        </div>
+        <!-- Plná šírka: kľúčové riziko -->
+        {% if verdict.keyRisk %}
+        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-2">
+            <p class="text-[8px] text-rose-500 font-bold uppercase">Kľúčové riziko</p>
+            <p class="text-[10px] text-rose-700">{{ verdict.keyRisk }}</p>
+        </div>
+        {% endif %}
+        <!-- Plná šírka: dôkazné položky -->
+        {% if evidence_list and evidence_list|length > 0 %}
+        <div class="border-t border-slate-200 pt-2">
+            <p class="text-[8px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Dôkazné položky</p>
+            <div class="space-y-1">
+                {% for item in evidence_list[:5] %}
+                {% set impact = item.get('impact', 'NEUTRAL') %}
+                {% set bg = '#ecfdf5' if impact == 'POSITIVE' else '#fffbeb' if impact == 'WARNING' else '#fef2f2' if impact == 'CRITICAL' else '#f8fafc' %}
+                {% set border_c = '#10b981' if impact == 'POSITIVE' else '#f59e0b' if impact == 'WARNING' else '#ef4444' if impact == 'CRITICAL' else '#e2e8f0' %}
+                {% set label_c = '#059669' if impact == 'POSITIVE' else '#d97706' if impact == 'WARNING' else '#dc2626' if impact == 'CRITICAL' else '#64748b' %}
+                <div class="p-1 rounded border" style="background: {{ bg }}; border-color: {{ border_c }};">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[7px] font-bold uppercase px-1 py-0.5 rounded" style="color: {{ label_c }}; background: white;">{{ impact }}</span>
+                        {% if item.get('zdroj') %}<span class="text-[7px] text-slate-400">{{ item.zdroj }}</span>{% endif %}
+                    </div>
+                    {% if item.get('tvrdenie') %}<p class="text-[9px] text-slate-700 leading-snug">{{ item.tvrdenie }}</p>{% endif %}
+                    {% if item.get('dokaz') %}<p class="text-[8px] text-slate-500 leading-snug">→ {{ item.dokaz }}</p>{% endif %}
+                </div>
+                {% endfor %}
+                {% if evidence_list|length > 5 %}
+                <p class="text-[7px] text-slate-400 italic">+{{ evidence_list|length - 5 }} ďalších...</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if latest_stmt %}
+    <div class="grid grid-cols-3 gap-2 mb-2">
+        <div class="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
+            <p class="text-[7px] text-slate-500 uppercase font-bold">Aktíva ({{ latest_stmt.year }})</p>
+            <p class="text-xs font-bold text-slate-800">{{ latest_stmt.totalAssets | format_currency }}</p>
+        </div>
+        <div class="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
+            <p class="text-[7px] text-slate-500 uppercase font-bold">Tržby ({{ latest_stmt.year }})</p>
+            <p class="text-xs font-bold text-slate-800">{{ latest_stmt.mainActivityRevenue | format_currency }}</p>
+        </div>
+        <div class="bg-slate-50 p-2 rounded-lg border border-slate-200 text-center">
+            <p class="text-[7px] text-slate-500 uppercase font-bold">Zisk / Strata</p>
+            <p class="text-xs font-bold {% if latest_stmt.netProfitLoss is not none and latest_stmt.netProfitLoss < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ latest_stmt.netProfitLoss | format_currency }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if latest_stmt and latest_stmt.auditorOpinion %}
+    <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Názor audítora ({{ latest_stmt.year }})</h3>
+        <p class="text-xs font-bold text-slate-800">{{ latest_stmt.auditorOpinion.opinionType }}</p>
+        {% if latest_stmt.auditorOpinion.goingConcernRisk %}
+        <p class="text-[10px] text-rose-600 font-medium">⚠ Going Concern: Audítor vyjadril pochybnosti o schopnosti pokračovať v činnosti</p>
+        {% endif %}
+        {% if latest_stmt.auditorOpinion.reservationText %}
+        <p class="text-[10px] text-slate-600">{{ latest_stmt.auditorOpinion.reservationText }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if latest_stmt and latest_stmt.narrativeRisk %}
+    <div class="mb-2">
+        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Strategický kontext (Výročná správa)</h3>
+        {% if latest_stmt.narrativeRisk.synthesis %}
+        <p class="text-[10px] text-slate-700 leading-snug mb-2">{{ latest_stmt.narrativeRisk.synthesis }}</p>
+        {% endif %}
+        {% if latest_stmt.narrativeRisk.goingConcernDoubts %}
+        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
+            <p class="text-[10px] text-rose-700 font-medium">⚠ Going Concern pochybnosti z výročnej správy</p>
+        </div>
+        {% endif %}
+        {% if latest_stmt.narrativeRisk.forensicRedFlags and latest_stmt.narrativeRisk.forensicRedFlags|length > 0 %}
+        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
+            <p class="text-[9px] font-bold uppercase text-rose-500 mb-0.5">Forenzné red flags</p>
+            <ul class="space-y-0.5">
+                {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
+                <li class="text-[10px] text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        <div class="grid grid-cols-2 gap-2">
+            {% if latest_stmt.narrativeRisk.managementChanges %}
+            <div><p class="text-[8px] text-slate-500 font-bold">Zmeny vo vedení</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.plannedInvestments %}
+            <div><p class="text-[8px] text-slate-500 font-bold">Plánované investície</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.profitabilityExplanation %}
+            <div class="col-span-2"><p class="text-[8px] text-slate-500 font-bold">Vysvetlenie výkyvov ziskovosti</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.litigationRisks %}
+            <div class="col-span-2"><p class="text-[8px] text-rose-500 font-bold">Súdne spory / Právne riziká</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if latest_stmt and latest_stmt.notesRisk %}
+    <div class="mb-2">
+        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Kľúčové poznámky pod čiarou</h3>
+        <div class="grid grid-cols-1 gap-1.5">
+            {% if latest_stmt.notesRisk.relatedPartyTransactions %}
+            <div class="p-2 bg-slate-50 rounded border border-slate-200">
+                <p class="text-[8px] text-slate-500 font-bold">Transakcie so spojenými osobami</p>
+                <p class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
+            <div class="p-2 bg-slate-50 rounded border border-slate-200">
+                <p class="text-[8px] text-slate-500 font-bold">Mimobilančné záväzky</p>
+                <p class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.contingentRisks %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200">
+                <p class="text-[8px] text-amber-600 font-bold">Kontingentné riziká</p>
+                <p class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not latest_stmt %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+        Finančné závierky z RÚZ neboli dostupné pre toto IČO.
+    </div>
+    {% endif %}
+
+    <div class="mt-3 pt-2 border-t border-slate-200">
+        <p class="text-[9px] text-slate-500 leading-relaxed">
+            Tento report bol vygenerovaný automatizovaným systémom Verifa.sk na základe verejne dostupných údajov z štátnych registrov a účtovných závierok. 
+            Obsah slúži výhradne na informatívne účely. 
+            Verifa.sk nenesie zodpovednosť za presnosť, úplnosť ani aktuálnosť uvádzaných údajov. 
+            Tento dokument nenahrádza oficiálny audit, daňové, právne ani investičné poradenstvo. 
+            Pri rozhodovaní o obchodnom vzťahu, investícii alebo úverovom rozhodnutí si používateľ povinne overí údaje u príslušných originálnych zdrojov a v prípade potreby vyhľadá odborné posúdenie oprávnenej osoby.
+        </p>
+    </div>
 </div>

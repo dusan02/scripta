@@ -128,7 +128,7 @@ export default function PlanPage() {
           Paušál{planLabel ? ` - ${planLabel}` : ""}
         </h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          Prehľad vašich reportov a spotreby
+          {t("plan.prehlad")}
         </p>
       </div>
 
@@ -136,20 +136,16 @@ export default function PlanPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {/* Total credits (paušál) */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center mb-3"
-            style={{ background: "var(--info-bg)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--info)" }}>
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v12M9 9h6M9 15h6" />
-            </svg>
+          <div className="flex flex-wrap gap-[2px] justify-center mb-3 max-w-[120px]">
+            {Array.from({ length: data.totalCredits }).map((_, i) => (
+              <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
+            ))}
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>
             {data.totalCredits}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            Celkový paušál
+            {t("plan.celkovyPausal")}
           </span>
         </div>
 
@@ -168,7 +164,7 @@ export default function PlanPage() {
             {data.successfulReports}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            Úspešné reporty
+            {t("plan.uspesne")}
           </span>
         </div>
 
@@ -187,30 +183,26 @@ export default function PlanPage() {
             {data.failedReports}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            Neúspešné reporty
+            {t("plan.neuspesne")}
           </span>
         </div>
 
         {/* Remaining */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center mb-3"
-            style={{ background: "var(--accent-light)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent)" }}>
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
+          <div className="flex flex-wrap gap-[2px] justify-center mb-3 max-w-[120px]">
+            {Array.from({ length: data.remaining }).map((_, i) => (
+              <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--success)" }} />
+            ))}
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
-            {data.remaining} €
+            {data.remaining}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            Zostáva kreditov
+            {t("plan.zostava")}
           </span>
           {data.daysRemaining !== null && (
             <span className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
-              {data.daysRemaining} dní do obnovenia
+              {t("plan.dniDoObnovenia", { days: data.daysRemaining })}
             </span>
           )}
         </div>
@@ -218,27 +210,27 @@ export default function PlanPage() {
 
       {/* Period info */}
       <div className="text-center mb-6 text-xs" style={{ color: "var(--text-muted)" }}>
-        Obdobie: {periodStart} — {periodEnd}
+        {t("plan.obdobie")}: {periodStart} — {periodEnd}
       </div>
 
       {/* Recent reports */}
       <div className="card p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-            Posledné reporty
+            {t("plan.posledne")}
           </h2>
           <Link
             href="/history"
             className="text-xs font-medium transition-colors hover:opacity-80"
             style={{ color: "var(--accent)" }}
           >
-            Zobraziť všetky →
+            {t("plan.zobrazitVsetky")}
           </Link>
         </div>
 
         {data.recentReports.length === 0 ? (
           <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>
-            Zatiaľ žiadne reporty.
+            {t("plan.ziadneReporty")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -251,7 +243,7 @@ export default function PlanPage() {
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
-                    {r.companyName || r.ico || "Neznámy subjekt"}
+                    {r.companyName || r.ico || t("plan.neznamySubjekt")}
                   </span>
                   {r.ico && (
                     <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
@@ -270,7 +262,7 @@ export default function PlanPage() {
                       color: r.status === "COMPLETED" ? "var(--success)" : r.status === "FAILED" ? "var(--danger)" : "var(--warning)",
                     }}
                   >
-                    {r.status === "COMPLETED" ? "Dokončený" : r.status === "FAILED" ? "Zlyhaný" : r.status === "PARTIAL" ? "Čiastočný" : "Prebieha"}
+                    {r.status === "COMPLETED" ? t("plan.dokonceny") : r.status === "FAILED" ? t("plan.zlyhany") : r.status === "PARTIAL" ? t("plan.ciastocny") : t("plan.prebieha")}
                   </span>
                 </div>
               </Link>
@@ -288,7 +280,7 @@ export default function PlanPage() {
         }}
       >
         <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-          Potrebujete viac reportov?
+          {t("plan.potrebujeteViac")}
         </p>
         <a
           href="mailto:info@verifa.sk"
@@ -298,7 +290,7 @@ export default function PlanPage() {
             color: "#000000",
           }}
         >
-          Kontaktujte nás
+          {t("plan.kontaktujte")}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>

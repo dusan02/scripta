@@ -59,7 +59,14 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
   
   useEffect(() => { setLocalReports(reports); }, [reports]);
   
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    // Refresh server data when dashboard becomes visible (e.g. navigating back from report)
+    const onFocus = () => router.refresh();
+    window.addEventListener("focus", onFocus);
+    router.refresh();
+    return () => window.removeEventListener("focus", onFocus);
+  }, [router]);
   const timeAgoSafe = useMemo(
     () => (date: string) => mounted ? timeAgo(date, t, locale) : "",
     [mounted, t, locale]

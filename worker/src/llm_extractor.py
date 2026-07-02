@@ -9,6 +9,13 @@ from src.config import settings
 
 logger = logging.getLogger(__name__)
 
+# ── Token cost accumulator ────────────────────────────────────────────
+_token_stats: dict[str, dict] = {}
+
+def reset_token_stats() -> None:
+    """Reset accumulator na začiatku nového reportu."""
+    _token_stats.clear()
+
 def _log_tokens(model: str, usage, label: str) -> None:
     """Zaloguje spotrebu tokenov a odhadnuté náklady pre jedno LLM volanie."""
     if not usage:
@@ -21,6 +28,32 @@ def _log_tokens(model: str, usage, label: str) -> None:
         f"[LLM] {label} | model={model} "
         f"in={inp:,} out={out:,} tok "
         f"cost=${cost_usd:.5f}"
+    )
+    # Accumulate
+    if model not in _token_stats:
+        _token_stats[model] = {"calls": 0, "input": 0, "output": 0, "cost": 0.0}
+    _token_stats[model]["calls"] += 1
+    _token_stats[model]["input"] += inp
+    _token_stats[model]["output"] += out
+    _token_stats[model]["cost"] += cost_usd
+
+def log_token_summary() -> None:
+    """Zaloguje súhrn token cost za celý report."""
+    if not _token_stats:
+        return
+    total_cost = 0.0
+    total_in = 0
+    total_out = 0
+    parts = []
+    for model, stats in _token_stats.items():
+        total_cost += stats["cost"]
+        total_in += stats["input"]
+        total_out += stats["output"]
+        parts.append(f"{model}: {stats['calls']} calls, {stats['input']:,}+{stats['output']:,} tok, ${stats['cost']:.4f}")
+    logger.info(
+        f"[LLM SUMMARY] total: {len(_token_stats)} models, "
+        f"{total_in:,}+{total_out:,} tok, ${total_cost:.4f} | "
+        f"{' | '.join(parts)}"
     )
 
 class AuditorReportData(BaseModel):

@@ -104,7 +104,7 @@ async def run_and_save_audit_verdict(ico: str):
         logger.info(f"Spúšťam Chief Auditora (The Verifa Scorer) pre IČO: {ico}. Nájdené PDF na analýzu: {len(debt_pdfs)}")
         verdict = await safe_llm_call(
             evaluate_audit_verdict, company_data, debt_pdfs,
-            model="gemini-2.5-pro",
+            model=settings.model_verdict,
             label="Chief Auditor"
         )
         
@@ -120,6 +120,7 @@ async def run_and_save_audit_verdict(ico: str):
                     'riskCategory': verdict.risk_category,
                     'debtExposureRating': verdict.debt_exposure_rating,
                     'finalVerdict': verdict.final_verdict,
+                    'executiveSummary': verdict.executive_summary,
                     'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
                     'keyRisk': verdict.kľúčové_riziko,
                     'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
@@ -129,6 +130,7 @@ async def run_and_save_audit_verdict(ico: str):
                     'riskCategory': verdict.risk_category,
                     'debtExposureRating': verdict.debt_exposure_rating,
                     'finalVerdict': verdict.final_verdict,
+                    'executiveSummary': verdict.executive_summary,
                     'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
                     'keyRisk': verdict.kľúčové_riziko,
                     'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
@@ -207,12 +209,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         else:
             await db.company.create(data={'ico': ico, 'name': fallback_name})
 
-        await update_ai_status(db, report_request_id, "Sťahovanie dát a štrukturálna príprava", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.downloading", _remaining_eta(_t_start))
         
         # 1. Stiahnutie z RÚZ (IFRS a VS)
         downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
         
-        await update_ai_status(db, report_request_id, "Analýza účtovných závierok", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start))
         
         # 2. Rozdelenie súborov na IFRS a VS
         ifrs_files = []
@@ -361,12 +363,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 if notes_data:
                     break # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
 
-        await update_ai_status(db, report_request_id, "Analýza rizík a udalostí (Vestník)", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.risk_analysis", _remaining_eta(_t_start))
         
         # Počkáme, kým sa dokončí úloha s Vestníkom (väčšinou sa stihne počas PDF)
         await vestnik_task
             
-        await update_ai_status(db, report_request_id, "Záverečný forenzný posudok", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.final_verdict", _remaining_eta(_t_start))
         
         # 4. Sudca (Chief Auditor) sa spúšťa z main.py PO dokončení scraperov,
         # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia).

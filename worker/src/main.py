@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 import asyncio
 import logging
@@ -27,6 +28,7 @@ from .models import ReportTask
 from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 from .cleanup import _cleanup_loop
+from .llm_extractor import reset_token_stats, log_token_summary
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -115,7 +117,10 @@ def _determine_final_status(sources) -> str:
 async def _execute_report_inner(task: ReportTask) -> None:
     """Interná implementácia — volaná pod semaphore."""
     t_start = time.perf_counter()
-    logger.info(f"[WORKER] Starting report {task.report_request_id} for ICO {task.ico}")
+    _rid = task.report_request_id[:12]  # krátky ID pre logy
+    _log = logging.LoggerAdapter(logger, {"rid": _rid})
+    _log.info(f"[{_rid}] Starting report for ICO {task.ico}")
+    reset_token_stats()
     report_dir = settings.results_dir / task.report_request_id
     report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -129,8 +134,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         # Nastavíme počiatočný ETA z historických dát, aby frontend zobrazil odhad hneď
         avg_seconds = await get_avg_completion_seconds(pool)
-        initial_eta = int(avg_seconds) if avg_seconds and avg_seconds > 0 else 130
-        await update_report_ai_status(pool, task.report_request_id, "Preverovanie štátnych registrov", initial_eta)
+        initial_eta = int(avg_seconds) if avg_seconds and avg_seconds > 0 else 240
+        await update_report_ai_status(pool, task.report_request_id, "ai.checking_registers", initial_eta)
 
         playwright = await async_playwright().start()
         browser = await playwright.chromium.launch(headless=settings.playwright_headless)
@@ -161,10 +166,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
         ai_task = None
         if task.target_type == "COMPANY" and task.ico:
             from src.pipeline import process_company
-            logger.info(f"[WORKER] Spúšťam AI Forenznú Pipeline paralelne pre IČO: {task.ico}")
+            _log.info(f"[{_rid}] Spúšťam AI Forenznú Pipeline paralelne pre IČO: {task.ico}")
             ai_task = asyncio.create_task(process_company(task.ico, task.report_request_id))
 
-        logger.info(f"[WORKER] Spúšťam {len(task.sources)} scraperov pre IČO: {task.ico}")
+        _log.info(f"[{_rid}] Spúšťam {len(task.sources)} scraperov pre IČO: {task.ico}")
         try:
             sources = await asyncio.wait_for(
                 run_scrapers(
@@ -180,21 +185,22 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 timeout=180,
             )
         except asyncio.TimeoutError:
-            logger.warning(f"[WORKER] Scraperi prekročili 180s limit — pokračujem s dostupnými výsledkami.")
+            _log.warning(f"[{_rid}] Scraperi prekročili 180s limit — pokračujem s dostupnými výsledkami.")
             sources = []
         
         if _background_tasks:
             await asyncio.gather(*_background_tasks, return_exceptions=True)
 
         t_scrape = time.perf_counter()
-        logger.debug(f"[WORKER] Scrapers done ({t_scrape - t_browser:.2f}s): {[f'{s.source_type}:{s.status}' for s in sources]}")
+        _source_summary = ', '.join(f'{s.source_type}:{s.status}' for s in sources)
+        _log.info(f"[{_rid}] Scrapers done ({t_scrape - t_browser:.1f}s): {_source_summary}")
 
         # ── Retry failed scrapers (one pass) ──────────────────────────────
         failed_sources = [s for s in sources if s.status == "FAILED"]
         if failed_sources:
             failed_types = [s.source_type for s in failed_sources]
-            logger.info(f"[WORKER] Retrying {len(failed_types)} failed scrapers: {failed_types}")
-            await update_report_ai_status(pool, task.report_request_id, "Opakovaný pokus o stiahnutie registrov", 30)
+            _log.info(f"[{_rid}] Retrying {len(failed_types)} failed scrapers: {failed_types}")
+            await update_report_ai_status(pool, task.report_request_id, "ai.retrying", 60)
             await asyncio.sleep(3)
 
             retry_results = await run_scrapers(
@@ -214,10 +220,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 if s.source_type in retry_map:
                     retry_result = retry_map[s.source_type]
                     if retry_result.status == "SUCCESS":
-                        logger.info(f"[WORKER] Retry succeeded for {s.source_type}")
+                        _log.info(f"[{_rid}] Retry succeeded for {s.source_type}")
                         sources[i] = retry_result
                     else:
-                        logger.warning(f"[WORKER] Retry failed again for {s.source_type}: {retry_result.status}")
+                        _log.warning(f"[{_rid}] Retry failed again for {s.source_type}: {retry_result.status}")
 
         await upsert_report_sources(pool, task.report_request_id, sources)
 
@@ -228,7 +234,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
             try:
                 await ai_task
             except Exception as ai_err:
-                logger.error(f"[WORKER] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
+                _log.error(f"[{_rid}] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
+
+        # ETA update: Chief Auditor + kompilácia zvyčajne trvajú ~90s
+        await update_report_ai_status(pool, task.report_request_id, "ai.forensic_analysis", 90)
 
         # Update Company.name ak scraper extrahoval reálny názov (AI pipeline mohla nastaviť placeholder)
         if company_name:
@@ -237,9 +246,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     'UPDATE "Company" SET name = $1, "updatedAt" = NOW() WHERE ico = $2',
                     company_name, task.ico
                 )
-                logger.info(f"[WORKER] Company name updated to: {company_name}")
+                _log.info(f"[{_rid}] Company name updated to: {company_name}")
             except Exception as e:
-                logger.warning(f"[WORKER] Failed to update company name: {e}")
+                _log.warning(f"[{_rid}] Failed to update company name: {e}")
 
         # Chief Auditor (sudca) sa spúšťa PO dokončení scraperov aj AI pipeline,
         # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia)
@@ -249,13 +258,29 @@ async def _execute_report_inner(task: ReportTask) -> None:
             try:
                 await run_and_save_audit_verdict(task.ico)
             except Exception as verdict_err:
-                logger.error(f"[WORKER] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
+                _log.error(f"[{_rid}] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
 
-        compile_eta = 50
-        avg_seconds = await get_avg_completion_seconds(pool)
-        if avg_seconds and float(avg_seconds) > 0:
-            compile_eta = max(10, int(float(avg_seconds) * 0.2))
-        await update_report_ai_status(pool, task.report_request_id, "Kompilácia vizuálneho PDF reportu", compile_eta)
+        # Skip REGISTER_UZ PDF ak obsahuje "Údaje nie sú dostupné" (IFRS firmy)
+        # Dáta sú už v cover page (Finančný vývoj a štruktúra) z AI extrakcie
+        for s in sources:
+            if s.source_type == "REGISTER_UZ" and s.status == "SUCCESS" and s.file_path:
+                try:
+                    import fitz
+                    doc = fitz.open(s.file_path)
+                    text = "".join(page.get_text() for page in doc)
+                    doc.close()
+                    if "Údaje nie sú dostupné v štruktúrovanej podobe" in text:
+                        _log.info(f"[{_rid}] REGISTER_UZ: údaje nedostupné (IFRS) — dáta extrahované AI")
+                        s.status = "SUCCESS"
+                        s.status_message = "IFRS závierky analyzované AI — pozri Finančnú analýzu v reporte"
+                        s.file_path = None
+                        s.page_count = 0
+                except Exception as e:
+                    _log.warning(f"[{_rid}] REGISTER_UZ skip check zlyhal: {e}")
+
+        # ETA pre kompiláciu: reálne trvá 40-90s (cover page + merge + post-process)
+        compile_eta = 60
+        await update_report_ai_status(pool, task.report_request_id, "ai.compiling", compile_eta)
 
         compiler = PdfCompiler(settings.results_dir)
         final_path = await compiler.compile(
@@ -266,7 +291,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             company_name=company_name,
         )
         t_compile = time.perf_counter()
-        logger.debug(f"[WORKER] PDF compiled ({t_compile - t_scrape:.2f}s): {final_path}")
+        _log.info(f"[{_rid}] PDF compiled ({t_compile - t_scrape:.1f}s): {final_path.name}")
 
         # Aktualizujeme pageCount v DB podľa reálnych hodnôt zistených compilerom
         from src.db import update_source_page_counts
@@ -281,12 +306,12 @@ async def _execute_report_inner(task: ReportTask) -> None:
             debug_dir = report_dir / "debug"
             if debug_dir.exists():
                 shutil.rmtree(debug_dir, ignore_errors=True)
-            logger.debug(f"[WORKER] Cleanup: medziprodukty zmazané z {report_dir}")
+            _log.debug(f"[{_rid}] Cleanup: medziprodukty zmazané")
         except Exception as cleanup_err:
-            logger.warning(f"[WORKER] Cleanup zlyhal: {cleanup_err}")
+            _log.warning(f"[{_rid}] Cleanup zlyhal: {cleanup_err}")
 
         final_status = _determine_final_status(sources)
-        logger.info(f"[WORKER] Final status: {final_status}")
+        _log.info(f"[{_rid}] Final status: {final_status}")
 
         # Automaticky vytvor bug report ak status je FAILED
         if final_status == "FAILED":
@@ -302,7 +327,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         if final_status == "COMPLETED":
             await _charge_credit(pool, task.report_request_id)
         else:
-            logger.info(f"[WORKER] Status {final_status} — kredit neodpočítaný")
+            _log.info(f"[{_rid}] Status {final_status} — kredit neodpočítaný")
 
         await update_report_status(
             pool,
@@ -312,10 +337,15 @@ async def _execute_report_inner(task: ReportTask) -> None:
             company_name=company_name,
         )
         t_end = time.perf_counter()
-        logger.info(f"[WORKER] Report completed — total {t_end - t_start:.2f}s (browser {t_browser - t_start:.2f}s, scrapers {t_scrape - t_browser:.2f}s, compile {t_compile - t_scrape:.2f}s)")
+        log_token_summary()
+        _log.info(
+            f"[{_rid}] Report completed — total {t_end - t_start:.1f}s "
+            f"(browser {t_browser - t_start:.1f}s, scrapers {t_scrape - t_browser:.1f}s, compile {t_compile - t_scrape:.1f}s) "
+            f"sources: {_source_summary}"
+        )
     except Exception as exc:
         # Ak celý worker zlyhá, report označíme ako FAILED.
-        logger.error(f"[WORKER] Report {task.report_request_id} failed", exc_info=True)
+        _log.error(f"[{_rid}] Report {task.report_request_id} failed", exc_info=True)
         if pool:
             await update_report_status(pool, task.report_request_id, "FAILED")
             await create_bug_report(

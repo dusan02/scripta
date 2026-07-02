@@ -78,6 +78,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
         return;
       }
 
+      router.refresh();
       router.push(`/reports/${data.reportRequestId}`);
     } catch {
       setError(t("form.sietovaChyba"));

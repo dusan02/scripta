@@ -61,17 +61,65 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
-                        <a href="#financny_vyvoj" class="hover:underline">Finančný vývoj a štruktúra ↗</a>
+                        <a href="#suvaha" class="hover:underline">Súvaha (Balance Sheet) ↗</a>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
                         <span>✓</span> Súčasťou reportu
                     </div>
                 </td>
                 <td class="text-slate-700 leading-snug">
-                    Základné finančné ukazovatele, medziročný vývoj, Altman Z-Score a grafický vývoj tržieb.
+                    Štruktúra aktív a pasív, medziročný vývoj majetku a záväzkov s grafom.
                 </td>
                 <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
-                    {{ start_pages_map.get('FINANCNY_VYVOJ', '—') }}
+                    {{ start_pages_map.get('SUVAHA', '—') }}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                        <a href="#vykaz_ziskov" class="hover:underline">Výkaz ziskov a strát (P&L) ↗</a>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        <span>✓</span> Súčasťou reportu
+                    </div>
+                </td>
+                <td class="text-slate-700 leading-snug">
+                    Tržby, marže, ziskovosť a osobné náklady s grafickým vývojom.
+                </td>
+                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                    {{ start_pages_map.get('VYKAZ_ZISKOV', '—') }}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                        <a href="#cash_flow" class="hover:underline">Prehľad peňažných tokov (Cash Flow) ↗</a>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        <span>✓</span> Súčasťou reportu
+                    </div>
+                </td>
+                <td class="text-slate-700 leading-snug">
+                    Peňažné toky z prevádzky, likvidita a Altman Z-Score s grafom.
+                </td>
+                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                    {{ start_pages_map.get('CASH_FLOW', '—') }}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                        <a href="#financny_posudok" class="hover:underline">Finančný posudok ↗</a>
+                    </div>
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        <span>✓</span> Súčasťou reportu
+                    </div>
+                </td>
+                <td class="text-slate-700 leading-snug">
+                    Názor audítora, forenzné red flags, poznámky pod čiarou a strategický kontext.
+                </td>
+                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                    {{ start_pages_map.get('FINANCNY_POSUDOK', '—') }}
                 </td>
             </tr>
             {% for cat_name, cat_sources in grouped_sources %}
@@ -79,6 +127,7 @@
                 <td colspan="3">{{ cat_name }}</td>
             </tr>
                 {% for source in cat_sources %}
+                {% if source.source_type != "REGISTER_UZ" %}
                 {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ"] %}
                 {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
                 
@@ -142,6 +191,7 @@
                         {{ start_pages_map.get(source.source_type, '—') }}
                     </td>
                 </tr>
+                {% endif %}
                 {% endfor %}
             {% endfor %}
         </tbody>

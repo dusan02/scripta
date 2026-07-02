@@ -248,17 +248,18 @@ model AuditorOpinion {
 }
 
 model NarrativeRiskAnalysis {
-  id                    String             @id @default(uuid())
-  financialStatementId  String             @unique
-  managementChanges     String?            @db.Text
-  litigationRisks       String?            @db.Text
-  goingConcernDoubts    Boolean
-  plannedInvestments    String?            @db.Text
-  forensicRedFlags      String[]
-  synthesis             String             @db.Text
-  createdAt             DateTime           @default(now())
+  id                       String             @id @default(uuid())
+  financialStatementId     String             @unique
+  managementChanges        String?            @db.Text
+  litigationRisks          String?            @db.Text
+  goingConcernDoubts       Boolean
+  plannedInvestments       String?            @db.Text
+  profitabilityExplanation String?            @db.Text
+  forensicRedFlags         String[]
+  synthesis                String             @db.Text
+  createdAt                DateTime           @default(now())
 
-  statement             FinancialStatement @relation(fields: [financialStatementId], references: [id])
+  statement                FinancialStatement @relation(fields: [financialStatementId], references: [id])
 }
 
 model NotesRiskAnalysis {

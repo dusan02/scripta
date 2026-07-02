@@ -11,6 +11,9 @@ from jinja2 import Environment, FileSystemLoader
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 from src.analytics import compute_altman_z_score
 
 logger = logging.getLogger(__name__)
@@ -158,11 +161,91 @@ def generate_balance_sheet_chart(statements) -> str:
     
     # Uloženie do pamäte ako base64
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', transparent=False)
+    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
     plt.close(fig)
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
+
+def generate_pnl_chart(statements) -> str:
+    """Vygeneruje stĺpcový graf: Tržby, Hrubá marža, Čistý zisk za roky."""
+    if not statements or len(statements) < 2:
+        return ""
+    statements = sorted(statements, key=lambda x: x.year)
+    years = [str(s.year) for s in statements]
+    revenues = [s.mainActivityRevenue or 0 for s in statements]
+    gross = [s.grossProfit or 0 for s in statements]
+    net = [s.netProfitLoss or 0 for s in statements]
+
+    sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
+    fig, ax = plt.subplots(figsize=(8, 3.5), dpi=150)
+    x = np.arange(len(years))
+    w = 0.25
+    ax.bar(x - w, revenues, w, color='#1e293b', label='Tržby')
+    ax.bar(x, gross, w, color='#3b82f6', label='Hrubá marža')
+    net_colors = ['#10b981' if v >= 0 else '#ef4444' for v in net]
+    ax.bar(x + w, net, w, color=net_colors)
+    ax.set_xticks(x)
+    ax.set_xticklabels(years)
+    ax.set_ylabel('EUR', fontsize=10, color='#64748b', fontweight='bold')
+    ax.tick_params(axis='x', colors='#64748b')
+    ax.tick_params(axis='y', colors='#64748b')
+    sns.despine(left=True, bottom=True)
+    legend_handles = [
+        Patch(facecolor='#1e293b', label='Tržby'),
+        Patch(facecolor='#3b82f6', label='Hrubá marža'),
+        Patch(facecolor='#10b981', label='Čistý zisk'),
+        Patch(facecolor='#ef4444', label='Čistá strata'),
+    ]
+    ax.legend(handles=legend_handles, loc='upper left', frameon=False, fontsize=9, labelcolor='#475569')
+    ax.set_title('Výkaz ziskov a strát', fontsize=12, fontweight='bold', color='#0f172a', pad=12)
+    def _fmt(x, pos):
+        if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
+        if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
+        return f'{x:.0f}'
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(_fmt))
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
+def generate_cashflow_chart(statements) -> str:
+    """Vygeneruje graf: Prevádzkový cash flow a Cash balance za roky."""
+    if not statements or len(statements) < 2:
+        return ""
+    statements = sorted(statements, key=lambda x: x.year)
+    years = [str(s.year) for s in statements]
+    ocf = [s.operatingCashFlow or 0 for s in statements]
+    cash = [s.cashAndEquivalents or 0 for s in statements]
+
+    sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
+    fig, ax = plt.subplots(figsize=(8, 3.5), dpi=150)
+    ocf_colors = ['#10b981' if v >= 0 else '#ef4444' for v in ocf]
+    ax.bar(years, ocf, color=ocf_colors, alpha=0.85, width=0.5)
+    ax.plot(years, cash, marker='D', color='#1e293b', linewidth=2, markersize=7, label='Cash & ekvivalenty', linestyle='--')
+    ax.set_ylabel('EUR', fontsize=10, color='#64748b', fontweight='bold')
+    ax.tick_params(axis='x', colors='#64748b')
+    ax.tick_params(axis='y', colors='#64748b')
+    sns.despine(left=True, bottom=True)
+    legend_handles = [
+        Patch(facecolor='#10b981', label='Pozitívny CF'),
+        Patch(facecolor='#ef4444', label='Negatívny CF'),
+        Line2D([0], [0], color='#1e293b', linestyle='--', marker='D', markersize=7, label='Cash & ekvivalenty'),
+    ]
+    ax.legend(handles=legend_handles, loc='upper left', frameon=False, fontsize=9, labelcolor='#475569')
+    ax.set_title('Peňažné toky a likvidita', fontsize=12, fontweight='bold', color='#0f172a', pad=12)
+    def _fmt(x, pos):
+        if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
+        if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
+        return f'{x:.0f}'
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(_fmt))
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
 
 import re
 from xml.sax.saxutils import escape as xml_escape
@@ -246,6 +329,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     if stmts and len(stmts) >= 2:
         chart_base64 = generate_financial_chart(stmts)
         balance_chart_base64 = generate_balance_sheet_chart(stmts)
+        pnl_chart_base64 = generate_pnl_chart(stmts)
+        cashflow_chart_base64 = generate_cashflow_chart(stmts)
+    else:
+        pnl_chart_base64 = ""
+        cashflow_chart_base64 = ""
     
     # Načítanie Verifa loga
     current_dir = Path(__file__).parent
@@ -326,7 +414,6 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
 
     # Vypnutie Altman Z-Score pre finančné inštitúcie (NACE 64, 65, 66) alebo "banka"/"poisťovňa" v názve
     is_financial_institution = False
-    import re
     if company.naceCode and company.naceCode.startswith(("64", "65", "66")):
         is_financial_institution = True
     elif company.name and re.search(r'\bbanka\b|\bpoisťovňa\b', company.name.lower()):
@@ -356,6 +443,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "vestnik_events": vestnik_events,
         "chart_image_base64": chart_base64,
         "balance_chart_base64": balance_chart_base64,
+        "pnl_chart_base64": pnl_chart_base64,
+        "cashflow_chart_base64": cashflow_chart_base64,
         "logo_base64": logo_base64,
         "start_pages_map": start_pages_map or {},
         "total_pages": total_pages,
@@ -397,12 +486,12 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
         # Aktivujeme print media — Chrome optimalizuje rendering pre tlač
         await page.emulate_media(media="print")
         header_tpl = '<div></div>'
-        footer_tpl = f'<div style="font-size: 9px; color: #94a3b8; text-align: center; width: 100%; font-family: sans-serif; padding-bottom: 5px;">IČO: {ico} &nbsp;|&nbsp; Due Diligence Report &nbsp;|&nbsp; Strana <span class="pageNumber"></span> / <span class="totalPages"></span></div>'
+        footer_tpl = f'<div style="font-size: 11px; color: #64748b; text-align: center; width: 100%; font-family: Inter, sans-serif; padding-bottom: 8px; border-top: 1px solid #e2e8f0; padding-top: 4px; margin: 0 12px;"><span style="font-weight: 600; color: #475569;">Verifa.sk</span> &nbsp;·&nbsp; IČO: {ico} &nbsp;·&nbsp; Informatívny dokument &nbsp;·&nbsp; Strana <span class="pageNumber"></span> / <span class="totalPages"></span></div>'
         
         await page.pdf(
             path=pdf_path, 
             format="A4", 
-            margin={"top": "0mm", "bottom": "15mm", "left": "0mm", "right": "0mm"}, 
+            margin={"top": "0mm", "bottom": "18mm", "left": "0mm", "right": "0mm"}, 
             print_background=True,
             display_header_footer=True,
             header_template=header_tpl,
@@ -438,14 +527,129 @@ async def generate_forensic_pdf_report(
         if not company or not company.auditVerdict:
             logger.error(f"Nedostatok dát pre generovanie PDF (IČO: {ico})")
             return None
-            
+
         context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at)
         html_content = render_html_report(context)
-        
+
         pdf_path = target_path or f"assets/{ico}/Verifa_Forensic_Report_{ico}.pdf"
         await render_pdf_via_playwright(html_content, pdf_path, ico)
-        
+
         return pdf_path
-        
+
+    finally:
+        await db.disconnect()
+
+
+async def generate_financial_summary_pdf(ico: str, target_path: str) -> str | None:
+    """Vygeneruje 1-2 strany s finančným prehľadom z DB dát (FinancialStatement).
+    Používa sa pre IFRS firmy, kde registeruz.sk nezobrazuje štruktúrované HTML."""
+    db = Prisma()
+    await db.connect()
+    try:
+        company = await db.company.find_unique(
+            where={'ico': ico},
+            include={
+                'financialStatements': {
+                    'orderBy': {'year': 'asc'},
+                    'include': {'auditorOpinion': True},
+                },
+            },
+        )
+        if not company or not company.financialStatements:
+            logger.warning(f"[FIN_SUMMARY] Žiadne finančné výkazy pre IČO {ico}")
+            return None
+
+        stmts = sorted(company.financialStatements, key=lambda s: s.year)
+        latest = stmts[-1]
+        years = [s.year for s in stmts]
+
+        def _fmt(val) -> str:
+            if val is None:
+                return "—"
+            abs_val = abs(float(val))
+            if abs_val >= 1_000_000:
+                return f"{float(val) / 1_000_000:,.1f} M €".replace(",", "X").replace(".", ",").replace("X", " ")
+            elif abs_val >= 1_000:
+                return f"{float(val) / 1_000:,.0f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
+            return f"{float(val):,.0f} €".replace(",", " ")
+
+        rows_balance = [
+            ("Celkové aktíva", [s.totalAssets for s in stmts]),
+            ("Obežný majetok", [s.currentAssets for s in stmts]),
+            ("Vlastné imanie", [s.equity for s in stmts]),
+            ("Krátkodobé záväzky", [s.shortTermLiabilities for s in stmts]),
+            ("Dlhodobé záväzky", [s.longTermLiabilities for s in stmts]),
+            ("Pohľadávky z obch. styku", [s.tradeReceivables for s in stmts]),
+            ("Záväzky z obch. styku", [s.tradePayables for s in stmts]),
+        ]
+
+        rows_pnl = [
+            ("Tržby z hlavnej činnosti", [s.mainActivityRevenue for s in stmts]),
+            ("Hrubá marža", [s.grossProfit for s in stmts]),
+            ("Čistý zisk/strata", [s.netProfitLoss for s in stmts]),
+            ("Osobné náklady", [s.staffCosts for s in stmts]),
+            ("Peniaze a peňažné ekvivalenty", [s.cashAndEquivalents for s in stmts]),
+            ("Prevádzkové cash flow", [s.operatingCashFlow for s in stmts]),
+        ]
+
+        def _table_rows(rows):
+            html = ""
+            for label, vals in rows:
+                cells = "".join(f"<td style='text-align:right;padding:6px 10px;border-bottom:1px solid #e2e8f0;'>{_fmt(v)}</td>" for v in vals)
+                html += f"<tr><td style='padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#334155;'>{label}</td>{cells}</tr>"
+            return html
+
+        year_headers = "".join(f"<th style='text-align:right;padding:6px 10px;color:#64748b;font-size:11px;'>{y}</th>" for y in years)
+
+        audit_text = ""
+        if latest.auditorOpinion:
+            ao = latest.auditorOpinion
+            audit_text = f"<p style='font-size:11px;color:#64748b;margin-top:8px;'>Názor audítora ({latest.year}): <strong>{ao.opinionType}</strong>"
+            if ao.goingConcernRisk:
+                audit_text += f" — {ao.goingConcernRisk}"
+            if ao.reservationText:
+                audit_text += f" — {ao.reservationText}"
+            audit_text += "</p>"
+
+        stmt_type = latest.statementType or "IFRS"
+        consolidated = "Konsolidovaná" if latest.isConsolidated else "Individuálna"
+
+        html_content = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+body {{ font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; margin: 0; padding: 20px 30px; }}
+h1 {{ font-size: 18px; color: #0f172a; margin: 0 0 4px 0; }}
+h2 {{ font-size: 13px; color: #475569; margin: 20px 0 8px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; }}
+.meta {{ font-size: 11px; color: #94a3b8; margin-bottom: 16px; }}
+table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+th {{ text-align: left; padding: 6px 10px; color: #64748b; font-size: 11px; }}
+.note {{ font-size: 10px; color: #94a3b8; margin-top: 12px; }}
+</style></head>
+<body>
+<h1>Finančný prehľad — {company.name or f'Spoločnosť s IČO {ico}'}</h1>
+<div class="meta">IČO: {ico} &nbsp;|&nbsp; Typ: {stmt_type} ({consolidated}) &nbsp;|&nbsp; Obdobie: {years[0]}–{years[-1]}</div>
+
+<h2>Súvaha</h2>
+<table>
+<thead><tr><th style='text-align:left;padding:6px 10px;color:#64748b;font-size:11px;'>Položka (v EUR)</th>{year_headers}</tr></thead>
+<tbody>{_table_rows(rows_balance)}</tbody>
+</table>
+
+<h2>Výkaz ziskov a strát</h2>
+<table>
+<thead><tr><th style='text-align:left;padding:6px 10px;color:#64748b;font-size:11px;'>Položka (v EUR)</th>{year_headers}</tr></thead>
+<tbody>{_table_rows(rows_pnl)}</tbody>
+</table>
+
+{audit_text}
+<p class="note">Zdroj: Register účtovných závierok (registeruz.sk) — údaje extrahované z IFRS PDF závierky pomocou AI analýzy. Štruktúrované HTML tabuľky nie sú dostupné pre IFRS účtovné jednotky.</p>
+</body></html>"""
+
+        await render_pdf_via_playwright(html_content, target_path, ico)
+        logger.info(f"[FIN_SUMMARY] Vygenerovaný finančný prehľad pre IČO {ico} → {target_path}")
+        return target_path
+
+    except Exception as e:
+        logger.error(f"[FIN_SUMMARY] Chyba pre IČO {ico}: {e}", exc_info=True)
+        return None
     finally:
         await db.disconnect()
