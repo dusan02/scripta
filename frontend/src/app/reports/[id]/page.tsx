@@ -182,91 +182,162 @@ function ErrorDetails({ sources }: { sources: ReportSource[] }) {
   );
 }
 
-// ── AI Magic Loader ──────────────────────────────────────────
-const LOADER_STEPS = [
-  "report.step1",
-  "report.step2",
-  "report.step3",
-  "report.step4",
-  "report.step5",
-  "report.step6",
-  "report.step7",
-  "report.step8",
-  "report.step9",
-];
+// ── Phase Progress (weighted) ────────────────────────────────────
+const PHASE_WEIGHTS = {
+  scraping: 55,
+  aiPipeline: 20,
+  verdict: 10,
+  compiling: 15,
+} as const;
 
-function MagicLoader({ sourcesCompleted, sourcesTotal }: { sourcesCompleted: number, sourcesTotal: number }) {
+const AI_STATUS_PROGRESS: Record<string, number> = {
+  "ai.checking_registers": 0,
+  "ai.retrying": 0,
+  "ai.downloading": 55,
+  "ai.analyzing_statements": 60,
+  "ai.risk_analysis": 68,
+  "ai.final_verdict": 75,
+  "ai.forensic_analysis": 80,
+  "ai.compiling": 90,
+};
+
+function computeWeightedProgress(
+  sourcesCompleted: number,
+  sourcesTotal: number,
+  aiStatus: string | null | undefined,
+  reportStatus: string
+): number {
+  if (["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus)) return 100;
+
+  const scrapingProgress = sourcesTotal > 0
+    ? (sourcesCompleted / sourcesTotal) * PHASE_WEIGHTS.scraping
+    : 0;
+
+  const aiProgress = aiStatus && aiStatus in AI_STATUS_PROGRESS
+    ? AI_STATUS_PROGRESS[aiStatus]
+    : 0;
+
+  return Math.min(99, Math.max(scrapingProgress, aiProgress));
+}
+
+function getPhaseLabel(aiStatus: string | null | undefined, t: (k: string) => string): string {
+  if (!aiStatus || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying")
+    return t("report.phaseScraping");
+  if (["ai.downloading", "ai.analyzing_statements", "ai.risk_analysis", "ai.final_verdict"].includes(aiStatus))
+    return t("report.phaseAiPipeline");
+  if (aiStatus === "ai.forensic_analysis") return t("report.phaseVerdict");
+  if (aiStatus === "ai.compiling") return t("report.phaseCompiling");
+  return t("report.phaseScraping");
+}
+
+function PhaseProgress({
+  sourcesCompleted,
+  sourcesTotal,
+  aiStatus,
+  reportStatus,
+  etaCountdown,
+  locale,
+}: {
+  sourcesCompleted: number;
+  sourcesTotal: number;
+  aiStatus?: string | null;
+  reportStatus: string;
+  etaCountdown: number | null;
+  locale: string;
+}) {
   const t = useT();
-  const { lang } = useLang();
-  const locale = LOCALE_MAP[lang];
-  const [activeStep, setActiveStep] = useState(0);
+  const targetProgress = computeWeightedProgress(sourcesCompleted, sourcesTotal, aiStatus, reportStatus);
+  const phaseLabel = getPhaseLabel(aiStatus, t);
+  const statusText = aiStatus ? t(aiStatus) : t("report.processing");
+  const isScraping = !aiStatus || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
+  const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
+
+  // Smooth interpolation: displayProgress creeps toward targetProgress
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const displayRef = useRef(0);
+  useEffect(() => { displayRef.current = displayProgress; }, [displayProgress]);
 
   useEffect(() => {
+    if (isTerminal) {
+      setDisplayProgress(100);
+      return;
+    }
     const interval = setInterval(() => {
-      setActiveStep(prev => {
-        if (prev < 7) return prev + 1;
-        const allDone = sourcesTotal > 0 && sourcesCompleted >= sourcesTotal;
-        if (allDone && prev < LOADER_STEPS.length - 1) return prev + 1;
-        return prev;
-      });
-    }, 1800);
+      const current = displayRef.current;
+      const diff = targetProgress - current;
+      if (Math.abs(diff) < 0.3) {
+        setDisplayProgress(targetProgress);
+        return;
+      }
+      // Creep ~0.4% per 500ms tick, but never overshoot target
+      const step = Math.max(0.15, diff * 0.08);
+      setDisplayProgress(Math.min(targetProgress, current + step));
+    }, 500);
     return () => clearInterval(interval);
-  }, [sourcesCompleted, sourcesTotal]);
-
-  const currentText = t(LOADER_STEPS[Math.min(activeStep, LOADER_STEPS.length - 1)]);
+  }, [targetProgress, isTerminal]);
 
   return (
-    <div className="mt-8 rounded-2xl p-5 w-full max-w-2xl mx-auto shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-      <div className="flex items-center gap-4">
-        {/* Animated Icon */}
-        <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center relative" style={{ background: "var(--success-bg)" }}>
-          <svg className="w-5 h-5 animate-spin relative z-10" style={{ color: "var(--success)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--success)" }}></div>
-        </div>
-        
-        {/* Current Status */}
-        <div className="flex-1 min-w-0">
-          <h3 className="text-[11px] font-bold tracking-wider uppercase mb-1" style={{ color: "var(--text-muted)" }}>
-            {t("report.processing")}
-          </h3>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 tabular-nums text-sm font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
-              [{new Date().toLocaleTimeString(locale, {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]
-            </span>
-            <span className="text-[15px] font-medium truncate" style={{ color: "var(--success)" }}>
-              {currentText}
-            </span>
-            <span className="flex gap-1 items-center ml-1 opacity-70">
-              <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--success)", animationDelay: "0ms" }}></span>
-              <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--success)", animationDelay: "150ms" }}></span>
-              <span className="w-1 h-1 rounded-full animate-bounce" style={{ background: "var(--success)", animationDelay: "300ms" }}></span>
+    <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
+      {/* Loader card */}
+      <div className="w-full rounded-2xl p-5 shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="flex items-center gap-4">
+          {/* Animated Icon */}
+          <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center relative" style={{ background: "var(--success-bg)" }}>
+            <svg className="w-5 h-5 animate-spin relative z-10" style={{ color: "var(--success)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--success)" }}></div>
+          </div>
+
+          {/* Current Status — single line */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 tabular-nums text-sm font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
+                [{new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}]
+              </span>
+              <span className="text-[15px] font-medium truncate" style={{ color: "var(--success)" }}>
+                {statusText}
+              </span>
+              {isScraping && sourcesTotal > 0 && (
+                <span className="shrink-0 text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {sourcesCompleted}/{sourcesTotal}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Percentage badge */}
+          <div className="shrink-0 text-right">
+            <span className="text-2xl font-bold tabular-nums" style={{ color: "var(--success)" }}>
+              {Math.round(displayProgress)}<span className="text-sm">%</span>
             </span>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-// ── Aggregate Progress ───────────────────────────────────────────
-function AggregateProgress({ sources }: { sources: ReportSource[] }) {
-  const t = useT();
-  const completed = sources.filter((s) => ["SUCCESS", "FAILED", "UNAVAILABLE"].includes(s.status)).length;
-  const total = sources.length;
-  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+      {/* Weighted progress bar */}
+      <div className="w-full mt-4">
+        <div className="w-full h-2.5 rounded-full overflow-hidden relative" style={{ background: "var(--border)" }}>
+          <div
+            className="h-full rounded-full ease-linear"
+            style={{ width: `${displayProgress}%`, background: "var(--success)", transition: "width 500ms linear" }}
+          />
+        </div>
+      </div>
 
-  return (
-    <div className="mt-6 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
-      <div className="w-full flex justify-between text-sm font-semibold text-[var(--text)] mb-2 px-1">
-        <span>{t("report.registersProgress")}</span>
-        <span>{completed} / {total}</span>
-      </div>
-      <div className="w-full h-2 bg-[var(--border)] rounded-full overflow-hidden">
-         <div className="h-full bg-[var(--success)] transition-all duration-500 ease-out" style={{ width: `${percentage}%` }} />
-      </div>
+      {/* ETA */}
+      {etaCountdown != null && etaCountdown > 0 && (
+        <div className="text-center mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+          {(() => {
+            const s = etaCountdown;
+            if (s < 60) return t("report.etaSeconds", { s });
+            const m = Math.floor(s / 60);
+            const r = s % 60;
+            return t("report.etaMinutes", { m, r: r > 0 ? r : "" }).replace("  s", "");
+          })()}
+        </div>
+      )}
     </div>
   );
 }
@@ -643,27 +714,14 @@ export default function ReportDetailPage() {
           </div>
         ) : !isFinished ? (
           <>
-            <MagicLoader
+            <PhaseProgress
               sourcesCompleted={report.sources.filter(s => ["SUCCESS","FAILED","UNAVAILABLE"].includes(s.status)).length}
               sourcesTotal={report.sources.length}
+              aiStatus={report.aiStatus}
+              reportStatus={report.status}
+              etaCountdown={etaCountdown}
+              locale={locale}
             />
-            <AggregateProgress sources={report.sources} />
-            {etaCountdown != null && etaCountdown > 0 && (
-              <div className="text-center mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-                {(() => {
-                  const s = etaCountdown;
-                  if (s < 60) return t("report.etaSeconds", { s });
-                  const m = Math.floor(s / 60);
-                  const r = s % 60;
-                  return t("report.etaMinutes", { m, r: r > 0 ? r : "" }).replace("  s", "");
-                })()}
-              </div>
-            )}
-            {report.aiStatus && (
-              <div className="text-center mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                {t(report.aiStatus)}
-              </div>
-            )}
             {report.sources.some(s => s.status === "FAILED" || s.status === "UNAVAILABLE") && (
               <div className="max-w-2xl mx-auto mt-4 w-full">
                  <ErrorDetails sources={report.sources} />

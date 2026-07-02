@@ -170,6 +170,20 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
         return {"z_score": None, "zone": "N/A", "reason": str(e)}
 
 
+def _safe_div(numerator: float, denominator: float, decimals: int = 2) -> Optional[float]:
+    """Bezpečné delenie — vráti None ak je menovateľ 0 alebo záporný."""
+    if denominator > 0:
+        return round(numerator / denominator, decimals)
+    return None
+
+
+def _safe_pct(numerator: float, denominator: float, decimals: int = 2) -> Optional[float]:
+    """Bezpečné percento — vráti None ak je menovateľ 0."""
+    if denominator > 0:
+        return round((numerator / denominator) * 100, decimals)
+    return None
+
+
 def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
     """
     Vypočíta kľúčové finančné ukazovatele pre jedno obdobie.
@@ -185,52 +199,44 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         revenue = getattr(stmt, 'mainActivityRevenue', 0) or 0
         op_cashflow = getattr(stmt, 'operatingCashFlow', 0) or 0
         gross_profit = getattr(stmt, 'grossProfit', 0) or 0
+        inventory = getattr(stmt, 'inventory', 0) or 0
+        depreciation = getattr(stmt, 'depreciation', 0) or 0
+        interest = getattr(stmt, 'interestExpense', 0) or 0
+        trade_receivables = getattr(stmt, 'tradeReceivables', 0) or 0
+        trade_payables = getattr(stmt, 'tradePayables', 0) or 0
 
-        # Presné total_liabilities: shortTerm + longTerm ak dostupné, inak bilančná rovnica
+        # Total liabilities: shortTerm + longTerm ak dostupné, inak bilančná rovnica
         if short_liabilities > 0 or long_liabilities > 0:
             total_liabilities = max(short_liabilities + long_liabilities, 1)
         else:
             total_liabilities = max(total_assets - equity, 1)
 
-        ratios = {}
+        # ── Likvidita ──
+        ratios = {
+            "current_ratio": _safe_div(current_assets, short_liabilities) if current_assets > 0 else None,
+            "cash_ratio": _safe_div(cash, short_liabilities),
+            "quick_ratio": _safe_div(current_assets - inventory, short_liabilities) if current_assets > 0 else None,
+            "working_capital": round(current_assets - short_liabilities, 0) if (current_assets > 0 or short_liabilities > 0) else None,
+        }
 
-        # 1. Current Ratio (Likvidita) — krátkodobé krytie
-        if short_liabilities > 0:
-            ratios["current_ratio"] = round(current_assets / short_liabilities, 2) if current_assets > 0 else None
-            ratios["cash_ratio"] = round(cash / short_liabilities, 2)
-        else:
-            ratios["current_ratio"] = None
-            ratios["cash_ratio"] = None
+        # ── Zadlženosť ──
+        ratios["debt_to_equity"] = _safe_div(total_liabilities, equity)
 
-        # 2. Debt-to-Equity (Zadlženosť)
-        if equity > 0:
-            ratios["debt_to_equity"] = round(total_liabilities / equity, 2)
-        else:
-            ratios["debt_to_equity"] = None
+        # ── Rentabilita ──
+        ratios["net_profit_margin_pct"] = _safe_pct(net_profit, revenue)
+        ratios["gross_profit_margin_pct"] = _safe_pct(gross_profit, revenue) if gross_profit > 0 else None
+        ratios["roa_pct"] = _safe_pct(net_profit, total_assets)
+        ratios["roe_pct"] = _safe_pct(net_profit, equity)
 
-        # 3. Net Profit Margin (Čistá marža)
-        if revenue > 0:
-            ratios["net_profit_margin_pct"] = round((net_profit / revenue) * 100, 2)
-        else:
-            ratios["net_profit_margin_pct"] = None
+        # ── EBITDA (approx: net_profit + interest + depreciation) ──
+        ratios["ebitda"] = round(net_profit + interest + depreciation, 0) if (interest != 0 or depreciation != 0) else None
 
-        # 4. Return on Assets — ROA
-        if total_assets > 0:
-            ratios["roa_pct"] = round((net_profit / total_assets) * 100, 2)
-        else:
-            ratios["roa_pct"] = None
+        # ── Cash Flow divergencia ──
+        ratios["cashflow_to_profit"] = _safe_div(op_cashflow, abs(net_profit)) if net_profit != 0 else None
 
-        # 5. Operating Cash Flow / Net Profit — divergencia (červená vlajka ak záporné)
-        if net_profit != 0:
-            ratios["cashflow_to_profit"] = round(op_cashflow / net_profit, 2)
-        else:
-            ratios["cashflow_to_profit"] = None
-
-        # 6. Gross Profit Margin — pre obchodné/výrobné firmy
-        if revenue > 0 and gross_profit > 0:
-            ratios["gross_profit_margin_pct"] = round((gross_profit / revenue) * 100, 2)
-        else:
-            ratios["gross_profit_margin_pct"] = None
+        # ── Dni obratu ──
+        ratios["dso_days"] = round((trade_receivables / revenue) * 365, 0) if revenue > 0 and trade_receivables > 0 else None
+        ratios["dpo_days"] = round((trade_payables / revenue) * 365, 0) if revenue > 0 and trade_payables > 0 else None
 
         return ratios
     except Exception:

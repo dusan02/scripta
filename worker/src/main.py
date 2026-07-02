@@ -243,7 +243,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         if company_name:
             try:
                 await pool.execute(
-                    'UPDATE "Company" SET name = $1, "updatedAt" = NOW() WHERE ico = $2',
+                    'UPDATE "Company" SET name = $1 WHERE ico = $2',
                     company_name, task.ico
                 )
                 _log.info(f"[{_rid}] Company name updated to: {company_name}")

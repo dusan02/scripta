@@ -22,15 +22,21 @@ from src.db_repository import save_to_db, save_narrative_to_db, save_notes_to_db
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_VESTNIK
 import re
 
-async def run_and_save_audit_verdict(ico: str):
+async def run_and_save_audit_verdict(ico: str, force: bool = False):
     """
     1. Získa všetky dostupné dáta pre dané IČO z databázy (Finančné výkazy, Naratívne analýzy, Vestník).
     2. Spustí Chief Auditora.
     3. Uloží AuditVerdict do DB.
+
+    Preskočí LLM ak verdict existuje a žiadne nové dáta neprišli od posledného výpočtu.
+    Re-run ak: nové vestnik events, nové finančné výkazy, nové PDF z registrov, alebo verdict > 90 dní.
     """
+    STALE_TTL_DAYS = 90
+
     db = Prisma()
     await db.connect()
     try:
+        # Načítaj existujúci verdict + všetky dáta naraz
         company = await db.company.find_unique(
             where={'ico': ico},
             include={
@@ -41,12 +47,58 @@ async def run_and_save_audit_verdict(ico: str):
                         'notesRisk': True
                     }
                 },
-                'vestnikEvents': True
+                'vestnikEvents': True,
+                'auditVerdict': True,
             }
         )
         if not company:
             logger.warning(f"Spoločnosť {ico} nebola nájdená pre Chief Auditora.")
             return
+
+        existing_verdict = company.auditVerdict
+
+        # ── Determinizmus: preskoč LLM ak žiadne nové dáta ──
+        if existing_verdict and not force:
+            from datetime import datetime, timezone
+            verdict_ts = existing_verdict.createdAt.replace(tzinfo=timezone.utc) if existing_verdict.createdAt else datetime.min.replace(tzinfo=timezone.utc)
+            reasons = []
+
+            # 1. Nové vestnik events?
+            for e in (company.vestnikEvents or []):
+                e_ts = e.createdAt.replace(tzinfo=timezone.utc) if e.createdAt else None
+                if e_ts and e_ts > verdict_ts:
+                    reasons.append(f"nový vestnik event ({e.eventType})")
+                    break
+
+            # 2. Nové finančné výkazy?
+            for s in (company.financialStatements or []):
+                s_ts = s.createdAt.replace(tzinfo=timezone.utc) if s.createdAt else None
+                if s_ts and s_ts > verdict_ts:
+                    reasons.append(f"nový finančný výkaz ({s.year})")
+                    break
+
+            # 3. Nové PDF z registrov?
+            results_dir = os.environ.get("RESULTS_DIR", "./results")
+            for rid_dir in glob.glob(f"{results_dir}/*"):
+                if os.path.isdir(rid_dir):
+                    for pattern in [f"/*{ico}*.pdf"]:
+                        for pdf in glob.glob(f"{rid_dir}{pattern}"):
+                            if os.path.getmtime(pdf) > verdict_ts.timestamp():
+                                reasons.append(f"nové PDF z registra ({os.path.basename(pdf)})")
+                                break
+                    if reasons and reasons[-1].startswith("nové PDF"):
+                        break
+
+            # 4. Fallback: verdict príliš starý
+            age_days = (datetime.now(timezone.utc) - verdict_ts).days
+            if age_days > STALE_TTL_DAYS:
+                reasons.append(f"verdict {age_days}d starý (> {STALE_TTL_DAYS}d)")
+
+            if not reasons:
+                logger.info(f"AuditVerdict pre IČO {ico} je aktuálny (skóre {existing_verdict.verifaScore}) — preskakujem LLM.")
+                return
+            else:
+                logger.info(f"Re-run LLM pre IČO {ico}: {', '.join(reasons)}")
         # Extrahuje JSON dáta
         company_dict = company.model_dump(exclude_none=True)
         
@@ -104,7 +156,7 @@ async def run_and_save_audit_verdict(ico: str):
         logger.info(f"Spúšťam Chief Auditora (The Verifa Scorer) pre IČO: {ico}. Nájdené PDF na analýzu: {len(debt_pdfs)}")
         verdict = await safe_llm_call(
             evaluate_audit_verdict, company_data, debt_pdfs,
-            model=settings.model_verdict,
+            model=_cfg.model_verdict,
             label="Chief Auditor"
         )
         

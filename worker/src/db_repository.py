@@ -98,6 +98,12 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 'staffCosts': data.metriky.osobne_naklady,
                 'tradeReceivables': data.metriky.pohladavky_z_obchodneho_styku,
                 'tradePayables': data.metriky.zavazky_z_obchodneho_styku,
+                'inventory': data.metriky.zasoby,
+                'depreciation': data.metriky.odpisy,
+                'investingCashFlow': data.metriky.investicny_cash_flow,
+                'financingCashFlow': data.metriky.financny_cash_flow,
+                'interestExpense': data.metriky.uroky,
+                'employeeCount': data.metriky.pocet_zamestnancov,
                 'currency': data.metriky.mena,
                 'statementType': data.metriky.typ_zavierky,
                 'monthsInPeriod': data.metriky.pocet_mesiacov_obdobia if data.metriky.pocet_mesiacov_obdobia is not None else 12,
@@ -188,6 +194,36 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 await db.financialstatement.update(
                     where={'id': statement.id},
                     data={'tradePayables': stmt_data['tradePayables']}
+                )
+            if 'inventory' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'inventory': stmt_data['inventory']}
+                )
+            if 'depreciation' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'depreciation': stmt_data['depreciation']}
+                )
+            if 'investingCashFlow' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'investingCashFlow': stmt_data['investingCashFlow']}
+                )
+            if 'financingCashFlow' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'financingCashFlow': stmt_data['financingCashFlow']}
+                )
+            if 'interestExpense' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'interestExpense': stmt_data['interestExpense']}
+                )
+            if 'employeeCount' in stmt_data:
+                await db.financialstatement.update(
+                    where={'id': statement.id},
+                    data={'employeeCount': stmt_data['employeeCount']}
                 )
             if 'currency' in stmt_data:
                 await db.financialstatement.update(

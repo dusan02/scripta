@@ -97,7 +97,7 @@ def generate_financial_chart(statements) -> str:
     # Odstránenie horného a pravého okraja pre čistejší vzhľad
     sns.despine(left=True, bottom=True)
     
-    ax.legend(loc='upper left', frameon=False, fontsize=10, labelcolor='#475569')
+    ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False, fontsize=9, labelcolor='#475569')
     ax.set_title('Vývoj Tržieb a Zisku', fontsize=12, fontweight='bold', color='#0f172a', pad=15)
     
     # Formát y-osi na milióny/tisíce
@@ -145,7 +145,7 @@ def generate_balance_sheet_chart(statements) -> str:
     
     sns.despine(left=True, bottom=True)
     
-    ax.legend(loc='upper left', frameon=False, fontsize=10, labelcolor='#475569')
+    ax.legend(loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False, fontsize=9, labelcolor='#475569')
     ax.set_title('Štruktúra majetku a zdrojov', fontsize=12, fontweight='bold', color='#0f172a', pad=15)
     
     def currency_formatter(x, pos):
@@ -197,7 +197,7 @@ def generate_pnl_chart(statements) -> str:
         Patch(facecolor='#10b981', label='Čistý zisk'),
         Patch(facecolor='#ef4444', label='Čistá strata'),
     ]
-    ax.legend(handles=legend_handles, loc='upper left', frameon=False, fontsize=9, labelcolor='#475569')
+    ax.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False, fontsize=8, labelcolor='#475569')
     ax.set_title('Výkaz ziskov a strát', fontsize=12, fontweight='bold', color='#0f172a', pad=12)
     def _fmt(x, pos):
         if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
@@ -234,7 +234,7 @@ def generate_cashflow_chart(statements) -> str:
         Patch(facecolor='#ef4444', label='Negatívny CF'),
         Line2D([0], [0], color='#1e293b', linestyle='--', marker='D', markersize=7, label='Cash & ekvivalenty'),
     ]
-    ax.legend(handles=legend_handles, loc='upper left', frameon=False, fontsize=9, labelcolor='#475569')
+    ax.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False, fontsize=8, labelcolor='#475569')
     ax.set_title('Peňažné toky a likvidita', fontsize=12, fontweight='bold', color='#0f172a', pad=12)
     def _fmt(x, pos):
         if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
@@ -308,6 +308,26 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     stmts = company.financialStatements
     latest_stmt = max(stmts, key=lambda s: s.year) if stmts else None
     vestnik_events = company.vestnikEvents or []
+    
+    # Zoradené výkazy pre tabuľky (od najstaršieho)
+    stmts_sorted = sorted(stmts, key=lambda s: s.year) if stmts else []
+    
+    # Najnovšie finančné pomery pre karty v reporte
+    latest_ratios = {}
+    if latest_stmt:
+        from src.analytics import compute_financial_ratios
+        latest_ratios = compute_financial_ratios(latest_stmt)
+    
+    # NACE info
+    nace_code = getattr(company, 'naceCode', None)
+    nace_text = getattr(company, 'naceText', None)
+    
+    # Počet zamestnancov z najnovšieho výkazu (alebo odhad z staffCosts)
+    employee_count = getattr(latest_stmt, 'employeeCount', None) if latest_stmt else None
+    if not employee_count and latest_stmt:
+        staff_costs = getattr(latest_stmt, 'staffCosts', 0) or 0
+        if staff_costs > 0:
+            employee_count = max(1, round(staff_costs / 12000))  # odhad: priemerná ročná mzda ~12k €
     
     # Vygenerovanie grafov
     chart_base64 = ""
@@ -440,6 +460,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "verdict": verdict,
         "evidence_list": evidence_list,
         "latest_stmt": latest_stmt,
+        "stmts_sorted": stmts_sorted,
+        "latest_ratios": latest_ratios,
+        "nace_code": nace_code,
+        "nace_text": nace_text,
+        "employee_count": employee_count,
         "vestnik_events": vestnik_events,
         "chart_image_base64": chart_base64,
         "balance_chart_base64": balance_chart_base64,

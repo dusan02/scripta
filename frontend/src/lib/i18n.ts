@@ -417,6 +417,12 @@ const sk: Dict = {
   "report.step7": "Forenzná detekcia anomálií a sankcií",
   "report.step8": "Generovanie záverečného forenzného posudku",
   "report.step9": "Kompletizácia výsledkov do zabezpečeného reportu",
+
+  // ── Phase labels (weighted progress) ──
+  "report.phaseScraping": "Preverovanie registrov",
+  "report.phaseAiPipeline": "AI analýza výkazov",
+  "report.phaseVerdict": "Forenzný posudok",
+  "report.phaseCompiling": "PDF kompilácia",
 };
 
 const en: Dict = {
@@ -822,6 +828,12 @@ const en: Dict = {
   "report.step7": "Forensic detection of anomalies and sanctions",
   "report.step8": "Generating final forensic assessment",
   "report.step9": "Compiling results into secure report",
+
+  // ── Phase labels (weighted progress) ──
+  "report.phaseScraping": "Register checks",
+  "report.phaseAiPipeline": "AI statement analysis",
+  "report.phaseVerdict": "Forensic assessment",
+  "report.phaseCompiling": "PDF compilation",
 };
 
 const de: Dict = {
@@ -1227,6 +1239,12 @@ const de: Dict = {
   "report.step7": "Forensische Erkennung von Anomalien und Sanktionen",
   "report.step8": "Erstellung der abschließenden forensischen Bewertung",
   "report.step9": "Zusammenstellung der Ergebnisse zum sicheren Bericht",
+
+  // ── Phase labels (weighted progress) ──
+  "report.phaseScraping": "Registerprüfung",
+  "report.phaseAiPipeline": "AI Abschlussanalyse",
+  "report.phaseVerdict": "Forensische Bewertung",
+  "report.phaseCompiling": "PDF-Kompilierung",
 };
 
 export const translations: Record<Lang, Dict> = { sk, en, de };

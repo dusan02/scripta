@@ -76,6 +76,12 @@ class FinancialMetrics(BaseModel):
     osobne_naklady: Optional[float] = Field(..., description="Personálne/osobné náklady (Staff costs). Ak chýba, vráť null.")
     pohladavky_z_obchodneho_styku: Optional[float] = Field(..., description="Pohľadávky z obchodného styku (Trade receivables). Ak chýba, vráť null.")
     zavazky_z_obchodneho_styku: Optional[float] = Field(..., description="Záväzky z obchodného styku (Trade payables). Ak chýba, vráť null.")
+    zasoby: Optional[float] = Field(..., description="Zásoby (Inventory/Stocks). Hľadaj 'Zásoby', 'Inventories', 'Stocks'. Ak chýba, vráť null.")
+    odpisy: Optional[float] = Field(..., description="Odpisy dlhodobého nehmotného a hmotného majetku (Depreciation/Amortization). Hľadaj 'Odpisy', 'Depreciation', 'Amortization'. Ak chýba, vráť null.")
+    investicny_cash_flow: Optional[float] = Field(..., description="Čisté peňažné toky z investičnej činnosti (Investing cash flow). Hľadaj 'Investičná činnosť', 'Investing activities'. Ak chýba, vráť null.")
+    financny_cash_flow: Optional[float] = Field(..., description="Čisté peňažné toky z finančnej činnosti (Financing cash flow). Hľadaj 'Finančná činnosť', 'Financing activities'. Ak chýba, vráť null.")
+    uroky: Optional[float] = Field(..., description="Náklady na úroky (Interest expense). Hľadaj 'Úroky', 'Interest expense', 'Finance costs'. Ak chýba, vráť null.")
+    pocet_zamestnancov: Optional[int] = Field(..., description="Počet zamestnancov (ak je uvedený v závierke alebo poznámkach). Hľadaj 'Priemerný počet zamestnancov', 'Number of employees'. Ak chýba, vráť null.")
     mena: str = Field(..., description="Mena výkazu: 'EUR', 'CZK', 'USD'. Ak výkaz uvádza 'v tisícoch EUR', mena je stále EUR.")
     typ_zavierky: str = Field(..., description="Typ závierky: 'IFRS' ak dokument explicitne uvádza IFRS, 'MICRO' pre Úč MUJ mikro jednotky, inak 'SK_GAAP'.")
     pocet_mesiacov_obdobia: Optional[int] = Field(..., description="Zisti počet mesiacov (od - do) na prvej strane dokumentu. Dôkladne zisti, či výkaz pokrýva 12 mesiacov alebo kratšie/dlhšie obdobie. Ak to nie je možné určiť, vráť null.")
@@ -106,6 +112,12 @@ PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
 - `hruba_marza` (Gross profit): V SK GAAP = Obchodná marža + Výrobná spotreba; v IFRS = Revenue - Cost of sales.
 - `osobne_naklady` (Staff costs): Hľadaj "Osobné náklady", "Mzdové náklady". Slúži na detekciu schránkových firiem.
 - `pohladavky_z_obchodneho_styku` a `zavazky_z_obchodneho_styku`: Hľadaj Trade receivables / Trade payables. Kľúčové pre likviditu.
+- `zasoby` (Inventory): Hľadaj v Aktívach pod Obežný majetok: 'Zásoby', 'Inventories', 'Stocks'. Pre výrobné firmy kľúčové.
+- `odpisy` (Depreciation/Amortization): Hľadaj v Výkaze ziskov a strát alebo Poznámkach: 'Odpisy dlhodobého nehmotného majetku', 'Odpisy hmotného majetku', 'Depreciation', 'Amortization'. Spolu obe odpisy ako jeden súčet.
+- `investicny_cash_flow`: Hľadaj v Cash Flow výkaze: 'Investičná činnosť', 'Investing activities'. Čisté peňažné toky (môže byť záporné).
+- `financny_cash_flow`: Hľadaj v Cash Flow výkaze: 'Finančná činnosť', 'Financing activities'. Čisté peňažné toky (môže byť záporné).
+- `uroky` (Interest expense): Hľadaj vo Výkaze ziskov a strát: 'Úroky', 'Náklady na úroky', 'Interest expense', 'Finance costs'.
+- `pocet_zamestnancov`: Hľadaj v Poznámkach: 'Priemerný počet zamestnancov', 'Number of employees'. Ak nie je uvedený, vráť null.
 - `typ_zavierky`: Nastav 'IFRS' ak dokument uvádza 'International Financial Reporting Standards' alebo 'IFRS'. Nastav 'MICRO' pre Úč MUJ mikro jednotky. Inak nastav 'SK_GAAP'.
 - Nikdy nehalucinuj. Ak položka v závierke neexistuje alebo nie je uvedená, vráť null. Ak je fyzicky uvedená 0, vráť 0."""
 
@@ -203,6 +215,11 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
             if m.osobne_naklady is not None: m.osobne_naklady *= multiplier
             if m.pohladavky_z_obchodneho_styku is not None: m.pohladavky_z_obchodneho_styku *= multiplier
             if m.zavazky_z_obchodneho_styku is not None: m.zavazky_z_obchodneho_styku *= multiplier
+            if m.zasoby is not None: m.zasoby *= multiplier
+            if m.odpisy is not None: m.odpisy *= multiplier
+            if m.investicny_cash_flow is not None: m.investicny_cash_flow *= multiplier
+            if m.financny_cash_flow is not None: m.financny_cash_flow *= multiplier
+            if m.uroky is not None: m.uroky *= multiplier
 
     # Vždy prepíšeme rok a IČO metadátami z RÚZ (názvu súboru), ak sú k dispozícii.
     # Zamedzíme tým ukladaniu pod IČO audítora (napr. KPMG 31348238).
@@ -375,8 +392,8 @@ Algoritmické skóre (algorithmic_prescore) bolo vypočítané pomocou 5-piliero
 Podrobný rozpis skóre (scorecard_breakdown) a historické dáta nájdeš v priloženej sekcii s trendmi. Pri tvorbe zdôvodnenia píš prirodzeným, ľudským jazykom a NIKDY do textu nevypisuj technické názvy premenných (ako napr. _5_year_trend_analysis alebo revenue_trend).
 
 **Dôležité inštrukcie pre hodnotenie:**
-1. `algorithmic_prescore` je výsledok deterministického 5-pilierového modelu. Tvojou úlohou je toto skóre **potvrdiť alebo upraviť o max ±10 bodov** na základe tvojho forenzného úsudku z naratívnych a právnych dát.
-2. **VÝNIMKA PRE PDF DÁTA:** Keďže algoritmus nevidí do priložených PDF súborov s dlhmi, máš povinnosť z tohto skóre strhnúť **-30 bodov**, ak v PDFkách objavíš aktívne exekúcie alebo chronické dlhy voči štátu.
+1. `algorithmic_prescore` je výsledok deterministického 5-pilierového modelu. Tvojou úlohou je toto skóre **potvrdiť alebo upraviť o max ±10 bodov** na základe tvojho forenzného úsudku z naratívnych, právnych dát a PDF súborov.
+2. **PDF DÁTA:** Keďže algoritmus nevidí do priložených PDF súborov s dlhmi, pri objavení aktívnych exekúcií alebo chronických dlhov voči štátu uprav skóre smerom nadol v rámci limitu ±10 bodov.
    - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej algoritmus v Pilieri 1 a 5 odrátal body), znova ich neodpočítavaj z PDF súborov, aby nedošlo k dvojitej penalizácii.
 3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky označ stav spoločnosti za 'KRITICKY RIZIKOVÝ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre. Prísne sa ale vyhni akýmkoľvek radám o tom, či s firmou obchodovať alebo nie.
 4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, niektoré piliere budú mať neutrálnu hodnotu (N/A). Hodnoť primerane (okeolo 50).
@@ -395,7 +412,6 @@ PROCES HODNOTENIA A SYNTÉZY:
 3. VÝPOČET FINÁLNEHO SKÓRE (0-100):
    - Vezmi `algorithmic_prescore` (výsledok 5-pilierového modelu, rozsah 0–100).
    - Pridaj/Odober max ±10 bodov podľa forenzného úsudku (naratíva, právne riziká, PDF analýza).
-   - Odober -30 bodov, ak sú v PDF objavené vážne exekúcie/dlhy (a neboli už zachytené v Pilieri 1 prescore).
    - Priraď kategóriu rizika: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
 PRAVIDLÁ VÝSTUPU:

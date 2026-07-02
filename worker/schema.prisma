@@ -225,6 +225,12 @@ model FinancialStatement {
   staffCosts                            Float?        // Osobné náklady
   tradeReceivables                      Float?        // Pohľadávky z obch. styku
   tradePayables                         Float?        // Záväzky z obch. styku
+  inventory                             Float?        // Zásoby
+  depreciation                          Float?        // Odpisy dlhodobého nehmotného a hmotného majetku
+  investingCashFlow                     Float?        // Čisté peňažné toky z investičnej činnosti
+  financingCashFlow                     Float?        // Čisté peňažné toky z finančnej činnosti
+  interestExpense                       Float?        // Úroky (náklady na úroky)
+  employeeCount                         Int?          // Odhadovaný počet zamestnancov
   currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
   statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
