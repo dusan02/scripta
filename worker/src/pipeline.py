@@ -479,6 +479,8 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             or m.pohladavky_z_obchodneho_styku is None
                             or m.zavazky_z_obchodneho_styku is None
                             or m.osobne_naklady is None
+                            or m.investicny_cash_flow is None
+                            or m.financny_cash_flow is None
                         )
                         if needs_retry:
                             doc = fitz.open(file_path)
@@ -492,15 +494,20 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                                 if m.pohladavky_z_obchodneho_styku is None: missing.append("pohľadávky")
                                 if m.zavazky_z_obchodneho_styku is None: missing.append("záväzky")
                                 if m.osobne_naklady is None: missing.append("osobné náklady")
+                                if m.investicny_cash_flow is None: missing.append("investičný CF")
+                                if m.financny_cash_flow is None: missing.append("finančný CF")
                                 logger.info(f"[RETRY] Dáta sú neúplné (chýba: {', '.join(missing)}). Spúšťam analýzu nad neskráteným PDF ({total_pages} strán): {file_name}")
                                 data2 = await safe_llm_call(
                                     extract_financial_data, file_path,
                                     model=_MODEL_IFRS, label=f"IFRS-RETRY:{file_name}"
                                 )
                                 if data2:
-                                    # Zachovaj osobné náklady z prvého pokusu ak retry nevrátil lepšie
-                                    if data2.metriky.osobne_naklady is None and data.metriky.osobne_naklady is not None:
-                                        data2.metriky.osobne_naklady = data.metriky.osobne_naklady
+                                    # Zachovaj hodnoty z prvého pokusu ak retry nevrátil lepšie
+                                    for field in ("osobne_naklady", "investicny_cash_flow", "financny_cash_flow", "ciste_penazne_toky_z_prevadzkovej_cinnosti"):
+                                        old_val = getattr(data.metriky, field, None)
+                                        new_val = getattr(data2.metriky, field, None)
+                                        if new_val is None and old_val is not None:
+                                            setattr(data2.metriky, field, old_val)
                                     data = data2
                             else:
                                 logger.warning(f"[RETRY SKIP] PDF má {total_pages} > 80 strán, preskakujem full-retry kvôli nákladom: {file_name}")
@@ -533,6 +540,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             # Lower bound: celkové aktíva ≥ obežný majetok (chýba neobežný/fixed assets)
                             m.celkove_aktiva = m.obezny_majetok
                             logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
+                        if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None:
+                            # Equity = Assets - Liabilities (ak máme obe zložky záväzkov)
+                            liabilities = [v for v in [m.kratkodobe_zavazky, m.dlhodobeZavazky] if v is not None]
+                            if len(liabilities) >= 1:
+                                m.vlastne_imanie_celkom = m.celkove_aktiva - sum(liabilities)
+                                logger.info(f"[FALLBACK] {file_name}: vlastne_imanie vypočítané (assets - liabilities): {m.vlastne_imanie_celkom}")
                         logger.info(
                             f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
                             f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
