@@ -313,7 +313,7 @@
     {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
     <div class="mb-2 p-2 rounded-lg border border-amber-300 bg-amber-50 flex items-center gap-2">
         <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>
-        <p class="report-caption text-amber-700 leading-snug">Hodnotenie vypočítané na základe tvrdých dát (5-pilierový algoritmus). LLM analýza (Chief Auditor) bola dočasne nedostupná — odporúčame spustiť re-run pre plný posudok.</p>
+        <p class="report-caption text-amber-700 leading-normal">Hodnotenie vypočítané na základe tvrdých dát (5-pilierový algoritmus). LLM analýza (Chief Auditor) bola dočasne nedostupná — odporúčame spustiť re-run pre plný posudok.</p>
     </div>
     {% endif %}
     <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
@@ -321,7 +321,7 @@
         <div class="flex gap-2 mb-2">
             <div style="width: 66%;">
                 {% if verdict.executiveSummary %}
-                <p class="report-body-sm text-slate-700 leading-snug">{{ verdict.executiveSummary | sanitize_llm }}</p>
+                <p class="report-body-sm text-slate-700 leading-normal">{{ verdict.executiveSummary | sanitize_llm }}</p>
                 {% endif %}
             </div>
             <div style="width: 34%;">
@@ -413,7 +413,7 @@
                 <p class="report-body-sm text-rose-600 font-medium">⚠ Going Concern</p>
                 {% endif %}
                 {% if latest_stmt.auditorOpinion.reservationText and latest_stmt.auditorOpinion.reservationText is not none and latest_stmt.auditorOpinion.reservationText != 'null' and latest_stmt.auditorOpinion.reservationText|trim|length > 0 %}
-                <p class="report-body-sm text-slate-600">{{ latest_stmt.auditorOpinion.reservationText }}</p>
+                <p class="report-body-sm text-slate-600 leading-normal">{{ latest_stmt.auditorOpinion.reservationText }}</p>
                 {% endif %}
             </div>
         </div>
@@ -457,7 +457,7 @@
     {# ── ZISTENIA A RIZIKÁ — detail položiek ── #}
     {% if evidence_list and evidence_list|length > 0 %}
     <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <div class="space-y-1">
+        <div class="space-y-1.5">
             {% for item in criticals[:3] + warnings[:3] + positives[:2] + neutrals[:2] %}
             {% set impact = item.get('impact', 'NEUTRAL') %}
             {% set bg = '#ecfdf5' if impact == 'POSITIVE' else '#fffbeb' if impact == 'WARNING' else '#fef2f2' if impact == 'CRITICAL' else '#f8fafc' %}
@@ -467,9 +467,9 @@
             <div class="p-1 rounded border flex items-start gap-1.5" style="background: {{ bg }}; border-color: {{ border_c }};">
                 <span class="report-caption font-bold flex-shrink-0" style="color: {{ label_c }};">{{ label_text }}</span>
                 <div class="flex-1 min-w-0">
-                    {% if item.get('zdroj') %}<span class="report-caption text-slate-400 block">{{ item.zdroj | sanitize_llm }}</span>{% endif %}
-                    {% if item.get('tvrdenie') %}<p class="report-caption text-slate-700 leading-snug">{{ item.tvrdenie | sanitize_llm }}</p>{% endif %}
-                    {% if item.get('dokaz') %}<p class="report-caption text-slate-500 leading-snug">→ {{ item.dokaz | sanitize_llm }}</p>{% endif %}
+                    {% if item.get('zdroj') %}<span class="report-caption text-slate-500 block">{{ item.zdroj | sanitize_llm }}</span>{% endif %}
+                    {% if item.get('tvrdenie') %}<p class="report-body-sm text-slate-800 leading-normal">{{ item.tvrdenie | sanitize_llm }}</p>{% endif %}
+                    {% if item.get('dokaz') %}<p class="report-body-sm text-slate-600 leading-normal">→ {{ item.dokaz | sanitize_llm }}</p>{% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -585,7 +585,7 @@
         {% if latest_stmt.narrativeRisk.forensicRedFlags and latest_stmt.narrativeRisk.forensicRedFlags|length > 0 %}
         <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
             <p class="subsection-title-sm text-rose-500 mb-0.5">Forenzné red flags</p>
-            <ul class="space-y-0.5">
+            <ul class="space-y-1">
                 {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
                 <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag }}</span></li>
                 {% endfor %}

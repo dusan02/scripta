@@ -30,7 +30,7 @@
             {% endif %}
             <tr class="border-b border-slate-100" style="{{ row_bg }}">
                 <td class="py-2.5 px-3 font-semibold text-slate-800 report-body-sm">{{ pillar.name }}</td>
-                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-snug">{{ pillar.detail | sanitize_llm }}</td>
+                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-normal">{{ pillar.detail | sanitize_llm }}</td>
                 <td class="py-2.5 px-3 text-center font-black report-body-sm {{ score_color }}">
                     {{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>
                 </td>
