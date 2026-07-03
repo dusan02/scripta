@@ -292,6 +292,7 @@ model AuditVerdict {
   justification   String   @db.Text
   keyRisk         String   @db.Text
   scorecardBreakdown Json?
+  llmAnalysisStatus String @default("LLM_ANALYZED")
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])

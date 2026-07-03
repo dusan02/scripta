@@ -342,7 +342,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
                 label="Chief Auditor"
             )
         except Exception as llm_err:
-            logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {llm_err} — používam algoritmický fallback.")
+            logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)
             verdict = _build_fallback_verdict(company_dict, scorecard)
         
         logger.info(f"Ukladám AuditVerdict pre IČO {ico}: Skóre {verdict.verifa_score}, Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}")
