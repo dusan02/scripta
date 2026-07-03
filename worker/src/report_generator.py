@@ -4,6 +4,7 @@ import logging
 import base64
 import io
 from pathlib import Path
+from typing import Optional
 
 from playwright.async_api import async_playwright
 from prisma import Prisma
@@ -690,7 +691,7 @@ async def generate_forensic_pdf_report(
         await db.disconnect()
 
 
-async def generate_financial_summary_pdf(ico: str, target_path: str) -> str | None:
+async def generate_financial_summary_pdf(ico: str, target_path: str) -> Optional[str]:
     """Vygeneruje 1-2 strany s finančným prehľadom z DB dát (FinancialStatement).
     Používa sa pre IFRS firmy, kde registeruz.sk nezobrazuje štruktúrované HTML."""
     db = Prisma()
