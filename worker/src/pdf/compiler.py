@@ -110,8 +110,8 @@ class PdfCompiler:
         # 2. Pomocná funkcia na priradenie start_page s predpokladaným počtom strán cover page.
         # +1 za divider page (PRÍLOHY - ZDROJOVÉ DÁTA) medzi Part A a Part B.
         def _assign_start_pages(cover_pages: int):
-            start_pages_map['FORENZNY_POSUDOK'] = cover_pages - 5
-            start_pages_map['SCORING_BREAKDOWN'] = cover_pages - 4
+            start_pages_map['SCORING_BREAKDOWN'] = cover_pages - 5
+            start_pages_map['FORENZNY_POSUDOK'] = cover_pages - 4
             start_pages_map['SUVAHA'] = cover_pages - 3
             start_pages_map['VYKAZ_ZISKOV'] = cover_pages - 2
             start_pages_map['CASH_FLOW'] = cover_pages - 1
