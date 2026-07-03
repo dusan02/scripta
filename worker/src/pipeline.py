@@ -546,8 +546,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             # rezervy, časové rozlíšenie ani samostatné bankové úvery.
                             # Vyžadujeme obe zložky záväzkov, aby sme minimalizovali skreslenie.
                             if m.kratkodobe_zavazky is not None and m.dlhodobeZavazky is not None:
-                                m.vlastne_imanie_celkom = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobeZavazky)
-                                logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad, môže byť nadhodnotené): {m.vlastne_imanie_celkom}")
+                                computed_equity = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobeZavazky)
+                                if computed_equity > 0:
+                                    m.vlastne_imanie_celkom = computed_equity
+                                    logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad, môže byť nadhodnotené): {m.vlastne_imanie_celkom}")
+                                else:
+                                    logger.warning(f"[FALLBACK-SKIP] {file_name}: vlastne_imanie by bolo záporné ({computed_equity}), pravdepodobne chýbajú záväzky — preskakujem")
                         logger.info(
                             f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
                             f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
