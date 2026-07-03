@@ -521,17 +521,18 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
 
                     if data:
                         # Fallback: compute missing balance sheet totals from sub-items
+                        # Order matters: compute obezny_majetok first, then celkove_aktiva from it
+                        # to avoid double-counting (obežný majetok + its own sub-items)
                         m = data.metriky
-                        if m.celkove_aktiva is None:
-                            sub_items = [v for v in [m.obezny_majetok, m.pohladavky_z_obchodneho_styku, m.zasoby, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
-                            if len(sub_items) >= 2:
-                                m.celkove_aktiva = sum(sub_items)
-                                logger.info(f"[FALLBACK] {file_name}: celkove_aktiva vypočítané z sub-items: {m.celkove_aktiva}")
                         if m.obezny_majetok is None:
-                            sub_items = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
-                            if len(sub_items) >= 2:
-                                m.obezny_majetok = sum(sub_items)
+                            current_sub = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
+                            if len(current_sub) >= 2:
+                                m.obezny_majetok = sum(current_sub)
                                 logger.info(f"[FALLBACK] {file_name}: obezny_majetok vypočítané z sub-items: {m.obezny_majetok}")
+                        if m.celkove_aktiva is None and m.obezny_majetok is not None:
+                            # Lower bound: celkové aktíva ≥ obežný majetok (chýba neobežný/fixed assets)
+                            m.celkove_aktiva = m.obezny_majetok
+                            logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
                         logger.info(
                             f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
                             f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
