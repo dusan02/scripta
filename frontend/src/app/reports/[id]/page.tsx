@@ -182,30 +182,35 @@ function ErrorDetails({ sources }: { sources: ReportSource[] }) {
   );
 }
 
-// ── Phase Progress (weighted) ────────────────────────────────────
+// ── Phase Progress (weighted, time-interpolated) ─────────────────
+// Based on real telemetry: total ~329s, analyzing_statements alone = ~180s.
 const PHASE_WEIGHTS = {
-  scraping: 55,
-  aiPipeline: 20,
-  verdict: 10,
-  compiling: 15,
+  scraping: 30,
+  aiPipeline: 50,
+  verdict: 12,
+  compiling: 8,
 } as const;
 
-const AI_STATUS_PROGRESS: Record<string, number> = {
-  "ai.checking_registers": 0,
-  "ai.retrying": 0,
-  "ai.downloading": 55,
-  "ai.analyzing_statements": 60,
-  "ai.risk_analysis": 68,
-  "ai.final_verdict": 75,
-  "ai.forensic_analysis": 80,
-  "ai.compiling": 90,
+// Each AI status has a start%, end%, and estimated duration (seconds).
+// Progress interpolates linearly from start→end over the estimated duration,
+// so the bar moves continuously instead of jumping and freezing.
+const AI_STATUS_RANGES: Record<string, { start: number; end: number; estSeconds: number }> = {
+  "ai.checking_registers": { start: 0, end: 5, estSeconds: 10 },
+  "ai.retrying":            { start: 0, end: 5, estSeconds: 10 },
+  "ai.downloading":         { start: 30, end: 40, estSeconds: 55 },
+  "ai.analyzing_statements":{ start: 40, end: 75, estSeconds: 180 },  // ← longest phase
+  "ai.risk_analysis":       { start: 75, end: 82, estSeconds: 30 },
+  "ai.final_verdict":       { start: 82, end: 90, estSeconds: 30 },
+  "ai.forensic_analysis":   { start: 90, end: 95, estSeconds: 15 },
+  "ai.compiling":           { start: 95, end: 99, estSeconds: 20 },
 };
 
 function computeWeightedProgress(
   sourcesCompleted: number,
   sourcesTotal: number,
   aiStatus: string | null | undefined,
-  reportStatus: string
+  reportStatus: string,
+  aiStatusStartedAt: number | null
 ): number {
   if (["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus)) return 100;
 
@@ -213,9 +218,19 @@ function computeWeightedProgress(
     ? (sourcesCompleted / sourcesTotal) * PHASE_WEIGHTS.scraping
     : 0;
 
-  const aiProgress = aiStatus && aiStatus in AI_STATUS_PROGRESS
-    ? AI_STATUS_PROGRESS[aiStatus]
-    : 0;
+  let aiProgress = 0;
+  if (aiStatus && aiStatus in AI_STATUS_RANGES) {
+    const range = AI_STATUS_RANGES[aiStatus];
+    if (aiStatusStartedAt !== null) {
+      const elapsed = (Date.now() - aiStatusStartedAt) / 1000;
+      const fraction = Math.min(1, elapsed / range.estSeconds);
+      // Ease-out curve: fast initial progress, slows near the end
+      const eased = 1 - Math.pow(1 - fraction, 2);
+      aiProgress = range.start + (range.end - range.start) * eased;
+    } else {
+      aiProgress = range.start;
+    }
+  }
 
   return Math.min(99, Math.max(scrapingProgress, aiProgress));
 }
@@ -246,16 +261,25 @@ function PhaseProgress({
   locale: string;
 }) {
   const t = useT();
-  const targetProgress = computeWeightedProgress(sourcesCompleted, sourcesTotal, aiStatus, reportStatus);
   const phaseLabel = getPhaseLabel(aiStatus, t);
   const statusText = aiStatus ? t(aiStatus) : t("report.processing");
   const isScraping = !aiStatus || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
   const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
 
-  // Smooth interpolation: displayProgress creeps toward targetProgress
+  // Track when the current AI status first appeared (for time-based interpolation)
+  const aiStatusRef = useRef<string | null>(null);
+  const aiStatusStartedRef = useRef<number | null>(null);
   const [displayProgress, setDisplayProgress] = useState(0);
   const displayRef = useRef(0);
   useEffect(() => { displayRef.current = displayProgress; }, [displayProgress]);
+
+  // Reset timer when AI status changes
+  useEffect(() => {
+    if (aiStatus !== aiStatusRef.current) {
+      aiStatusRef.current = aiStatus ?? null;
+      aiStatusStartedRef.current = Date.now();
+    }
+  }, [aiStatus]);
 
   useEffect(() => {
     if (isTerminal) {
@@ -263,18 +287,21 @@ function PhaseProgress({
       return;
     }
     const interval = setInterval(() => {
+      const target = computeWeightedProgress(
+        sourcesCompleted, sourcesTotal, aiStatus, reportStatus, aiStatusStartedRef.current
+      );
       const current = displayRef.current;
-      const diff = targetProgress - current;
+      const diff = target - current;
       if (Math.abs(diff) < 0.3) {
-        setDisplayProgress(targetProgress);
+        setDisplayProgress(target);
         return;
       }
-      // Creep ~0.4% per 500ms tick, but never overshoot target
-      const step = Math.max(0.15, diff * 0.08);
-      setDisplayProgress(Math.min(targetProgress, current + step));
+      // Smooth creep toward target
+      const step = Math.max(0.15, diff * 0.12);
+      setDisplayProgress(Math.min(target, current + step));
     }, 500);
     return () => clearInterval(interval);
-  }, [targetProgress, isTerminal]);
+  }, [sourcesCompleted, sourcesTotal, aiStatus, reportStatus, isTerminal]);
 
   return (
     <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
