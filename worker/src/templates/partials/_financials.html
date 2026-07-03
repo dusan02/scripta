@@ -456,9 +456,9 @@
 
     {# ── ZISTENIA A RIZIKÁ — detail položiek ── #}
     {% if evidence_list and evidence_list|length > 0 %}
-    <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+    <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc; page-break-inside: avoid; break-inside: avoid;">
         <div class="space-y-1.5">
-            {% for item in criticals[:3] + warnings[:3] + positives[:2] + neutrals[:2] %}
+            {% for item in criticals[:2] + warnings[:2] + positives[:2] + neutrals[:1] %}
             {% set impact = item.get('impact', 'NEUTRAL') %}
             {% set bg = '#ecfdf5' if impact == 'POSITIVE' else '#fffbeb' if impact == 'WARNING' else '#fef2f2' if impact == 'CRITICAL' else '#f8fafc' %}
             {% set border_c = '#10b981' if impact == 'POSITIVE' else '#f59e0b' if impact == 'WARNING' else '#ef4444' if impact == 'CRITICAL' else '#e2e8f0' %}
@@ -559,13 +559,13 @@
     <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
         <h3 class="subsection-title-sm mb-2">Riziká z poznámok k účtovnej závierke</h3>
         {% if latest_stmt.notesRisk.relatedPartyTransactions %}
-        <div class="mt-1"><strong class="report-body-sm text-slate-600">Spriaznené osoby:</strong> <span class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</span></div>
+        <div class="report-body-sm mt-1"><strong class="text-slate-600">Spriaznené osoby:</strong> <span class="text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</span></div>
         {% endif %}
         {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
-        <div class="mt-1"><strong class="report-body-sm text-slate-600">Podsúvahové záväzky:</strong> <span class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</span></div>
+        <div class="report-body-sm mt-1"><strong class="text-slate-600">Podsúvahové záväzky:</strong> <span class="text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</span></div>
         {% endif %}
         {% if latest_stmt.notesRisk.contingentRisks %}
-        <div class="mt-1"><strong class="report-body-sm text-slate-600">Súdne spory (Contingent):</strong> <span class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</span></div>
+        <div class="report-body-sm mt-1"><strong class="text-slate-600">Súdne spory (Contingent):</strong> <span class="text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</span></div>
         {% endif %}
     </div>
     {% endif %}
