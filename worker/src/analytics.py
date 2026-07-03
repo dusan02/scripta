@@ -762,8 +762,8 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     }
     
     # Výpočet CAGR (Zložená ročná miera rastu) pre Tržby
-    first_rev = getattr(first, 'mainActivityRevenue', 0)
-    last_rev = getattr(last, 'mainActivityRevenue', 0)
+    first_rev = getattr(first, 'mainActivityRevenue', None) or 0
+    last_rev = getattr(last, 'mainActivityRevenue', None) or 0
     if years_span > 0 and first_rev > 0 and last_rev > 0:
         cagr = ((last_rev / first_rev) ** (1 / years_span)) - 1
         trends["cagr_revenue"] = round(cagr * 100, 2)
@@ -771,21 +771,21 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     # Počet po sebe idúcich strát od konca
     losses = 0
     for s in reversed(sorted_stmts):
-        if getattr(s, 'netProfitLoss', 0) < 0:
+        if (getattr(s, 'netProfitLoss', 0) or 0) < 0:
             losses += 1
         else:
             break
     trends["consecutive_losses"] = losses
     
     # Indikátory finančného stresu
-    last_equity = getattr(last, 'equity', 0)
+    last_equity = getattr(last, 'equity', 0) or 0
     if last_equity < 0:
         trends["bankruptcy_risk_indicators"].append("Záporné vlastné imanie (Spoločnosť je pod finančným stresom)")
     if losses >= 3:
         trends["bankruptcy_risk_indicators"].append(f"{losses} roky po sebe idúcej čistej straty")
         
-    last_liabilities = getattr(last, 'shortTermLiabilities', 0)
-    last_assets = getattr(last, 'totalAssets', 0)
+    last_liabilities = getattr(last, 'shortTermLiabilities', 0) or 0
+    last_assets = getattr(last, 'totalAssets', 0) or 0
     if last_liabilities > last_assets and last_assets > 0:
         trends["bankruptcy_risk_indicators"].append("Krátkodobé záväzky prevyšujú celkové aktíva (Riziko insolvencie)")
     
