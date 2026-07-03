@@ -7,11 +7,13 @@ import time
 from typing import Optional
 
 import asyncio
-from prisma import Prisma
+import fitz
+from prisma import Prisma, Json
 from dotenv import load_dotenv
 
 load_dotenv()
 
+from src.config import settings as _cfg
 from src.db_repository import (
     save_to_db, save_narrative_to_db, save_notes_to_db,
     update_ai_status, get_avg_completion_seconds,
@@ -30,6 +32,7 @@ from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestni
 from src.report_generator import generate_forensic_pdf_report
 from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_VESTNIK
+from src.analytics import sanitize_cash_flow_fields, compute_financial_trends, compute_forensic_scorecard
 
 # Nastavenie logovania do súboru pre produkciu
 logging.basicConfig(
@@ -45,6 +48,21 @@ logger = logging.getLogger(__name__)
 # Globálny semaphore pre LLM volania — zdieľaný medzi všetkými reportmi
 # Gemini free tier ~5 RPM; 2 paralelné volania + staggered delay = bezpečné
 _GLOBAL_LLM_SEM = asyncio.Semaphore(2)
+
+# Fallback baseline ak nie sú historické dáta (sekundy)
+_PIPELINE_BASELINE_FALLBACK = _cfg.pipeline_baseline_fallback
+
+# Dynamická baseline — nastaví sa pri štarte process_company z histórie behov
+_pipeline_baseline: float = _PIPELINE_BASELINE_FALLBACK
+
+
+def _extract_year_from_fn(file_path: str) -> int:
+    """Extrahuje rok z názvu súboru (napr. IFRS_35876832_2024_0.pdf → 2024)."""
+    fn = os.path.basename(file_path)
+    parts = fn.split('_')
+    if len(parts) >= 3 and parts[2].isdigit():
+        return int(parts[2])
+    return 0
 
 
 def _check_cross_year_duplicates(results: list[CompanyFinancialExtraction]) -> None:
@@ -230,12 +248,10 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         
         # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
         # Konvertujeme na None, aby LLM judge nevidel operatingCashFlow: 0 a nepísal o "nulovom cash flow"
-        from src.analytics import sanitize_cash_flow_fields
         for stmt in company_dict.get("financialStatements", []):
             sanitize_cash_flow_fields(stmt)
         
         # Cesta B: Deterministická agregácia a výpočet 5-ročného trendu
-        from src.analytics import compute_financial_trends, compute_forensic_scorecard
         if company.financialStatements:
             trends = compute_financial_trends(company.financialStatements)
             scorecard = compute_forensic_scorecard(company_dict, trends)
@@ -253,7 +269,6 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
             company_dict["analyza_trendov"] = trends
 
             
-        import json
         company_data = json.dumps(company_dict, default=str)
         
         # Hľadáme PDF súbory z registrov v results/{report_id}/ aj assets/{ico}/
@@ -269,7 +284,6 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         
         logger.info(f"Ukladám AuditVerdict pre IČO {ico}: Skóre {verdict.verifa_score}, Debt Rating: {verdict.debt_exposure_rating}")
         
-        from prisma import Json
         await db.auditverdict.upsert(
             where={'companyIco': ico},
             data={
@@ -301,12 +315,6 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
     finally:
         await db.disconnect()
 
-# Fallback baseline ak nie sú historické dáta (sekundy)
-from src.config import settings as _cfg
-_PIPELINE_BASELINE_FALLBACK = _cfg.pipeline_baseline_fallback
-
-# Dynamická baseline — nastaví sa pri štarte process_company z histórie behov
-_pipeline_baseline: float = _PIPELINE_BASELINE_FALLBACK
 
 def _remaining_eta(t_start: float) -> int:
     """Vypočíta dynamický remaining ETA z uplynutého času a baseliny."""
@@ -405,7 +413,6 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             or m.osobne_naklady is None
                         )
                         if needs_retry:
-                            import fitz
                             doc = fitz.open(file_path)
                             total_pages = len(doc)
                             doc.close()
@@ -533,13 +540,6 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 logger.error(f"[IFRS SAVE ERROR] rok={data.metriky.rok_zavierky}: {e}", exc_info=True)
 
         # 3b. Extrakcia poznámok (len pre najnovší rok, s fallbackom na staršie ak zlyhá)
-        def _extract_year_from_fn(fp: str) -> int:
-            fn = os.path.basename(fp)
-            parts = fn.split('_')
-            if len(parts) >= 3 and parts[2].isdigit():
-                return int(parts[2])
-            return 0
-
         sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
         notes_attempts = 0
         for fp in sorted_ifrs:

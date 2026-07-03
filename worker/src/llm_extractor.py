@@ -1,7 +1,9 @@
 import os
+import re
 import logging
+from contextlib import contextmanager
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal, List
 from google import genai
 from google.genai import types
 
@@ -13,6 +15,20 @@ logger = logging.getLogger(__name__)
 def _get_gemini_client() -> genai.Client:
     """Vráti Gemini API klienta s API kľúčom z environment variables."""
     return genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+
+
+@contextmanager
+def _gemini_uploaded_file(client: genai.Client, file_path: str):
+    """Context manager: uploadne PDF do Gemini File API a automaticky ho vymaže po použití."""
+    uploaded = client.files.upload(file=file_path)
+    try:
+        yield uploaded
+    finally:
+        try:
+            if uploaded.name:
+                client.files.delete(name=uploaded.name)
+        except Exception as e:
+            logger.warning(f"Nepodarilo sa vymazať súbor z Gemini: {e}")
 
 
 # ── Token cost accumulator ────────────────────────────────────────────
@@ -142,8 +158,6 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     na extrakciu faktov priamo z obrázkov strán podľa Pydantic schémy.
     Pre .txt súbory (HTML extrakcia z registeruz.sk) pošle text priamo ako prompt.
     """
-    import re
-    
     # Skúsime vyčítať rok priamo z názvu súboru (ak bol dodaný scraperom)
     filename = os.path.basename(file_path)
     match = re.search(r'_(\d{4})_', filename)
@@ -184,23 +198,14 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
         return data
     
     # Pre PDF súbory — upload do Gemini File API
-    uploaded_file = client.files.upload(file=file_path)
-    
-    try:
+    with _gemini_uploaded_file(client, file_path) as uploaded_file:
         response = await client.aio.models.generate_content(
             model=model,
             contents=[uploaded_file],
             config=config,
         )
         _log_tokens(model, response.usage_metadata, "extract_financial_data")
-    finally:
-        # Vždy vymazať súbor z Google serverov, aby sa neplatilo za zbytočný storage
-        try:
-            if uploaded_file.name:
-                client.files.delete(name=uploaded_file.name)
-        except Exception as e:
-            logger.warning(f"Nepodarilo sa vymazať súbor z Gemini: {e}")
-    
+
     data = CompanyFinancialExtraction.model_validate_json(response.text)
     
     # Sanity Check: Order of magnitude error (v tisícoch alebo miliónoch EUR odignorované)
@@ -280,9 +285,8 @@ async def extract_staff_costs_focused(file_path: str, model: str = settings.mode
     Využíva špecifický prompt zameraný na IFRS by-function výkazy kde sú mzdové
     náklady v poznámkach, nie v hlavnom výkaze.
     """
-    import re as _re
     filename = os.path.basename(file_path)
-    match = _re.search(r'_(\d{4})_', filename)
+    match = re.search(r'_(\d{4})_', filename)
     expected_year = int(match.group(1)) if match else None
 
     client = _get_gemini_client()
@@ -305,20 +309,13 @@ async def extract_staff_costs_focused(file_path: str, model: str = settings.mode
                 config=config,
             )
         else:
-            uploaded_file = client.files.upload(file=file_path)
-            try:
+            with _gemini_uploaded_file(client, file_path) as uploaded_file:
                 logger.info(f"[STAFF COSTS RETRY] Spracovávam PDF: {filename}")
                 response = await client.aio.models.generate_content(
                     model=model,
                     contents=[uploaded_file],
                     config=config,
                 )
-            finally:
-                try:
-                    if uploaded_file.name:
-                        client.files.delete(name=uploaded_file.name)
-                except Exception:
-                    pass
 
         _log_tokens(model, response.usage_metadata, "extract_staff_costs_focused")
         result = StaffCostsResult.model_validate_json(response.text)
@@ -343,8 +340,6 @@ async def extract_staff_costs_focused(file_path: str, model: str = settings.mode
         logger.error(f"[STAFF COSTS RETRY] Chyba pri extrakcii z {filename}: {e}")
         return None
 
-
-from typing import Literal, List
 
 class VestnikExtraction(BaseModel):
     typ_udalosti: str = Field(..., description="Napr. Konkurz, Exekúcia, Zmena štatutára, atď.")
@@ -410,34 +405,22 @@ async def extract_narrative_risk(file_path: str, model: str = settings.model_nar
     vyhodnocovanie cez model 2.5-flash.
     """
     client = _get_gemini_client()
-    
-    # Upload the file to Gemini via File API
-    uploaded_file = client.files.upload(file=file_path)
-    
+
     config = types.GenerateContentConfig(
         system_instruction=NARRATIVE_SYSTEM_PROMPT,
         response_mime_type="application/json",
         response_schema=NarrativeRiskAnalysis,
         temperature=0.0
     )
-    
-    # Zvýšený timeout, pretože ide o dlhý dokument
-    # V Google GenAI SDK sa to posiela štandardne, timeout by sme inak definovali na úrovni klienta/transportu,
-    # ale tu stačí predvolený (býva dosť dlhý).
-    try:
+
+    with _gemini_uploaded_file(client, file_path) as uploaded_file:
         response = await client.aio.models.generate_content(
             model=model,
             contents=[uploaded_file],
             config=config,
         )
         _log_tokens(model, response.usage_metadata, "extract_narrative_risk")
-    finally:
-        # Vždy vymazať súbor z Google serverov pre úsporu nákladov na storage
-        try:
-            if uploaded_file.name:
-                client.files.delete(name=uploaded_file.name)
-        except Exception as e:
-            logger.warning(f"Nepodarilo sa vymazať súbor z Gemini: {e}")
+
     return NarrativeRiskAnalysis.model_validate_json(response.text)
 
 class EvidenceItem(BaseModel):
@@ -461,26 +444,19 @@ Ak v texte nenájdeš nič relevantné, vráť null. Nikdy si nevymýšľaj."""
 async def extract_notes_risks(file_path: str, model: str = settings.model_narrative) -> NotesRiskAnalysis:
     """Extrahuje riziká z Poznámok k závierke (Related party transactions, atď)."""
     client = _get_gemini_client()
-    uploaded_file = client.files.upload(file=file_path)
     config = types.GenerateContentConfig(
         system_instruction=NOTES_SYSTEM_PROMPT,
         response_mime_type="application/json",
         response_schema=NotesRiskAnalysis,
         temperature=0.0
     )
-    try:
+    with _gemini_uploaded_file(client, file_path) as uploaded_file:
         response = await client.aio.models.generate_content(
             model=model,
             contents=[uploaded_file],
             config=config,
         )
         _log_tokens(model, response.usage_metadata, "extract_notes_risks")
-    finally:
-        try:
-            if uploaded_file.name:
-                client.files.delete(name=uploaded_file.name)
-        except Exception:
-            pass
     return NotesRiskAnalysis.model_validate_json(response.text)
 
 class AuditVerdict(BaseModel):
@@ -551,8 +527,6 @@ PRAVIDLÁ PRE KVALITU TEXTU:
 - REŠTRUKTURALIZÁCIA Z ORSR: Ak v ORSR výpise (sekcia "Ďalšie právne skutočnosti") vidíš zmienku o reštrukturalizácii, konkurze alebo odpustení dlhov — aj keď už skončila — MUSÍŠ to spomenúť v posudku. Napríklad: "Spoločnosť v rokoch 2022–2023 prešla formálnou reštrukturalizáciou, ktorá bola súdom úspešne ukončená." NIKDY nepíš "nemá záznamy o reštrukturalizácii" ak ORSR jasne uvádza, že prebehla. RKR (Register konkurzov a reštrukturalizácií) zobrazuje len aktuálne prebiehajúce konania — ak už skončilo, RKR ho nezobrazí, ale to neznamená, že sa nikdy nekonal.
 - KRÁTKE OBDOBIA (< 12 mesiacov): Ak v dátach vidíš `monthsInPeriod` s hodnotou menšou ako 12, NEinterpretuj pokles tržieb alebo zisku oproti predchádzajúcemu 12-mesačnému obdobiu ako negatívny trend. Pokles z 3-mesačného obdobia oproti 12-mesačnému je matematický dôsledok kratšieho obdobia, nie zhoršenie podnikania. V executive_summary výslovne spomeň, že ide o skrátené účtovné obdobie (napr. "Závierka za rok 2024 pokrýva len 3 mesiace, preto nie je porovnateľná s predchádzajúcimi plnými rokmi"). V Pilieri 4 (Rast & Trendová sila) neupravuj skóre nadol za pokles tržieb, ak je obdobie kratšie ako 11 mesiacov."""
 
-
-import asyncio
 
 async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: str = settings.model_verdict) -> AuditVerdict:
     """
