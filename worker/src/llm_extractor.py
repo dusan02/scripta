@@ -149,6 +149,7 @@ PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
 - `pocet_zamestnancov`: Hľadaj v Poznámkach: 'Priemerný počet zamestnancov', 'Number of employees'. Ak nie je uvedený, vráť null.
 - `typ_zavierky`: Nastav 'IFRS' ak dokument uvádza 'International Financial Reporting Standards' alebo 'IFRS'. Nastav 'MICRO' pre Úč MUJ mikro jednotky. Inak nastav 'SK_GAAP'.
 - KRÁTKE OBDOBIA: Ak dokument na prvej strane uvádza obdobie kratšie ako 12 mesiacov (napr. "01/2024 - 03/2024" = 3 mesiace), MUSÍŠ to reflektovať v poli `pocet_mesiacov_obdobia`. Ak v texte vidíš anotáciu "Dĺžka obdobia: X mesiacov", použi túto hodnotu. Nikdy neporovnávaj tržby alebo zisk z krátkeho obdobia s plným rokom — pokles tržieb z 3-mesačného obdobia oproti 12-mesačnému nie je negatívny trend, ale matematický dôsledok kratšieho obdobia.
+- KRITICKÉ SÚČTOVÉ UZLY: `celkove_aktiva`, `obezny_majetok` a `vlastne_imanie_celkom` sú hlavné súčtové riadky v Súvaha (Balance Sheet). Aj keď vidíš čiastkové položky (zásoby, pohľadávky, hotovosť), MUSÍŠ vyhľadať a extrahovať aj súčtové riadky "Celkové aktíva" / "Total assets" / "Spolu aktíva", "Obežný majetok" / "Current assets" / "Spolu obežný majetok", a "Vlastné imanie celkom" / "Total equity" / "Spolu vlastné imanie". Tieto súčty sú zvyčajne na rovnakej strane ako čiastkové položky, často ako posledný riadok v danej sekcii. Ak vidíš čiastkové položky ale chýba súčet, SČÍTAJ ich ako fallback.
 - Nikdy nehalucinuj. Ak položka v závierke neexistuje alebo nie je uvedená, vráť null. Ak je fyzicky uvedená 0, vráť 0."""
 
 

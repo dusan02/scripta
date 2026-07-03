@@ -473,7 +473,10 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                     if data and sliced_path and sliced_path != file_path:
                         m = data.metriky
                         needs_retry = (
-                            m.pohladavky_z_obchodneho_styku is None
+                            m.celkove_aktiva is None
+                            or m.obezny_majetok is None
+                            or m.vlastne_imanie_celkom is None
+                            or m.pohladavky_z_obchodneho_styku is None
                             or m.zavazky_z_obchodneho_styku is None
                             or m.osobne_naklady is None
                         )
@@ -483,6 +486,9 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             doc.close()
                             if total_pages <= 80:
                                 missing = []
+                                if m.celkove_aktiva is None: missing.append("celkové aktíva")
+                                if m.obezny_majetok is None: missing.append("obežný majetok")
+                                if m.vlastne_imanie_celkom is None: missing.append("vlastné imanie")
                                 if m.pohladavky_z_obchodneho_styku is None: missing.append("pohľadávky")
                                 if m.zavazky_z_obchodneho_styku is None: missing.append("záväzky")
                                 if m.osobne_naklady is None: missing.append("osobné náklady")
@@ -514,6 +520,18 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             logger.warning(f"[STAFF COSTS RETRY] Osobné náklady sa nepodarilo nájsť v {file_name}")
 
                     if data:
+                        # Fallback: compute missing balance sheet totals from sub-items
+                        m = data.metriky
+                        if m.celkove_aktiva is None:
+                            sub_items = [v for v in [m.obezny_majetok, m.pohladavky_z_obchodneho_styku, m.zasoby, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
+                            if len(sub_items) >= 2:
+                                m.celkove_aktiva = sum(sub_items)
+                                logger.info(f"[FALLBACK] {file_name}: celkove_aktiva vypočítané z sub-items: {m.celkove_aktiva}")
+                        if m.obezny_majetok is None:
+                            sub_items = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
+                            if len(sub_items) >= 2:
+                                m.obezny_majetok = sum(sub_items)
+                                logger.info(f"[FALLBACK] {file_name}: obezny_majetok vypočítané z sub-items: {m.obezny_majetok}")
                         logger.info(
                             f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
                             f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
