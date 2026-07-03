@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import Logo from "@/components/Logo";
 import { useTheme } from "@/components/ThemeProvider";
 import { useT } from "@/components/LanguageProvider";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function LandingPage() {
   const { theme, toggle } = useTheme();
@@ -23,7 +24,7 @@ export default function LandingPage() {
     {
       name: "Jednorazový report",
       credits: "1 report",
-      price: "9 €",
+      price: "19 €",
       perCredit: "Platíte len za to, čo použijete. Žiadne predplatné.",
       features: [
         "1 report",
@@ -40,11 +41,11 @@ export default function LandingPage() {
     },
     {
       name: "Basic",
-      credits: "20 reportov",
-      price: "49 €",
-      perCredit: "2,45 € / hľadanie",
+      credits: "10 podrobných Due Diligence reportov",
+      price: "89 €",
+      perCredit: "8,90 € / report",
       features: [
-        "20 reportov",
+        "10 podrobných Due Diligence reportov",
         "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
         "Insolvenčný register",
         "Finančná správa a DPH registre",
@@ -54,15 +55,15 @@ export default function LandingPage() {
         "Záverečné skóre",
         "PDF report",
       ],
-      highlighted: true,
+      highlighted: false,
     },
     {
       name: "Biznis",
-      credits: "50 reportov",
-      price: "99 €",
-      perCredit: "1,98 € / hľadanie",
+      credits: "30 podrobných Due Diligence reportov",
+      price: "149 €",
+      perCredit: "4,97 € / report",
       features: [
-        "50 reportov",
+        "30 podrobných Due Diligence reportov",
         "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
         "Insolvenčný register",
         "Finančná správa a DPH registre",
@@ -72,6 +73,26 @@ export default function LandingPage() {
         "Záverečné skóre",
         "PDF report",
         "Prioritná podpora",
+      ],
+      highlighted: true,
+    },
+    {
+      name: "Pro",
+      credits: "100 podrobných Due Diligence reportov",
+      price: "349 €",
+      perCredit: "3,49 € / report",
+      features: [
+        "100 podrobných Due Diligence reportov",
+        "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
+        "Insolvenčný register",
+        "Finančná správa a DPH registre",
+        "Register diskvalifikácií",
+        "Záložné práva a dražby",
+        "Posudok",
+        "Záverečné skóre",
+        "PDF report",
+        "Prioritná podpora",
+        "Osobný account manager",
       ],
       highlighted: false,
     },
@@ -100,6 +121,7 @@ export default function LandingPage() {
             <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navFeatures")}</a>
             <a href="#cennik" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navPricing")}</a>
             <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Registre</a>
+            <Link href="/documents" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("nav.dokumenty")}</Link>
             <button
               onClick={toggle}
               style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 16 }}
@@ -107,6 +129,7 @@ export default function LandingPage() {
             >
               {darkMode ? "☀️" : "🌙"}
             </button>
+            <LanguageSwitcher />
             <Link
               href="/login"
               style={{

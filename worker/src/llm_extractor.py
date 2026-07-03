@@ -9,6 +9,12 @@ from src.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _get_gemini_client() -> genai.Client:
+    """Vráti Gemini API klienta s API kľúčom z environment variables."""
+    return genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+
+
 # ── Token cost accumulator ────────────────────────────────────────────
 _token_stats: dict[str, dict] = {}
 
@@ -20,12 +26,14 @@ def _log_tokens(model: str, usage, label: str) -> None:
     """Zaloguje spotrebu tokenov a odhadnuté náklady pre jedno LLM volanie."""
     if not usage:
         return
+    from src.log_helpers import get_correlation_id
     inp = getattr(usage, "prompt_token_count", 0) or 0
     out = getattr(usage, "candidates_token_count", 0) or 0
     price_in, price_out = settings.llm_pricing.get(model, (0.0, 0.0))
     cost_usd = (inp * price_in + out * price_out) / 1_000_000
+    cid = get_correlation_id() or "-"
     logger.info(
-        f"[LLM] {label} | model={model} "
+        f"[{cid}] LLM TOKENS: {label} | model={model} "
         f"in={inp:,} out={out:,} tok "
         f"cost=${cost_usd:.5f}"
     )
@@ -41,6 +49,8 @@ def log_token_summary() -> None:
     """Zaloguje súhrn token cost za celý report."""
     if not _token_stats:
         return
+    from src.log_helpers import get_correlation_id
+    cid = get_correlation_id() or "-"
     total_cost = 0.0
     total_in = 0
     total_out = 0
@@ -51,7 +61,7 @@ def log_token_summary() -> None:
         total_out += stats["output"]
         parts.append(f"{model}: {stats['calls']} calls, {stats['input']:,}+{stats['output']:,} tok, ${stats['cost']:.4f}")
     logger.info(
-        f"[LLM SUMMARY] total: {len(_token_stats)} models, "
+        f"[{cid}] LLM SUMMARY: {len(_token_stats)} models, "
         f"{total_in:,}+{total_out:,} tok, ${total_cost:.4f} | "
         f"{' | '.join(parts)}"
     )
@@ -102,23 +112,26 @@ KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
 - Všetky finančné hodnoty extrahuj V EURÁCH (nie v tisícoch ani miliónoch EUR). Ak tabuľka uvádza "v tisícoch EUR" (alebo anglicky "in thousands of EUR" / "EUR '000" / "in ths. EUR"), vynásob hodnotu 1000. Ak uvádza "v miliónoch EUR" (alebo "in millions of EUR" / "EUR mn"), vynásob 1 000 000.
 - VÝNIMKA MENA: Ak je výkaz v CZK alebo USD (nie EUR), extrahuj čísla bez konverzie a nastav pole `mena` na 'CZK' alebo 'USD'. Ak je výkaz v EUR, nastav `mena` na 'EUR'.
 - Pri číslach v zátvorkách (napr. (1500)) ich konvertuj na negatívne float hodnoty (-1500.0).
+- VÝNIMKA: Nákladové položky (osobné náklady, odpisy, úroky, náklady na predaný tovar, mzdové náklady, sociálne poistenie) VŽDY extrahuj ako KLDNÉ čísla (absolútna hodnota). Náklady sú vždy kladné — znamienko mínus patrí len strate/zápornému hospodárskemu výsledku a záporným cash flow tokom. Ak je náklad v zátvorkách (1500), extrahuj ho ako 1500.0 (kladné).
 - Ak narazíš na tabuľku s dvoma stĺpcami dát (rok X a rok X-1), extrahuj prioritne stĺpec pre rok X (aktuálne účtovné obdobie).
 - Aj keď sa jedná o malú s.r.o. (Mikro účtovná jednotka) a dokument nemá hlavičku IFRS, MUSÍŠ extrahovať hodnoty do príslušných polí (Tržby, Zisk, Aktíva...). Neodmietaj extrakciu len preto, že to nie je IFRS!
 - Malé firmy (Úč MUJ) NEPOTREBUJÚ audítora. Ak v dokumente nie je správa audítora, nastav `nazor_auditora` VŽDY na 'Bez výhrad' a nevykazuj žiadne výhrady ani going concern riziká.
-- Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, doplň nulu, ale NEPOVAŽUJ to za negatívny indikátor v ďalších analýzach.
+- Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, vráť null. NIKDY nedoplňuj nulu pre chýbajúce cash flow dáta — nula znamená "firmá má nulový cash flow", čo je forenzný red flag, kým null znamená "dáta neboli k dispozícii".
 
 PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
 - `dlhodobeZavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans".
 - `hruba_marza` (Gross profit): V SK GAAP = Obchodná marža + Výrobná spotreba; v IFRS = Revenue - Cost of sales.
-- `osobne_naklady` (Staff costs): Hľadaj "Osobné náklady", "Mzdové náklady". Slúži na detekciu schránkových firiem.
+- `osobne_naklady` (Staff costs): KRITICKÉ — Hľadaj vo Výkaze ziskov a strát: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs". Toto je súčet mzdových nákladov + sociálneho poistenia + odvodov. Pre výrobné firmy (Mobis, Kia, Volkswagen) sú to miliónové čiastky — ak nájdeš nulu alebo prázdne, skontroluj či naozaj chýbajú alebo sa len nepomenovali inak. NIKDY nevracaj null ak je hodnota fyzicky v tabuľke uvedená.
+  KRITICKÉ PRE IFRS BY-FUNCTION: Mnoho IFRS závierok (najmä výrobné firmy ako Mobis, Kia, Volkswagen) prezentuje Výkaz ziskov a strát PODĽA FUNKCIE (by function), nie podľa druhu (by nature). V takom prípade Výkaz ziskov a strát NEOBSAHUJE samostatný riadok "Osobné náklady" / "Staff costs" — namiesto toho sú mzdové náklady súčasťou položiek ako "Cost of sales" / "Náklady na predaný tovar", "Administrative expenses" / "Verejnoprospešné náklady", "Selling expenses" / "Náklady na predaj". V takom prípade HĽADAJ osobné náklady V POZNÁMKACH (Notes) — konkrétne v poznámke o zamestnaneckých dávkach / employee benefits / staff costs disclosure, ktorá typicky uvádza rozklad nákladov podľa druhu. Ak nájdeš v poznámkach tabuľku s rozkladom "Wages and salaries" + "Social security" + "Other staff costs", sčítaj ich a vlož do `osobne_naklady`. Ak v poznámkach nájdeš iba jednu hodnotu pre "Employee benefits" alebo "Staff costs", použi ju priamo.
 - `pohladavky_z_obchodneho_styku` a `zavazky_z_obchodneho_styku`: Hľadaj Trade receivables / Trade payables. Kľúčové pre likviditu.
 - `zasoby` (Inventory): Hľadaj v Aktívach pod Obežný majetok: 'Zásoby', 'Inventories', 'Stocks'. Pre výrobné firmy kľúčové.
 - `odpisy` (Depreciation/Amortization): Hľadaj v Výkaze ziskov a strát alebo Poznámkach: 'Odpisy dlhodobého nehmotného majetku', 'Odpisy hmotného majetku', 'Depreciation', 'Amortization'. Spolu obe odpisy ako jeden súčet.
 - `investicny_cash_flow`: Hľadaj v Cash Flow výkaze: 'Investičná činnosť', 'Investing activities'. Čisté peňažné toky (môže byť záporné).
 - `financny_cash_flow`: Hľadaj v Cash Flow výkaze: 'Finančná činnosť', 'Financing activities'. Čisté peňažné toky (môže byť záporné).
-- `uroky` (Interest expense): Hľadaj vo Výkaze ziskov a strát: 'Úroky', 'Náklady na úroky', 'Interest expense', 'Finance costs'.
+- `uroky` (Interest expense): Hľadaj vo Výkaze ziskov a strát: 'Úroky', 'Náklady na úroky', 'Interest expense', 'Finance costs', 'Interest payable'. Extrahuj VŽDY ako kladné číslo (náklad je kladný).
 - `pocet_zamestnancov`: Hľadaj v Poznámkach: 'Priemerný počet zamestnancov', 'Number of employees'. Ak nie je uvedený, vráť null.
 - `typ_zavierky`: Nastav 'IFRS' ak dokument uvádza 'International Financial Reporting Standards' alebo 'IFRS'. Nastav 'MICRO' pre Úč MUJ mikro jednotky. Inak nastav 'SK_GAAP'.
+- KRÁTKE OBDOBIA: Ak dokument na prvej strane uvádza obdobie kratšie ako 12 mesiacov (napr. "01/2024 - 03/2024" = 3 mesiace), MUSÍŠ to reflektovať v poli `pocet_mesiacov_obdobia`. Ak v texte vidíš anotáciu "Dĺžka obdobia: X mesiacov", použi túto hodnotu. Nikdy neporovnávaj tržby alebo zisk z krátkeho obdobia s plným rokom — pokles tržieb z 3-mesačného obdobia oproti 12-mesačnému nie je negatívny trend, ale matematický dôsledok kratšieho obdobia.
 - Nikdy nehalucinuj. Ak položka v závierke neexistuje alebo nie je uvedená, vráť null. Ak je fyzicky uvedená 0, vráť 0."""
 
 
@@ -140,7 +153,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     ico_match = re.search(r'IFRS_(\d{8})_', filename)
     expected_ico = ico_match.group(1) if ico_match else None
 
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    client = _get_gemini_client()
     
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
@@ -202,24 +215,20 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
             multiplier = 1_000
             
         if multiplier > 1:
-            if m.celkove_aktiva is not None: m.celkove_aktiva *= multiplier
-            if m.obezny_majetok is not None: m.obezny_majetok *= multiplier
-            if m.vlastne_imanie_celkom is not None: m.vlastne_imanie_celkom *= multiplier
-            if m.kratkodobe_zavazky is not None: m.kratkodobe_zavazky *= multiplier
-            if m.dlhodobeZavazky is not None: m.dlhodobeZavazky *= multiplier
-            if m.trzby_z_hlavnej_cinnosti is not None: m.trzby_z_hlavnej_cinnosti *= multiplier
-            if m.hruba_marza is not None: m.hruba_marza *= multiplier
-            if m.zisk_alebo_strata_po_zdaneni is not None: m.zisk_alebo_strata_po_zdaneni *= multiplier
-            if m.peniaze_a_penazne_ekvivalenty_k_31_12 is not None: m.peniaze_a_penazne_ekvivalenty_k_31_12 *= multiplier
-            if m.ciste_penazne_toky_z_prevadzkovej_cinnosti is not None: m.ciste_penazne_toky_z_prevadzkovej_cinnosti *= multiplier
-            if m.osobne_naklady is not None: m.osobne_naklady *= multiplier
-            if m.pohladavky_z_obchodneho_styku is not None: m.pohladavky_z_obchodneho_styku *= multiplier
-            if m.zavazky_z_obchodneho_styku is not None: m.zavazky_z_obchodneho_styku *= multiplier
-            if m.zasoby is not None: m.zasoby *= multiplier
-            if m.odpisy is not None: m.odpisy *= multiplier
-            if m.investicny_cash_flow is not None: m.investicny_cash_flow *= multiplier
-            if m.financny_cash_flow is not None: m.financny_cash_flow *= multiplier
-            if m.uroky is not None: m.uroky *= multiplier
+            _MONETARY_FIELDS = [
+                "celkove_aktiva", "obezny_majetok", "vlastne_imanie_celkom",
+                "kratkodobe_zavazky", "dlhodobeZavazky", "trzby_z_hlavnej_cinnosti",
+                "hruba_marza", "zisk_alebo_strata_po_zdaneni",
+                "peniaze_a_penazne_ekvivalenty_k_31_12",
+                "ciste_penazne_toky_z_prevadzkovej_cinnosti",
+                "osobne_naklady", "pohladavky_z_obchodneho_styku",
+                "zavazky_z_obchodneho_styku", "zasoby", "odpisy",
+                "investicny_cash_flow", "financny_cash_flow", "uroky",
+            ]
+            for field_name in _MONETARY_FIELDS:
+                val = getattr(m, field_name, None)
+                if val is not None:
+                    setattr(m, field_name, val * multiplier)
 
     # Vždy prepíšeme rok a IČO metadátami z RÚZ (názvu súboru), ak sú k dispozícii.
     # Zamedzíme tým ukladaniu pod IČO audítora (napr. KPMG 31348238).
@@ -229,7 +238,111 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     if expected_ico:
         data.ico = expected_ico
 
+    # Safety net: nákladové položky musia byť vždy kladné.
+    # LLM môže napriek pokynom vrátiť záporné hodnoty (napr. zátvorky).
+    for cost_field in ("osobne_naklady", "uroky", "odpisy", "hruba_marza"):
+        val = getattr(data.metriky, cost_field, None)
+        if val is not None and val < 0:
+            logger.warning(f"[LLM] Prepisuj náklad {cost_field}={val} → {abs(val)} (náklad musí byť kladný)")
+            setattr(data.metriky, cost_field, abs(val))
+
     return data
+
+
+# ── Focused Staff Costs Extraction (retry keď hlavná extrakcia vráti None) ─────
+
+class StaffCostsResult(BaseModel):
+    osobne_naklady: Optional[float] = Field(..., description="Osobné/personálne náklady (Staff costs / Employee benefits) v EUR. Súčet mzdových nákladov + sociálneho poistenia + odvodov. Ak chýba, vráť null.")
+    found_in: str = Field(..., description="Kde sa našlo: 'income_statement' alebo 'notes' alebo 'not_found'.")
+
+_STAFF_COSTS_PROMPT = """Si expertný finančný analytik. Tvojou JEDINOU úlohou je nájsť hodnotu osobných/personálnych nákladov (staff costs / employee benefits) v účtovnej závierke.
+
+Hľadaj tieto názvy položiek (skús všetky):
+- Slovensky: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"
+- Anglicky: "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs", "Personnel costs", "Labor costs"
+
+KRITICKÉ: Výkaz ziskov a strát môže byť prezentovaný PODĽA FUNKCIE (by function), nie podľa druhu (by nature). V takom prípade:
+1. Výkaz ziskov a strát NEBUDE mať samostatný riadok pre osobné náklady — budú skryté v "Cost of sales", "Administrative expenses", "Selling expenses".
+2. V takom prípade HĽADAJ V POZNÁMKACH (Notes) — konkrétne v poznámke o zamestnaneckých dávkach / employee benefits / staff costs disclosure.
+3. Poznámky typicky obsahujú tabuľku s rozkladom: "Wages and salaries" + "Social security contributions" + "Other staff costs" = Total. Sčítaj všetky zložky.
+
+PRAVIDLÁ:
+- Všetky hodnoty extrahuj V EURÁCH. Ak tabuľka uvádza "v tisícoch EUR", vynásob 1000. Ak "v miliónoch EUR", vynásob 1 000 000.
+- Extrahuj hodnotu pre AKTUÁLNE účtovné obdobie (prvý stĺpec dát / current year).
+- Nákladové položky VŽDY extrahuj ako KLDNÉ čísla (absolútna hodnota). Zátvorky (1500) = 1500.
+- Ak hodnotu nenájdeš ani vo výkaze ani v poznámkach, vráť null a found_in='not_found'."""
+
+
+async def extract_staff_costs_focused(file_path: str, model: str = settings.model_ifrs) -> Optional[float]:
+    """
+    Cielene extrahuje iba osobné náklady z PDF/TXT.
+    Používa sa ako retry keď hlavná extrakcia vráti None pre osobne_naklady.
+    Využíva špecifický prompt zameraný na IFRS by-function výkazy kde sú mzdové
+    náklady v poznámkach, nie v hlavnom výkaze.
+    """
+    import re as _re
+    filename = os.path.basename(file_path)
+    match = _re.search(r'_(\d{4})_', filename)
+    expected_year = int(match.group(1)) if match else None
+
+    client = _get_gemini_client()
+
+    config = types.GenerateContentConfig(
+        system_instruction=_STAFF_COSTS_PROMPT,
+        response_mime_type="application/json",
+        response_schema=StaffCostsResult,
+        temperature=0.0
+    )
+
+    try:
+        if file_path.lower().endswith(".txt"):
+            with open(file_path, "r", encoding="utf-8") as f:
+                text_content = f.read()
+            logger.info(f"[STAFF COSTS RETRY] Spracovávam .txt: {filename} ({len(text_content)} chars)")
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=[text_content],
+                config=config,
+            )
+        else:
+            uploaded_file = client.files.upload(file=file_path)
+            try:
+                logger.info(f"[STAFF COSTS RETRY] Spracovávam PDF: {filename}")
+                response = await client.aio.models.generate_content(
+                    model=model,
+                    contents=[uploaded_file],
+                    config=config,
+                )
+            finally:
+                try:
+                    if uploaded_file.name:
+                        client.files.delete(name=uploaded_file.name)
+                except Exception:
+                    pass
+
+        _log_tokens(model, response.usage_metadata, "extract_staff_costs_focused")
+        result = StaffCostsResult.model_validate_json(response.text)
+
+        if result.osobne_naklady is not None:
+            logger.info(f"[STAFF COSTS RETRY] Nájdené osobné náklady={result.osobne_naklady} (z: {result.found_in}) pre {filename}")
+
+            # Sanity check: ak je hodnota pod 100 a máme IFRS firmu s veľkými tržbami, pravdepodobne odignorovalo tisíce/milióny
+            if result.osobne_naklady > 0 and result.osobne_naklady < 100:
+                logger.warning(f"[STAFF COSTS RETRY] Podozrenie na nezmenené jednotky (hodnota={result.osobne_naklady}). Násobím x1000.")
+                result.osobne_naklady *= 1000
+
+            # Safety net: náklad musí byť kladný
+            if result.osobne_naklady < 0:
+                result.osobne_naklady = abs(result.osobne_naklady)
+
+            return result.osobne_naklady
+        else:
+            logger.warning(f"[STAFF COSTS RETRY] Osobné náklady nenájdené v {filename} (found_in={result.found_in})")
+            return None
+    except Exception as e:
+        logger.error(f"[STAFF COSTS RETRY] Chyba pri extrakcii z {filename}: {e}")
+        return None
+
 
 from typing import Literal, List
 
@@ -255,7 +368,7 @@ async def extract_vestnik_event(text: str, model: str = settings.model_vestnik) 
     """
     Spracuje surový textový blok z XML Obchodného vestníka a vráti Pydantic objekt VestnikExtraction.
     """
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    client = _get_gemini_client()
     
     config = types.GenerateContentConfig(
         system_instruction=VESTNIK_SYSTEM_PROMPT,
@@ -296,7 +409,7 @@ async def extract_narrative_risk(file_path: str, model: str = settings.model_nar
     ~15 strán (manažérska správa) v `pipeline.py`, aby sa ušetrili tokeny a zrýchlilo 
     vyhodnocovanie cez model 2.5-flash.
     """
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    client = _get_gemini_client()
     
     # Upload the file to Gemini via File API
     uploaded_file = client.files.upload(file=file_path)
@@ -347,7 +460,7 @@ Ak v texte nenájdeš nič relevantné, vráť null. Nikdy si nevymýšľaj."""
 
 async def extract_notes_risks(file_path: str, model: str = settings.model_narrative) -> NotesRiskAnalysis:
     """Extrahuje riziká z Poznámok k závierke (Related party transactions, atď)."""
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    client = _get_gemini_client()
     uploaded_file = client.files.upload(file=file_path)
     config = types.GenerateContentConfig(
         system_instruction=NOTES_SYSTEM_PROMPT,
@@ -397,7 +510,10 @@ Podrobný rozpis skóre (scorecard_breakdown) a historické dáta nájdeš v pri
    - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej algoritmus v Pilieri 1 a 5 odrátal body), znova ich neodpočítavaj z PDF súborov, aby nedošlo k dvojitej penalizácii.
 3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky označ stav spoločnosti za 'KRITICKY RIZIKOVÝ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre. Prísne sa ale vyhni akýmkoľvek radám o tom, či s firmou obchodovať alebo nie.
 4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, niektoré piliere budú mať neutrálnu hodnotu (N/A). Hodnoť primerane (okeolo 50).
-5. Zlaté klietky (Riziko tunelovania): Ak vidíš rast tržieb, ale výrazný pokles hotovosti a rast záväzkov voči prepojeným osobám, uprav skóre smerom nadol v rámci svojho limitu.
+5. Zlaté klietky (Riziko tunelovania): Ak vidíš rast tržieb, ale výrazný pokles hotovosti a rast záväzkov voči prepojeným osobám, uprav skóre smerom nadol v rámci svojho limitu. POZOR: Pri medzinárodných korporáciách (skupiny ako Hyundai, Volkswagen, Siemens atď.) sú transakcie so spriaznenými osobami ŠTANDARDNÝ vnútro-skupinový tok (transfer pricing, zdieľané služby). Nepoužívaj termín "riziko tunelovania" pre takéto bežné operácie. Namiesto toho použi neutrálnejší opis: "vysoká miera transakcií so spriaznenými osobami". Termín "tunelovanie" rezervuj len pre prípady, kde je jasný dôkaz neštandardných cenových podmienok alebo odtoku prostriedkov bez hospodárskeho opodstatnenia.
+6. CHÝBAJÚCE CASH FLOW DÁTA: Na Slovensku mnoho firiem nepodáva štruktúrovaný výkaz Cash Flow do RÚZ (často je súčasťou poznámok v PDF). Ak v dátach vidíš `operatingCashFlow: null` alebo `operatingCashFlow: 0` pri firme, ktorá má kladné tržby a zisk, NEPovažuj to za forenzný red flag ani znak tunelovania. Nulový alebo chýbajúci cash flow v dátach znamená "dáta neboli k dispozícii v štruktúrovanej forme", NIE "firma má nulový cash flow". Spomeň to ako obmedzenie dát, nie ako riziko firmy.
+7. SEKTOROVÉ KONTEXTY (NACE): Pri hodnotení zohľadni NACE kód firmy. Veľkoobchod a maloobchod (NACE 46, 47) má štrukturálne nízke marže (0.5–3%) a vysoké D/E ratio (5–20), pretože ide o "prietokový" biznis s vysokým obratom a záväzkami voči dodávateľom. To, čo by u výrobnej firmy znamenalo kritický stres, je pre veľkoobchod normálne. Nepenalizuj firmy v týchto segmentoch za vysoké D/E alebo nízke marže, ak sú ziskové a majú stabilný obrat.
+8. TRŽBY VS AKTÍVA: U výrobných firiem s vysokým obratom (automobilový priemysel, veľkoobchod) je bežné, že ročné tržby prevyšujú celkové aktíva. Tržby reprezentujú prietov (flow) za rok, aktíva sú stav (stock) k jednému dňu. Nepovažuj to za anomáliu ani nezrovnalosť.
 
 PROCES HODNOTENIA A SYNTÉZY:
 1. KRÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary):
@@ -420,7 +536,20 @@ PRAVIDLÁ VÝSTUPU:
 - Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelovanie a vážny finančný stres, NEUTRAL pre neutrálne info).
 - Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
 - Ak sa tvoje skóre líši od 'algorithmic_prescore', vysvetli dôvod (napr. penalizácia za PDF dlhy, naratívne riziká).
-- Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), skóre neurčuj a uveď 'INSUFFICIENT_DATA'."""
+- Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), skóre neurčuj a uveď 'INSUFFICIENT_DATA'.
+
+PRAVIDLÁ PRE KVALITU TEXTU:
+- VŽDY používaj správnu slovenčinu: "dlžník" (nie "dižnik"), "dlžníkov" (nie "dižnikov").
+- V texte NIKDY neuvádzaj historické názvy spoločností z registrov (CRZ, UVO). Vždy použi aktuálny oficiálny názov spoločnosti. Rôzne historické formy názvu (napr. "KIA Motors Slovakia" vs "Kia Slovakia") pri rovnakom IČO sú tá istá spoločnosť — neupozorňuj na ne ako na nezrovnalosť.
+- V executive_summary a key_risk MUSÍŠ reflektovať významné medziročné zmeny z `analyza_trendov.revenue_trend`. Ak tržby poklesli o viac ako 5% YoY, výslovne to spomeň medzi rizikami alebo upozorneniami. Nepíš o "dlhodobej ziskovosti" ak existuje významný pokles tržieb v poslednom roku.
+- Ak tržby prevyšujú aktíva (bežné pri výrobných firmách s vysokým obratom), výslovne vysvetli, že tržby sú prietok za rok zatiaľ čo aktíva sú stav k jednému dňu — nie je to anomália.
+- NIKDY nepoužívaj LaTeX syntax v texte. Nepoužívaj znak "$" pre matematické vzorce. Namiesto "E/D=1.69" píš "E/D = 1,69" (s medzerami a slovenskou desatinnou čiarkou). Namiesto "Z''=8.47" píš "Z'' = 8,47". Nepoužívaj "\\prime", "^{...}", ani iné LaTeX príkazy.
+- Čísla v texte vždy formátuj so slovenskou desatinnou čiarkou (1,69 nie 1.69) a medzerou ako oddeľovačom tisícov (1 000 000 nie 1000000).
+- NADMERNÝ ODPOČET DPH: Pri exportne orientovaných výrobných spoločnostiach (automobilový priemysel, elektronika) je pravidelný a vysoký nadmerný odpočet DPH úplne štandardný a legálny jav. Firma nakupuje komponenty s DPH, ale vyváža hotové výrobky do zahraničia so 0 % sadzbou DPH, čo prirodzene vedie k nadmernému odpočtu. Nepovažuj to za daňové riziko ani red flag.
+- ALTMAN Z'' PRE VEĽKOOBCHOD/DISTRIBÚCIU: Ak firma má nízku čistú maržu (< 2 %) a vysoké obchodné záväzky voči dodávateľom, Altman Z''-Score môže indikovať falošné riziko úpadku aj u stabilných distribučných lídrov. Pridaj upozornenie: "Metodika Altman Z'' nie je plne optimalizovaná pre nízkomaržový veľkoobchodný model s vysokým podielom obchodných záväzkov, preto môže indikovať falošné riziko úpadku aj u stabilných distribučných lídrov."
+- ZÁLOŽNÉ PRÁVA NA OBCHODNÝ PODIEL: Ak v NCRZP vidíš záložné právo na obchodný podiel od banky (napr. UniCredit Bank, Tatra banka, Slovenská sporiteľňa), je to štandardné zabezpečenie prevádzkových úverov, nie známka platobnej neschopnosti. Neoznačuj to ako kritické riziko.
+- REŠTRUKTURALIZÁCIA Z ORSR: Ak v ORSR výpise (sekcia "Ďalšie právne skutočnosti") vidíš zmienku o reštrukturalizácii, konkurze alebo odpustení dlhov — aj keď už skončila — MUSÍŠ to spomenúť v posudku. Napríklad: "Spoločnosť v rokoch 2022–2023 prešla formálnou reštrukturalizáciou, ktorá bola súdom úspešne ukončená." NIKDY nepíš "nemá záznamy o reštrukturalizácii" ak ORSR jasne uvádza, že prebehla. RKR (Register konkurzov a reštrukturalizácií) zobrazuje len aktuálne prebiehajúce konania — ak už skončilo, RKR ho nezobrazí, ale to neznamená, že sa nikdy nekonal.
+- KRÁTKE OBDOBIA (< 12 mesiacov): Ak v dátach vidíš `monthsInPeriod` s hodnotou menšou ako 12, NEinterpretuj pokles tržieb alebo zisku oproti predchádzajúcemu 12-mesačnému obdobiu ako negatívny trend. Pokles z 3-mesačného obdobia oproti 12-mesačnému je matematický dôsledok kratšieho obdobia, nie zhoršenie podnikania. V executive_summary výslovne spomeň, že ide o skrátené účtovné obdobie (napr. "Závierka za rok 2024 pokrýva len 3 mesiace, preto nie je porovnateľná s predchádzajúcimi plnými rokmi"). V Pilieri 4 (Rast & Trendová sila) neupravuj skóre nadol za pokles tržieb, ak je obdobie kratšie ako 11 mesiacov."""
 
 
 import asyncio
@@ -431,7 +560,7 @@ async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: st
     """
     import fitz
 
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    client = _get_gemini_client()
 
     # Príprava obsahu - začneme JSON dátami
     contents = [data_json]

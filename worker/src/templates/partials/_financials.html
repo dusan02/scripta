@@ -1,7 +1,7 @@
 <!-- ===== PAGE 1: SÚVAHA ===== -->
 <div class="page-break"></div>
-<div class="mb-6 pt-10">
-    <h2 id="suvaha" class="section-title mb-6">Súvaha (Balance Sheet)</h2>
+<div class="mb-6 pt-24">
+    <h2 id="suvaha" class="section-title mb-8">Súvaha (Balance Sheet)</h2>
     {% if nace_code %}
     <div class="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
         <span class="text-[8px] font-bold uppercase text-slate-500">NACE:</span>
@@ -21,13 +21,13 @@
     </div>
     {% endif %}
     {% if balance_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-5 mt-2">
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-8 mt-6">
         <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 200px;">
     </div>
     {% endif %}
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
     {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
-    <p class="text-[9px] text-slate-400 mb-3">Hodnoty v mil. € (ak &gt; 1 mil.) alebo tis. € — zdroj: RÚZ</p>
+    <p class="text-[9px] text-slate-400 mb-4">Hodnoty v mil. &#8364; — zdroj: RÚZ</p>
     <table class="w-full text-xs border-collapse">
         <thead>
             <tr class="bg-slate-100">
@@ -56,7 +56,7 @@
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
-                <td class="py-2 px-2 text-right text-slate-700">{{ stmt[field] | format_number }}</td>
+                <td class="py-2 px-2 text-right text-slate-700">{{ stmt[field] | format_number_millions }}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -65,7 +65,7 @@
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
-                <td class="py-2 px-2 text-right text-slate-700">{{ stmt[field] | format_number }}</td>
+                <td class="py-2 px-2 text-right text-slate-700">{{ stmt[field] | format_number_millions }}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -81,12 +81,12 @@
         ('D/E Ratio', latest_ratios.debt_to_equity if latest_ratios else None, '', false),
         ('Current Ratio', latest_ratios.current_ratio if latest_ratios else None, '', false),
     ] %}
-    <div class="grid grid-cols-4 gap-1.5 mt-5">
+    <div class="grid grid-cols-4 gap-1.5 mt-6">
         {% for label, value, fmt, is_pct in bs_cards %}
         <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
             <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }} ({{ latest_stmt.year }})</p>
             {% if value is not none %}
-            <p class="text-sm font-bold text-slate-800">{% if fmt == 'format_currency' %}{{ value | format_currency }}{% elif fmt == 'format_number' %}{{ value | format_number }}{% else %}{{ value }}{% endif %}</p>
+            <p class="text-sm font-bold text-slate-800">{% if fmt == 'format_currency' %}{{ value | format_currency }}{% elif fmt == 'format_number' %}{{ value | format_number_millions }}{% else %}{{ value }}{% endif %}</p>
             {% else %}
             <p class="text-sm font-bold text-slate-400">—</p>
             {% endif %}
@@ -103,10 +103,10 @@
 
 <!-- ===== PAGE 2: VÝKAZ ZISKOV A STRÁT ===== -->
 <div class="page-break"></div>
-<div class="mb-6 pt-10">
-    <h2 id="vykaz_ziskov" class="section-title mb-6">Výkaz ziskov a strát (P&L)</h2>
+<div class="mb-6 pt-24">
+    <h2 id="vykaz_ziskov" class="section-title mb-8">Výkaz ziskov a strát (P&L)</h2>
     {% if pnl_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-5 mt-2">
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-8 mt-6">
         <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="Výkaz ziskov a strát" class="max-w-full h-auto" style="height: 200px;">
     </div>
     {% endif %}
@@ -115,7 +115,7 @@
     <table class="w-full text-xs border-collapse">
         <thead>
             <tr class="bg-slate-100">
-                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka</th>
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka <span class="text-[9px] font-normal text-slate-400">(v mil. EUR)</span></th>
                 {% for stmt in stmts_sorted %}
                 <th class="text-right py-1.5 px-2 font-bold text-slate-600">{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</th>
                 {% endfor %}
@@ -134,7 +134,7 @@
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
-                <td class="py-2 px-2 text-right {% if field == 'netProfitLoss' and stmt[field] is not none and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_number }}</td>
+                <td class="py-2 px-2 text-right {% if field == 'netProfitLoss' and stmt[field] is not none and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_number_millions if field != 'interestExpense' else (stmt[field] | abs | format_number_millions if stmt[field] is not none else '—') }}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -150,9 +150,9 @@
         ('Hrubá marža', gross_margin ~ '%', latest_stmt.grossProfit is not none, gross_margin < 0),
         ('Čistá marža', net_margin ~ '%', latest_stmt.netProfitLoss is not none, net_margin < 0),
         ('ROE', latest_ratios.roe_pct ~ '%' if latest_ratios and latest_ratios.roe_pct is not none else None, latest_ratios and latest_ratios.roe_pct is not none, latest_ratios and latest_ratios.roe_pct is not none and latest_ratios.roe_pct < 0),
-        ('EBITDA', latest_ratios.ebitda | format_number if latest_ratios and latest_ratios.ebitda is not none else None, latest_ratios and latest_ratios.ebitda is not none, false),
+        ('EBITDA', latest_ratios.ebitda | format_number_millions if latest_ratios and latest_ratios.ebitda is not none else None, latest_ratios and latest_ratios.ebitda is not none, false),
     ] %}
-    <div class="grid grid-cols-4 gap-1.5 mt-5">
+    <div class="grid grid-cols-4 gap-1.5 mt-6">
         {% for label, value, has_value, is_negative in pnl_cards %}
         <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
             <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }} ({{ latest_stmt.year }})</p>
@@ -174,16 +174,22 @@
 
 <!-- ===== PAGE 3: CASH FLOW ===== -->
 <div class="page-break"></div>
-<div class="mb-6 pt-10">
+<div class="mb-6 pt-24">
     <h2 id="cash_flow" class="section-title mb-6">Prehľad peňažných tokov (Cash Flow)</h2>
-    {% if cashflow_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-5 mt-2">
-        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 200px;">
-    </div>
-    {% endif %}
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
     {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
-    <table class="w-full text-xs border-collapse">
+
+    {% if cashflow_chart_base64 %}
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-4">
+        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 180px;">
+    </div>
+    {% else %}
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs text-amber-800">
+        <strong>Dáta o peňažných tokoch nie sú k dispozícii.</strong> Tento subjekt nezverejňuje štruktúrovaný výkaz peňažných tokov v registri RÚZ. Cash flow údaje môžu byť dostupné v rámci poznámok k finančnej závierke (PDF), ale nie sú strojovo čitateľné.
+    </div>
+    {% endif %}
+
+    <table class="w-full text-xs border-collapse mb-4">
         <thead>
             <tr class="bg-slate-100">
                 <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka</th>
@@ -203,27 +209,28 @@
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
-                <td class="py-2 px-2 text-right {% if stmt[field] is not none and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_number }}</td>
+                <td class="py-2 px-2 text-right {% if stmt[field] is not none and stmt[field] != 0 and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_cf_millions }}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% if has_non_standard_months %}
-    <p class="text-[8px] text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    <p class="text-[8px] text-amber-500 mb-4">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
     {% endif %}
+
     {% if latest_stmt %}
     {% set cf_cards = [
         ('Prevádzkový CF', latest_stmt.operatingCashFlow, true),
         ('Investičný CF', latest_stmt.investingCashFlow, true),
         ('Finančný CF', latest_stmt.financingCashFlow, true),
     ] %}
-    <div class="grid grid-cols-3 gap-1.5 mt-5">
+    <div class="grid grid-cols-3 gap-1.5">
         {% for label, value, is_cf in cf_cards %}
         <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
             <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }} ({{ latest_stmt.year }})</p>
-            {% if value is not none %}
-            <p class="text-sm font-bold {% if value < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ value | format_number }}</p>
+            {% if value is not none and value != 0 %}
+            <p class="text-sm font-bold {% if value < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ value | format_cf_millions }}</p>
             {% else %}
             <p class="text-sm font-bold text-slate-400">—</p>
             {% endif %}
@@ -238,41 +245,60 @@
     {% endif %}
 
     {% if latest_stmt and is_financial_institution %}
-    <div class="mt-3 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Altman Z''-Score</p>
+    <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score</p>
         <div class="bg-blue-50 text-blue-700 text-xs p-2 rounded border border-blue-200">
             Model Altman Z-Score nie je aplikovateľný pre finančné inštitúcie (Banky / Poisťovne).
         </div>
     </div>
     {% elif is_startup %}
-    <div class="mt-3 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Altman Z''-Score</p>
+    <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score</p>
         <div class="bg-amber-50 text-amber-800 text-xs p-2 rounded border border-amber-200">
             <strong>Startup / Pre-revenue profil detekovaný</strong>
             <p class="mt-0.5">Altman Z-Score nie je spoľahlivý pre firmy bez tržieb. Hodnotenie je založené na kapitálovej primeranosti.</p>
             {% if startup_info and startup_info.equity %}
-            <p class="mt-0.5 text-amber-600">Vlastné imanie: <strong>{{ startup_info.equity | format_number }} €</strong> · Počet výkazov: {{ startup_info.n_years }}</p>
+            <p class="mt-0.5 text-amber-600">Vlastné imanie: <strong>{{ startup_info.equity | format_number_millions }} mil. &#8364;</strong> · Počet výkazov: {{ startup_info.n_years }}</p>
             {% endif %}
         </div>
     </div>
     {% elif altman_scores and altman_scores|length > 0 %}
-    <div class="mt-3 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-1.5 tracking-widest">Altman Z''-Score — Prediktívny model finančného zdravia</p>
-        <div class="flex gap-2 flex-wrap">
-        {% set sorted_altman = altman_scores | sort(attribute='year') %}
-        {% for z in sorted_altman %}
-            {% if z.z_score is not none %}
-            {% set z_color = '#10b981' if z.zone == 'SAFE' else '#f59e0b' if z.zone == 'GREY' else '#ef4444' %}
-            {% set z_bg = '#ecfdf5' if z.zone == 'SAFE' else '#fffbeb' if z.zone == 'GREY' else '#fef2f2' %}
-            <div class="flex flex-col items-center rounded px-2 py-1 min-w-[60px]" style="background: {{ z_bg }}; border: 1px solid {{ z_color }}33;">
-                <span class="text-[8px] text-slate-500 font-bold">{{ z.year }}</span>
-                <span class="text-sm font-black" style="color: {{ z_color }};">{{ z.z_score }}</span>
-                <span class="text-[7px] font-semibold" style="color: {{ z_color }};">{{ z.zone }}</span>
-            </div>
-            {% endif %}
-        {% endfor %}
+    <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+        <p class="text-[9px] font-bold uppercase text-slate-500 mb-3 tracking-widest">Altman Z''-Score — Prediktívny model finančného zdravia</p>
+
+        {% if altman_chart_base64 %}
+        <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4">
+            <img src="data:image/png;base64,{{ altman_chart_base64 }}" alt="Altman Z''-Score trend" class="max-w-full h-auto" style="height: 160px;">
         </div>
-        <p class="text-[8px] text-slate-400 mt-1">Interpretácia: Z'' &gt; 2.6 = Bezpečná zóna &nbsp;|&nbsp; 1.1–2.6 = Šedá zóna &nbsp;|&nbsp; &lt; 1.1 = Núdz. zóna (finančný stres)</p>
+        {% endif %}
+
+        <table class="w-full text-xs border-collapse">
+            <thead>
+                <tr class="bg-slate-100">
+                    <th class="text-left py-1.5 px-3 font-bold text-slate-600">Rok</th>
+                    <th class="text-right py-1.5 px-3 font-bold text-slate-600">Z''-Score</th>
+                    <th class="text-center py-1.5 px-3 font-bold text-slate-600">Zóna</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% set sorted_altman = altman_scores | sort(attribute='year') %}
+            {% for z in sorted_altman %}
+                {% if z.z_score is not none %}
+                {% set z_color = '#10b981' if z.zone == 'SAFE' else '#f59e0b' if z.zone == 'GREY' else '#ef4444' %}
+                {% set z_bg = '#ecfdf5' if z.zone == 'SAFE' else '#fffbeb' if z.zone == 'GREY' else '#fef2f2' %}
+                {% set zone_label = 'Bezpečná' if z.zone == 'SAFE' else 'Šedá' if z.zone == 'GREY' else 'Núdzová' %}
+                <tr class="border-b border-slate-100" style="background: {{ z_bg }};">
+                    <td class="py-2 px-3 font-semibold text-slate-700">{{ z.year }}</td>
+                    <td class="py-2 px-3 text-right font-black" style="color: {{ z_color }};">{{ "%.2f"|format(z.z_score) }}</td>
+                    <td class="py-2 px-3 text-center">
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded" style="color: {{ z_color }}; border: 1px solid {{ z_color }}33;">{{ zone_label }}</span>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        <p class="text-[8px] text-slate-400 mt-2">Interpretácia: Z'' &gt; 2.6 = Bezpečná zóna &nbsp;|&nbsp; 1.1–2.6 = Šedá zóna &nbsp;|&nbsp; &lt; 1.1 = Núdz. zóna (finančný stres)</p>
     </div>
     {% endif %}
 </div>
@@ -289,7 +315,7 @@
         <div class="flex gap-2 mb-2">
             <div style="width: 66%;">
                 {% if verdict.executiveSummary %}
-                <p class="text-[10px] text-slate-700 leading-snug">{{ verdict.executiveSummary }}</p>
+                <p class="text-[10px] text-slate-700 leading-snug">{{ verdict.executiveSummary | sanitize_llm }}</p>
                 {% endif %}
             </div>
             <div style="width: 34%;">
@@ -418,7 +444,7 @@
     {% if verdict and verdict.keyRisk %}
     <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-2">
         <p class="text-[8px] text-rose-500 font-bold uppercase">Riziko</p>
-        <p class="text-[10px] text-rose-700">{{ verdict.keyRisk }}</p>
+        <p class="text-[10px] text-rose-700">{{ verdict.keyRisk | sanitize_llm }}</p>
     </div>
     {% endif %}
 
@@ -435,9 +461,9 @@
             <div class="p-1 rounded border flex items-start gap-1.5" style="background: {{ bg }}; border-color: {{ border_c }};">
                 <span class="text-[9px] font-bold flex-shrink-0" style="color: {{ label_c }};">{{ label_text }}</span>
                 <div class="flex-1 min-w-0">
-                    {% if item.get('zdroj') %}<span class="text-[7px] text-slate-400 block">{{ item.zdroj }}</span>{% endif %}
-                    {% if item.get('tvrdenie') %}<p class="text-[9px] text-slate-700 leading-snug">{{ item.tvrdenie }}</p>{% endif %}
-                    {% if item.get('dokaz') %}<p class="text-[8px] text-slate-500 leading-snug">→ {{ item.dokaz }}</p>{% endif %}
+                    {% if item.get('zdroj') %}<span class="text-[7px] text-slate-400 block">{{ item.zdroj | sanitize_llm }}</span>{% endif %}
+                    {% if item.get('tvrdenie') %}<p class="text-[9px] text-slate-700 leading-snug">{{ item.tvrdenie | sanitize_llm }}</p>{% endif %}
+                    {% if item.get('dokaz') %}<p class="text-[8px] text-slate-500 leading-snug">→ {{ item.dokaz | sanitize_llm }}</p>{% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -461,13 +487,13 @@
                         ('ROA', latest_ratios.roa_pct, '%', true),
                         ('ROE', latest_ratios.roe_pct, '%', true),
                         ('Čistá marža', latest_ratios.net_profit_margin_pct, '%', true),
-                        ('EBITDA', latest_ratios.ebitda, 'format_number', false),
+                        ('EBITDA', latest_ratios.ebitda, 'format_number_millions', false),
                     ] %}
                     {% for label, value, suffix, is_pct in rent_cards %}
                     <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
                         <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }}</p>
                         {% if value is not none %}
-                        <p class="text-sm font-bold {% if is_pct and value < 0 %}text-rose-600{% elif is_pct %}text-emerald-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number' %}{{ value | format_number }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
+                        <p class="text-sm font-bold {% if is_pct and value < 0 %}text-rose-600{% elif is_pct %}text-emerald-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
                         {% else %}
                         <p class="text-sm font-bold text-slate-400">—</p>
                         {% endif %}
@@ -482,13 +508,13 @@
                         ('Current Ratio', latest_ratios.current_ratio, '', false),
                         ('Quick Ratio', latest_ratios.quick_ratio, '', false),
                         ('Cash Ratio', latest_ratios.cash_ratio, '', false),
-                        ('Working Cap.', latest_ratios.working_capital, 'format_number', false),
+                        ('Working Cap. (mil. &#8364;)', latest_ratios.working_capital, 'format_number_millions', false),
                     ] %}
                     {% for label, value, suffix, is_pct in liq_cards %}
                     <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
                         <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }}</p>
                         {% if value is not none %}
-                        <p class="text-sm font-bold text-slate-800">{% if suffix == 'format_number' %}{{ value | format_number }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
+                        <p class="text-sm font-bold text-slate-800">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
                         {% else %}
                         <p class="text-sm font-bold text-slate-400">—</p>
                         {% endif %}
@@ -508,7 +534,7 @@
                     <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
                         <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }}</p>
                         {% if value is not none %}
-                        <p class="text-sm font-bold text-slate-800">{% if suffix == 'format_number' %}{{ value | format_number }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
+                        <p class="text-sm font-bold text-slate-800">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
                         {% else %}
                         <p class="text-sm font-bold text-slate-400">—</p>
                         {% endif %}

@@ -43,6 +43,28 @@ _SOURCES_WITH_EMBEDDED_TITLE = frozenset({
 # Canonical order of sources for PDF compilation (matches cover page categories)
 _SOURCE_ORDER = {sid: idx for idx, sid in enumerate(sid for _, ids in _SOURCE_CATEGORIES for sid in ids)}
 
+# Exception-based reporting: tieto zdroje sa NEZARADIA do PDF príloh ak sú čisté (bez nálezu).
+# Zahrnú sa len ak obsahujú "POZOR" vo findings (red flag).
+# Zdroje ako ORSR, REGISTER_UZ, OBCHODNY_VESTNIK sa vždy zahrnú (core evidence).
+_EXCEPTION_BASED_SOURCES = frozenset({
+    "SP_DLZNICI",
+    "VSZP_DLZNICI",
+    "DOVERA_DLZNICI",
+    "UNION_DLZNICI",
+    "INSOLVENCY",
+    "DISKVALIFIKACIE",
+    "CRRS",
+    "FINANCNA_SPRAVA",
+})
+
+
+def _is_clean_source(source: ScrapedSource) -> bool:
+    """True ak zdroj je čistý (SUCCESS bez POZOR) — môže sa vynechať z PDF príloh."""
+    if source.status != "SUCCESS":
+        return False
+    findings = (source.findings or source.status_message or "").upper()
+    return "POZOR" not in findings
+
 
 class PdfCompiler:
     """
@@ -86,6 +108,7 @@ class PdfCompiler:
         start_pages_map = {}
 
         # 2. Pomocná funkcia na priradenie start_page s predpokladaným počtom strán cover page.
+        # +1 za divider page (PRÍLOHY - ZDROJOVÉ DÁTA) medzi Part A a Part B.
         def _assign_start_pages(cover_pages: int):
             start_pages_map['FORENZNY_POSUDOK'] = cover_pages - 5
             start_pages_map['SCORING_BREAKDOWN'] = cover_pages - 4
@@ -94,8 +117,13 @@ class PdfCompiler:
             start_pages_map['CASH_FLOW'] = cover_pages - 1
             start_pages_map['FINANCNY_POSUDOK'] = cover_pages
             
-            current = cover_pages + 1
+            current = cover_pages + 1  # +1 za divider page
             for source in sources:
+                # Exception-based reporting: preskoč čisté zdroje (SUCCESS bez POZOR)
+                if source.source_type in _EXCEPTION_BASED_SOURCES and _is_clean_source(source):
+                    source.start_page = None
+                    source.page_count = 0
+                    continue
                 if source.status == "SUCCESS" and source.file_path and source.page_count is not None and source.page_count > 0:
                     source.start_page = current
                     start_pages_map[source.source_type] = current
@@ -112,14 +140,14 @@ class PdfCompiler:
         cover_path = output_dir / "cover_page.pdf"
         _assign_start_pages(estimated_cover_pages)
 
-        # Calculate total pages = cover_pages + sum of all source pages
+        # Calculate total pages = cover_pages + divider(1) + sum of included source pages
         total_sources_pages = sum(s.page_count for s in sources if s.page_count)
 
         await generate_forensic_pdf_report(
             ico=ico,
             sources=sources,
             start_pages_map=start_pages_map,
-            total_pages=estimated_cover_pages + total_sources_pages,
+            total_pages=estimated_cover_pages + 1 + total_sources_pages,
             generated_at=generated_at_str,
             target_path=str(cover_path)
         )
@@ -132,14 +160,19 @@ class PdfCompiler:
                 ico=ico,
                 sources=sources,
                 start_pages_map=start_pages_map,
-                total_pages=actual_cover_pages + total_sources_pages,
+                total_pages=actual_cover_pages + 1 + total_sources_pages,
                 generated_at=generated_at_str,
                 target_path=str(cover_path)
             )
 
-        # 5. Zlúčime cover page + PDF zdrojov pomocou PdfWriter.
+        # 5. Zlúčime cover page + divider + PDF zdrojov pomocou PdfWriter.
         writer = PdfWriter()
         writer.append(cover_path)
+
+        # Divider page: "PRÍLOHY - ZDROJOVÉ DÁTA" medzi Part A a Part B
+        divider_path = self._generate_divider_page(output_dir)
+        writer.append(divider_path)
+        writer.add_outline_item("PRÍLOHY — Zdrojové dáta", actual_cover_pages)
 
         # Paralelizácia overlay nadpisov — každý overlay je nezávislý (vlastný súbor).
         sources_needing_overlay = [
@@ -151,11 +184,18 @@ class PdfCompiler:
             with ThreadPoolExecutor(max_workers=4) as pool:
                 list(pool.map(self._overlay_title_on_source, sources_needing_overlay))
 
+        skipped_clean = []
         for source in sources:
+            # Exception-based reporting: čisté zdroje už majú start_page=None z _assign_start_pages
             if source.start_page is not None and source.file_path:
                 writer.append(source.file_path)
                 label = _SOURCE_LABELS.get(source.source_type, source.source_type)
                 writer.add_outline_item(label, source.start_page - 1)
+            elif source.source_type in _EXCEPTION_BASED_SOURCES and _is_clean_source(source):
+                skipped_clean.append(source.source_type)
+
+        if skipped_clean:
+            logger.info(f"[PdfCompiler] Exception-based: preskočených {len(skipped_clean)} čistých zdrojov: {skipped_clean}")
 
         # 4. Nahradenie falošných URL odkazov z Cover Page za vnútorné prelinkovania na stránky (GoTo Action)
         # Cover page môže mať viac stránok — spracujeme anotácie na každej z nich.
@@ -217,6 +257,56 @@ class PdfCompiler:
         writer.close()
 
         return final_path
+
+    def _generate_divider_page(self, output_dir: Path) -> Path:
+        """Vygeneruje stránku 'PRÍLOHY - ZDROJOVÉ DÁTA' ako prechod medzi Part A a Part B."""
+        global _FONTS_REGISTERED
+        if not _FONTS_REGISTERED:
+            fonts_dir = Path(__file__).parent / "fonts"
+            pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
+            pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+            _FONTS_REGISTERED = True
+
+        divider_path = output_dir / "_divider.pdf"
+        buf = io.BytesIO()
+        c = rl_canvas.Canvas(buf, pagesize=(595, 842))  # A4
+
+        # Plná biela stránka s veľkým nadpisom
+        c.setFillColor(colors.white)
+        c.rect(0, 0, 595, 842, fill=1, stroke=0)
+
+        # Horizontálna čiara hore
+        c.setStrokeColor(colors.HexColor("#10b981"))
+        c.setLineWidth(3)
+        c.line(80, 500, 515, 500)
+
+        # Nadpis
+        c.setFont("Inter-Bold", 28)
+        c.setFillColor(colors.HexColor("#0f172a"))
+        c.drawString(80, 460, "PRÍLOHY")
+
+        c.setFont("Inter-Bold", 16)
+        c.setFillColor(colors.HexColor("#64748b"))
+        c.drawString(80, 435, "ZDROJOVÉ DÁTA — AUDIT TRAIL")
+
+        # Podnadpis
+        c.setFont("Inter", 11)
+        c.setFillColor(colors.HexColor("#94a3b8"))
+        c.drawString(80, 400, "Nasledujúce stránky obsahujú originálne výpisy zo štátnych registrov.")
+        c.drawString(80, 385, "Prílohy sú chronologicky zoradené podľa zdroja v Obsahu reportu.")
+
+        # Dolná čiara
+        c.setStrokeColor(colors.HexColor("#e2e8f0"))
+        c.setLineWidth(1)
+        c.line(80, 360, 515, 360)
+
+        c.showPage()
+        c.save()
+        buf.seek(0)
+
+        with open(divider_path, "wb") as f:
+            f.write(buf.getvalue())
+        return divider_path
 
     def _overlay_title_on_source(self, source: ScrapedSource) -> None:
         """Pridá nadpis (názov zdroja) na prvú stránku zdrojového PDF pred zlúčením."""

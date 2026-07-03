@@ -23,6 +23,18 @@ try:
 except ImportError:
     _PDF_TITLE_AVAILABLE = False
 
+
+def _format_date_value(val: str) -> str:
+    """Opraví dátumový formát z Finančnej správy (MMYY → MM/YYYY)."""
+    if not val:
+        return val
+    m = re.match(r'^(\d{2})(\d{2})$', val.strip())
+    if m:
+        mm, yy = m.group(1), m.group(2)
+        if 1 <= int(mm) <= 12:
+            return f"{mm}/20{yy}"
+    return val
+
 _FONT_REGISTERED = False
 
 logger = logging.getLogger(__name__)
@@ -157,6 +169,7 @@ class FinancnaSpravaBase(BaseScraper):
                     parts = []
                     for h_idx, val in enumerate(row_data):
                         if val and headers[h_idx].lower() not in skip:
+                            val = _format_date_value(val)
                             parts.append(f"  {headers[h_idx]}: {val}")
                     formatted.append("\n".join(parts))
                 else:

@@ -548,7 +548,7 @@ export default function ReportDetailPage() {
           minHeight: "180px",
         }}
       >
-        {/* Breadcrumb + Nové hľadanie */}
+        {/* Breadcrumb */}
         <div className="flex items-center justify-between w-full mb-3">
           <div className="flex items-center gap-2 text-xs">
             <Link href="/dashboard" className="transition-colors" style={{ color: "var(--text-muted)" }} onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
@@ -557,37 +557,6 @@ export default function ReportDetailPage() {
             <span style={{ color: "var(--border-strong)" }}>/</span>
             <span className="font-mono" style={{ color: "var(--text-secondary)" }}>{params.id.slice(0, 8)}…</span>
           </div>
-          <Link
-            id="new-search-btn"
-            href="/dashboard"
-            className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg border text-center"
-            style={{
-              background: "var(--surface)",
-              color: "var(--text-secondary)",
-              height: "36px",
-              padding: "0 14px",
-              fontSize: "12.5px",
-              fontWeight: 600,
-              borderColor: "var(--border)",
-              boxShadow: "var(--shadow-sm)",
-              textDecoration: "none"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--border-strong)";
-              e.currentTarget.style.color = "var(--text)";
-              e.currentTarget.style.background = "var(--surface-hover)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--border)";
-              e.currentTarget.style.color = "var(--text-secondary)";
-              e.currentTarget.style.background = "var(--surface)";
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-            {t("report.noveHladanie")}
-          </Link>
         </div>
 
         {/* Subject info — centered */}

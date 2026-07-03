@@ -1,4 +1,24 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
+
+
+# ── Cash Flow sanitizácia ─────────────────────────────────────────────────────
+# Reálna firma nemá presne 0 prevádzkový cash flow. Hodnota 0 je artefakt
+# starého LLM promptu, ktorý hovoril "doplň nulu" pre chýbajúce CF dáta.
+# Táto funkita konvertuje 0 → None na jednom mieste pre všetky volajúce.
+
+_CF_FIELDS = ("operatingCashFlow", "investingCashFlow", "financingCashFlow")
+
+
+def sanitize_cash_flow_fields(stmt: Union[Dict[str, Any], Any]) -> None:
+    """Konvertuje 0 → None pre cash flow polia. Funguje na dict aj Prisma objektoch.
+    Volá sa in-place (modifikuje vstup)."""
+    for field in _CF_FIELDS:
+        if isinstance(stmt, dict):
+            if stmt.get(field) == 0:
+                stmt[field] = None
+        else:
+            if getattr(stmt, field, None) == 0:
+                setattr(stmt, field, None)
 
 
 # ── Altman Z-Score (modifikovaný pre ne-výrobné a súkromné firmy) ──────────────
@@ -197,7 +217,10 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         long_liabilities = getattr(stmt, 'longTermLiabilities', 0) or 0
         cash = getattr(stmt, 'cashAndEquivalents', 0) or 0
         revenue = getattr(stmt, 'mainActivityRevenue', 0) or 0
-        op_cashflow = getattr(stmt, 'operatingCashFlow', 0) or 0
+        op_cashflow_raw = getattr(stmt, 'operatingCashFlow', None)
+        sanitize_cash_flow_fields(stmt)
+        op_cashflow_raw = getattr(stmt, 'operatingCashFlow', None)
+        op_cashflow = op_cashflow_raw if op_cashflow_raw is not None else 0
         gross_profit = getattr(stmt, 'grossProfit', 0) or 0
         inventory = getattr(stmt, 'inventory', 0) or 0
         depreciation = getattr(stmt, 'depreciation', 0) or 0
@@ -229,10 +252,12 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         ratios["roe_pct"] = _safe_pct(net_profit, equity)
 
         # ── EBITDA (approx: net_profit + interest + depreciation) ──
-        ratios["ebitda"] = round(net_profit + interest + depreciation, 0) if (interest != 0 or depreciation != 0) else None
+        # Náklady na úroky (interest) môžu byť v DB uložené ako záporné — prirátavame absolútnu hodnotu.
+        ratios["ebitda"] = round(net_profit + abs(interest) + depreciation, 0) if (interest != 0 or depreciation != 0) else None
 
         # ── Cash Flow divergencia ──
-        ratios["cashflow_to_profit"] = _safe_div(op_cashflow, abs(net_profit)) if net_profit != 0 else None
+        # Ak je operatingCashFlow None (nedostupné v RÚZ), vrátiť None — nie 0.0
+        ratios["cashflow_to_profit"] = _safe_div(op_cashflow, abs(net_profit)) if (net_profit != 0 and op_cashflow_raw is not None) else None
 
         # ── Dni obratu ──
         ratios["dso_days"] = round((trade_receivables / revenue) * 365, 0) if revenue > 0 and trade_receivables > 0 else None
@@ -668,6 +693,33 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
                 flags=wh["flags"]
             ))
             total_score = max(0, total_score - wh["penalty"])
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # NACE-AWARE SECTOR ADJUSTMENT
+    # Niektoré odvetvia majú štrukturálne nízke marže a vysoké zadlženie, čo
+    # Altman Z-score a D/E penalizujú, hoci firma je zdravá pre svoj segment.
+    # ══════════════════════════════════════════════════════════════════════════
+    nace_code = company_dict.get("naceCode", "") or ""
+    sector_flags = []
+    sector_bonus = 0
+
+    if nace_code.startswith("46"):
+        # Veľkoobchod (Wholesale) — vysoký obrat, nízka marža, vysoké záväzky z obch. styku
+        sector_bonus = min(10, max(0, 10 - (total_score // 10)))
+        sector_flags.append(f"Sektorový bonus (+{sector_bonus}b): Veľkoobchod (NACE {nace_code}) — nízke marže a vysoké D/E sú štandardom v tomto segmente")
+    elif nace_code.startswith("47"):
+        # Maloobchod (Retail) — podobný profil ako veľkoobchod
+        sector_bonus = min(7, max(0, 7 - (total_score // 10)))
+        sector_flags.append(f"Sektorový bonus (+{sector_bonus}b): Maloobchod (NACE {nace_code}) — nízke marže a vysoké D/E sú štandardom v tomto segmente")
+
+    if sector_bonus > 0:
+        total_score = min(100, total_score + sector_bonus)
+        pillars.append(ScorecardPillar(
+            name="Sektorová korekcia (NACE)",
+            score=sector_bonus, max_score=0,
+            detail=sector_flags[0],
+            flags=sector_flags
+        ))
 
     return ScorecardResult(
         total_score=total_score,

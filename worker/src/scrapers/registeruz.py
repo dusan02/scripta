@@ -179,25 +179,64 @@ class RegisterUzScraper(BaseScraper):
         logger.info(f"[{self.source_type}] Výsledok: {clicked or 'nenájdený'}")
 
     async def _click_collapse_arrow(self, page: Page) -> None:
-        ok = await page.evaluate("""() => {
-            let el = document.querySelector("span.js-collapse.icon-collapsed")
-                  || document.querySelector("span.js-collapse");
-            if (el) { el.click(); return true; }
-            return false;
+        # Rozbalíme VŠETKY collapse sekcie, nie len prvú — inak
+        # _click_ucpod nevidí závierky z neskorších rokov.
+        count = await page.evaluate("""() => {
+            let n = 0;
+            document.querySelectorAll('span.js-collapse, a.js-collapse').forEach(el => {
+                try { el.click(); n++; } catch(e) {}
+            });
+            document.querySelectorAll('[data-bs-toggle="collapse"], [data-toggle="collapse"]').forEach(el => {
+                try { el.click(); n++; } catch(e) {}
+            });
+            return n;
         }""")
-        if not ok:
-            logger.warning(f"[{self.source_type}] Collapse šípka nenájdená.")
+        if count == 0:
+            logger.warning(f"[{self.source_type}] Žiadny collapse element nenájdený.")
+        else:
+            logger.info(f"[{self.source_type}] Expandovaných {count} sekcií.")
+            await asyncio.sleep(1)
 
     async def _click_ucpod(self, page: Page) -> None:
-        clicked = await page.evaluate("""() => {
-            let el = document.querySelector(
-                "#collapse-o-0 span.font-weight-medium.text-primary.text-decoration-underline");
-            if (el && el.textContent.includes('Úč POD')) { el.click(); return 'css'; }
-            const spans = Array.from(document.querySelectorAll('span'));
-            const s = spans.find(s => s.textContent.includes('Úč POD:')
-                && s.className.includes('text-primary'));
-            if (s) { s.click(); return 'span'; }
-            return null;
+        # Nájdi VŠETKY "Úč POD" linky naprieč rozbalenými sekciami,
+        # extrahuj rok z kontextu a klikni na ten najnovší.
+        clicked = await page.evaluate(r"""() => {
+            // Zhromaždi všetky klikateľné elementy obsahujúce 'Úč POD'
+            const candidates = [];
+
+            // 1. CSS selektor (text-decoration-underline linky v collapse sekciách)
+            document.querySelectorAll(
+                "[id^='collapse-o-'] span.font-weight-medium.text-primary.text-decoration-underline"
+            ).forEach(el => {
+                if (el.textContent.includes('Úč POD')) {
+                    const section = el.closest("[id^='collapse-o-']");
+                    const sectionText = section ? section.innerText : '';
+                    const yearMatch = sectionText.match(/(20\d{2})/);
+                    candidates.push({el, year: yearMatch ? parseInt(yearMatch[1]) : 0, src: 'css'});
+                }
+            });
+
+            // 2. Fallback: všetky span-y s 'Úč POD:' a text-primary
+            if (candidates.length === 0) {
+                document.querySelectorAll('span').forEach(el => {
+                    if (el.textContent.includes('Úč POD:')
+                        && el.className.includes('text-primary')) {
+                        const section = el.closest("[id^='collapse-o-']")
+                            || el.closest('.item') || el.closest('tr');
+                        const sectionText = section ? section.innerText : '';
+                        const yearMatch = sectionText.match(/(20\d{2})/);
+                        candidates.push({el, year: yearMatch ? parseInt(yearMatch[1]) : 0, src: 'span'});
+                    }
+                });
+            }
+
+            if (candidates.length === 0) return null;
+
+            // Zoraď zostupne podľa roku — klikni na najnovší
+            candidates.sort((a, b) => b.year - a.year);
+            const best = candidates[0];
+            best.el.click();
+            return best.src + '_' + best.year;
         }""")
         logger.info(f"[{self.source_type}] Úč POD: {clicked or 'nenájdený'}")
 
@@ -228,12 +267,49 @@ class RegisterUzScraper(BaseScraper):
     async def _scrape_single_tab(
         self, page: Page, url: str, tab_id: int, tab_name: str, ico: str, output_dir: Path,
     ) -> None:
-        """Naviguje na tab a vygeneruje PDF cez CDP."""
+        """Naviguje na tab a vygeneruje PDF cez CDP. Skryje riadky s nulovými hodnotami."""
         await page.goto(url, wait_until="commit", timeout=15000)
         try:
             await page.wait_for_selector("table, .table", timeout=5000)
         except PlaywrightTimeoutError:
             pass
+
+        # Skryť riadky kde všetky číselné hodnoty sú 0 alebo prázdne
+        hidden_count = await page.evaluate(r"""() => {
+            let hidden = 0;
+            document.querySelectorAll('table tr').forEach(tr => {
+                // Preskoč hlavičkové riadky
+                const ths = tr.querySelectorAll('th');
+                if (ths.length > 0) return;
+
+                const tds = tr.querySelectorAll('td');
+                if (tds.length < 2) return;
+
+                // Skontroluj či riadok obsahuje aspoň jednu nenulovú číselnú hodnotu
+                let hasNonZero = false;
+                let hasNumeric = false;
+                tds.forEach(td => {
+                    const text = td.innerText.trim();
+                    // Normalizuj čísla: odstráň medzery, &nbsp;, nahraď čiarku bodkou
+                    const normalized = text.replace(/[\s\xa0]/g, '').replace(',', '.');
+                    const num = parseFloat(normalized);
+                    if (!isNaN(num)) {
+                        hasNumeric = true;
+                        if (Math.abs(num) > 0.01) hasNonZero = true;
+                    }
+                });
+
+                // Skry len ak má číselné hodnoty a všetky sú nulové
+                if (hasNumeric && !hasNonZero) {
+                    tr.style.display = 'none';
+                    hidden++;
+                }
+            });
+            return hidden;
+        }""")
+        if hidden_count > 0:
+            logger.info(f"[{self.source_type}] Tab '{tab_name}': skrytých {hidden_count} nulových riadkov")
+
         tab_pdf = output_dir / f"{self.source_type}_{ico}_tab{tab_id}.pdf"
         await self._cdp_print_pdf(page, tab_pdf)
 

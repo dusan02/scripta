@@ -31,29 +31,24 @@ def setup_logging(level: int = logging.INFO) -> None:
     else:
         logging.info("Sentry disabled (no SENTRY_DSN set)")
 
-    # Root logger — structured format
+    # Root logger — structured format with correlation ID support
+    _fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
+        logging.Formatter(_fmt, datefmt="%Y-%m-%d %H:%M:%S")
     )
     root = logging.getLogger()
     root.setLevel(level)
     root.handlers.clear()
     root.addHandler(handler)
 
-    # Rotating file handler pre errors (max 5MB, 3 backups)
+    # Rotating file handler pre WARNING+ (max 5MB, 3 backups)
     file_handler = RotatingFileHandler(
         "errors.log", maxBytes=5_000_000, backupCount=3, encoding="utf-8"
     )
-    file_handler.setLevel(logging.ERROR)
+    file_handler.setLevel(logging.WARNING)
     file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
+        logging.Formatter(_fmt, datefmt="%Y-%m-%d %H:%M:%S")
     )
     root.addHandler(file_handler)
 

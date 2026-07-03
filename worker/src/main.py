@@ -29,6 +29,7 @@ from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 from .cleanup import _cleanup_loop
 from .llm_extractor import reset_token_stats, log_token_summary
+from src.log_helpers import set_correlation_id, PhaseTimer, get_correlation_id
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -118,6 +119,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
     """Interná implementácia — volaná pod semaphore."""
     t_start = time.perf_counter()
     _rid = task.report_request_id[:12]  # krátky ID pre logy
+    set_correlation_id(_rid)
     _log = logging.LoggerAdapter(logger, {"rid": _rid})
     _log.info(f"[{_rid}] Starting report for ICO {task.ico}")
     reset_token_stats()
@@ -195,6 +197,16 @@ async def _execute_report_inner(task: ReportTask) -> None:
         _source_summary = ', '.join(f'{s.source_type}:{s.status}' for s in sources)
         _log.info(f"[{_rid}] Scrapers done ({t_scrape - t_browser:.1f}s): {_source_summary}")
 
+        # ── HARD STOP: ORSR nenájdené IČO ──────────────────────────────────
+        orsr_result = next((s for s in sources if s.source_type == "ORSR"), None)
+        if orsr_result and orsr_result.status == "FAILED" and "neexistuje" in (orsr_result.status_message or "").lower():
+            _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} neexistuje v ORSR — report zrušený.")
+            await update_report_status(pool, task.report_request_id, "FAILED")
+            await update_report_ai_status(pool, task.report_request_id, "failed.orsr_not_found")
+            if ai_task and not ai_task.done():
+                ai_task.cancel()
+            return
+
         # ── Retry failed scrapers (one pass) ──────────────────────────────
         failed_sources = [s for s in sources if s.status == "FAILED"]
         if failed_sources:
@@ -256,7 +268,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
         if task.target_type == "COMPANY" and task.ico:
             from src.pipeline import run_and_save_audit_verdict
             try:
-                await run_and_save_audit_verdict(task.ico)
+                with PhaseTimer("Chief Auditor"):
+                    await run_and_save_audit_verdict(task.ico)
             except Exception as verdict_err:
                 _log.error(f"[{_rid}] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
 
@@ -283,15 +296,16 @@ async def _execute_report_inner(task: ReportTask) -> None:
         await update_report_ai_status(pool, task.report_request_id, "ai.compiling", compile_eta)
 
         compiler = PdfCompiler(settings.results_dir)
-        final_path = await compiler.compile(
-            report_request_id=task.report_request_id,
-            target_type=task.target_type,
-            identifier=_identifier(task),
-            sources=sources,
-            company_name=company_name,
-        )
+        with PhaseTimer("PDF compile"):
+            final_path = await compiler.compile(
+                report_request_id=task.report_request_id,
+                target_type=task.target_type,
+                identifier=_identifier(task),
+                sources=sources,
+                company_name=company_name,
+            )
         t_compile = time.perf_counter()
-        _log.info(f"[{_rid}] PDF compiled ({t_compile - t_scrape:.1f}s): {final_path.name}")
+        _log.info(f"[{_rid}] PDF compiled: {final_path.name}")
 
         # Aktualizujeme pageCount v DB podľa reálnych hodnôt zistených compilerom
         from src.db import update_source_page_counts

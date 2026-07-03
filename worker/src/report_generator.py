@@ -66,6 +66,25 @@ def format_number(value: float) -> str:
         return f"{value / 1_000:,.0f}".replace(",", "X").replace(".", ",").replace("X", " ")
     return f"{value:,.0f}".replace(",", " ")
 
+def format_number_millions(value: float, treat_zero_as_none: bool = False) -> str:
+    """Vráti číslo v miliónoch s 2 desatinnými miestami — pre tabuľky s mixom veľkých a malých hodnôt.
+    Zabraňuje zmiešavaniu miliónov a tisícov v jednej tabuľke.
+    Ak treat_zero_as_none=True, nula sa zobrazí ako '—' (pre cash flow polia, kde 0 = chýbajúce dáta)."""
+    if value is None:
+        return "—"
+    if treat_zero_as_none and value == 0:
+        return "—"
+    try:
+        val = float(value)
+        return f"{val / 1_000_000:,.2f}".replace(",", "X").replace(".", ",").replace("X", " ")
+    except (ValueError, TypeError):
+        return "—"
+
+def format_cf_millions(value: float) -> str:
+    """Wrapper pre format_number_millions s treat_zero_as_none=True.
+    Pre cash flow polia: 0 znamená chýbajúce dáta, nie nulový cash flow."""
+    return format_number_millions(value, treat_zero_as_none=True)
+
 def generate_financial_chart(statements) -> str:
     """
     Vygeneruje Matplotlib graf (Tržby vs. Zisk) v Corporate Minimalist štýle
@@ -212,12 +231,18 @@ def generate_pnl_chart(statements) -> str:
 
 
 def generate_cashflow_chart(statements) -> str:
-    """Vygeneruje graf: Prevádzkový cash flow a Cash balance za roky."""
+    """Vygeneruje graf: Prevádzkový cash flow a Cash balance za roky.
+    Ak nie sú k dispozícii žiadne CF dáta (všetky 0/None), vráti prázdny string —
+    graf sa nezobrazí a v template sa ukáže disclaimer o nedostupnosti dát."""
     if not statements or len(statements) < 2:
         return ""
     statements = sorted(statements, key=lambda x: x.year)
     years = [str(s.year) for s in statements]
-    ocf = [s.operatingCashFlow or 0 for s in statements]
+    ocf_raw = [s.operatingCashFlow for s in statements]
+    # Ak sú všetky CF hodnoty None alebo 0, dáta nie sú k dispozícii
+    if all(v is None or v == 0 for v in ocf_raw):
+        return ""
+    ocf = [v or 0 for v in ocf_raw]
     cash = [s.cashAndEquivalents or 0 for s in statements]
 
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
@@ -247,11 +272,82 @@ def generate_cashflow_chart(statements) -> str:
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
+def generate_altman_chart(altman_scores) -> str:
+    """Vygeneruje čiarový graf vývoja Altman Z''-Score s farebnými zónami."""
+    if not altman_scores or len(altman_scores) < 2:
+        return ""
+    valid = [z for z in altman_scores if z.get("z_score") is not None]
+    if len(valid) < 2:
+        return ""
+    valid = sorted(valid, key=lambda z: z["year"])
+    years = [str(z["year"]) for z in valid]
+    scores = [z["z_score"] for z in valid]
+
+    sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
+    fig, ax = plt.subplots(figsize=(5, 2.8), dpi=150)
+
+    # Farebné zóny
+    ax.axhspan(2.6, ax.get_ylim()[1] if ax.get_ylim()[1] > 2.6 else max(scores) * 1.2, color="#10b981", alpha=0.08, zorder=0)
+    ax.axhspan(1.1, 2.6, color="#f59e0b", alpha=0.08, zorder=0)
+    ax.axhspan(0, 1.1, color="#ef4444", alpha=0.08, zorder=0)
+
+    # Čiara skóre
+    ax.plot(range(len(years)), scores, marker='o', color='#1e293b', linewidth=2.5, markersize=8, zorder=3)
+    for i, (yr, sc) in enumerate(zip(years, scores)):
+        color = '#10b981' if sc > 2.6 else '#f59e0b' if sc >= 1.1 else '#ef4444'
+        ax.scatter(i, sc, color=color, s=80, zorder=4)
+
+    ax.set_xticks(range(len(years)))
+    ax.set_xticklabels(years, fontsize=8, color='#64748b')
+
+    ax.axhline(y=2.6, color='#10b981', linestyle='--', linewidth=0.8, alpha=0.5)
+    ax.axhline(y=1.1, color='#ef4444', linestyle='--', linewidth=0.8, alpha=0.5)
+
+    ax.set_ylabel("Z''-Score", fontsize=9, color='#64748b', fontweight='bold')
+    ax.tick_params(axis='x', colors='#64748b', labelsize=8)
+    ax.tick_params(axis='y', colors='#64748b', labelsize=8)
+    sns.despine(left=True, bottom=True)
+    ax.set_title("Altman Z''-Score trend", fontsize=10, fontweight='bold', color='#0f172a', pad=8)
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
 import re
 from xml.sax.saxutils import escape as xml_escape
 
+def sanitize_llm_text(text: str) -> str:
+    """Sanitizuje LLM generovaný text pre PDF rendering.
+    - Odstráni LaTeX $...$ syntax a nahradí ju plain textom
+    - Opraví časté preklepy slovenských slov
+    - Konvertuje Unicode znaky, ktoré by sa mohli skomiť
+    """
+    if not text:
+        return text
+    # LaTeX $...$ → plain text (zachová vnútro)
+    text = re.sub(r'\$([^$]+)\$', r'\1', text)
+    # LaTeX ^{...} a _{...} → plain text
+    text = re.sub(r'\^[\{]([^}]+)[\}]', r'\1', text)
+    text = re.sub(r'\^\{([^}]+)\}', r'\1', text)
+    text = re.sub(r'\\prime\\prime', "''", text)
+    text = re.sub(r"\\prime", "'", text)
+    text = re.sub(r"\\pm", "+/-", text)
+    text = re.sub(r"\\times", "x", text)
+    text = re.sub(r"\\leq", "<=", text)
+    text = re.sub(r"\\geq", ">=", text)
+    text = re.sub(r"\\neq", "!=", text)
+    text = re.sub(r"\\approx", "~", text)
+    # Bežné preklepy z LLM
+    text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov")
+    text = text.replace("bezúhonnost", "bezúhonnosť")
+    text = text.replace("Interpretica", "Interpretácia")
+    text = text.replace("Rezpečná", "Bezpečná")
+    return text
+
 def format_findings(source) -> str:
     raw = source.findings or source.message or "Bez záznamu."
+    raw = sanitize_llm_text(raw)
     max_chars = 350
     if len(raw) > max_chars:
         truncated = raw[:max_chars]
@@ -306,6 +402,10 @@ def format_findings(source) -> str:
 def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at):
     verdict = company.auditVerdict
     stmts = company.financialStatements
+    # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
+    from src.analytics import sanitize_cash_flow_fields
+    for stmt in (stmts or []):
+        sanitize_cash_flow_fields(stmt)
     latest_stmt = max(stmts, key=lambda s: s.year) if stmts else None
     vestnik_events = company.vestnikEvents or []
     
@@ -470,6 +570,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "balance_chart_base64": balance_chart_base64,
         "pnl_chart_base64": pnl_chart_base64,
         "cashflow_chart_base64": cashflow_chart_base64,
+        "altman_chart_base64": generate_altman_chart(altman_scores) if altman_scores else "",
         "logo_base64": logo_base64,
         "start_pages_map": start_pages_map or {},
         "total_pages": total_pages,
@@ -490,10 +591,15 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
 def render_html_report(context: dict) -> str:
     current_dir = Path(__file__).parent
     templates_dir = current_dir / "templates"
+    font_dir = current_dir / "pdf" / "fonts"
+    context['font_dir'] = str(font_dir.absolute())
     env = Environment(loader=FileSystemLoader(templates_dir))
     env.filters['format_currency'] = format_currency
     env.filters['format_number'] = format_number
+    env.filters['format_number_millions'] = format_number_millions
+    env.filters['format_cf_millions'] = format_cf_millions
     env.filters['format_findings'] = format_findings
+    env.filters['sanitize_llm'] = sanitize_llm_text
     
     template = env.get_template("report_template.html")
     return template.render(**context)
@@ -503,12 +609,27 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
     dir_name = os.path.dirname(pdf_path)
     if dir_name:
         os.makedirs(dir_name, exist_ok=True)
+    html_path = os.path.abspath(pdf_path.replace('.pdf', '.html'))
+    with open(html_path, 'w', encoding='utf-8') as f:
+        f.write(html_content)
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--disable-gpu", "--no-sandbox"])
+        browser = await p.chromium.launch(headless=True, args=[
+            "--disable-gpu", "--no-sandbox",
+            "--font-render-hinting=none",
+        ])
         page = await browser.new_page()
-        # domcontentloaded je rýchlejšie ako networkidle — nepotrebujeme network pre inline HTML
-        await page.set_content(html_content, wait_until="domcontentloaded")
-        # Aktivujeme print media — Chrome optimalizuje rendering pre tlač
+        await page.goto(f"file://{html_path}", wait_until="networkidle", timeout=30000)
+        try:
+            await page.evaluate("async () => { await document.fonts.ready; }")
+        except Exception:
+            pass
+        try:
+            await page.wait_for_function(
+                "() => document.fonts.check('10px Inter') && document.fonts.check('bold 10px Inter') && document.fonts.check('10px \"DejaVu Sans\"')",
+                timeout=10000
+            )
+        except Exception:
+            pass
         await page.emulate_media(media="print")
         header_tpl = '<div></div>'
         footer_tpl = f'<div style="font-size: 11px; color: #64748b; text-align: center; width: 100%; font-family: Inter, sans-serif; padding-bottom: 8px; border-top: 1px solid #e2e8f0; padding-top: 4px; margin: 0 12px;"><span style="font-weight: 600; color: #475569;">Verifa.sk</span> &nbsp;·&nbsp; IČO: {ico} &nbsp;·&nbsp; Informatívny dokument &nbsp;·&nbsp; Strana <span class="pageNumber"></span> / <span class="totalPages"></span></div>'
@@ -524,6 +645,10 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
             prefer_css_page_size=True,
         )
         await browser.close()
+    try:
+        os.remove(html_path)
+    except Exception:
+        pass
     logger.info(f"PDF úspešne vygenerované: {pdf_path}")
     return pdf_path
 
@@ -591,12 +716,7 @@ async def generate_financial_summary_pdf(ico: str, target_path: str) -> str | No
         def _fmt(val) -> str:
             if val is None:
                 return "—"
-            abs_val = abs(float(val))
-            if abs_val >= 1_000_000:
-                return f"{float(val) / 1_000_000:,.1f} M €".replace(",", "X").replace(".", ",").replace("X", " ")
-            elif abs_val >= 1_000:
-                return f"{float(val) / 1_000:,.0f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
-            return f"{float(val):,.0f} €".replace(",", " ")
+            return f"{float(val) / 1_000_000:,.2f} M €".replace(",", "X").replace(".", ",").replace("X", " ")
 
         rows_balance = [
             ("Celkové aktíva", [s.totalAssets for s in stmts]),
@@ -639,9 +759,28 @@ async def generate_financial_summary_pdf(ico: str, target_path: str) -> str | No
         stmt_type = latest.statementType or "IFRS"
         consolidated = "Konsolidovaná" if latest.isConsolidated else "Individuálna"
 
+        font_dir = str((Path(__file__).parent / "pdf" / "fonts").absolute())
         html_content = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
-body {{ font-family: 'Segoe UI', system-ui, sans-serif; color: #1e293b; margin: 0; padding: 20px 30px; }}
+@font-face {{
+    font-family: 'Inter';
+    src: url('file://{font_dir}/Inter-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-display: swap;
+}}
+@font-face {{
+    font-family: 'Inter';
+    src: url('file://{font_dir}/Inter-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-display: swap;
+}}
+@font-face {{
+    font-family: 'DejaVu Sans';
+    src: url('file://{font_dir}/DejaVuSans.ttf') format('truetype');
+    font-weight: 400;
+    font-display: swap;
+}}
+body {{ font-family: 'Inter', 'DejaVu Sans', 'Segoe UI', system-ui, sans-serif; color: #1e293b; margin: 0; padding: 20px 30px; }}
 h1 {{ font-size: 18px; color: #0f172a; margin: 0 0 4px 0; }}
 h2 {{ font-size: 13px; color: #475569; margin: 20px 0 8px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; }}
 .meta {{ font-size: 11px; color: #94a3b8; margin-bottom: 16px; }}
@@ -667,6 +806,7 @@ th {{ text-align: left; padding: 6px 10px; color: #64748b; font-size: 11px; }}
 
 {audit_text}
 <p class="note">Zdroj: Register účtovných závierok (registeruz.sk) — údaje extrahované z IFRS PDF závierky pomocou AI analýzy. Štruktúrované HTML tabuľky nie sú dostupné pre IFRS účtovné jednotky.</p>
+<p class="note">EBITDA = Čistý zisk + Náklady na úroky + Odpisy. Zaokrúhlenie na celé tisíce môže spôsobiť drobné odchýlky vo výpočte.</p>
 </body></html>"""
 
         await render_pdf_via_playwright(html_content, target_path, ico)

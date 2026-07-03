@@ -12,7 +12,7 @@ from ..models import ScrapedSource, PersonInfo, ACADEMIC_TITLES, ZIP_RE
 
 logger = logging.getLogger(__name__)
 
-_EMPTY_MARKERS = ("Nenašli sa žiadne", "Podmienkam nevyhovuje žiadny", "Záznamy: 0 - 0 / 0")
+_EMPTY_MARKERS = ("Nenašli sa žiadne", "Podmienkam nevyhovuje žiadny", "Záznamy: 0 - 0 / 0", "Kritériám vyhľadávania nezodpovedá žiadny záznam")
 _OUTDATED_MARKER = "Výpis je neaktuálny"
 _TRANSFERRED_MARKER = "Spis odstúpený na iný registrový súd"
 
@@ -44,11 +44,12 @@ class OrsrScraper(BaseScraper):
             _t = time.perf_counter()
 
             if await self._is_empty_results(page):
+                logger.warning(f"[{self.source_type}] IČO {ico} neexistuje v ORSR — zastavujem report.")
                 return self._make_result(
-                    status="SUCCESS",
+                    status="FAILED",
                     file_path=None,
-                    status_message=f"IČO {ico} nebolo nájdené v ORSR.",
-                    findings="Žiadny záznam v Obchodnom registri SR.",
+                    status_message=f"IČO {ico} neexistuje v Obchodnom registri SR (ORSR). Report bol zastavený.",
+                    findings="Kritériám vyhľadávania nezodpovedá žiadny záznam — IČO neexistuje v ORSR.",
                 )
 
             link_name = "Úplný" if orsr_extract_type == "FULL" else "Aktuálny"
@@ -302,6 +303,8 @@ class OrsrScraper(BaseScraper):
             "spôsob", "spôsob konania", " obchodné", "obchodne meno",
             "pripojí", "pripoji", "vykonáva", "vykonava",
             "samostatne", "spoločne", "spolocne",
+            "záložné", "zalozne", "záložné právo", "zalozne pravo",
+            "prevod", "prevod podielu", "zmena",
         }
 
         def _is_human_name(line: str) -> bool:

@@ -310,6 +310,29 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           </svg>
                         </button>
                       )}
+                      {canDownload && (
+                        <button
+                          onClick={(e) => handleRetry(e, report)}
+                          disabled={retryingId === report.id}
+                          title={t("reports.regenerovatReport")}
+                          className="transition-all duration-150 rounded-md p-0.5"
+                          style={{ color: "var(--text-secondary)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+                        >
+                          {retryingId === report.id ? (
+                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
                       {report.status === "FAILED" && (
                         <button
                           onClick={(e) => handleRetry(e, report)}
@@ -422,6 +445,27 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "var(--accent)" }}>
                           <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                         </svg>
+                      )}
+                      {canDownload && (
+                        <button
+                          onClick={(e) => handleRetry(e, report)}
+                          disabled={retryingId === report.id}
+                          title={t("reports.regenerovatReport")}
+                          className="transition-all duration-150 rounded-md p-0.5"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          {retryingId === report.id ? (
+                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
                       )}
                       {report.status === "FAILED" && (
                         <button

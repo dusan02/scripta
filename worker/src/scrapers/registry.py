@@ -34,6 +34,7 @@ from .vszp_dlznici import VszpDlzniciScraper
 from .dovera_dlznici import DoveraDlzniciScraper
 from .union_dlznici import UnionDlzniciScraper
 from ..models import ScrapedSource
+from src.log_helpers import log_scraper_result, get_correlation_id
 
 # FS scrapery zdieľajú rovnakú URL — obmedzíme paralelizmus aby FS server
 # nerobil rate-limiting / timeout
@@ -152,8 +153,10 @@ async def run_scrapers(
                         crz_date_from=crz_date_from,
                         **extra_kwargs,
                     )
-            logger.debug(f"[TIMING] ✔ {source_type} HOTOVO za {time.perf_counter() - _t_start:.2f}s → {result.status if result else '?'}")
-            # Ihneď reportujeme dokončenie
+            elapsed = time.perf_counter() - _t_start
+            status = result.status if result else "UNKNOWN"
+            findings = result.findings or result.status_message or "" if result else ""
+            log_scraper_result(source_type, status, findings, elapsed)
             if on_source_done and result:
                 try:
                     on_source_done(result)

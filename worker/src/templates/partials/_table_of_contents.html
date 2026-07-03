@@ -135,6 +135,9 @@
                 {% set status_icon = "" %}
                 {% set status_label = "" %}
                 
+                {% set is_exception_based = source.source_type in ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI", "INSOLVENCY", "DISKVALIFIKACIE", "CRRS", "FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY", "FS_DPH_REGISTROVANI", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_BANKOVE_UCTY", "FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG", "NCRZP", "NCRD", "POVERENIA"] %}
+                {% set is_clean_exception = is_exception_based and source.status == "SUCCESS" and not has_pozor %}
+                
                 {% if source.status == "SUCCESS" and not has_pozor %}
                     {% set status_class = "bg-[#10b981]" %}
                     {% set status_icon = "✓" %}
@@ -188,7 +191,11 @@
                         {% endif %}
                     </td>
                     <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                        {% if is_clean_exception %}
+                        <span title="Bez nálezu — príloha nezahrnutá">—</span>
+                        {% else %}
                         {{ start_pages_map.get(source.source_type, '—') }}
+                        {% endif %}
                     </td>
                 </tr>
                 {% endif %}

@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     model_vestnik: str = "gemini-2.5-flash"     # Vestník udalosti — štruktúrovaná extrakcia
     model_verdict: str = "gemini-2.5-flash"     # Audit verdict / forenzný posudok (konzistentné skóre)
     model_fallback: str = "gemini-2.5-flash"    # Fallback pri vyčerpaní kvót (rovnaký model = konzistentné skóre)
-    llm_backoff_seconds: str = "3,5,10"  # Exponential backoff pre 429/503 (platené API — krátke waits)
+    llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)
 
     # ── PDF Ingestion ─────────────────────────────────────────────────────────
     pdf_max_pages_sk_gaap: int = 20    # Úč POD, Úč MUJ — štandardné slovenské závierky

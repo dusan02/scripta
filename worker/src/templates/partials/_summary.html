@@ -30,7 +30,7 @@
             {% endif %}
             <tr class="border-b border-slate-100" style="{{ row_bg }}">
                 <td class="py-2.5 px-3 font-semibold text-slate-800 text-xs">{{ pillar.name }}</td>
-                <td class="py-2.5 px-3 text-slate-600 text-[11px] leading-snug">{{ pillar.detail }}</td>
+                <td class="py-2.5 px-3 text-slate-600 text-[11px] leading-snug">{{ pillar.detail | sanitize_llm }}</td>
                 <td class="py-2.5 px-3 text-center font-black text-sm {{ score_color }}">
                     {{ pillar.score }}<span class="text-slate-400 font-normal text-[10px]">/{{ pillar.max_score }}</span>
                 </td>
@@ -85,11 +85,11 @@
             </tr>
         </tfoot>
     </table>
-    <p class="text-[10px] text-slate-400 mt-1.5">
+    <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
         Algoritmické skóre (30% platobná schopnosť · 25% finančné zdravie · 20% ziskovosť · 15% rast · 10% právna bezúhonnosť).
-        Finálne skóre môže byť upravené forenzným audítorom o ±10 bodov na základe forenzného úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
+        Finálne skóre môže byť upravené forenzným audítorom o +/-10 bodov na základe forenzného úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
     </p>
-    <p class="text-[10px] text-slate-500 mt-1.5 italic leading-relaxed">
+    <p class="text-[11px] text-slate-500 mt-2 italic leading-relaxed">
         Verifa skóre je automatizované hodnotenie vypočítané podľa interného modelu na základe verejne dostupných údajov. 
         Slúži výhradne na informatívne účely a nenahrádza oficiálny audit, daňové, právne ani investičné poradenstvo. 
         Verifa.sk nenesie zodpovednosť za presnosť ani úplnosť uvádzaných údajov. Používateľ si pri rozhodovaní povinne overí údaje u originálnych zdrojov.
@@ -108,7 +108,7 @@
             {% if verdict.executive_summary %}
             <div class="mb-5 p-4 bg-slate-50 border-l-4 border-slate-600 rounded text-slate-700 text-sm leading-relaxed text-justify shadow-sm">
                 <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Executive Summary</h3>
-                {{ verdict.executive_summary }}
+                {{ verdict.executive_summary | sanitize_llm }}
             </div>
             {% endif %}
 
@@ -142,21 +142,21 @@
                     <tbody class="divide-y divide-slate-200">
                         {% for item in evidence_list %}
                         <tr>
-                            <td class="px-3 py-2 text-slate-700 align-top">{{ item.tvrdenie }}</td>
-                            <td class="px-3 py-2 text-slate-600 align-top">{{ item.dokaz }}</td>
-                            <td class="px-3 py-2 text-blue-600 align-top font-mono text-xs">{{ item.zdroj }}</td>
+                            <td class="px-3 py-2 text-slate-700 align-top">{{ item.tvrdenie | sanitize_llm }}</td>
+                            <td class="px-3 py-2 text-slate-600 align-top">{{ item.dokaz | sanitize_llm }}</td>
+                            <td class="px-3 py-2 text-blue-600 align-top font-mono text-xs">{{ item.zdroj | sanitize_llm }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
             {% else %}
-            <p class="text-sm text-slate-700 leading-relaxed text-justify">{{ verdict.justification }}</p>
+            <p class="text-sm text-slate-700 leading-relaxed text-justify">{{ verdict.justification | sanitize_llm }}</p>
             {% endif %}
             
             {% if verdict.keyRisk and verdict.keyRisk != "Žiadne" and verdict.keyRisk != "N/A" %}
             <div class="mt-4 p-3 bg-rose-50 border-l-4 border-rose-500 rounded-r text-sm text-rose-800">
-                <strong>Kľúčové zistenie:</strong> {{ verdict.keyRisk }}
+                <strong>Kľúčové zistenie:</strong> {{ verdict.keyRisk | sanitize_llm }}
             </div>
             {% endif %}
         </div>

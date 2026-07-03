@@ -1,26 +1,152 @@
-import asyncio
-from typing import Optional
-from prisma import Prisma
-from src.llm_extractor import CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, evaluate_audit_verdict
+import os
+import glob
 import json
+import re
+import logging
+import time
+from typing import Optional
+
+import asyncio
+from prisma import Prisma
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.db_repository import save_to_db, save_narrative_to_db, update_ai_status, get_avg_completion_seconds
-
-import os
-import glob
-import logging
-import time
+from src.db_repository import (
+    save_to_db, save_narrative_to_db, save_notes_to_db,
+    update_ai_status, get_avg_completion_seconds,
+)
+from src.log_helpers import (
+    PhaseTimer, log_pipeline_start, log_pipeline_end,
+    log_llm_call, log_llm_retry, get_correlation_id,
+)
 from src.scrapers.ruz_scraper import download_ifrs_reports
-from src.llm_extractor import extract_financial_data, extract_narrative_risk, extract_notes_risks
+from src.llm_extractor import (
+    CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict,
+    evaluate_audit_verdict, extract_financial_data,
+    extract_narrative_risk, extract_notes_risks, extract_staff_costs_focused,
+)
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
 from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf
-from src.db_repository import save_to_db, save_narrative_to_db, save_notes_to_db, update_ai_status, get_avg_completion_seconds
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_VESTNIK
-import re
+
+# Nastavenie logovania do súboru pre produkciu
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler("errors.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Globálny semaphore pre LLM volania — zdieľaný medzi všetkými reportmi
+# Gemini free tier ~5 RPM; 2 paralelné volania + staggered delay = bezpečné
+_GLOBAL_LLM_SEM = asyncio.Semaphore(2)
+
+
+def _check_cross_year_duplicates(results: list[CompanyFinancialExtraction]) -> None:
+    """
+    Detekuje a opravuje duplicitné hodnoty osobných nákladov naprieč rokmi.
+    LLM môže duplikovať hodnotu z jedného roku do iného (najmä pri IFRS by-function
+    výkazoch, kde si LLM "požičia" hodnotu z iného roku, ktorý videlo v tréningovom
+    okne PDF).
+
+    Logika:
+    - Ak rovnaká hodnota osobných nákladov (s toleranciou 1€) existuje pre 2+ roky,
+      ktoré NIE sú susedné (rozdiel > 1), považujeme to za duplikát.
+    - Pre susedné roky (rozdiel = 1) s rovnakou hodnotou iba logujeme varovanie
+      (môže to byť legitímne pre malé firmy).
+    - Pri duplikáte nullujeme hodnotu pre starší rok (novší rok je pravdepodobne
+      správny, pretože PDF pre rok X obsahuje stĺpce pre X a X-1).
+    """
+    # Zbierame unikátne roky a ich osobné náklady
+    year_to_staff = {}
+    for data in results:
+        year = data.metriky.rok_zavierky
+        staff = data.metriky.osobne_naklady
+        if year and staff is not None and staff > 0:
+            year_to_staff[year] = staff
+
+    if len(year_to_staff) < 2:
+        return
+
+    # Skupiny rokov s rovnakou hodnotou (tolerancia 1€ pre float porovnanie)
+    sorted_years = sorted(year_to_staff.keys(), reverse=True)
+    checked = set()
+
+    for i, year_a in enumerate(sorted_years):
+        if year_a in checked:
+            continue
+        val_a = year_to_staff[year_a]
+        duplicates = [year_a]
+
+        for year_b in sorted_years[i + 1:]:
+            if year_b in checked:
+                continue
+            val_b = year_to_staff[year_b]
+            if abs(val_a - val_b) <= 1.0:
+                duplicates.append(year_b)
+                checked.add(year_b)
+
+        if len(duplicates) >= 2:
+            # Susedné roky (rozdiel = 1) — môže byť legitímne, len logujeme
+            non_adjacent = [y for y in duplicates if any(abs(y - other) > 1 for other in duplicates)]
+
+            if non_adjacent or len(duplicates) >= 3:
+                # Nullujeme staršie roky (ponecháme najnovší)
+                keeper = max(duplicates)
+                for data in results:
+                    y = data.metriky.rok_zavierky
+                    if y in duplicates and y != keeper:
+                        old_val = data.metriky.osobne_naklady
+                        data.metriky.osobne_naklady = None
+                        logger.warning(
+                            f"[DUPLICATE CHECK] Osobné náklady pre rok {y} nullované "
+                            f"(hodnota {old_val} sa zhoduje s rokom {keeper} — pravdepodobne duplikát z LLM)"
+                        )
+            else:
+                # Iba susedné roky s rovnakou hodnotou — logujeme varovanie
+                logger.info(
+                    f"[DUPLICATE CHECK] Susedné roky {duplicates} majú rovnaké osobné náklady "
+                    f"({val_a}) — môže byť legitímne, nulovanie preskakujem"
+                )
+
+        checked.add(year_a)
+
+
+# ── Debt PDF collection patterns ────────────────────────────────────────────
+_RESULTS_DEBT_PATTERNS = [
+    "dovera_dlznici_*{ico}*.pdf",
+    "sp_dlznici_*{ico}*.pdf",
+    "vszp_dlznici_*{ico}*.pdf",
+    "union_dlznici_*{ico}*.pdf",
+    "insolvency_*{ico}*.pdf",
+    "crz_*{ico}*.pdf",
+    "diskvalifikacie_*{ico}*.pdf",
+    "fs_danove_subjekty_*{ico}*.pdf",
+    "fs_dph_*{ico}*.pdf",
+    "fs_dan_*{ico}*.pdf",
+]
+_ASSETS_DEBT_PATTERNS = ["DEBTS_*.pdf", "EXC_*.pdf", "DLZ_*.pdf"]
+
+
+def _collect_debt_pdfs(ico: str) -> list[str]:
+    """Zozbiera PDF súbory z registrov (dlhy, exekúcie, insolvencia) pre Chief Auditora."""
+    debt_pdfs: list[str] = []
+    results_dir = os.environ.get("RESULTS_DIR", "./results")
+    for rid_dir in glob.glob(f"{results_dir}/*"):
+        if os.path.isdir(rid_dir):
+            for pattern in _RESULTS_DEBT_PATTERNS:
+                debt_pdfs.extend(glob.glob(f"{rid_dir}/{pattern.format(ico=ico)}"))
+    assets_dir = f"assets/{ico}"
+    if os.path.exists(assets_dir):
+        for pattern in _ASSETS_DEBT_PATTERNS:
+            debt_pdfs.extend(glob.glob(f"{assets_dir}/{pattern}"))
+    return list(dict.fromkeys(debt_pdfs))
+
 
 async def run_and_save_audit_verdict(ico: str, force: bool = False):
     """
@@ -102,6 +228,12 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         # Extrahuje JSON dáta
         company_dict = company.model_dump(exclude_none=True)
         
+        # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
+        # Konvertujeme na None, aby LLM judge nevidel operatingCashFlow: 0 a nepísal o "nulovom cash flow"
+        from src.analytics import sanitize_cash_flow_fields
+        for stmt in company_dict.get("financialStatements", []):
+            sanitize_cash_flow_fields(stmt)
+        
         # Cesta B: Deterministická agregácia a výpočet 5-ročného trendu
         from src.analytics import compute_financial_trends, compute_forensic_scorecard
         if company.financialStatements:
@@ -126,32 +258,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         
         # Hľadáme PDF súbory z registrov v results/{report_id}/ aj assets/{ico}/
         # Sudca potrebuje vidieť: dlhy poisťovniam, daňové dlhy, exekúcie, insolvenciu, diskvalifikácie
-        debt_pdfs = []
-
-        # 1. Nové cesty: results/{report_id}/ (kde scrapery ukladajú)
-        results_dir = os.environ.get("RESULTS_DIR", "./results")
-        for rid_dir in glob.glob(f"{results_dir}/*"):
-            if os.path.isdir(rid_dir):
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/dovera_dlznici_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/sp_dlznici_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/vszp_dlznici_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/union_dlznici_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/insolvency_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/crz_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/diskvalifikacie_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_danove_subjekty_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_dph_*{ico}*.pdf"))
-                debt_pdfs.extend(glob.glob(f"{rid_dir}/fs_dan_*{ico}*.pdf"))
-
-        # 2. Staré cesty: assets/{ico}/ (pre spätňu kompatibilitu)
-        assets_dir = f"assets/{ico}"
-        if os.path.exists(assets_dir):
-            debt_pdfs.extend(glob.glob(f"{assets_dir}/DEBTS_*.pdf"))
-            debt_pdfs.extend(glob.glob(f"{assets_dir}/EXC_*.pdf"))
-            debt_pdfs.extend(glob.glob(f"{assets_dir}/DLZ_*.pdf"))
-
-        # Deduplikácia (ak sa ten istý súbor nájde cez viaceré cesty)
-        debt_pdfs = list(dict.fromkeys(debt_pdfs))
+        debt_pdfs = _collect_debt_pdfs(ico)
 
         logger.info(f"Spúšťam Chief Auditora (The Verifa Scorer) pre IČO: {ico}. Nájdené PDF na analýzu: {len(debt_pdfs)}")
         verdict = await safe_llm_call(
@@ -194,17 +301,6 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
     finally:
         await db.disconnect()
 
-# Nastavenie logovania do súboru pre produkciu
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler("errors.log"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
 # Fallback baseline ak nie sú historické dáta (sekundy)
 from src.config import settings as _cfg
 _PIPELINE_BASELINE_FALLBACK = _cfg.pipeline_baseline_fallback
@@ -225,7 +321,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
     1. Sťahuje finančné a výročné správy a spracuje ich cez LLM.
     2. Scrapuje záznamy z Obchodného vestníka (XML) a spracuje ich cez LLM.
     """
-    logger.info(f"Spúšťam pipeline pre IČO: {ico}")
+    log_pipeline_start(ico, report_request_id or "-")
     _t_start = time.perf_counter()
     _ifrs_count = 0
     _vs_count = 0
@@ -264,7 +360,8 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         await update_ai_status(db, report_request_id, "ai.downloading", _remaining_eta(_t_start))
         
         # 1. Stiahnutie z RÚZ (IFRS a VS)
-        downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
+        with PhaseTimer("RÚZ download"):
+            downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
         
         await update_ai_status(db, report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start))
         
@@ -280,9 +377,13 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
 
         _ifrs_count = len(ifrs_files)
         _vs_count = len(vs_files)
+        logger.info(f"[{get_correlation_id() or '-'}] Files: IFRS={_ifrs_count} VS={_vs_count}")
+
+        # Zoznam pre zbieranie extrahovaných dát (pre cross-year duplicate check)
+        _ifrs_results: list[CompanyFinancialExtraction] = []
 
         async def _process_ifrs(file_path: str, sem: asyncio.Semaphore):
-            """Spracuje jeden IFRS PDF: slice → Gemini extrakcia → DB save."""
+            """Spracuje jeden IFRS PDF: slice → Gemini extrakcia → (deferred DB save)."""
             file_name = os.path.basename(file_path)
             async with sem:
                 try:
@@ -298,21 +399,47 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                     # Auto-retry s celým PDF, ak chýbajú kľúčové polia (odrezané poznámky)
                     if data and sliced_path and sliced_path != file_path:
                         m = data.metriky
-                        if m.pohladavky_z_obchodneho_styku is None or m.zavazky_z_obchodneho_styku is None:
+                        needs_retry = (
+                            m.pohladavky_z_obchodneho_styku is None
+                            or m.zavazky_z_obchodneho_styku is None
+                            or m.osobne_naklady is None
+                        )
+                        if needs_retry:
                             import fitz
                             doc = fitz.open(file_path)
                             total_pages = len(doc)
                             doc.close()
                             if total_pages <= 80:
-                                logger.info(f"[RETRY] Dáta sú neúplné (chýbajú pohľadávky/záväzky). Spúšťam analýzu nad neskráteným PDF ({total_pages} strán): {file_name}")
+                                missing = []
+                                if m.pohladavky_z_obchodneho_styku is None: missing.append("pohľadávky")
+                                if m.zavazky_z_obchodneho_styku is None: missing.append("záväzky")
+                                if m.osobne_naklady is None: missing.append("osobné náklady")
+                                logger.info(f"[RETRY] Dáta sú neúplné (chýba: {', '.join(missing)}). Spúšťam analýzu nad neskráteným PDF ({total_pages} strán): {file_name}")
                                 data2 = await safe_llm_call(
                                     extract_financial_data, file_path,
                                     model=_MODEL_IFRS, label=f"IFRS-RETRY:{file_name}"
                                 )
                                 if data2:
+                                    # Zachovaj osobné náklady z prvého pokusu ak retry nevrátil lepšie
+                                    if data2.metriky.osobne_naklady is None and data.metriky.osobne_naklady is not None:
+                                        data2.metriky.osobne_naklady = data.metriky.osobne_naklady
                                     data = data2
                             else:
                                 logger.warning(f"[RETRY SKIP] PDF má {total_pages} > 80 strán, preskakujem full-retry kvôli nákladom: {file_name}")
+
+                    # Cielený retry pre osobné náklady (IFRS by-function výkazy — mzdové náklady v poznámkach)
+                    if data and data.metriky.osobne_naklady is None:
+                        retry_path = file_path  # Vždy použi full PDF pre staff costs retry (poznámky môžu byť ďaleko)
+                        logger.info(f"[STAFF COSTS RETRY] Osobné náklady chýbajú. Spúšťam cielene vyhľadávanie v {file_name}")
+                        staff_costs = await safe_llm_call(
+                            extract_staff_costs_focused, retry_path,
+                            model=_MODEL_IFRS, label=f"STAFF-COSTS:{file_name}"
+                        )
+                        if staff_costs is not None:
+                            data.metriky.osobne_naklady = staff_costs
+                            logger.info(f"[STAFF COSTS RETRY] Osobné náklady doplnené: {staff_costs} pre {file_name}")
+                        else:
+                            logger.warning(f"[STAFF COSTS RETRY] Osobné náklady sa nepodarilo nájsť v {file_name}")
 
                     if data:
                         logger.info(
@@ -320,10 +447,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
                             f"revenue={data.metriky.trzby_z_hlavnej_cinnosti}"
                         )
-                        await save_to_db(data)
-                        logger.info(f"[IFRS SAVED] {file_name} → DB uložené")
-
-                        # Extrahovanie a uloženie rizík z poznámok (presunuté do post-procesingu)
+                        _ifrs_results.append(data)
                     else:
                         logger.warning(f"[IFRS EMPTY] {file_name} → safe_llm_call vrátil None")
                     if sliced_path and sliced_path != file_path:
@@ -377,11 +501,36 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
 
         vestnik_task = asyncio.create_task(_process_vestnik())
 
-        # Paralelné spracovanie PDF s prísnym obmedzením concurrency na max 6 LLM volaní naraz (test limitov)
-        _llm_sem = asyncio.Semaphore(6)
-        pdf_tasks = [_process_ifrs(fp, _llm_sem) for fp in ifrs_files] + [_process_vs(fp, _llm_sem) for fp in vs_files]
+        # Paralelné spracovanie PDF s globálnym obmedzením concurrency
+        # _GLOBAL_LLM_SEM(2) je zdieľaný medzi všetkými reportmi — Gemini free tier ~5 RPM
+        _stagger_counter = 0
+
+        async def _staggered_process(coro_func, *args, **kwargs):
+            nonlocal _stagger_counter
+            _stagger_counter += 1
+            delay = (_stagger_counter - 1) * 2.0  # 0s, 2s, 4s, 6s, ...
+            if delay > 0:
+                await asyncio.sleep(delay)
+            return await coro_func(*args, **kwargs)
+
+        pdf_tasks = [_staggered_process(_process_ifrs, fp, _GLOBAL_LLM_SEM) for fp in ifrs_files] + \
+                    [_staggered_process(_process_vs, fp, _GLOBAL_LLM_SEM) for fp in vs_files]
         if pdf_tasks:
-            await asyncio.gather(*pdf_tasks)
+            with PhaseTimer(f"LLM extrakcia ({len(pdf_tasks)} files)"):
+                await asyncio.gather(*pdf_tasks)
+
+        # Cross-year duplicate detection pre osobné náklady
+        # LLM môže duplikovať hodnotu z jedného roku do iného (najmä pri IFRS by-function výkazoch)
+        if len(_ifrs_results) >= 2:
+            _check_cross_year_duplicates(_ifrs_results)
+
+        # Uloženie do DB po duplicate checku
+        for data in _ifrs_results:
+            try:
+                await save_to_db(data)
+                logger.info(f"[IFRS SAVED] rok={data.metriky.rok_zavierky} → DB uložené")
+            except Exception as e:
+                logger.error(f"[IFRS SAVE ERROR] rok={data.metriky.rok_zavierky}: {e}", exc_info=True)
 
         # 3b. Extrakcia poznámok (len pre najnovší rok, s fallbackom na staršie ak zlyhá)
         def _extract_year_from_fn(fp: str) -> int:
@@ -428,11 +577,11 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
             
         _elapsed = time.perf_counter() - _t_start
         logger.info(
-            f"[PIPELINE SUMMARY] ico={ico} "
+            f"[{get_correlation_id() or '-'}] PIPELINE SUMMARY: ico={ico} "
             f"ifrs={_ifrs_count} vs={_vs_count} "
             f"models=IFRS:{_MODEL_IFRS}|VS:{_MODEL_NARRATIVE}|OV:{_MODEL_VESTNIK}|Verdikt:gemini-2.5-flash "
             f"elapsed={_elapsed:.1f}s"
         )
-        logger.info(f"Pipeline pre IČO {ico} dokončená.")
+        log_pipeline_end(ico, "OK", _elapsed)
     finally:
         await db.disconnect()

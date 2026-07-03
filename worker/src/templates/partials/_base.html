@@ -3,10 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @font-face {
+            font-family: 'Inter';
+            src: url('file://{{ font_dir }}/Inter-Regular.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Inter';
+            src: url('file://{{ font_dir }}/Inter-Bold.ttf') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'DejaVu Sans';
+            src: url('file://{{ font_dir }}/DejaVuSans.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'DejaVu Sans';
+            src: url('file://{{ font_dir }}/DejaVuSans-Bold.ttf') format('truetype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+    </style>
     <style type="text/tailwindcss">
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         body { 
-            font-family: 'Inter', sans-serif; 
+            font-family: 'Inter', 'DejaVu Sans', -apple-system, 'Segoe UI', Roboto, 'Liberation Sans', sans-serif; 
             background-color: #ffffff; 
             color: #0f172a; 
             /* Fix for Playwright printing */
