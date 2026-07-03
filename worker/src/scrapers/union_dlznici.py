@@ -44,8 +44,8 @@ class UnionDlzniciScraper(BaseScraper):
                     status="SUCCESS",
                     file_path=str(pdf_output),
                     page_count=1,
-                    status_message="UNION: stránka nedostupná (timeout/blokovanie).",
-                    findings="UNION: vyhľadávanie zlyhalo — stránka nedostupná.",
+                    status_message="UNION: dáta dočasne nedostupné.",
+                    findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
             # Vyplniť IČO do textového poľa
@@ -72,8 +72,8 @@ class UnionDlzniciScraper(BaseScraper):
                     status="SUCCESS",
                     file_path=str(pdf_output),
                     page_count=1,
-                    status_message="UNION: nepodarilo sa vykonať vyhľadávanie (zmena stránky).",
-                    findings="UNION: vyhľadávanie zlyhalo — textové pole sa nenašlo.",
+                    status_message="UNION: dáta dočasne nedostupné.",
+                    findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
             # Kliknúť "Hľadať"
@@ -99,8 +99,8 @@ class UnionDlzniciScraper(BaseScraper):
                     status="SUCCESS",
                     file_path=str(pdf_output),
                     page_count=1,
-                    status_message="UNION: nepodarilo sa spustiť vyhľadávanie (zmena stránky).",
-                    findings="UNION: vyhľadávanie zlyhalo — tlačidlo sa nenašlo.",
+                    status_message="UNION: dáta dočasne nedostupné.",
+                    findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
             # Počkať na výsledky — čakáme na tabuľku alebo text o prázdnych výsledkoch

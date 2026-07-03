@@ -135,8 +135,8 @@ class VszpDlzniciScraper(BaseScraper):
                     status="SUCCESS",
                     file_path=str(pdf_output),
                     page_count=1,
-                    status_message="VšZP: nepodarilo sa vykonať vyhľadávanie (zmena stránky).",
-                    findings="VšZP: vyhľadávanie zlyhalo — stránka sa pravdepodobne zmenila.",
+                    status_message="VšZP: dáta dočasne nedostupné.",
+                    findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
             # Kliknúť "Vyhľadať" — skúšame viacero selektorov
@@ -184,8 +184,8 @@ class VszpDlzniciScraper(BaseScraper):
                     status="SUCCESS",
                     file_path=str(pdf_output),
                     page_count=1,
-                    status_message="VšZP: nepodarilo sa spustiť vyhľadávanie (zmena stránky).",
-                    findings="VšZP: vyhľadávanie zlyhalo — tlačidlo sa nenašlo.",
+                    status_message="VšZP: dáta dočasne nedostupné.",
+                    findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
             # Počkať na výsledky — čakáme na tabuľku alebo text "Nenašli sa žiadne záznamy"

@@ -345,6 +345,19 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     consecutive_losses = trends.get("consecutive_losses", 0)
     average_profit = trends.get("average_profit", 0)
 
+    # ── Data availability check ──────────────────────────────────────────────
+    # Ak je väčšina kľúčových finančných metrík None (napr. RÚZ PDF sken bez textu),
+    # finančné piliere dostanú 0 bodov namiesto polovičných — je forenzne nekonzistentné
+    # udeliť 11/25 bodov za "N/A".
+    _KEY_METRICS = ["totalAssets", "equity", "netProfitLoss", "shortTermLiabilities", "mainActivityRevenue"]
+    if sorted_stmts_raw:
+        last_stmt = sorted_stmts_raw[-1]
+        available = sum(1 for m in _KEY_METRICS if getattr(last_stmt, m, None) is not None)
+        data_availability_pct = available / len(_KEY_METRICS)
+    else:
+        data_availability_pct = 0.0
+    data_void = data_availability_pct < 0.3  # menej ako 30 % kľúčových metrík
+
     # ══════════════════════════════════════════════════════════════════════════
     # PILIER 1 — Platobná schopnosť & Exekúcie (max 30 bodov)
     # ══════════════════════════════════════════════════════════════════════════
@@ -431,10 +444,14 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
                 p2_flags.append(f"D/E = {de:.2f} — mierne zadlženie")
             else:
                 p2_flags.append(f"D/E = {de:.2f} — vysoké zadlženie")
+    elif data_void:
+        p2_score = 0
+        p2_flags.append("DATA VOID: Kľúčové finančné metriky nedostupné — pilier nehodnotený")
+        p2_flags.append(f"Dostupnosť dát: {data_availability_pct:.0%} (minimum 30%)")
     else:
         # 2a. Altman Z''-score (max 22 bodov)
         if z_score_val is None:
-            p2_score += 11  # Stred — bez dát
+            p2_score += 5  # Nízke — chýbajú dáta, ale nie úplny void
             p2_flags.append("Altman Z'': N/A (chýbajú fin. výkazy)")
         elif z_zone == "SAFE":
             # Lineárna škála v rámci SAFE zóny: Z=2.6 → 17, Z≥5.0 → 22
@@ -482,8 +499,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
 
     profitable_years = 0  # default pre pripad n_years == 0 (ochrana pred NameError)
     if n_years == 0:
-        p3_score = 10  # Stred — nová firma / bez dát
-        p3_flags.append("Žiadne finančné výkazy — nová firma alebo bez dát")
+        p3_score = 0 if data_void else 10  # Bez dát = 0, nová firma = stred
+        p3_flags.append("DATA VOID: Žiadne využiteľné finančné výkazy" if data_void else "Žiadne finančné výkazy — nová firma alebo bez dát")
     else:
         # 3a. Počet ziskových rokov (max 14b — rezerva pre marža 4b + ROA 2b = 20b celkom)
         profitable_years = sum(
@@ -564,8 +581,12 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
 
     cagr = trends.get("cagr_revenue")
     if cagr is None:
-        p4_score += 7  # Stred — bez dát
-        p4_flags.append("CAGR tržieb: N/A")
+        if data_void:
+            p4_score = 0
+            p4_flags.append("DATA VOID: CAGR tržieb nedostupný")
+        else:
+            p4_score += 5  # Nízke — chýba CAGR ale nie úplny void
+            p4_flags.append("CAGR tržieb: N/A")
     elif cagr >= 15:
         p4_score += 15
         p4_flags.append(f"CAGR tržieb: +{cagr:.1f}% — silný rast (≥15%)")

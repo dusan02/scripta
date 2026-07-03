@@ -34,7 +34,7 @@ class DoveraDlzniciScraper(BaseScraper):
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] Dôvera nedostupná ({e}) — fallback PDF.")
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=False, has_no_results_text=False)
-                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message="Dôvera: stránka nedostupná.", findings="Dôvera: vyhľadávanie zlyhalo — stránka nedostupná.")
+                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message="Dôvera: dáta dočasne nedostupné.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
 
             # 2. Cloudflare + cookies (quick, non-blocking if absent)
             await self._handle_cloudflare_challenge(page, max_attempts=1)
@@ -45,13 +45,13 @@ class DoveraDlzniciScraper(BaseScraper):
             if not await self._fill_ico_field(page, ico):
                 logger.error(f"[{self.source_type}] Pole pre IČO sa nenašlo — fallback PDF.")
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=False, has_no_results_text=False)
-                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message="Dôvera: nepodarilo sa vykonať vyhľadávanie.", findings="Dôvera: vyhľadávanie zlyhalo — stránka sa pravdepodobne zmenila.")
+                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message="Dôvera: dáta dočasne nedostupné.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
 
             # 4. Click search
             if not await self._click_search(page):
                 logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo — fallback PDF.")
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=True, has_no_results_text=False)
-                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message="Dôvera: nepodarilo sa spustiť vyhľadávanie.", findings="Dôvera: vyhľadávanie zlyhalo — tlačidlo sa nenašlo.")
+                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message="Dôvera: dáta dočasne nedostupné.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
 
             # 5. Cloudflare may appear after search
             await self._handle_cloudflare_challenge(page, max_attempts=1)
