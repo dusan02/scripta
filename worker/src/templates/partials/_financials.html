@@ -4,10 +4,10 @@
     <h2 id="suvaha" class="section-title mb-4">Súvaha (Balance Sheet)</h2>
     {% if nace_code %}
     <div class="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
-        <span class="text-[8px] font-bold uppercase text-slate-500">NACE:</span>
+        <span class="report-label">NACE:</span>
         <span class="text-xs font-semibold text-slate-700">{{ nace_code }}</span>
         {% if nace_text %}<span class="text-xs text-slate-500">— {{ nace_text }}</span>{% endif %}
-        {% if employee_count %}<span class="text-[8px] text-slate-400 ml-auto">~{{ employee_count }} zamestnancov</span>{% endif %}
+        {% if employee_count %}<span class="report-caption ml-auto">~{{ employee_count }} zamestnancov</span>{% endif %}
     </div>
     {% endif %}
     {% if has_mixed_consolidation %}
@@ -27,7 +27,7 @@
     {% endif %}
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
     {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
-    <p class="text-[9px] text-slate-400 mb-4">Hodnoty v mil. &#8364; — zdroj: RÚZ</p>
+    <p class="report-caption mb-4">Hodnoty v mil. &#8364; — zdroj: RÚZ</p>
     <table class="w-full text-xs border-collapse">
         <thead>
             <tr class="bg-slate-100">
@@ -51,7 +51,7 @@
                 ('Dlhodobé záväzky', 'longTermLiabilities'),
                 ('Záväzky z obch. styku', 'tradePayables'),
             ] %}
-            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="text-[8px] font-bold uppercase text-slate-400 tracking-widest py-1.5">Aktíva</td></tr>
+            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1.5" style="color: #94a3b8;">Aktíva</td></tr>
             {% for label, field in asset_rows %}
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
@@ -60,7 +60,7 @@
                 {% endfor %}
             </tr>
             {% endfor %}
-            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="text-[8px] font-bold uppercase text-slate-400 tracking-widest py-1.5 pt-3">Kapitál a záväzky</td></tr>
+            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1.5 pt-3" style="color: #94a3b8;">Kapitál a záväzky</td></tr>
             {% for label, field in liability_rows %}
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
@@ -72,7 +72,7 @@
         </tbody>
     </table>
     {% if has_non_standard_months %}
-    <p class="text-[8px] text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    <p class="report-caption text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
     {% endif %}
     {% if latest_stmt %}
     {% set bs_cards = [
@@ -84,7 +84,7 @@
     <div class="grid grid-cols-4 gap-1.5 mt-6">
         {% for label, value, fmt, is_pct in bs_cards %}
         <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
-            <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }} ({{ latest_stmt.year }})</p>
+            <p class="report-label">{{ label }} ({{ latest_stmt.year }})</p>
             {% if value is not none %}
             <p class="text-sm font-bold text-slate-800">{% if fmt == 'format_currency' %}{{ value | format_currency }}{% elif fmt == 'format_number' %}{{ value | format_number_millions }}{% else %}{{ value }}{% endif %}</p>
             {% else %}
@@ -115,7 +115,7 @@
     <table class="w-full text-xs border-collapse">
         <thead>
             <tr class="bg-slate-100">
-                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka <span class="text-[9px] font-normal text-slate-400">(v mil. EUR)</span></th>
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka <span class="report-caption font-normal">(v mil. EUR)</span></th>
                 {% for stmt in stmts_sorted %}
                 <th class="text-right py-1.5 px-2 font-bold text-slate-600">{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</th>
                 {% endfor %}
@@ -141,7 +141,7 @@
         </tbody>
     </table>
     {% if has_non_standard_months %}
-    <p class="text-[8px] text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    <p class="report-caption text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
     {% endif %}
     {% if latest_stmt and latest_stmt.mainActivityRevenue and latest_stmt.mainActivityRevenue > 0 %}
     {% set gross_margin = ((latest_stmt.grossProfit or 0) / latest_stmt.mainActivityRevenue * 100) | round(1) %}
@@ -155,7 +155,7 @@
     <div class="grid grid-cols-4 gap-1.5 mt-6">
         {% for label, value, has_value, is_negative in pnl_cards %}
         <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
-            <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }} ({{ latest_stmt.year }})</p>
+            <p class="report-label">{{ label }} ({{ latest_stmt.year }})</p>
             {% if has_value %}
             <p class="text-sm font-bold {% if is_negative %}text-rose-600{% elif label == 'Čistá marža' or label == 'ROE' %}text-emerald-600{% else %}text-slate-800{% endif %}">{{ value }}</p>
             {% else %}
@@ -216,7 +216,7 @@
         </tbody>
     </table>
     {% if has_non_standard_months %}
-    <p class="text-[8px] text-amber-500 mb-4">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    <p class="report-caption text-amber-500 mb-4">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
     {% endif %}
 
     {% if latest_stmt %}
@@ -228,7 +228,7 @@
     <div class="grid grid-cols-3 gap-1.5">
         {% for label, value, is_cf in cf_cards %}
         <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
-            <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }} ({{ latest_stmt.year }})</p>
+            <p class="report-label">{{ label }} ({{ latest_stmt.year }})</p>
             {% if value is not none and value != 0 %}
             <p class="text-sm font-bold {% if value < 0 %}text-rose-600{% else %}text-emerald-600{% endif %}">{{ value | format_cf_millions }}</p>
             {% else %}
@@ -246,15 +246,15 @@
 
     {% if latest_stmt and is_financial_institution %}
     <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score</p>
-        <div class="bg-blue-50 text-blue-700 text-xs p-2 rounded border border-blue-200">
+        <p class="subsection-title-sm">Altman Z''-Score</p>
+        <div class="bg-blue-50 text-blue-700 report-body-sm p-2 rounded border border-blue-200">
             Model Altman Z-Score nie je aplikovateľný pre finančné inštitúcie (Banky / Poisťovne).
         </div>
     </div>
     {% elif is_startup %}
     <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Altman Z''-Score</p>
-        <div class="bg-amber-50 text-amber-800 text-xs p-2 rounded border border-amber-200">
+        <p class="subsection-title-sm">Altman Z''-Score</p>
+        <div class="bg-amber-50 text-amber-800 report-body-sm p-2 rounded border border-amber-200">
             <strong>Startup / Pre-revenue profil detekovaný</strong>
             <p class="mt-0.5">Altman Z-Score nie je spoľahlivý pre firmy bez tržieb. Hodnotenie je založené na kapitálovej primeranosti.</p>
             {% if startup_info and startup_info.equity %}
@@ -264,7 +264,7 @@
     </div>
     {% elif altman_scores and altman_scores|length > 0 %}
     <div class="mt-4 p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <p class="text-[9px] font-bold uppercase text-slate-500 mb-3 tracking-widest">Altman Z''-Score — Prediktívny model finančného zdravia</p>
+        <p class="subsection-title-sm mb-3">Altman Z''-Score — Prediktívny model finančného zdravia</p>
 
         {% if altman_chart_base64 %}
         <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4">
@@ -298,7 +298,7 @@
             {% endfor %}
             </tbody>
         </table>
-        <p class="text-[8px] text-slate-400 mt-2">Interpretácia: Z'' &gt; 2.6 = Bezpečná zóna &nbsp;|&nbsp; 1.1–2.6 = Šedá zóna &nbsp;|&nbsp; &lt; 1.1 = Núdz. zóna (finančný stres)</p>
+        <p class="report-caption mt-2">Interpretácia: Z'' &gt; 2.6 = Bezpečná zóna &nbsp;|&nbsp; 1.1–2.6 = Šedá zóna &nbsp;|&nbsp; &lt; 1.1 = Núdz. zóna (finančný stres)</p>
     </div>
     {% endif %}
 </div>
@@ -307,35 +307,35 @@
 <div class="page-break"></div>
 <div class="mb-6 pt-6">
     <h2 id="financny_posudok" class="section-title">Finančný posudok</h2>
-    <p class="text-xs text-slate-600 mb-3">Analytické zhodnotenie — kľúčové zistenia, poznámky pod čiarou a názor audítora.</p>
+    <p class="report-body-sm text-slate-600 mb-3">Analytické zhodnotenie — kľúčové zistenia, poznámky pod čiarou a názor audítora.</p>
 
     {% if verdict %}
     {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
     <div class="mb-2 p-2 rounded-lg border border-amber-300 bg-amber-50 flex items-center gap-2">
         <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>
-        <p class="text-[9px] text-amber-700 leading-snug">Hodnotenie vypočítané na základe tvrdých dát (5-pilierový algoritmus). LLM analýza (Chief Auditor) bola dočasne nedostupná — odporúčame spustiť re-run pre plný posudok.</p>
+        <p class="report-caption text-amber-700 leading-snug">Hodnotenie vypočítané na základe tvrdých dát (5-pilierový algoritmus). LLM analýza (Chief Auditor) bola dočasne nedostupná — odporúčame spustiť re-run pre plný posudok.</p>
     </div>
     {% endif %}
     <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Hlavný posudok</h3>
+        <h3 class="subsection-title-sm mb-2">Hlavný posudok</h3>
         <div class="flex gap-2 mb-2">
             <div style="width: 66%;">
                 {% if verdict.executiveSummary %}
-                <p class="text-[10px] text-slate-700 leading-snug">{{ verdict.executiveSummary | sanitize_llm }}</p>
+                <p class="report-body-sm text-slate-700 leading-snug">{{ verdict.executiveSummary | sanitize_llm }}</p>
                 {% endif %}
             </div>
             <div style="width: 34%;">
                 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
                 <div class="bg-white p-1.5 rounded border border-slate-200">
-                    <p class="text-[8px] font-bold uppercase text-slate-500 mb-1 tracking-widest">5-pilierový rozpis</p>
+                    <p class="subsection-title-sm mb-1">5-pilierový rozpis</p>
                     {% for pillar in scorecard_breakdown %}
                     {% set pct = (pillar.score / pillar.max_score * 100) | round(0) | int %}
                     {% set bar_color = '#10b981' if pct >= 70 else '#f59e0b' if pct >= 40 else '#ef4444' %}
                     {% set icon = '✓' if pct >= 70 else '⚠' if pct >= 40 else '⛔' %}
                     <div class="mb-1">
                         <div class="flex justify-between items-center">
-                            <span class="text-[8px] text-slate-600 font-semibold">{{ icon }} {{ pillar.name }}</span>
-                            <span class="text-[8px] font-bold" style="color: {{ bar_color }};">{{ pillar.score }}/{{ pillar.max_score }}</span>
+                            <span class="report-caption text-slate-600 font-semibold">{{ icon }} {{ pillar.name }}</span>
+                            <span class="report-caption font-bold" style="color: {{ bar_color }};">{{ pillar.score }}/{{ pillar.max_score }}</span>
                         </div>
                         <div class="w-full bg-slate-200 rounded-full h-1">
                             <div class="h-1 rounded-full" style="width: {{ pct }}%; background: {{ bar_color }};"></div>
@@ -349,22 +349,22 @@
         {% set score_color = '#10b981' if verdict.riskCategory == 'AAA' else '#3b82f6' if verdict.riskCategory == 'A' else '#f59e0b' if verdict.riskCategory == 'B' else '#ef4444' %}
         <div class="grid grid-cols-4 gap-1.5">
             <div class="bg-white p-1.5 rounded border border-slate-200" style="border-left: 3px solid {{ score_color }};">
-                <p class="text-[7px] text-slate-500 uppercase font-bold">Verifa Skóre</p>
-                <p class="text-sm font-black text-slate-800">{{ verdict.verifaScore }}<span class="text-[9px] text-slate-400">/100</span></p>
-                <p class="text-[8px] font-bold" style="color: {{ score_color }};">{{ verdict.riskCategory }}</p>
+                <p class="report-label">Verifa Skóre</p>
+                <p class="text-sm font-black text-slate-800">{{ verdict.verifaScore }}<span class="report-caption text-slate-400">/100</span></p>
+                <p class="report-caption font-bold" style="color: {{ score_color }};">{{ verdict.riskCategory }}</p>
             </div>
             {% if verdict.debtExposureRating is not none %}
             {% set debt_color = '#10b981' if verdict.debtExposureRating <= 3 else '#f59e0b' if verdict.debtExposureRating <= 6 else '#ef4444' %}
             <div class="bg-white p-1.5 rounded border border-slate-200" style="border-left: 3px solid {{ debt_color }};">
-                <p class="text-[7px] text-slate-500 uppercase font-bold">Expozícia dlhom</p>
-                <p class="text-sm font-black" style="color: {{ debt_color }};">{{ verdict.debtExposureRating }}<span class="text-[9px] text-slate-400">/10</span></p>
+                <p class="report-label">Expozícia dlhom</p>
+                <p class="text-sm font-black" style="color: {{ debt_color }};">{{ verdict.debtExposureRating }}<span class="report-caption text-slate-400">/10</span></p>
             </div>
             {% endif %}
             {% if latest_ratios and latest_ratios.cashflow_to_profit is not none %}
             {% set cfp = latest_ratios.cashflow_to_profit %}
             {% set cfp_color = '#10b981' if cfp >= 0.8 else '#f59e0b' if cfp >= 0.3 else '#ef4444' %}
             <div class="bg-white p-1.5 rounded border border-slate-200" style="border-left: 3px solid {{ cfp_color }};">
-                <p class="text-[7px] text-slate-500 uppercase font-bold">CF / Zisk</p>
+                <p class="report-label">CF / Zisk</p>
                 <p class="text-sm font-black" style="color: {{ cfp_color }};">{{ cfp }}×</p>
             </div>
             {% endif %}
@@ -372,7 +372,7 @@
             {% set roe = latest_ratios.roe_pct %}
             {% set roe_color = '#10b981' if roe > 0 else '#ef4444' %}
             <div class="bg-white p-1.5 rounded border border-slate-200" style="border-left: 3px solid {{ roe_color }};">
-                <p class="text-[7px] text-slate-500 uppercase font-bold">ROE</p>
+                <p class="report-label">ROE</p>
                 <p class="text-sm font-black" style="color: {{ roe_color }};">{{ roe }}%</p>
             </div>
             {% endif %}
@@ -407,36 +407,36 @@
                 {% endif %}
             </div>
             <div>
-                <p class="text-[8px] font-bold uppercase text-slate-500 tracking-widest">Názor audítora ({{ latest_stmt.year }})</p>
+                <p class="subsection-title-sm">Názor audítora ({{ latest_stmt.year }})</p>
                 <p class="text-xs font-bold text-slate-800">{{ latest_stmt.auditorOpinion.opinionType }}</p>
                 {% if latest_stmt.auditorOpinion.goingConcernRisk %}
-                <p class="text-[10px] text-rose-600 font-medium">⚠ Going Concern</p>
+                <p class="report-body-sm text-rose-600 font-medium">⚠ Going Concern</p>
                 {% endif %}
                 {% if latest_stmt.auditorOpinion.reservationText and latest_stmt.auditorOpinion.reservationText is not none and latest_stmt.auditorOpinion.reservationText != 'null' and latest_stmt.auditorOpinion.reservationText|trim|length > 0 %}
-                <p class="text-[10px] text-slate-600">{{ latest_stmt.auditorOpinion.reservationText }}</p>
+                <p class="report-body-sm text-slate-600">{{ latest_stmt.auditorOpinion.reservationText }}</p>
                 {% endif %}
             </div>
         </div>
         {% endif %}
         {% if has_evidence %}
         <div class="flex-1">
-            <p class="text-[8px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Zistenia a riziká</p>
+            <p class="subsection-title-sm mb-1">Zistenia a riziká</p>
             <div class="grid grid-cols-3 gap-1">
                 {% if positives|length > 0 %}
                 <div class="bg-emerald-50 border border-emerald-200 rounded p-1 text-center">
-                    <p class="text-[8px] font-bold text-emerald-600">✓ Pozitíva</p>
+                    <p class="report-caption font-bold text-emerald-600">✓ Pozitíva</p>
                     <p class="text-sm font-black text-emerald-700">{{ positives|length }}</p>
                 </div>
                 {% endif %}
                 {% if warnings|length > 0 %}
                 <div class="bg-amber-50 border border-amber-200 rounded p-1 text-center">
-                    <p class="text-[8px] font-bold text-amber-600">⚠ Upozorn.</p>
+                    <p class="report-caption font-bold text-amber-600">⚠ Upozorn.</p>
                     <p class="text-sm font-black text-amber-700">{{ warnings|length }}</p>
                 </div>
                 {% endif %}
                 {% if criticals|length > 0 %}
                 <div class="bg-rose-50 border border-rose-200 rounded p-1 text-center">
-                    <p class="text-[8px] font-bold text-rose-600">⛔ Kritické</p>
+                    <p class="report-caption font-bold text-rose-600">⛔ Kritické</p>
                     <p class="text-sm font-black text-rose-700">{{ criticals|length }}</p>
                 </div>
                 {% endif %}
@@ -449,8 +449,8 @@
     {# ── RIZIKO ── #}
     {% if verdict and verdict.keyRisk %}
     <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-2">
-        <p class="text-[8px] text-rose-500 font-bold uppercase">Riziko</p>
-        <p class="text-[10px] text-rose-700">{{ verdict.keyRisk | sanitize_llm }}</p>
+        <p class="report-caption text-rose-500 font-bold uppercase">Riziko</p>
+        <p class="report-body-sm text-rose-700">{{ verdict.keyRisk | sanitize_llm }}</p>
     </div>
     {% endif %}
 
@@ -465,17 +465,17 @@
             {% set label_c = '#059669' if impact == 'POSITIVE' else '#d97706' if impact == 'WARNING' else '#dc2626' if impact == 'CRITICAL' else '#64748b' %}
             {% set label_text = '✓' if impact == 'POSITIVE' else '⚠' if impact == 'WARNING' else '⛔' if impact == 'CRITICAL' else '○' %}
             <div class="p-1 rounded border flex items-start gap-1.5" style="background: {{ bg }}; border-color: {{ border_c }};">
-                <span class="text-[9px] font-bold flex-shrink-0" style="color: {{ label_c }};">{{ label_text }}</span>
+                <span class="report-caption font-bold flex-shrink-0" style="color: {{ label_c }};">{{ label_text }}</span>
                 <div class="flex-1 min-w-0">
-                    {% if item.get('zdroj') %}<span class="text-[7px] text-slate-400 block">{{ item.zdroj | sanitize_llm }}</span>{% endif %}
-                    {% if item.get('tvrdenie') %}<p class="text-[9px] text-slate-700 leading-snug">{{ item.tvrdenie | sanitize_llm }}</p>{% endif %}
-                    {% if item.get('dokaz') %}<p class="text-[8px] text-slate-500 leading-snug">→ {{ item.dokaz | sanitize_llm }}</p>{% endif %}
+                    {% if item.get('zdroj') %}<span class="report-caption text-slate-400 block">{{ item.zdroj | sanitize_llm }}</span>{% endif %}
+                    {% if item.get('tvrdenie') %}<p class="report-caption text-slate-700 leading-snug">{{ item.tvrdenie | sanitize_llm }}</p>{% endif %}
+                    {% if item.get('dokaz') %}<p class="report-caption text-slate-500 leading-snug">→ {{ item.dokaz | sanitize_llm }}</p>{% endif %}
                 </div>
             </div>
             {% endfor %}
             {% set total_shown = (criticals[:3]|length + warnings[:3]|length + positives[:2]|length + neutrals[:2]|length) %}
             {% if evidence_list|length > total_shown %}
-            <p class="text-[7px] text-slate-400 italic">+{{ evidence_list|length - total_shown }} ďalších...</p>
+            <p class="report-caption text-slate-400 italic">+{{ evidence_list|length - total_shown }} ďalších...</p>
             {% endif %}
         </div>
     </div>
@@ -485,10 +485,10 @@
     {% if latest_ratios and latest_stmt %}
     <div class="page-break"></div>
     <div class="mb-2 pt-6 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Finančné ukazovatele ({{ latest_stmt.year }})</h3>
+        <h3 class="subsection-title-sm mb-2">Finančné ukazovatele ({{ latest_stmt.year }})</h3>
         <div class="space-y-1.5">
             <div>
-                <p class="text-[7px] text-slate-400 font-bold uppercase mb-0.5">Rentabilita</p>
+                <p class="report-label text-slate-400 mb-0.5">Rentabilita</p>
                 <div class="grid grid-cols-4 gap-1.5">
                     {% set rent_cards = [
                         ('ROA', latest_ratios.roa_pct, '%', true),
@@ -498,7 +498,7 @@
                     ] %}
                     {% for label, value, suffix, is_pct in rent_cards %}
                     <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
-                        <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }}</p>
+                        <p class="report-label">{{ label }}</p>
                         {% if value is not none %}
                         <p class="text-sm font-bold {% if is_pct and value < 0 %}text-rose-600{% elif is_pct %}text-emerald-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
                         {% else %}
@@ -509,7 +509,7 @@
                 </div>
             </div>
             <div>
-                <p class="text-[7px] text-slate-400 font-bold uppercase mb-0.5">Likvidita</p>
+                <p class="report-label text-slate-400 mb-0.5">Likvidita</p>
                 <div class="grid grid-cols-4 gap-1.5">
                     {% set liq_cards = [
                         ('Current Ratio', latest_ratios.current_ratio, '', false),
@@ -519,7 +519,7 @@
                     ] %}
                     {% for label, value, suffix, is_pct in liq_cards %}
                     <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
-                        <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }}</p>
+                        <p class="report-label">{{ label }}</p>
                         {% if value is not none %}
                         <p class="text-sm font-bold text-slate-800">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
                         {% else %}
@@ -530,7 +530,7 @@
                 </div>
             </div>
             <div>
-                <p class="text-[7px] text-slate-400 font-bold uppercase mb-0.5">Efektivita & Zadlženosť</p>
+                <p class="report-label text-slate-400 mb-0.5">Efektivita & Zadlženosť</p>
                 <div class="grid grid-cols-3 gap-1.5">
                     {% set eff_cards = [
                         ('DSO (dni)', latest_ratios.dso_days, '', false),
@@ -539,7 +539,7 @@
                     ] %}
                     {% for label, value, suffix, is_pct in eff_cards %}
                     <div class="bg-white p-1.5 rounded border border-slate-200 text-center">
-                        <p class="text-[7px] text-slate-500 uppercase font-bold">{{ label }}</p>
+                        <p class="report-label">{{ label }}</p>
                         {% if value is not none %}
                         <p class="text-sm font-bold text-slate-800">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
                         {% else %}
@@ -557,15 +557,15 @@
     {% if latest_stmt and latest_stmt.notesRisk %}
     {% if latest_stmt.notesRisk.relatedPartyTransactions or latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
     <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
-        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Riziká z poznámok k účtovnej závierke</h3>
+        <h3 class="subsection-title-sm mb-2">Riziká z poznámok k účtovnej závierke</h3>
         {% if latest_stmt.notesRisk.relatedPartyTransactions %}
-        <div class="mt-1"><strong class="text-[10px] text-slate-600">Spriaznené osoby:</strong> <span class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</span></div>
+        <div class="mt-1"><strong class="report-body-sm text-slate-600">Spriaznené osoby:</strong> <span class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</span></div>
         {% endif %}
         {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
-        <div class="mt-1"><strong class="text-[10px] text-slate-600">Podsúvahové záväzky:</strong> <span class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</span></div>
+        <div class="mt-1"><strong class="report-body-sm text-slate-600">Podsúvahové záväzky:</strong> <span class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</span></div>
         {% endif %}
         {% if latest_stmt.notesRisk.contingentRisks %}
-        <div class="mt-1"><strong class="text-[10px] text-slate-600">Súdne spory (Contingent):</strong> <span class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</span></div>
+        <div class="mt-1"><strong class="report-body-sm text-slate-600">Súdne spory (Contingent):</strong> <span class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</span></div>
         {% endif %}
     </div>
     {% endif %}
@@ -573,37 +573,37 @@
 
     {% if latest_stmt and latest_stmt.narrativeRisk %}
     <div class="mb-2">
-        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Strategický kontext (Výročná správa)</h3>
+        <h3 class="subsection-title-sm mb-1">Strategický kontext (Výročná správa)</h3>
         {% if latest_stmt.narrativeRisk.synthesis %}
-        <p class="text-[10px] text-slate-700 leading-snug mb-2">{{ latest_stmt.narrativeRisk.synthesis }}</p>
+        <p class="report-body-sm text-slate-700 mb-2">{{ latest_stmt.narrativeRisk.synthesis }}</p>
         {% endif %}
         {% if latest_stmt.narrativeRisk.goingConcernDoubts %}
         <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
-            <p class="text-[10px] text-rose-700 font-medium">⚠ Going Concern pochybnosti z výročnej správy</p>
+            <p class="report-body-sm text-rose-700 font-medium">⚠ Going Concern pochybnosti z výročnej správy</p>
         </div>
         {% endif %}
         {% if latest_stmt.narrativeRisk.forensicRedFlags and latest_stmt.narrativeRisk.forensicRedFlags|length > 0 %}
         <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
-            <p class="text-[9px] font-bold uppercase text-rose-500 mb-0.5">Forenzné red flags</p>
+            <p class="subsection-title-sm text-rose-500 mb-0.5">Forenzné red flags</p>
             <ul class="space-y-0.5">
                 {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
-                <li class="text-[10px] text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag }}</span></li>
+                <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag }}</span></li>
                 {% endfor %}
             </ul>
         </div>
         {% endif %}
         <div class="grid grid-cols-2 gap-2">
             {% if latest_stmt.narrativeRisk.managementChanges %}
-            <div><p class="text-[8px] text-slate-500 font-bold">Zmeny vo vedení</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges }}</p></div>
+            <div><p class="report-label text-slate-500">Zmeny vo vedení</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges }}</p></div>
             {% endif %}
             {% if latest_stmt.narrativeRisk.plannedInvestments %}
-            <div><p class="text-[8px] text-slate-500 font-bold">Plánované investície</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments }}</p></div>
+            <div><p class="report-label text-slate-500">Plánované investície</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments }}</p></div>
             {% endif %}
             {% if latest_stmt.narrativeRisk.profitabilityExplanation %}
-            <div class="col-span-2"><p class="text-[8px] text-slate-500 font-bold">Vysvetlenie výkyvov ziskovosti</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation }}</p></div>
+            <div class="col-span-2"><p class="report-label text-slate-500">Vysvetlenie výkyvov ziskovosti</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation }}</p></div>
             {% endif %}
             {% if latest_stmt.narrativeRisk.litigationRisks %}
-            <div class="col-span-2"><p class="text-[8px] text-rose-500 font-bold">Súdne spory / Právne riziká</p><p class="text-[10px] text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks }}</p></div>
+            <div class="col-span-2"><p class="report-label text-rose-500">Súdne spory / Právne riziká</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks }}</p></div>
             {% endif %}
         </div>
     </div>
@@ -611,24 +611,24 @@
 
     {% if latest_stmt and latest_stmt.notesRisk %}
     <div class="mb-2">
-        <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-1 tracking-widest">Kľúčové poznámky pod čiarou</h3>
+        <h3 class="subsection-title-sm mb-1">Kľúčové poznámky pod čiarou</h3>
         <div class="grid grid-cols-1 gap-1.5">
             {% if latest_stmt.notesRisk.relatedPartyTransactions %}
             <div class="p-2 bg-slate-50 rounded border border-slate-200">
-                <p class="text-[8px] text-slate-500 font-bold">Transakcie so spojenými osobami</p>
-                <p class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</p>
+                <p class="report-label text-slate-500">Transakcie so spojenými osobami</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</p>
             </div>
             {% endif %}
             {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
             <div class="p-2 bg-slate-50 rounded border border-slate-200">
-                <p class="text-[8px] text-slate-500 font-bold">Mimobilančné záväzky</p>
-                <p class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</p>
+                <p class="report-label text-slate-500">Mimobilančné záväzky</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</p>
             </div>
             {% endif %}
             {% if latest_stmt.notesRisk.contingentRisks %}
             <div class="p-2 bg-amber-50 rounded border border-amber-200">
-                <p class="text-[8px] text-amber-600 font-bold">Kontingentné riziká</p>
-                <p class="text-[10px] text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</p>
+                <p class="report-label text-amber-600">Kontingentné riziká</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</p>
             </div>
             {% endif %}
         </div>
@@ -642,7 +642,7 @@
     {% endif %}
 
     <div class="mt-2 pt-1.5 border-t border-slate-200">
-        <p class="text-[8px] text-slate-400 leading-tight">
+        <p class="report-caption leading-tight">
             Report vygenerovaný automatizovaným systémom Verifa.sk z verejne dostupných údajov. Informatívne účely — nenahrádza oficiálny audit ani odborné poradenstvo. Verifa.sk nenesie zodpovednosť za presnosť údajov. Pri rozhodovaní overte údaje u originálnych zdrojov.
         </p>
     </div>

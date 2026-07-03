@@ -5,7 +5,7 @@
             <tr>
                 <th colspan="3" class="border-b-0 pb-6 pt-6 bg-white">
                     <div class="flex justify-between items-center w-full">
-                        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 mb-0">Obsah</h2>
+                        <h2 class="section-title mb-0" style="border-bottom: 0;">Obsah</h2>
                         <div class="flex justify-end items-center">
                             {% if logo_base64 %}
                             <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-7">
@@ -28,97 +28,97 @@
             </tr>
             <tr>
                 <td>
-                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
                         <a href="#scoring_breakdown" class="hover:underline">Hodnotiaca tabuľka ↗</a>
                     </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                         <span>✓</span> Súčasťou reportu
                     </div>
                 </td>
-                <td class="text-slate-700 leading-snug">
+                <td class="text-slate-700 leading-snug report-body-sm">
                     Detailný rozpad bodového hodnotenia do 5 kľúčových kategórií.
                 </td>
-                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('SCORING_BREAKDOWN', '—') }}
                 </td>
             </tr>
             <tr>
                 <td>
-                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
                         <a href="#forenzny_posudok" class="hover:underline">Hlavný posudok ↗</a>
                     </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                         <span>✓</span> Súčasťou reportu
                     </div>
                 </td>
-                <td class="text-slate-700 leading-snug">
+                <td class="text-slate-700 leading-snug report-body-sm">
                     Algoritmické hodnotenie spoločnosti, zhrnutie kľúčových zistení a odporúčanie.
                 </td>
-                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('FORENZNY_POSUDOK', '—') }}
                 </td>
             </tr>
             <tr>
                 <td>
-                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
                         <a href="#suvaha" class="hover:underline">Súvaha (Balance Sheet) ↗</a>
                     </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                         <span>✓</span> Súčasťou reportu
                     </div>
                 </td>
-                <td class="text-slate-700 leading-snug">
+                <td class="text-slate-700 leading-snug report-body-sm">
                     Štruktúra aktív a pasív, medziročný vývoj majetku a záväzkov s grafom.
                 </td>
-                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('SUVAHA', '—') }}
                 </td>
             </tr>
             <tr>
                 <td>
-                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
                         <a href="#vykaz_ziskov" class="hover:underline">Výkaz ziskov a strát (P&L) ↗</a>
                     </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                         <span>✓</span> Súčasťou reportu
                     </div>
                 </td>
-                <td class="text-slate-700 leading-snug">
+                <td class="text-slate-700 leading-snug report-body-sm">
                     Tržby, marže, ziskovosť a osobné náklady s grafickým vývojom.
                 </td>
-                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('VYKAZ_ZISKOV', '—') }}
                 </td>
             </tr>
             <tr>
                 <td>
-                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
                         <a href="#cash_flow" class="hover:underline">Prehľad peňažných tokov (Cash Flow) ↗</a>
                     </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                         <span>✓</span> Súčasťou reportu
                     </div>
                 </td>
-                <td class="text-slate-700 leading-snug">
+                <td class="text-slate-700 leading-snug report-body-sm">
                     Peňažné toky z prevádzky, likvidita a Altman Z-Score s grafom.
                 </td>
-                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('CASH_FLOW', '—') }}
                 </td>
             </tr>
             <tr>
                 <td>
-                    <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
                         <a href="#financny_posudok" class="hover:underline">Finančný posudok ↗</a>
                     </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                         <span>✓</span> Súčasťou reportu
                     </div>
                 </td>
-                <td class="text-slate-700 leading-snug">
+                <td class="text-slate-700 leading-snug report-body-sm">
                     Názor audítora, forenzné red flags, poznámky pod čiarou a strategický kontext.
                 </td>
-                <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('FINANCNY_POSUDOK', '—') }}
                 </td>
             </tr>
@@ -162,7 +162,7 @@
                 
                 <tr>
                     <td>
-                        <div class="font-bold text-[#0f172a] mb-1 text-[11px]">
+                        <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
                             {% if start_pages_map.get(source.source_type) %}
                             <a href="http://PAGE_{{ start_pages_map[source.source_type] }}" class="hover:underline">
                                 {{ labels.get(source.source_type, source.source_type) }} ↗
@@ -171,7 +171,7 @@
                             {{ labels.get(source.source_type, source.source_type) }}
                             {% endif %}
                         </div>
-                        <div class="inline-flex items-center gap-1.5 {{ status_class }} text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
+                        <div class="inline-flex items-center gap-1.5 {{ status_class }} text-white px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                             {% if status_icon == 'i' or status_icon == '?' %}
                             <span class="bg-white text-current rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-black">{{ status_icon }}</span>
                             {% else %}
@@ -190,7 +190,7 @@
                         {{ source | format_findings | safe }}
                         {% endif %}
                     </td>
-                    <td class="text-center font-mono text-slate-500 text-[11px] pt-3">
+                    <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                         {% if is_clean_exception %}
                         <span title="Bez nálezu — príloha nezahrnutá">—</span>
                         {% else %}
