@@ -71,8 +71,8 @@ const PACKAGES = [
     reports: 1,
     price: "19",
     pricePerReport: "19,00",
-    featureKeys: ["pricing.feat30Registre", "pricing.featFinancneZdravie", "pricing.featAiPosudok", "pricing.featRizikoveUpozornenia", "pricing.featInsolvencne", "pricing.featDphPravne", "pricing.featZaverneSkore", "pricing.featPdfReport"],
-    featureTooltipKeys: ["registre", null, "posudok", null, "insolventny", "financna", "skore", "pdf"],
+    featureKeys: ["pricing.feat30Registre", "pricing.featFinancneZdravie", "pricing.featInteligentnaAnaliza", "pricing.featRizikoveUpozornenia", "pricing.featInsolvencne", "pricing.featDphPravne", "pricing.featZaverneSkore", "pricing.featPdfReport", "pricing.featExportReportu"],
+    featureTooltipKeys: ["registre", null, "posudok", null, "insolventny", "financna", "skore", "pdf", null],
     highlight: false,
   },
   {
@@ -93,8 +93,8 @@ const PACKAGES = [
     reports: 30,
     price: "199",
     pricePerReport: "6,63",
-    featureKeys: ["pricing.featAllFromBasic", "pricing.feat30Kreditov", "pricing.featPrioritnaPodpora", "pricing.featRychlejsieSpracovanie", "pricing.featExportReportov", "pricing.featObchodneTimy", "pricing.featUctovneKancelarie"],
-    featureTooltipKeys: [null, null, null, null, null, null, null],
+    featureKeys: ["pricing.featAllFromBasic", "pricing.feat30Kreditov", "pricing.featPrioritnaPodpora", "pricing.featRychlejsieSpracovanie", "pricing.featObchodneTimy", "pricing.featUctovneKancelarie"],
+    featureTooltipKeys: [null, null, null, null, null, null],
     highlight: true,
   },
   {
