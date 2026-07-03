@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 # ── Hybrid Model Routing (centralized in config.py) ─────────────────────────
 _MODEL_IFRS = settings.model_ifrs
 _MODEL_NARRATIVE = settings.model_narrative
+_MODEL_NOTES = settings.model_notes
 _MODEL_VESTNIK = settings.model_vestnik
 
 # ── Exponential Backoff + Fallback Model ──────────────────────────────────

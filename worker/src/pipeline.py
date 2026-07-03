@@ -31,7 +31,7 @@ from src.llm_extractor import (
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
 from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf
-from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_VESTNIK
+from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_NOTES, _MODEL_VESTNIK
 from src.analytics import sanitize_cash_flow_fields, compute_financial_trends, compute_forensic_scorecard
 
 # Nastavenie logovania do súboru pre produkciu
@@ -652,7 +652,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 logger.info(f"[NOTES] Spracovávam poznámky pre najnovší rok {year} z {file_name}")
                 notes_data = await safe_llm_call(
                     extract_notes_risks, sliced_notes_path,
-                    model=_MODEL_NARRATIVE, label=f"NOTES:{file_name}"
+                    model=_MODEL_NOTES, label=f"NOTES:{file_name}"
                 )
                 if notes_data:
                     await save_notes_to_db(ico, year, notes_data)
@@ -678,7 +678,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         logger.info(
             f"[{get_correlation_id() or '-'}] PIPELINE SUMMARY: ico={ico} "
             f"ifrs={_ifrs_count} vs={_vs_count} "
-            f"models=IFRS:{_MODEL_IFRS}|VS:{_MODEL_NARRATIVE}|OV:{_MODEL_VESTNIK}|Verdikt:gemini-2.5-flash "
+            f"models=IFRS:{_MODEL_IFRS}|VS:{_MODEL_NARRATIVE}|NOTES:{_MODEL_NOTES}|OV:{_MODEL_VESTNIK}|Verdikt:{_cfg.model_verdict} "
             f"elapsed={_elapsed:.1f}s"
         )
         log_pipeline_end(ico, "OK", _elapsed)

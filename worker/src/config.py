@@ -34,11 +34,13 @@ class Settings(BaseSettings):
     proxy_list: Optional[str] = None
 
     # ── LLM Model Configuration ──────────────────────────────────────────────
-    model_ifrs: str = "gemini-2.5-flash"        # IFRS tabuľky — spoľahlivý OCR/extraktor
-    model_narrative: str = "gemini-2.5-flash"   # Naratívna analýza (VS)
+    # Hybrid: kľúčové role na 2.5-pro, zvyšok na 2.5-flash
+    model_ifrs: str = "gemini-2.5-pro"          # IFRS tabuľky — kľúčová extrakcia súvahy/VZaS
+    model_narrative: str = "gemini-2.5-flash"   # Naratívna analýza (VS) — textová, nižšia priorita
+    model_notes: str = "gemini-2.5-pro"         # Forenzný analytik (poznámky) — kritické riziká
     model_vestnik: str = "gemini-2.5-flash"     # Vestník udalosti — štruktúrovaná extrakcia
-    model_verdict: str = "gemini-2.5-flash"     # Audit verdict / forenzný posudok (konzistentné skóre)
-    model_fallback: str = "gemini-2.5-flash"    # Fallback pri vyčerpaní kvót (rovnaký model = konzistentné skóre)
+    model_verdict: str = "gemini-2.5-pro"       # Chief Auditor — finálny verdikt a skóre
+    model_fallback: str = "gemini-2.5-flash"    # Fallback pri vyčerpaní kvót
     llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)
 
     # ── PDF Ingestion ─────────────────────────────────────────────────────────

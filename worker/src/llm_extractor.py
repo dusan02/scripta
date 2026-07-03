@@ -443,7 +443,7 @@ Tvojou jedinou úlohou je odhaliť riziká tunelovania, skrytých dlhov a právn
 3. Hľadaj prebiehajúce súdne spory (contingent liabilities).
 Ak v texte nenájdeš nič relevantné, vráť null. Nikdy si nevymýšľaj."""
 
-async def extract_notes_risks(file_path: str, model: str = settings.model_narrative) -> NotesRiskAnalysis:
+async def extract_notes_risks(file_path: str, model: str = settings.model_notes) -> NotesRiskAnalysis:
     """Extrahuje riziká z Poznámok k závierke (Related party transactions, atď)."""
     client = _get_gemini_client()
     config = types.GenerateContentConfig(
