@@ -3,13 +3,13 @@
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
 <div class="mb-10 pt-6">
     <h2 id="scoring_breakdown" class="section-title">Hodnotiaca tabuľka</h2>
-    <table class="w-full border-collapse text-sm">
+    <table class="w-full border-collapse">
         <thead>
             <tr class="bg-slate-100">
-                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[38%]">Kategória</th>
-                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[35%]">Hlavný nález</th>
-                <th class="text-center py-2 px-3 font-bold text-slate-600 w-[15%]">Body</th>
-                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[12%]">Plnenie</th>
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[38%] report-body-sm">Kategória</th>
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[35%] report-body-sm">Hlavný nález</th>
+                <th class="text-center py-2 px-3 font-bold text-slate-600 w-[15%] report-body-sm">Body</th>
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[12%] report-body-sm">Plnenie</th>
             </tr>
         </thead>
         <tbody>
@@ -29,32 +29,32 @@
                 {% set row_bg = "background: #fff5f5;" %}
             {% endif %}
             <tr class="border-b border-slate-100" style="{{ row_bg }}">
-                <td class="py-2.5 px-3 font-semibold text-slate-800 text-xs">{{ pillar.name }}</td>
-                <td class="py-2.5 px-3 text-slate-600 text-[11px] leading-snug">{{ pillar.detail | sanitize_llm }}</td>
-                <td class="py-2.5 px-3 text-center font-black text-sm {{ score_color }}">
-                    {{ pillar.score }}<span class="text-slate-400 font-normal text-[10px]">/{{ pillar.max_score }}</span>
+                <td class="py-2.5 px-3 font-semibold text-slate-800 report-body-sm">{{ pillar.name }}</td>
+                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-snug">{{ pillar.detail | sanitize_llm }}</td>
+                <td class="py-2.5 px-3 text-center font-black report-body-sm {{ score_color }}">
+                    {{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>
                 </td>
                 <td class="py-2.5 px-3">
                     <div class="w-full bg-slate-200 rounded-full" style="height:6px;">
                         <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
                     </div>
-                    <span class="text-[9px] text-slate-400 mt-0.5 block text-right">{{ pct }}%</span>
+                    <span class="report-caption text-slate-400 mt-0.5 block text-right">{{ pct }}%</span>
                 </td>
             </tr>
         {% endfor %}
         </tbody>
         <tfoot>
             <tr class="bg-slate-50 border-t-2 border-slate-300">
-                <td class="py-2.5 px-3 font-semibold text-slate-700 text-sm" colspan="2">ALGORITMICKÉ SKÓRE (Pred audítom)</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">ALGORITMICKÉ SKÓRE (Pred audítom)</td>
                 <td class="py-2.5 px-3 text-center font-bold text-slate-700 text-lg">
-                    {{ algorithmic_total }}<span class="text-slate-400 font-normal text-[10px]">/100</span>
+                    {{ algorithmic_total }}<span class="text-slate-400 font-normal report-caption">/100</span>
                 </td>
                 <td class="py-2.5 px-3 text-right">
-                    <span class="text-xs text-slate-500">Základný model</span>
+                    <span class="report-body-sm text-slate-500">Základný model</span>
                 </td>
             </tr>
             <tr class="bg-slate-50 border-b border-slate-200">
-                <td class="py-2.5 px-3 font-semibold text-slate-700 text-sm" colspan="2">KOREKCIA AUDÍTORA</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">KOREKCIA AUDÍTORA</td>
                 <td class="py-2.5 px-3 text-center font-bold text-lg
                     {% if verdict.verifaScore - algorithmic_total > 0 %}text-emerald-600
                     {% elif verdict.verifaScore - algorithmic_total < 0 %}text-rose-600
@@ -62,19 +62,19 @@
                     {% if verdict.verifaScore - algorithmic_total > 0 %}+{% endif %}{{ verdict.verifaScore - algorithmic_total }}
                 </td>
                 <td class="py-2.5 px-3 text-right">
-                    <span class="text-xs text-slate-500">Na základe registrov/PDF</span>
+                    <span class="report-body-sm text-slate-500">Na základe registrov/PDF</span>
                 </td>
             </tr>
             <tr class="bg-slate-100 border-t-2 border-slate-400">
-                <td class="py-3 px-3 font-black text-slate-900 text-sm uppercase tracking-wide" colspan="2">FINÁLNE SKÓRE</td>
+                <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide" colspan="2">FINÁLNE SKÓRE</td>
                 <td class="py-3 px-3 text-center font-black text-xl
                     {% if verdict.verifaScore >= 70 %}text-emerald-700
                     {% elif verdict.verifaScore >= 40 %}text-amber-600
                     {% else %}text-rose-600{% endif %}">
-                    {{ verdict.verifaScore }}<span class="text-slate-400 font-normal text-[10px]">/100</span>
+                    {{ verdict.verifaScore }}<span class="text-slate-400 font-normal report-caption">/100</span>
                 </td>
                 <td class="py-3 px-3">
-                    <span class="font-bold text-sm px-2 py-1 rounded shadow-sm
+                    <span class="font-bold report-body-sm px-2 py-1 rounded shadow-sm
                         {% if verdict.riskCategory == 'AAA' %}bg-emerald-100 text-emerald-800 border border-emerald-200
                         {% elif verdict.riskCategory == 'A' %}bg-emerald-50 text-emerald-700 border border-emerald-100
                         {% elif verdict.riskCategory == 'B' %}bg-amber-50 text-amber-700 border border-amber-100
@@ -128,20 +128,20 @@
 
             {% if evidence_list %}
             <div class="mt-4 border border-slate-200 rounded-lg overflow-hidden">
-                <table class="w-full text-left border-collapse text-sm">
+                <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-50 border-b border-slate-200">
                         <tr>
-                            <th class="px-3 py-2 font-semibold text-slate-600 w-[47%]">Tvrdenie</th>
-                            <th class="px-3 py-2 font-semibold text-slate-600 w-[43%]">Dôkaz</th>
-                            <th class="px-3 py-2 font-semibold text-slate-600 w-[10%]">Zdroj</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[47%] report-body-sm">Tvrdenie</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[43%] report-body-sm">Dôkaz</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[10%] report-body-sm">Zdroj</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
                         {% for item in evidence_list %}
                         <tr style="page-break-inside: avoid; break-inside: avoid;">
-                            <td class="px-3 py-2 text-slate-700 align-top">{{ item.tvrdenie | sanitize_llm }}</td>
-                            <td class="px-3 py-2 text-slate-600 align-top">{{ item.dokaz | sanitize_llm }}</td>
-                            <td class="px-3 py-2 text-blue-600 align-top font-mono text-xs">{{ item.zdroj | sanitize_llm }}</td>
+                            <td class="px-3 py-2 text-slate-700 align-top report-body-sm">{{ item.tvrdenie | sanitize_llm }}</td>
+                            <td class="px-3 py-2 text-slate-600 align-top report-body-sm">{{ item.dokaz | sanitize_llm }}</td>
+                            <td class="px-3 py-2 text-blue-600 align-top font-mono report-caption">{{ item.zdroj | sanitize_llm }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

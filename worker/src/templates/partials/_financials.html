@@ -12,12 +12,12 @@
     {% endif %}
     {% if has_mixed_consolidation %}
     <div class="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-        <p class="text-xs text-amber-800 font-medium">Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.</p>
+        <p class="report-body-sm text-amber-800 font-medium">Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.</p>
     </div>
     {% endif %}
     {% if has_non_standard_months %}
     <div class="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-        <p class="text-xs text-amber-800 font-medium">Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.</p>
+        <p class="report-body-sm text-amber-800 font-medium">Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.</p>
     </div>
     {% endif %}
     {% if balance_chart_base64 %}
@@ -95,7 +95,7 @@
     </div>
     {% endif %}
     {% elif not latest_stmt %}
-    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
         Finančné závierky z RÚZ neboli dostupné pre toto IČO.
     </div>
     {% endif %}
@@ -166,7 +166,7 @@
     </div>
     {% endif %}
     {% elif not latest_stmt %}
-    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
         Finančné závierky z RÚZ neboli dostupné pre toto IČO.
     </div>
     {% endif %}
@@ -184,7 +184,7 @@
         <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 150px;">
     </div>
     {% else %}
-    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs text-amber-800">
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 report-body-sm text-amber-800">
         <strong>Dáta o peňažných tokoch nie sú k dispozícii.</strong> Tento subjekt nezverejňuje štruktúrovaný výkaz peňažných tokov v registri RÚZ. Cash flow údaje môžu byť dostupné v rámci poznámok k finančnej závierke (PDF), ale nie sú strojovo čitateľné.
     </div>
     {% endif %}
@@ -239,7 +239,7 @@
     </div>
     {% endif %}
     {% elif not latest_stmt %}
-    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
         Finančné závierky z RÚZ neboli dostupné pre toto IČO.
     </div>
     {% endif %}
@@ -636,7 +636,7 @@
     {% endif %}
 
     {% if not latest_stmt %}
-    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-500">
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
         Finančné závierky z RÚZ neboli dostupné pre toto IČO.
     </div>
     {% endif %}
