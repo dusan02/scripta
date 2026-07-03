@@ -12,7 +12,7 @@ from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
 
-_SCRAPER_TIMEOUT = 45  # max seconds for entire scraper attempt
+_SCRAPER_TIMEOUT = 90  # max seconds for entire scraper attempt
 _MAX_RETRIES = 3
 _RETRY_DELAY = 5  # seconds between retries
 
