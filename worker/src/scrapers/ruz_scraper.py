@@ -319,6 +319,131 @@ async def _extract_html_tabs(dl_page: Page, out_path: Path, item: tuple[str, str
     return None
 
 
+async def _process_period_reports(context: BrowserContext, out_path: Path, group: list[tuple], index: int) -> Optional[str]:
+    """Spracuje VŠETKY dokumenty pre jedno obdobie a zmerguje ich do jedného PDF/TXT.
+
+    Pre veľké firmy (Volkswagen, Slovnaft) RÚZ ukladá súvahu, P&L, CF a poznámky
+    ako samostatné dokumenty. Táto funkcia stiahne všetky a zmerguje ich.
+    """
+    if len(group) == 1:
+        return await _process_single_report(context, out_path, group[0], index)
+
+    # Viacero dokumentov pre rovnaké obdobie — stiahneme všetky a zmergujeme
+    ico = out_path.name
+    first_item = group[0]
+    ftype_d = first_item[1]
+    year_d = first_item[2]
+    period_d = first_item[4] if len(first_item) > 4 and first_item[4] else ''
+    months_in_period = _parse_period_months(period_d)
+
+    logger.info(f"[RUZ] Obdobie {year_d}: stahujem {len(group)} dokumentov a mergujem")
+
+    downloaded_pdfs: list[bytes] = []
+    downloaded_texts: list[str] = []
+
+    for item in group:
+        href_d = item[0]
+        full_url = "https://www.registeruz.sk" + href_d
+        dl_page = await context.new_page()
+        try:
+            await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=10000)
+
+            # Skús HTML extrakciu
+            text_path = await _extract_html_tabs(dl_page, out_path, item, index)
+            if text_path:
+                with open(text_path, "r", encoding="utf-8") as f:
+                    downloaded_texts.append(f.read())
+                try:
+                    os.remove(text_path)
+                except OSError:
+                    pass
+                continue
+
+            # Skús PDF stiahnutie
+            await dl_page.goto(full_url, wait_until="domcontentloaded", timeout=10000)
+            pdf_bytes = await _download_pdf_bytes(dl_page, item)
+            if pdf_bytes:
+                downloaded_pdfs.append(pdf_bytes)
+        except Exception as e:
+            logger.warning(f"[RUZ] Chyba pri sťahovaní {href_d}: {e}")
+        finally:
+            await dl_page.close()
+
+    # Zmerguj výsledky
+    if downloaded_pdfs:
+        import fitz
+        merged_doc = fitz.open()
+        for pdf_body in downloaded_pdfs:
+            try:
+                doc = fitz.open(stream=pdf_body, filetype="pdf")
+                merged_doc.insert_pdf(doc)
+                doc.close()
+            except Exception as e:
+                logger.warning(f"[RUZ] Chyba pri mergovaní PDF časti: {e}")
+
+        out_file = out_path / f"{ftype_d}_{ico}_{year_d}_{index}.pdf"
+        merged_doc.save(out_file)
+        merged_doc.close()
+        total_pages = len(fitz.open(str(out_file)))
+        logger.info(f"[RUZ] Zmergované {len(downloaded_pdfs)} PDF → {out_file.name} ({total_pages} strán)")
+        return str(out_file)
+
+    if downloaded_texts:
+        out_file = out_path / f"{ftype_d}_{ico}_{year_d}_{index}.txt"
+        combined = f"ÚČTOVNÁ ZÁVIERKA {year_d}\nIČO: {ico}\nTyp: {ftype_d}\n"
+        if period_d:
+            combined += f"Obdobie: {period_d}\n"
+        if months_in_period is not None:
+            combined += f"Dĺžka obdobia: {months_in_period} mesiacov\n"
+        combined += f"Stĺpce: Bežné účtovné obdobie ({year_d}) | Predchádzajúce obdobie ({int(year_d)-1 if year_d.isdigit() else 'N/A'})\n\n"
+        combined += "\n\n".join(downloaded_texts)
+        with open(out_file, "w", encoding="utf-8") as f:
+            f.write(combined)
+        logger.info(f"[RUZ] Zmergované {len(downloaded_texts)} TXT → {out_file.name} ({len(combined)} chars)")
+        return str(out_file)
+
+    logger.warning(f"[RUZ] Žiadne dáta pre obdobie {year_d} ({len(group)} dokumentov)")
+    return None
+
+
+async def _download_pdf_bytes(dl_page: Page, item: tuple) -> Optional[bytes]:
+    """Stiahne PDF z attachment linkov a vráti raw bytes."""
+    import urllib.request, ssl
+
+    try:
+        attachment_links = await dl_page.locator("a[href*='/attachment/']").all()
+        seen_hrefs = set()
+        unique_hrefs = []
+        for alink in attachment_links:
+            h = await alink.get_attribute("href") or ""
+            if h and h not in seen_hrefs:
+                seen_hrefs.add(h)
+                unique_hrefs.append(h)
+
+        for att_href in unique_hrefs:
+            att_url = "https://www.registeruz.sk" + att_href
+
+            def _fetch_pdf(url=att_url):
+                ctx = ssl.create_default_context()
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, context=ctx) as resp:
+                    ct = resp.headers.get("content-type", "")
+                    body = resp.read()
+                    return body, ct
+
+            try:
+                body, content_type = await asyncio.to_thread(_fetch_pdf)
+            except Exception:
+                continue
+
+            if len(body) > 100 and "application/pdf" in content_type:
+                return body
+    except Exception as e:
+        logger.warning(f"[RUZ] Chyba pri sťahovaní PDF: {e}")
+
+    return None
+
+
 async def _process_single_report(context: BrowserContext, out_path: Path, item: tuple[str, str, str, str], index: int) -> Optional[str]:
     """Obalovacia funkcia pre spracovanie 1 reportu (PDF alebo HTML)."""
     href_d, ftype_d, year_d = item[0], item[1], item[2]
@@ -651,14 +776,12 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
                     return f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"
                 return ''
 
-            def _deduplicate_by_period(items: list, limit: int) -> list:
-                """Deduplikuje záznamy podľa Obdobia s priority-based výberom víťaza.
+            def _group_by_period(items: list, limit: int) -> list[list]:
+                """Zoskupí záznamy podľa Obdobia a vráti top `limit` skupín.
 
-                Priorita pre rovnaké Obdobie:
-                  1. Riadok má neprázdnu SA uložená dňa (auditovaná závierka)
-                  2. Riadok má neprázdnu Schválená dňa (schválená valným zhromaždením)
-                  3. Riadok s najnovším dátumom v Predložená dňa
-                Zoradí obdobia zostupne a vráti top `limit` záznamov.
+                Každá skupina obsahuje VŠETKY záznamy pre dané obdobie
+                (súvaha, P&L, CF, poznámky ako samostatné dokumenty).
+                Zoradí obdobia zostupne a vráti top `limit` skupín.
                 """
                 groups: dict[str, list] = {}
                 for item in items:
@@ -667,67 +790,34 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
                         groups[period] = []
                     groups[period].append(item)
 
-                winners = []
-                for period, group in groups.items():
-                    if len(group) == 1:
-                        winners.append(group[0])
-                        w_months = _parse_period_months(period) if period else None
-                        logger.info(f"[RUZ] Dedup obdobie={period} months={w_months}: len=1 (žiadny konflikt)")
-                        continue
-
-                    # Priority 1: SA uložená dňa nie je prázdna
-                    p1 = [it for it in group if len(it) > 5 and it[5]]
-                    if p1:
-                        p1.sort(key=lambda x: _parse_date(x[5]), reverse=True)
-                        winners.append(p1[0])
-                        logger.info(f"[RUZ] Dedup obdobie={period}: víťaz podľa SA uložená ({p1[0][5]})")
-                        continue
-
-                    # Priority 2: Schválená dňa nie je prázdna
-                    p2 = [it for it in group if len(it) > 6 and it[6]]
-                    if p2:
-                        p2.sort(key=lambda x: _parse_date(x[6]), reverse=True)
-                        winners.append(p2[0])
-                        logger.info(f"[RUZ] Dedup obdobie={period}: víťaz podľa Schválená ({p2[0][6]})")
-                        continue
-
-                    # Priority 3: Najnovší Predložená dňa
-                    p3 = [it for it in group if len(it) > 7 and it[7]]
-                    if p3:
-                        p3.sort(key=lambda x: _parse_date(x[7]), reverse=True)
-                        winners.append(p3[0])
-                        logger.info(f"[RUZ] Dedup obdobie={period}: víťaz podľa Predložená ({p3[0][7]})")
-                        continue
-
-                    # Fallback: berieme prvý (zoradený podľa konsolidovanej/standalone)
-                    group.sort(
-                        key=lambda x: (
-                            1 if (len(x) > 3 and _is_konsolidovana(x[3])) else 0,
-                            1 if (len(x) > 3 and _is_standalone_ifrs(x[3])) else 0
-                        ),
-                        reverse=True
-                    )
-                    winners.append(group[0])
-                    logger.info(f"[RUZ] Dedup obdobie={period}: víťaz fallback (žiadne dátumy)")
-
                 # Zoraď obdobia zostupne (chronologicky od najnovšieho)
-                winners.sort(key=lambda x: x[2] if x[2].isdigit() else '0', reverse=True)
+                sorted_periods = sorted(groups.keys(), key=lambda p: p if p.isdigit() else '0', reverse=True)
 
-                return winners[:limit]
+                result = []
+                for period in sorted_periods[:limit]:
+                    group = groups[period]
+                    w_months = _parse_period_months(period) if period else None
+                    logger.info(f"[RUZ] Obdobie={period} months={w_months}: {len(group)} záznamov")
+                    result.append(group)
 
-            urls_to_visit = (
-                _deduplicate_by_period(ifrs_links, max_years) +
-                _deduplicate_by_period(vs_links, 1)  # Iba posledná Výročná správa
-            )
+                return result
 
-            logger.info(f"[RUZ] Spracovávam {len(urls_to_visit)} súborov pre IČO {ico}")
-            for u in urls_to_visit:
-                u_months = _parse_period_months(u[4]) if len(u) > 4 and u[4] else None
-                logger.info(f"[RUZ]   → {u[1]} year={u[2]} period={u[4] if len(u) > 4 else ''} months={u_months}")
+            ifrs_groups = _group_by_period(ifrs_links, max_years)
+            vs_groups = _group_by_period(vs_links, 1)
+
+            # Pre IFRS: stiahneme VŠETKY dokumenty pre každé obdobie a zmergujeme
+            # Pre VS: stačí 1 dokument (výročná správa je zvyčajne jeden PDF)
+            period_groups = ifrs_groups + vs_groups
+
+            logger.info(f"[RUZ] Spracovávam {len(period_groups)} období pre IČO {ico}")
+            for gi, group in enumerate(period_groups):
+                for item in group:
+                    u_months = _parse_period_months(item[4]) if len(item) > 4 and item[4] else None
+                    logger.info(f"[RUZ]   → group={gi} {item[1]} year={item[2]} period={item[4] if len(item) > 4 else ''} months={u_months} text='{item[3]}'")
 
             results = await asyncio.gather(*[
-                _process_single_report(context, out_path, item, i)
-                for i, item in enumerate(urls_to_visit)
+                _process_period_reports(context, out_path, group, i)
+                for i, group in enumerate(period_groups)
             ], return_exceptions=True)
 
             downloaded_files = [r for r in results if isinstance(r, str) and r is not None]
