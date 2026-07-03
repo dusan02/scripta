@@ -441,8 +441,8 @@ export default function ReportDetailPage() {
       
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
-          title: `Forenzný Report - ${namePart}`,
-          text: `Dobrý deň,\\n\\nv prílohe posielam preverený forenzný report pre subjekt ${namePart}.`,
+          title: `Verifa Report - ${namePart}`,
+          text: `Dobrý deň,\\n\\nv prílohe posielam preverený report pre subjekt ${namePart}.`,
           files: [file]
         });
       } else {
@@ -730,7 +730,7 @@ export default function ReportDetailPage() {
                     <div className="mb-4 opacity-90 transform scale-75"><Logo size="md" /></div>
                     
                     <div className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">
-                      Forenzný Due Diligence Report
+                      Due Diligence Report
                     </div>
                     
                     <div className="text-[15px] font-black text-slate-800 leading-tight mb-4">
@@ -821,7 +821,7 @@ export default function ReportDetailPage() {
                   Analýza úspešne dokončená
                 </h2>
                 <p className="text-[13.5px] text-center max-w-[280px]" style={{ color: "var(--text-muted)" }}>
-                  Všetky štátne registre boli preverené a forenzný posudok je pripravený.
+                  Všetky štátne registre boli preverené a hlavný posudok je pripravený.
                 </p>
 
                 <button

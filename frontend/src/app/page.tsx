@@ -267,7 +267,7 @@ export default function LandingPage() {
           <div style={{ display: "flex", alignItems: "stretch", justifyContent: "center", gap: 0, flexWrap: "wrap" }}>
             {[
               { step: "1", icon: "search", title: "Zadáte IČO", desc: "Zadajte identifikačné číslo firmy, ktorú chcete preveriť." },
-              { step: "2", icon: "check", title: "Overenie a posudok", desc: "Systém overí dáta vo všetkých verejných registroch a vypracuje forenzný posudok so subjektívnym Verifa Score." },
+              { step: "2", icon: "check", title: "Overenie a posudok", desc: "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok so subjektívnym Verifa Score." },
               { step: "3", icon: "download", title: "Stiahnete Správu", desc: "Stiahnete si komplexnú Správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente." },
             ].map((s, i, arr) => (
               <div key={s.step} style={{ display: "flex", alignItems: "stretch" }}>

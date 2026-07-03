@@ -170,7 +170,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         ai_task = None
         if task.target_type == "COMPANY" and task.ico:
-            _log.info(f"[{_rid}] Spúšťam AI Forenznú Pipeline paralelne pre IČO: {task.ico}")
+            _log.info(f"[{_rid}] Spúšťam AI analytickú pipeline paralelne pre IČO: {task.ico}")
             ai_task = asyncio.create_task(process_company(task.ico, task.report_request_id))
 
         _log.info(f"[{_rid}] Spúšťam {len(task.sources)} scraperov pre IČO: {task.ico}")

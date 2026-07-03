@@ -2,7 +2,7 @@
 <!-- 3b. SCORING BREAKDOWN TABUĽKA -->
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
 <div class="mb-10 pt-6">
-    <h2 id="scoring_breakdown" class="section-title">Scoring Breakdown — Hodnotenie podľa kategórií</h2>
+    <h2 id="scoring_breakdown" class="section-title">Hodnotiaca tabuľka</h2>
     <table class="w-full border-collapse text-sm">
         <thead>
             <tr class="bg-slate-100">
@@ -54,7 +54,7 @@
                 </td>
             </tr>
             <tr class="bg-slate-50 border-b border-slate-200">
-                <td class="py-2.5 px-3 font-semibold text-slate-700 text-sm" colspan="2">KOREKCIA FORENZNÉHO AUDÍTORA</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-700 text-sm" colspan="2">KOREKCIA AUDÍTORA</td>
                 <td class="py-2.5 px-3 text-center font-bold text-lg
                     {% if verdict.verifaScore - algorithmic_total > 0 %}text-emerald-600
                     {% elif verdict.verifaScore - algorithmic_total < 0 %}text-rose-600
@@ -66,7 +66,7 @@
                 </td>
             </tr>
             <tr class="bg-slate-100 border-t-2 border-slate-400">
-                <td class="py-3 px-3 font-black text-slate-900 text-sm uppercase tracking-wide" colspan="2">FINÁLNE FORENZNÉ SKÓRE</td>
+                <td class="py-3 px-3 font-black text-slate-900 text-sm uppercase tracking-wide" colspan="2">FINÁLNE SKÓRE</td>
                 <td class="py-3 px-3 text-center font-black text-xl
                     {% if verdict.verifaScore >= 70 %}text-emerald-700
                     {% elif verdict.verifaScore >= 40 %}text-amber-600
@@ -87,7 +87,7 @@
     </table>
     <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
         Algoritmické skóre (30% platobná schopnosť · 25% finančné zdravie · 20% ziskovosť · 15% rast · 10% právna bezúhonnosť).
-        Finálne skóre môže byť upravené forenzným audítorom o +/-10 bodov na základe forenzného úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
+        Finálne skóre môže byť upravené audítorom o +/-10 bodov na základe úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
     </p>
     <p class="text-[11px] text-slate-500 mt-2 italic leading-relaxed">
         Verifa skóre je automatizované hodnotenie vypočítané podľa interného modelu na základe verejne dostupných údajov. 
@@ -99,7 +99,7 @@
 
     <div class="page-break"></div>
     <div class="mb-10 pt-6">
-    <h2 id="forenzny_posudok" class="section-title">Forenzný Posudok</h2>
+    <h2 id="forenzny_posudok" class="section-title">Hlavný posudok</h2>
     
     <div class="flex gap-6">
         <!-- Text part -->
@@ -123,20 +123,7 @@
             {% endif %}
 
             {% if latest_stmt and latest_stmt.notesRisk %}
-            {% if latest_stmt.notesRisk.relatedPartyTransactions or latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
-            <div class="mb-5 p-4 bg-amber-50 border border-amber-200 rounded text-amber-900 text-sm shadow-sm">
-                <h3 class="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 border-b border-amber-200 pb-1">Riziká z poznámok k účtovnej závierke</h3>
-                {% if latest_stmt.notesRisk.relatedPartyTransactions %}
-                <div class="mt-2"><strong>Spriaznené osoby:</strong> {{ latest_stmt.notesRisk.relatedPartyTransactions }}</div>
-                {% endif %}
-                {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
-                <div class="mt-2"><strong>Podsúvahové záväzky:</strong> {{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</div>
-                {% endif %}
-                {% if latest_stmt.notesRisk.contingentRisks %}
-                <div class="mt-2"><strong>Súdne spory (Contingent):</strong> {{ latest_stmt.notesRisk.contingentRisks }}</div>
-                {% endif %}
-            </div>
-            {% endif %}
+            {# Riziká z poznámok presunuté do _financials.html pod Finančné ukazovatele #}
             {% endif %}
 
             {% if evidence_list %}
@@ -151,7 +138,7 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200">
                         {% for item in evidence_list %}
-                        <tr>
+                        <tr style="page-break-inside: avoid; break-inside: avoid;">
                             <td class="px-3 py-2 text-slate-700 align-top">{{ item.tvrdenie | sanitize_llm }}</td>
                             <td class="px-3 py-2 text-slate-600 align-top">{{ item.dokaz | sanitize_llm }}</td>
                             <td class="px-3 py-2 text-blue-600 align-top font-mono text-xs">{{ item.zdroj | sanitize_llm }}</td>

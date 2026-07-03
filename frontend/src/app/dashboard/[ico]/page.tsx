@@ -84,7 +84,7 @@ export default async function DashboardPage({
               {company.name || "Neznáma Spoločnosť"}
             </h1>
             <p className="text-neutral-400 mt-3 text-lg font-light">
-              Forenzný prehľad z IFRS závierok za rok {latestStatement.year}
+              Prehľad z IFRS závierok za rok {latestStatement.year}
             </p>
           </div>
           
@@ -197,7 +197,7 @@ export default async function DashboardPage({
                   )}
 
                   <div>
-                    <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-3">Forenzná Dôkazová Stopa</h3>
+                    <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-3">Dôkazová stopa</h3>
                     {(() => {
                       try {
                         let rawJson = company.auditVerdict.justification;
@@ -381,7 +381,7 @@ export default async function DashboardPage({
               <div>
                 <div className="bg-black/30 rounded-xl p-6 h-full border border-white/5">
                   <div className="flex items-center gap-2 mb-4">
-                    <h3 className="font-semibold text-white">Forensic Red Flags</h3>
+                    <h3 className="font-semibold text-white">Red Flags</h3>
                     {latestStatement.narrativeRisk.goingConcernDoubts && (
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 uppercase tracking-wider border border-rose-500/20">
                         Going Concern Riziko

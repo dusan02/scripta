@@ -147,14 +147,14 @@ export default function NavBar() {
         <div className="flex items-center justify-between h-16 py-2">
 
           {/* Left: Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center flex-1">
             <Link href="/dashboard" aria-label={`Verifa.sk — ${t("nav.overenie")}`} style={{ textDecoration: "none" }}>
               <Logo />
             </Link>
           </div>
 
           {/* Center: Nav icons */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 justify-center">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
               return (
@@ -175,7 +175,7 @@ export default function NavBar() {
           </nav>
 
           {/* Right: Unified action cluster */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 justify-end">
             {/* Credits pill */}
             <div
               className="hidden sm:flex items-center gap-1.5 px-2.5 h-9 rounded-lg text-xs font-medium"

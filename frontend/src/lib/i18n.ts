@@ -378,7 +378,7 @@ const sk: Dict = {
   "home.badge": "⚡ Komplexný due diligence za 3 minúty",
   "home.heroTitle1": "Preverenie firmy",
   "home.heroTitle2": "jedným klikom",
-  "home.heroSubtitle": "Zadajte IČO a dostanete kompletný PDF report s forenzným posudkom, finančnou analýzou a Verifa Score — za minúty, nie za hodiny.",
+  "home.heroSubtitle": "Zadajte IČO a dostanete kompletný PDF report s hlavným posudkom, finančnou analýzou a Verifa Score — za minúty, nie za hodiny.",
   "home.howItWorks": "Ako to funguje",
   "home.statRegisters": "štátnych registrov",
   "home.statAvgTime": "priemerný čas reportu",
@@ -416,13 +416,13 @@ const sk: Dict = {
   "report.step5": "Krížová kontrola záväzkov a nedoplatkov voči štátu",
   "report.step6": "Hĺbková analýza reputačných rizík a exekúcií",
   "report.step7": "Forenzná detekcia anomálií a sankcií",
-  "report.step8": "Generovanie záverečného forenzného posudku",
+  "report.step8": "Generovanie záverečného hlavného posudku",
   "report.step9": "Kompletizácia výsledkov do zabezpečeného reportu",
 
   // ── Phase labels (weighted progress) ──
   "report.phaseScraping": "Preverovanie registrov",
   "report.phaseAiPipeline": "AI analýza výkazov",
-  "report.phaseVerdict": "Forenzný posudok",
+  "report.phaseVerdict": "Hlavný posudok",
   "report.phaseCompiling": "PDF kompilácia",
 
   // ── Documents page ──
