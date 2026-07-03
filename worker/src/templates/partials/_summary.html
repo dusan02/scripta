@@ -68,8 +68,8 @@
             <tr class="bg-slate-100 border-t-2 border-slate-400">
                 <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide" colspan="2">FINÁLNE SKÓRE</td>
                 <td class="py-3 px-3 text-center font-black text-xl
-                    {% if verdict.verifaScore >= 70 %}text-emerald-700
-                    {% elif verdict.verifaScore >= 40 %}text-amber-600
+                    {% if verdict.verifaScore >= 80 %}text-emerald-700
+                    {% elif verdict.verifaScore >= 50 %}text-amber-600
                     {% else %}text-rose-600{% endif %}">
                     {{ verdict.verifaScore }}<span class="text-slate-400 font-normal report-caption">/100</span>
                 </td>

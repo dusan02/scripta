@@ -21,12 +21,12 @@
         {% set stamp_bg_class = "bg-emerald-50" %}
         {% set stamp_hex = "#10b981" %}
         
-        {% if verdict.verifaScore < 70 and verdict.verifaScore >= 40 %}
+        {% if verdict.verifaScore < 80 and verdict.verifaScore >= 50 %}
             {% set stamp_color_class = "text-[#f59e0b]" %}
             {% set stamp_border_class = "border-[#f59e0b]" %}
             {% set stamp_bg_class = "bg-amber-50" %}
             {% set stamp_hex = "#f59e0b" %}
-        {% elif verdict.verifaScore < 40 %}
+        {% elif verdict.verifaScore < 50 %}
             {% set stamp_color_class = "text-[#e11d48]" %}
             {% set stamp_border_class = "border-[#e11d48]" %}
             {% set stamp_bg_class = "bg-rose-50" %}

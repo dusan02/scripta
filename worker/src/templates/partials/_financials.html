@@ -346,7 +346,7 @@
                 {% endif %}
             </div>
         </div>
-        {% set score_color = '#10b981' if verdict.riskCategory == 'AAA' else '#3b82f6' if verdict.riskCategory == 'A' else '#f59e0b' if verdict.riskCategory == 'B' else '#ef4444' %}
+        {% set score_color = '#10b981' if verdict.verifaScore >= 80 else '#f59e0b' if verdict.verifaScore >= 50 else '#ef4444' %}
         <div class="grid grid-cols-4 gap-1.5">
             <div class="bg-white p-1.5 rounded border border-slate-200" style="border-left: 3px solid {{ score_color }};">
                 <p class="report-label">Verifa Skóre</p>
