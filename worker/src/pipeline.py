@@ -24,7 +24,7 @@ from src.log_helpers import (
 )
 from src.scrapers.ruz_scraper import download_ifrs_reports
 from src.llm_extractor import (
-    CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict,
+    CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, EvidenceItem,
     evaluate_audit_verdict, extract_financial_data,
     extract_narrative_risk, extract_notes_risks, extract_staff_costs_focused,
 )
@@ -166,6 +166,64 @@ def _collect_debt_pdfs(ico: str) -> list[str]:
     return list(dict.fromkeys(debt_pdfs))
 
 
+def _build_fallback_verdict(company_dict: dict, scorecard) -> AuditVerdict:
+    """Vytvorí fallback AuditVerdict z deterministického algoritmického skóre, keď LLM zlyhá."""
+    prescore = scorecard.total_score if scorecard else 0
+    risk_cat = scorecard.risk_category if scorecard else "INSUFFICIENT_DATA"
+    hard_stop = scorecard.hard_stop if scorecard else False
+
+    pillar_summaries = []
+    if scorecard and scorecard.pillars:
+        for p in scorecard.pillars:
+            pillar_summaries.append(f"{p.name}: {p.score}/{p.max_score} — {p.detail}")
+
+    evidence = [
+        EvidenceItem(
+            tvrdenie="Algoritmické hodnotenie (5-pilierový model)",
+            dokaz=f"Skóre {prescore}/100, kategória {risk_cat}",
+            zdroj="Deterministický algoritmus",
+            impact="NEUTRAL",
+        )
+    ]
+    if hard_stop:
+        evidence.append(EvidenceItem(
+            tvrdenie="HARD STOP — konkurz/likvidácia/reštrukturalizácia",
+            dokaz="Detegované vo Vestníku",
+            zdroj="Obchodný vestník",
+            impact="CRITICAL",
+        ))
+    if pillar_summaries:
+        evidence.append(EvidenceItem(
+            tvrdenie="Rozpis pilierov",
+            dokaz=" | ".join(pillar_summaries),
+            zdroj="5-pilierový scorecard",
+            impact="NEUTRAL",
+        ))
+
+    return AuditVerdict(
+        verifa_score=prescore,
+        risk_category=risk_cat,
+        debt_exposure_rating=0,
+        executive_summary=(
+            "Hodnotenie bolo vypočítané na základe deterministického algoritmického modelu "
+            "(5-pilierový scorecard). LLM analýza (Chief Auditor) bola dočasne nedostupná. "
+            "Posudok môže chýbať cross-verification medzi finančnými dátami a PDF výpismi z registrov."
+        ),
+        final_verdict=(
+            "Kriticky rizikový stav — HARD STOP (konkurz/likvidácia)."
+            if hard_stop else
+            f"Algoritmické hodnotenie: {risk_cat} ({prescore}/100). LLM analýza nedostupná."
+        ),
+        zdovodnenie=evidence,
+        kľúčové_riziko=(
+            "Konkurz / likvidácia / reštrukturalizácia detegovaná vo Vestníku."
+            if hard_stop else
+            "LLM analýza nedostupná — odporúčame spustiť re-run pre plný forenzný posudok."
+        ),
+        llm_analysis_status="FALLBACK_ALGORITHMIC",
+    )
+
+
 async def run_and_save_audit_verdict(ico: str, force: bool = False):
     """
     1. Získa všetky dostupné dáta pre dané IČO z databázy (Finančné výkazy, Naratívne analýzy, Vestník).
@@ -252,6 +310,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
             sanitize_cash_flow_fields(stmt)
         
         # Cesta B: Deterministická agregácia a výpočet 5-ročného trendu
+        scorecard = None
         if company.financialStatements:
             trends = compute_financial_trends(company.financialStatements)
             scorecard = compute_forensic_scorecard(company_dict, trends)
@@ -276,13 +335,17 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         debt_pdfs = _collect_debt_pdfs(ico)
 
         logger.info(f"Spúšťam Chief Auditora (The Verifa Scorer) pre IČO: {ico}. Nájdené PDF na analýzu: {len(debt_pdfs)}")
-        verdict = await safe_llm_call(
-            evaluate_audit_verdict, company_data, debt_pdfs,
-            model=_cfg.model_verdict,
-            label="Chief Auditor"
-        )
+        try:
+            verdict = await safe_llm_call(
+                evaluate_audit_verdict, company_data, debt_pdfs,
+                model=_cfg.model_verdict,
+                label="Chief Auditor"
+            )
+        except Exception as llm_err:
+            logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {llm_err} — používam algoritmický fallback.")
+            verdict = _build_fallback_verdict(company_dict, scorecard)
         
-        logger.info(f"Ukladám AuditVerdict pre IČO {ico}: Skóre {verdict.verifa_score}, Debt Rating: {verdict.debt_exposure_rating}")
+        logger.info(f"Ukladám AuditVerdict pre IČO {ico}: Skóre {verdict.verifa_score}, Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}")
         
         await db.auditverdict.upsert(
             where={'companyIco': ico},
@@ -297,6 +360,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
                     'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
                     'keyRisk': verdict.kľúčové_riziko,
                     'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
+                    'llmAnalysisStatus': verdict.llm_analysis_status,
                 },
                 'update': {
                     'verifaScore': verdict.verifa_score,
@@ -307,6 +371,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
                     'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
                     'keyRisk': verdict.kľúčové_riziko,
                     'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
+                    'llmAnalysisStatus': verdict.llm_analysis_status,
                 }
             }
         )

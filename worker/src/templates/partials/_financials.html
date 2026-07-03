@@ -310,6 +310,12 @@
     <p class="text-xs text-slate-600 mb-3">Analytické zhodnotenie — kľúčové zistenia, poznámky pod čiarou a názor audítora.</p>
 
     {% if verdict %}
+    {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
+    <div class="mb-2 p-2 rounded-lg border border-amber-300 bg-amber-50 flex items-center gap-2">
+        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>
+        <p class="text-[9px] text-amber-700 leading-snug">Hodnotenie vypočítané na základe tvrdých dát (5-pilierový algoritmus). LLM analýza (Chief Auditor) bola dočasne nedostupná — odporúčame spustiť re-run pre plný forenzný posudok.</p>
+    </div>
+    {% endif %}
     <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
         <h3 class="text-[9px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Forenzný posudok</h3>
         <div class="flex gap-2 mb-2">
