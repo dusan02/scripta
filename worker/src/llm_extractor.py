@@ -1,6 +1,5 @@
 import os
 import re
-import fitz
 import logging
 from contextlib import contextmanager
 from pydantic import BaseModel, Field
@@ -9,6 +8,7 @@ from google import genai
 from google.genai import types
 
 from src.config import settings
+from src.pdf_ingestion import extract_relevant_pdf_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -539,16 +539,12 @@ async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: st
     # Príprava obsahu - začneme JSON dátami
     contents = [data_json]
 
-    # Lokálne extrahujeme text z PDF súborov (namiesto nahrávania do Gemini File API)
-    # Toto ušetrí ~100s nahrávania a čakania na processing.
+    # Lokálne extrahujeme RELEVANTNÉ časti z PDF súborov (keyword-based chunking).
+    # Namiesto celého textu (môže byť 200K+ tokenov pre veľké firmy) extrahujeme
+    # len riadky s forenznými kľúčovými slovami + kontext — typicky ~5K tokenov na PDF.
     for pdf_path in debt_pdfs:
         try:
-            doc = fitz.open(pdf_path)
-            pdf_text = ""
-            for page in doc:
-                pdf_text += page.get_text("text")
-            doc.close()
-
+            pdf_text = extract_relevant_pdf_chunks(pdf_path)
             if pdf_text.strip():
                 label = os.path.basename(pdf_path)
                 contents.append(f"\n--- PDF: {label} ---\n{pdf_text.strip()}\n")

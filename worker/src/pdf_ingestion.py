@@ -289,3 +289,77 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
 
     return new_pdf_path
 
+
+# ── Keyword-based PDF text extraction pre Chief Auditora ────────────────────
+# Namiesto posielania celého PDF textu (môže byť 200K+ tokenov pre Slovnaft),
+# extrahujeme len riadky obsahujúce forenzné kľúčové slová + kontext.
+
+_FORENSIC_PDF_KEYWORDS = re.compile(
+    r"(?i)"
+    r"(?:dlh|záväzok|exekúc|konkurz|likvidác|reštruktural"
+    r"|nesplaten|nedoplat|daňový|poisťov"
+    r"|súd|spor|príkaz|rozsudok|upadnut|úpadca"
+    r"|insolv|bankrot|odklon|vyrovnan"
+    r"|poveren|exekútor|exekút"
+    r"|diskvalif|zákaz|obmedzen"
+    r"|ručiteľ|záruka|garant)"
+)
+
+_CONTEXT_LINES = 5
+_MAX_CHUNKS_PER_PDF = 50
+_MAX_CHARS_PER_PDF = 30_000
+
+
+def extract_relevant_pdf_chunks(pdf_path: str) -> str:
+    """
+    Extrahuje len forenzne relevantné časti z PDF textu.
+    Pre každý riadok s kľúčovým slovom pridá N riadkov nad a pod pre kontext.
+    Vracia textový string alebo prázdny string ak PDF nemá relevantný obsah.
+    """
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception as e:
+        logger.warning(f"Nepodarilo sa otvoriť PDF {pdf_path}: {e}")
+        return ""
+
+    full_text = ""
+    for page in doc:
+        full_text += page.get_text("text")
+    doc.close()
+
+    if not full_text.strip():
+        return ""
+
+    lines = full_text.split("\n")
+    relevant_line_indices = set()
+    for i, line in enumerate(lines):
+        if _FORENSIC_PDF_KEYWORDS.search(line):
+            start = max(0, i - _CONTEXT_LINES)
+            end = min(len(lines), i + _CONTEXT_LINES + 1)
+            for j in range(start, end):
+                relevant_line_indices.add(j)
+
+    if not relevant_line_indices:
+        return full_text[:2000].strip()
+
+    chunks = []
+    sorted_indices = sorted(relevant_line_indices)
+    prev = -1
+    chunk_count = 0
+
+    for idx in sorted_indices:
+        if chunk_count >= _MAX_CHUNKS_PER_PDF:
+            chunks.append("\n[... ďalšie výskyty vynechané ...]\n")
+            break
+        if prev >= 0 and idx > prev + 1:
+            chunks.append("\n[... vynechaný text ...]\n")
+        chunks.append(lines[idx])
+        prev = idx
+        chunk_count += 1
+
+    result = "\n".join(chunks).strip()
+    if len(result) > _MAX_CHARS_PER_PDF:
+        result = result[:_MAX_CHARS_PER_PDF] + "\n[... text skrátený ...]\n"
+
+    return result
+
