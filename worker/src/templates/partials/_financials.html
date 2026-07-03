@@ -76,8 +76,8 @@
     {% endif %}
     {% if latest_stmt %}
     {% set bs_cards = [
-        ('Aktíva', latest_stmt.totalAssets, 'format_currency', false),
-        ('Vlastné imanie', latest_stmt.equity, 'format_currency', false),
+        ('Aktíva', latest_stmt.totalAssets, 'format_number', false),
+        ('Vlastné imanie', latest_stmt.equity, 'format_number', false),
         ('D/E Ratio', latest_ratios.debt_to_equity if latest_ratios else None, '', false),
         ('Current Ratio', latest_ratios.current_ratio if latest_ratios else None, '', false),
     ] %}
