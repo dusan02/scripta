@@ -20,79 +20,85 @@ export default function LandingPage() {
 
   const darkMode = theme === "dark";
 
+  const reportIncludes = [
+    "Kontrola viac ako 30 verejných registrov",
+    "AI finančná analýza",
+    "Altman Z-Score",
+    "Hodnotenie rizík",
+    "Insolvenčné konania",
+    "Exekúcie",
+    "Diskvalifikácie",
+    "Záložné práva",
+    "DPH registre",
+    "Majetkové ukazovatele",
+    "AI odporúčania",
+    "PDF report pripravený na zdieľanie",
+  ];
+
   const pricingPlans = [
     {
       name: "Jednorazový report",
+      subtitle: "Komplexné preverenie firmy",
       credits: "1 report",
       price: "19 €",
-      perCredit: "Platíte len za to, čo použijete. Žiadne predplatné.",
+      perCredit: "Vhodné pre jednorazové overenie obchodného partnera.",
       features: [
-        "1 report",
-        "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
-        "Insolvenčný register",
-        "Finančná správa a DPH registre",
-        "Register diskvalifikácií",
-        "Záložné práva a dražby",
-        "Posudok",
-        "Záverečné skóre",
-        "PDF report",
+        "Viac ako 30 verejných registrov",
+        "Finančné zdravie spoločnosti",
+        "AI odborný posudok",
+        "Rizikové upozornenia",
+        "Insolvenčné registre",
+        "DPH a právne registre",
+        "Záverečné skóre dôveryhodnosti",
+        "Profesionálny PDF report",
       ],
       highlighted: false,
     },
     {
       name: "Basic",
-      credits: "10 podrobných Due Diligence reportov",
-      price: "89 €",
-      perCredit: "8,90 € / report",
+      subtitle: "Pre účtovníkov a malé firmy",
+      credits: "10 reportov",
+      price: "99 €",
+      perCredit: "9,90 € / report",
       features: [
-        "10 podrobných Due Diligence reportov",
-        "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
-        "Insolvenčný register",
-        "Finančná správa a DPH registre",
-        "Register diskvalifikácií",
-        "Záložné práva a dražby",
-        "Posudok",
-        "Záverečné skóre",
-        "PDF report",
+        "Všetko z Jednorazového reportu",
+        "10 kreditov",
+        "História reportov",
+        "Prioritné spracovanie",
+        "PDF archivácia",
       ],
       highlighted: false,
     },
     {
-      name: "Biznis",
-      credits: "30 podrobných Due Diligence reportov",
-      price: "149 €",
-      perCredit: "4,97 € / report",
+      name: "Business",
+      subtitle: "Pre firmy s pravidelným Due Diligence",
+      credits: "30 reportov",
+      price: "199 €",
+      perCredit: "6,63 € / report",
       features: [
-        "30 podrobných Due Diligence reportov",
-        "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
-        "Insolvenčný register",
-        "Finančná správa a DPH registre",
-        "Register diskvalifikácií",
-        "Záložné práva a dražby",
-        "Posudok",
-        "Záverečné skóre",
-        "PDF report",
+        "Všetko z Basic",
+        "30 kreditov",
         "Prioritná podpora",
+        "Rýchlejšie spracovanie",
+        "Export reportov",
+        "Vhodné pre obchodné tímy",
+        "Vhodné pre účtovné kancelárie",
       ],
       highlighted: true,
     },
     {
       name: "Pro",
-      credits: "100 podrobných Due Diligence reportov",
-      price: "349 €",
-      perCredit: "3,49 € / report",
+      subtitle: "Pre profesionálov",
+      credits: "100 reportov",
+      price: "399 €",
+      perCredit: "3,99 € / report",
       features: [
-        "100 podrobných Due Diligence reportov",
-        "Všetky registre (ORSR, ZRSR, RPO, RPVS, ...)",
-        "Insolvenčný register",
-        "Finančná správa a DPH registre",
-        "Register diskvalifikácií",
-        "Záložné práva a dražby",
-        "Posudok",
-        "Záverečné skóre",
-        "PDF report",
+        "Všetko z Business",
+        "100 kreditov",
         "Prioritná podpora",
         "Osobný account manager",
+        "Najnižšia cena za report",
+        "Vhodné pre banky, advokátov a väčšie spoločnosti",
       ],
       highlighted: false,
     },
@@ -492,6 +498,19 @@ export default function LandingPage() {
             <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.navPricing")}</h2>
           </div>
 
+          {/* Čo obsahuje každý report */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 32, marginBottom: 48 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, textAlign: "center" }}>Čo obsahuje každý report?</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              {reportIncludes.map((item) => (
+                <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-secondary)" }}>
+                  <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0 }}>✓</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20, alignItems: "stretch" }}>
             {pricingPlans.map((plan) => (
               <div key={plan.name} style={{ background: "var(--surface)", border: plan.highlighted ? "2px solid var(--accent)" : "1px solid var(--border)", borderRadius: 16, padding: 28, position: "relative", boxShadow: plan.highlighted ? "var(--shadow-lg)" : "var(--shadow-sm)" }}>
@@ -500,7 +519,8 @@ export default function LandingPage() {
                     Najobľúbenejšie
                   </div>
                 )}
-                <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>{plan.name}</h3>
+                <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 2 }}>{plan.name}</h3>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>{plan.subtitle}</p>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{plan.credits}</p>
                 <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{plan.price}</div>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>{plan.perCredit}</p>

@@ -48,45 +48,64 @@ const FEATURE_TOOLTIPS: Record<string, { sk: string; en: string; de: string }> =
   },
 };
 
+const REPORT_INCLUDES = [
+  "pricing.inc30Registre",
+  "pricing.incAiFinancna",
+  "pricing.incAltman",
+  "pricing.incRizika",
+  "pricing.incInsolvencie",
+  "pricing.incExekucie",
+  "pricing.incDiskvalifikacie",
+  "pricing.incZalozne",
+  "pricing.incDph",
+  "pricing.incMajetok",
+  "pricing.incAiOdporucania",
+  "pricing.incPdfShare",
+];
+
 const PACKAGES = [
   {
     id: "onetime",
     nameKey: "pricing.jednorazovy",
+    subtitleKey: "pricing.onetimeSubtitle",
     reports: 1,
     price: "19",
     pricePerReport: "19,00",
-    featureKeys: ["pricing.onetimeReport", "pricing.vsetkyRegistre", "pricing.insolvencnyExekucie", "pricing.financnaDph", "pricing.registerDiskvalifikacii", "pricing.zaloznePrava", "pricing.posudok", "pricing.zaverneSkore", "pricing.pdfExport"],
-    featureTooltipKeys: [null, "registre", "insolventny", "financna", "diskvalifikacii", "zalozne", "posudok", "skore", "pdf"],
+    featureKeys: ["pricing.feat30Registre", "pricing.featFinancneZdravie", "pricing.featAiPosudok", "pricing.featRizikoveUpozornenia", "pricing.featInsolvencne", "pricing.featDphPravne", "pricing.featZaverneSkore", "pricing.featPdfReport"],
+    featureTooltipKeys: ["registre", null, "posudok", null, "insolventny", "financna", "skore", "pdf"],
     highlight: false,
   },
   {
     id: "basic",
     nameKey: "pricing.basic",
+    subtitleKey: "pricing.basicSubtitle",
     reports: 10,
-    price: "89",
-    pricePerReport: "8,90",
-    featureKeys: ["pricing.basicReportov", "pricing.vsetkyRegistre", "pricing.insolvencnyExekucie", "pricing.financnaDph", "pricing.registerDiskvalifikacii", "pricing.zaloznePrava", "pricing.posudok", "pricing.zaverneSkore", "pricing.pdfExport"],
-    featureTooltipKeys: [null, "registre", "insolventny", "financna", "diskvalifikacii", "zalozne", "posudok", "skore", "pdf"],
+    price: "99",
+    pricePerReport: "9,90",
+    featureKeys: ["pricing.featAllFromOnetime", "pricing.feat10Kreditov", "pricing.featHistoria", "pricing.featPrioritneSpracovanie", "pricing.featPdfArchivacia"],
+    featureTooltipKeys: [null, null, null, null, null],
     highlight: false,
   },
   {
     id: "biznis",
     nameKey: "pricing.biznis",
+    subtitleKey: "pricing.biznisSubtitle",
     reports: 30,
-    price: "149",
-    pricePerReport: "4,97",
-    featureKeys: ["pricing.biznisReportov", "pricing.vsetkyRegistre", "pricing.insolvencnyExekucie", "pricing.financnaDph", "pricing.registerDiskvalifikacii", "pricing.zaloznePrava", "pricing.posudok", "pricing.zaverneSkore", "pricing.pdfExport"],
-    featureTooltipKeys: [null, "registre", "insolventny", "financna", "diskvalifikacii", "zalozne", "posudok", "skore", "pdf"],
+    price: "199",
+    pricePerReport: "6,63",
+    featureKeys: ["pricing.featAllFromBasic", "pricing.feat30Kreditov", "pricing.featPrioritnaPodpora", "pricing.featRychlejsieSpracovanie", "pricing.featExportReportov", "pricing.featObchodneTimy", "pricing.featUctovneKancelarie"],
+    featureTooltipKeys: [null, null, null, null, null, null, null],
     highlight: true,
   },
   {
     id: "pro",
     nameKey: "pricing.pro",
+    subtitleKey: "pricing.proSubtitle",
     reports: 100,
-    price: "349",
-    pricePerReport: "3,49",
-    featureKeys: ["pricing.proReportov", "pricing.vsetkyRegistre", "pricing.insolvencnyExekucie", "pricing.financnaDph", "pricing.registerDiskvalifikacii", "pricing.zaloznePrava", "pricing.posudok", "pricing.zaverneSkore", "pricing.pdfExport"],
-    featureTooltipKeys: [null, "registre", "insolventny", "financna", "diskvalifikacii", "zalozne", "posudok", "skore", "pdf"],
+    price: "399",
+    pricePerReport: "3,99",
+    featureKeys: ["pricing.featAllFromBiznis", "pricing.feat100Kreditov", "pricing.featPrioritnaPodpora", "pricing.featOsobnyAccount", "pricing.featNajnejsiaCena", "pricing.featBankyAdvokati"],
+    featureTooltipKeys: [null, null, null, null, null, null],
     highlight: false,
   },
 ];
@@ -133,6 +152,23 @@ export default function PricingPage() {
         </p>
       </div>
 
+      {/* Čo obsahuje každý report */}
+      <div className="card p-6 mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <h2 className="text-lg font-bold text-center mb-5" style={{ color: "var(--text)" }}>
+          {t("pricing.coObsahuje")}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {REPORT_INCLUDES.map((key) => (
+            <div key={key} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+              <svg width="14" height="14" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+                <path d="M2 6l3 3 5-5" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {t(key)}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {PACKAGES.map((pkg) => {
           const isSelected = selectedPlan === pkg.id;
@@ -167,6 +203,9 @@ export default function PricingPage() {
                 >
                   {t(pkg.nameKey)}
                 </h2>
+                <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+                  {t(pkg.subtitleKey)}
+                </p>
                 <div className="flex items-baseline justify-center gap-1">
                   <span
                     className="text-3xl font-bold"
@@ -175,7 +214,7 @@ export default function PricingPage() {
                     {pkg.price}
                   </span>
                   <span className="text-sm" style={{ color: "var(--text-muted)" }}>
-                    {pkg.id === "onetime" ? "€" : t("pricing.eurMesiac")}
+                    €
                   </span>
                 </div>
                 <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
