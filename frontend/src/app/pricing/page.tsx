@@ -71,8 +71,8 @@ const PACKAGES = [
     reports: 1,
     price: "19",
     pricePerReport: "19,00",
-    featureKeys: ["pricing.feat30Registre", "pricing.featFinancneZdravie", "pricing.featInteligentnaAnaliza", "pricing.featRizikoveUpozornenia", "pricing.featInsolvencne", "pricing.featDphPravne", "pricing.featZaverneSkore", "pricing.featPdfReport", "pricing.featExportReportu"],
-    featureTooltipKeys: ["registre", null, "posudok", null, "insolventny", "financna", "skore", "pdf", null],
+    featureKeys: ["pricing.feat30Registre", "pricing.featAnalyzaFinancnychVykazov", "pricing.featRizikoveUpozornenia", "pricing.featInsolvencne", "pricing.featDphPravne", "pricing.featZaverneSkore", "pricing.featPdfReport", "pricing.featExportReportu"],
+    featureTooltipKeys: ["registre", null, null, "insolventny", "financna", "skore", "pdf", null],
     highlight: false,
   },
   {

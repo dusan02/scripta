@@ -192,8 +192,7 @@ const sk: Dict = {
   "pricing.proSubtitle": "Pre profesionálov",
   // ── Feature keys ──
   "pricing.feat30Registre": "Viac ako 30 verejných registrov",
-  "pricing.featFinancneZdravie": "Finančné zdravie spoločnosti",
-  "pricing.featInteligentnaAnaliza": "Inteligentná analýza finančného zdravia",
+  "pricing.featAnalyzaFinancnychVykazov": "Analýza súvahy, výkazu ziskov a strát a cashflow",
   "pricing.featRizikoveUpozornenia": "Rizikové upozornenia",
   "pricing.featInsolvencne": "Insolvenčné registre",
   "pricing.featDphPravne": "DPH a právne registre",
@@ -653,8 +652,7 @@ const en: Dict = {
   "pricing.proSubtitle": "For professionals",
   // ── Feature keys ──
   "pricing.feat30Registre": "30+ public registries",
-  "pricing.featFinancneZdravie": "Company financial health",
-  "pricing.featInteligentnaAnaliza": "Intelligent financial health analysis",
+  "pricing.featAnalyzaFinancnychVykazov": "Analysis of balance sheet, P&L and cash flow",
   "pricing.featRizikoveUpozornenia": "Risk warnings",
   "pricing.featInsolvencne": "Insolvency registries",
   "pricing.featDphPravne": "VAT and legal registries",
@@ -1114,8 +1112,7 @@ const de: Dict = {
   "pricing.proSubtitle": "Für Profis",
   // ── Feature keys ──
   "pricing.feat30Registre": "30+ öffentliche Register",
-  "pricing.featFinancneZdravie": "Finanzielle Gesundheit des Unternehmens",
-  "pricing.featInteligentnaAnaliza": "Intelligente Finanzanalyse",
+  "pricing.featAnalyzaFinancnychVykazov": "Analyse von Bilanz, GuV und Cashflow",
   "pricing.featRizikoveUpozornenia": "Risikowarnungen",
   "pricing.featInsolvencne": "Insolvenzregister",
   "pricing.featDphPravne": "USt- und Rechtsregister",

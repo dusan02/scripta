@@ -44,8 +44,7 @@ export default function LandingPage() {
       perCredit: "Vhodné pre jednorazové overenie obchodného partnera.",
       features: [
         "Viac ako 30 verejných registrov",
-        "Finančné zdravie spoločnosti",
-        "Inteligentná analýza finančného zdravia",
+        "Analýza súvahy, výkazu ziskov a strát a cashflow",
         "Rizikové upozornenia",
         "Insolvenčné registre",
         "DPH a právne registre",
