@@ -214,7 +214,7 @@ const sk: Dict = {
   "pricing.feat100Kreditov": "100 kreditov",
   "pricing.featOsobnyAccount": "Osobný account manager",
   "pricing.featNajnejsiaCena": "Najnižšia cena za report",
-  "pricing.featBankyAdvokati": "Vhodné pre banky, advokátov a väčšie spoločnosti",
+  "pricing.featBankyAdvokati": "Vhodné pre väčšie spoločnosti",
 
   // ── History ──
   "history.historiaReportov": "História reportov",
@@ -674,7 +674,7 @@ const en: Dict = {
   "pricing.feat100Kreditov": "100 credits",
   "pricing.featOsobnyAccount": "Personal account manager",
   "pricing.featNajnejsiaCena": "Lowest price per report",
-  "pricing.featBankyAdvokati": "For banks, lawyers and larger companies",
+  "pricing.featBankyAdvokati": "For larger companies",
 
   // ── History ──
   "history.historiaReportov": "Report History",
@@ -1134,7 +1134,7 @@ const de: Dict = {
   "pricing.feat100Kreditov": "100 Credits",
   "pricing.featOsobnyAccount": "Persönlicher Account Manager",
   "pricing.featNajnejsiaCena": "Niedrigster Preis pro Bericht",
-  "pricing.featBankyAdvokati": "Für Banken, Anwälte und größere Unternehmen",
+  "pricing.featBankyAdvokati": "Für größere Unternehmen",
 
   // ── History ──
   "history.historiaReportov": "Berichtverlauf",

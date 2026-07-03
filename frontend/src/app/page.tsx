@@ -97,7 +97,7 @@ export default function LandingPage() {
         "Prioritná podpora",
         "Osobný account manager",
         "Najnižšia cena za report",
-        "Vhodné pre banky, advokátov a väčšie spoločnosti",
+        "Vhodné pre väčšie spoločnosti",
       ],
       highlighted: false,
     },
