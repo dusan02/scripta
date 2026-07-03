@@ -6,6 +6,7 @@ import Logo from "@/components/Logo";
 import { useTheme } from "@/components/ThemeProvider";
 import { useT } from "@/components/LanguageProvider";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import LandingJsonLd from "@/components/LandingJsonLd";
 
 export default function LandingPage() {
   const { theme, toggle } = useTheme();
@@ -105,6 +106,7 @@ export default function LandingPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
+      <LandingJsonLd />
       {/* NAV */}
       <nav
         style={{

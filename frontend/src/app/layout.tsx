@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s titulnou stranou a semaformi nálezov.",
   keywords: ["due diligence", "report", "ORSR", "advokát", "právnik", "register", "previerka", "daňoví dlžníci", "exekúcie", "insolvencia"],
-  robots: { index: false, follow: false },
+  robots: { index: true, follow: true },
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
