@@ -541,11 +541,13 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             m.celkove_aktiva = m.obezny_majetok
                             logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
                         if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None:
-                            # Equity = Assets - Liabilities (ak máme obe zložky záväzkov)
-                            liabilities = [v for v in [m.kratkodobe_zavazky, m.dlhodobeZavazky] if v is not None]
-                            if len(liabilities) >= 1:
-                                m.vlastne_imanie_celkom = m.celkove_aktiva - sum(liabilities)
-                                logger.info(f"[FALLBACK] {file_name}: vlastne_imanie vypočítané (assets - liabilities): {m.vlastne_imanie_celkom}")
+                            # Equity = Assets - Liabilities
+                            # UPOZORNENIE: Toto je horný odhad (upper bound) — v schéme nemáme
+                            # rezervy, časové rozlíšenie ani samostatné bankové úvery.
+                            # Vyžadujeme obe zložky záväzkov, aby sme minimalizovali skreslenie.
+                            if m.kratkodobe_zavazky is not None and m.dlhodobeZavazky is not None:
+                                m.vlastne_imanie_celkom = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobeZavazky)
+                                logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad, môže byť nadhodnotené): {m.vlastne_imanie_celkom}")
                         logger.info(
                             f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
                             f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
