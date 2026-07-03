@@ -1,5 +1,6 @@
 import os
 import re
+import fitz
 import logging
 from contextlib import contextmanager
 from pydantic import BaseModel, Field
@@ -532,8 +533,6 @@ async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: st
     """
     Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami a textom extrahovaným z PDF súborov registrov.
     """
-    import fitz
-
     client = _get_gemini_client()
 
     # Príprava obsahu - začneme JSON dátami

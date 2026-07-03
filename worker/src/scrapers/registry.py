@@ -126,33 +126,24 @@ async def run_scrapers(
         _t_start = time.perf_counter()
         logger.debug(f"[TIMING] ▶ {source_type} START")
         try:
-            if is_fs:
-                async with global_semaphore:
-                    async with fs_semaphore:
-                        _t_run = time.perf_counter()
-                        if _t_run - _t_start > 0.05:
-                            logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
-                        result = await scraper.run(
-                            output_dir=output_dir,
-                            target_type=target_type,
-                            ico=ico,
-                            orsr_extract_type=orsr_extract_type,
-                            crz_date_from=crz_date_from,
-                            **extra_kwargs,
-                        )
-            else:
-                async with global_semaphore:
-                    _t_run = time.perf_counter()
-                    if _t_run - _t_start > 0.05:
-                        logger.debug(f"[TIMING] {source_type} čakal na globálny semafor: {_t_run - _t_start:.2f}s")
-                    result = await scraper.run(
-                        output_dir=output_dir,
-                        target_type=target_type,
-                        ico=ico,
-                        orsr_extract_type=orsr_extract_type,
-                        crz_date_from=crz_date_from,
-                        **extra_kwargs,
-                    )
+            semaphores = [global_semaphore, fs_semaphore] if is_fs else [global_semaphore]
+            for sem in semaphores:
+                await sem.acquire()
+            try:
+                _t_run = time.perf_counter()
+                if _t_run - _t_start > 0.05:
+                    logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
+                result = await scraper.run(
+                    output_dir=output_dir,
+                    target_type=target_type,
+                    ico=ico,
+                    orsr_extract_type=orsr_extract_type,
+                    crz_date_from=crz_date_from,
+                    **extra_kwargs,
+                )
+            finally:
+                for sem in reversed(semaphores):
+                    sem.release()
             elapsed = time.perf_counter() - _t_start
             status = result.status if result else "UNKNOWN"
             findings = result.findings or result.status_message or "" if result else ""

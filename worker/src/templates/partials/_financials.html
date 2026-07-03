@@ -1,7 +1,7 @@
 <!-- ===== PAGE 1: SÚVAHA ===== -->
 <div class="page-break"></div>
-<div class="mb-6 pt-24">
-    <h2 id="suvaha" class="section-title mb-8">Súvaha (Balance Sheet)</h2>
+<div class="mb-4 pt-12">
+    <h2 id="suvaha" class="section-title mb-4">Súvaha (Balance Sheet)</h2>
     {% if nace_code %}
     <div class="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
         <span class="text-[8px] font-bold uppercase text-slate-500">NACE:</span>
@@ -21,8 +21,8 @@
     </div>
     {% endif %}
     {% if balance_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-8 mt-6">
-        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 200px;">
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4 mt-3">
+        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 160px;">
     </div>
     {% endif %}
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
@@ -103,11 +103,11 @@
 
 <!-- ===== PAGE 2: VÝKAZ ZISKOV A STRÁT ===== -->
 <div class="page-break"></div>
-<div class="mb-6 pt-24">
-    <h2 id="vykaz_ziskov" class="section-title mb-8">Výkaz ziskov a strát (P&L)</h2>
+<div class="mb-4 pt-12">
+    <h2 id="vykaz_ziskov" class="section-title mb-4">Výkaz ziskov a strát (P&L)</h2>
     {% if pnl_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-8 mt-6">
-        <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="Výkaz ziskov a strát" class="max-w-full h-auto" style="height: 200px;">
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4 mt-3">
+        <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="Výkaz ziskov a strát" class="max-w-full h-auto" style="height: 160px;">
     </div>
     {% endif %}
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
@@ -174,14 +174,14 @@
 
 <!-- ===== PAGE 3: CASH FLOW ===== -->
 <div class="page-break"></div>
-<div class="mb-6 pt-24">
-    <h2 id="cash_flow" class="section-title mb-6">Prehľad peňažných tokov (Cash Flow)</h2>
+<div class="mb-4 pt-12">
+    <h2 id="cash_flow" class="section-title mb-4">Prehľad peňažných tokov (Cash Flow)</h2>
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
     {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
 
     {% if cashflow_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm mb-4">
-        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 180px;">
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3">
+        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 150px;">
     </div>
     {% else %}
     <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs text-amber-800">

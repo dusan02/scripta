@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Union
 
 
@@ -267,9 +268,6 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
     except Exception:
         return {}
 
-
-
-from dataclasses import dataclass, field
 
 
 @dataclass

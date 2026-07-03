@@ -5,8 +5,10 @@ from typing import Optional
 import asyncio
 import logging
 import time
+import shutil
 
 import asyncpg
+import fitz
 from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from playwright.async_api import async_playwright
@@ -29,6 +31,7 @@ from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 from .cleanup import _cleanup_loop
 from .llm_extractor import reset_token_stats, log_token_summary
+from .pipeline import process_company, run_and_save_audit_verdict
 from src.log_helpers import set_correlation_id, PhaseTimer, get_correlation_id
 
 setup_logging()
@@ -167,7 +170,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         ai_task = None
         if task.target_type == "COMPANY" and task.ico:
-            from src.pipeline import process_company
             _log.info(f"[{_rid}] Spúšťam AI Forenznú Pipeline paralelne pre IČO: {task.ico}")
             ai_task = asyncio.create_task(process_company(task.ico, task.report_request_id))
 
@@ -266,7 +268,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia)
         # aj k DB dátam (finančné výkazy, naratív, vestník).
         if task.target_type == "COMPANY" and task.ico:
-            from src.pipeline import run_and_save_audit_verdict
             try:
                 with PhaseTimer("Chief Auditor"):
                     await run_and_save_audit_verdict(task.ico)
@@ -278,7 +279,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
         for s in sources:
             if s.source_type == "REGISTER_UZ" and s.status == "SUCCESS" and s.file_path:
                 try:
-                    import fitz
                     doc = fitz.open(s.file_path)
                     text = "".join(page.get_text() for page in doc)
                     doc.close()
@@ -308,12 +308,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
         _log.info(f"[{_rid}] PDF compiled: {final_path.name}")
 
         # Aktualizujeme pageCount v DB podľa reálnych hodnôt zistených compilerom
-        from src.db import update_source_page_counts
         await update_source_page_counts(pool, task.report_request_id, sources)
 
         # Cleanup medziproduktov — ponechať len evidence_binder.pdf
         try:
-            import shutil
             for f in report_dir.glob("*.pdf"):
                 if f.name != "evidence_binder.pdf":
                     f.unlink()
