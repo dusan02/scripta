@@ -100,6 +100,8 @@ PRAVIDLÁ VÝSTUPU:
 
 PRAVIDLÁ PRE KVALITU TEXTU:
 - VŽDY používaj správnu slovenčinu: "dlžník" (nie "dižnik"), "dlžníkov" (nie "dižnikov").
+- SPRÁVNE DĹŽNE: "existencie" (nie "existence"), "operatívnej" (nie "operativnej"), "administratívnej" (nie "administrativnej"), "disciplíne" (nie "discipline"), "finančné" (nie "financné"), "sú" (nie "su").
+- POMLČKY: Namiesto spojovníka "-" s medzerami používaj dlhú pomlčku (en-dash "–"), napr. "354A, 355A – /391A/" nie "354A, 355A - /391A/".
 - V texte NIKDY neuvádzaj historické názvy spoločností z registrov (CRZ, UVO). Vždy použi aktuálny oficiálny názov spoločnosti. Rôzne historické formy názvu (napr. "KIA Motors Slovakia" vs "Kia Slovakia") pri rovnakom IČO sú tá istá spoločnosť — neupozorňuj na ne ako na nezrovnalosť.
 - V executive_summary a key_risk MUSÍŠ reflektovať významné medziročné zmeny z `analyza_trendov.revenue_trend`. Ak tržby poklesli o viac ako 5% YoY, výslovne to spomeň medzi rizikami alebo upozorneniami. Nepíš o "dlhodobej ziskovosti" ak existuje významný pokles tržieb v poslednom roku.
 - Ak tržby prevyšujú aktíva (bežné pri výrobných firmách s vysokým obratom), výslovne vysvetli, že tržby sú prietok za rok zatiaľ čo aktíva sú stav k jednému dňu — nie je to anomália.

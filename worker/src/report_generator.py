@@ -435,6 +435,8 @@ def generate_ratios_trend_chart(trend_ratios: list) -> str:
     ax.plot(years, roe, color='#3b82f6', label='ROE', **style_cfg)
     ax.plot(years, margin, color='#f59e0b', label='Čistá marža', **style_cfg)
 
+    ax.set_xticks(years)
+    ax.set_xticklabels([str(y) for y in years])
     ax.set_xlabel('')
     ax.set_ylabel('Percentá (%)', fontsize=8, color='#64748b')
     ax.tick_params(axis='both', labelsize=8, colors='#64748b')

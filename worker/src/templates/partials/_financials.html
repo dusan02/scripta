@@ -289,9 +289,9 @@
             {% endif %}
         </div>
 
-        {# ── Kľúčové metric na jeden pohľad ── #}
+        {# ── Kľúčové metriky na jeden pohľad ── #}
         <div class="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-            <h3 class="subsection-title-sm mb-2 text-slate-600">Kľúčové metric na jeden pohľad</h3>
+            <h3 class="subsection-title-sm mb-2 text-slate-600">Kľúčové metriky na jeden pohľad</h3>
             <div class="grid grid-cols-6 gap-2">
                 {% set rev = latest_stmt.mainActivityRevenue or 0 %}
                 <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
@@ -328,7 +328,7 @@
                 <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
                     <p class="report-label text-slate-400">D/E Ratio</p>
                     {% if latest_ratios.debt_to_equity is not none %}
-                    <p class="text-base font-black {% if latest_ratios.negative_equity %}text-rose-600{% elif latest_ratios.debt_to_equity > 3 %}text-amber-600{% else %}text-slate-800{% endif %}">{{ "%.1f"|format(latest_ratios.debt_to_equity) }}</p>
+                    <p class="text-base font-black {% if latest_ratios.negative_equity %}text-rose-600{% elif latest_ratios.debt_to_equity > 3 %}text-amber-600{% else %}text-slate-800{% endif %}">{{ "%.2f"|format(latest_ratios.debt_to_equity) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">x</span></p>
                     {% else %}
                     <p class="text-base font-black text-slate-400">—</p>
                     {% endif %}
@@ -347,21 +347,21 @@
         </div>
 
         <div class="space-y-3">
-            {# Majetok a Výsledky #}
+                        {# Základné hodnoty #}
             <div>
                 <p class="subsection-title-sm mb-1 text-slate-500">Základné hodnoty</p>
                 <div class="grid grid-cols-4 gap-2">
                     {% set base_cards = [
-                        ('Aktíva', latest_stmt.totalAssets, 'format_number_millions'),
-                        ('Vlastné imanie', latest_stmt.equity, 'format_number_millions'),
                         ('Tržby', latest_stmt.mainActivityRevenue, 'format_number_millions'),
                         ('EBITDA', latest_ratios.ebitda if latest_ratios else None, 'format_number_millions'),
+                        ('Aktíva', latest_stmt.totalAssets, 'format_number_millions'),
+                        ('Vlastné imanie', latest_stmt.equity, 'format_number_millions'),
                     ] %}
                     {% for label, value, suffix in base_cards %}
                     <div class="bg-white p-1.5 rounded-lg border-l-4 border-slate-300 shadow-sm">
                         <p class="report-label">{{ label }}</p>
                         {% if value is not none %}
-                        <p class="text-base font-black {% if value < 0 %}text-rose-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% else %}{{ value }}{% endif %}</p>
+                        <p class="text-base font-black {% if value < 0 %}text-rose-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}<span class="text-xs font-bold text-slate-500 ml-1">mil. &#8364;</span>{% else %}{{ value }}{% endif %}</p>
                         {% else %}
                         <p class="text-base font-black text-slate-400">—</p>
                         {% endif %}
@@ -369,6 +369,35 @@
                     {% endfor %}
                 </div>
             </div>
+            {# Rast & Kvalita #}
+            {% if piotroski_score is not none or yoy_revenue_growth is not none or yoy_profit_growth is not none %}
+            <div>
+                <p class="subsection-title-sm mb-1 text-slate-500">Rast & Kvalita</p>
+                <div class="grid grid-cols-3 gap-2">
+                    {% if yoy_revenue_growth is not none %}
+                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if yoy_revenue_growth >= 10 %}border-emerald-400{% elif yoy_revenue_growth >= 0 %}border-amber-400{% else %}border-rose-400{% endif %} shadow-sm">
+                        <p class="report-label">YoY Tržby</p>
+                        <p class="text-base font-black {% if yoy_revenue_growth >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">{% if yoy_revenue_growth > 0 %}+{% endif %}{{ yoy_revenue_growth }}%</p>
+                    </div>
+                    {% endif %}
+                    {% if yoy_profit_growth is not none %}
+                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if yoy_profit_growth >= 10 %}border-emerald-400{% elif yoy_profit_growth >= 0 %}border-amber-400{% else %}border-rose-400{% endif %} shadow-sm">
+                        <p class="report-label">YoY Zisk</p>
+                        <p class="text-base font-black {% if yoy_profit_growth >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">{% if yoy_profit_growth > 0 %}+{% endif %}{{ yoy_profit_growth }}%</p>
+                    </div>
+                    {% endif %}
+                    {% if piotroski_score is not none %}
+                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if piotroski_score >= 7 %}border-emerald-400{% elif piotroski_score >= 5 %}border-amber-400{% else %}border-rose-400{% endif %} shadow-sm">
+                        <p class="report-label">Piotroski F</p>
+                        <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-600{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }}/8</p>
+                        <div class="w-full bg-slate-100 rounded-full mt-1" style="height: 3px;">
+                            <div class="rounded-full" style="height: 3px; width: {{ piotroski_score / 8 * 100 }}%; background: {% if piotroski_score >= 6 %}#10b981{% elif piotroski_score >= 4 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
             {# Rentabilita #}
             <div>
                 <p class="subsection-title-sm mb-1 text-slate-500">Rentabilita</p>
@@ -376,42 +405,15 @@
                     {% set gross_margin = ((latest_stmt.grossProfit or 0) / latest_stmt.mainActivityRevenue * 100) | round(1) if latest_stmt.mainActivityRevenue and latest_stmt.mainActivityRevenue > 0 else None %}
                     {% set rent_cards = [
                         ('Hrubá marža', gross_margin, '%', true, 20),
+                        ('EBITDA marža', latest_ratios.ebitda_margin_pct if latest_ratios.ebitda_margin_pct is defined else None, '%', true, 15),
                         ('Čistá marža', latest_ratios.net_profit_margin_pct, '%', true, 5),
                         ('ROE', latest_ratios.roe_pct, '%', true, 10),
-                        ('EBITDA marža', latest_ratios.ebitda_margin_pct if latest_ratios.ebitda_margin_pct is defined else None, '%', true, 15),
                     ] %}
                     {% for label, value, suffix, is_pct, benchmark in rent_cards %}
                     <div class="bg-white p-1.5 rounded-lg border-l-4 {% if value is not none and is_pct and value < 0 %}border-rose-400{% elif value is not none and is_pct and value >= benchmark %}border-emerald-400{% elif value is not none and is_pct %}border-amber-400{% else %}border-slate-200{% endif %} shadow-sm">
                         <p class="report-label">{{ label }}</p>
                         {% if value is not none %}
-                        <p class="text-base font-black {% if is_pct and value < 0 %}text-rose-600{% elif is_pct %}text-emerald-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
-                        {% if is_pct and value is not none %}
-                        <div class="w-full bg-slate-100 rounded-full mt-1" style="height: 3px;">
-                            <div class="rounded-full" style="height: 3px; width: {{ [value, 0] | max }}%; background: {% if value < 0 %}#ef4444{% elif value >= benchmark %}#10b981{% else %}#f59e0b{% endif %};"></div>
-                        </div>
-                        {% endif %}
-                        {% else %}
-                        <p class="text-base font-black text-slate-400">—</p>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {# Peňažné toky (Cash Flow) #}
-            <div>
-                <p class="subsection-title-sm mb-1 text-slate-500">Peňažné toky (Cash Flow)</p>
-                <div class="grid grid-cols-4 gap-2">
-                    {% set new_cf_cards = [
-                        ('Prevádzkový CF', latest_stmt.operatingCashFlow, 'format_number_millions'),
-                        ('Investičný CF', latest_stmt.investingCashFlow, 'format_number_millions'),
-                        ('Finančný CF', latest_stmt.financingCashFlow, 'format_number_millions'),
-                        ('CF/Zisk', latest_ratios.cashflow_to_profit if latest_ratios else None, '×'),
-                    ] %}
-                    {% for label, value, suffix in new_cf_cards %}
-                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if label == 'CF/Zisk' %}{% if value is not none and value >= 1.0 %}border-emerald-400{% elif value is not none and value >= 0.5 %}border-amber-400{% elif value is not none %}border-rose-400{% else %}border-slate-200{% endif %}{% else %}{% if value is not none and value > 0 %}border-emerald-400{% elif value is not none and value < 0 %}border-rose-400{% else %}border-slate-200{% endif %}{% endif %} shadow-sm">
-                        <p class="report-label">{{ label }}</p>
-                        {% if value is not none %}
-                        <p class="text-base font-black {% if value < 0 and label != 'CF/Zisk' %}text-rose-600{% elif value > 0 and label != 'CF/Zisk' %}text-emerald-600{% elif label == 'CF/Zisk' and value >= 1.0 %}text-emerald-600{% elif label == 'CF/Zisk' and value < 0.5 %}text-rose-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix == '×' %}{{ "%.1f"|format(value) }}×{% else %}{{ value }}{% endif %}</p>
+                        <p class="text-base font-black {% if is_pct and value < 0 %}text-rose-600{% elif is_pct %}text-emerald-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}<span class="text-xs font-bold text-slate-500 ml-1">mil. &#8364;</span>{% elif suffix %}{{ value }}{{ suffix }}{% else %}{{ value }}{% endif %}</p>
                         {% else %}
                         <p class="text-base font-black text-slate-400">—</p>
                         {% endif %}
@@ -467,41 +469,28 @@
                     {% endfor %}
                 </div>
             </div>
-            {# Rast & Kvalita #}
-            {% if piotroski_score is not none or yoy_revenue_growth is not none or yoy_profit_growth is not none %}
+            {# Peňažné toky (Cash Flow) #}
             <div>
-                <p class="subsection-title-sm mb-1 text-slate-500">Rast & Kvalita</p>
-                <div class="grid grid-cols-3 gap-2">
-                    {% if yoy_revenue_growth is not none %}
-                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if yoy_revenue_growth >= 10 %}border-emerald-400{% elif yoy_revenue_growth >= 0 %}border-amber-400{% else %}border-rose-400{% endif %} shadow-sm">
-                        <p class="report-label">YoY Tržby</p>
-                        <p class="text-base font-black {% if yoy_revenue_growth >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">{% if yoy_revenue_growth > 0 %}+{% endif %}{{ yoy_revenue_growth }}%</p>
-                        <div class="w-full bg-slate-100 rounded-full mt-1" style="height: 3px;">
-                            <div class="rounded-full" style="height: 3px; width: {{ [[yoy_revenue_growth, 0] | max, 50] | min }}%; background: {% if yoy_revenue_growth >= 10 %}#10b981{% elif yoy_revenue_growth >= 0 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
-                        </div>
+                <p class="subsection-title-sm mb-1 text-slate-500">Peňažné toky (Cash Flow)</p>
+                <div class="grid grid-cols-4 gap-2">
+                    {% set new_cf_cards = [
+                        ('Prevádzkový CF', latest_stmt.operatingCashFlow, 'format_number_millions'),
+                        ('Investičný CF', latest_stmt.investingCashFlow, 'format_number_millions'),
+                        ('Finančný CF', latest_stmt.financingCashFlow, 'format_number_millions'),
+                        ('CF/Zisk', latest_ratios.cashflow_to_profit if latest_ratios else None, '×'),
+                    ] %}
+                    {% for label, value, suffix in new_cf_cards %}
+                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if label == 'CF/Zisk' %}{% if value is not none and value >= 1.0 %}border-emerald-400{% elif value is not none and value >= 0.5 %}border-amber-400{% elif value is not none %}border-rose-400{% else %}border-slate-200{% endif %}{% else %}{% if value is not none and value > 0 %}border-emerald-400{% elif value is not none and value < 0 %}border-rose-400{% else %}border-slate-200{% endif %}{% endif %} shadow-sm">
+                        <p class="report-label">{{ label }}</p>
+                        {% if value is not none %}
+                        <p class="text-base font-black {% if value < 0 and label != 'CF/Zisk' %}text-rose-600{% elif value > 0 and label != 'CF/Zisk' %}text-emerald-600{% elif label == 'CF/Zisk' and value >= 1.0 %}text-emerald-600{% elif label == 'CF/Zisk' and value < 0.5 %}text-rose-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix == '×' %}{{ "%.1f"|format(value) }}×{% else %}{{ value }}{% endif %}</p>
+                        {% else %}
+                        <p class="text-base font-black text-slate-400">—</p>
+                        {% endif %}
                     </div>
-                    {% endif %}
-                    {% if yoy_profit_growth is not none %}
-                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if yoy_profit_growth >= 10 %}border-emerald-400{% elif yoy_profit_growth >= 0 %}border-amber-400{% else %}border-rose-400{% endif %} shadow-sm">
-                        <p class="report-label">YoY Zisk</p>
-                        <p class="text-base font-black {% if yoy_profit_growth >= 0 %}text-emerald-600{% else %}text-rose-600{% endif %}">{% if yoy_profit_growth > 0 %}+{% endif %}{{ yoy_profit_growth }}%</p>
-                        <div class="w-full bg-slate-100 rounded-full mt-1" style="height: 3px;">
-                            <div class="rounded-full" style="height: 3px; width: {{ [[yoy_profit_growth, 0] | max, 50] | min }}%; background: {% if yoy_profit_growth >= 10 %}#10b981{% elif yoy_profit_growth >= 0 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if piotroski_score is not none %}
-                    <div class="bg-white p-1.5 rounded-lg border-l-4 {% if piotroski_score >= 7 %}border-emerald-400{% elif piotroski_score >= 5 %}border-amber-400{% else %}border-rose-400{% endif %} shadow-sm">
-                        <p class="report-label">Piotroski F</p>
-                        <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-600{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }}/8</p>
-                        <div class="w-full bg-slate-100 rounded-full mt-1" style="height: 3px;">
-                            <div class="rounded-full" style="height: 3px; width: {{ piotroski_score / 8 * 100 }}%; background: {% if piotroski_score >= 6 %}#10b981{% elif piotroski_score >= 4 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
-                        </div>
-                    </div>
-                    {% endif %}
+                    {% endfor %}
                 </div>
             </div>
-            {% endif %}
             {% if ratios_chart_base64 %}
             <div class="mt-4 border border-slate-200 rounded-lg overflow-hidden flex justify-center p-3 bg-white shadow-sm">
                 <img src="data:image/png;base64,{{ ratios_chart_base64 }}" alt="Trend rentability" class="max-w-full h-auto" style="height: 150px;">
