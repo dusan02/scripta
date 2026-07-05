@@ -514,20 +514,23 @@ def generate_debt_donut(stmt) -> str:
 
     labels, values, colors = zip(*filtered)
 
-    fig, ax = plt.subplots(figsize=(4.5, 3.8))
+    fig, ax = plt.subplots(figsize=(6, 5.5))
     fig.patch.set_facecolor('white')
 
     wedges, texts, autotexts = ax.pie(
         values, labels=None, colors=colors, autopct='%1.0f%%',
-        startangle=90, pctdistance=0.72,
+        startangle=90, pctdistance=0.75,
         wedgeprops=dict(width=0.45, edgecolor='white', linewidth=2)
     )
+    
+    import matplotlib.patheffects as path_effects
     for t in autotexts:
-        t.set_fontsize(24)
+        t.set_fontsize(22)
         t.set_color('white')
         t.set_fontweight('bold')
+        t.set_path_effects([path_effects.withStroke(linewidth=2, foreground='#0f172a')])
 
-    ax.legend(wedges, labels, fontsize=22, loc='upper center', frameon=False,
+    ax.legend(wedges, labels, fontsize=20, loc='upper center', frameon=False,
               bbox_to_anchor=(0.5, -0.05), ncol=1, labelspacing=1.2, handletextpad=0.8)
 
     plt.tight_layout(pad=0.3)
@@ -697,7 +700,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Fallback 1: Sídlo z ORSR
     if not company_city and "ORSR" in source_map:
         orsr_findings = source_map["ORSR"].findings or ""
-        addr_match = re.search(r'Sídlo:\s*(.*?)\n([^\n]+)', orsr_findings)
+        addr_match = re.search(r'Sídlo:\s*([^\r\n]*)\r?\n\s*([^\r\n]+)', orsr_findings)
         if addr_match:
             line2 = addr_match.group(2).strip()
             city_part = line2.split('-')[0].split(',')[0].strip()

@@ -22,7 +22,7 @@
     {% endif %}
     {% if balance_chart_base64 %}
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4 mt-3">
-        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 160px;">
+        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 220px;">
     </div>
     {% elif has_short_history %}
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 mt-3 report-body-sm text-slate-500 text-center">
@@ -86,7 +86,7 @@
     {% endif %}
 
     {% if bs_infographic_base64 %}
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col p-2 bg-white shadow-sm mt-4 relative">
+    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col p-2 bg-white shadow-sm mt-4 relative" style="max-height: 280px; margin-top: auto;">
         <img src="data:image/png;base64,{{ bs_infographic_base64 }}" alt="Štruktúra súvahy" class="absolute inset-0 w-full h-full object-contain p-2">
     </div>
     <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — Súvaha {{ latest_stmt.year }} · Zdroj: RÚZ</p>
@@ -104,7 +104,7 @@
     <h2 id="vykaz_ziskov" class="section-title mb-4 flex-shrink-0">4. Výkaz ziskov a strát (P&L)</h2>
     {% if pnl_chart_base64 %}
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4 mt-3">
-        <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="Výkaz ziskov a strát" class="max-w-full h-auto" style="height: 160px;">
+        <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="Výkaz ziskov a strát" class="max-w-full h-auto" style="height: 220px;">
     </div>
     {% elif has_short_history %}
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 mt-3 report-body-sm text-slate-500 text-center">
@@ -152,7 +152,7 @@
     {% endif %}
 
     {% if pl_infographic_base64 %}
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col p-1 bg-white shadow-sm mt-3 relative">
+    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col p-1 bg-white shadow-sm mt-3 relative" style="max-height: 320px; margin-top: auto;">
         <img src="data:image/png;base64,{{ pl_infographic_base64 }}" alt="P&L waterfall" class="absolute inset-0 w-full h-full object-contain p-2">
     </div>
     <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — Výkaz ziskov a strát {{ latest_stmt.year }} · Zdroj: RÚZ</p>
@@ -173,7 +173,7 @@
 
     {% if cashflow_chart_base64 %}
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3">
-        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 150px;">
+        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 200px;">
     </div>
     {% else %}
     <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 report-body-sm text-amber-800">
@@ -216,7 +216,7 @@
 
 
     {% if cf_waterfall_base64 or debt_donut_base64 %}
-    <div class="flex-1 flex gap-3 mt-3 relative">
+    <div class="flex-1 flex gap-3 mt-3 relative" style="max-height: 280px; margin-top: auto;">
         {% if cf_waterfall_base64 %}
         <div class="flex-1 flex flex-col">
             <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm relative">
@@ -553,14 +553,13 @@
             {% set sorted_altman = altman_scores | sort(attribute='year') %}
             {% for z in sorted_altman %}
                 {% if z.z_score is not none %}
-                {% set z_color = '#10b981' if z.zone == 'SAFE' else '#f59e0b' if z.zone == 'GREY' else '#ef4444' %}
-                {% set z_bg = '#ecfdf5' if z.zone == 'SAFE' else '#fffbeb' if z.zone == 'GREY' else '#fef2f2' %}
+                {% set z_color = '#047857' if z.zone == 'SAFE' else '#d97706' if z.zone == 'GREY' else '#e11d48' %}
                 {% set zone_label = 'Bezpečná' if z.zone == 'SAFE' else 'Šedá' if z.zone == 'GREY' else 'Núdzová' %}
-                <tr class="border-b border-slate-100" style="background: {{ z_bg }};">
+                <tr class="border-b border-slate-100 bg-white">
                     <td class="py-2 px-3 font-semibold text-slate-700">{{ z.year }}</td>
                     <td class="py-2 px-3 text-right font-black" style="color: {{ z_color }};">{{ "%.2f"|format(z.z_score) }}</td>
                     <td class="py-2 px-3 text-center">
-                        <span class="text-[9px] font-bold px-2 py-0.5 rounded" style="color: {{ z_color }}; border: 1px solid {{ z_color }}33;">{{ zone_label }}</span>
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded" style="color: {{ z_color }}; border: 1px solid {{ z_color }}40;">{{ zone_label }}</span>
                     </td>
                 </tr>
                 {% endif %}
