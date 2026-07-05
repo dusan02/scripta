@@ -1,5 +1,7 @@
 <!-- COVER PAGE -->
-<div class="flex flex-col items-center justify-center" style="height: 265mm; page-break-after: always; overflow: hidden;">
+<div class="flex flex-col items-center justify-center relative" style="height: 297mm; padding: 16mm 18mm; page-break-after: always; overflow: hidden;">
+
+
     {% if logo_base64 %}
     <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-24 mb-10">
     {% else %}
@@ -10,67 +12,42 @@
     {% set display_name = company.name if company.name and company.name not in ('Nezistené', 'Nezisten', 'N/A', 'n/a', '-') else 'IČO ' ~ company.ico %}
     <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-6 leading-tight">{{ display_name }}</h3>
     
-    <div class="bg-slate-50 border border-slate-200 rounded-lg px-8 py-4 text-center mb-16">
+    <div class="bg-slate-50 border border-slate-200 rounded-lg px-8 py-4 text-center mb-8">
         <p class="text-sm text-slate-500 uppercase tracking-widest font-bold mb-1">Identifikačné číslo (IČO)</p>
         <p class="text-2xl font-black text-slate-800">{{ company.ico }}</p>
     </div>
 
-    <div class="flex flex-col items-center justify-center mb-16">
-        {% set stamp_color_class = "text-[#10b981]" %}
-        {% set stamp_border_class = "border-[#10b981]" %}
-        {% set stamp_bg_class = "bg-emerald-50" %}
-        {% set stamp_hex = "#10b981" %}
-        
-        {% if verdict.verifaScore < 80 and verdict.verifaScore >= 50 %}
-            {% set stamp_color_class = "text-[#f59e0b]" %}
-            {% set stamp_border_class = "border-[#f59e0b]" %}
-            {% set stamp_bg_class = "bg-amber-50" %}
-            {% set stamp_hex = "#f59e0b" %}
-        {% elif verdict.verifaScore < 50 %}
-            {% set stamp_color_class = "text-[#e11d48]" %}
-            {% set stamp_border_class = "border-[#e11d48]" %}
-            {% set stamp_bg_class = "bg-rose-50" %}
-            {% set stamp_hex = "#e11d48" %}
+    {% if nace_code or nace_text %}
+    <div class="flex items-center gap-3 mb-16">
+        <div class="bg-slate-50 border border-slate-200 rounded-lg px-5 py-2 text-center">
+            <p class="report-label text-slate-400 mb-0.5">NACE</p>
+            <p class="text-sm font-bold text-slate-700">{{ nace_code }}</p>
+        </div>
+        {% if nace_text %}
+        <p class="text-sm text-slate-500">{{ nace_text }}</p>
         {% endif %}
+    </div>
+    {% else %}
+    <div class="mb-16"></div>
+    {% endif %}
 
-        <div class="relative w-56 h-56 flex items-center justify-center transform rotate-[-8deg] opacity-90">
-            <svg viewBox="0 0 200 200" class="absolute inset-0 w-full h-full">
-                <defs>
-                    <filter id="grunge" x="-20%" y="-20%" width="140%" height="140%">
-                        <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" result="noise" />
-                        <feComponentTransfer in="noise" result="speckles">
-                            <feFuncA type="linear" slope="3.5" intercept="-1.3" />
-                        </feComponentTransfer>
-                        <feComponentTransfer in="speckles" result="holes">
-                            <feFuncA type="table" tableValues="1 0" />
-                        </feComponentTransfer>
-                        <feComposite operator="in" in="SourceGraphic" in2="holes" />
-                    </filter>
-                    <path id="topCurve" d="M 25 100 A 75 75 0 0 1 175 100" />
-                    <path id="bottomCurve" d="M 25 100 A 75 75 0 0 0 175 100" />
-                </defs>
-                <g filter="url(#grunge)" fill="{{ stamp_hex }}" stroke="{{ stamp_hex }}">
-                    <!-- Outer rings -->
-                    <circle cx="100" cy="100" r="96" fill="none" stroke-width="2.5" />
-                    <circle cx="100" cy="100" r="89" fill="none" stroke-width="6" />
-                    <!-- Inner rings -->
-                    <circle cx="100" cy="100" r="58" fill="none" stroke-width="3" />
-                    <circle cx="100" cy="100" r="53" fill="none" stroke-width="1.5" stroke-dasharray="3 3" />
-                    
-                    <!-- Curved text -->
-                    <text font-family="'Inter', sans-serif" font-weight="900" font-size="20" letter-spacing="0.1em" stroke="none">
-                        <textPath href="#topCurve" startOffset="50%" text-anchor="middle" dominant-baseline="central">★  VERIFA  ★</textPath>
-                    </text>
-                    <text font-family="'Inter', sans-serif" font-weight="900" font-size="20" letter-spacing="0.1em" stroke="none">
-                        <textPath href="#bottomCurve" startOffset="50%" text-anchor="middle" dominant-baseline="central">★  SKÓRE  ★</textPath>
-                    </text>
+    <div class="flex flex-col items-center justify-center mb-16">
+        {% set score = verdict.verifaScore %}
+        {% set gauge_color = "#10b981" if score >= 80 else "#f59e0b" if score >= 50 else "#e11d48" %}
 
-                    <!-- Center Score -->
-                    <text x="100" y="88" text-anchor="middle" font-size="44" font-weight="900" stroke="none">{{ verdict.verifaScore }}</text>
-                    <line x1="63" y1="102" x2="137" y2="102" stroke-width="2.5" />
-                    <text x="100" y="125" text-anchor="middle" font-size="18" font-weight="900" letter-spacing="0.15em" stroke="none">{{ verdict.riskCategory }}</text>
-                </g>
-            </svg>
+        {# ── Pečiatka: VERIFA SKÓRE (Zväčšená) ── #}
+        <div style="transform: rotate(4deg);">
+            <div class="relative w-48 h-48 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border-[4px] border-dashed opacity-50" style="border-color: {{ gauge_color }};"></div>
+                <div class="absolute inset-[10px] rounded-full border-[2.5px] opacity-80" style="border-color: {{ gauge_color }};"></div>
+                <div class="absolute inset-[22px] rounded-full border-[1.5px] border-dashed opacity-30" style="border-color: {{ gauge_color }};"></div>
+                <div class="flex flex-col items-center">
+                    <div class="font-black text-[12px] tracking-widest" style="color: {{ gauge_color }};">★ VERIFA ★</div>
+                    <div class="font-black text-7xl mt-1" style="color: {{ gauge_color }}; leading-none">{{ score }}</div>
+                    <div class="w-16 h-[3px] opacity-40 my-2" style="background: {{ gauge_color }};"></div>
+                    <div class="font-bold text-[11px] tracking-widest" style="color: {{ gauge_color }};">SKÓRE</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -127,11 +104,5 @@
                 {% endif %}
             </div>
         </div>
-    </div>
-
-    <!-- BOTTOM FOOTER AREA -->
-    <div class="mt-auto w-full border-t border-slate-200 pt-8 text-center report-caption text-slate-400">
-        <p>Vygenerované: {{ generated_at }}</p>
-        <p class="mt-1">Dôverný dokument pre vnútornú potrebu. Nenahrádza právne a daňové poradenstvo.</p>
     </div>
 </div>

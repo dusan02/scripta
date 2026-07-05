@@ -3,6 +3,7 @@ import re
 import io
 import json
 import time
+import math
 import base64
 import asyncio
 import logging
@@ -13,6 +14,7 @@ from xml.sax.saxutils import escape as xml_escape
 from playwright.async_api import async_playwright
 from prisma import Prisma
 from jinja2 import Environment, FileSystemLoader
+from src.infographics import generate_pl_infographic, generate_balance_sheet_infographic, generate_cashflow_waterfall
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -27,6 +29,7 @@ from src.analytics import (
     compute_financial_trends,
     compute_forensic_scorecard,
     detect_startup_profile,
+    compute_piotroski_f_score,
 )
 
 logger = logging.getLogger(__name__)
@@ -264,17 +267,18 @@ def generate_cashflow_chart(statements) -> str:
 
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
     fig, ax = plt.subplots(figsize=(8, 3.5), dpi=150)
-    ocf_colors = ['#10b981' if v >= 0 else '#ef4444' for v in ocf]
-    ax.bar(years, ocf, color=ocf_colors, alpha=0.85, width=0.5)
+    
+    ax.plot(years, ocf, marker='o', color='#3b82f6', linewidth=2.5, markersize=8, label='Prevádzkový CF')
     ax.plot(years, cash, marker='D', color='#1e293b', linewidth=2, markersize=7, label='Cash & ekvivalenty', linestyle='--')
+    
     ax.set_ylabel('EUR', fontsize=10, color='#64748b', fontweight='bold')
     ax.tick_params(axis='x', colors='#64748b')
     ax.tick_params(axis='y', colors='#64748b')
     sns.despine(left=True, bottom=True)
+    
     legend_handles = [
-        Patch(facecolor='#10b981', label='Pozitívny CF'),
-        Patch(facecolor='#ef4444', label='Negatívny CF'),
-        Line2D([0], [0], color='#1e293b', linestyle='--', marker='D', markersize=7, label='Cash & ekvivalenty'),
+        Line2D([0], [0], color='#3b82f6', marker='o', markersize=8, label='Prevádzkový CF', linewidth=2.5),
+        Line2D([0], [0], color='#1e293b', linestyle='--', marker='D', markersize=7, label='Cash & ekvivalenty', linewidth=2),
     ]
     ax.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False, fontsize=8, labelcolor='#475569')
     ax.set_title('Peňažné toky a likvidita', fontsize=12, fontweight='bold', color='#0f172a', pad=12)
@@ -290,7 +294,7 @@ def generate_cashflow_chart(statements) -> str:
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
 def generate_altman_chart(altman_scores) -> str:
-    """Vygeneruje čiarový graf vývoja Altman Z''-Score s farebnými zónami."""
+    """Vygeneruje čiarový graf vývoja Altman Z″-Score s farebnými zónami."""
     if not altman_scores or len(altman_scores) < 2:
         return ""
     valid = [z for z in altman_scores if z.get("z_score") is not None]
@@ -320,11 +324,11 @@ def generate_altman_chart(altman_scores) -> str:
     ax.axhline(y=2.6, color='#10b981', linestyle='--', linewidth=0.8, alpha=0.5)
     ax.axhline(y=1.1, color='#ef4444', linestyle='--', linewidth=0.8, alpha=0.5)
 
-    ax.set_ylabel("Z''-Score", fontsize=9, color='#64748b', fontweight='bold')
+    ax.set_ylabel("Z″-Score", fontsize=9, color='#64748b', fontweight='bold')
     ax.tick_params(axis='x', colors='#64748b', labelsize=8)
     ax.tick_params(axis='y', colors='#64748b', labelsize=8)
     sns.despine(left=True, bottom=True)
-    ax.set_title("Altman Z''-Score trend", fontsize=10, fontweight='bold', color='#0f172a', pad=8)
+    ax.set_title("Altman Z″-Score trend", fontsize=10, fontweight='bold', color='#0f172a', pad=8)
     plt.tight_layout()
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
@@ -413,13 +417,133 @@ def format_findings(source) -> str:
     return findings
 
 
+def generate_ratios_trend_chart(trend_ratios: list) -> str:
+    """Vygeneruje trend graf pre ROA, ROE a čistú maržu cez roky."""
+    if not trend_ratios or len(trend_ratios) < 2:
+        return ""
+
+    years = [t["year"] for t in trend_ratios]
+    roa = [t.get("roa_pct") for t in trend_ratios]
+    roe = [t.get("roe_pct") for t in trend_ratios]
+    margin = [t.get("net_profit_margin_pct") for t in trend_ratios]
+
+    fig, ax = plt.subplots(figsize=(7, 2.2))
+    fig.patch.set_facecolor('white')
+
+    style_cfg = {'marker': 'o', 'markersize': 4, 'linewidth': 1.8}
+    ax.plot(years, roa, color='#10b981', label='ROA', **style_cfg)
+    ax.plot(years, roe, color='#3b82f6', label='ROE', **style_cfg)
+    ax.plot(years, margin, color='#f59e0b', label='Čistá marža', **style_cfg)
+
+    ax.set_xlabel('')
+    ax.set_ylabel('Percentá (%)', fontsize=8, color='#64748b')
+    ax.tick_params(axis='both', labelsize=8, colors='#64748b')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#e2e8f0')
+    ax.spines['bottom'].set_color('#e2e8f0')
+    ax.axhline(y=0, color='#cbd5e1', linewidth=0.5, linestyle='--')
+    ax.legend(fontsize=7, loc='best', framealpha=0.8, facecolor='white', edgecolor='#e2e8f0')
+    ax.grid(axis='y', alpha=0.2, color='#e2e8f0')
+
+    plt.tight_layout(pad=0.3)
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
+def generate_radar_chart(pillars: list) -> str:
+    """Vygeneruje radar/spider chart pre 5 pilierov Verifa Score."""
+    if not pillars or len(pillars) < 3:
+        return ""
+
+    labels = [p["name"].split("—")[0].strip()[:18] for p in pillars]
+    scores = [p["score"] for p in pillars]
+    max_scores = [p["max_score"] if p["max_score"] > 0 else 1 for p in pillars]
+    pcts = [s / m * 100 for s, m in zip(scores, max_scores)]
+
+    n = len(labels)
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
+    pcts_closed = pcts + [pcts[0]]
+    angles_closed = angles + [angles[0]]
+
+    fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
+    fig.patch.set_facecolor('white')
+    fig.patch.set_alpha(0)
+
+    ax.fill(angles_closed, pcts_closed, color='#10b981', alpha=0.15)
+    ax.plot(angles_closed, pcts_closed, color='#10b981', linewidth=2)
+    ax.scatter(angles, pcts, color='#10b981', s=30, zorder=5)
+
+    ax.set_xticks(angles)
+    ax.set_xticklabels(labels, fontsize=12, color='#475569', fontweight='bold')
+    ax.set_ylim(0, 100)
+    ax.set_yticks([20, 40, 60, 80, 100])
+    ax.set_yticklabels(['20', '40', '60', '80', '100'], fontsize=10, color='#94a3b8')
+    ax.tick_params(pad=12)
+    ax.spines['polar'].set_color('#e2e8f0')
+    ax.grid(color='#e2e8f0', linewidth=0.5)
+
+    plt.tight_layout(pad=0.5)
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
+def generate_debt_donut(stmt) -> str:
+    """Vygeneruje donut graf kapitálovej štruktúry."""
+    if not stmt:
+        return ""
+
+    equity = getattr(stmt, 'equity', None) or 0
+    short_liab = getattr(stmt, 'shortTermLiabilities', None) or 0
+    long_liab = getattr(stmt, 'longTermLiabilities', None) or 0
+
+    if equity == 0 and short_liab == 0 and long_liab == 0:
+        return ""
+
+    labels = ['Vlastné imanie', 'Krátkodobé záväzky', 'Dlhodobé záväzky']
+    values = [equity, short_liab, long_liab]
+    colors = ['#10b981', '#f59e0b', '#ef4444']
+
+    filtered = [(l, v, c) for l, v, c in zip(labels, values, colors) if v > 0]
+    if len(filtered) < 2:
+        return ""
+
+    labels, values, colors = zip(*filtered)
+
+    fig, ax = plt.subplots(figsize=(4.5, 3.8))
+    fig.patch.set_facecolor('white')
+
+    wedges, texts, autotexts = ax.pie(
+        values, labels=None, colors=colors, autopct='%1.0f%%',
+        startangle=90, pctdistance=0.72,
+        wedgeprops=dict(width=0.45, edgecolor='white', linewidth=2)
+    )
+    for t in autotexts:
+        t.set_fontsize(24)
+        t.set_color('white')
+        t.set_fontweight('bold')
+
+    ax.legend(wedges, labels, fontsize=22, loc='upper center', frameon=False,
+              bbox_to_anchor=(0.5, -0.05), ncol=1, labelspacing=1.2, handletextpad=0.8)
+
+    plt.tight_layout(pad=0.3)
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
 def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at):
     verdict = company.auditVerdict
     stmts = company.financialStatements
     # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
     for stmt in (stmts or []):
         sanitize_cash_flow_fields(stmt)
-    # Fallback: ak grossProfit chýba (AI ho neextrahoval), vypočítaj ako prevádzkový zisk
+    # Fallback: ak grossProfit chýba (extrakcia zlyhala), vypočítaj ako prevádzkový zisk
     # Používa sa pre IFRS/SK GAAP by-function výkazy kde gross profit nie je explicitne uvedený
     # Výpočet: revenue - (staffCosts + depreciation + interestExpense) ≈ approx operating profit
     # Vyžaduje všetky 3 nákladové položky — ak niektorá chýba, fallback sa nevykoná
@@ -488,6 +612,13 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         if staff_costs > 0:
             employee_count = max(1, round(staff_costs / 12000))  # odhad: priemerná ročná mzda ~12k €
     
+    # Tržby na zamestnanca
+    revenue_per_employee = None
+    if latest_stmt and employee_count and employee_count > 0:
+        rev = getattr(latest_stmt, 'mainActivityRevenue', None)
+        if rev and rev > 0:
+            revenue_per_employee = round(rev / employee_count)
+
     # Vygenerovanie grafov
     chart_base64 = ""
     balance_chart_base64 = ""
@@ -504,6 +635,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             if months is not None and months != 12:
                 has_non_standard_months = True
                 break
+
+    has_short_history = bool(stmts) and len(stmts) < 2
 
     if stmts and len(stmts) >= 2:
         chart_base64 = generate_financial_chart(stmts)
@@ -539,6 +672,47 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 counts["FAILED"] += 1
                 
     source_map = {s.source_type: s for s in sources} if sources else {}
+    
+    # Sídlo (mesto) a rok vzniku z RPO findings
+    company_city = None
+    company_founded_year = None
+    if "RPO" in source_map:
+        rpo_findings = source_map["RPO"].findings or ""
+        addr_match = re.search(r'Adresa sídla:\s*(.+)', rpo_findings)
+        if addr_match:
+            addr = addr_match.group(1).strip()
+            parts = addr.split(',')
+            if parts:
+                last_part = parts[-1].strip()
+                city = re.sub(r'^\d{3}\s?\d{2}\s*', '', last_part).strip()
+                if city:
+                    company_city = city
+        vznik_match = re.search(r'Dátum vzniku:\s*(\d{1,2}\.\d{1,2}\.(\d{4})|\d{4})', rpo_findings)
+        if vznik_match:
+            year_str = vznik_match.group(2) if vznik_match.group(2) else vznik_match.group(1)
+            try:
+                company_founded_year = int(year_str)
+            except ValueError:
+                pass
+    # Fallback 1: Sídlo z ORSR
+    if not company_city and "ORSR" in source_map:
+        orsr_findings = source_map["ORSR"].findings or ""
+        addr_match = re.search(r'Sídlo:\s*(.*?)\n([^\n]+)', orsr_findings)
+        if addr_match:
+            line2 = addr_match.group(2).strip()
+            city_part = line2.split('-')[0].split(',')[0].strip()
+            city = re.sub(r'^\d{3}\s?\d{2}\s*', '', city_part)
+            city = re.sub(r'\s*\d{3}\s?\d{2}\s*$', '', city).strip()
+            if city:
+                company_city = city
+
+    # Fallback 2: mesto z company.name (formát "Firma s.r.o. (Bratislava)")
+    if not company_city and company.name:
+        name_city_match = re.search(r'\(([^)]+)\)', company.name)
+        if name_city_match:
+            company_city = name_city_match.group(1).strip()
+    if not company_city:
+        company_city = "Sídlo nezistené"
     grouped_sources = []
     rendered_types = set()
     for cat_name, types in SOURCE_CATEGORIES:
@@ -566,7 +740,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 z = item.get("zdroj", "")
                 if "profit_trend" in z: z = "Finančná analýza (Trend zisku)"
                 elif "ratios_by_year" in z: z = "Finančná analýza (Ukazovatele)"
-                elif "altman_z_scores" in z: z = "Finančná analýza (Altman Z'')"
+                elif "altman_z_scores" in z: z = "Finančná analýza (Altman Z″)"
                 elif "financialStatements" in z: z = "Účtovná závierka (RÚZ)"
                 elif "sp_dlznici" in z: z = "Sociálna poisťovňa (dlhy)"
                 elif "vszp_dlznici" in z or "union_dlznici" in z: z = "Zdravotné poisťovne (dlhy)"
@@ -617,12 +791,160 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     if is_financial_institution:
         altman_scores = []
     elif is_startup:
-        altman_scores = []  # Altman sa nezobrazí pre startupy — nahradené infoboxom
+        altman_scores = []
     else:
         altman_scores = sorted(
             [{"year": s.year, **compute_altman_z_score(s)} for s in (stmts or []) if s.year and s.year > 2000],
             key=lambda z: z["year"]
         )
+
+    # Piotroski F-score
+    sorted_stmts_raw = sorted(stmts or [], key=lambda s: s.year)
+    piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
+
+    # YoY rast tržieb a zisku
+    yoy_revenue_growth = None
+    yoy_profit_growth = None
+    if len(sorted_stmts_raw) >= 2:
+        curr = sorted_stmts_raw[-1]
+        prev = sorted_stmts_raw[-2]
+        curr_rev = getattr(curr, 'mainActivityRevenue', 0) or 0
+        prev_rev = getattr(prev, 'mainActivityRevenue', 0) or 0
+        curr_profit = getattr(curr, 'netProfitLoss', 0) or 0
+        prev_profit = getattr(prev, 'netProfitLoss', 0) or 0
+        if prev_rev > 0:
+            yoy_revenue_growth = round(((curr_rev - prev_rev) / prev_rev) * 100, 1)
+        if prev_profit != 0:
+            yoy_profit_growth = round(((curr_profit - prev_profit) / abs(prev_profit)) * 100, 1)
+
+    # Trend ratios pre všetky roky (pre trend graf)
+    trend_ratios = []
+    for s in sorted_stmts_raw:
+        r = compute_financial_ratios(s)
+        trend_ratios.append({
+            "year": s.year,
+            "roa_pct": r.get("roa_pct"),
+            "roe_pct": r.get("roe_pct"),
+            "net_profit_margin_pct": r.get("net_profit_margin_pct"),
+            "current_ratio": r.get("current_ratio"),
+            "debt_to_equity": r.get("debt_to_equity"),
+        })
+
+    # Trend graf pre ROA/ROE/maržu
+    ratios_chart_base64 = ""
+    if len(trend_ratios) >= 2:
+        ratios_chart_base64 = generate_ratios_trend_chart(trend_ratios)
+
+    # Radar chart pre 5 pilierov
+    radar_chart_base64 = ""
+    if scorecard_breakdown and len(scorecard_breakdown) >= 3:
+        radar_chart_base64 = generate_radar_chart(scorecard_breakdown)
+
+    # Auditor opinion info
+    auditor_opinion = None
+    if latest_stmt and getattr(latest_stmt, 'auditorOpinions', None):
+        for ao in latest_stmt.auditorOpinions:
+            auditor_opinion = {
+                "opinion_type": getattr(ao, 'opinionType', None),
+                "going_concern_risk": getattr(ao, 'goingConcernRisk', None),
+                "reservation_text": getattr(ao, 'reservationText', None),
+                "auditor_name": getattr(ao, 'auditorName', None),
+            }
+            break
+
+    # Gauge arc endpoint for cover page score gauge
+    score_val = verdict.verifaScore if verdict else 0
+    arc_angle = (score_val / 100.0) * 180
+    rad = (180 - arc_angle) * math.pi / 180.0
+    gx, gy, gr = 100, 100, 80
+    gauge_end_x = round(gx + gr * math.cos(rad), 2)
+    gauge_end_y = round(gy - gr * math.sin(rad), 2)
+    gauge_large_arc = 1 if arc_angle > 180 else 0
+
+    # Cash flow waterfall + debt donut + balance sheet infographic
+    cf_waterfall_base64 = generate_cashflow_waterfall(latest_stmt) if latest_stmt else ""
+    debt_donut_base64 = generate_debt_donut(latest_stmt) if latest_stmt else ""
+    bs_infographic_base64 = generate_balance_sheet_infographic(latest_stmt) if latest_stmt else ""
+    pl_infographic_base64 = generate_pl_infographic(latest_stmt) if latest_stmt else ""
+
+    # QR code for cover page
+    qr_base64 = ""
+    try:
+        import qrcode
+        qr = qrcode.QRCode(version=1, box_size=4, border=1)
+        qr.add_data(f"https://verifa.sk/reports/{company.ico}")
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color='#1e293b', back_color='white')
+        qr_buf = io.BytesIO()
+        qr_img.save(qr_buf, format='PNG')
+        qr_base64 = base64.b64encode(qr_buf.getvalue()).decode('utf-8')
+    except Exception:
+        pass
+
+    # ── Confidence score (Spoľahlivosť analýzy) ──
+    confidence_factors = []
+    confidence_score = 100
+
+    # 1. Audit (±15 bodov)
+    has_audit = bool(auditor_opinion)
+    if has_audit:
+        confidence_factors.append({"label": "Auditovaná závierka", "ok": True, "weight": 15})
+    else:
+        confidence_factors.append({"label": "Chýba audit", "ok": False, "weight": 15})
+        confidence_score -= 15
+
+    # 2. Úplnosť finančných výkazov (±20 bodov)
+    has_full_statements = bool(stmts) and len(stmts) >= 1
+    if has_full_statements:
+        confidence_factors.append({"label": "Účtovná závierka dostupná", "ok": True, "weight": 20})
+    else:
+        confidence_factors.append({"label": "Chýbajú účtovné výkazy", "ok": False, "weight": 20})
+        confidence_score -= 20
+
+    # 3. Dĺžka histórie (±20 bodov)
+    stmt_count = len(stmts) if stmts else 0
+    if stmt_count >= 5:
+        confidence_factors.append({"label": f"Dlhá história ({stmt_count} rokov dát)", "ok": True, "weight": 20})
+    elif stmt_count >= 2:
+        confidence_factors.append({"label": f"Stredná história ({stmt_count} roky dát)", "ok": True, "weight": 10})
+        confidence_score -= 10
+    elif stmt_count == 1:
+        confidence_factors.append({"label": "Krátká história (1 rok dát)", "ok": False, "weight": 20})
+        confidence_score -= 20
+    else:
+        confidence_factors.append({"label": "Žiadne finančné dáta", "ok": False, "weight": 20})
+        confidence_score -= 20
+
+    # 4. Pokrytie registrov (±25 bodov)
+    total_sources = sum(counts.values()) if counts else 0
+    failed_sources = counts.get("FAILED", 0) + counts.get("UNAVAILABLE", 0)
+    if total_sources > 0:
+        success_ratio = (total_sources - failed_sources) / total_sources
+        if success_ratio >= 0.9:
+            confidence_factors.append({"label": "Všetky registre dostupné", "ok": True, "weight": 25})
+        elif success_ratio >= 0.6:
+            confidence_factors.append({"label": f"Čiastočne dostupné registre ({int(success_ratio*100)}%)", "ok": True, "weight": 15})
+            confidence_score -= 10
+        else:
+            confidence_factors.append({"label": f"Obmedzené registre ({int(success_ratio*100)}%)", "ok": False, "weight": 25})
+            confidence_score -= 25
+    else:
+        confidence_factors.append({"label": "Žiadne zdroje dát", "ok": False, "weight": 25})
+        confidence_score -= 25
+
+    # 5. LLM analýza (±20 bodov)
+    llm_status = getattr(verdict, 'llmAnalysisStatus', None) if verdict else None
+    if llm_status and llm_status != 'FALLBACK_ALGORITHMIC':
+        confidence_factors.append({"label": "Systémová analýza dokončená", "ok": True, "weight": 20})
+    else:
+        confidence_factors.append({"label": "Systémová analýza nedostupná (fallback)", "ok": False, "weight": 20})
+        confidence_score -= 20
+
+    confidence_score = max(0, min(100, confidence_score))
+
+    # Valid until date (90 days from generation)
+    from datetime import datetime, timedelta
+    valid_until = (datetime.now() + timedelta(days=90)).strftime('%d.%m.%Y')
 
     return {
         "company": company,
@@ -658,7 +980,30 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "is_startup": is_startup,
         "startup_info": startup_info,
         "has_mixed_consolidation": has_mixed_consolidation,
-        "has_non_standard_months": has_non_standard_months
+        "has_non_standard_months": has_non_standard_months,
+        "has_short_history": has_short_history,
+        "piotroski_score": piotroski_result.get("score"),
+        "piotroski_flags": piotroski_result.get("flags", []),
+        "yoy_revenue_growth": yoy_revenue_growth,
+        "yoy_profit_growth": yoy_profit_growth,
+        "trend_ratios": trend_ratios,
+        "ratios_chart_base64": ratios_chart_base64,
+        "radar_chart_base64": radar_chart_base64,
+        "auditor_opinion": auditor_opinion,
+        "gauge_end_x": gauge_end_x,
+        "gauge_end_y": gauge_end_y,
+        "gauge_large_arc": gauge_large_arc,
+        "cf_waterfall_base64": cf_waterfall_base64,
+        "debt_donut_base64": debt_donut_base64,
+        "bs_infographic_base64": bs_infographic_base64,
+        "pl_infographic_base64": pl_infographic_base64,
+        "qr_base64": qr_base64,
+        "valid_until": valid_until,
+        "confidence_score": confidence_score,
+        "confidence_factors": confidence_factors,
+        "company_city": company_city,
+        "company_founded_year": company_founded_year,
+        "revenue_per_employee": revenue_per_employee,
     }
 
 def render_html_report(context: dict) -> str:
@@ -714,17 +1059,12 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
         except Exception:
             pass
         await page.emulate_media(media="print")
-        header_tpl = '<div></div>'
-        footer_tpl = f'<div style="font-size: 11px; color: #64748b; text-align: center; width: 100%; font-family: Inter, sans-serif; padding-bottom: 8px; border-top: 1px solid #e2e8f0; padding-top: 4px; margin: 0 12px;"><span style="font-weight: 600; color: #475569;">Verifa.sk</span> &nbsp;·&nbsp; IČO: {ico} &nbsp;·&nbsp; Informatívny dokument &nbsp;·&nbsp; Strana <span class="pageNumber"></span> / <span class="totalPages"></span></div>'
-        
         await page.pdf(
             path=pdf_path, 
             format="A4", 
-            margin={"top": "0mm", "bottom": "18mm", "left": "0mm", "right": "0mm"}, 
+            margin={"top": "12mm", "bottom": "18mm", "left": "0mm", "right": "0mm"}, 
             print_background=True,
-            display_header_footer=True,
-            header_template=header_tpl,
-            footer_template=footer_tpl,
+            display_header_footer=False,
             prefer_css_page_size=True,
         )
         await browser.close()
@@ -888,7 +1228,7 @@ th {{ text-align: left; padding: 6px 10px; color: #64748b; font-size: 11px; }}
 </table>
 
 {audit_text}
-<p class="note">Zdroj: Register účtovných závierok (registeruz.sk) — údaje extrahované z IFRS PDF závierky pomocou AI analýzy. Štruktúrované HTML tabuľky nie sú dostupné pre IFRS účtovné jednotky.</p>
+<p class="note">Zdroj: Register účtovných závierok (registeruz.sk) — údaje extrahované z IFRS PDF závierky pomocou automatizovanej analýzy textu. Štruktúrované HTML tabuľky nie sú dostupné pre IFRS účtovné jednotky.</p>
 <p class="note">EBITDA = Čistý zisk + Náklady na úroky + Odpisy. Zaokrúhlenie na celé tisíce môže spôsobiť drobné odchýlky vo výpočte.</p>
 </body></html>"""
 

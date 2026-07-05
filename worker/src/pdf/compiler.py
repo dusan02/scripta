@@ -42,14 +42,6 @@ _SOURCES_WITH_EMBEDDED_TITLE = frozenset({
     "RPO",
     "DISKVALIFIKACIE",
     "FINANCNA_SPRAVA",
-    "FS_DANOVE_SUBJEKTY",
-    "FS_DPH_REGISTROVANI",
-    "FS_DPH_RUSENIE",
-    "FS_DPH_VYMAZANI",
-    "FS_DPH_NADMERNY_ODPOCET",
-    "FS_DPH_BANKOVE_UCTY",
-    "FS_DAN_Z_PRIJMOV",
-    "FS_DAN_PRIJMOV_REG",
 })
 
 # Canonical order of sources for PDF compilation (matches cover page categories)
@@ -152,7 +144,7 @@ class PdfCompiler:
             start_pages_map['CASH_FLOW'] = cover_pages - 1
             start_pages_map['FINANCNY_POSUDOK'] = cover_pages
             
-            current = cover_pages + 1  # +1 za divider page
+            current = cover_pages + 2  # +1 za divider page, +1 za prvú stránu zdrojov
             for source in sources:
                 # FS informatívne zdroje — nikdy nezaradiť PDF stránu
                 if source.source_type in _FS_INFO_SOURCES:

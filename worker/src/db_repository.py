@@ -20,7 +20,7 @@ def get_db_lock():
 async def _fetch_nace_from_api(ico: str):
     """Získa NACE kód (napr. '64190') z verejnej API Registra UZ."""
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "Verifa.sk/1.0"}) as client:
             resp = await client.get(f"https://www.registeruz.sk/cruz-public/api/accountingentity?ico={ico}")
             if resp.status_code == 200:
                 data = resp.json()

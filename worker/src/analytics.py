@@ -306,6 +306,7 @@ class ScorecardResult:
     pillars: list  # list[ScorecardPillar]
     risk_category: str   # AAA / A / B / C
     hard_stop: bool = False  # True = konkurz / likvidácia
+    score_version: str = "v2"
 
 
 def _risk_category(score: int) -> str:
@@ -319,23 +320,142 @@ def _risk_category(score: int) -> str:
         return "C"
 
 
-def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardResult":
+
+def compute_piotroski_f_score(statements: list) -> dict:
     """
-    5-pilierový vážený scoring model (0–100).
+    Vypočíta Piotroski F-score na základe 8 kritérií (9. kritérium shares outstanding je vynechané).
+    Škála: 0-8.
+    Očakáva chronologicky zoradené statements.
+    """
+    if not statements or len(statements) < 2:
+        return {"score": None, "flags": ["Nedostatok dát pre Piotroski F-score (min. 2 roky)"]}
 
-    Piliere a váhy:
-      1. Platobná schopnosť & Exekúcie   — 30 bodov (30 %)
-      2. Finančné zdravie (Altman Z'')   — 25 bodov (25 %)
-      3. Ziskovosť & Stabilita           — 20 bodov (20 %)
-      4. Rast & Trendová sila            — 15 bodov (15 %)
-      5. Právna bezúhonnosť              — 10 bodov (10 %)
+    curr = statements[-1]
+    prev = statements[-2]
 
-    Inšpirované: S&P Rating Framework, Moody's Analytical Scorecard,
-                 Altman Z''-Score (1995) pre súkromné/ne-výrobné firmy.
+    c_net_profit = _get(curr, 'netProfitLoss', 0) or 0
+    c_assets = _get(curr, 'totalAssets', 0) or 0
+    p_net_profit = _get(prev, 'netProfitLoss', 0) or 0
+    p_assets = _get(prev, 'totalAssets', 0) or 0
+    c_cf = _get(curr, 'operatingCashFlow', None)
+    c_cf = c_cf if c_cf is not None else 0
+
+    c_long_debt = _get(curr, 'longTermLiabilities', 0) or 0
+    p_long_debt = _get(prev, 'longTermLiabilities', 0) or 0
+
+    c_curr_assets = _get(curr, 'currentAssets', 0) or 0
+    c_curr_liab = _get(curr, 'shortTermLiabilities', 0) or 0
+    p_curr_assets = _get(prev, 'currentAssets', 0) or 0
+    p_curr_liab = _get(prev, 'shortTermLiabilities', 0) or 0
+
+    c_gross = _get(curr, 'grossProfit', 0) or 0
+    c_rev = _get(curr, 'mainActivityRevenue', 0) or 0
+    p_gross = _get(prev, 'grossProfit', 0) or 0
+    p_rev = _get(prev, 'mainActivityRevenue', 0) or 0
+
+    score = 0
+
+    # 1. ROA > 0
+    c_roa = c_net_profit / c_assets if c_assets > 0 else 0
+    if c_roa > 0: score += 1
+
+    # 2. CFO > 0
+    if c_cf > 0: score += 1
+
+    # 3. dROA > 0
+    p_roa = p_net_profit / p_assets if p_assets > 0 else 0
+    if c_roa > p_roa: score += 1
+
+    # 4. CFO > Net Income
+    if c_cf > c_net_profit: score += 1
+
+    # 5. dLeverage < 0
+    c_lev = c_long_debt / c_assets if c_assets > 0 else 0
+    p_lev = p_long_debt / p_assets if p_assets > 0 else 0
+    if c_lev < p_lev: score += 1
+
+    # 6. dLiquidity > 0
+    c_cr = c_curr_assets / c_curr_liab if c_curr_liab > 0 else 0
+    p_cr = p_curr_assets / p_curr_liab if p_curr_liab > 0 else 0
+    if c_cr > p_cr: score += 1
+
+    # 7. dMargin > 0
+    c_gm = c_gross / c_rev if c_rev > 0 else 0
+    p_gm = p_gross / p_rev if p_rev > 0 else 0
+    if c_gm > p_gm: score += 1
+
+    # 8. dTurnover > 0
+    c_at = c_rev / c_assets if c_assets > 0 else 0
+    p_at = p_rev / p_assets if p_assets > 0 else 0
+    if c_at > p_at: score += 1
+
+    return {"score": score, "flags": [f"Piotroski F-score: {score}/8"]}
+
+def get_nace_weights(nace_code: str) -> dict:
+    prefix = nace_code[:2] if nace_code else ""
+    # Výroba
+    if prefix in [str(i) for i in range(10, 34)]:
+        return {"P1": 20, "P2": 30, "P3": 25, "P4": 15, "P5": 10}
+    # Stavebníctvo
+    if prefix in ["41", "42", "43"]:
+        return {"P1": 25, "P2": 25, "P3": 15, "P4": 15, "P5": 20}
+    # Veľkoobchod, Maloobchod
+    if prefix in ["46", "47"]:
+        return {"P1": 25, "P2": 20, "P3": 20, "P4": 15, "P5": 20}
+    # Doprava
+    if prefix in ["49", "50", "51", "52", "53"]:
+        return {"P1": 20, "P2": 25, "P3": 25, "P4": 15, "P5": 15}
+    # IT služby
+    if prefix in ["62", "63"]:
+        return {"P1": 20, "P2": 20, "P3": 30, "P4": 20, "P5": 10}
+    # Poľnohospodárstvo
+    if prefix in ["01", "02", "03"]:
+        return {"P1": 25, "P2": 25, "P3": 20, "P4": 15, "P5": 15}
+    # Ubytovanie/reštaurácie
+    if prefix in ["55", "56"]:
+        return {"P1": 25, "P2": 20, "P3": 20, "P4": 15, "P5": 20}
+    
+    return {"P1": 30, "P2": 25, "P3": 20, "P4": 15, "P5": 10}
+
+def compute_vestnik_degradation(event, current_date=None) -> float:
+    import datetime
+    if current_date is None:
+        current_date = datetime.datetime.now(datetime.timezone.utc)
+    
+    pub_at = _get(event, "publishedAt")
+    if not pub_at:
+        return 1.0
+        
+    if isinstance(pub_at, str):
+        try:
+            pub_at = datetime.datetime.fromisoformat(pub_at.replace("Z", "+00:00"))
+        except:
+            return 1.0
+            
+    if getattr(pub_at, "tzinfo", None) is None:
+        pub_at = pub_at.replace(tzinfo=datetime.timezone.utc)
+        
+    diff_days = (current_date - pub_at).days
+    
+    if diff_days <= 365:
+        return 1.0
+    elif diff_days <= 3*365:
+        return 0.7
+    elif diff_days <= 5*365:
+        return 0.4
+    else:
+        return 0.1
+
+def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardResult":
+
+    """
+    5-pilierový vážený scoring model (0–100) V2.
     """
     pillars = []
-
+    
     vestnik_events = company_dict.get("vestnikEvents", [])
+    nace_code = company_dict.get("naceCode", "") or ""
+    nace_w = get_nace_weights(nace_code)
 
     # ── HARD STOP: Konkurz / Likvidácia ───────────────────────────────────────
     for event in vestnik_events:
@@ -349,11 +469,11 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         if any(kw in event_type_norm for kw in ("konkurz", "likvidáci", "reštrukturalizáci")):
             pillars.append(ScorecardPillar(
                 name="Platobná schopnosť & Exekúcie",
-                score=0, max_score=30,
+                score=0, max_score=nace_w["P1"],
                 detail="HARD STOP — Firma je v konkurze, likvidácii alebo reštrukturalizácii.",
                 flags=["Konkurz / Likvidácia / Reštrukturalizácia"]
             ))
-            return ScorecardResult(total_score=0, pillars=pillars, risk_category="C", hard_stop=True)
+            return ScorecardResult(total_score=0, pillars=pillars, risk_category="C", hard_stop=True, score_version="v2")
 
     # ── Startup detekcia ─────────────────────────────────────────────────────
     stmts_raw = company_dict.get("financialStatements", [])
@@ -364,10 +484,6 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     last_z = (trends.get("altman_z_scores") or [{}])[-1]
     consecutive_losses = trends.get("consecutive_losses", 0)
 
-    # ── Data availability check ──────────────────────────────────────────────
-    # Ak je väčšina kľúčových finančných metrík None (napr. RÚZ PDF sken bez textu),
-    # finančné piliere dostanú 0 bodov namiesto polovičných — je forenzne nekonzistentné
-    # udeliť 11/25 bodov za "N/A".
     _KEY_METRICS = ["totalAssets", "equity", "netProfitLoss", "shortTermLiabilities", "mainActivityRevenue"]
     if sorted_stmts_raw:
         last_stmt = sorted_stmts_raw[-1]
@@ -375,394 +491,311 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         data_availability_pct = available / len(_KEY_METRICS)
     else:
         data_availability_pct = 0.0
-    data_void = data_availability_pct < 0.3  # menej ako 30 % kľúčových metrík
+    data_void = data_availability_pct < 0.3
+
+    # Piotroski F-score
+    piotroski = compute_piotroski_f_score(sorted_stmts_raw)
+
+    # DATA QUALITY MULTIPLIER (DQ)
+    dq_mult = 1.0
+    if len(sorted_stmts_raw) >= 5: dq_mult = 1.0
+    elif len(sorted_stmts_raw) >= 3: dq_mult = 0.9
+    elif len(sorted_stmts_raw) >= 1: dq_mult = 0.7
+    else: dq_mult = 0.5
+    
+    if startup_info.get("is_startup"):
+        dq_mult = max(dq_mult, 0.8)
+        
+    has_audit = False
+    for stmt in reversed(sorted_stmts_raw):
+        op = getattr(stmt, "auditorOpinion", None) or (stmt.get("auditorOpinion") if isinstance(stmt, dict) else None)
+        if op:
+            has_audit = True
+            break
+    if not has_audit and len(sorted_stmts_raw) > 0:
+        dq_mult *= 0.85
 
     # ══════════════════════════════════════════════════════════════════════════
-    # PILIER 1 — Platobná schopnosť & Exekúcie (max 30 bodov)
+    # PILIER 1 — Platobná schopnosť & Exekúcie (raw max 30)
     # ══════════════════════════════════════════════════════════════════════════
-    p1_score = 0
+    p1_raw = 0
     p1_flags = []
 
-    # 1a. Current Ratio (max 10 bodov)
     cr = last_ratios.get("current_ratio")
     if cr is None:
-        p1_score += 5
+        p1_raw += 5
         p1_flags.append("Current ratio: N/A (bez dát)")
     elif cr >= 1.5:
-        p1_score += 10
+        p1_raw += 10
         p1_flags.append(f"Current ratio: {cr:.2f} — výborná likvidita (≥1.5)")
     elif cr >= 1.0:
-        p1_score += 7
+        p1_raw += 7
         p1_flags.append(f"Current ratio: {cr:.2f} — dostatočná likvidita (1.0–1.5)")
     elif cr >= 0.5:
-        p1_score += 3
+        p1_raw += 3
         p1_flags.append(f"Current ratio: {cr:.2f} — problematická likvidita (0.5–1.0)")
     else:
-        p1_score += 0
         p1_flags.append(f"Current ratio: {cr:.2f} — kritická likvidita (<0.5)")
 
-    # 1b. Vlastné imanie — nie záporné (max 10 bodov)
     equity_to_debt = last_z.get("components", {}).get("x4_equity_to_debt", None)
     if equity_to_debt is None:
-        p1_score += 5
+        p1_raw += 5
         p1_flags.append("Vlastné imanie: N/A")
     elif equity_to_debt > 0:
-        p1_score += 10
+        p1_raw += 10
         p1_flags.append(f"Vlastné imanie: kladné (E/D = {equity_to_debt:.2f})")
     else:
-        p1_score += 0
         p1_flags.append(f"Vlastné imanie: ZÁPORNÉ (E/D = {equity_to_debt:.2f}) — predĺženie")
 
-    # 1c. Absencia exekúcií/dlhov vo Vestníku (max 10 bodov)
-    critical_events = [
-        e for e in vestnik_events
-        if (e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "")) in ("CRITICAL", "HIGH")
-    ]
-    if not critical_events:
-        p1_score += 10
+    # Exekúcie degradované
+    crit_events_penalty = 0
+    for e in vestnik_events:
+        sev = e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "")
+        if sev in ("CRITICAL", "HIGH"):
+            crit_events_penalty += compute_vestnik_degradation(e)
+            
+    if crit_events_penalty == 0:
+        p1_raw += 10
         p1_flags.append("Vestník: žiadne kritické udalosti")
-    elif len(critical_events) == 1:
-        p1_score += 4
-        p1_flags.append(f"Vestník: 1 kritická/vysoká udalosť")
+    elif crit_events_penalty < 1.0:
+        p1_raw += 4
+        p1_flags.append("Vestník: staré kritické/vysoké udalosti (znížená váha)")
     else:
-        p1_score += 0
-        p1_flags.append(f"Vestník: {len(critical_events)} kritických/vysokých udalostí")
+        p1_flags.append(f"Vestník: aktívne kritické/vysoké udalosti (penalizácia {crit_events_penalty:.1f}x)")
 
-    p1_score = max(0, min(30, p1_score))
-    p1_detail = " | ".join(p1_flags[:2])  # Skrátený popis pre tabuľku
+    p1_raw = max(0, min(30, p1_raw))
+    p1_score = int(round((p1_raw / 30.0) * nace_w["P1"]))
     pillars.append(ScorecardPillar(
         name="Platobná schopnosť & Exekúcie",
-        score=p1_score, max_score=30,
-        detail=p1_detail, flags=p1_flags
+        score=p1_score, max_score=nace_w["P1"],
+        detail=" | ".join(p1_flags[:2]) if p1_flags else "", flags=p1_flags
     ))
 
     # ══════════════════════════════════════════════════════════════════════════
-    # PILIER 2 — Finančné zdravie — Altman Z'' & Debt/Equity (max 25 bodov)
+    # PILIER 2 — Finančné zdravie — Altman Z'' & Piotroski (raw max 30)
     # ══════════════════════════════════════════════════════════════════════════
-    p2_score = 0
+    p2_raw = 0
     p2_flags = []
 
     z_score_val = last_z.get("z_score")
     z_zone = last_z.get("zone", "N/A")
 
     if startup_info.get("is_startup"):
-        # Pre startupy Altman Z-Score nie je spoľahlivý — nahradíme equity-based scoring
-        p2_score += 15  # Solídny základ — firma má kapitál
+        p2_raw += 15
         eq = startup_info.get("equity", 0)
         p2_flags.append(f"STARTUP profil: Altman Z'' neaplikovateľné (pre-revenue firma s imaním {eq:,.0f} €)".replace(",", " "))
-        p2_flags.append("Hodnotenie založené na kapitálovej primeranosti, nie na ziskovosti")
-
-        # 2b. Debt-to-Equity (max 3 body) — stále relevantné
-        de = last_ratios.get("debt_to_equity")
-        if de is not None:
-            if de < 1.0:
-                p2_score += 3
-                p2_flags.append(f"D/E = {de:.2f} — nízke zadlženie")
-            elif de <= 2.0:
-                p2_score += 1
-                p2_flags.append(f"D/E = {de:.2f} — mierne zadlženie")
-            else:
-                p2_flags.append(f"D/E = {de:.2f} — vysoké zadlženie")
     elif data_void:
-        p2_score = 0
-        p2_flags.append("DATA VOID: Kľúčové finančné metriky nedostupné — pilier nehodnotený")
-        p2_flags.append(f"Dostupnosť dát: {data_availability_pct:.0%} (minimum 30%)")
+        p2_raw = 0
+        p2_flags.append("DATA VOID: Kľúčové finančné metriky nedostupné")
     else:
-        # 2a. Altman Z''-score (max 22 bodov)
+        # Altman Z'' (max 20 raw)
         if z_score_val is None:
-            p2_score += 5  # Nízke — chýbajú dáta, ale nie úplny void
-            p2_flags.append("Altman Z'': N/A (chýbajú fin. výkazy)")
+            p2_raw += 5
+            p2_flags.append("Altman Z'': N/A")
         elif z_zone == "SAFE":
-            # Lineárna škála v rámci SAFE zóny: Z=2.6 → 17, Z≥5.0 → 22
-            safe_pts = int(min(22, 17 + (z_score_val - 2.6) / (5.0 - 2.6) * 5))
-            p2_score += safe_pts
+            p2_raw += min(20, int(15 + (z_score_val - 2.6) / (5.0 - 2.6) * 5))
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Bezpečná zóna ✓")
         elif z_zone == "GREY":
-            # Lineárna škála 1.1–2.6: → 8–16 bodov
-            grey_pts = min(16, int(8 + (z_score_val - 1.1) / (2.6 - 1.1) * 9))
-            p2_score += grey_pts
+            p2_raw += min(14, int(7 + (z_score_val - 1.1) / (2.6 - 1.1) * 7))
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Šedá zóna ⚠")
-        else:  # DISTRESS
-            p2_score += max(0, min(4, int((z_score_val / 1.1) * 4))) if z_score_val is not None else 0
-            p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna (spoločnosť je pod finančným stresom) ✗")
-
-        # 2b. Debt-to-Equity (max 3 body)
-        de = last_ratios.get("debt_to_equity")
-        if de is not None:
-            if de < 1.0:
-                p2_score += 3
-                p2_flags.append(f"D/E = {de:.2f} — nízke zadlženie")
-            elif de <= 2.0:
-                p2_score += 1
-                p2_flags.append(f"D/E = {de:.2f} — mierne zadlženie")
-            else:
-                p2_flags.append(f"D/E = {de:.2f} — vysoké zadlženie")
-
-    p2_score = max(0, min(25, p2_score))
-    p2_detail = " | ".join(p2_flags[:2])
-    pillars.append(ScorecardPillar(
-        name="Finančné zdravie (Altman Z'')",
-        score=p2_score, max_score=25,
-        detail=p2_detail, flags=p2_flags
-    ))
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # PILIER 3 — Ziskovosť & Stabilita (max 20 bodov)
-    # ══════════════════════════════════════════════════════════════════════════
-    p3_score = 0
-    p3_flags = []
-
-    stmts = company_dict.get("financialStatements", [])
-    sorted_stmts = sorted(stmts, key=lambda x: x.year if hasattr(x, "year") else x.get("year", 0))
-    n_years = len(sorted_stmts)
-
-    profitable_years = 0  # default pre pripad n_years == 0 (ochrana pred NameError)
-    if n_years == 0:
-        p3_score = 0 if data_void else 10  # Bez dát = 0, nová firma = stred
-        p3_flags.append("DATA VOID: Žiadne využiteľné finančné výkazy" if data_void else "Žiadne finančné výkazy — nová firma alebo bez dát")
-    else:
-        # 3a. Počet ziskových rokov (max 14b — rezerva pre marža 4b + ROA 2b = 20b celkom)
-        profitable_years = sum(
-            1 for s in sorted_stmts
-            if ((s.netProfitLoss if hasattr(s, "netProfitLoss") else s.get("netProfitLoss")) or 0) > 0
-        )
-        if profitable_years >= 5:
-            p3_score += 14
-            p3_flags.append(f"Ziskovosť: {profitable_years}/{n_years} rokov v zisku (5+)")
-        elif profitable_years >= 3:
-            p3_score += 10
-            p3_flags.append(f"Ziskovosť: {profitable_years}/{n_years} rokov v zisku (3–4)")
-        elif profitable_years >= 1:
-            p3_score += 5
-            p3_flags.append(f"Ziskovosť: {profitable_years}/{n_years} rokov v zisku")
         else:
-            p3_score += 0
-            p3_flags.append(f"Ziskovosť: 0/{n_years} rokov — žiadny ziskový rok")
+            p2_raw += max(0, min(4, int((z_score_val / 1.1) * 4))) if z_score_val is not None else 0
+            p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna ✗")
 
+        # Piotroski F-score (max 10 raw)
+        pio_score = piotroski.get("score")
+        if pio_score is not None:
+            p2_raw += min(10, int((pio_score / 8.0) * 10))
+            p2_flags.extend(piotroski.get("flags", []))
+        else:
+            p2_flags.append("Piotroski F-score: N/A")
 
-        # 3b. Penalizácia za po sebe idúce straty
-        if consecutive_losses >= 3:
-            penalty = min(10, consecutive_losses * 3)
-            p3_score = max(0, p3_score - penalty)
-            p3_flags.append(f"Penalizácia: {consecutive_losses} roky po sebe strata (−{penalty} bodov)")
-        elif consecutive_losses >= 1:
-            p3_score = max(0, p3_score - consecutive_losses * 2)
-            p3_flags.append(f"Posledný rok strata (−{consecutive_losses * 2} bodov)")
-
-        # 3c. Čistá marža bonusy (max +4 body)
-        npm = last_ratios.get("net_profit_margin_pct")
-        if npm is not None:
-            if npm >= 15:
-                p3_score += 4
-                p3_flags.append(f"Čistá marža: {npm:.1f}% — výborná (≥15%)")
-            elif npm >= 7:
-                p3_score += 2
-                p3_flags.append(f"Čistá marža: {npm:.1f}% — dobrá (7–15%)")
-            elif npm > 0:
-                p3_flags.append(f"Čistá marža: {npm:.1f}% — nízka (>0%)")
-            else:
-                p3_flags.append(f"Čistá marža: {npm:.1f}% — záporná")
-
-        # 3d. ROA bonus (max +2 body) — pridané: predtým nevyužité
-        roa = last_ratios.get("roa_pct")
-        if roa is not None:
-            if roa >= 10:
-                p3_score += 2
-                p3_flags.append(f"ROA: {roa:.1f}% — výborná (≥10%)")
-            elif roa >= 5:
-                p3_score += 1
-                p3_flags.append(f"ROA: {roa:.1f}% — dobrá (≥5%)")
-
-        # 3e. CF/Profit divergencia — červená vlajka pre tunelovanie
-        cf_ratio = last_ratios.get("cashflow_to_profit")
-        # Používame 'profitable_years' z tohto bloku — je definované vyššie v torný else bloku
-        if cf_ratio is not None and profitable_years > 0:
-            if cf_ratio < 0:
-                p3_score = max(0, p3_score - 3)
-                p3_flags.append(f"⚠ CF/Zisk divergencia: {cf_ratio:.2f} — záporný CF pri kladnom zisku (riziko tunelovania)")
-            elif cf_ratio < 0.5:
-                p3_score = max(0, p3_score - 1)
-                p3_flags.append(f"CF/Zisk: {cf_ratio:.2f} — nízka CF konverzia")
-
-    p3_score = max(0, min(20, p3_score))
-    p3_detail = " | ".join(p3_flags[:2])
+    p2_raw = max(0, min(30, p2_raw))
+    p2_score = int(round((p2_raw / 30.0) * nace_w["P2"]))
     pillars.append(ScorecardPillar(
-        name="Ziskovosť & Stabilita",
-        score=p3_score, max_score=20,
-        detail=p3_detail, flags=p3_flags
+        name="Finančné zdravie",
+        score=p2_score, max_score=nace_w["P2"],
+        detail=" | ".join(p2_flags[:2]) if p2_flags else "", flags=p2_flags
     ))
 
     # ══════════════════════════════════════════════════════════════════════════
-    # PILIER 4 — Rast & Trendová sila (max 15 bodov)
+    # PILIER 3 — Ziskovosť & Stabilita & CF (raw max 30)
     # ══════════════════════════════════════════════════════════════════════════
-    p4_score = 0
-    p4_flags = []
+    p3_raw = 0
+    p3_flags = []
+    n_years = len(sorted_stmts_raw)
+    
+    if n_years == 0:
+        p3_raw = 0 if data_void else 15
+        p3_flags.append("DATA VOID" if data_void else "Nová firma / chýbajúce výkazy")
+    else:
+        # Ziskovosť (max 10)
+        profitable_years = sum(
+            1 for s in sorted_stmts_raw
+            if ((getattr(s, "netProfitLoss", 0) if hasattr(s, "netProfitLoss") else s.get("netProfitLoss", 0)) or 0) > 0
+        )
+        if profitable_years >= 5: p3_raw += 10
+        elif profitable_years >= 3: p3_raw += 7
+        elif profitable_years >= 1: p3_raw += 4
+        
+        p3_flags.append(f"Ziskovosť: {profitable_years}/{n_years} rokov v zisku")
 
+        # Marža a ROA (max 5)
+        npm = last_ratios.get("net_profit_margin_pct")
+        if npm is not None and npm >= 10: p3_raw += 3
+        roa = last_ratios.get("roa_pct")
+        if roa is not None and roa >= 5: p3_raw += 2
+
+        if consecutive_losses >= 3:
+            p3_raw = max(0, p3_raw - min(10, consecutive_losses * 3))
+            p3_flags.append(f"Penalizácia: {consecutive_losses} roky strata")
+
+        # Cash Flow (max 15)
+        op_cf_raw = _get(sorted_stmts_raw[-1], "operatingCashFlow", None)
+        rev = _get(sorted_stmts_raw[-1], "mainActivityRevenue", 0) or 0
+        if op_cf_raw is not None:
+            op_cf = op_cf_raw
+            if op_cf > 0:
+                p3_raw += 7
+                if rev > 0 and (op_cf / rev) > 0.10:
+                    p3_raw += 8
+                    p3_flags.append(f"Cash Flow: Silný (CF/Rev > 10%)")
+                else:
+                    p3_flags.append(f"Cash Flow: Kladný")
+            else:
+                p3_flags.append(f"Cash Flow: Záporný (riziko)")
+        else:
+            p3_raw += 7
+            p3_flags.append("Cash Flow: N/A")
+            
+        cf_ratio = last_ratios.get("cashflow_to_profit")
+        if cf_ratio is not None and profitable_years > 0 and cf_ratio < 0:
+            p3_raw = max(0, p3_raw - 5)
+            p3_flags.append(f"⚠ Divergencia CF/Zisk: Záporný CF pri zisku")
+
+    p3_raw = max(0, min(30, p3_raw))
+    p3_score = int(round((p3_raw / 30.0) * nace_w["P3"]))
+    pillars.append(ScorecardPillar(
+        name="Ziskovosť, Stabilita a Cash Flow",
+        score=p3_score, max_score=nace_w["P3"],
+        detail=" | ".join(p3_flags[:2]) if p3_flags else "", flags=p3_flags
+    ))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PILIER 4 — Rast & Trendová sila (raw max 15)
+    # ══════════════════════════════════════════════════════════════════════════
+    p4_raw = 0
+    p4_flags = []
+    
     cagr = trends.get("cagr_revenue")
     if cagr is None:
-        if data_void:
-            p4_score = 0
-            p4_flags.append("DATA VOID: CAGR tržieb nedostupný")
-        else:
-            p4_score += 5  # Nízke — chýba CAGR ale nie úplny void
-            p4_flags.append("CAGR tržieb: N/A")
-    elif cagr >= 15:
-        p4_score += 15
-        p4_flags.append(f"CAGR tržieb: +{cagr:.1f}% — silný rast (≥15%)")
-    elif cagr >= 10:
-        p4_score += 12
-        p4_flags.append(f"CAGR tržieb: +{cagr:.1f}% — dobrý rast (10–15%)")
-    elif cagr >= 5:
-        p4_score += 9
-        p4_flags.append(f"CAGR tržieb: +{cagr:.1f}% — mierny rast (5–10%)")
-    elif cagr >= 0:
-        p4_score += 5
-        p4_flags.append(f"CAGR tržieb: +{cagr:.1f}% — stagnácia (0–5%)")
-    else:
-        p4_score += max(0, int(5 + cagr / 5))  # Postupne klesá pod 0
-        p4_flags.append(f"CAGR tržieb: {cagr:.1f}% — pokles tržieb")
+        p4_raw = 0 if data_void else 5
+        p4_flags.append("CAGR tržieb: N/A")
+    elif cagr >= 15: p4_raw += 15; p4_flags.append(f"CAGR: +{cagr:.1f}%")
+    elif cagr >= 10: p4_raw += 12; p4_flags.append(f"CAGR: +{cagr:.1f}%")
+    elif cagr >= 5: p4_raw += 9; p4_flags.append(f"CAGR: +{cagr:.1f}%")
+    elif cagr >= 0: p4_raw += 5; p4_flags.append(f"CAGR: stagnácia")
+    else: p4_raw += max(0, int(5 + cagr/5)); p4_flags.append(f"CAGR: pokles")
 
-    # 4b. Rast vlastného imania (bonus +2)
     equity_trend = trends.get("equity_trend", [])
     if equity_trend:
         last_eq_change = equity_trend[-1].get("yoy_pct")
         if last_eq_change is not None and last_eq_change > 5:
-            p4_score += 2
+            p4_raw = min(15, p4_raw + 2)
             p4_flags.append(f"Vlastné imanie rastie YoY: +{last_eq_change:.1f}%")
 
-    # 4c. Pokles tržieb 3 roky po sebe (penalizácia)
     rev_trend = trends.get("revenue_trend", [])
     if len(rev_trend) >= 3:
         last3 = [r.get("growth_percent", 0) for r in rev_trend[-3:]]
         if all(g < 0 for g in last3):
-            p4_score = max(0, p4_score - 4)
+            p4_raw = max(0, p4_raw - 4)
             p4_flags.append("Tržby klesajú 3 roky po sebe (−4 body)")
 
-    p4_score = max(0, min(15, p4_score))
-    p4_detail = " | ".join(p4_flags[:2])
+    p4_raw = max(0, min(15, p4_raw))
+    p4_score = int(round((p4_raw / 15.0) * nace_w["P4"]))
     pillars.append(ScorecardPillar(
         name="Rast & Trendová sila",
-        score=p4_score, max_score=15,
-        detail=p4_detail, flags=p4_flags
+        score=p4_score, max_score=nace_w["P4"],
+        detail=" | ".join(p4_flags[:2]) if p4_flags else "", flags=p4_flags
     ))
 
     # ══════════════════════════════════════════════════════════════════════════
-    # PILIER 5 — Právna bezúhonnosť (max 10 bodov)
+    # PILIER 5 — Právna bezúhonnosť (raw max 10)
     # ══════════════════════════════════════════════════════════════════════════
-    p5_score = 0
+    p5_raw = 10
     p5_flags = []
 
-    severity_levels = [
-        (e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "LOW"))
-        for e in vestnik_events
-    ]
+    pen_critical = 0
+    pen_high = 0
+    pen_med = 0
 
-    critical_count = severity_levels.count("CRITICAL")
-    high_count = severity_levels.count("HIGH")
-    medium_count = severity_levels.count("MEDIUM")
+    for e in vestnik_events:
+        sev = e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "LOW")
+        deg = compute_vestnik_degradation(e)
+        if sev == "CRITICAL": pen_critical += 10 * deg
+        elif sev == "HIGH": pen_high += 4 * deg
+        elif sev == "MEDIUM": pen_med += 2 * deg
 
-    if critical_count > 0:
-        p5_score = 0
-        p5_flags.append(f"{critical_count} KRITICKÉ udalosti vo Vestníku")
-    elif high_count > 0:
-        p5_score = max(0, 6 - high_count)
-        p5_flags.append(f"{high_count} VYSOKÉ udalosti vo Vestníku")
-    elif medium_count > 0:
-        p5_score = 8
-        p5_flags.append(f"{medium_count} STREDNÉ udalosti vo Vestníku")
+    if pen_critical >= 5:
+        p5_raw = 0
+        p5_flags.append("KRITICKÉ udalosti vo Vestníku")
+    elif pen_high >= 2:
+        p5_raw = max(0, 6 - int(pen_high))
+        p5_flags.append("VYSOKÉ udalosti vo Vestníku")
+    elif pen_med >= 1:
+        p5_raw = max(0, 8 - int(pen_med))
+        p5_flags.append("STREDNÉ udalosti vo Vestníku")
     elif vestnik_events:
-        p5_score = 9
+        p5_raw = 9
         p5_flags.append("Len nízko-rizikové záznamy vo Vestníku")
     else:
-        p5_score = 10
         p5_flags.append("Bez záznamu v Obchodnom vestníku ✓")
 
-    # Bonus: audítorský posudok bez výhrad
-    for stmt in reversed(sorted_stmts):
-        opinion = stmt.auditorOpinion if hasattr(stmt, "auditorOpinion") else stmt.get("auditorOpinion")
-        if opinion:
-            op_type = (
-                opinion.opinionType if hasattr(opinion, "opinionType")
-                else opinion.get("opinionType", "")
-            ) or ""
-            if "bez výhrad" in op_type.lower():
-                p5_flags.append("Audítorský posudok: bez výhrad ✓")
-            else:
-                p5_score = max(0, p5_score - 3)
-                p5_flags.append(f"Audítorský posudok: {op_type} (−3 body)")
+    for stmt in reversed(sorted_stmts_raw):
+        op = getattr(stmt, "auditorOpinion", None) or (stmt.get("auditorOpinion") if isinstance(stmt, dict) else {})
+        op_type = getattr(op, "opinionType", "") or (op.get("opinionType", "") if isinstance(op, dict) else "")
+        if op_type:
+            if "bez výhrad" in op_type.lower(): p5_flags.append("Audítorský posudok: bez výhrad ✓")
+            else: p5_raw = max(0, p5_raw - 3); p5_flags.append(f"Audítorský posudok: {op_type} (−3b)")
             break
 
-    p5_score = max(0, min(10, p5_score))
-    p5_detail = " | ".join(p5_flags[:2])
+    p5_raw = max(0, min(10, p5_raw))
+    p5_score = int(round((p5_raw / 10.0) * nace_w["P5"]))
     pillars.append(ScorecardPillar(
         name="Právna bezúhonnosť",
-        score=p5_score, max_score=10,
-        detail=p5_detail, flags=p5_flags
+        score=p5_score, max_score=nace_w["P5"],
+        detail=" | ".join(p5_flags[:2]) if p5_flags else "", flags=p5_flags
     ))
 
-    # ── Finálny súčet ────────────────────────────────────────────────────────
-    total_score = max(0, p1_score + p2_score + p3_score + p4_score + p5_score)
+    # ── Finálny súčet a úpravy ──────────────────────────────────────────────
+    total_score = p1_score + p2_score + p3_score + p4_score + p5_score
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # PENALIZÁCIA: BIELY KÔŇ
-    # ══════════════════════════════════════════════════════════════════════════
-    financial_statements = company_dict.get("financialStatements", [])
-    if financial_statements:
-        def _get_year(stmt):
-            if hasattr(stmt, "year"):
-                return getattr(stmt, "year")
-            if isinstance(stmt, dict):
-                return stmt.get("year", 0)
-            return 0
-            
-        sorted_statements = sorted(financial_statements, key=_get_year)
-        
-        wh = compute_white_horse_indicator(sorted_statements)
-        
+    if financial_statements := company_dict.get("financialStatements", []):
+        def _get_year(s): return getattr(s, "year", 0) or (s.get("year", 0) if isinstance(s, dict) else 0)
+        wh = compute_white_horse_indicator(sorted(financial_statements, key=_get_year))
         if wh["penalty"] > 0:
             pillars.append(ScorecardPillar(
-                name="Forenzný indikátor: Biely Kôň",
-                score=-wh["penalty"], max_score=0,
-                detail="Boli detekované kritické znaky schránkovej firmy alebo fiktívneho účtovníctva.",
-                flags=wh["flags"]
+                name="Forenzný indikátor: Biely Kôň", score=-wh["penalty"], max_score=0,
+                detail="Boli detekované kritické znaky schránkovej firmy.", flags=wh["flags"]
             ))
             total_score = max(0, total_score - wh["penalty"])
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # NACE-AWARE SECTOR ADJUSTMENT
-    # Niektoré odvetvia majú štrukturálne nízke marže a vysoké zadlženie, čo
-    # Altman Z-score a D/E penalizujú, hoci firma je zdravá pre svoj segment.
-    # ══════════════════════════════════════════════════════════════════════════
-    nace_code = company_dict.get("naceCode", "") or ""
-    sector_flags = []
-    sector_bonus = 0
-
-    if nace_code.startswith("46"):
-        # Veľkoobchod (Wholesale) — vysoký obrat, nízka marža, vysoké záväzky z obch. styku
-        sector_bonus = min(10, max(0, 10 - (total_score // 10)))
-        sector_flags.append(f"Sektorový bonus (+{sector_bonus}b): Veľkoobchod (NACE {nace_code}) — nízke marže a vysoké D/E sú štandardom v tomto segmente")
-    elif nace_code.startswith("47"):
-        # Maloobchod (Retail) — podobný profil ako veľkoobchod
-        sector_bonus = min(7, max(0, 7 - (total_score // 10)))
-        sector_flags.append(f"Sektorový bonus (+{sector_bonus}b): Maloobchod (NACE {nace_code}) — nízke marže a vysoké D/E sú štandardom v tomto segmente")
-
-    if sector_bonus > 0:
-        total_score = min(100, total_score + sector_bonus)
+    if dq_mult < 1.0:
         pillars.append(ScorecardPillar(
-            name="Sektorová korekcia (NACE)",
-            score=sector_bonus, max_score=0,
-            detail=sector_flags[0],
-            flags=sector_flags
+            name="Data Quality Multiplier",
+            score=int(total_score * dq_mult) - total_score, max_score=0,
+            detail=f"Skóre ponížené (koeficient {dq_mult:.2f}) pre chýbajúce dáta, históriu alebo audit.",
+            flags=[]
         ))
+        total_score = int(total_score * dq_mult)
 
     return ScorecardResult(
         total_score=total_score,
         pillars=pillars,
         risk_category=_risk_category(total_score),
         hard_stop=False,
+        score_version="v2"
     )
-
-
 
 def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     """
@@ -773,21 +806,21 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         return {"error": "Žiadne dáta na výpočet trendov."}
         
     # Zoradiť vzostupne podľa roku (najstaršie prvé)
-    sorted_stmts = sorted(statements, key=lambda x: getattr(x, 'year', 0))
+    sorted_stmts = sorted(statements, key=lambda x: _get(x, 'year', 0))
     
     first = sorted_stmts[0]
     last = sorted_stmts[-1]
-    first_year = getattr(first, 'year', 0)
-    last_year = getattr(last, 'year', 0)
+    first_year = _get(first, 'year', 0)
+    last_year = _get(last, 'year', 0)
     years_span = last_year - first_year
     
     trends = {
-        "analyzed_years": [getattr(s, 'year', 0) for s in sorted_stmts],
+        "analyzed_years": [_get(s, 'year', 0) for s in sorted_stmts],
         "revenue_trend": [],
         "profit_trend": [],
         "equity_trend": [],
         "cagr_revenue": None,
-        "average_profit": sum((getattr(s, 'netProfitLoss', 0) or 0) for s in sorted_stmts) / len(sorted_stmts) if sorted_stmts else 0,
+        "average_profit": sum((_get(s, 'netProfitLoss', 0) or 0) for s in sorted_stmts) / len(sorted_stmts) if sorted_stmts else 0,
         "consecutive_losses": 0,
         "bankruptcy_risk_indicators": [],
         # Nové: Altman Z-score pre každý rok
@@ -798,8 +831,8 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     }
     
     # Výpočet CAGR (Zložená ročná miera rastu) pre Tržby
-    first_rev = getattr(first, 'mainActivityRevenue', None) or 0
-    last_rev = getattr(last, 'mainActivityRevenue', None) or 0
+    first_rev = _get(first, 'mainActivityRevenue', None) or 0
+    last_rev = _get(last, 'mainActivityRevenue', None) or 0
     if years_span > 0 and first_rev > 0 and last_rev > 0:
         cagr = ((last_rev / first_rev) ** (1 / years_span)) - 1
         trends["cagr_revenue"] = round(cagr * 100, 2)
@@ -807,21 +840,21 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     # Počet po sebe idúcich strát od konca
     losses = 0
     for s in reversed(sorted_stmts):
-        if (getattr(s, 'netProfitLoss', 0) or 0) < 0:
+        if (_get(s, 'netProfitLoss', 0) or 0) < 0:
             losses += 1
         else:
             break
     trends["consecutive_losses"] = losses
     
     # Indikátory finančného stresu
-    last_equity = getattr(last, 'equity', 0) or 0
+    last_equity = _get(last, 'equity', 0) or 0
     if last_equity < 0:
         trends["bankruptcy_risk_indicators"].append("Záporné vlastné imanie (Spoločnosť je pod finančným stresom)")
     if losses >= 3:
         trends["bankruptcy_risk_indicators"].append(f"{losses} roky po sebe idúcej čistej straty")
         
-    last_liabilities = getattr(last, 'shortTermLiabilities', 0) or 0
-    last_assets = getattr(last, 'totalAssets', 0) or 0
+    last_liabilities = _get(last, 'shortTermLiabilities', 0) or 0
+    last_assets = _get(last, 'totalAssets', 0) or 0
     if last_liabilities > last_assets and last_assets > 0:
         trends["bankruptcy_risk_indicators"].append("Krátkodobé záväzky prevyšujú celkové aktíva (Riziko insolvencie)")
     

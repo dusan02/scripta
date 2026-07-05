@@ -2,7 +2,7 @@
 <!-- 3b. SCORING BREAKDOWN TABUĽKA -->
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
 <div class="mb-10 pt-6">
-    <h2 id="scoring_breakdown" class="section-title">Hodnotiaca tabuľka</h2>
+    <h2 id="scoring_breakdown" class="section-title">1. Hodnotiaca tabuľka</h2>
     <table class="w-full border-collapse">
         <thead>
             <tr class="bg-slate-100">
@@ -19,18 +19,33 @@
                 {% set bar_color = "#10b981" %}
                 {% set score_color = "text-emerald-700" %}
                 {% set row_bg = "" %}
+                {% set icon = "✓" %}
+                {% set icon_color = "text-emerald-500" %}
             {% elif pct >= 40 %}
                 {% set bar_color = "#f59e0b" %}
                 {% set score_color = "text-amber-600" %}
                 {% set row_bg = "" %}
+                {% set icon = "⚠" %}
+                {% set icon_color = "text-amber-500" %}
             {% else %}
                 {% set bar_color = "#ef4444" %}
                 {% set score_color = "text-rose-600" %}
                 {% set row_bg = "background: #fff5f5;" %}
+                {% set icon = "✗" %}
+                {% set icon_color = "text-rose-500" %}
             {% endif %}
             <tr class="border-b border-slate-100" style="{{ row_bg }}">
-                <td class="py-2.5 px-3 font-semibold text-slate-800 report-body-sm">{{ pillar.name }}</td>
-                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-normal">{{ pillar.detail | sanitize_llm }}</td>
+                <td class="py-2.5 px-3 font-semibold text-slate-800 report-body-sm"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</td>
+                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-normal">
+                    {{ pillar.detail | sanitize_llm }}
+                    {% if pillar.flags and pillar.flags|length > 0 %}
+                    <ul class="mt-1 space-y-0">
+                        {% for flag in pillar.flags %}
+                        <li class="report-caption text-slate-400 leading-tight">• {{ flag }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </td>
                 <td class="py-2.5 px-3 text-center font-black report-body-sm {{ score_color }}">
                     {{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>
                 </td>
@@ -85,22 +100,75 @@
             </tr>
         </tfoot>
     </table>
-    <p class="report-caption text-slate-500 mt-2">
-        Algoritmické skóre (30% platobná schopnosť · 25% finančné zdravie · 20% ziskovosť · 15% rast · 10% právna bezúhonnosť).
-        Finálne skóre môže byť upravené audítorom o +/-10 bodov na základe úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
-    </p>
-    <p class="report-caption text-slate-500 mt-2 italic">
-        Verifa skóre je automatizované hodnotenie vypočítané podľa interného modelu na základe verejne dostupných údajov. 
-        Slúži výhradne na informatívne účely a nenahrádza oficiálny audit, daňové, právne ani investičné poradenstvo. 
-        Verifa.sk nenesie zodpovednosť za presnosť ani úplnosť uvádzaných údajov. Používateľ si pri rozhodovaní povinne overí údaje u originálnych zdrojov.
-    </p>
-</div>
+    <div class="mt-4">
+        <p class="report-caption text-slate-500 mb-6 text-center">
+            Váhy pilierov sú dynamicky prispôsobené odvetviu podľa NACE kódu.
+            Finálne skóre môže byť upravené audítorom o +/-10 bodov na základe úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
+        </p>
+        {% if radar_chart_base64 %}
+        <div class="flex flex-col items-center justify-center">
+            <div class="w-80">
+                <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="Radar chart pilierov" class="w-full h-auto">
+            </div>
+            <p class="report-caption text-slate-400 text-center mt-2">Profil pilierov</p>
+        </div>
+        {% endif %}
+    </div>
 {% endif %}
 
     <div class="page-break"></div>
-    <div class="mb-10 pt-6">
-    <h2 id="forenzny_posudok" class="section-title">Hlavný posudok</h2>
-    
+<div class="mb-10">
+    <h2 id="forenzny_posudok" class="section-title">2. Hlavný posudok</h2>
+
+    {# ── Manažérske zhrnutie a Spoľahlivosť analýzy ── #}
+    <div class="mb-5" style="page-break-inside: avoid; break-inside: avoid;">
+        <div class="p-4 bg-slate-50 border-l-4 border-slate-600 rounded report-body text-slate-700 text-justify shadow-sm clearfix">
+            <h3 class="subsection-title mb-2 uppercase tracking-wide">Manažérske zhrnutie</h3>
+            
+            {% if confidence_score is defined %}
+            <div class="float-right ml-5 mb-2 w-48 p-3 rounded-lg border border-slate-200 bg-white shadow-sm flex flex-col justify-center">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="flex-shrink-0 text-center">
+                        {% set cs = confidence_score %}
+                        {% set cs_color = "#10b981" if cs >= 80 else "#f59e0b" if cs >= 50 else "#ef4444" %}
+                        <div class="relative w-12 h-12 flex items-center justify-center">
+                            <svg viewBox="0 0 36 36" class="w-12 h-12 -rotate-90">
+                                <circle cx="18" cy="18" r="15" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+                                <circle cx="18" cy="18" r="15" fill="none" stroke="{{ cs_color }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ cs * 0.942 }} 94.2"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span class="text-sm font-black" style="color: {{ cs_color }};">{{ cs }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="subsection-title-sm text-slate-700 leading-tight uppercase tracking-wide" style="font-size: 8px;">Spoľahlivosť<br>analýzy</h3>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1.5 mt-1">
+                    {% for factor in confidence_factors %}
+                    <div class="flex items-start gap-1.5 report-body-sm leading-tight" style="font-size: 8px;">
+                        {% if factor.ok %}
+                        <span class="text-emerald-500 font-bold flex-shrink-0">✓</span>
+                        <span class="text-slate-600">{{ factor.label }}</span>
+                        {% else %}
+                        <span class="text-rose-500 font-bold flex-shrink-0">✗</span>
+                        <span class="text-slate-500">{{ factor.label }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if verdict.executiveSummary %}
+            {{ verdict.executiveSummary | sanitize_llm }}
+            {% endif %}
+            
+            <div class="clear-both"></div>
+        </div>
+    </div>
+
     <div class="flex gap-6">
         <!-- Text part -->
         <div class="flex-1">
@@ -114,20 +182,13 @@
                 </div>
             </div>
             {% endif %}
-            
-            {% if verdict.executiveSummary %}
-            <div class="mb-5 p-4 bg-slate-50 border-l-4 border-slate-600 rounded report-body text-slate-700 text-justify shadow-sm">
-                <h3 class="subsection-title mb-2">Executive Summary</h3>
-                {{ verdict.executiveSummary | sanitize_llm }}
-            </div>
-            {% endif %}
 
             {% if latest_stmt and latest_stmt.notesRisk %}
             {# Riziká z poznámok presunuté do _financials.html pod Finančné ukazovatele #}
             {% endif %}
 
             {% if evidence_list %}
-            <div class="mt-4 border border-slate-200 rounded-lg overflow-hidden">
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-50 border-b border-slate-200">
                         <tr>
@@ -150,12 +211,7 @@
             {% else %}
             <p class="report-body text-slate-700 text-justify">{{ verdict.justification | sanitize_llm }}</p>
             {% endif %}
-            
-            {% if verdict.keyRisk and verdict.keyRisk != "Žiadne" and verdict.keyRisk != "N/A" %}
-            <div class="mt-4 p-3 bg-rose-50 border-l-4 border-rose-500 rounded-r report-body text-rose-800">
-                <strong>Kľúčové zistenie:</strong> {{ verdict.keyRisk | sanitize_llm }}
-            </div>
-            {% endif %}
+
         </div>
     </div>
 </div>

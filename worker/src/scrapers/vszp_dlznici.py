@@ -132,7 +132,7 @@ class VszpDlzniciScraper(BaseScraper):
                     logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
                     return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť pole na stránke VšZP: {e}")
                 return self._make_result(
-                    status="SUCCESS",
+                    status="UNAVAILABLE",
                     file_path=str(pdf_output),
                     page_count=1,
                     status_message="VšZP: dáta dočasne nedostupné.",
@@ -181,7 +181,7 @@ class VszpDlzniciScraper(BaseScraper):
                     logger.error(f"[{self.source_type}] Zlyhalo aj fallback PDF: {e}")
                     return self._make_result(status="FAILED", status_message=f"Nepodarilo sa nájsť tlačidlo Vyhľadať: {e}")
                 return self._make_result(
-                    status="SUCCESS",
+                    status="UNAVAILABLE",
                     file_path=str(pdf_output),
                     page_count=1,
                     status_message="VšZP: dáta dočasne nedostupné.",

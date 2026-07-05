@@ -4,6 +4,7 @@ generator client {
 
 generator py {
   provider = "prisma-client-py"
+  enable_experimental_decimal = true
 }
 
 datasource db {
@@ -224,6 +225,12 @@ model FinancialStatement {
   staffCosts                            Float?        // Osobné náklady
   tradeReceivables                      Float?        // Pohľadávky z obch. styku
   tradePayables                         Float?        // Záväzky z obch. styku
+  inventory                             Float?        // Zásoby
+  depreciation                          Float?        // Odpisy dlhodobého majetku
+  interestExpense                       Float?        // Nákladové úroky
+  investingCashFlow                     Float?        // Pen. toky z investicnej činnosti
+  financingCashFlow                     Float?        // Pen. toky z finančnej činnosti
+  employeeCount                         Int?          // Počet zamestnancov
   currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
   statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
@@ -285,6 +292,7 @@ model AuditVerdict {
   justification   String   @db.Text
   keyRisk         String   @db.Text
   scorecardBreakdown Json?
+  llmAnalysisStatus String @default("LLM_ANALYZED")
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])

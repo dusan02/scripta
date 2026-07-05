@@ -358,7 +358,10 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         await db.auditverdict.upsert(
             where={'companyIco': ico},
             data={
-                'create': {'companyIco': ico, **verdict_payload},
+                'create': {
+                    'company': {'connect': {'ico': ico}},
+                    **verdict_payload,
+                },
                 'update': verdict_payload,
             }
         )

@@ -37,7 +37,7 @@ const landingJsonLd = {
           name: "Koľko stojí Verifa.sk report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Jednorazový report stojí 19 €. Pre pravidelné použitie ponúkame balíky: Basic (10 reportov za 99 €), Business (30 reportov za 199 €) a Pro (100 reportov za 399 €).",
+            text: "Jednorazový report stojí 10 €. Pre pravidelné použitie ponúkame balíky: Basic (10 reportov za 49 €), Business (30 reportov za 129 €) a Pro (100 reportov za 249 €).",
           },
         },
         {

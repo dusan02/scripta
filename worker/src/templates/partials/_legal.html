@@ -1,7 +1,58 @@
-<!-- 5. PRÁVNE RIZIKÁ (Obchodný vestník a AI Red flags) -->
+<!-- 9. PRÁVNE RIZIKÁ (Obchodný vestník a systémové varovania) -->
+<div class="mb-10">
+    <h2 class="section-title">9. Právne riziká</h2>
 {% if vestnik_events and vestnik_events|length > 0 %}
-<div class="mb-10 mt-10 pt-8 border-t border-slate-200">
-    <h2 class="section-title">Právne riziká</h2>
+
+    {# ── Risk heatmap matica ── #}
+    <div class="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50">
+        <p class="subsection-title-sm mb-2">Matica rizík (Pravdepodobnosť × Dopad)</p>
+        <div class="grid grid-cols-4 gap-1 text-center text-[10px]">
+            <div></div>
+            <div class="font-bold text-slate-500 py-1">Nízky dopad</div>
+            <div class="font-bold text-slate-500 py-1">Stredný dopad</div>
+            <div class="font-bold text-slate-500 py-1">Vysoký dopad</div>
+            {% set heat_cells = [
+                ('Vysoká', '#fecaca', '#991b1b'),
+                ('Stredná', '#fed7aa', '#9a3412'),
+                ('Nízka', '#fef9c3', '#854d0e'),
+            ] %}
+            {% for prob_label, bg, txt in heat_cells %}
+            <div class="font-bold text-slate-500 py-2 flex items-center justify-center">{{ prob_label }}</div>
+            {% for i in range(3) %}
+            {% set cell_count = vestnik_events | selectattr('severityLevel', 'equal', 'CRITICAL' if i == 2 else 'HIGH' if i == 1 else 'MEDIUM') | list | length %}
+            <div class="py-2 rounded font-semibold" style="background: {{ bg }}; color: {{ txt }};">
+                {% if cell_count > 0 %}{{ cell_count }} event{% if cell_count > 1 %}y{% endif %}{% else %}—{% endif %}
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ── Timeline eventov ── #}
+    {% set events_sorted = vestnik_events | sort(attribute='publishedAt') %}
+    {% if events_sorted|length > 0 %}
+    <div class="mb-4 p-3 rounded-lg border border-slate-200 bg-white">
+        <p class="subsection-title-sm mb-3">Časová os eventov</p>
+        <div class="relative pl-4">
+            <div class="absolute left-1.5 top-0 bottom-0 w-0.5 bg-slate-200"></div>
+            {% for event in events_sorted %}
+            {% set sev_color = '#ef4444' if event.severityLevel == 'CRITICAL' else '#f59e0b' if event.severityLevel == 'HIGH' else '#3b82f6' %}
+            <div class="relative mb-3 pl-4">
+                <div class="absolute -left-3 top-1 w-3 h-3 rounded-full border-2 border-white" style="background: {{ sev_color }};"></div>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-semibold text-slate-800 text-xs">{{ event.eventType }}</p>
+                        <p class="report-caption text-slate-500 leading-tight">{{ event.summary.split('\nRed Flags: ')[0][:120] }}</p>
+                    </div>
+                    <span class="report-caption text-slate-400 flex-shrink-0 ml-2">{{ event.publishedAt.strftime('%d.%m.%Y') }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Detail eventov ── #}
     <div class="space-y-2">
     {% for event in vestnik_events %}
         {% set severity_color = 'border-rose-500 bg-rose-50' if event.severityLevel == 'CRITICAL' else 'border-amber-500 bg-amber-50' if event.severityLevel == 'HIGH' else 'border-blue-500 bg-blue-50' %}
@@ -15,7 +66,17 @@
         </div>
     {% endfor %}
     </div>
-</div>
+{% else %}
+    <div class="p-4 rounded-lg border-l-4 border-emerald-500 bg-emerald-50">
+        <div class="flex items-start gap-3">
+            <span class="text-emerald-500 text-lg flex-shrink-0">✓</span>
+            <div>
+                <strong class="block text-emerald-800 mb-0.5">Status: Aktívna, bez insolvenčných konaní</strong>
+                <p class="report-body-sm text-emerald-700">V Obchodnom vestníku neboli zaznamenané žiadne negatívne udalosti (konkurz, reštrukturalizácia, likvidácia ani insolvenčné konanie). Spoločnosť vykazuje čistý právny profil.</p>
+            </div>
+        </div>
+    </div>
 {% endif %}
+</div>
 
 

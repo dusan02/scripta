@@ -34,16 +34,59 @@
         }
     </style>
     <style type="text/tailwindcss">
+        @page {
+            margin: 18mm 18mm 22mm 18mm;
+            @top-left {
+                content: "Verifa Report | {{ company.name | default('') }}";
+                font-family: 'Inter', sans-serif;
+                font-size: 8px;
+                color: #94a3b8;
+                font-weight: 600;
+            }
+            @top-right {
+                content: "IČO: {{ company.ico | default('') }}";
+                font-family: 'Inter', sans-serif;
+                font-size: 8px;
+                color: #94a3b8;
+                font-weight: 600;
+            }
+            @bottom-center {
+                content: "Verifa Report | {{ company.name | default('') }} | Strana " counter(page) " / " counter(pages);
+                font-family: 'Inter', sans-serif;
+                font-size: 8px;
+                color: #94a3b8;
+            }
+        }
+        @page:first {
+            margin: 0;
+            @top-left { content: ""; }
+            @top-right { content: ""; }
+            @bottom-center { content: ""; }
+            @bottom-left { content: ""; }
+        }
         body { 
             font-family: 'Inter', 'DejaVu Sans', -apple-system, 'Segoe UI', Roboto, 'Liberation Sans', sans-serif; 
             background-color: #ffffff; 
             color: #0f172a; 
-            /* Fix for Playwright printing */
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
         .page-break { page-break-before: always; }
         .page-break-after { page-break-after: always; }
+
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 72px;
+            font-weight: 900;
+            color: #f1f5f9;
+            letter-spacing: 0.3em;
+            z-index: 0;
+            pointer-events: none;
+            user-select: none;
+        }
         
         /* Table styling for sources */
         .source-table th {
@@ -72,7 +115,9 @@
             padding-bottom: 12px;
         }
         .section-title {
-            @apply text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 border-b pb-1;
+            @apply text-base font-bold text-slate-700 mb-4 border-b-2 border-slate-200 pb-2;
+            border-left: 4px solid #10b981;
+            padding-left: 10px;
         }
         .info-pill {
             @apply flex items-center gap-3 px-3 py-1.5 rounded-md w-48 shadow-sm border;
@@ -124,8 +169,7 @@
         }
     </style>
 </head>
-<body class="px-10 pt-10 pb-4 mx-auto relative" style="width: 210mm;">
-    
+<body class="mx-auto relative" style="width: 174mm;">
     {% block content %}{% endblock %}
 
 </body>

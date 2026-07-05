@@ -47,7 +47,11 @@ class FsDanoveSubjektyScraper(FinancnaSpravaBase):
                         if city_clean:
                             line += f" ({city_clean})"
                         if rating_val:
-                            line += f" — Hodnotenie: {rating_val}"
+                            # Pridaj POZOR pre menej spoľahlivých a nespoľahlivých, aby šablóna vyhodnotila riziko
+                            if "menej spoľahlivý" in rating_val.lower() or "nespoľahlivý" in rating_val.lower():
+                                line = "POZOR: " + line + f" — Hodnotenie: {rating_val}"
+                            else:
+                                line += f" — Hodnotenie: {rating_val}"
                         info.append(line)
 
                     if info:

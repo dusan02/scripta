@@ -478,7 +478,7 @@ async def reprocess_report(report_request_id: str, background_tasks: BackgroundT
     """Retrigger stuck report — načíte task z DB a spustí znova."""
     pool = await get_db_pool()
     row = await pool.fetchrow(
-        'SELECT id, ico, "targetType", "selectedSources", "orsrExtractType", "crzDateFrom" FROM "ReportRequest" WHERE id = $1',
+        'SELECT id, ico, "targetType", "selectedSources" FROM "ReportRequest" WHERE id = $1',
         report_request_id,
     )
     if not row:
@@ -488,8 +488,8 @@ async def reprocess_report(report_request_id: str, background_tasks: BackgroundT
         report_request_id=row["id"],
         ico=row["ico"],
         target_type=row["targetType"],
-        orsr_extract_type=row.get("orsrExtractType"),
-        crz_date_from=row.get("crzDateFrom"),
+        orsr_extract_type=None,
+        crz_date_from=None,
         sources=list(row["selectedSources"]) if row["selectedSources"] else [],
     )
     background_tasks.add_task(_execute_report, task)

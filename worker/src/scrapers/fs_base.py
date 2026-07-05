@@ -133,9 +133,9 @@ class FinancnaSpravaBase(BaseScraper):
                         val = (await cells.nth(c).inner_text(timeout=2000)).strip()
                     except PlaywrightTimeoutError:
                         val = ""
-                    if val and val.lower() != "hľadať":
+                    if val.lower() != "hľadať":
                         row_data.append(val)
-                if row_data:
+                if any(row_data):
                     result.append(row_data)
             return result
         except Exception as e:

@@ -41,7 +41,7 @@ export default function LandingPage() {
       name: "Jednorazový report",
       subtitle: "Komplexné preverenie firmy",
       credits: "1 report",
-      price: "19,49 €",
+      price: "10 €",
       perCredit: "Vhodné pre jednorazové overenie obchodného partnera.",
       features: [
         "Viac ako 30 verejných registrov",
@@ -185,7 +185,7 @@ export default function LandingPage() {
           <div style={{ marginTop: 48, display: "flex", gap: 32, justifyContent: "center", flexWrap: "wrap" }}>
             {[
               { num: "20 +", label: t("home.statRegisters") },
-              { num: "~ 3 min", label: t("home.statAvgTime") },
+              { num: "~ 4 min", label: t("home.statAvgTime") },
               { num: "100", label: t("home.statScoreRange") },
               { num: "PDF", label: t("home.statReport") },
             ].map((s) => (

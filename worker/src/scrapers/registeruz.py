@@ -86,7 +86,7 @@ class RegisterUzScraper(BaseScraper):
     # ── navigation ──────────────────────────────────────────────────────
 
     async def _navigate_to_report(self, page: Page, ico: str) -> Optional[str]:
-        """Prejde: search → result → collapse → Úč POD → vráti report_id."""
+        """Prejde: search → result → collapse → najnovšia závierka → vráti report_id."""
         await self._safe_goto(page, self.base_url)
         await self._accept_cookies(page)
 
@@ -198,35 +198,63 @@ class RegisterUzScraper(BaseScraper):
             await asyncio.sleep(1)
 
     async def _click_ucpod(self, page: Page) -> None:
-        # Nájdi VŠETKY "Úč POD" linky naprieč rozbalenými sekciami,
+        # Nájdi VŠETKY linky na závierky naprieč rozbalenými sekciami,
         # extrahuj rok z kontextu a klikni na ten najnovší.
+        # Podporuje: Úč POD, Úč MUJ, IFRS individuálna, IFRS konsolidovaná, atď.
+
+        # Najprv klikni na "Zobraziť viac" pre pagination (staršie roky môžu byť skryté)
+        for _ in range(5):
+            try:
+                show_more = page.locator(
+                    "a:has-text('Zobraziť viac'), a:has-text('Zobraziť všetky'), button:has-text('Zobraziť viac')"
+                )
+                if await show_more.count() > 0 and await show_more.first.is_visible():
+                    await show_more.first.click()
+                    await asyncio.sleep(1)
+                    logger.info(f"[{self.source_type}] Kliknuté na 'Zobraziť viac'")
+                else:
+                    break
+            except Exception:
+                break
+
         clicked = await page.evaluate(r"""() => {
-            // Zhromaždi všetky klikateľné elementy obsahujúce 'Úč POD'
             const candidates = [];
 
-            // 1. CSS selektor (text-decoration-underline linky v collapse sekciách)
+            // 1. Hľadaj všetky klikateľné linky na financialreport v collapse sekciách
+            //    Podporuje: Úč POD, Úč MUJ, IFRS individuálna, IFRS konsolidovaná, atď.
             document.querySelectorAll(
-                "[id^='collapse-o-'] span.font-weight-medium.text-primary.text-decoration-underline"
+                "[id^='collapse-o-'] a[href*='financialreport/show']"
             ).forEach(el => {
-                if (el.textContent.includes('Úč POD')) {
+                const section = el.closest("[id^='collapse-o-']");
+                const sectionText = section ? section.innerText : '';
+                const yearMatch = sectionText.match(/(20\d{2})/);
+                const year = yearMatch ? parseInt(yearMatch[1]) : 0;
+                const text = el.textContent.trim();
+                candidates.push({el, year, text, src: 'collapse'});
+            });
+
+            // 2. Fallback: text-decoration-underline span-y (pôvodný selector pre Úč POD)
+            if (candidates.length === 0) {
+                document.querySelectorAll(
+                    "[id^='collapse-o-'] span.font-weight-medium.text-primary.text-decoration-underline"
+                ).forEach(el => {
                     const section = el.closest("[id^='collapse-o-']");
                     const sectionText = section ? section.innerText : '';
                     const yearMatch = sectionText.match(/(20\d{2})/);
-                    candidates.push({el, year: yearMatch ? parseInt(yearMatch[1]) : 0, src: 'css'});
-                }
-            });
+                    const text = el.textContent.trim();
+                    candidates.push({el, year: yearMatch ? parseInt(yearMatch[1]) : 0, text, src: 'span'});
+                });
+            }
 
-            // 2. Fallback: všetky span-y s 'Úč POD:' a text-primary
+            // 3. Fallback: všetky linky na financialreport na stránke
             if (candidates.length === 0) {
-                document.querySelectorAll('span').forEach(el => {
-                    if (el.textContent.includes('Úč POD:')
-                        && el.className.includes('text-primary')) {
-                        const section = el.closest("[id^='collapse-o-']")
-                            || el.closest('.item') || el.closest('tr');
-                        const sectionText = section ? section.innerText : '';
-                        const yearMatch = sectionText.match(/(20\d{2})/);
-                        candidates.push({el, year: yearMatch ? parseInt(yearMatch[1]) : 0, src: 'span'});
-                    }
+                document.querySelectorAll("a[href*='financialreport/show']").forEach(el => {
+                    const section = el.closest("[id^='collapse-o-']")
+                        || el.closest('.item') || el.closest('tr') || el.closest('li');
+                    const sectionText = section ? section.innerText : '';
+                    const yearMatch = sectionText.match(/(20\d{2})/);
+                    const text = el.textContent.trim();
+                    candidates.push({el, year: yearMatch ? parseInt(yearMatch[1]) : 0, text, src: 'fallback'});
                 });
             }
 
@@ -236,9 +264,9 @@ class RegisterUzScraper(BaseScraper):
             candidates.sort((a, b) => b.year - a.year);
             const best = candidates[0];
             best.el.click();
-            return best.src + '_' + best.year;
+            return best.src + '_' + best.year + '_' + best.text;
         }""")
-        logger.info(f"[{self.source_type}] Úč POD: {clicked or 'nenájdený'}")
+        logger.info(f"[{self.source_type}] Závierka: {clicked or 'nenájdený'}")
 
     # ── PDF generation ──────────────────────────────────────────────────
 

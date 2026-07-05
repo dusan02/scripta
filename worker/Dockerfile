@@ -28,7 +28,6 @@ RUN pip install prisma
 
 # Inštalácia Playwright prehliadačov (ak sa scraper používa)
 RUN playwright install chromium
-RUN playwright install-deps
 
 # Kopírovanie zdrojového kódu
 COPY . .

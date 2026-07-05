@@ -273,7 +273,7 @@ export default async function CompanyTeaserPage({ params }: Params) {
               className="inline-block px-6 py-3 rounded-lg font-bold text-sm transition-colors"
               style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
             >
-              Stiahnuť report — 19 €
+              Stiahnuť report — 10 €
             </Link>
             <Link
               href="/cennik"
