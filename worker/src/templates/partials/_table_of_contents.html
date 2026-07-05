@@ -128,34 +128,35 @@
             </tr>
                 {% for source in cat_sources %}
                 {% if source.source_type != "REGISTER_UZ" %}
-                {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ"] %}
+                {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ", "FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
                 {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
                 
                 {% set status_class = "" %}
                 {% set status_icon = "" %}
                 {% set status_label = "" %}
                 
-                {% set is_exception_based = source.source_type in ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI", "INSOLVENCY", "DISKVALIFIKACIE", "CRRS", "FINANCNA_SPRAVA", "FS_DANOVE_SUBJEKTY", "FS_DPH_REGISTROVANI", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_BANKOVE_UCTY", "FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG", "NCRZP", "NCRD", "POVERENIA"] %}
-                {% set is_clean_exception = is_exception_based and source.status == "SUCCESS" and not has_pozor %}
+                {% set is_exception_based = source.source_type in ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI", "INSOLVENCY", "DISKVALIFIKACIE", "CRRS", "FS_DPH_VYMAZANI", "FS_DPH_RUSENIE", "FS_DAN_Z_PRIJMOV", "NCRZP", "NCRD", "POVERENIA"] %}
+                {% set is_fs_info = source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
+                {% set is_clean_exception = (is_exception_based and source.status == "SUCCESS" and not has_pozor) or (is_fs_info and source.status == "SUCCESS") %}
                 
-                {% if source.status == "SUCCESS" and not has_pozor %}
-                    {% set status_class = "bg-[#10b981]" %}
+                {% if source.status == "SUCCESS" and not has_pozor and not is_fs_info %}
+                    {% set status_class = "bg-[#10b981] text-white" %}
                     {% set status_icon = "✓" %}
                     {% set status_label = "V poriadku" %}
-                {% elif source.status == "SUCCESS" and has_pozor and is_info %}
-                    {% set status_class = "bg-[#2563eb]" %}
+                {% elif source.status == "SUCCESS" and (has_pozor and is_info or is_fs_info) %}
+                    {% set status_class = "bg-[#dbeafe] text-[#1e40af]" %}
                     {% set status_icon = "i" %}
                     {% set status_label = "Informácia" %}
                 {% elif source.status == "SUCCESS" and has_pozor and not is_info %}
-                    {% set status_class = "bg-[#ef4444]" %}
+                    {% set status_class = "bg-[#ef4444] text-white" %}
                     {% set status_icon = "⚠" %}
                     {% set status_label = "Upozornenie" %}
                 {% elif source.status == "UNAVAILABLE" %}
-                    {% set status_class = "bg-[#f59e0b]" %}
+                    {% set status_class = "bg-[#f59e0b] text-white" %}
                     {% set status_icon = "?" %}
                     {% set status_label = "Nedostupné" %}
                 {% else %}
-                    {% set status_class = "bg-[#ef4444]" %}
+                    {% set status_class = "bg-[#ef4444] text-white" %}
                     {% set status_icon = "✗" %}
                     {% set status_label = "Zlyhal" %}
                 {% endif %}
@@ -171,7 +172,7 @@
                             {{ labels.get(source.source_type, source.source_type) }}
                             {% endif %}
                         </div>
-                        <div class="inline-flex items-center gap-1.5 {{ status_class }} text-white px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
+                        <div class="inline-flex items-center gap-1.5 {{ status_class }} px-2 py-0.5 rounded report-caption font-bold uppercase tracking-wider">
                             {% if status_icon == 'i' or status_icon == '?' %}
                             <span class="bg-white text-current rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-black">{{ status_icon }}</span>
                             {% else %}

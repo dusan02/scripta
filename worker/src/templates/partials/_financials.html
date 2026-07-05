@@ -124,7 +124,7 @@
         <tbody>
             {% set pnl_rows = [
                 ('Tržby z hlavnej činnosti', 'mainActivityRevenue'),
-                ('Hrubá marža', 'grossProfit'),
+                ('Prevádzkový zisk (est.)' if gross_profit_all_estimated else 'Hrubá marža', 'grossProfit'),
                 ('Čistý zisk / strata', 'netProfitLoss'),
                 ('Osobné náklady', 'staffCosts'),
                 ('Odpisy', 'depreciation'),
@@ -134,7 +134,7 @@
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
-                <td class="py-2 px-2 text-right {% if field == 'netProfitLoss' and stmt[field] is not none and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_number_millions if field != 'interestExpense' else (stmt[field] | abs | format_number_millions if stmt[field] is not none else '—') }}</td>
+                <td class="py-2 px-2 text-right {% if field == 'netProfitLoss' and stmt[field] is not none and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_number_millions if field != 'interestExpense' else (stmt[field] | abs | format_number_millions if stmt[field] is not none else '—') }}{% if field == 'grossProfit' and not gross_profit_all_estimated and stmt.year in estimated_gp_years %}<sup class="text-slate-400">†</sup>{% endif %}</td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -143,11 +143,14 @@
     {% if has_non_standard_months %}
     <p class="report-caption text-amber-500 mt-1">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
     {% endif %}
+    {% if gross_profit_estimated %}
+    <p class="report-caption text-slate-400 mt-1">* Prevádzkový zisk dopočítaný z dostupných nákladových položiek (IFRS/SK GAAP by-function výkaz — hrubá marža nie je explicitne uvedená).</p>
+    {% endif %}
     {% if latest_stmt and latest_stmt.mainActivityRevenue and latest_stmt.mainActivityRevenue > 0 %}
     {% set gross_margin = ((latest_stmt.grossProfit or 0) / latest_stmt.mainActivityRevenue * 100) | round(1) %}
     {% set net_margin = ((latest_stmt.netProfitLoss or 0) / latest_stmt.mainActivityRevenue * 100) | round(1) %}
     {% set pnl_cards = [
-        ('Hrubá marža', gross_margin ~ '%', latest_stmt.grossProfit is not none, gross_margin < 0),
+        ('Prevádzkový zisk (est.)' if gross_profit_estimated else 'Hrubá marža', gross_margin ~ '%', latest_stmt.grossProfit is not none, gross_margin < 0),
         ('Čistá marža', net_margin ~ '%', latest_stmt.netProfitLoss is not none, net_margin < 0),
         ('ROE', latest_ratios.roe_pct ~ '%' if latest_ratios and latest_ratios.roe_pct is not none else None, latest_ratios and latest_ratios.roe_pct is not none, latest_ratios and latest_ratios.roe_pct is not none and latest_ratios.roe_pct < 0),
         ('EBITDA', latest_ratios.ebitda | format_number_millions if latest_ratios and latest_ratios.ebitda is not none else None, latest_ratios and latest_ratios.ebitda is not none, false),
@@ -217,6 +220,9 @@
     </table>
     {% if has_non_standard_months %}
     <p class="report-caption text-amber-500 mb-4">* Obdobie nezodpovedá 12 mesiacom — údaje nie sú anualizované.</p>
+    {% endif %}
+    {% if cashflow_estimated %}
+    <p class="report-caption text-slate-400 mb-4">* Prevádzkový cash flow pre niektoré obdobia bol dopočítaný nepriamou metódou (Net Profit + Depreciation ± Δ Working Capital) — zdrojový výkaz neobsahuje štruktúrovaný Cash Flow.</p>
     {% endif %}
 
     {% if latest_stmt %}
@@ -310,6 +316,12 @@
     <p class="report-body-sm text-slate-600 mb-3">Analytické zhodnotenie — kľúčové zistenia, poznámky pod čiarou a názor audítora.</p>
 
     {% if verdict %}
+    {% if gross_profit_estimated %}
+    <div class="mb-2 p-2 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2">
+        <span class="text-slate-400 text-sm flex-shrink-0">ℹ</span>
+        <p class="report-caption text-slate-500 leading-normal">Pre niektoré obdobia bol prevádzkový zisk dopočítaný z dostupných nákladových položiek (IFRS/SK GAAP by-function výkaz — hrubá marža nie je explicitne uvedená).</p>
+    </div>
+    {% endif %}
     {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
     <div class="mb-2 p-2 rounded-lg border border-amber-300 bg-amber-50 flex items-center gap-2">
         <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>

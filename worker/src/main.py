@@ -108,6 +108,8 @@ def _extract_company_name(sources, target_type: str) -> Optional[str]:
 
 def _determine_final_status(sources) -> str:
     """Determine report final status from individual source statuses."""
+    if not sources:
+        return "FAILED"
     any_unavailable = any(s.status == "UNAVAILABLE" for s in sources)
     any_failed = any(s.status == "FAILED" for s in sources)
     all_success = all(s.status == "SUCCESS" for s in sources)
@@ -267,10 +269,19 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # Chief Auditor (sudca) sa spúšťa PO dokončení scraperov aj AI pipeline,
         # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia)
         # aj k DB dátam (finančné výkazy, naratív, vestník).
+        verifa_score_snapshot: Optional[int] = None
         if task.target_type == "COMPANY" and task.ico:
             try:
                 with PhaseTimer("Chief Auditor"):
                     await run_and_save_audit_verdict(task.ico)
+                # —— Snapshot skóre: prečítame aktuálny AuditVerdict a fixujeme na tento report ——
+                _score_row = await pool.fetchrow(
+                    'SELECT "verifaScore" FROM "AuditVerdict" WHERE "companyIco" = $1',
+                    task.ico
+                )
+                if _score_row:
+                    verifa_score_snapshot = _score_row["verifaScore"]
+                    _log.info(f"[{_rid}] verifaScore snapshot: {verifa_score_snapshot}")
             except Exception as verdict_err:
                 _log.error(f"[{_rid}] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
 
@@ -347,6 +358,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             final_status,
             result_file_path=str(final_path),
             company_name=company_name,
+            verifa_score=verifa_score_snapshot,
         )
         t_end = time.perf_counter()
         log_token_summary()
@@ -401,17 +413,39 @@ async def _charge_credit(pool: asyncpg.Pool, report_request_id: str) -> None:
         old_version = wallet_row["version"]
         
         # Optimistic locking: pokús sa aktualizovať wallet s verziou
+        MAX_RETRIES = 3
+        success = False
         new_balance = wallet_row["balance"] - 1
-        result = await pool.execute(
-            '''UPDATE "Wallet" 
-               SET balance = $1, version = version + 1, "updatedAt" = NOW()
-               WHERE id = $2 AND version = $3
-               RETURNING version''',
-            new_balance, wallet_id, old_version
-        )
-        
-        if result == "UPDATE 0":
-            logger.warning(f"[WORKER] Optimistic lock failed pre wallet {wallet_id} (version {old_version})")
+
+        for attempt in range(MAX_RETRIES):
+            if attempt > 0:
+                await asyncio.sleep(0.5)
+                # Re-fetch the latest state
+                wallet_row = await pool.fetchrow(
+                    'SELECT id, balance, version FROM "Wallet" WHERE "userId" = $1',
+                    user_id
+                )
+                if not wallet_row:
+                    logger.warning(f"[WORKER] Wallet pre user {user_id} zmizol počas retry")
+                    return
+                wallet_id = wallet_row["id"]
+                old_version = wallet_row["version"]
+                new_balance = wallet_row["balance"] - 1
+
+            row = await pool.fetchrow(
+                '''UPDATE "Wallet" 
+                   SET balance = $1, version = version + 1, "updatedAt" = NOW()
+                   WHERE id = $2 AND version = $3
+                   RETURNING version''',
+                new_balance, wallet_id, old_version
+            )
+            
+            if row:
+                success = True
+                break
+                
+        if not success:
+            logger.warning(f"[WORKER] Optimistic lock failed pre wallet {wallet_id} po {MAX_RETRIES} pokusoch")
             return
         
         # Vytvor WalletTransaction záznam
@@ -444,7 +478,7 @@ async def reprocess_report(report_request_id: str, background_tasks: BackgroundT
     """Retrigger stuck report — načíte task z DB a spustí znova."""
     pool = await get_db_pool()
     row = await pool.fetchrow(
-        'SELECT id, ico, "targetType", "selectedSources" FROM "ReportRequest" WHERE id = $1',
+        'SELECT id, ico, "targetType", "selectedSources", "orsrExtractType", "crzDateFrom" FROM "ReportRequest" WHERE id = $1',
         report_request_id,
     )
     if not row:
@@ -454,8 +488,8 @@ async def reprocess_report(report_request_id: str, background_tasks: BackgroundT
         report_request_id=row["id"],
         ico=row["ico"],
         target_type=row["targetType"],
-        orsr_extract_type=None,
-        crz_date_from=None,
+        orsr_extract_type=row.get("orsrExtractType"),
+        crz_date_from=row.get("crzDateFrom"),
         sources=list(row["selectedSources"]) if row["selectedSources"] else [],
     )
     background_tasks.add_task(_execute_report, task)

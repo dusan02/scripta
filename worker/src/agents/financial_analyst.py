@@ -30,7 +30,7 @@ KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
 - Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, vráť null. NIKDY nedoplňuj nulu pre chýbajúce cash flow dáta — nula znamená "firmá má nulový cash flow", čo je forenzný red flag, kým null znamená "dáta neboli k dispozícii".
 
 PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
-- `dlhodobeZavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans".
+- `dlhodobe_zavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans".
 - `hruba_marza` (Gross profit): V SK GAAP = Obchodná marža + Výrobná spotreba; v IFRS = Revenue - Cost of sales.
 - `osobne_naklady` (Staff costs): KRITICKÉ — Hľadaj vo Výkaze ziskov a strát: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs". Toto je súčet mzdových nákladov + sociálneho poistenia + odvodov. Pre výrobné firmy (Mobis, Kia, Volkswagen) sú to miliónové čiastky — ak nájdeš nulu alebo prázdne, skontroluj či naozaj chýbajú alebo sa len nepomenovali inak. NIKDY nevracaj null ak je hodnota fyzicky v tabuľke uvedená.
   KRITICKÉ PRE IFRS BY-FUNCTION: Mnoho IFRS závierok (najmä výrobné firmy ako Mobis, Kia, Volkswagen) prezentuje Výkaz ziskov a strát PODĽA FUNKCIE (by function), nie podľa druhu (by nature). V takom prípade Výkaz ziskov a strát NEOBSAHUJE samostatný riadok "Osobné náklady" / "Staff costs" — namiesto toho sú mzdové náklady súčasťou položiek ako "Cost of sales" / "Náklady na predaný tovar", "Administrative expenses" / "Verejnoprospešné náklady", "Selling expenses" / "Náklady na predaj". V takom prípade HĽADAJ osobné náklady V POZNÁMKACH (Notes) — konkrétne v poznámke o zamestnaneckých dávkach / employee benefits / staff costs disclosure, ktorá typicky uvádza rozklad nákladov podľa druhu. Ak nájdeš v poznámkach tabuľku s rozkladom "Wages and salaries" + "Social security" + "Other staff costs", sčítaj ich a vlož do `osobne_naklady`. Ak v poznámkach nájdeš iba jednu hodnotu pre "Employee benefits" alebo "Staff costs", použi ju priamo.
@@ -117,7 +117,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
         if multiplier > 1:
             _MONETARY_FIELDS = [
                 "celkove_aktiva", "obezny_majetok", "vlastne_imanie_celkom",
-                "kratkodobe_zavazky", "dlhodobeZavazky", "trzby_z_hlavnej_cinnosti",
+                "kratkodobe_zavazky", "dlhodobe_zavazky", "trzby_z_hlavnej_cinnosti",
                 "hruba_marza", "zisk_alebo_strata_po_zdaneni",
                 "peniaze_a_penazne_ekvivalenty_k_31_12",
                 "ciste_penazne_toky_z_prevadzkovej_cinnosti",

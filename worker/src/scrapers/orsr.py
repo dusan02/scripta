@@ -307,8 +307,20 @@ class OrsrScraper(BaseScraper):
             "prevod", "prevod podielu", "zmena",
         }
 
+        # Názvy štátov a právnických osôb, ktoré sa môžu objaviť ako spoločníci
+        # v ORSR výpise — nie sú to fyzické osoby a nesmú sa kontrolovať v registri diskvalifikácií
+        _NON_PERSON_KEYWORDS = {
+            "republika", "spolková", "veľkovojvodstvo", "vojvodstvo",
+            "kráľovstvo", "kralovstvo", "federácia", "federacia",
+            "štáty", "staty", "štát", "stat",
+            "spoločnosť", "spolocnost", "corporation", "corp", "inc",
+            "gmbh", "ag", "sarl", "ltd", "limited", "llc", "sa", "nv", "bv",
+            "holding", "holdings", "group", "partners", "capital",
+            "trust", "foundation", "stiftung", "gesmbH",
+        }
+
         def _is_human_name(line: str) -> bool:
-            """Validuje či riadok vyzerá ako reálne meno osoby (nie štrukturálny text ORSR)."""
+            """Validuje či riadok vyzerá ako reálne meno fyzickej osoby (nie štát, firma ani štrukturálny text ORSR)."""
             lowered = line.lower().strip()
             # Nesmie obsahovať dvojbodku (štrukturálne labely)
             if ":" in lowered:
@@ -322,6 +334,10 @@ class OrsrScraper(BaseScraper):
             # Blacklist fráz
             for phrase in _BLACKLIST_PHRASES:
                 if phrase in lowered:
+                    return False
+            # Nesmie obsahovať kľúčové slová štátov/právnických osôb
+            for keyword in _NON_PERSON_KEYWORDS:
+                if keyword in lowered:
                     return False
             # Musí obsahovať aspoň 2 slová po odstránení titulov
             words = line.split()

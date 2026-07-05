@@ -2,6 +2,13 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Union
 
 
+def _get(obj: Any, attr: str, default: Any = None) -> Any:
+    """Safely get an attribute from either a dict or an object."""
+    if isinstance(obj, dict):
+        return obj.get(attr, default)
+    return getattr(obj, attr, default)
+
+
 # ── Cash Flow sanitizácia ─────────────────────────────────────────────────────
 # Reálna firma nemá presne 0 prevádzkový cash flow. Hodnota 0 je artefakt
 # starého LLM promptu, ktorý hovoril "doplň nulu" pre chýbajúce CF dáta.
@@ -13,13 +20,13 @@ _CF_FIELDS = ("operatingCashFlow", "investingCashFlow", "financingCashFlow")
 def sanitize_cash_flow_fields(stmt: Union[Dict[str, Any], Any]) -> None:
     """Konvertuje 0 → None pre cash flow polia. Funguje na dict aj Prisma objektoch.
     Volá sa in-place (modifikuje vstup)."""
-    for field in _CF_FIELDS:
+    for cf_field in _CF_FIELDS:
         if isinstance(stmt, dict):
-            if stmt.get(field) == 0:
-                stmt[field] = None
+            if stmt.get(cf_field) == 0:
+                stmt[cf_field] = None
         else:
-            if getattr(stmt, field, None) == 0:
-                setattr(stmt, field, None)
+            if getattr(stmt, cf_field, None) == 0:
+                setattr(stmt, cf_field, None)
 
 
 # ── Altman Z-Score (modifikovaný pre ne-výrobné a súkromné firmy) ──────────────
@@ -46,9 +53,9 @@ def compute_white_horse_indicator(statements: list) -> dict:
         return {"penalty": 0, "flags": []}
 
     latest_stmt = statements[-1]
-    revenue = getattr(latest_stmt, 'mainActivityRevenue', 0) or 0
-    assets = getattr(latest_stmt, 'totalAssets', 0) or 0
-    receivables = getattr(latest_stmt, 'tradeReceivables', 0) or 0
+    revenue = _get(latest_stmt, 'mainActivityRevenue', 0) or 0
+    assets = _get(latest_stmt, 'totalAssets', 0) or 0
+    receivables = _get(latest_stmt, 'tradeReceivables', 0) or 0
     
     # Znak schránky: veľké tržby (> 100k), ale dlhodobo úplne 0 mzdových nákladov
     # Skontrolujeme, či je to pravda za posledné 3 dostupné roky (alebo všetky ak ich je menej)
@@ -59,8 +66,8 @@ def compute_white_horse_indicator(statements: list) -> dict:
     has_ifrs = False
     
     for stmt in recent_stmts:
-        staff = getattr(stmt, 'staffCosts', 0) or 0
-        statement_type = str(getattr(stmt, 'statementType', '') or '').upper()
+        staff = _get(stmt, 'staffCosts', 0) or 0
+        statement_type = str(_get(stmt, 'statementType', '') or '').upper()
         
         if 'IFRS' in statement_type:
             has_ifrs = True
@@ -102,9 +109,9 @@ def detect_startup_profile(statements: list) -> dict:
         return {"is_startup": False}
 
     latest = statements[-1]
-    revenue = getattr(latest, 'mainActivityRevenue', None)
-    equity = getattr(latest, 'equity', None)
-    assets = getattr(latest, 'totalAssets', None)
+    revenue = _get(latest, 'mainActivityRevenue', None)
+    equity = _get(latest, 'equity', None)
+    assets = _get(latest, 'totalAssets', None)
     n_stmts = len(statements)
 
     if assets is None or assets <= 0:
@@ -131,20 +138,18 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
     Vráti skóre, zónu a komponentné hodnoty.
     """
     try:
-        total_assets = getattr(stmt, 'totalAssets')
-        current_assets = getattr(stmt, 'currentAssets')
-        equity = getattr(stmt, 'equity')
-        net_profit = getattr(stmt, 'netProfitLoss')
-        short_liabilities = getattr(stmt, 'shortTermLiabilities')
-        long_liabilities = getattr(stmt, 'longTermLiabilities')
-        cash = getattr(stmt, 'cashAndEquivalents')
+        total_assets = _get(stmt, 'totalAssets')
+        current_assets = _get(stmt, 'currentAssets')
+        equity = _get(stmt, 'equity')
+        net_profit = _get(stmt, 'netProfitLoss')
+        short_liabilities = _get(stmt, 'shortTermLiabilities')
+        long_liabilities = _get(stmt, 'longTermLiabilities')
 
         if total_assets is None or total_assets <= 0 or net_profit is None or equity is None or short_liabilities is None:
             return {"z_score": None, "zone": "N/A", "reason": "Nedostatok dát pre výpočet"}
 
         current_assets = current_assets if current_assets is not None else 0
         long_liabilities = long_liabilities if long_liabilities is not None else 0
-        cash = cash if cash is not None else 0
 
         # Working capital = Obežný majetok - Krátkodobé záväzky
         # Ak máme currentAssets z DB, použijeme ho. Inak fallback na hrubý odhad.
@@ -154,8 +159,11 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
             working_capital = (total_assets * 0.6) - short_liabilities
 
         # Presné total_liabilities: shortTerm + longTerm ak máme oba, inak bilančná rovnica
-        if short_liabilities > 0 or long_liabilities > 0:
-            total_liabilities = max(short_liabilities + long_liabilities, 1)
+        raw_liabilities = short_liabilities + long_liabilities
+        if raw_liabilities < 0:
+            total_liabilities = max(total_assets - equity, 1)  # fallback
+        elif short_liabilities > 0 or long_liabilities > 0:
+            total_liabilities = max(raw_liabilities, 1)
         else:
             total_liabilities = max(total_assets - equity, 1)  # fallback bilančná rovnica
 
@@ -210,30 +218,33 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
     Vypočíta kľúčové finančné ukazovatele pre jedno obdobie.
     """
     try:
-        total_assets = getattr(stmt, 'totalAssets', 0) or 0
-        current_assets = getattr(stmt, 'currentAssets', 0) or 0
-        equity = getattr(stmt, 'equity', 0) or 0
-        net_profit = getattr(stmt, 'netProfitLoss', 0) or 0
-        short_liabilities = getattr(stmt, 'shortTermLiabilities', 0) or 0
-        long_liabilities = getattr(stmt, 'longTermLiabilities', 0) or 0
-        cash = getattr(stmt, 'cashAndEquivalents', 0) or 0
-        revenue = getattr(stmt, 'mainActivityRevenue', 0) or 0
-        op_cashflow_raw = getattr(stmt, 'operatingCashFlow', None)
+        total_assets = _get(stmt, 'totalAssets', 0) or 0
+        current_assets = _get(stmt, 'currentAssets', 0) or 0
+        equity = _get(stmt, 'equity', 0) or 0
+        net_profit = _get(stmt, 'netProfitLoss', 0) or 0
+        short_liabilities = _get(stmt, 'shortTermLiabilities', 0) or 0
+        long_liabilities = _get(stmt, 'longTermLiabilities', 0) or 0
+        cash = _get(stmt, 'cashAndEquivalents', 0) or 0
+        revenue = _get(stmt, 'mainActivityRevenue', 0) or 0
         sanitize_cash_flow_fields(stmt)
-        op_cashflow_raw = getattr(stmt, 'operatingCashFlow', None)
+        op_cashflow_raw = _get(stmt, 'operatingCashFlow', None)
         op_cashflow = op_cashflow_raw if op_cashflow_raw is not None else 0
-        gross_profit = getattr(stmt, 'grossProfit', 0) or 0
-        inventory = getattr(stmt, 'inventory', 0) or 0
-        depreciation = getattr(stmt, 'depreciation', 0) or 0
-        interest = getattr(stmt, 'interestExpense', 0) or 0
-        trade_receivables = getattr(stmt, 'tradeReceivables', 0) or 0
-        trade_payables = getattr(stmt, 'tradePayables', 0) or 0
+        # Anualizácia tržieb pre DSO/DPO pri skrátených obdobiach (napr. 3-mes. závierka)
+        months_in_period = _get(stmt, 'monthsInPeriod', 12) or 12
+        annualized_revenue = revenue * (12 / months_in_period) if months_in_period > 0 else revenue
+        gross_profit = _get(stmt, 'grossProfit', 0) or 0
+        inventory = _get(stmt, 'inventory', 0) or 0
+        depreciation = _get(stmt, 'depreciation', 0) or 0
+        interest = _get(stmt, 'interestExpense', 0) or 0
+        trade_receivables = _get(stmt, 'tradeReceivables', 0) or 0
+        trade_payables = _get(stmt, 'tradePayables', 0) or 0
 
         # Total liabilities: shortTerm + longTerm ak dostupné, inak bilančná rovnica
-        if short_liabilities > 0 or long_liabilities > 0:
+        computed_liabilities = total_assets - equity
+        if short_liabilities > 0 or long_liabilities > 0 or computed_liabilities < 0:
             total_liabilities = max(short_liabilities + long_liabilities, 1)
         else:
-            total_liabilities = max(total_assets - equity, 1)
+            total_liabilities = max(computed_liabilities, 1)
 
         # ── Likvidita ──
         ratios = {
@@ -245,12 +256,20 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
 
         # ── Zadlženosť ──
         ratios["debt_to_equity"] = _safe_div(total_liabilities, equity)
+        # Záporné vlastné imanie (predĺženie) → D/E je nedefinované (None). Explicitný flag,
+        # aby najhorší prípad nezostal skrytý v tabuľke ukazovateľov.
+        ratios["negative_equity"] = equity < 0
 
         # ── Rentabilita ──
         ratios["net_profit_margin_pct"] = _safe_pct(net_profit, revenue)
-        ratios["gross_profit_margin_pct"] = _safe_pct(gross_profit, revenue) if gross_profit > 0 else None
+        # Hrubá marža: zobraz aj zápornú (strata na úrovni hrubej marže), None len ak grossProfit chýba.
+        gross_profit_raw = _get(stmt, 'grossProfit', None)
+        ratios["gross_profit_margin_pct"] = _safe_pct(gross_profit_raw, revenue) if gross_profit_raw is not None else None
         ratios["roa_pct"] = _safe_pct(net_profit, total_assets)
-        ratios["roe_pct"] = _safe_pct(net_profit, equity)
+        if equity > 0:
+            ratios["roe_pct"] = round((net_profit / equity) * 100, 2)
+        else:
+            ratios["roe_pct"] = None
 
         # ── EBITDA (approx: net_profit + interest + depreciation) ──
         # Náklady na úroky (interest) môžu byť v DB uložené ako záporné — prirátavame absolútnu hodnotu.
@@ -260,9 +279,9 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         # Ak je operatingCashFlow None (nedostupné v RÚZ), vrátiť None — nie 0.0
         ratios["cashflow_to_profit"] = _safe_div(op_cashflow, abs(net_profit)) if (net_profit != 0 and op_cashflow_raw is not None) else None
 
-        # ── Dni obratu ──
-        ratios["dso_days"] = round((trade_receivables / revenue) * 365, 0) if revenue > 0 and trade_receivables > 0 else None
-        ratios["dpo_days"] = round((trade_payables / revenue) * 365, 0) if revenue > 0 and trade_payables > 0 else None
+        # ── Dni obratu ── (anualizované tržby pre korektnosť pri skrátených obdobiach)
+        ratios["dso_days"] = round((trade_receivables / annualized_revenue) * 365, 0) if annualized_revenue > 0 and trade_receivables > 0 else None
+        ratios["dpo_days"] = round((trade_payables / annualized_revenue) * 365, 0) if annualized_revenue > 0 and trade_payables > 0 else None
 
         return ratios
     except Exception:
@@ -325,7 +344,9 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             if isinstance(event, dict)
             else getattr(event, "eventType", "").lower()
         )
-        if any(kw in event_type for kw in ("konkurz", "likvidáci", "reštrukturalizáci")):
+        import unicodedata
+        event_type_norm = unicodedata.normalize("NFC", event_type)
+        if any(kw in event_type_norm for kw in ("konkurz", "likvidáci", "reštrukturalizáci")):
             pillars.append(ScorecardPillar(
                 name="Platobná schopnosť & Exekúcie",
                 score=0, max_score=30,
@@ -341,9 +362,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
 
     last_ratios = (trends.get("ratios_by_year") or [{}])[-1]
     last_z = (trends.get("altman_z_scores") or [{}])[-1]
-    analyzed_years = trends.get("analyzed_years", [])
     consecutive_losses = trends.get("consecutive_losses", 0)
-    average_profit = trends.get("average_profit", 0)
 
     # ── Data availability check ──────────────────────────────────────────────
     # Ak je väčšina kľúčových finančných metrík None (napr. RÚZ PDF sken bez textu),
@@ -352,7 +371,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     _KEY_METRICS = ["totalAssets", "equity", "netProfitLoss", "shortTermLiabilities", "mainActivityRevenue"]
     if sorted_stmts_raw:
         last_stmt = sorted_stmts_raw[-1]
-        available = sum(1 for m in _KEY_METRICS if getattr(last_stmt, m, None) is not None)
+        available = sum(1 for m in _KEY_METRICS if _get(last_stmt, m) is not None)
         data_availability_pct = available / len(_KEY_METRICS)
     else:
         data_availability_pct = 0.0
@@ -460,11 +479,11 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Bezpečná zóna ✓")
         elif z_zone == "GREY":
             # Lineárna škála 1.1–2.6: → 8–16 bodov
-            grey_pts = int(8 + (z_score_val - 1.1) / (2.6 - 1.1) * 9)
+            grey_pts = min(16, int(8 + (z_score_val - 1.1) / (2.6 - 1.1) * 9))
             p2_score += grey_pts
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Šedá zóna ⚠")
         else:  # DISTRESS
-            p2_score += max(0, int(z_score_val * 5)) if z_score_val is not None else 0
+            p2_score += max(0, min(4, int((z_score_val / 1.1) * 4))) if z_score_val is not None else 0
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna (spoločnosť je pod finančným stresom) ✗")
 
         # 2b. Debt-to-Equity (max 3 body)
@@ -689,9 +708,6 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     # ══════════════════════════════════════════════════════════════════════════
     financial_statements = company_dict.get("financialStatements", [])
     if financial_statements:
-        class StmtProxy:
-            def __init__(self, d): self.__dict__.update(d)
-            
         def _get_year(stmt):
             if hasattr(stmt, "year"):
                 return getattr(stmt, "year")
@@ -700,9 +716,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             return 0
             
         sorted_statements = sorted(financial_statements, key=_get_year)
-        proxies = [StmtProxy(s) if isinstance(s, dict) else s for s in sorted_statements]
         
-        wh = compute_white_horse_indicator(proxies)
+        wh = compute_white_horse_indicator(sorted_statements)
         
         if wh["penalty"] > 0:
             pillars.append(ScorecardPillar(

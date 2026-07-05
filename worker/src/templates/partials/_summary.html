@@ -115,10 +115,10 @@
             </div>
             {% endif %}
             
-            {% if verdict.executive_summary %}
+            {% if verdict.executiveSummary %}
             <div class="mb-5 p-4 bg-slate-50 border-l-4 border-slate-600 rounded report-body text-slate-700 text-justify shadow-sm">
                 <h3 class="subsection-title mb-2">Executive Summary</h3>
-                {{ verdict.executive_summary | sanitize_llm }}
+                {{ verdict.executiveSummary | sanitize_llm }}
             </div>
             {% endif %}
 
@@ -131,9 +131,9 @@
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-50 border-b border-slate-200">
                         <tr>
-                            <th class="px-3 py-2 font-semibold text-slate-600 w-[47%] report-body-sm">Tvrdenie</th>
-                            <th class="px-3 py-2 font-semibold text-slate-600 w-[43%] report-body-sm">Dôkaz</th>
-                            <th class="px-3 py-2 font-semibold text-slate-600 w-[10%] report-body-sm">Zdroj</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[30%] report-body-sm">Tvrdenie</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[58%] report-body-sm">Dôkaz</th>
+                            <th class="px-3 py-2 font-semibold text-slate-600 w-[12%] report-body-sm">Zdroj</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">

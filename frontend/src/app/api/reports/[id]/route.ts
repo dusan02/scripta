@@ -29,8 +29,12 @@ export async function GET(
 
     console.log("DEBUG API route report.aiStatus:", report.aiStatus);
 
+    // Verifa skóre: preferujeme snapshot uložený priamo na reporte (fixované v čase generovania).
+    // Fallback na AuditVerdict len pre staré reporty pred migráciou (report.verifaScore === null).
     let verifaScore = 100;
-    if (report.ico) {
+    if (report.verifaScore !== null && report.verifaScore !== undefined) {
+      verifaScore = report.verifaScore;
+    } else if (report.ico) {
       const verdict = await prisma.auditVerdict.findUnique({
         where: { companyIco: report.ico }
       });

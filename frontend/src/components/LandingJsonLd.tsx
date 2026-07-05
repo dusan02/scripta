@@ -11,7 +11,7 @@ const landingJsonLd = {
       url: "https://verifa.sk",
       offers: {
         "@type": "Offer",
-        price: "19",
+        price: "19.49",
         priceCurrency: "EUR",
         description: "Jednorazový report",
       },

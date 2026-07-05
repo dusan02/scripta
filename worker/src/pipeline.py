@@ -4,6 +4,7 @@ import json
 import re
 import logging
 import time
+from datetime import datetime
 from typing import Optional
 
 import asyncio
@@ -51,9 +52,6 @@ _GLOBAL_LLM_SEM = asyncio.Semaphore(2)
 
 # Fallback baseline ak nie sú historické dáta (sekundy)
 _PIPELINE_BASELINE_FALLBACK = _cfg.pipeline_baseline_fallback
-
-# Dynamická baseline — nastaví sa pri štarte process_company z histórie behov
-_pipeline_baseline: float = _PIPELINE_BASELINE_FALLBACK
 
 
 def _extract_year_from_fn(file_path: str) -> int:
@@ -179,31 +177,31 @@ def _build_fallback_verdict(company_dict: dict, scorecard) -> AuditVerdict:
 
     evidence = [
         EvidenceItem(
-            tvrdenie="Algoritmické hodnotenie (5-pilierový model)",
-            dokaz=f"Skóre {prescore}/100, kategória {risk_cat}",
-            zdroj="Deterministický algoritmus",
+            claim="Algoritmické hodnotenie (5-pilierový model)",
+            evidence=f"Skóre {prescore}/100, kategória {risk_cat}",
+            source="Deterministický algoritmus",
             impact="NEUTRAL",
         )
     ]
     if hard_stop:
         evidence.append(EvidenceItem(
-            tvrdenie="HARD STOP — konkurz/likvidácia/reštrukturalizácia",
-            dokaz="Detegované vo Vestníku",
-            zdroj="Obchodný vestník",
+            claim="HARD STOP — konkurz/likvidácia/reštrukturalizácia",
+            evidence="Detegované vo Vestníku",
+            source="Obchodný vestník",
             impact="CRITICAL",
         ))
     if pillar_summaries:
         evidence.append(EvidenceItem(
-            tvrdenie="Rozpis pilierov",
-            dokaz=" | ".join(pillar_summaries),
-            zdroj="5-pilierový scorecard",
+            claim="Rozpis pilierov",
+            evidence=" | ".join(pillar_summaries),
+            source="5-pilierový scorecard",
             impact="NEUTRAL",
         ))
 
     return AuditVerdict(
         verifa_score=prescore,
         risk_category=risk_cat,
-        debt_exposure_rating=0,
+        debt_exposure_rating=None,
         executive_summary=(
             "Hodnotenie bolo vypočítané na základe deterministického algoritmického modelu "
             "(5-pilierový scorecard). LLM analýza (Chief Auditor) bola dočasne nedostupná. "
@@ -279,19 +277,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
                     reasons.append(f"nový finančný výkaz ({s.year})")
                     break
 
-            # 3. Nové PDF z registrov?
-            results_dir = os.environ.get("RESULTS_DIR", "./results")
-            for rid_dir in glob.glob(f"{results_dir}/*"):
-                if os.path.isdir(rid_dir):
-                    for pattern in [f"/*{ico}*.pdf"]:
-                        for pdf in glob.glob(f"{rid_dir}{pattern}"):
-                            if os.path.getmtime(pdf) > verdict_ts.timestamp():
-                                reasons.append(f"nové PDF z registra ({os.path.basename(pdf)})")
-                                break
-                    if reasons and reasons[-1].startswith("nové PDF"):
-                        break
-
-            # 4. Fallback: verdict príliš starý
+            # 3. Fallback: verdict príliš starý
             age_days = (datetime.now(timezone.utc) - verdict_ts).days
             if age_days > STALE_TTL_DAYS:
                 reasons.append(f"verdict {age_days}d starý (> {STALE_TTL_DAYS}d)")
@@ -301,6 +287,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
                 return
             else:
                 logger.info(f"Re-run LLM pre IČO {ico}: {', '.join(reasons)}")
+
         # Extrahuje JSON dáta
         company_dict = company.model_dump(exclude_none=True)
         
@@ -345,46 +332,47 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
             logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)
             verdict = _build_fallback_verdict(company_dict, scorecard)
         
-        logger.info(f"Ukladám AuditVerdict pre IČO {ico}: Skóre {verdict.verifa_score}, Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}")
-        
+        # ── Fix 3: Deterministické verifaScore ─────────────────────────────────
+        # verifaScore = compute_forensic_scorecard().total_score (vždy, bez ohľadu na LLM).
+        # LLM forenzný adjustment (llm_score_adjustment) je len informatívny — neukladá sa do skóre.
+        # Fallback na verdict.verifa_score len ak neexistujú finančné výkazy (firma bez dát).
+        deterministic_score = scorecard.total_score if scorecard is not None else verdict.verifa_score
+        llm_adj = getattr(verdict, "llm_score_adjustment", 0) or 0
+        logger.info(
+            f"Ukladám AuditVerdict pre IČO {ico}: "
+            f"Score={deterministic_score} (algo), LLM_adj={llm_adj:+d}, "
+            f"Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}"
+        )
+
+        verdict_payload = {
+            'verifaScore': deterministic_score,
+            'riskCategory': verdict.risk_category,
+            'debtExposureRating': verdict.debt_exposure_rating,
+            'finalVerdict': verdict.final_verdict,
+            'executiveSummary': verdict.executive_summary,
+            'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
+            'keyRisk': verdict.kľúčové_riziko,
+            'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
+            'llmAnalysisStatus': verdict.llm_analysis_status,
+        }
         await db.auditverdict.upsert(
             where={'companyIco': ico},
             data={
-                'create': {
-                    'companyIco': ico,
-                    'verifaScore': verdict.verifa_score,
-                    'riskCategory': verdict.risk_category,
-                    'debtExposureRating': verdict.debt_exposure_rating,
-                    'finalVerdict': verdict.final_verdict,
-                    'executiveSummary': verdict.executive_summary,
-                    'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
-                    'keyRisk': verdict.kľúčové_riziko,
-                    'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
-                    'llmAnalysisStatus': verdict.llm_analysis_status,
-                },
-                'update': {
-                    'verifaScore': verdict.verifa_score,
-                    'riskCategory': verdict.risk_category,
-                    'debtExposureRating': verdict.debt_exposure_rating,
-                    'finalVerdict': verdict.final_verdict,
-                    'executiveSummary': verdict.executive_summary,
-                    'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
-                    'keyRisk': verdict.kľúčové_riziko,
-                    'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
-                    'llmAnalysisStatus': verdict.llm_analysis_status,
-                }
+                'create': {'companyIco': ico, **verdict_payload},
+                'update': verdict_payload,
             }
         )
+
     except Exception as e:
         logger.error(f"Chyba pri generovaní AuditVerdict pre IČO {ico}: {e}", exc_info=True)
     finally:
         await db.disconnect()
 
 
-def _remaining_eta(t_start: float) -> int:
+def _remaining_eta(t_start: float, baseline: float) -> int:
     """Vypočíta dynamický remaining ETA z uplynutého času a baseliny."""
     elapsed = time.perf_counter() - t_start
-    return max(5, int(_pipeline_baseline - elapsed))
+    return max(5, int(baseline - elapsed))
 
 
 
@@ -399,18 +387,17 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
     _ifrs_count = 0
     _vs_count = 0
 
-    global _pipeline_baseline
-
     db = Prisma()
     await db.connect()
     try:
-        # Načítanie dynamickej baseliny z priemerného času posledných behov
+        # Načítanie dynamickej baseliny z priemerného času posledných behov.
+        # Lokálna premenná (nie globálna) — zabraňuje race condition pri paralelných reportoch.
         avg_seconds = await get_avg_completion_seconds(db)
         if avg_seconds and avg_seconds > 0:
-            _pipeline_baseline = avg_seconds
+            pipeline_baseline = avg_seconds
             logger.info(f"[PIPELINE] Dynamická baseline ETA: {avg_seconds:.0f}s (z histórie behov)")
         else:
-            _pipeline_baseline = _PIPELINE_BASELINE_FALLBACK
+            pipeline_baseline = _PIPELINE_BASELINE_FALLBACK
         company_name = None
         if report_request_id:
             req = await db.reportrequest.find_unique(where={'id': report_request_id})
@@ -430,13 +417,13 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         else:
             await db.company.create(data={'ico': ico, 'name': fallback_name})
 
-        await update_ai_status(db, report_request_id, "ai.downloading", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.downloading", _remaining_eta(_t_start, pipeline_baseline))
         
         # 1. Stiahnutie z RÚZ (IFRS a VS)
         with PhaseTimer("RÚZ download"):
             downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
         
-        await update_ai_status(db, report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start, pipeline_baseline))
         
         # 2. Rozdelenie súborov na IFRS a VS
         ifrs_files = []
@@ -469,33 +456,28 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                         model=_MODEL_IFRS, label=f"IFRS:{file_name}"
                     )
                     
-                    # Auto-retry s celým PDF, ak chýbajú kľúčové polia (odrezané poznámky)
+                    # Auto-retry s celým PDF, ak chýbajú kľúčové polia (odrezané poznámky).
+                    # POZOR: Cash flow polia (investičný/finančný CF) SEM NEPATRIA — v zjednodušených
+                    # výkazoch ("Výkaz vybraných údajov" / VÚ POD) legitímne chýbajú a full-PDF retry
+                    # by ich aj tak nenašiel, len by zbytočne minul LLM tokeny.
                     if data and sliced_path and sliced_path != file_path:
                         m = data.metriky
-                        needs_retry = (
-                            m.celkove_aktiva is None
-                            or m.obezny_majetok is None
-                            or m.vlastne_imanie_celkom is None
-                            or m.pohladavky_z_obchodneho_styku is None
-                            or m.zavazky_z_obchodneho_styku is None
-                            or m.osobne_naklady is None
-                            or m.investicny_cash_flow is None
-                            or m.financny_cash_flow is None
-                        )
+                        # Core súvahové/P&L polia, ktoré sú prítomné v každom type výkazu
+                        core_missing = {
+                            "celkové aktíva": m.celkove_aktiva is None,
+                            "obežný majetok": m.obezny_majetok is None,
+                            "vlastné imanie": m.vlastne_imanie_celkom is None,
+                            "pohľadávky": m.pohladavky_z_obchodneho_styku is None,
+                            "záväzky": m.zavazky_z_obchodneho_styku is None,
+                            "osobné náklady": m.osobne_naklady is None,
+                        }
+                        needs_retry = any(core_missing.values())
                         if needs_retry:
                             doc = fitz.open(file_path)
                             total_pages = len(doc)
                             doc.close()
                             if total_pages <= 80:
-                                missing = []
-                                if m.celkove_aktiva is None: missing.append("celkové aktíva")
-                                if m.obezny_majetok is None: missing.append("obežný majetok")
-                                if m.vlastne_imanie_celkom is None: missing.append("vlastné imanie")
-                                if m.pohladavky_z_obchodneho_styku is None: missing.append("pohľadávky")
-                                if m.zavazky_z_obchodneho_styku is None: missing.append("záväzky")
-                                if m.osobne_naklady is None: missing.append("osobné náklady")
-                                if m.investicny_cash_flow is None: missing.append("investičný CF")
-                                if m.financny_cash_flow is None: missing.append("finančný CF")
+                                missing = [label for label, is_missing in core_missing.items() if is_missing]
                                 logger.info(f"[RETRY] Dáta sú neúplné (chýba: {', '.join(missing)}). Spúšťam analýzu nad neskráteným PDF ({total_pages} strán): {file_name}")
                                 data2 = await safe_llm_call(
                                     extract_financial_data, file_path,
@@ -503,11 +485,10 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                                 )
                                 if data2:
                                     # Zachovaj hodnoty z prvého pokusu ak retry nevrátil lepšie
-                                    for field in ("osobne_naklady", "investicny_cash_flow", "financny_cash_flow", "ciste_penazne_toky_z_prevadzkovej_cinnosti"):
-                                        old_val = getattr(data.metriky, field, None)
-                                        new_val = getattr(data2.metriky, field, None)
+                                    for field_name, old_val in data.metriky.model_dump().items():
+                                        new_val = getattr(data2.metriky, field_name, None)
                                         if new_val is None and old_val is not None:
-                                            setattr(data2.metriky, field, old_val)
+                                            setattr(data2.metriky, field_name, old_val)
                                     data = data2
                             else:
                                 logger.warning(f"[RETRY SKIP] PDF má {total_pages} > 80 strán, preskakujem full-retry kvôli nákladom: {file_name}")
@@ -545,8 +526,8 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                             # UPOZORNENIE: Toto je horný odhad (upper bound) — v schéme nemáme
                             # rezervy, časové rozlíšenie ani samostatné bankové úvery.
                             # Vyžadujeme obe zložky záväzkov, aby sme minimalizovali skreslenie.
-                            if m.kratkodobe_zavazky is not None and m.dlhodobeZavazky is not None:
-                                computed_equity = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobeZavazky)
+                            if m.kratkodobe_zavazky is not None and m.dlhodobe_zavazky is not None:
+                                computed_equity = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobe_zavazky)
                                 if computed_equity > 0:
                                     m.vlastne_imanie_celkom = computed_equity
                                     logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad, môže byť nadhodnotené): {m.vlastne_imanie_celkom}")
@@ -575,7 +556,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 try:
                     logger.info(f"Spracovávam výročnú správu (Narrative): {file_name} (model: {_MODEL_NARRATIVE})")
                     yr_match = re.search(r'_(\d{4})_', file_name)
-                    narrative_year = int(yr_match.group(1)) if yr_match and int(yr_match.group(1)) > 2000 else 2024
+                    narrative_year = int(yr_match.group(1)) if yr_match and int(yr_match.group(1)) > 2000 else datetime.today().year
                     
                     sliced_path = slice_narrative_pdf(file_path, max_pages=15)
                     input_path = sliced_path if sliced_path else file_path
@@ -615,10 +596,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         # _GLOBAL_LLM_SEM(2) je zdieľaný medzi všetkými reportmi — Gemini free tier ~5 RPM
         _stagger_counter = 0
 
+        _STAGGER_MAX_DELAY = 10.0  # strop — stagger len rozloží úvodný burst, concurrency rieši semaphore(2)
+
         async def _staggered_process(coro_func, *args, **kwargs):
             nonlocal _stagger_counter
             _stagger_counter += 1
-            delay = (_stagger_counter - 1) * 2.0  # 0s, 2s, 4s, 6s, ...
+            delay = min((_stagger_counter - 1) * 2.0, _STAGGER_MAX_DELAY)  # 0, 2, 4, 6, 8, 10, 10, ...
             if delay > 0:
                 await asyncio.sleep(delay)
             return await coro_func(*args, **kwargs)
@@ -667,12 +650,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 if notes_data:
                     break # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
 
-        await update_ai_status(db, report_request_id, "ai.risk_analysis", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.risk_analysis", _remaining_eta(_t_start, pipeline_baseline))
         
         # Počkáme, kým sa dokončí úloha s Vestníkom (väčšinou sa stihne počas PDF)
         await vestnik_task
             
-        await update_ai_status(db, report_request_id, "ai.final_verdict", _remaining_eta(_t_start))
+        await update_ai_status(db, report_request_id, "ai.final_verdict", _remaining_eta(_t_start, pipeline_baseline))
         
         # 4. Sudca (Chief Auditor) sa spúšťa z main.py PO dokončení scraperov,
         # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia).

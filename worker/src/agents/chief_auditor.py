@@ -17,9 +17,10 @@ class EvidenceItem(BaseModel):
     impact: Literal["POSITIVE", "WARNING", "CRITICAL", "NEUTRAL"] = Field(..., description="Vplyv na skóre.")
 
 class AuditVerdict(BaseModel):
-    verifa_score: int = Field(..., ge=0, le=100, description="Finálne skóre integrity a zdravia.")
+    verifa_score: int = Field(..., ge=0, le=100, description="Musí byť PRESNE rovné algorithmic_prescore — nepridávaj ani neodoberáj body. Toto pole je výstupom deterministického algoritmu a LLM ho neupravuje.")
+    llm_score_adjustment: int = Field(default=0, ge=-10, le=10, description="Tvoj forenzný posudok adjustmentu včaka PDF a naratívnym dátam. Záporné = penalizácia, kladné = bonus. Toto pole je len informatívne — neovplyvňuje uložené verifaScore.")
     risk_category: Literal["AAA", "A", "B", "C", "INSUFFICIENT_DATA"]
-    debt_exposure_rating: int = Field(..., ge=0, le=10, description="Hodnotenie expozície voči verejným dlhom (0=čisté, 10=katastrofa).")
+    debt_exposure_rating: Optional[int] = Field(default=None, ge=0, le=10, description="Hodnotenie expozície voči verejným dlhom (0=čisté, 10=katastrofa). null = nebolo možné vyhodnotiť.")
     executive_summary: str = Field(..., description="Hlboká korelačná analýza a forenzná syntéza. Prepoj finančné anomálie so zisteniami z registrov do pútavého odstavca.")
     final_verdict: str = Field(..., description="Jedna veta, ktorá zhrnie objektívny stav spoločnosti. Striktne sa vyhni subjektívnym obchodným či investičným odporúčaniam (nepoužívaj 'Odporúčame/Neodporúčame spoluprácu'). Zhodnoť výlučne fakty a mieru rizika (napr. 'Spoločnosť vykazuje stabilné finančné zdravie s nízkym rizikom' alebo 'Kriticky rizikový stav kvôli prebiehajúcim exekúciám').")
     zdovodnenie: list[EvidenceItem] = Field(..., description="Analytické zdôvodnenie skóre. Zoznam tvrdení, dôkazov a zdrojov.")
@@ -59,18 +60,20 @@ PROCES HODNOTENIA A SYNTÉZY:
    - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu s aktuálnou hotovosťou.
    - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti.
    - Urči `debt_exposure_rating` (0-10), kde 0 = žiadne dlhy, 10 = katastrofálna dlhová pasca.
-3. VÝPOČET FINÁLNEHO SKÓRE (0-100):
-   - Vezmi `algorithmic_prescore` (výsledok 5-pilierového modelu, rozsah 0–100).
-   - Pridaj/Odober max ±10 bodov podľa forenzného úsudku (naratíva, právne riziká, PDF analýza).
-   - Priraď kategóriu rizika: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
+3. VÝPOČET FORENŽNÉHO ADJUSTMENTU (informácia pre užívateľa):
+   - V poli `verifa_score` vrátiš PRESNE hodnotu `algorithmic_prescore` — bez akejkoľvek zmeny.
+   - V poli `llm_score_adjustment` vyráziš forenzný adjustment v rozsahu -10 až +10 bodov, ktorý by si typicky aplikoval (napr. -5 za aktívne exekúcie v PDF, +3 za silné pozitívne naratívne signály).
+   - `llm_score_adjustment` je len transparenté informatívne pole — zobrazí sa v posudku, ale nemenmí `verifaScore` v databáze.
+   - Priraď kategóriu rizika podľa `algorithmic_prescore` + tvoj adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
 PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
+- `verifa_score` = `algorithmic_prescore` (bez zmeny — porušenie tohto pravidla spôsobí chybu).
 - V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
-- Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelovanie a vážny finančný stres, NEUTRAL pre neutrálne info).
+- Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelenie a vážný finančný stres, NEUTRAL pre neutrálne info).
 - Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
-- Ak sa tvoje skóre líši od 'algorithmic_prescore', vysvetli dôvod (napr. penalizácia za PDF dlhy, naratívne riziká).
-- Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), skóre neurčuj a uveď 'INSUFFICIENT_DATA'.
+- V poli `zdovodnenie` vysvetli `llm_score_adjustment`: ak je nenulový, uvedie jeden EvidenceItem opisujúci, prečo by si score korigoval (napr. "PDF dlhy neobsahujú aktívne exekúcie, llm_score_adjustment = 0").
+- Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), zvol 'INSUFFICIENT_DATA' v risk_category.
 
 PRAVIDLÁ PRE KVALITU TEXTU:
 - VŽDY používaj správnu slovenčinu: "dlžník" (nie "dižnik"), "dlžníkov" (nie "dižnikov").

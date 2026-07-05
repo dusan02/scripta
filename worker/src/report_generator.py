@@ -1,10 +1,14 @@
 import os
+import re
+import io
+import json
+import time
+import base64
 import asyncio
 import logging
-import base64
-import io
 from pathlib import Path
 from typing import Optional
+from xml.sax.saxutils import escape as xml_escape
 
 from playwright.async_api import async_playwright
 from prisma import Prisma
@@ -15,7 +19,15 @@ import seaborn as sns
 import numpy as np
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
-from src.analytics import compute_altman_z_score
+from matplotlib.ticker import FuncFormatter
+from src.analytics import (
+    compute_altman_z_score,
+    sanitize_cash_flow_fields,
+    compute_financial_ratios,
+    compute_financial_trends,
+    compute_forensic_scorecard,
+    detect_startup_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +54,9 @@ SOURCE_LABELS = {
 }
 
 def format_currency(value: float) -> str:
-    """Naformátuje číslo ako menu (napr. 1 234 567 €). Ak je None, vráti '-'."""
+    """Naformátuje číslo ako menu (napr. 1 234 567 €). Ak je None, vráti '—'."""
     if value is None:
-        return "-"
+        return "—"
     try:
         val = float(value)
         abs_val = abs(val)
@@ -54,18 +66,22 @@ def format_currency(value: float) -> str:
             return f"{val / 1_000:,.1f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
         return f"{val:,.0f} €".replace(",", " ")
     except (ValueError, TypeError):
-        return "-"
+        return "—"
 
 def format_number(value: float) -> str:
     """Vráti číslo bez menovej prípony — pre tabuľky kde je jednotka uvedená v hlavičke."""
     if value is None:
         return "—"
-    abs_val = abs(value)
-    if abs_val >= 1_000_000:
-        return f"{value / 1_000_000:,.1f}".replace(",", "X").replace(".", ",").replace("X", " ")
-    elif abs_val >= 1_000:
-        return f"{value / 1_000:,.0f}".replace(",", "X").replace(".", ",").replace("X", " ")
-    return f"{value:,.0f}".replace(",", " ")
+    try:
+        val = float(value)
+        abs_val = abs(val)
+        if abs_val >= 1_000_000:
+            return f"{val / 1_000_000:,.1f}".replace(",", "X").replace(".", ",").replace("X", " ")
+        elif abs_val >= 1_000:
+            return f"{val / 1_000:,.0f}".replace(",", "X").replace(".", ",").replace("X", " ")
+        return f"{val:,.0f}".replace(",", " ")
+    except (ValueError, TypeError):
+        return "—"
 
 def format_number_millions(value: float, treat_zero_as_none: bool = False) -> str:
     """Vráti číslo v miliónoch s 2 desatinnými miestami — pre tabuľky s mixom veľkých a malých hodnôt.
@@ -98,8 +114,8 @@ def generate_financial_chart(statements) -> str:
     statements = sorted(statements, key=lambda x: x.year)
     
     years = [str(s.year) for s in statements]
-    revenues = [s.mainActivityRevenue for s in statements]
-    profits = [s.netProfitLoss for s in statements]
+    revenues = [s.mainActivityRevenue or 0 for s in statements]
+    profits = [s.netProfitLoss or 0 for s in statements]
     
     # Nastavenie Corporate Minimalist štýlu (seaborn)
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
@@ -128,7 +144,7 @@ def generate_financial_chart(statements) -> str:
             return f'{x*1e-3:.0f}k'
         return f'{x:.0f}'
         
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(currency_formatter))
+    ax.yaxis.set_major_formatter(FuncFormatter(currency_formatter))
     
     plt.tight_layout()
     
@@ -148,8 +164,8 @@ def generate_balance_sheet_chart(statements) -> str:
     statements = sorted(statements, key=lambda x: x.year)
     
     years = [str(s.year) for s in statements]
-    assets = [s.totalAssets for s in statements]
-    equity = [s.equity for s in statements]
+    assets = [s.totalAssets or 0 for s in statements]
+    equity = [s.equity or 0 for s in statements]
     debt = [((s.shortTermLiabilities or 0) + (s.longTermLiabilities or 0)) for s in statements]
     
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
@@ -175,7 +191,7 @@ def generate_balance_sheet_chart(statements) -> str:
             return f'{x/1_000:.0f}k'
         return str(int(x))
         
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(currency_formatter))
+    ax.yaxis.set_major_formatter(FuncFormatter(currency_formatter))
     
     plt.tight_layout()
     
@@ -223,7 +239,7 @@ def generate_pnl_chart(statements) -> str:
         if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
         if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
         return f'{x:.0f}'
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(_fmt))
+    ax.yaxis.set_major_formatter(FuncFormatter(_fmt))
     plt.tight_layout()
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
@@ -266,7 +282,7 @@ def generate_cashflow_chart(statements) -> str:
         if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
         if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
         return f'{x:.0f}'
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(_fmt))
+    ax.yaxis.set_major_formatter(FuncFormatter(_fmt))
     plt.tight_layout()
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
@@ -314,9 +330,6 @@ def generate_altman_chart(altman_scores) -> str:
     plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode('utf-8')
-
-import re
-from xml.sax.saxutils import escape as xml_escape
 
 def sanitize_llm_text(text: str) -> str:
     """Sanitizuje LLM generovaný text pre PDF rendering.
@@ -404,9 +417,55 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     verdict = company.auditVerdict
     stmts = company.financialStatements
     # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
-    from src.analytics import sanitize_cash_flow_fields
     for stmt in (stmts or []):
         sanitize_cash_flow_fields(stmt)
+    # Fallback: ak grossProfit chýba (AI ho neextrahoval), vypočítaj ako prevádzkový zisk
+    # Používa sa pre IFRS/SK GAAP by-function výkazy kde gross profit nie je explicitne uvedený
+    # Výpočet: revenue - (staffCosts + depreciation + interestExpense) ≈ approx operating profit
+    # Vyžaduje všetky 3 nákladové položky — ak niektorá chýba, fallback sa nevykoná
+    gross_profit_estimated = False
+    estimated_gp_years = set()
+    for stmt in (stmts or []):
+        if getattr(stmt, 'grossProfit', None) is None:
+            revenue = getattr(stmt, 'mainActivityRevenue', None)
+            staff = getattr(stmt, 'staffCosts', None)
+            depreciation = getattr(stmt, 'depreciation', None)
+            interest = getattr(stmt, 'interestExpense', None)
+            if revenue and revenue > 0 and staff is not None and depreciation is not None and interest is not None:
+                estimated = revenue - staff - depreciation - interest
+                # Sanity check: fallback nesmie byť záporný ani > 100% tržieb
+                if 0 < estimated <= revenue:
+                    stmt.grossProfit = estimated
+                    estimated_gp_years.add(stmt.year)
+                    gross_profit_estimated = True
+    # Ak sú VŠETKY hodnoty grossProfit odhadnuté (žiadny rok nemá reálnu hrubú maržu),
+    # môžeme premenovať celý riadok. Inak ostáva "Hrubá marža" a odhadnuté bunky sa označia.
+    _gp_years = [s for s in (stmts or []) if getattr(s, 'grossProfit', None) is not None]
+    gross_profit_all_estimated = bool(_gp_years) and all(s.year in estimated_gp_years for s in _gp_years)
+
+    # Fallback: ak operatingCashFlow chýba (zjednodušený výkaz bez CF), vypočítaj nepriamou metódou
+    # Operating CF ≈ Net Profit + Depreciation - ΔInventory - ΔTrade Receivables + ΔTrade Payables
+    cashflow_estimated = False
+    stmts_by_year = {s.year: s for s in (stmts or [])}
+    for stmt in (stmts or []):
+        if getattr(stmt, 'operatingCashFlow', None) is None:
+            prev = stmts_by_year.get(stmt.year - 1)
+            if not prev:
+                continue
+            net_profit = getattr(stmt, 'netProfitLoss', None)
+            depreciation = getattr(stmt, 'depreciation', None)
+            inv = getattr(stmt, 'inventory', None)
+            inv_prev = getattr(prev, 'inventory', None)
+            recv = getattr(stmt, 'tradeReceivables', None)
+            recv_prev = getattr(prev, 'tradeReceivables', None)
+            pay = getattr(stmt, 'tradePayables', None)
+            pay_prev = getattr(prev, 'tradePayables', None)
+            if net_profit is None or depreciation is None:
+                continue
+            if inv is not None and inv_prev is not None and recv is not None and recv_prev is not None and pay is not None and pay_prev is not None:
+                approx_cf = net_profit + depreciation - (inv - inv_prev) - (recv - recv_prev) + (pay - pay_prev)
+                stmt.operatingCashFlow = approx_cf
+                cashflow_estimated = True
     latest_stmt = max(stmts, key=lambda s: s.year) if stmts else None
     vestnik_events = company.vestnikEvents or []
     
@@ -416,7 +475,6 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Najnovšie finančné pomery pre karty v reporte
     latest_ratios = {}
     if latest_stmt:
-        from src.analytics import compute_financial_ratios
         latest_ratios = compute_financial_ratios(latest_stmt)
     
     # NACE info
@@ -493,12 +551,18 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     if other_sources:
         grouped_sources.append(("Ostatné", other_sources))
         
-    import json
     evidence_list = []
     try:
         if verdict and verdict.justification:
             raw_list = json.loads(verdict.justification)
             for item in raw_list:
+                # Premapuj anglické kľúče z DB na slovenské, ktoré šablóny očakávajú
+                if "claim" in item and "tvrdenie" not in item:
+                    item["tvrdenie"] = item["claim"]
+                if "evidence" in item and "dokaz" not in item:
+                    item["dokaz"] = item["evidence"]
+                if "source" in item and "zdroj" not in item:
+                    item["zdroj"] = item["source"]
                 z = item.get("zdroj", "")
                 if "profit_trend" in z: z = "Finančná analýza (Trend zisku)"
                 elif "ratios_by_year" in z: z = "Finančná analýza (Ukazovatele)"
@@ -511,13 +575,18 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 elif "orsr" in z: z = "Obchodný register (ORSR)"
                 item["zdroj"] = z
             evidence_list = raw_list
-    except Exception:
-        pass
-        
-    from src.analytics import compute_financial_trends, compute_forensic_scorecard
+    except Exception as e:
+        logger.warning(f"Nepodarilo sa naparsovať evidence z verdict.justification: {e}")
+
     scorecard_breakdown = []
     algorithmic_total = 0
-    if stmts:
+    # Uprednostni uložený scorecardBreakdown z verdiktu — bol počítaný z raw dát
+    # a zodpovedá uloženému verifaScore. Prepočet len ako fallback keď chýba.
+    stored_breakdown = getattr(verdict, "scorecardBreakdown", None) if verdict else None
+    if stored_breakdown:
+        scorecard_breakdown = stored_breakdown
+        algorithmic_total = sum(p.get("score", 0) for p in stored_breakdown)
+    elif stmts:
         company_dict_for_scoring = {
             "vestnikEvents": [
                 {"eventType": e.eventType, "severityLevel": getattr(e, "severityLevel", None)}
@@ -541,7 +610,6 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         is_financial_institution = True
 
     # Startup detekcia — pre pre-revenue firmy s veľkým imaním
-    from src.analytics import detect_startup_profile
     sorted_stmts_for_startup = sorted(stmts or [], key=lambda s: s.year)
     startup_info = detect_startup_profile(sorted_stmts_for_startup)
     is_startup = startup_info.get("is_startup", False)
@@ -563,6 +631,10 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "latest_stmt": latest_stmt,
         "stmts_sorted": stmts_sorted,
         "latest_ratios": latest_ratios,
+        "gross_profit_estimated": gross_profit_estimated,
+        "gross_profit_all_estimated": gross_profit_all_estimated,
+        "estimated_gp_years": estimated_gp_years,
+        "cashflow_estimated": cashflow_estimated,
         "nace_code": nace_code,
         "nace_text": nace_text,
         "employee_count": employee_count,
@@ -594,6 +666,7 @@ def render_html_report(context: dict) -> str:
     templates_dir = current_dir / "templates"
     font_dir = current_dir / "pdf" / "fonts"
     context['font_dir'] = str(font_dir.absolute())
+    context['tailwind_dir'] = str(templates_dir.absolute())
     env = Environment(loader=FileSystemLoader(templates_dir))
     env.filters['format_currency'] = format_currency
     env.filters['format_number'] = format_number
@@ -610,7 +683,9 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
     dir_name = os.path.dirname(pdf_path)
     if dir_name:
         os.makedirs(dir_name, exist_ok=True)
-    html_path = os.path.abspath(pdf_path.replace('.pdf', '.html'))
+    # Unikátny názov .html — zabraňuje kolízii pri súbežných reportoch rovnakého IČO
+    _base = pdf_path[:-4] if pdf_path.endswith('.pdf') else pdf_path
+    html_path = os.path.abspath(f"{_base}.{os.getpid()}.{int(time.time() * 1000)}.html")
     with open(html_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
     async with async_playwright() as p:
@@ -620,6 +695,13 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
         ])
         page = await browser.new_page()
         await page.goto(f"file://{html_path}", wait_until="networkidle", timeout=30000)
+        try:
+            await page.wait_for_function(
+                "() => { const styles = document.querySelectorAll('style'); for (const s of styles) { if (s.textContent.includes('--tw') || s.textContent.includes('.container')) return true; } return false; }",
+                timeout=10000
+            )
+        except Exception:
+            logger.warning("Tailwind JIT styles neboli detekované včas — pokračujem bez čakania")
         try:
             await page.evaluate("async () => { await document.fonts.ready; }")
         except Exception:
@@ -655,8 +737,8 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
 
 async def generate_forensic_pdf_report(
     ico: str, 
-    sources: list = None,
-    start_pages_map: dict = None,
+    sources: Optional[list] = None,
+    start_pages_map: Optional[dict] = None,
     total_pages: int = 0,
     generated_at: str = "",
     target_path: str = ""

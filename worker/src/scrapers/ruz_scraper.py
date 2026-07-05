@@ -57,6 +57,29 @@ _HTML_TABS = [
 ]
 
 
+def _period_sort_key(period: str) -> tuple[int, int]:
+    """Odvodí chronologický kľúč (koncový rok, koncový mesiac) z period stringu.
+    Podporuje:
+      - "01/2023 - 12/2023"  → (2023, 12)
+      - "10/2023 - 03/2024"  → (2024, 3)   (nekalendárny fiškál)
+      - "2023"               → (2023, 12)
+      - fallback: prvý nájdený rok → (rok, 12)
+    Neznáme/prázdne → (0, 0), zoradí sa na koniec.
+    """
+    if not period:
+        return (0, 0)
+    text = period.replace('\u2013', '-')
+    m = re.search(r'(\d{2})/(\d{4})\s*-\s*(\d{2})/(\d{4})', text)
+    if m:
+        return (int(m.group(4)), int(m.group(3)))
+    if period.isdigit():
+        return (int(period), 12)
+    ym = re.search(r'(20\d{2})', text)
+    if ym:
+        return (int(ym.group(1)), 12)
+    return (0, 0)
+
+
 def _parse_period_months(period_text: str) -> Optional[int]:
     """Vypočíta počet mesiacov z textu obdobia, napr. '01/2024 - 12/2024' → 12, '01/2024 - 03/2024' → 3.
     Podporuje en-dash (–) a cross-year boundary (10/2023 - 03/2024 = 6)."""
@@ -583,11 +606,15 @@ async def _collect_all_report_links(page: Page) -> tuple[list[tuple], list[tuple
             period_match = re.search(r'(\d{2}/\d{4}\s*[-\u2013]\s*\d{2}/\d{4})', row_text)
             period = period_match.group(1).replace('\u2013', '-') if period_match else ''
 
-            # Extrahuj rok z periodu alebo row_text
-            year_match = re.search(r'(20\d{2})', row_text)
-            if not year_match:
-                continue
-            year = year_match.group(1)
+            # Rok = koncový rok obdobia (reportovací rok), nie prvý nájdený —
+            # dôležité pre nekalendárne fiškály (napr. "10/2023 - 03/2024" → 2024).
+            if period:
+                year = str(_period_sort_key(period)[0])
+            else:
+                year_match = re.search(r'(20\d{2})', row_text)
+                if not year_match:
+                    continue
+                year = year_match.group(1)
 
             # Extrahuj dátumy z row_text podľa kľúčových slov
             sa_date = ''
@@ -677,7 +704,7 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             accept_downloads=True,
-            # Anglický jazyk — lepšia podpora anglických IFRS stránok
+            # Slovenský jazyk — registeruz.sk primárne v SK, dcéry multinationalov majú EN prílohy
             locale="sk-SK",
             extra_http_headers={"Accept-Language": "sk-SK,sk;q=0.9,en;q=0.8"},
         )
@@ -760,28 +787,12 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
                 return []
 
             # Deduplikácia a výber posledných N období podľa priority
-            def _is_standalone_ifrs(link_text: str) -> bool:
-                t = link_text.lower()
-                return ("ifrs" in t or "účtovná závierka" in t) and "výročná" not in t and "annual" not in t
-
-            def _is_konsolidovana(link_text: str) -> bool:
-                return "konsolidovaná" in link_text.lower() or "consolidated" in link_text.lower()
-
-            def _parse_date(date_str: str) -> str:
-                """Konvertuje DD.MM.YYYY na YYYY-MM-DD pre zoradenie."""
-                if not date_str:
-                    return ''
-                m = re.match(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', date_str)
-                if m:
-                    return f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"
-                return ''
-
             def _group_by_period(items: list, limit: int) -> list[list]:
                 """Zoskupí záznamy podľa Obdobia a vráti top `limit` skupín.
 
                 Každá skupina obsahuje VŠETKY záznamy pre dané obdobie
                 (súvaha, P&L, CF, poznámky ako samostatné dokumenty).
-                Zoradí obdobia zostupne a vráti top `limit` skupín.
+                Zoradí obdobia zostupne (od najnovšieho) a vráti top `limit` skupín.
                 """
                 groups: dict[str, list] = {}
                 for item in items:
@@ -790,8 +801,11 @@ async def download_ifrs_reports(ico: str, max_years: int = 5, output_dir: str = 
                         groups[period] = []
                     groups[period].append(item)
 
-                # Zoraď obdobia zostupne (chronologicky od najnovšieho)
-                sorted_periods = sorted(groups.keys(), key=lambda p: p if p.isdigit() else '0', reverse=True)
+                # Zoraď obdobia zostupne podľa (koncový rok, koncový mesiac).
+                # POZOR: kľúče sú period stringy ("01/2023 - 12/2023"), nie čísla —
+                # preto musíme z nich parsovať chronologický kľúč, inak by sa
+                # nezoradili a `[:limit]` by vybral nesprávne (staršie) obdobia.
+                sorted_periods = sorted(groups.keys(), key=_period_sort_key, reverse=True)
 
                 result = []
                 for period in sorted_periods[:limit]:

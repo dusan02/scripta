@@ -33,6 +33,7 @@ async def update_report_status(
     status: str,
     result_file_path: Optional[str] = None,
     company_name: Optional[str] = None,
+    verifa_score: Optional[int] = None,
 ) -> None:
     completed_at = datetime.now(timezone.utc).replace(tzinfo=None) if status in ("COMPLETED", "PARTIAL") else None
 
@@ -40,8 +41,11 @@ async def update_report_status(
     sets = ['status = $1', '"resultFilePath" = $2', '"completedAt" = $3', '"updatedAt" = NOW()']
     args: list = [status, result_file_path, completed_at]
     if company_name:
-        sets.append('"companyName" = $4')
+        sets.append(f'"companyName" = ${len(args) + 1}')
         args.append(company_name)
+    if verifa_score is not None:
+        sets.append(f'"verifaScore" = ${len(args) + 1}')
+        args.append(verifa_score)
     args.append(report_request_id)
 
     placeholder = f"${len(args)}"

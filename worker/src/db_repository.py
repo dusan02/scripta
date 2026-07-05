@@ -89,7 +89,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 'currentAssets': data.metriky.obezny_majetok,
                 'equity': data.metriky.vlastne_imanie_celkom,
                 'shortTermLiabilities': data.metriky.kratkodobe_zavazky,
-                'longTermLiabilities': data.metriky.dlhodobeZavazky,
+                'longTermLiabilities': data.metriky.dlhodobe_zavazky,
                 'mainActivityRevenue': data.metriky.trzby_z_hlavnej_cinnosti,
                 'grossProfit': data.metriky.hruba_marza,
                 'netProfitLoss': data.metriky.zisk_alebo_strata_po_zdaneni,

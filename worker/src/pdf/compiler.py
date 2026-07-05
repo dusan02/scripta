@@ -1,6 +1,9 @@
 from __future__ import annotations
 import io
+import os
+import tempfile
 import logging
+from threading import Lock
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +23,7 @@ from ..models import ScrapedSource
 logger = logging.getLogger(__name__)
 
 _FONTS_REGISTERED = False
+_FONT_LOCK = Lock()
 
 # Zdroje, ktoré už majú vlastný nadpis vložený scraperom (_generate_clean_pdf / _generate_no_results_pdf).
 # Pre tieto zdroje compiler nepridáva ďalší overlay nadpis, aby sa neduplikoval.
@@ -38,6 +42,14 @@ _SOURCES_WITH_EMBEDDED_TITLE = frozenset({
     "RPO",
     "DISKVALIFIKACIE",
     "FINANCNA_SPRAVA",
+    "FS_DANOVE_SUBJEKTY",
+    "FS_DPH_REGISTROVANI",
+    "FS_DPH_RUSENIE",
+    "FS_DPH_VYMAZANI",
+    "FS_DPH_NADMERNY_ODPOCET",
+    "FS_DPH_BANKOVE_UCTY",
+    "FS_DAN_Z_PRIJMOV",
+    "FS_DAN_PRIJMOV_REG",
 })
 
 # Canonical order of sources for PDF compilation (matches cover page categories)
@@ -55,7 +67,30 @@ _EXCEPTION_BASED_SOURCES = frozenset({
     "DISKVALIFIKACIE",
     "CRRS",
     "FINANCNA_SPRAVA",
+    "FS_DPH_VYMAZANI",
+    "FS_DPH_RUSENIE",
+    "FS_DAN_Z_PRIJMOV",
 })
+
+# FS zdroje ktoré sú len informatívne (modrý label v TOC) — nikdy nezaradiť PDF stránu.
+# Napr. "Subjekt je registrovaný pre DPH" — len info, nie dôkaz.
+_FS_INFO_SOURCES = frozenset({
+    "FS_DPH_REGISTROVANI",
+    "FS_DAN_PRIJMOV_REG",
+})
+
+# FS zdroje s reálnymi dátami — zaradiť PDF stránu ak findings nie je prázdny ("Žiadny záznam").
+# Napr. nadmerný odpočet s hodnotami, index daňovej spoľahlivosti.
+_FS_DATA_SOURCES = frozenset({
+    "FS_DPH_NADMERNY_ODPOCET",
+    "FS_DANOVE_SUBJEKTY",
+})
+
+
+def _is_fs_data_empty(source: ScrapedSource) -> bool:
+    """True ak FS dátový zdroj nemá reálne dáta (len 'Žiadny záznam' alebo prázdne)."""
+    findings = (source.findings or source.status_message or "").upper()
+    return "ŽIADNY ZÁZNAM" in findings or "ŽIADNY ZAZNAM" in findings or not findings.strip()
 
 
 def _is_clean_source(source: ScrapedSource) -> bool:
@@ -119,6 +154,16 @@ class PdfCompiler:
             
             current = cover_pages + 1  # +1 za divider page
             for source in sources:
+                # FS informatívne zdroje — nikdy nezaradiť PDF stránu
+                if source.source_type in _FS_INFO_SOURCES:
+                    source.start_page = None
+                    source.page_count = 0
+                    continue
+                # FS dátové zdroje — zaradiť len ak majú reálne dáta (nie 'Žiadny záznam')
+                if source.source_type in _FS_DATA_SOURCES and _is_fs_data_empty(source):
+                    source.start_page = None
+                    source.page_count = 0
+                    continue
                 # Exception-based reporting: preskoč čisté zdroje (SUCCESS bez POZOR)
                 if source.source_type in _EXCEPTION_BASED_SOURCES and _is_clean_source(source):
                     source.start_page = None
@@ -262,10 +307,12 @@ class PdfCompiler:
         """Vygeneruje stránku 'PRÍLOHY - ZDROJOVÉ DÁTA' ako prechod medzi Part A a Part B."""
         global _FONTS_REGISTERED
         if not _FONTS_REGISTERED:
-            fonts_dir = Path(__file__).parent / "fonts"
-            pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
-            pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
-            _FONTS_REGISTERED = True
+            with _FONT_LOCK:
+                if not _FONTS_REGISTERED:
+                    fonts_dir = Path(__file__).parent / "fonts"
+                    pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
+                    pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+                    _FONTS_REGISTERED = True
 
         divider_path = output_dir / "_divider.pdf"
         buf = io.BytesIO()
@@ -315,10 +362,12 @@ class PdfCompiler:
 
         global _FONTS_REGISTERED
         if not _FONTS_REGISTERED:
-            fonts_dir = Path(__file__).parent / "fonts"
-            pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
-            pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
-            _FONTS_REGISTERED = True
+            with _FONT_LOCK:
+                if not _FONTS_REGISTERED:
+                    fonts_dir = Path(__file__).parent / "fonts"
+                    pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
+                    pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+                    _FONTS_REGISTERED = True
 
         label = _SOURCE_LABELS.get(source.source_type, source.source_type)
         label = label.upper()
@@ -366,9 +415,12 @@ class PdfCompiler:
             writer = PdfWriter()
             for page in reader.pages:
                 writer.add_page(page)
-            with open(source.file_path, "wb") as f:
+                
+            fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(source.file_path), suffix=".pdf")
+            with os.fdopen(fd, "wb") as f:
                 writer.write(f)
             writer.close()
+            os.replace(tmp_path, source.file_path)
             logger.info(f"[PdfCompiler] Nadpis '{label}' pridaný do {source.file_path}")
         except Exception as e:
             logger.warning(f"[PdfCompiler] Pridanie nadpisu pre {source.source_type} zlyhalo: {e}")
