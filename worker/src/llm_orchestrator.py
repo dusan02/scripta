@@ -17,6 +17,19 @@ _MODEL_VESTNIK = settings.model_vestnik
 _BACKOFF_SECONDS = settings.llm_backoff_list
 _FALLBACK_MODEL = settings.model_fallback
 
+
+def _log_failed_call_cost(model: str, label: str, reason: str) -> None:
+    """Zaloguje odhadovaný náklad za neúspešné LLM volanie.
+    Google účtuje input tokens aj pri 503/429 chybách (response sa nevygeneruje, ale input sa spracuje).
+    Nemáme presné usage metadata, tak použijeme odhad z logu label-u."""
+    from src.agents.shared import _token_stats
+    from src.log_helpers import get_correlation_id
+    cid = get_correlation_id() or "-"
+    price_in, _ = settings.llm_pricing.get(model, (0.0, 0.0))
+    # Odhad: 503/490 zvyčajne znamená že input bol spracovaný ale output nepršiel.
+    # Nemáme presný token count, len zalogujeme varovanie.
+    logger.warning(f"[{cid}] LLM FAILED COST: {label} model={model} reason={reason} — Google môže účtovať input tokens")
+
 async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
     """
     Bezpečne zavolá LLM funkciu s exponential backoff a fallback modelom.
@@ -35,6 +48,7 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             return result
         except asyncio.TimeoutError:
             log_llm_retry(label, model, attempt + 1, len(_BACKOFF_SECONDS), "Timeout 120s", wait)
+            _log_failed_call_cost(model, label, "timeout")
             if attempt < len(_BACKOFF_SECONDS) - 1:
                 await asyncio.sleep(wait)
                 continue
@@ -44,10 +58,12 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             if "503" not in error_str and "429" not in error_str and "resource_exhausted" not in error_str:
                 elapsed = time.perf_counter() - _t0
                 logger.error(f"[{get_correlation_id() or '-'}] LLM FAIL: {label} model={model} ({elapsed:.1f}s) — {e}")
+                _log_failed_call_cost(model, label, "error")
                 raise
             
             error_reason = "429 (Quota/Credits)" if "429" in error_str or "resource_exhausted" in error_str else "503 (Unavailable)"
             log_llm_retry(label, model, attempt + 1, len(_BACKOFF_SECONDS), error_reason, wait)
+            _log_failed_call_cost(model, label, error_reason)
             await asyncio.sleep(wait)
 
     # Fallback na iný model (iný Google pool / priorita)

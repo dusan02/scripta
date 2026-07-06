@@ -215,16 +215,18 @@ def generate_pnl_chart(statements) -> str:
     years = [str(s.year) for s in statements]
     revenues = [s.mainActivityRevenue or 0 for s in statements]
     gross = [s.grossProfit or 0 for s in statements]
+    ebitda = [(s.netProfitLoss or 0) + abs(s.interestExpense or 0) + (s.depreciation or 0) for s in statements]
     net = [s.netProfitLoss or 0 for s in statements]
 
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
     fig, ax = plt.subplots(figsize=(8, 3.5), dpi=150)
     x = np.arange(len(years))
-    w = 0.25
-    ax.bar(x - w, revenues, w, color='#1e293b', label='Tržby')
-    ax.bar(x, gross, w, color='#3b82f6', label='Hrubá marža')
+    w = 0.2
+    ax.bar(x - 1.5*w, revenues, w, color='#1e293b', label='Tržby')
+    ax.bar(x - 0.5*w, gross, w, color='#3b82f6', label='Hrubá marža')
+    ax.bar(x + 0.5*w, ebitda, w, color='#f59e0b', label='EBITDA')
     net_colors = ['#10b981' if v >= 0 else '#ef4444' for v in net]
-    ax.bar(x + w, net, w, color=net_colors)
+    ax.bar(x + 1.5*w, net, w, color=net_colors)
     ax.set_xticks(x)
     ax.set_xticklabels(years)
     ax.set_ylabel('EUR', fontsize=10, color='#64748b', fontweight='bold')
@@ -234,6 +236,7 @@ def generate_pnl_chart(statements) -> str:
     legend_handles = [
         Patch(facecolor='#1e293b', label='Tržby'),
         Patch(facecolor='#3b82f6', label='Hrubá marža'),
+        Patch(facecolor='#f59e0b', label='EBITDA'),
         Patch(facecolor='#10b981', label='Čistý zisk'),
         Patch(facecolor='#ef4444', label='Čistá strata'),
     ]
@@ -264,12 +267,29 @@ def generate_cashflow_chart(statements) -> str:
     if all(v is None or v == 0 for v in ocf_raw):
         return ""
     ocf = [v or 0 for v in ocf_raw]
+    icf = [s.investingCashFlow or 0 for s in statements]
+    fcf = [s.financingCashFlow or 0 for s in statements]
     cash = [s.cashAndEquivalents or 0 for s in statements]
 
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
     fig, ax = plt.subplots(figsize=(8, 3.5), dpi=150)
     
-    ax.plot(years, ocf, marker='o', color='#3b82f6', linewidth=2.5, markersize=8, label='Prevádzkový CF')
+    pos_bottom = np.zeros(len(years))
+    neg_bottom = np.zeros(len(years))
+    
+    for cf_data, color in [
+        (ocf, '#10b981'),
+        (icf, '#ef4444'),
+        (fcf, '#6366f1')
+    ]:
+        for i, val in enumerate(cf_data):
+            if val >= 0:
+                ax.bar(years[i], val, color=color, bottom=pos_bottom[i])
+                pos_bottom[i] += val
+            else:
+                ax.bar(years[i], val, color=color, bottom=neg_bottom[i])
+                neg_bottom[i] += val
+                
     ax.plot(years, cash, marker='D', color='#1e293b', linewidth=2, markersize=7, label='Cash & ekvivalenty', linestyle='--')
     
     ax.set_ylabel('EUR', fontsize=10, color='#64748b', fontweight='bold')
@@ -278,7 +298,9 @@ def generate_cashflow_chart(statements) -> str:
     sns.despine(left=True, bottom=True)
     
     legend_handles = [
-        Line2D([0], [0], color='#3b82f6', marker='o', markersize=8, label='Prevádzkový CF', linewidth=2.5),
+        Patch(facecolor='#10b981', label='Prevádzkový CF'),
+        Patch(facecolor='#ef4444', label='Investičný CF'),
+        Patch(facecolor='#6366f1', label='Finančný CF'),
         Line2D([0], [0], color='#1e293b', linestyle='--', marker='D', markersize=7, label='Cash & ekvivalenty', linewidth=2),
     ]
     ax.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False, fontsize=8, labelcolor='#475569')
@@ -288,6 +310,54 @@ def generate_cashflow_chart(statements) -> str:
         if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
         return f'{x:.0f}'
     ax.yaxis.set_major_formatter(FuncFormatter(_fmt))
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+def generate_liquidity_chart(statements) -> str:
+    """Vygeneruje graf likvidity: Pracovný kapitál (stĺpce) a Ratios (čiary)."""
+    if not statements or len(statements) < 2:
+        return ""
+    statements = sorted(statements, key=lambda x: x.year)
+    years = [str(s.year) for s in statements]
+    
+    wc = [(s.currentAssets or 0) - (s.shortTermLiabilities or 0) for s in statements]
+    cr = [(s.currentAssets or 0) / (s.shortTermLiabilities or 1) for s in statements]
+    qr = [((s.currentAssets or 0) - (s.inventory or 0)) / (s.shortTermLiabilities or 1) for s in statements]
+
+    sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
+    fig, ax1 = plt.subplots(figsize=(6, 3), dpi=150)
+    
+    ax1.bar(years, wc, color='#94a3b8', alpha=0.6, label='Pracovný kapitál')
+    ax1.set_ylabel('Pracovný kap. (EUR)', fontsize=9, color='#64748b', fontweight='bold')
+    
+    ax2 = ax1.twinx()
+    ax2.plot(years, cr, marker='o', color='#3b82f6', linewidth=2.0, markersize=6, label='Current Ratio')
+    ax2.plot(years, qr, marker='D', color='#10b981', linewidth=2.0, markersize=6, label='Quick Ratio')
+    ax2.axhline(1.0, color='#ef4444', linestyle='--', linewidth=1, alpha=0.5)
+    ax2.set_ylabel('Ratio', fontsize=9, color='#64748b', fontweight='bold')
+    
+    ax1.tick_params(axis='x', colors='#64748b', labelsize=8)
+    ax1.tick_params(axis='y', colors='#64748b', labelsize=8)
+    ax2.tick_params(axis='y', colors='#64748b', labelsize=8)
+    sns.despine(left=False, right=False, bottom=True)
+    
+    legend_handles = [
+        Patch(facecolor='#94a3b8', alpha=0.6, label='Pracovný kapitál'),
+        Line2D([0], [0], color='#3b82f6', marker='o', markersize=6, label='Current Ratio', linewidth=2.0),
+        Line2D([0], [0], color='#10b981', marker='D', markersize=6, label='Quick Ratio', linewidth=2.0),
+    ]
+    ax1.legend(handles=legend_handles, loc='upper left', bbox_to_anchor=(1.10, 1), frameon=False, fontsize=8, labelcolor='#475569')
+    ax1.set_title('Likvidita a Pracovný kapitál', fontsize=10, fontweight='bold', color='#0f172a', pad=12)
+    
+    def _fmt(x, pos):
+        if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
+        if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
+        return f'{x:.0f}'
+    ax1.yaxis.set_major_formatter(FuncFormatter(_fmt))
+    
     plt.tight_layout()
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
@@ -306,7 +376,7 @@ def generate_altman_chart(altman_scores) -> str:
     scores = [z["z_score"] for z in valid]
 
     sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
-    fig, ax = plt.subplots(figsize=(5, 2.8), dpi=150)
+    fig, ax = plt.subplots(figsize=(6, 3), dpi=150)
 
     # Farebné zóny
     ax.axhspan(2.6, ax.get_ylim()[1] if ax.get_ylim()[1] > 2.6 else max(scores) * 1.2, color="#10b981", alpha=0.08, zorder=0)
@@ -314,10 +384,14 @@ def generate_altman_chart(altman_scores) -> str:
     ax.axhspan(0, 1.1, color="#ef4444", alpha=0.08, zorder=0)
 
     # Čiara skóre
-    ax.plot(range(len(years)), scores, marker='o', color='#1e293b', linewidth=2.5, markersize=8, zorder=3)
+    ax.plot(range(len(years)), scores, marker='o', color='#1e293b', linewidth=2.0, markersize=6, zorder=3)
     for i, (yr, sc) in enumerate(zip(years, scores)):
         color = '#10b981' if sc > 2.6 else '#f59e0b' if sc >= 1.1 else '#ef4444'
-        ax.scatter(i, sc, color=color, s=80, zorder=4)
+        ax.scatter(i, sc, color=color, s=50, zorder=4)
+        ax.annotate(f"{sc:.2f}", (i, sc), textcoords="offset points", xytext=(0, 8), ha='center', fontsize=8, fontweight='bold', color=color)
+
+    y_min, y_max = ax.get_ylim()
+    ax.set_ylim(y_min, y_max + (y_max - y_min) * 0.1)
 
     ax.set_xticks(range(len(years)))
     ax.set_xticklabels(years, fontsize=8, color='#64748b')
@@ -329,7 +403,7 @@ def generate_altman_chart(altman_scores) -> str:
     ax.tick_params(axis='x', colors='#64748b', labelsize=8)
     ax.tick_params(axis='y', colors='#64748b', labelsize=8)
     sns.despine(left=True, bottom=True)
-    ax.set_title("Altman Z″-Score trend", fontsize=10, fontweight='bold', color='#0f172a', pad=8)
+    ax.set_title("Altman Z″-Score trend", fontsize=10, fontweight='bold', color='#0f172a', pad=12)
     plt.tight_layout()
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', transparent=True)
@@ -428,26 +502,29 @@ def generate_ratios_trend_chart(trend_ratios: list) -> str:
     roe = [t.get("roe_pct") for t in trend_ratios]
     margin = [t.get("net_profit_margin_pct") for t in trend_ratios]
 
-    fig, ax = plt.subplots(figsize=(7, 2.2))
-    fig.patch.set_facecolor('white')
+    sns.set_theme(style="whitegrid", rc={"axes.facecolor": "#f8fafc", "figure.facecolor": "#ffffff"})
+    fig, ax = plt.subplots(figsize=(6, 3), dpi=150)
 
-    style_cfg = {'marker': 'o', 'markersize': 4, 'linewidth': 1.8}
+    style_cfg = {'marker': 'o', 'markersize': 6, 'linewidth': 2.0}
     ax.plot(years, roa, color='#10b981', label='ROA', **style_cfg)
     ax.plot(years, roe, color='#3b82f6', label='ROE', **style_cfg)
     ax.plot(years, margin, color='#f59e0b', label='Čistá marža', **style_cfg)
 
     ax.set_xticks(years)
-    ax.set_xticklabels([str(y) for y in years])
+    ax.set_xticklabels([str(y) for y in years], fontsize=8, color='#64748b')
     ax.set_xlabel('')
-    ax.set_ylabel('Percentá (%)', fontsize=8, color='#64748b')
+    ax.set_ylabel('Percentá (%)', fontsize=9, color='#64748b', fontweight='bold')
     ax.tick_params(axis='both', labelsize=8, colors='#64748b')
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#e2e8f0')
-    ax.spines['bottom'].set_color('#e2e8f0')
-    ax.axhline(y=0, color='#cbd5e1', linewidth=0.5, linestyle='--')
-    ax.legend(fontsize=7, loc='best', framealpha=0.8, facecolor='white', edgecolor='#e2e8f0')
-    ax.grid(axis='y', alpha=0.2, color='#e2e8f0')
+    sns.despine(left=True, bottom=True)
+    ax.axhline(y=0, color='#cbd5e1', linewidth=0.8, linestyle='--')
+    
+    legend_handles = [
+        Line2D([0], [0], color='#10b981', marker='o', markersize=6, label='ROA', linewidth=2.0),
+        Line2D([0], [0], color='#3b82f6', marker='o', markersize=6, label='ROE', linewidth=2.0),
+        Line2D([0], [0], color='#f59e0b', marker='o', markersize=6, label='Čistá marža', linewidth=2.0),
+    ]
+    ax.legend(handles=legend_handles, fontsize=8, loc='upper left', bbox_to_anchor=(1.02, 1), frameon=False, labelcolor='#475569')
+    ax.set_title('Trend rentability', fontsize=10, fontweight='bold', color='#0f172a', pad=12)
 
     plt.tight_layout(pad=0.3)
     buf = io.BytesIO()
@@ -853,6 +930,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     debt_donut_base64 = generate_debt_donut(latest_stmt) if latest_stmt else ""
     bs_infographic_base64 = generate_balance_sheet_infographic(latest_stmt) if latest_stmt else ""
     pl_infographic_base64 = generate_pl_infographic(latest_stmt) if latest_stmt else ""
+    liquidity_chart_base64 = generate_liquidity_chart(stmts_sorted) if stmts_sorted else ""
 
     # QR code for cover page
     qr_base64 = ""
@@ -984,6 +1062,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "debt_donut_base64": debt_donut_base64,
         "bs_infographic_base64": bs_infographic_base64,
         "pl_infographic_base64": pl_infographic_base64,
+        "liquidity_chart_base64": liquidity_chart_base64,
         "qr_base64": qr_base64,
         "valid_until": valid_until,
         "confidence_score": confidence_score,

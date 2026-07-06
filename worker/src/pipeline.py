@@ -300,8 +300,8 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         # Musí sa aplikovať PRED výpočtom scorecardu, inak P3 pilier ukáže "Cash Flow: N/A"
         if company.financialStatements:
             estimate_missing_cash_flow(company.financialStatements)
-            # Re-export dict s odhadovanými CF hodnotami
-            company_dict = company.model_dump(exclude_none=True)
+            # Re-export dict s odhadovanými CF hodnotami (bez exclude_none, aby sa zachovali financialStatements)
+            company_dict = company.model_dump(exclude_none=False)
             for stmt in company_dict.get("financialStatements", []):
                 sanitize_cash_flow_fields(stmt)
         

@@ -13,7 +13,7 @@ class NotesRiskAnalysis(BaseModel):
     off_balance_sheet_liabilities: Optional[str] = Field(..., description="Podsúvahové záväzky (ručenia, vystavené bankové záruky, lízingové garancie).")
     contingent_risks: Optional[str] = Field(..., description="Prebiehajúce súdne spory a potenciálne záväzky z nich plynúce.")
 
-NOTES_SYSTEM_PROMPT = """Si expertný Forenzný analytik. Analyzuješ "Poznámky k účtovnej závierke" (Notes).
+NOTES_SYSTEM_PROMPT = """Si Senior Forensic Investigator @ Verifa.sk. Analyzuješ "Poznámky k účtovnej závierke" (Notes).
 Tvojou jedinou úlohou je odhaliť riziká tunelovania, skrytých dlhov a právnych hrozieb, ktoré sa nepíšu priamo v číslach.
 1. Zameraj sa primárne na "Transakcie so spriaznenými osobami" (Related Party Transactions). Hľadaj, komu firma požičiava peniaze (vlastníkom, dcérskym firmám) a od koho nakupuje manažérske služby. Toto je najčastejšia metóda tunelovania.
 2. Hľadaj podsúvahové záväzky (garancie za iné firmy).

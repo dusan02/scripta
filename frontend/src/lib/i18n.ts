@@ -404,6 +404,8 @@ const sk: Dict = {
   // ── Report ETA ──
   "report.etaSeconds": "Približný čas dokončenia: ~{s} s",
   "report.etaMinutes": "Približný čas dokončenia: ~{m} min {r} s",
+  "report.patienceTitle": "Analýza môže trvať dlhšie",
+  "report.patienceBody": "Spracovávame rozsiahle finančné výkazy a výročné správy. Prosím, nezatvárajte túto stránku — report sa dokončí automaticky.",
 
   // ── Landing page ──
   "home.badge": "⚡ Komplexný due diligence za 4 minúty",
@@ -864,6 +866,8 @@ const en: Dict = {
   // ── Report ETA ──
   "report.etaSeconds": "Estimated completion: ~{s} s",
   "report.etaMinutes": "Estimated completion: ~{m} min {r} s",
+  "report.patienceTitle": "Analysis may take longer",
+  "report.patienceBody": "We are processing extensive financial statements and annual reports. Please do not close this page — the report will complete automatically.",
 
   // ── Landing page ──
   "home.badge": "⚡ Comprehensive due diligence in 3 minutes",
@@ -1324,6 +1328,8 @@ const de: Dict = {
   // ── Report ETA ──
   "report.etaSeconds": "Voraussichtliche Fertigstellung: ~{s} s",
   "report.etaMinutes": "Voraussichtliche Fertigstellung: ~{m} min {r} s",
+  "report.patienceTitle": "Analyse kann länger dauern",
+  "report.patienceBody": "Wir verarbeiten umfangreiche Finanzberichte und Jahresabschlüsse. Bitte schließen Sie diese Seite nicht — der Bericht wird automatisch fertiggestellt.",
 
   // ── Landing page ──
   "home.badge": "⚡ Umfassende Due-Diligence in 3 Minuten",

@@ -29,6 +29,47 @@ def sanitize_cash_flow_fields(stmt: Union[Dict[str, Any], Any]) -> None:
                 setattr(stmt, cf_field, None)
 
 
+def estimate_missing_cash_flow(stmts: list) -> bool:
+    """Nepriamy odhad operatingCashFlow pre výkazy, kde chýba (zjednodušené výkazy z RÚZ).
+    Operating CF ≈ Net Profit + Depreciation - ΔInventory - ΔTrade Receivables + ΔTrade Payables.
+    Funguje na dict aj Prisma objektoch. Vracia True ak aspoň jednu hodnotu odhadol."""
+    if not stmts:
+        return False
+    estimated = False
+    by_year = {}
+    for s in stmts:
+        year = _get(s, 'year')
+        if year is not None:
+            by_year[year] = s
+    for s in stmts:
+        if _get(s, 'operatingCashFlow', None) is not None:
+            continue
+        year = _get(s, 'year')
+        if year is None:
+            continue
+        prev = by_year.get(year - 1)
+        if not prev:
+            continue
+        net_profit = _get(s, 'netProfitLoss', None)
+        depreciation = _get(s, 'depreciation', None)
+        inv = _get(s, 'inventory', None)
+        inv_prev = _get(prev, 'inventory', None)
+        recv = _get(s, 'tradeReceivables', None)
+        recv_prev = _get(prev, 'tradeReceivables', None)
+        pay = _get(s, 'tradePayables', None)
+        pay_prev = _get(prev, 'tradePayables', None)
+        if net_profit is None or depreciation is None:
+            continue
+        if inv is not None and inv_prev is not None and recv is not None and recv_prev is not None and pay is not None and pay_prev is not None:
+            approx_cf = net_profit + depreciation - (inv - inv_prev) - (recv - recv_prev) + (pay - pay_prev)
+            if isinstance(s, dict):
+                s['operatingCashFlow'] = approx_cf
+            else:
+                setattr(s, 'operatingCashFlow', approx_cf)
+            estimated = True
+    return estimated
+
+
 # ── Altman Z-Score (modifikovaný pre ne-výrobné a súkromné firmy) ──────────────
 # Model: Altman Z'' (1995) pre private / non-manufacturing
 # Z'' = 6.56*X1 + 3.26*X2 + 6.72*X3 + 1.05*X4
@@ -274,6 +315,10 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         # ── EBITDA (approx: net_profit + interest + depreciation) ──
         # Náklady na úroky (interest) môžu byť v DB uložené ako záporné — prirátavame absolútnu hodnotu.
         ratios["ebitda"] = round(net_profit + abs(interest) + depreciation, 0) if (interest != 0 or depreciation != 0) else None
+        if ratios["ebitda"] is not None and revenue > 0:
+            ratios["ebitda_margin_pct"] = round((ratios["ebitda"] / revenue) * 100, 2)
+        else:
+            ratios["ebitda_margin_pct"] = None
 
         # ── Cash Flow divergencia ──
         # Ak je operatingCashFlow None (nedostupné v RÚZ), vrátiť None — nie 0.0

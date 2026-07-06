@@ -252,6 +252,7 @@ function PhaseProgress({
   reportStatus,
   etaCountdown,
   locale,
+  startedAt,
 }: {
   sourcesCompleted: number;
   sourcesTotal: number;
@@ -259,12 +260,24 @@ function PhaseProgress({
   reportStatus: string;
   etaCountdown: number | null;
   locale: string;
+  startedAt: number;
 }) {
   const t = useT();
   const phaseLabel = getPhaseLabel(aiStatus, t);
   const statusText = aiStatus ? t(aiStatus) : t("report.processing");
   const isScraping = !aiStatus || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
   const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
+
+  // Track elapsed time to show patience warning
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    if (isTerminal) return;
+    const interval = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startedAt, isTerminal]);
+  const showPatienceWarning = elapsedSec > 240 && !isTerminal;
 
   // Track when the current AI status first appeared (for time-based interpolation)
   const aiStatusRef = useRef<string | null>(null);
@@ -354,7 +367,7 @@ function PhaseProgress({
       </div>
 
       {/* ETA */}
-      {etaCountdown != null && etaCountdown > 0 && (
+      {etaCountdown != null && etaCountdown > 0 && !showPatienceWarning && (
         <div className="text-center mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
           {(() => {
             const s = etaCountdown;
@@ -363,6 +376,18 @@ function PhaseProgress({
             const r = s % 60;
             return t("report.etaMinutes", { m, r: r > 0 ? r : "" }).replace("  s", "");
           })()}
+        </div>
+      )}
+
+      {/* Patience warning after 90s */}
+      {showPatienceWarning && (
+        <div className="text-center mt-3 px-4 py-2.5 rounded-lg text-xs fade-in" style={{
+          background: "var(--warning-bg)",
+          color: "var(--warning-text)",
+          border: "1px solid var(--warning)",
+        }}>
+          <span className="font-semibold">⏳ {t("report.patienceTitle")}</span>
+          <span className="block mt-0.5 opacity-80">{t("report.patienceBody")}</span>
         </div>
       )}
     </div>
@@ -717,6 +742,7 @@ export default function ReportDetailPage() {
               reportStatus={report.status}
               etaCountdown={etaCountdown}
               locale={locale}
+              startedAt={new Date(report.createdAt).getTime()}
             />
             {report.sources.some(s => s.status === "FAILED" || s.status === "UNAVAILABLE") && (
               <div className="max-w-2xl mx-auto mt-4 w-full">

@@ -17,7 +17,7 @@ class NarrativeRiskAnalysis(BaseModel):
     forensic_red_flags: List[str] = Field(..., description="Zoznam identifikovaných rizikových indikátorov v texte správy.")
     synthesis: str = Field(..., description="Krátka syntéza: Je táto firma v stabilnom stave, alebo vykazuje známky nestability?")
 
-NARRATIVE_SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je extrahovať z dokumentu len informácie, ktoré majú právnu alebo finančnú relevanciu.
+NARRATIVE_SYSTEM_PROMPT = """Si Corporate Risk Analyst @ Verifa.sk. Vykonávaš sémantickú analýzu manažérskych a výročných správ. Čítaš 'medzi riadkami', aby si zhodnotil reálnu stratégiu firmy, kompetentnosť manažmentu a hrozby pre 'Going concern' (nepretržité pokračovanie v činnosti). Tvojou úlohou je extrahovať z dokumentu len informácie, ktoré majú právnu alebo finančnú relevanciu.
 Tvoje pravidlá:
 1. Ignoruj marketingový balast: Preskoč pasáže o 'víziách', 'spoločenskej zodpovednosti' alebo 'spokojnosti zamestnancov', pokiaľ nemajú priamy dopad na finančnú stabilitu.
 2. Hľadaj 'Going Concern' signály: Buď mimoriadne citlivý na frázy o 'pochybnostiach o schopnosti pokračovať v činnosti', 'problémoch s financovaním' alebo 'závislosti od externých úverov'.

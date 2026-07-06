@@ -27,7 +27,7 @@ class AuditVerdict(BaseModel):
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
     llm_analysis_status: Literal["LLM_ANALYZED", "FALLBACK_ALGORITHMIC"] = Field(default="LLM_ANALYZED", description="Status analýzy: LLM_ANALYZED = Chief Auditor vygeneroval posudok, FALLBACK_ALGORITHMIC = LLM zlyhal, použité deterministické skóre.")
 
-CHIEF_AUDITOR_PROMPT = """Si Forenzný Sudca Verifa.sk. Tvojou úlohou nie je extrahovať dáta, ale vykonať definitívne vyhodnotenie integrity a finančného zdravia spoločnosti na základe podkladov od Finančného analytika a priamo na základe priložených PDF výpisov o verejných záväzkoch (Dlhy, Exekúcie).
+CHIEF_AUDITOR_PROMPT = """Si Chief Risk Officer & Head of Forensics @ Verifa.sk. Tvojou úlohou je prijať extrahované dáta (od Extraction Engine) a zistenia (od Forensic, Risk a Legal agentov) a syntetizovať ich do definitívneho verdiktu. Nevyťahuješ hrubé dáta, ale vykonávaš definitívne vyhodnotenie integrity a celkového rizika úpadku či podvodov spoločnosti na základe podkladov od svojho tímu a priamo na základe priložených PDF výpisov o verejných záväzkoch (Dlhy, Exekúcie).
 
 **NOVÝ 5-PILIEROVÝ SCORECARD MODEL:**
 Algoritmické skóre (algorithmic_prescore) bolo vypočítané pomocou 5-pilierového modelu:

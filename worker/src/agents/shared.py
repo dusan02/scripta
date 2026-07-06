@@ -96,7 +96,7 @@ class FinancialMetrics(BaseModel):
     kratkodobe_zavazky: Optional[float] = Field(..., description="Krátkodobé záväzky (Short-term liabilities). Ak chýba, vráť null.")
     dlhodobe_zavazky: Optional[float] = Field(..., description="Dlhodobé záväzky (long-term liabilities) — bankové úvery, dlhopisy, lízingové záväzky > 1 rok. Ak chýba, vráť null.")
     trzby_z_hlavnej_cinnosti: Optional[float] = Field(..., description="Tržby z hlavnej činnosti (Revenue/Turnover). Ak chýba, vráť null.")
-    hruba_marza: Optional[float] = Field(..., description="Hrubý zisk = Tržby - Náklady na predaný tovar (COGS). Ak chýba, vráť null.")
+    hruba_marza: Optional[float] = Field(..., description="Hrubý zisk (Gross Profit/Margin). V slovenských výkazoch (SK GAAP) VŽDY použi riadok 'Pridaná hodnota' (Value added). Zodpovedá to Tržby - Tovar - Spotreba materiálu a služieb. Iba v prípade, že 'Pridaná hodnota' vo výkaze úplne chýba, vypočítaj ju ako (Tržby - Náklady na predaný tovar). Ak chýba, vráť null.")
     zisk_alebo_strata_po_zdaneni: Optional[float] = Field(..., description="Čistý zisk alebo strata (Net profit/loss). Ak chýba, vráť null.")
     peniaze_a_penazne_ekvivalenty_k_31_12: Optional[float] = Field(..., description="Peniaze a peňažné ekvivalenty (Cash and equivalents). Ak chýba, vráť null.")
     ciste_penazne_toky_z_prevadzkovej_cinnosti: Optional[float] = Field(..., description="Čisté peňažné toky z prevádzkovej činnosti (Operating cash flow). Ak chýba, vráť null.")

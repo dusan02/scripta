@@ -345,7 +345,7 @@ def generate_balance_sheet_infographic(stmt) -> str:
     )])
     fig.update_layout(
         font_size=18,
-        margin=dict(l=15, r=15, t=15, b=15),
+        margin=dict(l=15, r=15, t=20, b=45),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -354,7 +354,7 @@ def generate_balance_sheet_infographic(stmt) -> str:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            img_bytes = fig.to_image(format="png", width=860, height=400, scale=2, engine="kaleido")
+            img_bytes = fig.to_image(format="png", width=860, height=450, scale=2, engine="kaleido")
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"BS Sankey chart failed: {e}")

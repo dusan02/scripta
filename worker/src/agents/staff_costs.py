@@ -14,7 +14,7 @@ class StaffCostsResult(BaseModel):
     osobne_naklady: Optional[float] = Field(..., description="Osobné/personálne náklady (Staff costs / Employee benefits) v EUR. Súčet mzdových nákladov + sociálneho poistenia + odvodov. Ak chýba, vráť null.")
     found_in: str = Field(..., description="Kde sa našlo: 'income_statement' alebo 'notes' alebo 'not_found'.")
 
-_STAFF_COSTS_PROMPT = """Si expertný finančný analytik. Tvojou JEDINOU úlohou je nájsť hodnotu osobných/personálnych nákladov (staff costs / employee benefits) v účtovnej závierke.
+_STAFF_COSTS_PROMPT = """Si Targeted Forensic Searcher @ Verifa.sk. Tvojou JEDINOU úlohou je detailné vyhľadávanie a kvantifikácia osobných/personálnych nákladov (staff costs / employee benefits) v účtovnej závierke, kde štandardná extrakcia zlyhala.
 
 Hľadaj tieto názvy položiek (skús všetky):
 - Slovensky: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"

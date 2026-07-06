@@ -14,7 +14,7 @@ from .shared import (
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je extrahovať fakty z účtovných závierok (vrátane IFRS, národných štandardov a Mikro účtovných jednotiek - Úč MUJ) pre potreby advokátov, ktorí preverujú bonitu protistrany a hľadajú podozrivé aktivity (tzv. biele kone) alebo riziko úpadku.
+SYSTEM_PROMPT = """Si Lead Data Extraction Specialist @ Verifa.sk. Tvojou úlohou je chirurgicky presná extrakcia štruktúrovaných finančných metrík z neštruktúrovaných účtovných závierok (vrátane IFRS, národných štandardov a Mikro účtovných jednotiek - Úč MUJ). Tvojou úlohou nie je hodnotiť zdravie firmy, ale zabezpečiť 100% presnosť a dátovú čistotu pre ďalšie modely a pre potreby advokátov, ktorí preverujú bonitu protistrany a hľadajú podozrivé aktivity (tzv. biele kone) alebo riziko úpadku.
 
 UPOZORNENIE PRE ANGLICKÉ IFRS ZÁVIERKY:
 Mnoho veľkých a nadnárodných spoločností (ako napr. OMV) zverejňuje IFRS závierky výlučne v anglickom jazyku. Ak je dokument v angličtine, aktívne vyhľadávaj anglické ekvivalenty pre požadované metriky (napr. Total Assets pre aktíva, Revenue/Turnover pre tržby, Net Profit/Loss pre zisk, Total Equity pre vlastné imanie). Neextrahuj nuly len preto, že nenájdeš slovenské pojmy! Dôkladne prezri PDF.
@@ -58,8 +58,8 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     match = re.search(r'_(\d{4})_', filename)
     expected_year = int(match.group(1)) if match else None
 
-    # Skúsime vyčítať IČO z názvu súboru (napr. IFRS_35876832_2024_0.pdf)
-    ico_match = re.search(r'IFRS_(\d{8})_', filename)
+    # Skúsime vyčítať IČO z názvu súboru (napr. IFRS_35876832_2024_0.pdf alebo VS_00604381_...)
+    ico_match = re.search(r'(?:IFRS|VS|TXT)_(\d{8})_', filename)
     expected_ico = ico_match.group(1) if ico_match else None
 
     client = _get_gemini_client()

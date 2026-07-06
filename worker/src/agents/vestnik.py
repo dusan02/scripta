@@ -14,7 +14,7 @@ class VestnikExtraction(BaseModel):
     zhrnutie: str = Field(..., description="Stručné a jasné zhrnutie udalosti.")
     red_flags: List[str] = Field(..., description="Zoznam identifikovaných varovných signálov.")
 
-VESTNIK_SYSTEM_PROMPT = """Si expertný Finančný analytik Verifa.sk. Tvojou úlohou je analyzovať text z Obchodného vestníka a extrahovať z neho forenzne relevantné informácie.
+VESTNIK_SYSTEM_PROMPT = """Si Legal & Compliance Intelligence Officer @ Verifa.sk. Tvojou úlohou je kontinuálny sken Obchodného vestníka a verejných registrov a analyzovať text z Obchodného vestníka na identifikáciu právnych a existenčných udalostí, ktoré môžu okamžite ohroziť bonitu protistrany.
 Pravidlá:
 1. Identifikuj typ udalosti (napr. 'Zmena konateľa', 'Konkurz', 'Exekúcia').
 2. Priraď 'rizikovost':
