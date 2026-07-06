@@ -20,6 +20,8 @@ from .db import (
     update_report_status,
     update_report_ai_status,
     get_avg_completion_seconds,
+    get_avg_phase_durations,
+    save_phase_duration,
     upsert_report_sources,
     upsert_single_report_source,
     update_source_page_counts,
@@ -139,9 +141,25 @@ async def _execute_report_inner(task: ReportTask) -> None:
         pool = await get_db_pool()
         await update_report_status(pool, task.report_request_id, "PROCESSING")
 
-        # Nastavíme počiatočný ETA z historických dát, aby frontend zobrazil odhad hneď
+        # Nastavíme počiatočný ETA z historických dát, upravený podľa počtu zdrojov
         avg_seconds = await get_avg_completion_seconds(pool)
-        initial_eta = int(avg_seconds) if avg_seconds and avg_seconds > 0 else 240
+        base_eta = int(avg_seconds) if avg_seconds and avg_seconds > 0 else 240
+        # Source-count-weighted ETA: viac zdrojov = viac času (najmä compile)
+        source_count = len(task.sources)
+        # Baseline ~3s na zdroj pre scrapers + compile overhead
+        initial_eta = max(base_eta, 60 + source_count * 4)
+
+        # Phase-aware: načítaj historické phase timingy pre presnejšie ETA
+        phase_avgs = await get_avg_phase_durations(pool)
+        _phase_historical = {}
+        if phase_avgs:
+            _phase_historical = phase_avgs
+            _log.info(f"[{_rid}] Phase historical: {phase_avgs}")
+            # Ak máme phase dáta, spočítaj presnejší initial ETA
+            hist_total = sum(v or 0 for v in [phase_avgs.get('scrapers'), phase_avgs.get('ai'), phase_avgs.get('auditor'), phase_avgs.get('compile')])
+            if hist_total > 0:
+                initial_eta = max(initial_eta, int(hist_total))
+
         await update_report_ai_status(pool, task.report_request_id, "ai.checking_registers", initial_eta)
 
         playwright = await async_playwright().start()
@@ -150,9 +168,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
         logger.debug(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
 
         _background_tasks = set()
+        _sources_done_count = 0
+        _sources_total = len(task.sources)
+        _t_scrape_start = time.perf_counter()
 
         def _on_source_done(source) -> None:
-            logger.debug(f"[WORKER] Source done: {source.source_type}:{source.status}")
+            nonlocal _sources_done_count
+            _sources_done_count += 1
+            logger.debug(f"[WORKER] Source done: {source.source_type}:{source.status} ({_sources_done_count}/{_sources_total})")
             try:
                 loop = asyncio.get_running_loop()
                 t1 = loop.create_task(
@@ -167,6 +190,20 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     )
                     _background_tasks.add(t2)
                     t2.add_done_callback(_background_tasks.discard)
+
+                # Progress-based ETA: odhad remaining na základe pomeru dokončených zdrojov
+                if _sources_total > 1:
+                    elapsed_scrape = time.perf_counter() - _t_scrape_start
+                    progress = _sources_done_count / _sources_total
+                    if progress > 0:
+                        # Odhad celkového času scrapers + AI/compile (~60s fix)
+                        estimated_total = (elapsed_scrape / progress) + 60
+                        remaining = max(5, int(estimated_total - elapsed_scrape))
+                        t3 = loop.create_task(
+                            update_report_ai_status(pool, task.report_request_id, "ai.checking_registers", remaining)
+                        )
+                        _background_tasks.add(t3)
+                        t3.add_done_callback(_background_tasks.discard)
             except RuntimeError:
                 pass
 
@@ -198,6 +235,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
             await asyncio.gather(*_background_tasks, return_exceptions=True)
 
         t_scrape = time.perf_counter()
+        _scrape_ms = int((t_scrape - t_browser) * 1000)
+        await save_phase_duration(pool, task.report_request_id, "scrapers", _scrape_ms)
         _source_summary = ', '.join(f'{s.source_type}:{s.status}' for s in sources)
         _log.info(f"[{_rid}] Scrapers done ({t_scrape - t_browser:.1f}s): {_source_summary}")
 
@@ -246,14 +285,23 @@ async def _execute_report_inner(task: ReportTask) -> None:
         company_name = _extract_company_name(sources, task.target_type)
 
         # Počkáme na dokončenie paralelnej AI Forenznej Pipeline pred kompiláciou
+        t_ai_wait = time.perf_counter()
         if ai_task:
             try:
                 await ai_task
             except Exception as ai_err:
                 _log.error(f"[{_rid}] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
+        t_ai_done = time.perf_counter()
+        _ai_ms = int((t_ai_done - t_ai_wait) * 1000)
+        await save_phase_duration(pool, task.report_request_id, "ai", _ai_ms)
 
-        # ETA update: Chief Auditor + kompilácia zvyčajne trvajú ~90s
-        await update_report_ai_status(pool, task.report_request_id, "ai.forensic_analysis", 90)
+        # ETA update: Chief Auditor + kompilácia — phase-aware z historických dát
+        hist_auditor = _phase_historical.get('auditor') if _phase_historical else None
+        hist_compile = _phase_historical.get('compile') if _phase_historical else None
+        auditor_s = int(hist_auditor) if hist_auditor else 30
+        compile_s = int(hist_compile) if hist_compile else (20 + int(source_count * 1.5))
+        forensic_eta = auditor_s + compile_s
+        await update_report_ai_status(pool, task.report_request_id, "ai.forensic_analysis", forensic_eta)
 
         # Update Company.name ak scraper extrahoval reálny názov (AI pipeline mohla nastaviť placeholder)
         if company_name:
@@ -271,6 +319,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # aj k DB dátam (finančné výkazy, naratív, vestník).
         verifa_score_snapshot: Optional[int] = None
         if task.target_type == "COMPANY" and task.ico:
+            t_auditor_start = time.perf_counter()
             try:
                 with PhaseTimer("Chief Auditor"):
                     await run_and_save_audit_verdict(task.ico)
@@ -284,6 +333,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     _log.info(f"[{_rid}] verifaScore snapshot: {verifa_score_snapshot}")
             except Exception as verdict_err:
                 _log.error(f"[{_rid}] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
+            finally:
+                t_auditor_end = time.perf_counter()
+                await save_phase_duration(pool, task.report_request_id, "auditor", int((t_auditor_end - t_auditor_start) * 1000))
 
         # Skip REGISTER_UZ PDF ak obsahuje "Údaje nie sú dostupné" (IFRS firmy)
         # Dáta sú už v cover page (Finančný vývoj a štruktúra) z AI extrakcie
@@ -302,11 +354,12 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 except Exception as e:
                     _log.warning(f"[{_rid}] REGISTER_UZ skip check zlyhal: {e}")
 
-        # ETA pre kompiláciu: reálne trvá 40-90s (cover page + merge + post-process)
-        compile_eta = 60
+        # ETA pre kompiláciu: phase-aware z historických dát
+        compile_eta = int(hist_compile) if hist_compile else (20 + int(source_count * 1.5))
         await update_report_ai_status(pool, task.report_request_id, "ai.compiling", compile_eta)
 
         compiler = PdfCompiler(settings.results_dir)
+        t_compile_start = time.perf_counter()
         with PhaseTimer("PDF compile"):
             final_path = await compiler.compile(
                 report_request_id=task.report_request_id,
@@ -316,6 +369,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 company_name=company_name,
             )
         t_compile = time.perf_counter()
+        await save_phase_duration(pool, task.report_request_id, "compile", int((t_compile - t_compile_start) * 1000))
         _log.info(f"[{_rid}] PDF compiled: {final_path.name}")
 
         # Aktualizujeme pageCount v DB podľa reálnych hodnôt zistených compilerom

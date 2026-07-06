@@ -11,7 +11,7 @@ const landingJsonLd = {
       url: "https://verifa.sk",
       offers: {
         "@type": "Offer",
-        price: "19.49",
+        price: "19.00",
         priceCurrency: "EUR",
         description: "Jednorazový report",
       },
@@ -37,7 +37,7 @@ const landingJsonLd = {
           name: "Koľko stojí Verifa.sk report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Jednorazový report stojí 10 €. Pre pravidelné použitie ponúkame balíky: Basic (10 reportov za 49 €), Business (30 reportov za 129 €) a Pro (100 reportov za 249 €).",
+            text: "Jednorazový report stojí 19 €. Pre pravidelné použitie ponúkame balíky: Basic (5 reportov za 49 €), Business (20 reportov za 149 €) a Pro (50 reportov za 249 €).",
           },
         },
         {

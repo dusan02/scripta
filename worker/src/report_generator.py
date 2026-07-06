@@ -25,6 +25,7 @@ from matplotlib.ticker import FuncFormatter
 from src.analytics import (
     compute_altman_z_score,
     sanitize_cash_flow_fields,
+    estimate_missing_cash_flow,
     compute_financial_ratios,
     compute_financial_trends,
     compute_forensic_scorecard,
@@ -544,6 +545,8 @@ def generate_debt_donut(stmt) -> str:
 
 def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at):
     verdict = company.auditVerdict
+    if company.financialStatements:
+        company.financialStatements = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
     stmts = company.financialStatements
     # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
     for stmt in (stmts or []):
@@ -574,27 +577,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
 
     # Fallback: ak operatingCashFlow chýba (zjednodušený výkaz bez CF), vypočítaj nepriamou metódou
     # Operating CF ≈ Net Profit + Depreciation - ΔInventory - ΔTrade Receivables + ΔTrade Payables
-    cashflow_estimated = False
-    stmts_by_year = {s.year: s for s in (stmts or [])}
-    for stmt in (stmts or []):
-        if getattr(stmt, 'operatingCashFlow', None) is None:
-            prev = stmts_by_year.get(stmt.year - 1)
-            if not prev:
-                continue
-            net_profit = getattr(stmt, 'netProfitLoss', None)
-            depreciation = getattr(stmt, 'depreciation', None)
-            inv = getattr(stmt, 'inventory', None)
-            inv_prev = getattr(prev, 'inventory', None)
-            recv = getattr(stmt, 'tradeReceivables', None)
-            recv_prev = getattr(prev, 'tradeReceivables', None)
-            pay = getattr(stmt, 'tradePayables', None)
-            pay_prev = getattr(prev, 'tradePayables', None)
-            if net_profit is None or depreciation is None:
-                continue
-            if inv is not None and inv_prev is not None and recv is not None and recv_prev is not None and pay is not None and pay_prev is not None:
-                approx_cf = net_profit + depreciation - (inv - inv_prev) - (recv - recv_prev) + (pay - pay_prev)
-                stmt.operatingCashFlow = approx_cf
-                cashflow_estimated = True
+    cashflow_estimated = estimate_missing_cash_flow(stmts or [])
     latest_stmt = max(stmts, key=lambda s: s.year) if stmts else None
     vestnik_events = company.vestnikEvents or []
     
@@ -716,8 +699,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         name_city_match = re.search(r'\(([^)]+)\)', company.name)
         if name_city_match:
             company_city = name_city_match.group(1).strip()
-    if not company_city:
-        company_city = "Sídlo nezistené"
+
     grouped_sources = []
     rendered_types = set()
     for cat_name, types in SOURCE_CATEGORIES:
@@ -1137,7 +1119,8 @@ async def generate_financial_summary_pdf(ico: str, target_path: str) -> Optional
             logger.warning(f"[FIN_SUMMARY] Žiadne finančné výkazy pre IČO {ico}")
             return None
 
-        stmts = sorted(company.financialStatements, key=lambda s: s.year)
+        stmts = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
+        stmts.sort(key=lambda s: s.year)
         latest = stmts[-1]
         years = [s.year for s in stmts]
 

@@ -21,23 +21,23 @@
     </div>
     {% endif %}
     {% if balance_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4 mt-3">
-        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 220px;">
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3 mt-2">
+        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 160px;">
     </div>
     {% elif has_short_history %}
-    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 mt-3 report-body-sm text-slate-500 text-center">
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-3 mt-2 report-body-sm text-slate-500 text-center">
         Graf vývoja nie je k dispozícii — firma má len 1 účtovnú závierku. Trendové grafy vyžadujú minimálne 2 roky dát.
     </div>
     {% endif %}
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
     {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
-    <p class="report-caption mb-4">Hodnoty v mil. &#8364; — zdroj: RÚZ</p>
+    <p class="report-caption mb-2">Hodnoty v mil. &#8364; — zdroj: RÚZ</p>
     <table class="w-full text-xs border-collapse">
         <thead>
             <tr class="bg-slate-100">
-                <th class="text-left py-1.5 px-2 font-bold text-slate-600">Položka</th>
+                <th class="text-left py-1 px-2 font-bold text-slate-600">Položka</th>
                 {% for stmt in stmts_sorted %}
-                <th class="text-right py-1.5 px-2 font-bold text-slate-600">{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</th>
+                <th class="text-right py-1 px-2 font-bold text-slate-600">{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</th>
                 {% endfor %}
             </tr>
         </thead>
@@ -55,27 +55,27 @@
                 ('Dlhodobé záväzky', 'longTermLiabilities'),
                 ('Záväzky z obch. styku', 'tradePayables'),
             ] %}
-            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1.5" style="color: #94a3b8;">Aktíva</td></tr>
+            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1" style="color: #94a3b8;">Aktíva</td></tr>
             {% for label, field in asset_rows %}
             <tr class="border-b border-slate-100">
-                <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
+                <td class="py-0.5 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
                 {% set val = stmt[field] %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
                 {% set prev_val = prev_stmt and prev_stmt[field] or none %}
-                <td class="py-2 px-2 text-right text-slate-700">{{ val | format_number_millions }}{% if prev_val is not none and val is not none and prev_val != 0 and field in ('totalAssets', 'currentAssets', 'cashAndEquivalents') %}<span class="text-[8px] {% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}">{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}</span>{% endif %}</td>
+                <td class="py-0.5 px-2 text-slate-700"><div class="flex justify-end items-center"><span>{{ val | format_number_millions }}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 and field in ('totalAssets', 'currentAssets', 'cashAndEquivalents') %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 and field in ('totalAssets', 'currentAssets', 'cashAndEquivalents') %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
                 {% endfor %}
             </tr>
             {% endfor %}
-            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1.5 pt-3" style="color: #94a3b8;">Kapitál a záväzky</td></tr>
+            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1 pt-2" style="color: #94a3b8;">Kapitál a záväzky</td></tr>
             {% for label, field in liability_rows %}
             <tr class="border-b border-slate-100">
-                <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
+                <td class="py-0.5 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
                 {% set val = stmt[field] %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
                 {% set prev_val = prev_stmt and prev_stmt[field] or none %}
-                <td class="py-2 px-2 text-right {% if field == 'equity' and val is not none and val < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ val | format_number_millions }}{% if prev_val is not none and val is not none and prev_val != 0 and field == 'equity' %}<span class="text-[8px] {% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}">{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}</span>{% endif %}</td>
+                <td class="py-0.5 px-2 {% if field == 'equity' and val is not none and val < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}"><div class="flex justify-end items-center"><span>{{ val | format_number_millions }}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 and field == 'equity' %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 and field == 'equity' %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -86,8 +86,8 @@
     {% endif %}
 
     {% if bs_infographic_base64 %}
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col p-2 bg-white shadow-sm mt-4 relative" style="max-height: 280px; margin-top: auto;">
-        <img src="data:image/png;base64,{{ bs_infographic_base64 }}" alt="Štruktúra súvahy" class="absolute inset-0 w-full h-full object-contain p-2">
+    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex justify-center items-center p-2 bg-white shadow-sm mt-2" style="min-height: 140px; max-height: 250px; margin-top: auto;">
+        <img src="data:image/png;base64,{{ bs_infographic_base64 }}" alt="Štruktúra súvahy" style="max-width: 100%; max-height: 100%; width: auto; height: auto;">
     </div>
     <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — Súvaha {{ latest_stmt.year }} · Zdroj: RÚZ</p>
     {% endif %}
@@ -138,7 +138,7 @@
                 {% set val = stmt[field] %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
                 {% set prev_val = prev_stmt and prev_stmt[field] or none %}
-                <td class="py-2 px-2 text-right {% if field == 'netProfitLoss' and val is not none and val < 0 %}text-rose-600 font-semibold{% elif field == 'netProfitLoss' and val is not none and val > 0 %}text-emerald-700 font-semibold{% else %}text-slate-700{% endif %}">{{ val | format_number_millions if field != 'interestExpense' else (val | abs | format_number_millions if val is not none else '—') }}{% if field == 'grossProfit' and not gross_profit_all_estimated and stmt.year in estimated_gp_years %}<sup class="text-slate-400">†</sup>{% endif %}{% if prev_val is not none and val is not none and prev_val != 0 and field in ('mainActivityRevenue', 'netProfitLoss') %}<span class="text-[8px] {% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}">{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}</span>{% endif %}</td>
+                <td class="py-2 px-2 {% if field == 'netProfitLoss' and val is not none and val < 0 %}text-rose-600 font-semibold{% elif field == 'netProfitLoss' and val is not none and val > 0 %}text-emerald-700 font-semibold{% else %}text-slate-700{% endif %}"><div class="flex justify-end items-center"><span>{{ val | format_number_millions if field != 'interestExpense' else (val | abs | format_number_millions if val is not none else '—') }}{% if field == 'grossProfit' and not gross_profit_all_estimated and stmt.year in estimated_gp_years %}<sup class="text-slate-400">†</sup>{% endif %}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 and field in ('mainActivityRevenue', 'netProfitLoss') %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 and field in ('mainActivityRevenue', 'netProfitLoss') %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -152,8 +152,8 @@
     {% endif %}
 
     {% if pl_infographic_base64 %}
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col p-1 bg-white shadow-sm mt-3 relative" style="max-height: 320px; margin-top: auto;">
-        <img src="data:image/png;base64,{{ pl_infographic_base64 }}" alt="P&L waterfall" class="absolute inset-0 w-full h-full object-contain p-2">
+    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex justify-center items-center p-2 bg-white shadow-sm mt-4" style="min-height: 140px; max-height: 320px; margin-top: auto;">
+        <img src="data:image/png;base64,{{ pl_infographic_base64 }}" alt="Štruktúra ziskovosti" style="max-width: 100%; max-height: 100%; width: auto; height: auto;">
     </div>
     <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — Výkaz ziskov a strát {{ latest_stmt.year }} · Zdroj: RÚZ</p>
     {% endif %}
@@ -201,7 +201,10 @@
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
-                <td class="py-2 px-2 text-right {% if stmt[field] is not none and stmt[field] != 0 and stmt[field] < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}">{{ stmt[field] | format_cf_millions }}</td>
+                {% set val = stmt[field] %}
+                {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
+                {% set prev_val = prev_stmt and prev_stmt[field] or none %}
+                <td class="py-2 px-2 {% if val is not none and val != 0 and val < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}"><div class="flex justify-end items-center"><span>{{ val | format_cf_millions }}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -266,7 +269,7 @@
                     <path fill-rule="evenodd" d="M12 7a1 1 0 01-1-1V4.41l-3.3 3.3a1 1 0 01-1.4 0l-1.5-1.5a1 1 0 010-1.4L8.59 2H6a1 1 0 010-2h6a1 1 0 011 1v6a1 1 0 01-1 1z" clip-rule="evenodd"/>
                     <path d="M4 10a1 1 0 011-1h10a1 1 0 011 1v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6z"/>
                 </svg>
-                <span class="report-body-sm font-bold text-slate-700">{{ revenue_per_employee | format_number }}</span>
+                <span class="report-body-sm font-bold text-slate-700">{{ "{:,}".format(revenue_per_employee).replace(",", " ") }}</span>
                 <span class="report-caption text-slate-400">&#8364; tržby/zam. / rok</span>
             </div>
             {% endif %}
@@ -337,8 +340,13 @@
                     <p class="report-label text-slate-400">Altman Z″</p>
                     {% if altman_scores and altman_scores|length > 0 %}
                     {% set last_z = altman_scores[-1] %}
+                    {% if last_z.z_score is not none %}
                     <p class="text-base font-black {% if last_z.zone == 'SAFE' %}text-emerald-700{% elif last_z.zone == 'GREY' %}text-amber-600{% else %}text-rose-600{% endif %}">{{ "%.2f"|format(last_z.z_score) }}</p>
                     <p class="report-caption text-slate-400">{{ last_z.zone }}</p>
+                    {% else %}
+                    <p class="text-base font-black text-slate-400">N/A</p>
+                    <p class="report-caption text-slate-400">Nedostatok dát</p>
+                    {% endif %}
                     {% else %}
                     <p class="text-base font-black text-slate-400">N/A</p>
                     {% endif %}

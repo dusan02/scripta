@@ -41,6 +41,10 @@ model ReportRequest {
   aiStatus        String?
   eta             Int?
   verifaScore     Int?                // Snapshot skóre fixované pri generovaní reportu
+  scrapersMs      Int?                // Duration of scraper phase in ms
+  aiMs            Int?                // Duration of AI pipeline phase in ms
+  auditorMs       Int?                // Duration of Chief Auditor phase in ms
+  compileMs       Int?                // Duration of PDF compilation phase in ms
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)

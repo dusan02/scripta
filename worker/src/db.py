@@ -78,6 +78,54 @@ async def get_avg_completion_seconds(pool: asyncpg.Pool, limit: int = 20) -> Opt
     return sum(durations) / len(durations)
 
 
+async def get_avg_phase_durations(pool: asyncpg.Pool, limit: int = 20) -> Optional[dict]:
+    """Vráti priemerné trvania jednotlivých fáz (scrapers/AI/auditor/compile) v sekundách
+    z posledných N completed reportov. Používa median pre odolnosť voči outliers."""
+    rows = await pool.fetch(
+        """
+        SELECT "scrapersMs", "aiMs", "auditorMs", "compileMs",
+               EXTRACT(EPOCH FROM ("completedAt" - "createdAt")) AS total
+        FROM "ReportRequest"
+        WHERE status IN ('COMPLETED', 'PARTIAL')
+          AND "completedAt" IS NOT NULL
+        ORDER BY "completedAt" DESC
+        LIMIT $1
+        """,
+        limit,
+    )
+    if not rows:
+        return None
+
+    def _median(values: list) -> Optional[float]:
+        vals = sorted(v for v in values if v is not None and v > 0)
+        if not vals:
+            return None
+        mid = len(vals) // 2
+        return vals[mid] if len(vals) % 2 == 1 else (vals[mid - 1] + vals[mid]) / 2
+
+    result = {}
+    for phase, col in [("scrapers", "scrapersMs"), ("ai", "aiMs"), ("auditor", "auditorMs"), ("compile", "compileMs")]:
+        vals = [r[col] for r in rows if r[col] is not None and r[col] > 0]
+        med = _median(vals)
+        result[phase] = med / 1000.0 if med else None  # ms → s
+
+    totals = [r["total"] for r in rows if r["total"] and 0 < r["total"] < 1800]
+    result["total"] = _median(totals)
+    return result if any(v is not None for v in result.values()) else None
+
+
+async def save_phase_duration(pool: asyncpg.Pool, report_request_id: str, phase: str, duration_ms: int) -> None:
+    """Uloží trvanie jednej fázy do DB."""
+    col_map = {"scrapers": "scrapersMs", "ai": "aiMs", "auditor": "auditorMs", "compile": "compileMs"}
+    col = col_map.get(phase)
+    if not col:
+        return
+    await pool.execute(
+        f'UPDATE "ReportRequest" SET "{col}" = $1, "updatedAt" = NOW() WHERE id = $2',
+        duration_ms, report_request_id
+    )
+
+
 async def update_report_ai_status(
     pool: asyncpg.Pool,
     report_request_id: str,

@@ -177,6 +177,11 @@ class RegisterUzScraper(BaseScraper):
             return null;
         }""")
         logger.info(f"[{self.source_type}] Výsledok: {clicked or 'nenájdený'}")
+        if clicked:
+            try:
+                await page.wait_for_load_state("domcontentloaded", timeout=5000)
+            except PlaywrightTimeoutError:
+                pass
 
     async def _click_collapse_arrow(self, page: Page) -> None:
         # Rozbalíme VŠETKY collapse sekcie, nie len prvú — inak
@@ -195,7 +200,10 @@ class RegisterUzScraper(BaseScraper):
             logger.warning(f"[{self.source_type}] Žiadny collapse element nenájdený.")
         else:
             logger.info(f"[{self.source_type}] Expandovaných {count} sekcií.")
-            await asyncio.sleep(1)
+            try:
+                await page.wait_for_selector("a[href*='financialreport/show']", timeout=3000)
+            except PlaywrightTimeoutError:
+                pass
 
     async def _click_ucpod(self, page: Page) -> None:
         # Nájdi VŠETKY linky na závierky naprieč rozbalenými sekciami,
@@ -209,8 +217,15 @@ class RegisterUzScraper(BaseScraper):
                     "a:has-text('Zobraziť viac'), a:has-text('Zobraziť všetky'), button:has-text('Zobraziť viac')"
                 )
                 if await show_more.count() > 0 and await show_more.first.is_visible():
+                    prev_count = await page.locator("a[href*='financialreport/show']").count()
                     await show_more.first.click()
-                    await asyncio.sleep(1)
+                    try:
+                        await page.wait_for_function(
+                            f"() => document.querySelectorAll(\"a[href*='financialreport/show']\").length > {prev_count}",
+                            timeout=3000,
+                        )
+                    except PlaywrightTimeoutError:
+                        pass
                     logger.info(f"[{self.source_type}] Kliknuté na 'Zobraziť viac'")
                 else:
                     break
@@ -299,6 +314,10 @@ class RegisterUzScraper(BaseScraper):
         await page.goto(url, wait_until="commit", timeout=15000)
         try:
             await page.wait_for_selector("table, .table", timeout=5000)
+        except PlaywrightTimeoutError:
+            pass
+        try:
+            await page.wait_for_load_state("networkidle", timeout=3000)
         except PlaywrightTimeoutError:
             pass
 

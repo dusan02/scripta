@@ -306,12 +306,11 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
             where={'financialStatementId': statement.id},
             data={
                 'create': {
-                    'financialStatementId': statement.id,
+                    'statement': {'connect': {'id': statement.id}},
                     'managementChanges': narrative.management_changes,
                     'litigationRisks': narrative.litigation_risks,
                     'goingConcernDoubts': narrative.going_concern_doubts,
                     'plannedInvestments': narrative.planned_investments,
-                    'profitabilityExplanation': narrative.profitability_explanation,
                     'forensicRedFlags': narrative.forensic_red_flags,
                     'synthesis': narrative.synthesis
                 },
@@ -320,7 +319,6 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
                     'litigationRisks': narrative.litigation_risks,
                     'goingConcernDoubts': narrative.going_concern_doubts,
                     'plannedInvestments': narrative.planned_investments,
-                    'profitabilityExplanation': narrative.profitability_explanation,
                     'forensicRedFlags': narrative.forensic_red_flags,
                     'synthesis': narrative.synthesis
                 }

@@ -41,7 +41,7 @@ export default function LandingPage() {
       name: "Jednorazový report",
       subtitle: "Komplexné preverenie firmy",
       credits: "1 report",
-      price: "10 €",
+      price: "19 €",
       perCredit: "Vhodné pre jednorazové overenie obchodného partnera.",
       features: [
         "Viac ako 30 verejných registrov",
@@ -58,12 +58,12 @@ export default function LandingPage() {
     {
       name: "Basic",
       subtitle: "Pre účtovníkov a malé firmy",
-      credits: "10 reportov",
+      credits: "5 reportov",
       price: "49 €",
-      perCredit: "4,90 € / report",
+      perCredit: "9,80 € / report",
       features: [
         "Všetko z Jednorazového reportu",
-        "10 kreditov",
+        "5 kreditov",
         "História reportov",
         "Prioritné spracovanie",
         "PDF archivácia",
@@ -73,12 +73,12 @@ export default function LandingPage() {
     {
       name: "Business",
       subtitle: "Pre firmy s pravidelným Due Diligence",
-      credits: "30 reportov",
-      price: "129 €",
-      perCredit: "4,30 € / report",
+      credits: "20 reportov",
+      price: "149 €",
+      perCredit: "7,45 € / report",
       features: [
         "Všetko z Basic",
-        "30 kreditov",
+        "20 kreditov",
         "Prioritná podpora",
         "Rýchlejšie spracovanie",
         "Vhodné pre obchodné tímy",
@@ -89,12 +89,12 @@ export default function LandingPage() {
     {
       name: "Pro",
       subtitle: "Pre profesionálov",
-      credits: "100 reportov",
+      credits: "50 reportov",
       price: "249 €",
-      perCredit: "2,49 € / report",
+      perCredit: "4,98 € / report",
       features: [
         "Všetko z Business",
-        "100 kreditov",
+        "50 kreditov",
         "Prioritná podpora",
         "Osobný account manager",
         "Najnižšia cena za report",

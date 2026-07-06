@@ -411,7 +411,7 @@ export default function ReportDetailPage() {
   // Sync ETA from server when it changes
   useEffect(() => {
     if (report?.eta != null && report.eta > 0 && !isFinished) {
-      if (etaRef.current === null || Math.abs(report.eta - etaRef.current) > 10) {
+      if (etaRef.current === null || Math.abs(report.eta - etaRef.current) > 5) {
         etaRef.current = report.eta;
         setEtaCountdown(report.eta);
       }

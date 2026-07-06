@@ -33,7 +33,7 @@ from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestni
 from src.report_generator import generate_forensic_pdf_report
 from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_NOTES, _MODEL_VESTNIK
-from src.analytics import sanitize_cash_flow_fields, compute_financial_trends, compute_forensic_scorecard
+from src.analytics import sanitize_cash_flow_fields, estimate_missing_cash_flow, compute_financial_trends, compute_forensic_scorecard
 
 # Nastavenie logovania do súboru pre produkciu
 logging.basicConfig(
@@ -296,6 +296,15 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
         for stmt in company_dict.get("financialStatements", []):
             sanitize_cash_flow_fields(stmt)
         
+        # Fallback: ak operatingCashFlow chýba (zjednodušený výkaz bez CF), vypočítaj nepriamou metódou
+        # Musí sa aplikovať PRED výpočtom scorecardu, inak P3 pilier ukáže "Cash Flow: N/A"
+        if company.financialStatements:
+            estimate_missing_cash_flow(company.financialStatements)
+            # Re-export dict s odhadovanými CF hodnotami
+            company_dict = company.model_dump(exclude_none=True)
+            for stmt in company_dict.get("financialStatements", []):
+                sanitize_cash_flow_fields(stmt)
+        
         # Cesta B: Deterministická agregácia a výpočet 5-ročného trendu
         scorecard = None
         if company.financialStatements:
@@ -359,7 +368,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
             where={'companyIco': ico},
             data={
                 'create': {
-                    'company': {'connect': {'ico': ico}},
+                    'companyIco': ico,
                     **verdict_payload,
                 },
                 'update': verdict_payload,
@@ -438,12 +447,30 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
             elif fn.startswith("VS_"):
                 vs_files.append(fp)
 
+        # Zoznam pre zbieranie extrahovaných dát (pre cross-year duplicate check)
+        _ifrs_results: list[CompanyFinancialExtraction] = []
+
+        # Smart routing: Pre firmy, ktoré zverejňujú IFRS závierku ako súčasť Výročnej správy (napr. OMV),
+        # je samostatný IFRS_ súbor často len 1-stranová obálka. Ak IFRS_ dokument má <= 2 strany
+        # a existuje VS_ dokument pre daný rok, presmerujeme IFRS analýzu na VS_ dokument.
+        for i, ifrs_fp in enumerate(ifrs_files):
+            try:
+                doc = fitz.open(ifrs_fp)
+                pages = doc.page_count
+                doc.close()
+                if pages <= 2:
+                    # Nájdi zodpovedajúci VS súbor pre tento rok
+                    year = _extract_year_from_fn(ifrs_fp)
+                    vs_match = next((f for f in vs_files if _extract_year_from_fn(f) == year), None)
+                    if vs_match:
+                        logger.info(f"[{get_correlation_id() or '-'}] Smart routing: {os.path.basename(ifrs_fp)} má len {pages} strany. Nahrádzam ho {os.path.basename(vs_match)} pre finančnú analýzu.")
+                        ifrs_files[i] = vs_match
+            except Exception as e:
+                pass
+
         _ifrs_count = len(ifrs_files)
         _vs_count = len(vs_files)
         logger.info(f"[{get_correlation_id() or '-'}] Files: IFRS={_ifrs_count} VS={_vs_count}")
-
-        # Zoznam pre zbieranie extrahovaných dát (pre cross-year duplicate check)
-        _ifrs_results: list[CompanyFinancialExtraction] = []
 
         async def _process_ifrs(file_path: str, sem: asyncio.Semaphore):
             """Spracuje jeden IFRS PDF: slice → Gemini extrakcia → (deferred DB save)."""
