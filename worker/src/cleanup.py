@@ -13,16 +13,10 @@ import shutil
 from datetime import datetime, timezone, timedelta
 from typing import List, Tuple
 
-import asyncpg
-
+from prisma import Prisma
 from .config import settings
 
 logger = logging.getLogger(__name__)
-
-
-async def _get_db_conn() -> asyncpg.Connection:
-    """Get a short-lived DB connection for cleanup queries."""
-    return await asyncpg.connect(settings.database_url)
 
 
 async def cleanup_old_reports() -> Tuple[int, int]:
@@ -37,23 +31,22 @@ async def cleanup_old_reports() -> Tuple[int, int]:
     removed = 0
     db_cleared = 0
 
-    conn = None
+    db = Prisma()
+    await db.connect()
     try:
-        conn = await _get_db_conn()
-    except Exception as e:
-        logger.warning(f"[CLEANUP] DB connection failed, will skip DB cleanup: {e}")
-        return 0, 0
-
-    try:
-        # Vymaž z DB záznamy staršie ako cutoff (Cascade vymaže aj ReportSource)
-        # Používame DELETE a vrátime si ich IDčka, aby sme ich zmazali aj z disku.
-        rows = await conn.fetch(
-            'DELETE FROM "ReportRequest" WHERE "createdAt" < $1 RETURNING id',
-            cutoff
+        # Vytiahneme ID starých reportov
+        old_reports = await db.reportrequest.find_many(
+            where={"createdAt": {"lt": cutoff}}
         )
+        if not old_reports:
+            return 0, 0
+            
+        ids_to_delete = [r.id for r in old_reports]
         
-        for row in rows:
-            report_id = row["id"]
+        # Zmažeme ich z DB (Cascade sa postará o ReportSource)
+        await db.reportrequest.delete_many(where={"id": {"in": ids_to_delete}})
+        
+        for report_id in ids_to_delete:
             db_cleared += 1
             
             # Zmaž zložku z disku
@@ -69,7 +62,7 @@ async def cleanup_old_reports() -> Tuple[int, int]:
     except Exception as e:
         logger.error(f"[CLEANUP] Error deleting old reports from DB: {e}", exc_info=True)
     finally:
-        await conn.close()
+        await db.disconnect()
 
     return removed, db_cleared
 
@@ -82,44 +75,39 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
     removed = 0
     db_cleared = 0
 
-    conn = None
-    try:
-        conn = await _get_db_conn()
-    except Exception as e:
-        logger.warning(f"[CLEANUP] DB connection failed, skipping excess cleanup: {e}")
-        return 0, 0
+    db = Prisma()
+    await db.connect()
 
     try:
         # Find users with more than max_reports completed/partial reports
-        rows: List[asyncpg.Record] = await conn.fetch(
-            'SELECT "userId", COUNT(*) as cnt FROM "ReportRequest" '
-            'WHERE status IN (\'COMPLETED\', \'PARTIAL\') '
-            'GROUP BY "userId" HAVING COUNT(*) > $1',
+        rows = await db.query_raw(
+            '''SELECT "userId", COUNT(*) as cnt FROM "ReportRequest" 
+               WHERE status IN ('COMPLETED', 'PARTIAL') 
+               GROUP BY "userId" HAVING COUNT(*) > $1''',
             max_reports,
         )
 
         for row in rows:
             user_id = row["userId"]
+            cnt = int(row["cnt"])
+            
             # Get oldest report IDs to delete (beyond the limit)
-            excess: List[asyncpg.Record] = await conn.fetch(
-                'SELECT id FROM "ReportRequest" '
-                'WHERE "userId" = $1 AND status IN (\'COMPLETED\', \'PARTIAL\') '
-                'ORDER BY "createdAt" ASC LIMIT $2',
-                user_id,
-                row["cnt"] - max_reports,
+            excess = await db.reportrequest.find_many(
+                where={
+                    "userId": user_id, 
+                    "status": {"in": ["COMPLETED", "PARTIAL"]}
+                },
+                order={"createdAt": "asc"},
+                take=(cnt - max_reports),
             )
 
             for ex_row in excess:
-                report_id = ex_row["id"]
+                report_id = ex_row.id
                 
                 # Zmaž záznam z DB (Cascade sa postará o ReportSource)
                 try:
-                    result = await conn.execute(
-                        'DELETE FROM "ReportRequest" WHERE id = $1',
-                        report_id,
-                    )
-                    if result.endswith("1"):
-                        db_cleared += 1
+                    await db.reportrequest.delete(where={"id": report_id})
+                    db_cleared += 1
                 except Exception as db_err:
                     logger.warning(f"[CLEANUP] Failed to delete DB record for {report_id}: {db_err}")
                     
@@ -133,8 +121,7 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
     except Exception as e:
         logger.error(f"[CLEANUP] Excess cleanup error: {e}", exc_info=True)
     finally:
-        if conn:
-            await conn.close()
+        await db.disconnect()
 
     return removed, db_cleared
 
@@ -145,30 +132,30 @@ async def recover_stale_reports() -> int:
     This handles cases where the worker crashed mid-task.
     Returns count of recovered reports.
     """
-    conn = None
-    try:
-        conn = await _get_db_conn()
-    except Exception as e:
-        logger.warning(f"[CLEANUP] DB connection failed, skipping stale recovery: {e}")
-        return 0
+    db = Prisma()
+    await db.connect()
 
     recovered = 0
     try:
-        result = await conn.execute(
-            'UPDATE "ReportRequest" '
-            'SET status = \'FAILED\', "updatedAt" = NOW() '
-            'WHERE status = \'PROCESSING\' '
-            'AND "updatedAt" < NOW() - INTERVAL \'30 minutes\''
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=30)
+        stale_reports = await db.reportrequest.find_many(
+            where={
+                "status": "PROCESSING",
+                "updatedAt": {"lt": cutoff}
+            }
         )
-        count_str = result.split()[-1] if result else "0"
-        recovered = int(count_str) if count_str.isdigit() else 0
-        if recovered > 0:
-            logger.warning(f"[CLEANUP] Marked {recovered} stale PROCESSING reports as FAILED")
+        if stale_reports:
+            ids = [r.id for r in stale_reports]
+            recovered = await db.reportrequest.update_many(
+                where={"id": {"in": ids}},
+                data={"status": "FAILED"}
+            )
+            if recovered > 0:
+                logger.warning(f"[CLEANUP] Marked {recovered} stale PROCESSING reports as FAILED")
     except Exception as e:
         logger.error(f"[CLEANUP] Stale recovery error: {e}", exc_info=True)
     finally:
-        if conn:
-            await conn.close()
+        await db.disconnect()
 
     return recovered
 

@@ -98,22 +98,26 @@
                     </span>
                 </td>
             </tr>
+            <tr>
+                <td colspan="4" class="py-3 px-3 bg-white border-t border-slate-200">
+                    <div class="flex gap-4 items-center">
+                        <div class="flex-1">
+                            <p class="report-caption text-slate-500">
+                                Váhy pilierov sú dynamicky prispôsobené odvetviu podľa NACE kódu.
+                                Finálne skóre môže byť upravené audítorom o +/-10 bodov na základe úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
+                            </p>
+                        </div>
+                        {% if radar_chart_base64 %}
+                        <div class="w-52 flex-shrink-0 flex flex-col items-center">
+                            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="Radar chart pilierov" class="w-full h-auto">
+                            <p class="report-caption text-slate-400 text-center mt-1">Profil pilierov</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
         </tfoot>
     </table>
-    <div class="flex gap-4 items-center mt-2">
-        <div class="flex-1">
-            <p class="report-caption text-slate-500">
-                Váhy pilierov sú dynamicky prispôsobené odvetviu podľa NACE kódu.
-                Finálne skóre môže byť upravené audítorom o +/-10 bodov na základe úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.
-            </p>
-        </div>
-        {% if radar_chart_base64 %}
-        <div class="w-64 flex-shrink-0 flex flex-col items-center">
-            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="Radar chart pilierov" class="w-full h-auto">
-            <p class="report-caption text-slate-400 text-center mt-1">Profil pilierov</p>
-        </div>
-        {% endif %}
-    </div>
 {% endif %}
 
     <div class="page-break"></div>

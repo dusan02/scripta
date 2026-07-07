@@ -31,3 +31,18 @@ results/
 test-results/
 worker/scratch/
 worker/assets/
+
+# Debug / one-off scripts
+progress.txt
+update_and_check.js
+worker/check_*.py
+worker/dump_*.py
+worker/mark_failed.py
+worker/parse_ruz*.py
+worker/search_*.html
+worker/search_*.png
+worker/omv_*.png
+worker/debug_*.png
+worker/test_results/
+worker/src/browser_manager.py
+worker/src/worker_arq.py

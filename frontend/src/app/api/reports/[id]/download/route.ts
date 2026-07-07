@@ -45,14 +45,17 @@ export async function GET(
     }
 
     let filePath = report.resultFilePath;
-    if (!path.isAbsolute(filePath)) {
-      filePath = path.resolve(process.cwd(), "..", "worker", filePath);
-    }
 
-    // Path traversal protection: ensure resolved path is within the worker results directory
-    const resultsDir = path.resolve(process.cwd(), "..", "worker", "results");
-    const resolvedFilePath = path.resolve(filePath);
-    if (!resolvedFilePath.startsWith(resultsDir + path.sep) && resolvedFilePath !== resultsDir) {
+    // In Docker, results are shared via volume at /app/results
+    // resultFilePath may be /app/results/<id>/evidence_binder.pdf (from worker)
+    const resultsDir = process.env.RESULTS_DIR || "/app/results";
+    const resolvedFilePath = path.isAbsolute(filePath)
+      ? filePath
+      : path.resolve(resultsDir, filePath);
+
+    // Path traversal protection
+    const resolvedResultsDir = path.resolve(resultsDir);
+    if (!resolvedFilePath.startsWith(resolvedResultsDir + path.sep) && resolvedFilePath !== resolvedResultsDir) {
       return NextResponse.json(
         { error: "Invalid file path" },
         { status: 403 }

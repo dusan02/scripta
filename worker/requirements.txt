@@ -7,7 +7,6 @@ PyPDF2==3.0.1
 reportlab==4.2.0
 pydantic==2.7.4
 pydantic-settings==2.3.4
-asyncpg==0.29.0
 pymupdf
 pymupdf4llm
 google-genai>=1.5.0
@@ -15,4 +14,8 @@ prisma
 sentry-sdk[fastapi]==2.8.0
 matplotlib
 seaborn
-celery[redis]>=5.4.0
+arq>=0.26.0
+aiohttp
+markdown
+plotly==5.22.0
+kaleido==0.2.1

@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Inštalácia systémových závislostí pre Playwright a ďalšie knižnice
 RUN apt-get update && apt-get install -y \
@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libgbm1 \
     libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -33,7 +35,7 @@ RUN playwright install chromium
 COPY . .
 
 # Vygenerovanie Prisma klienta
-# Upozornenie: vyžaduje prístup k schema.prisma, ideálne ju tu priamo skopírovať alebo pripojiť
-# RUN prisma generate --schema=./prisma/schema.prisma
+COPY prisma ./prisma
+RUN prisma generate --schema=./prisma/schema.prisma
 
-CMD ["python", "src/main.py"]
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

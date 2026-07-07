@@ -49,10 +49,8 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         s rotáciou User-Agent, proxy a stealth JS pre anti-detekciu."""
         if self.browser is None:
             self._playwright = await async_playwright().start()
-            self.browser = await self._playwright.chromium.launch(
-                headless=settings.playwright_headless,
-                args=['--disable-blink-features=AutomationDetected'],
-            )
+            from src.browser_manager import browser_manager
+            self.browser = await browser_manager.get_browser(self._playwright)
             self._owned_browser = True
 
         context_kwargs = {

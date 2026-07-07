@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask, checkWorkerHealth } from "@/lib/worker";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { consumeCredits, refundCredits } from "@/lib/credits";
 import { reportRequestSchema } from "./schema";
 
 const prisma = new PrismaClient();
@@ -104,18 +105,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Ensure user has a wallet
-    let wallet = await prisma.wallet.findUnique({
-      where: { userId: user.id },
-    });
-    if (!wallet) {
-      wallet = await prisma.wallet.create({
-        data: {
-          userId: user.id,
-          balance: 0,
-          currency: "EUR",
-        },
-      });
+    // Check credits — deny if balance <= 0
+    const wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });
+    const balance = wallet ? Number(wallet.balance) : 0;
+    if (balance <= 0) {
+      return NextResponse.json(
+        { error: "Nemáte dostatok kreditov. Vyberte si balíček v cenníku." },
+        { status: 402 }
+      );
     }
 
     const body = await req.json();
@@ -127,7 +124,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { ico, sources } = parseResult.data;
+    let { ico, sources } = parseResult.data;
 
     // Validácia: iba IČO
     if (!ico) {
@@ -152,8 +149,7 @@ export async function POST(req: NextRequest) {
         );
       }
       // Použi prefiltrované zdroje
-      const body = parseResult.data;
-      body.sources = filteredSources as any;
+      sources = filteredSources as any;
     }
 
     // OVERENIE: Worker je online pred vytvorením DB záznamu
@@ -185,6 +181,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Deduct 1 credit via FIFO (oldest batches first) BEFORE enqueuing
+    const creditConsumed = await consumeCredits(user.id, 1, reportRequest.id);
+    
+    if (!creditConsumed) {
+      await prisma.reportRequest.update({
+        where: { id: reportRequest.id },
+        data: { status: "FAILED" }
+      });
+      return NextResponse.json(
+        { error: "Nepodarilo sa stiahnuť kredity. Skúste to znova alebo kontaktujte podporu." },
+        { status: 402 }
+      );
+    }
+
     // Odošleme úlohu workerovi.
     try {
       const dbUser = await prisma.user.findUnique({
@@ -201,8 +211,13 @@ export async function POST(req: NextRequest) {
       });
     } catch (workerErr) {
       console.error("Worker enqueue failed", workerErr);
-      await prisma.reportRequest.delete({
+      
+      // If enqueue fails, we must refund the credit
+      await refundCredits(user.id, 1, reportRequest.id);
+
+      await prisma.reportRequest.update({
         where: { id: reportRequest.id },
+        data: { status: "FAILED" },
       });
 
       return NextResponse.json(

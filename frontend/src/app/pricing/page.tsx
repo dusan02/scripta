@@ -65,47 +65,51 @@ const REPORT_INCLUDES = [
 
 const PACKAGES = [
   {
-    id: "onetime",
-    nameKey: "pricing.jednorazovy",
-    subtitleKey: "pricing.onetimeSubtitle",
-    reports: 1,
-    price: "10",
-    pricePerReport: "10",
+    id: "start",
+    nameKey: "pricing.start",
+    subtitleKey: "pricing.startSubtitle",
+    reports: 5,
+    price: "49",
+    pricePerReport: "9,80",
+    isSubscription: false,
     featureKeys: ["pricing.feat30Registre", "pricing.featAnalyzaFinancnychVykazov", "pricing.featRizikoveUpozornenia", "pricing.featInsolvencne", "pricing.featDphPravne", "pricing.featZaverneSkore", "pricing.featPdfReport", "pricing.featExportReportu"],
     featureTooltipKeys: ["registre", null, null, "insolventny", "financna", "skore", "pdf", null],
     highlight: false,
   },
   {
-    id: "basic",
-    nameKey: "pricing.basic",
-    subtitleKey: "pricing.basicSubtitle",
-    reports: 10,
-    price: "49",
-    pricePerReport: "4,90",
-    featureKeys: ["pricing.featAllFromOnetime", "pricing.feat10Kreditov", "pricing.featHistoria", "pricing.featPrioritneSpracovanie", "pricing.featPdfArchivacia"],
-    featureTooltipKeys: [null, null, null, null, null],
+    id: "freelance",
+    nameKey: "pricing.freelance",
+    subtitleKey: "pricing.freelanceSubtitle",
+    reports: 15,
+    price: "39",
+    pricePerReport: "2,60",
+    isSubscription: true,
+    featureKeys: ["pricing.featAllFromStart", "pricing.feat15Kreditov", "pricing.featHistoria", "pricing.featPrioritneSpracovanie", "pricing.featPdfArchivacia", "pricing.featRollOver"],
+    featureTooltipKeys: [null, null, null, null, null, null],
     highlight: false,
   },
   {
-    id: "biznis",
-    nameKey: "pricing.biznis",
-    subtitleKey: "pricing.biznisSubtitle",
-    reports: 30,
-    price: "129",
-    pricePerReport: "4,30",
-    featureKeys: ["pricing.featAllFromBasic", "pricing.feat30Kreditov", "pricing.featPrioritnaPodpora", "pricing.featRychlejsieSpracovanie", "pricing.featObchodneTimy", "pricing.featUctovneKancelarie"],
-    featureTooltipKeys: [null, null, null, null, null, null],
+    id: "firma",
+    nameKey: "pricing.firma",
+    subtitleKey: "pricing.firmaSubtitle",
+    reports: 40,
+    price: "99",
+    pricePerReport: "2,48",
+    isSubscription: true,
+    featureKeys: ["pricing.featAllFromFreelance", "pricing.feat40Kreditov", "pricing.featPrioritnaPodpora", "pricing.featRychlejsieSpracovanie", "pricing.featObchodneTimy", "pricing.featUctovneKancelarie", "pricing.featRollOver"],
+    featureTooltipKeys: [null, null, null, null, null, null, null],
     highlight: true,
   },
   {
-    id: "pro",
-    nameKey: "pricing.pro",
-    subtitleKey: "pricing.proSubtitle",
+    id: "korporat",
+    nameKey: "pricing.korporat",
+    subtitleKey: "pricing.korporatSubtitle",
     reports: 100,
     price: "249",
     pricePerReport: "2,49",
-    featureKeys: ["pricing.featAllFromBiznis", "pricing.feat100Kreditov", "pricing.featPrioritnaPodpora", "pricing.featOsobnyAccount", "pricing.featNajnejsiaCena", "pricing.featBankyAdvokati"],
-    featureTooltipKeys: [null, null, null, null, null, null],
+    isSubscription: true,
+    featureKeys: ["pricing.featAllFromFirma", "pricing.feat100Kreditov", "pricing.featPrioritnaPodpora", "pricing.featOsobnyAccount", "pricing.featNajnejsiaCena", "pricing.featBankyAdvokati", "pricing.featRollOver"],
+    featureTooltipKeys: [null, null, null, null, null, null, null],
     highlight: false,
   },
 ];
@@ -218,7 +222,7 @@ export default function PricingPage() {
                   </span>
                 </div>
                 <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {pkg.id === "onetime" ? t("pricing.jednorazove") : t("pricing.reportovZaReport", { n: pkg.reports, price: pkg.pricePerReport })}
+                  {pkg.isSubscription ? t("pricing.mesiacne", { n: pkg.reports, price: pkg.pricePerReport }) : t("pricing.jednorazove")}
                 </p>
               </div>
 

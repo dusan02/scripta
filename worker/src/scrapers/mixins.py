@@ -221,10 +221,8 @@ class StealthDebtorMixin:
     async def _get_stealth_page(self) -> Page:
         if not hasattr(self, 'browser') or self.browser is None:
             self._playwright = await async_playwright().start()
-            self.browser = await self._playwright.chromium.launch(
-                headless=True,
-                args=['--disable-blink-features=AutomationDetected'],
-            )
+            from src.browser_manager import browser_manager
+            self.browser = await browser_manager.get_browser(self._playwright)
             self._owned_browser = True
 
         context_kwargs = {

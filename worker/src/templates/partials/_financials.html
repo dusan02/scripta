@@ -161,12 +161,7 @@
     <p class="report-caption text-slate-400 mt-1">* Prevádzkový zisk dopočítaný z dostupných nákladových položiek (IFRS/SK GAAP by-function výkaz — hrubá marža nie je explicitne uvedená).</p>
     {% endif %}
 
-    {% if pl_infographic_base64 %}
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex justify-center items-center p-3 bg-white shadow-sm mt-4" style="min-height: 180px;">
-        <img src="data:image/png;base64,{{ pl_infographic_base64 }}" alt="Štruktúra ziskovosti" class="w-full h-full object-contain">
-    </div>
-    <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — Výkaz ziskov a strát {{ latest_stmt.year }} · Zdroj: RÚZ</p>
-    {% endif %}
+
     {% elif not latest_stmt %}
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
         Finančné závierky z RÚZ neboli dostupné pre toto IČO.
@@ -233,24 +228,14 @@
     {% endif %}
 
 
-    {% if cf_waterfall_base64 or debt_donut_base64 %}
-    <div class="flex-1 flex gap-3 mt-3 relative" style="max-height: 280px; margin-top: auto;">
-        {% if cf_waterfall_base64 %}
-        <div class="flex-1 flex flex-col">
-            <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm relative">
-                <img src="data:image/png;base64,{{ cf_waterfall_base64 }}" alt="Cash flow waterfall" class="absolute inset-0 w-full h-full object-contain p-2">
+    {% if debt_donut_base64 %}
+    <div class="flex justify-center mt-3 relative" style="margin-top: auto;">
+        <div class="w-48 flex flex-col">
+            <div class="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm p-2 flex items-center justify-center" style="height: 180px;">
+                <img src="data:image/png;base64,{{ debt_donut_base64 }}" alt="Kapitálová štruktúra" class="w-full h-full object-contain">
             </div>
-            <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — Cash flow {{ latest_stmt.year }} · Zdroj: RÚZ</p>
+            <p class="report-caption text-center text-slate-400 mt-1">Kapitálová štruktúra {{ latest_stmt.year }}</p>
         </div>
-        {% endif %}
-        {% if debt_donut_base64 %}
-        <div class="w-40 flex-shrink-0 flex flex-col">
-            <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm relative">
-                <img src="data:image/png;base64,{{ debt_donut_base64 }}" alt="Kapitálová štruktúra" class="absolute inset-0 w-full h-full object-contain p-2">
-            </div>
-            <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">Kapitálová štruktúra {{ latest_stmt.year }}</p>
-        </div>
-        {% endif %}
     </div>
     {% endif %}
     {% elif not latest_stmt %}

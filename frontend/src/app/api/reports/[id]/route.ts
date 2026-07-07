@@ -43,12 +43,23 @@ export async function GET(
       }
     }
 
+    let resolvedCompanyName = report.companyName;
+    if (!resolvedCompanyName && report.ico) {
+      const company = await prisma.company.findUnique({
+        where: { ico: report.ico },
+        select: { name: true }
+      });
+      if (company?.name) {
+        resolvedCompanyName = company.name;
+      }
+    }
+
     return NextResponse.json({
       id: report.id,
       status: report.status,
       targetType: report.targetType,
       ico: report.ico,
-      companyName: report.companyName,
+      companyName: resolvedCompanyName,
       selectedSources: report.selectedSources,
       createdAt: report.createdAt,
       completedAt: report.completedAt,

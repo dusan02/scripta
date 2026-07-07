@@ -239,7 +239,7 @@ export default async function CompanyTeaserPage({ params }: Params) {
           <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text)" }}>Čo obsahuje kompletný report?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
-              "Viac ako 30 verejných registrov",
+              "Kontrola 25 verejných a privátnych registrov",
               "Analýza súvahy, výkazu ziskov a strát a cashflow",
               "Rizikové upozornenia",
               "Insolvenčné registre",
@@ -294,7 +294,7 @@ export default async function CompanyTeaserPage({ params }: Params) {
             {name} (IČO: {company.ico}) je slovenská spoločnosť
             {company.naceText ? ` pôsobiaca v oblasti ${company.naceText.toLowerCase()}` : ""}
             {latestStmt ? `, s dostupnými finančnými výkazmi za rok ${latestStmt.year}` : ""}.
-            Verifa.sk ponúka automatizovaný forenzný due diligence report, ktorý zhromažďuje dáta z viac ako 30 verejných registrov Slovenskej republiky.
+            Verifa.sk ponúka automatizovaný forenzný due diligence report, ktorý zhromažďuje dáta z 25 verejných a privátnych registrov Slovenskej republiky.
           </p>
           <p className="text-sm leading-relaxed mb-3">
             Náš report obsahuje analýzu súvahy, výkazu ziskov a strát a cash flow, kontrolu insolvenčných registrov,

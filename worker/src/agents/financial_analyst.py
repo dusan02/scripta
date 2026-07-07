@@ -47,12 +47,19 @@ PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
 - Nikdy nehalucinuj. Ak položka v závierke neexistuje alebo nie je uvedená, vráť null. Ak je fyzicky uvedená 0, vráť 0."""
 
 
-async def extract_financial_data(file_path: str, model: str = settings.model_ifrs) -> CompanyFinancialExtraction:
+async def extract_financial_data(file_path: str, model: str = settings.model_ifrs, chunk_meta: dict = None) -> CompanyFinancialExtraction:
     """
     Nahrá PDF súbor (napr. skenovanú závierku) do Gemini File API, a použije Multimodal model
     na extrakciu faktov priamo z obrázkov strán podľa Pydantic schémy.
     Pre .txt súbory (HTML extrakcia z registeruz.sk) pošle text priamo ako prompt.
     """
+    # Pridanie metadát do promptu ak existujú (pre chunking logiku)
+    prompt_text = SYSTEM_PROMPT
+    if chunk_meta:
+        prompt_text += f"\n\n[METADATA CHUNKU]\nToto je chunk č. {chunk_meta.get('chunk_id')} zo zdrojového dokumentu '{chunk_meta.get('source_pdf')}'. "
+        prompt_text += f"Obsahuje strany {chunk_meta.get('page_range')}. "
+        prompt_text += "Extrahuj len hodnoty, ktoré sa fyzicky nachádzajú na týchto stranách."
+
     # Skúsime vyčítať rok priamo z názvu súboru (ak bol dodaný scraperom)
     filename = os.path.basename(file_path)
     match = re.search(r'_(\d{4})_', filename)
@@ -65,7 +72,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
     client = _get_gemini_client()
 
     config = types.GenerateContentConfig(
-        system_instruction=SYSTEM_PROMPT,
+        system_instruction=prompt_text,
         response_mime_type="application/json",
         response_schema=CompanyFinancialExtraction,
         temperature=0.0

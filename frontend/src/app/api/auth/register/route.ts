@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { hashToken } from "@/lib/token";
+import { sendEmail, emailButtonStyle } from "@/lib/email";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Create user
+    // Create user (emailVerified = null, requires verification)
     const newUser = await prisma.user.create({
       data: {
         name,
@@ -53,8 +56,42 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Generate verification token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
+
+    await prisma.verificationToken.create({
+      data: {
+        email,
+        token: hashToken(token),
+        expires,
+      },
+    });
+
+    // Send verification email
+    const verifyLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/verify-email?token=${token}`;
+
+    await sendEmail({
+      to: email,
+      subject: "Potvrdenie registrácie - Verifa.sk",
+      text: `Dobrý deň ${name},\n\nĎakujeme za registráciu na Verifa.sk.\n\nPre aktiváciu vášho účtu kliknite na nasledujúci odkaz:\n${verifyLink}\n\nTento odkaz platí 24 hodín.\n\nAk ste sa neregistrovali, môžete tento e-mail ignorovať.\n\nS pozdravom,\nTím Verifa.sk`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
+          <h2>Vitajte na Verifa.sk</h2>
+          <p>Dobrý deň ${name},</p>
+          <p>Ďakujeme za registráciu. Pre aktiváciu vášho účtu kliknite na tlačidlo nižšie:</p>
+          <p>
+            <a href="${verifyLink}" style="${emailButtonStyle()}">Aktivovať účet</a>
+          </p>
+          <p style="color: #52525b; font-size: 14px;">Tento odkaz je platný 24 hodín. Ak ste sa neregistrovali, ignorujte tento e-mail.</p>
+          <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
+          <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Komplexný due diligence report zo štátnych registrov SR.</p>
+        </div>
+      `,
+    });
+
     return NextResponse.json(
-      { message: "Registrácia úspešná", userId: newUser.id },
+      { message: "Registrácia úspešná. Skontrolujte svoj e-mail pre aktiváciu účtu.", userId: newUser.id },
       { status: 201 }
     );
   } catch (error) {

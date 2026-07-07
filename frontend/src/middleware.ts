@@ -10,6 +10,7 @@ export const config = {
     "/history/:path*",
     "/settings/:path*",
     "/messages/:path*",
-    "/admin/:path*"
+    "/admin/:path*",
+    "/plan"
   ],
 };

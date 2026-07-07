@@ -1,8 +1,11 @@
 import { NextAuthOptions, getServerSession as nextAuthGetServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import AzureADProvider from "next-auth/providers/azure-ad";
 import bcrypt from "bcryptjs";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { addCreditBatch } from "@/lib/credits";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +47,9 @@ if (!_NEXTAUTH_SECRET) {
   console.warn("[AUTH] NEXTAUTH_SECRET is not set — using insecure default for development only");
 }
 
+const _isLocalhost = (process.env.NEXTAUTH_URL || '').includes('localhost');
+const _useSecureCookies = process.env.NODE_ENV === 'production' && !_isLocalhost;
+
 export const authOptions: NextAuthOptions = {
   secret: _NEXTAUTH_SECRET,
 
@@ -54,37 +60,37 @@ export const authOptions: NextAuthOptions = {
 
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production"
+      name: _useSecureCookies
         ? "__Secure-next-auth.session-token"
         : "next-auth.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: _useSecureCookies,
         maxAge: 30 * 24 * 60 * 60, // 30 days — persists across browser restarts
       },
     },
     callbackUrl: {
-      name: process.env.NODE_ENV === "production"
+      name: _useSecureCookies
         ? "__Secure-next-auth.callback-url"
         : "next-auth.callback-url",
       options: {
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: _useSecureCookies,
         maxAge: 30 * 24 * 60 * 60,
       },
     },
     csrfToken: {
-      name: process.env.NODE_ENV === "production"
+      name: _useSecureCookies
         ? "__Secure-next-auth.csrf-token"
         : "next-auth.csrf-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: _useSecureCookies,
       },
     },
   },
@@ -109,6 +115,10 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        if (!user.emailVerified) {
+          throw new Error("EMAIL_NOT_VERIFIED");
+        }
+
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) {
           return null;
@@ -121,10 +131,23 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+        })]
+      : []),
+    ...(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET
+      ? [AzureADProvider({
+          clientId: process.env.AZURE_AD_CLIENT_ID!,
+          clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+          tenantId: process.env.AZURE_AD_TENANT_ID || "common",
+        })]
+      : []),
   ],
 
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, account }) {
       // `user` is only available on sign-in; persist id and tokenVersion into token.
       if (user) {
         token.id = user.id;
@@ -134,6 +157,41 @@ export const authOptions: NextAuthOptions = {
           select: { tokenVersion: true },
         });
         token.tokenVersion = dbUser?.tokenVersion ?? 0;
+      }
+      // For OAuth sign-in, create/link user if not exists
+      if (account && account.provider !== "credentials" && user) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+        });
+        if (!existingUser) {
+          const trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+
+          const newUser = await prisma.user.create({
+            data: {
+              email: user.email!,
+              name: user.name || null,
+              emailVerified: new Date(),
+              trialEndsAt,
+            },
+          });
+
+          // Grant 5 free trial credits via CreditBatch
+          await addCreditBatch(newUser.id, 5, "trial");
+        } else if (!existingUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { emailVerified: new Date() },
+          });
+        }
+        const dbUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+          select: { id: true, tokenVersion: true },
+        });
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.tokenVersion = dbUser.tokenVersion;
+        }
       }
       // Verify user still exists — but only every 5 minutes, not on every request.
       // This prevents excessive DB queries during navigation and reduces the chance

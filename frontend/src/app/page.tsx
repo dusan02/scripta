@@ -22,7 +22,7 @@ export default function LandingPage() {
   const darkMode = theme === "dark";
 
   const reportIncludes = [
-    "Kontrola viac ako 30 verejných registrov",
+    "Kontrola 25 verejných a privátnych registrov",
     "AI finančná analýza",
     "Altman Z-Score",
     "Hodnotenie rizík",
@@ -38,67 +38,58 @@ export default function LandingPage() {
 
   const pricingPlans = [
     {
-      name: "Jednorazový report",
+      name: "Štart",
       subtitle: "Komplexné preverenie firmy",
       credits: "1 report",
       price: "19 €",
       perCredit: "Vhodné pre jednorazové overenie obchodného partnera.",
       features: [
-        "Viac ako 30 verejných registrov",
-        "Analýza súvahy, výkazu ziskov a strát a cashflow",
-        "Rizikové upozornenia",
-        "Insolvenčné registre",
-        "DPH a právne registre",
-        "Záverečné skóre dôveryhodnosti",
-        "Profesionálny PDF report",
-        "Export reportu",
+        "Pokrytie 25 verejných a privátnych registrov",
+        "Finančná a právna analýza s Verifa Score",
+        "Profesionálny PDF report pripravený na zdieľanie",
+        "Podpora: E-mail (SLA odozva do 24 hod.)",
       ],
       highlighted: false,
     },
     {
-      name: "Basic",
+      name: "Freelance",
       subtitle: "Pre účtovníkov a malé firmy",
       credits: "5 reportov",
       price: "49 €",
       perCredit: "9,80 € / report",
       features: [
-        "Všetko z Jednorazového reportu",
-        "5 kreditov",
-        "História reportov",
-        "Prioritné spracovanie",
-        "PDF archivácia",
+        "Všetko z balíka Štart",
+        "História reportov a PDF archivácia",
+        "Rýchlejšie spracovanie analytickým jadrom",
+        "Podpora: Chat (SLA odozva do 4 hod.)",
       ],
       highlighted: false,
     },
     {
-      name: "Business",
+      name: "Firma",
       subtitle: "Pre firmy s pravidelným Due Diligence",
       credits: "20 reportov",
       price: "149 €",
       perCredit: "7,45 € / report",
       features: [
-        "Všetko z Basic",
-        "20 kreditov",
-        "Prioritná podpora",
-        "Rýchlejšie spracovanie",
-        "Vhodné pre obchodné tímy",
-        "Vhodné pre účtovné kancelárie",
+        "Všetko z balíka Freelance",
+        "Vhodné pre obchodné a nákupné tímy",
+        "Prednostné spracovanie reportov bez čakania",
+        "Podpora: Telefón (SLA odozva do 1 hod.)",
       ],
       highlighted: true,
     },
     {
-      name: "Pro",
+      name: "Korporát",
       subtitle: "Pre profesionálov",
       credits: "50 reportov",
       price: "249 €",
       perCredit: "4,98 € / report",
       features: [
-        "Všetko z Business",
-        "50 kreditov",
-        "Prioritná podpora",
-        "Osobný account manager",
-        "Najnižšia cena za report",
-        "Vhodné pre väčšie spoločnosti",
+        "Všetko z balíka Firma",
+        "Osobný account manager s okamžitou dostupnosťou",
+        "API prístup pre interné systémy (Pripravujeme)",
+        "Najnižšia cena za 1 komplexný report",
       ],
       highlighted: false,
     },
@@ -138,6 +129,20 @@ export default function LandingPage() {
             </button>
             <LanguageSwitcher />
             <Link
+              href="/register"
+              style={{
+                color: "var(--text-secondary)",
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: 500,
+                padding: "8px 16px",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+              }}
+            >
+              Registrácia
+            </Link>
+            <Link
               href="/login"
               style={{
                 background: "var(--accent)",
@@ -174,7 +179,7 @@ export default function LandingPage() {
           </p>
 
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/login" style={{ background: "var(--accent)", color: "var(--accent-button-text)", padding: "16px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, boxShadow: "var(--shadow-lg)" }}>
+            <Link href="/register" style={{ background: "var(--accent)", color: "var(--accent-button-text)", padding: "16px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, boxShadow: "var(--shadow-lg)" }}>
               {t("home.ctaStart")}
             </Link>
             <a href="#funkcie" style={{ background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "16px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 16 }}>
@@ -224,11 +229,11 @@ export default function LandingPage() {
               icon: "📊",
               title: "Finančná analýza",
               items: [
-                "Extrakcia dát z účtovných závierok",
-                "Výpočet Altman Z-Score (finančný stres)",
-                "Výpočet likvidity, zadlženosti a rentability",
-                "Medziročný rast/pokles (CAGR)",
-                "Trendy a kľúčové finančné ukazovatele",
+                "Automatická extrakcia dát zo súvahy, výkazu ziskov a strát a cash flow",
+                "Predikcia finančného zdravia a rizika úpadku (Altman Z-Score)",
+                "Komplexné posúdenie likvidity, zadlženosti, rentability a marží",
+                "Sledovanie medziročných trendov vývoja tržieb a ziskovosti (CAGR)",
+                "Vyhodnotenie kvality zisku a pracovného cyklu podniku",
               ],
             },
             {
@@ -332,32 +337,37 @@ export default function LandingPage() {
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Všetky zdroje v jednom reporte, zoskupené podľa oblasti.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, alignItems: "stretch" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "stretch" }}>
           {[
             {
               icon: "🏢",
-              category: "Obchodné registre",
-              items: ["Obchodný register SR", "Živnostenský register", "Obchodný vestník"],
+              category: "Základné firemné a právne registre",
+              items: ["Obchodný register SR (ORSR)", "Živnostenský register (ŽRSR)", "Register právnických osôb (RPO)", "Register partnerov ver. sektora (RPVS)", "Obchodný vestník"],
             },
             {
               icon: "⚠️",
-              category: "Insolvenčné a sankčné",
-              items: ["Register úpadcov", "Register diskvalifikovaných osôb"],
+              category: "Insolvencia, exekúcie a dlhy",
+              items: ["Register úpadcov", "Poverenia na exekúcie", "Daňoví dlžníci", "Sociálna poisťovňa", "VšZP", "Dôvera", "UNION"],
             },
             {
               icon: "💰",
-              category: "Finančné a daňové",
-              items: ["Register účtovných závierok", "Daňoví dlžníci (Dôvera)", "Daňoví dlžníci (VŠZP)", "Daňoví dlžníci (Union)"],
+              category: "Finančná správa a DPH",
+              items: ["Index daň. spoľahlivosti", "Platitelia DPH", "Zrušenie DPH", "Vymazaní z DPH", "Nadmerný odpočet", "Daň z príjmov PO", "Reg. k dani z príjmov"],
+            },
+            {
+              icon: "⚖️",
+              category: "Súdy a sankcie",
+              items: ["Register diskvalifikácií"],
             },
             {
               icon: "🏛️",
-              category: "Verejný sektor",
-              items: ["Register partnerov verejného sektora", "Úrad verejných obstarávaní", "Centrálny register žiadostí", "Register politických strán"],
+              category: "Financie a štátne zákazky",
+              items: ["Účtovné závierky (RÚZ)", "Register zmlúv (CRZ)", "Verejné obstarávanie (UVO)"],
             },
             {
-              icon: "🏥",
-              category: "Zdravotnícke",
-              items: ["Register zdravotníckych zariadení", "Národný register poskytovateľov zdravotnej starostlivosti", "Národný register zdravotníckych pomôcok"],
+              icon: "🛡️",
+              category: "Majetok a práva",
+              items: ["Záložné práva", "Register dražieb"],
             },
           ].map((group) => (
             <div key={group.category} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column" }}>
@@ -481,7 +491,6 @@ export default function LandingPage() {
             { q: t("home.faq1q"), a: t("home.faq1a") },
             { q: t("home.faq2q"), a: t("home.faq2a") },
             { q: t("home.faq3q"), a: t("home.faq3a") },
-            { q: t("home.faq4q"), a: t("home.faq4a") },
             { q: t("home.faq5q"), a: t("home.faq5a") },
           ].map((item, i) => (
             <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 24 }}>
@@ -526,7 +535,7 @@ export default function LandingPage() {
                 <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{plan.price}</div>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>{plan.perCredit}</p>
                 <Link href="/login" style={{ display: "block", textAlign: "center", background: plan.highlighted ? "var(--accent)" : "var(--surface-hover)", color: plan.highlighted ? "var(--accent-button-text)" : "var(--text)", border: plan.highlighted ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 20 }}>
-                  {t("home.buy")}
+                  Začať overovať
                 </Link>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                   {plan.features.map((feat) => (
@@ -540,7 +549,63 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <p style={{ textAlign: "center", marginTop: 32, fontSize: 13, color: "var(--text-muted)" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 40, flexWrap: "wrap", fontSize: 14, color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "var(--accent)", fontSize: 18 }}>🛡️</span>
+              <b>Garancia spokojnosti:</b> Nenašli ste subjekt v registroch? Vrátime vám kredit.
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "var(--accent)", fontSize: 18 }}>⏱️</span>
+              Kredity sú platné <b>12 mesiacov</b> od zakúpenia.
+            </div>
+          </div>
+
+          <div style={{ marginTop: 80, background: "var(--surface)", borderRadius: 16, border: "1px solid var(--border)", padding: "40px 32px", overflowX: "auto" }}>
+            <h3 style={{ fontSize: 24, fontWeight: 800, textAlign: "center", marginBottom: 32 }}>Detailné porovnanie parametrov</h3>
+            <table style={{ width: "100%", minWidth: 700, borderCollapse: "collapse", fontSize: 14 }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                  <th style={{ textAlign: "left", padding: "16px 8px", color: "var(--text-muted)", fontWeight: 600, width: "20%" }}>Vlastnosť</th>
+                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, width: "20%" }}>Štart</th>
+                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, width: "20%" }}>Freelance</th>
+                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, color: "var(--accent)", width: "20%" }}>Firma</th>
+                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, width: "20%" }}>Korporát</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>SLA odozva (podpora)</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>do 24 hodín</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>do 4 hodín</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>do 1 hodiny</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>okamžitá</td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>Typ podpory</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>E-mail</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>E-mail, Chat</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>Telefonická podpora</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>Osobný manažér</td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>API prístup</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600, color: "var(--accent)" }}>Pripravujeme</td>
+                </tr>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>Archivácia reportov</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--accent)" }}>✓ 1 rok</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--accent)", fontWeight: 600 }}>✓ Neobmedzene</td>
+                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--accent)", fontWeight: 600 }}>✓ Neobmedzene</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p style={{ textAlign: "center", marginTop: 40, fontSize: 13, color: "var(--text-muted)" }}>
             {t("home.needMore")} <a href="mailto:info@verifa.sk" style={{ color: "var(--accent)", textDecoration: "none" }}>info@verifa.sk</a>
           </p>
         </div>
@@ -552,7 +617,7 @@ export default function LandingPage() {
           <div style={{ position: "absolute", top: -100, right: -50, width: 300, height: 300, borderRadius: "50%", background: "var(--accent)", opacity: 0.05, filter: "blur(60px)" }} />
           <h2 style={{ fontSize: "clamp(28px, 4vw, 36px)", fontWeight: 800, marginBottom: 16 }}>Pripravený preveriť svojho partnera?</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", marginBottom: 32 }}>Zaregistrujte sa a začnite s komplexným due diligence reportom.</p>
-          <Link href="/login" style={{ display: "inline-block", background: "var(--accent)", color: "var(--accent-button-text)", padding: "16px 40px", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, boxShadow: "var(--shadow-lg)" }}>
+          <Link href="/register" style={{ display: "inline-block", background: "var(--accent)", color: "var(--accent-button-text)", padding: "16px 40px", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, boxShadow: "var(--shadow-lg)" }}>
             {t("home.ctaStartNow")}
           </Link>
         </div>
@@ -575,6 +640,7 @@ export default function LandingPage() {
                 <a href="#funkcie" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navFeatures")}</a>
                 <a href="#cennik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
                 <a href="#registre" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Registre</a>
+                <Link href="/register" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Registrácia</Link>
                 <Link href="/login" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Prihlásiť sa</Link>
                 <a href="/terms" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</a>
               </div>

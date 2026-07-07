@@ -158,6 +158,63 @@ def extract_core_financials(pdf_path: str) -> str:
     return str(temp_pdf_path)
 
 
+def chunk_pdf_by_pages(pdf_path: str, chunk_size: int = 5, overlap: int = 1, max_pages: int = 60) -> list[dict]:
+    """
+    Rozdelí PDF na n-stránkové chunky (súčasne vytvorí fyzické dočasné PDF súbory) s prekrytím.
+    Vracia zoznam slovníkov s metadátami, ktoré sa posielajú do LLM.
+    """
+    if not pdf_path or not pdf_path.lower().endswith(".pdf"):
+        return []
+
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception as e:
+        logger.warning(f"Nepodarilo sa otvoriť PDF pre chunking {pdf_path}: {e}")
+        return []
+
+    total_pages = min(len(doc), max_pages)
+    
+    if total_pages == 0:
+        doc.close()
+        return []
+
+    chunks = []
+    chunk_id = 1
+    
+    step = chunk_size - overlap
+    if step <= 0:
+        step = 1
+
+    for start_page in range(0, total_pages, step):
+        end_page = min(start_page + chunk_size, total_pages)
+        if start_page >= end_page:
+            break
+            
+        out_doc = fitz.open()
+        for page_num in range(start_page, end_page):
+            out_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+            
+        original_path = Path(pdf_path)
+        temp_pdf_path = original_path.with_name(f"{original_path.stem}_chunk_{chunk_id}.pdf")
+        out_doc.save(str(temp_pdf_path))
+        out_doc.close()
+        
+        chunks.append({
+            "pdf_path": str(temp_pdf_path),
+            "chunk_id": chunk_id,
+            "page_range": list(range(start_page + 1, end_page + 1)),
+            "source_pdf": os.path.basename(pdf_path)
+        })
+        
+        chunk_id += 1
+        
+        if end_page == total_pages:
+            break
+
+    doc.close()
+    return chunks
+
+
 def slice_narrative_pdf(pdf_path: str, max_pages: int = 15) -> str:
     """
     Oreže výročnú správu (VS) na prvých X strán, pretože manažérska správa

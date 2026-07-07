@@ -38,7 +38,11 @@ export default function LoginPage() {
       });
 
       if (res?.error) {
-        setError(t("login.nespravne"));
+        if (res.error === "EMAIL_NOT_VERIFIED") {
+          setError("Váš účet ešte nebol aktivovaný. Skontrolujte svoj e-mail pre verifikačný odkaz.");
+        } else {
+          setError(t("login.nespravne"));
+        }
       } else {
         if (rememberMe) {
           localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
@@ -286,6 +290,7 @@ export default function LoginPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <button
               type="button"
+              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
               style={{
                 width: "100%",
                 padding: "10px",
@@ -322,6 +327,7 @@ export default function LoginPage() {
 
             <button
               type="button"
+              onClick={() => signIn("azure-ad", { callbackUrl: "/dashboard" })}
               style={{
                 width: "100%",
                 padding: "10px",

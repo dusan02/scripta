@@ -39,7 +39,7 @@ interface Report {
 }
 
 const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "PARTIAL"];
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 5000;
 
 function formatDate(iso: string, locale: string) {
   return new Intl.DateTimeFormat(locale, {
@@ -366,16 +366,10 @@ function PhaseProgress({
         </div>
       </div>
 
-      {/* ETA */}
-      {etaCountdown != null && etaCountdown > 0 && !showPatienceWarning && (
-        <div className="text-center mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-          {(() => {
-            const s = etaCountdown;
-            if (s < 60) return t("report.etaSeconds", { s });
-            const m = Math.floor(s / 60);
-            const r = s % 60;
-            return t("report.etaMinutes", { m, r: r > 0 ? r : "" }).replace("  s", "");
-          })()}
+      {/* Elapsed time */}
+      {!isTerminal && (
+        <div className="text-center mt-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+          {String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:{String(elapsedSec % 60).padStart(2, "0")}
         </div>
       )}
 

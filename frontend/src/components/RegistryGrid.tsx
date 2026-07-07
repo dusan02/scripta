@@ -260,7 +260,9 @@ export default function RegistryGrid({
                 style={{ background: "var(--bg-muted)" }}
                 onClick={isSelection ? () => {
                   if (allCatSelected) {
-                    onSelectAll?.();
+                    catEnabled.forEach(s => {
+                      if (selected.includes(s.id)) onToggle?.(s.id);
+                    });
                   } else {
                     catEnabled.forEach(s => {
                       if (!selected.includes(s.id)) onToggle?.(s.id);

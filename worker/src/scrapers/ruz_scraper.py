@@ -89,7 +89,8 @@ class RuzScraper:
     async def start(self):
         self.out_path.mkdir(parents=True, exist_ok=True)
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=True)
+        from src.browser_manager import browser_manager
+        self.browser = await browser_manager.get_browser(self.playwright)
         self.context = await self.browser.new_context(
             accept_downloads=True,
             locale="sk-SK",

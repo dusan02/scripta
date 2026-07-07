@@ -47,6 +47,7 @@ model ReportRequest {
   aiMs            Int?
   auditorMs       Int?
   compileMs       Int?
+  verifaScore     Int?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -714,7 +714,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     
     # Načítanie Verifa loga
     current_dir = Path(__file__).parent
-    logo_path = current_dir.parent.parent / "frontend" / "public" / "logo-verifa.png"
+    logo_path = current_dir.parent / "assets" / "logo-verifa.png"
     logo_base64 = ""
     if logo_path.exists():
         with open(logo_path, "rb") as lf:

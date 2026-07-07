@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {
@@ -13,18 +14,23 @@ model User {
   email            String          @unique
   name             String?
   passwordHash     String?
+  emailVerified    DateTime?
   role             UserRole        @default(LAWYER)
   orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
   tokenVersion     Int             @default(0)
-  planName         String?         // Názov paušálu (basic, biznis, pro, onetime)
-  planRenewalDate  DateTime?       // Dátum obnovenia paušálu
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  reportRequests   ReportRequest[]
-  feedback         Feedback[]
-  wallet           Wallet?
+  planName           String?         // Názov paušálu (start, freelance, firma, korporat)
+  planRenewalDate    DateTime?       // Dátum obnovenia paušálu
+  trialEndsAt        DateTime?       // Koniec skúšobného obdobia (5 zadarmo kreditov na mesiac)
+  subscriptionStatus String?         // active | canceled | past_due | trialing
+  subscriptionEndsAt DateTime?       // Dátum ukončenia predplatného (pre zrušené)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  reportRequests     ReportRequest[]
+  feedback           Feedback[]
+  wallet             Wallet?
+  creditBatches      CreditBatch[]
 }
 
 model ReportRequest {
@@ -126,6 +132,18 @@ enum SourceStatus {
   SUCCESS
   FAILED
   UNAVAILABLE
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@index([email])
+  @@index([expires])
 }
 
 model PasswordResetToken {
@@ -299,6 +317,22 @@ model AuditVerdict {
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])
+}
+
+model CreditBatch {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // Pôvodný počet kreditov v batchi
+  remaining   Int      // Koľko ostáva k dispozícii
+  source      String   // trial | subscription | addon | rollover
+  planName    String?
+  expiresAt   DateTime // 90 dní od vytvorenia
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([userId, createdAt])
 }
 
 model Wallet {

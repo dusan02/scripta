@@ -1,56 +1,4 @@
-<!DOCTYPE html><html lang="sk" dir="ltr"><head>
-    <title>TATRAVAGÓNKA a.s. - IČO: 31699847 - DIČ: 2020514496 - individuálna účtovná závierka - 2025 - Účtovná závierka | registeruz.sk</title>
 
-    <meta name="description" content="">
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-    <style data-tippy-stylesheet="">.tippy-box[data-animation=fade][data-state=hidden]{opacity:0}[data-tippy-root]{max-width:calc(100vw - 10px)}.tippy-box{position:relative;background-color:#333;color:#fff;border-radius:4px;font-size:14px;line-height:1.4;white-space:normal;outline:0;transition-property:transform,visibility,opacity}.tippy-box[data-placement^=top]>.tippy-arrow{bottom:0}.tippy-box[data-placement^=top]>.tippy-arrow:before{bottom:-7px;left:0;border-width:8px 8px 0;border-top-color:initial;transform-origin:center top}.tippy-box[data-placement^=bottom]>.tippy-arrow{top:0}.tippy-box[data-placement^=bottom]>.tippy-arrow:before{top:-7px;left:0;border-width:0 8px 8px;border-bottom-color:initial;transform-origin:center bottom}.tippy-box[data-placement^=left]>.tippy-arrow{right:0}.tippy-box[data-placement^=left]>.tippy-arrow:before{border-width:8px 0 8px 8px;border-left-color:initial;right:-7px;transform-origin:center left}.tippy-box[data-placement^=right]>.tippy-arrow{left:0}.tippy-box[data-placement^=right]>.tippy-arrow:before{left:-7px;border-width:8px 8px 8px 0;border-right-color:initial;transform-origin:center right}.tippy-box[data-inertia][data-state=visible]{transition-timing-function:cubic-bezier(.54,1.5,.38,1.11)}.tippy-arrow{width:16px;height:16px;color:#333}.tippy-arrow:before{content:"";position:absolute;border-color:transparent;border-style:solid}.tippy-content{position:relative;padding:5px 9px;z-index:1}</style><link rel="shortcut icon" href="/cruz-public/version/44a4ac6/static/img/favicon.ico" type="image/ico">
-
-    <link rel="stylesheet" href="/cruz-public/version/44a4ac6/static/css/app.css">
-
-    
-        
-    
-
-    <script>
-        var isGoogleAnalyticsEnabled = true;
-    </script>
-
-    <script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery-3.6.0.min.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery.autocomplete.min.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/libs/popper.min.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/libs/bootstrap.min.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/libs/bootstrap-select.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/libs/popper-2.min.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/libs/tippy-bundle.umd.min.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/custom/misc.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/custom/cruzpage-base.js"></script>
-    <script src="/cruz-public/version/44a4ac6/static/scripts/custom/copy-to-clipboard.js"></script>
-
-    
-
-    
-        
-    
-
-    
-        <script>
-            $(document).ready(function () {
-                var searchBox = $('#input_search');
-
-                if (searchBox){
-                    searchBox.focus();
-                }
-            });
-        </script>
-    
-
-    <noscript>
-        <link rel="stylesheet" href="/cruz-public/version/44a4ac6/static/css/noscript.css">
-    </noscript>
-</head>
-<body>
 
 
     <div class="w-page d-flex flex-column">
@@ -209,17 +157,18 @@
 </script>
 
         
-	
-	<script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery.floatThead.js"></script>
-	<script>
-		$(document).ready(function() {
-			if (window.innerWidth >= 1200) {
-				$('.b-table').floatThead();
-			}
-		});
-	</script>
+	<input id="accountingEntityId" type="hidden" value="493352">
 
 	
+	
+	<script id="financialStatementsUrl" type="text/template">/cruz-public/domain/accountingentity/getFinancialStatements</script>
+	<script id="updateActiveTabUrl" type="text/template">/cruz-public/domain/accountingentity/updateActiveTab</script>
+
+	
+	
+	<script id="financialStatementsUrl" type="text/template">/cruz-public/domain/accountingentity/getFinancialStatements</script>
+	<script id="updateActiveTabUrl" type="text/template">/cruz-public/domain/accountingentity/updateActiveTab</script>
+
 	
 	
 
@@ -258,7 +207,7 @@
 			<span class="icon icon-menu"></span>
 		</button>
 		<div class="d-lg-none mx-auto fs-16 text-truncate mobile-title">
-			Účtovný výkaz
+			Detail ÚJ a jej ÚZ
 		</div>
 		
 			
@@ -271,7 +220,7 @@
 
 
 
-<script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery-ui-1.13.2.js"></script>
+<script src="/cruz-public/version/a78901f/static/scripts/libs/jquery-ui-1.13.2.js"></script>
 
 <script id="suggestion">
 $(document).ready(function() {
@@ -356,7 +305,25 @@ $(document).ready(function() {
 	</nav>
 	
 		<div class="tabs d-flex d-md-none px-4">
+			<a href="#" id="uj-detail-tab" class="js-tabs switch-tab active" data-tab-id="1">
+				O spoločnosti
+			</a>
 			
+				
+				<a href="/cruz-public/domain/accountingentity/showTabNoJS/493352/INDIVIDUAL" data-statementtype="INDIVIDUAL" class="js-tabs switch-tab" id="link-mobile-INDIVIDUAL" data-tab-id="2">
+						
+					Individuálne
+					
+						účtovné závierky
+					
+				</a>
+			
+				
+				<a href="/cruz-public/domain/accountingentity/showTabNoJS/493352/ANNUAL_REPORT" data-statementtype="ANNUAL_REPORT" class="js-tabs switch-tab" id="link-mobile-ANNUAL_REPORT" data-tab-id="2">
+						
+					Výročné správy
+					
+				</a>
 			
 		</div>
 	
@@ -376,8 +343,8 @@ $(document).ready(function() {
     
 
 
-<script src="/cruz-public/version/44a4ac6/static/scripts/custom/tippy.js"></script>
-<script src="/cruz-public/version/44a4ac6/static/scripts/custom/skip-to-content.js"></script>
+<script src="/cruz-public/version/a78901f/static/scripts/custom/tippy.js"></script>
+<script src="/cruz-public/version/a78901f/static/scripts/custom/skip-to-content.js"></script>
 
 <div class="skip-to-content-wrapper">
     <button id="skip-to-content" type="submit" class="btn btn-primary skip-to-content" tabindex="20">
@@ -385,11 +352,6 @@ $(document).ready(function() {
     </button>
 </div>
 
-
-
-	
-	
-	
 
 	<div class="page-content d-flex py-4 py-md-8">
 		<div class="container">
@@ -414,7 +376,7 @@ $(document).ready(function() {
 
 
 
-<script src="/cruz-public/version/44a4ac6/static/scripts/libs/jquery-ui-1.13.2.js"></script>
+<script src="/cruz-public/version/a78901f/static/scripts/libs/jquery-ui-1.13.2.js"></script>
 
 <script id="suggestion">
 $(document).ready(function() {
@@ -521,29 +483,15 @@ $(document).ready(function() {
 
 								Zdroj údajov:
 								
-								FRSR,
+								ŠÚSR,
 								<div>
 									aktualizované:
-									26.06.2026
+									31.05.2026
 								</div>
 							</div>
 						</div>
 					</div>
 				</header>
-
-				<!-- Only for mobile devices -->
-				<div class="d-lg-none mb-3">
-					
-					<h3 class="fs-24 font-weight-light mb-3 text-truncate">
-						<a href="/cruz-public/domain/accountingentity/show/158987">TATRAVAGÓNKA a.s.</a>
-					</h3>
-					
-					<div class="d-lg-none d-flex">
-						<div class="fs-16 text-primary-faded text-truncate">IFRS účtovná závierka</div>
-						
-						<span class="icon icon-info text-primary-light" data-placement="bottom" aria-expanded="false"></span>
-					</div>
-				</div>
 
 				<!-- Desktop -->
 				<div class="d-none d-lg-block">
@@ -568,31 +516,63 @@ $(document).ready(function() {
 			</li>
 			
 			<li class="breadcrumb-item active" aria-current="page">
-				Detail výkazu
+				Detail ÚJ a jej ÚZ
 			</li>
 			
 		</ol>
 	</nav>
 
 
-					
 					<h3 class="fs-36 font-weight-light mb-3">
-                        TATRAVAGÓNKA a.s.
+						
+
+
+
+
+
+
+
+<div class="position-relative d-inline-block dropup" style="padding-right: 26px;">
+    
+    <span>
+        
+							VeCom SK, a.s.
+						
+    </span>
+
+    
+        <span class="position-absolute cursor-pointer copy-to-clipboard" id="dropdownMenuButton" data-toggle="dropdown" data-offset="-70" aria-haspopup="true" aria-expanded="false" style="z-index: 1; right: 0; top: calc(50% - 12px); line-height: 24px;">
+            <i tabindex="0" class="icon icon-duplicate btn btn-link p-0 text-gray " aria-expanded="false"></i>
+        </span>
+        <div class="dropdown-menu text-center text-primary font-weight-bold border-primary px-3 py-1 fs-12" aria-labelledby="dropdownMenuButton" style="border-radius: 20px; text-transform: uppercase;">
+            
+		Údaj bol úspešne <br> skopírovaný
+		
+	
+        </div>
+    
+</div>
+
 					</h3>
-					
-					<div class="fs-20 text-primary-faded">
-						IFRS účtovná závierka
+				</div>
+
+				<div class="d-md-block active" data-tab-container="1">
+						
+					<div class="d-lg-none d-flex mb-3">
+						<h3 class="fs-24 font-weight-light text-truncate">VeCom SK, a.s.</h3>
+						
+						<div class="d-flex">
+							<span class="icon icon-info text-primary-light m-auto" data-placement="bottom" aria-expanded="false"></span>
+						</div>
 					</div>
-				</div>
 
-				<div class="active d-md-block inactive-mobile" data-tab-container="1">
-					<div class="b-content px-4 py-2 px-lg-6 py-lg-4 my-1 my-md-3 mb-md-8">
-						<div class="row align-items-center">
-							
-							<div class="col-12 d-none d-lg-block col-lg-3 col-xl-4 text-gray fs-16 font-weight-medium">
-								
-
-
+					<div class="row mb-4">
+						<div class="col-12 col-md-6 col-lg-3 my-1 my-md-3">
+							<div class="b-content p-4 p-md-6 h-100">
+								<div class="fs-14 text-gray">
+									IČO:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+										
 
 
 
@@ -600,91 +580,132 @@ $(document).ready(function() {
 
 
 
+<div class="position-relative d-inline-block dropup" style="padding-right: 26px;">
+    
+    <span>
+        
+											36699624
+										
+    </span>
 
-
+    
+        <span class="position-absolute cursor-pointer copy-to-clipboard" id="dropdownMenuButton" data-toggle="dropdown" data-offset="-70" aria-haspopup="true" aria-expanded="false" style="z-index: 1; right: 0; top: calc(50% - 12px); line-height: 24px;">
+            <i tabindex="0" class="icon icon-duplicate btn btn-link p-0 text-gray " aria-expanded="false"></i>
+        </span>
+        <div class="dropdown-menu text-center text-primary font-weight-bold border-primary px-3 py-1 fs-12" aria-labelledby="dropdownMenuButton" style="border-radius: 20px; text-transform: uppercase;">
+            
+		Údaj bol úspešne <br> skopírovaný
+		
 	
-	
-		Účtovná závierka
-	
+        </div>
+    
+</div>
 
-								k 31.12.2025
+									</span>
+								</div>
+								<div class="fs-14 text-gray mt-3">
+									DIČ:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+										
+
+
+
+
+
+
+
+<div class="position-relative d-inline-block dropup" style="padding-right: 26px;">
+    
+    <span>
+        
+											2022286453
+										
+    </span>
+
+    
+        <span class="position-absolute cursor-pointer copy-to-clipboard" id="dropdownMenuButton" data-toggle="dropdown" data-offset="-70" aria-haspopup="true" aria-expanded="false" style="z-index: 1; right: 0; top: calc(50% - 12px); line-height: 24px;">
+            <i tabindex="0" class="icon icon-duplicate btn btn-link p-0 text-gray " aria-expanded="false"></i>
+        </span>
+        <div class="dropdown-menu text-center text-primary font-weight-bold border-primary px-3 py-1 fs-12" aria-labelledby="dropdownMenuButton" style="border-radius: 20px; text-transform: uppercase;">
+            
+		Údaj bol úspešne <br> skopírovaný
+		
+	
+        </div>
+    
+</div>
+
+									</span>
+								</div>
+								<div class="fs-14 text-gray mt-3">
+									SK NACE:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+										35230
+										Predaj plynu
+									</span>
+								</div>
 							</div>
-							
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<noscript>
-	<style>
-		.dropdown-menu{
-			display: block;
-			position: inherit;
-		}
-
-		.box-shadow-lg {
-			 box-shadow: none;
-		}
-	</style>
-</noscript>
-
-
-	
-		
-			
-			
-
-			<div class="col-12 col-lg-auto ml-auto text-nowrap">
-				
-				<div class="d-block py-4 py-lg-1 clearfix text-decoration-none">
-					<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
-					<span class="d-inline-block align-middle ml-2">
-						<span class="text-gray fs-14">
-							Dokument:
-							<span class="font-weight-medium">
-								PDF
-								veľkosť 1&nbsp;748 KB
-							</span>
-						</span>
-						<span class="d-none d-lg-block">
-							<a href="/cruz-public/domain/financialreport/attachment/12728582" aria-expanded="false">Stiahnuť</a>
-						</span>
-					</span>
-
-					<span class="mt-1 float-right d-lg-none font-weight-medium">
-                        <a href="/cruz-public/domain/financialreport/attachment/12728582" aria-expanded="false">Stiahnuť</a>
-					</span>
-				</div>
-			</div>
-
-			
-		
-	
-	
-
-
-
-	
-	
-		
-		
-	
-
-
+						</div>
+						<div class="col-12 col-md-6 col-lg-3 my-1 my-md-3">
+							<div class="b-content p-4 p-md-6 h-100">
+								<div class="fs-14 text-gray">
+									Adresa:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+											Einsteinova 21<br>
+											85101 Bratislava-Petržalka
+									</span>
+								</div>
+								<div class="fs-14 text-gray mt-3">
+									Okres:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+										Bratislava V
+									</span>
+								</div>
+								<div class="fs-14 text-gray mt-3">
+									Kraj:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+										Bratislavský kraj
+									</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-12 col-md-6 col-lg-3 my-1 my-md-3">
+							<div class="b-content p-4 p-md-6 h-100">
+								<div class="fs-14 text-gray">
+									Právna forma:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark text-truncate d-block" aria-expanded="false">
+										Akc. spol.
+									</span>
+								</div>
+								<div class="fs-14 text-gray mt-3">
+									Kat. veľkosti:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">10-19 zamestnancov</span>
+								</div>
+								<div class="fs-14 text-gray mt-3">
+									Druh vlastníctva:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">Zahraničné</span>
+								</div>
+							</div>
+						</div>
+						<div class="col-12 col-md-6 col-lg-3 my-1 my-md-3">
+							<div class="b-content p-4 p-md-6 h-100">
+								<div class="fs-14 text-gray">
+									Dátum vzniku:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+										
+											
+											
+										17.11.2006
+									</span>
+								</div>
+								<div class="fs-14 text-gray mt-3">
+									Dátum zániku:<br>
+									<span class="fs-16 font-weight-medium text-gray-dark">
+										-
+										
+									</span>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -692,10 +713,34 @@ $(document).ready(function() {
 				
 					
 					
-						<div class="b-content px-4 py-2 px-lg-6 py-lg-4 my-1 my-md-3 mb-md-8 d-md-none">
-							<div class="row align-items-center">
-								<div class="col-12 d-none d-lg-block col-lg-3 col-xl-4 text-gray fs-16 font-weight-medium">
+						<div class="b-tabs d-none d-md-block">
+							
+								
+								<a href="/cruz-public/domain/accountingentity/showTabNoJS/493352/INDIVIDUAL" data-statementtype="INDIVIDUAL" class="js-tabs active switch-tab" data-tab-id="2" id="link-INDIVIDUAL">
+										
+									Individuálne
 									
+										účtovné závierky
+									
+								</a>
+							
+								
+								<a href="/cruz-public/domain/accountingentity/showTabNoJS/493352/ANNUAL_REPORT" data-statementtype="ANNUAL_REPORT" class="js-tabs  switch-tab" data-tab-id="2" id="link-ANNUAL_REPORT">
+										
+									Výročné správy
+									
+								</a>
+							
+						</div>
+
+						<div id="allWrappers" class="d-md-block" data-tab-container="2">
+							
+								<div id="wrapper-INDIVIDUAL">
+									
+										
+										
+										
+										
 
 
 
@@ -709,13 +754,376 @@ $(document).ready(function() {
 
 	
 	
-		Účtovná závierka
+	
+	
+	
+		<div role="table" class="b-items-table-list">
+			<!-- Headline -->
+			<div role="heading" class="headline text-gray d-none d-lg-block">
+				<div class="row align-items-center">
+					<div role="columnheader" class="col-2">
+						
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
 	
 
-									k 31.12.2025
+
+
+
+
+<a href="?sortBy=period&amp;sortOrder=asc" class="text-decoration-none text-gray btn btn-link py-0 mx-n2 px-2 text-gray">
+	
+	Obdobie
+	<span class="icon icon-up align-middle fs-20"></span>
+</a>
+
+					</div>
+					<div role="columnheader" class="col-2">
+						<a class="text-gray">Typ závierky</a>
+					</div>
+					<div role="columnheader" class="col-2">
+						
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		
+	
+
+
+
+
+
+<a href="?sortBy=filingDate&amp;sortOrder=asc" class="text-decoration-none text-gray btn btn-link py-0 mx-n2 px-2 text-gray">
+	
+	Predložená dňa
+	<span class="icon icon-sort align-middle fs-20"></span>
+</a>
+
+					</div>
+					<div role="columnheader" class="col-2">
+						
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		
+	
+
+
+
+
+
+<a href="?sortBy=preparationDate&amp;sortOrder=asc" class="text-decoration-none text-gray btn btn-link py-0 mx-n2 px-2 text-gray">
+	
+	Zostavená dňa
+	<span class="icon icon-sort align-middle fs-20"></span>
+</a>
+
+					</div>
+					<div role="columnheader" class="col-2">
+						
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		
+	
+
+
+
+
+
+<a href="?sortBy=approvalDate&amp;sortOrder=asc" class="text-decoration-none text-gray btn btn-link py-0 mx-n2 px-2 text-gray">
+	
+	Schválená dňa
+	<span class="icon icon-sort align-middle fs-20"></span>
+</a>
+
+					</div>
+					<div role="columnheader" class="col-2">
+						
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		
+	
+
+
+
+
+	
+	
+
+
+<a href="?sortBy=auditDate&amp;sortOrder=asc" class="text-decoration-none text-gray btn btn-link py-0 mx-n2 px-2 text-gray" aria-expanded="false">
+	
+	SA uložená dňa
+	<span class="icon icon-sort align-middle fs-20"></span>
+</a>
+
+					</div>
+				</div>
+			</div>
+
+			<div class="listing">
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-0" aria-expanded="true" aria-controls="collapse-o-0">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2025&nbsp;-&nbsp;12/2025
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										25.06.2026
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										09.04.2026
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										23.06.2026
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										29.06.2026
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-0" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													25.06.2026
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													09.04.2026
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													23.06.2026
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												SA uložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													29.06.2026
+												</span>
+											</div>
+										
+									</div>
 								</div>
 
 								
+									
+										
+											
+
+
+
+
+
+
+											
 
 
 
@@ -723,61 +1131,2967 @@ $(document).ready(function() {
 
 
 
-<noscript>
-	<style>
-		.dropdown-menu{
-			display: block;
-			position: inherit;
-		}
 
-		.box-shadow-lg {
-			 box-shadow: none;
-		}
-	</style>
-</noscript>
+
 
 
 	
 		
-			
-			
+	
+	
 
-			<div class="col-12 col-lg-auto ml-auto text-nowrap">
-				
-				<div class="d-block py-4 py-lg-1 clearfix text-decoration-none">
-					<span class="icon icon-pdf d-inline-block align-middle text-black"></span>
-					<span class="d-inline-block align-middle ml-2">
-						<span class="text-gray fs-14">
-							Dokument:
-							<span class="font-weight-medium">
-								PDF
-								veľkosť 1&nbsp;748 KB
-							</span>
-						</span>
-						<span class="d-none d-lg-block">
-							<a href="/cruz-public/domain/financialreport/attachment/12728582" aria-expanded="false">Stiahnuť</a>
-						</span>
-					</span>
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/10267217" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
 
-					<span class="mt-1 float-right d-lg-none font-weight-medium">
-                        <a href="/cruz-public/domain/financialreport/attachment/12728582" aria-expanded="false">Stiahnuť</a>
-					</span>
-				</div>
-			</div>
 
-			
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
 		
 	
 	
 
-
-								
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/10305910" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Správa audítora:</span>
+															<span class="text-black">Správa audítora</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
 								
 							</div>
 						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-1" aria-expanded="true" aria-controls="collapse-o-1">
+								<span class="js-collapse icon icon-collapsed"></span>
 
-						<div id="content_disabled" class="b-content py-3 text-center">
-							Údaje nie sú dostupné v štruktúrovanej podobe.
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2024&nbsp;-&nbsp;12/2024
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										25.06.2025
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										15.04.2025
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										23.06.2025
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										24.07.2025
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-1" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													25.06.2025
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													15.04.2025
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													23.06.2025
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												SA uložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													24.07.2025
+												</span>
+											</div>
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/9700381" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/9802682" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Správa audítora:</span>
+															<span class="text-black">Správa audítora</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-2" aria-expanded="true" aria-controls="collapse-o-2">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2023&nbsp;-&nbsp;12/2023
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										26.06.2024
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										25.04.2024
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										21.06.2024
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										06.08.2024
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-2" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													26.06.2024
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													25.04.2024
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													21.06.2024
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												SA uložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													06.08.2024
+												</span>
+											</div>
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/9167230" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/9258051" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Správa audítora:</span>
+															<span class="text-black">Správa audítora</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-3" aria-expanded="true" aria-controls="collapse-o-3">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2022&nbsp;-&nbsp;12/2022
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										26.06.2023
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										13.06.2023
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										21.06.2023
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-3" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													26.06.2023
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													13.06.2023
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													21.06.2023
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/8656190" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-4" aria-expanded="true" aria-controls="collapse-o-4">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2021&nbsp;-&nbsp;12/2021
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										30.06.2022
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										07.06.2022
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										27.06.2022
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-4" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													30.06.2022
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													07.06.2022
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													27.06.2022
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/8198886" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/8247725" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-5" aria-expanded="true" aria-controls="collapse-o-5">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2020&nbsp;-&nbsp;12/2020
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										16.03.2021
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										18.01.2021
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										02.09.2021
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-5" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													16.03.2021
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													18.01.2021
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													02.09.2021
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/7429815" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/7787023" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-6" aria-expanded="true" aria-controls="collapse-o-6">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2019&nbsp;-&nbsp;12/2019
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										06.03.2020
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										10.01.2020
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										17.08.2020
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-6" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													06.03.2020
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													10.01.2020
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													17.08.2020
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/6939201" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/7224701" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-7" aria-expanded="true" aria-controls="collapse-o-7">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2018&nbsp;-&nbsp;12/2018
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										26.03.2019
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										17.01.2019
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										24.07.2019
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-7" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													26.03.2019
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													17.01.2019
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													24.07.2019
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/6571407" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/6840794" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-8" aria-expanded="true" aria-controls="collapse-o-8">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2017&nbsp;-&nbsp;12/2017
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										27.03.2018
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										13.02.2018
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										13.11.2018
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-8" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													27.03.2018
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													13.02.2018
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													13.11.2018
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/6119538" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/6400534" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-9" aria-expanded="true" aria-controls="collapse-o-9">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2016&nbsp;-&nbsp;12/2016
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										21.03.2017
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										21.02.2017
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										30.06.2017
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-9" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													21.03.2017
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													21.02.2017
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													30.06.2017
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/5581303" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/5889399" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-10" aria-expanded="true" aria-controls="collapse-o-10">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2015&nbsp;-&nbsp;12/2015
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										23.03.2016
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										05.02.2016
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										19.05.2016
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-10" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													23.03.2016
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													05.02.2016
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													19.05.2016
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/5098431" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/5309497" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-11" aria-expanded="true" aria-controls="collapse-o-11">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2014&nbsp;-&nbsp;12/2014
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										27.03.2015
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										23.02.2015
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										21.09.2015
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-11" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													27.03.2015
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													23.02.2015
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													21.09.2015
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/4612904" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Úč POD:</span>
+															<span class="text-black">Účtovná závierka</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/4948620" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o dátume schválenia účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+					<div class="item">
+						<div class="p-4 p-lg-0">
+							<a href="#" class="title js-collapse text-decoration-none" data-toggle="collapse" data-target="#collapse-o-12" aria-expanded="true" aria-controls="collapse-o-12">
+								<span class="js-collapse icon icon-collapsed"></span>
+
+								<div class="row align-items-center">
+									<div role="cell" class="col-12 col-lg-2 font-weight-medium text-primary-faded fs-14">
+										01/2013&nbsp;-&nbsp;12/2013
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+										
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+										riadna
+									</div>
+									
+									<div role="cell" class="d-none d-lg-block col-2" aria-expanded="false">
+										17.03.2014
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										30.01.2014
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										24.09.2014
+									</div>
+									<div role="cell" class="d-none d-lg-block col-2">
+										
+									</div>
+								</div>
+							</a>
+						</div>
+
+						<div id="collapse-o-12" class="collapse show" style="">
+							<div class="pt-lg-4 pb-lg-3 pl-lg-9 ml-lg-4">
+								<div class="pl-4 pb-4 d-lg-none">
+									<div class="px-7">
+										<div class="fs-14 text-gray">Typ závierky:<br>
+											<span class="fs-16 font-weight-medium text-gray-dark">
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+		Individuálna
+	
+
+												
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+												riadna
+											</span>
+										</div>
+										
+											<div class="fs-14 text-gray mt-4">
+												Predložená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark" aria-expanded="false">
+													17.03.2014
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Zostavená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													30.01.2014
+												</span>
+											</div>
+										
+										
+											<div class="fs-14 text-gray mt-4">
+												Schválená dňa:<br>
+												<span class="fs-16 font-weight-medium text-gray-dark">
+													24.09.2014
+												</span>
+											</div>
+										
+										
+									</div>
+								</div>
+
+								
+									
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/3670581" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Súvaha Úč POD 1-01:</span>
+															<span class="text-black">Súvaha</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/3670558" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Výkaz ziskov a strát Úč POD 2-01:</span>
+															<span class="text-black">Výkaz ziskov a strát</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/3670556" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Poznámky Úč POD 3-04:</span>
+															<span class="text-black">Poznámky</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+											
+
+
+
+
+
+
+											
+
+
+
+
+
+
+
+
+
+
+
+	
+		
+	
+	
+
+											
+												
+													
+													<hr class="m-0 d-lg-none">
+													<a href="/cruz-public/domain/financialreport/show/4399987" class="p-3 p-lg-0 my-lg-1 d-flex align-items-center text-decoration-none d-lg-inline-block">
+														<span class="col col-lg-12 pl-0">
+															<span class="font-weight-medium text-primary text-decoration-underline">Oznámenie o schválení účtovnej závierky:</span>
+															<span class="text-black">Oznámenie o dátume schválenia</span>
+															<br class="d-lg-none">
+															<span class="text-gray">(Zdroj údajov:
+																FRSR)</span>
+														</span>
+														<span class="col-auto d-lg-none ml-auto pr-0">
+															<span class="icon icon-collapsed"></span>
+														</span>
+													</a>
+                                                    <br class="d-none d-lg-block">
+												
+												
+											
+										
+									
+									
+								
+							</div>
+						</div>
+					</div>
+				
+			</div>
+		</div>
+	
+
+
+									
+								</div>
+							
+								<div id="wrapper-ANNUAL_REPORT" style="display:none;">
+									
+								</div>
+							
 						</div>
 					
 				
@@ -802,7 +4116,7 @@ $(document).ready(function() {
 
 
 
-<div class="b-cookies-bar" id="cookiebar">
+<div class="b-cookies-bar d-none" id="cookiebar">
     <div class="container">
         <div class="content px-4 py-2">
             <div class="row align-items-center">
@@ -810,7 +4124,7 @@ $(document).ready(function() {
                     <div class="row">
                         <h4 class="col fs-16 fs-md-20 font-weight-medium mb-3">Môžeme, prosím, používať cookies?<span class="ml-1 fs-20">🍪</span></h4>
                         <div class="col-auto">
-                            <span id="cookiebar-close" class="icon icon-close btn btn-link p-1 fs-20 cursor-pointer d-none" tabindex="19"></span>
+                            <span id="cookiebar-close" class="icon icon-close btn btn-link p-1 fs-20 cursor-pointer" tabindex="19"></span>
                         </div>
                     </div>
                     <p class="fs-14 text-gray-dark">S cieľom zabezpečenia správneho fungovania webovej stránky a zlepšovania našich služieb používame cookies. Prosíme o potvrdenie súhlasu alebo nastavenie Vašich preferencií.</p>
@@ -960,4 +4274,4 @@ $(document).ready(function() {
 
 
 
-<div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div><div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div></body></html>
+<div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div><div role="status" aria-live="assertive" aria-relevant="additions" class="ui-helper-hidden-accessible"></div>

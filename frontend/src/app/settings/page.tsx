@@ -66,6 +66,11 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, defaultSources }),
       });
+      initialRef.current = {
+        orsrExtractType,
+        crzDateFrom,
+        defaultSources,
+      };
       setSaved(true);
       toast.success(t("settings.ulozene"));
       setTimeout(() => setSaved(false), 2000);

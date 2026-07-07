@@ -215,9 +215,8 @@
                 {% set status_icon = "" %}
                 {% set status_label = "" %}
                 
-                {% set is_exception_based = source.source_type in ["SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI", "INSOLVENCY", "DISKVALIFIKACIE", "CRRS", "FS_DPH_VYMAZANI", "FS_DPH_RUSENIE", "FS_DAN_Z_PRIJMOV", "NCRZP", "NCRD", "POVERENIA"] %}
                 {% set is_fs_info = source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
-                {% set is_clean_exception = (is_exception_based and source.status == "SUCCESS" and not has_pozor) or (is_fs_info and source.status == "SUCCESS") %}
+                {% set has_pdf_page = start_pages_map.get(source.source_type) %}
                 
                 {% if source.status == "SUCCESS" and not has_pozor and not is_fs_info %}
                     {% set status_class = "bg-[#10b981] text-white" %}
@@ -263,20 +262,13 @@
                     </td>
                     <td class="leading-normal report-body-sm {% if status_label == 'Upozornenie' or status_label == 'Zlyhal' %}text-slate-100{% else %}text-slate-700{% endif %}">
                         {% if source.source_type == "OBCHODNY_VESTNIK" and (not vestnik_events or vestnik_events|length == 0) %}
-                        <div class="bg-white border border-slate-200 p-2 rounded flex items-center gap-2 mt-1 mb-1">
-                            <span class="text-emerald-500 text-sm font-bold">✓</span>
-                            <p class="text-slate-700 font-medium report-body-sm">Firma nemá žiadne negatívne záznamy v aktuálnom Obchodnom vestníku.</p>
-                        </div>
+                        Firma nemá žiadne negatívne záznamy v aktuálnom Obchodnom vestníku.
                         {% else %}
                         {{ source | format_findings | safe }}
                         {% endif %}
                     </td>
                     <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                        {% if is_clean_exception %}
-                        <span title="Bez nálezu — príloha nezahrnutá">—</span>
-                        {% else %}
                         {{ start_pages_map.get(source.source_type, '—') }}
-                        {% endif %}
                     </td>
                 </tr>
                 {% endif %}

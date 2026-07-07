@@ -12,11 +12,12 @@ function getStripe(): Stripe {
   return _stripe;
 }
 
-const PRICE_MAP: Record<string, string> = {
-  onetime: process.env.STRIPE_PRICE_ONETIME || "",
-  basic: process.env.STRIPE_PRICE_BASIC || "",
-  biznis: process.env.STRIPE_PRICE_BIZNIS || "",
-  pro: process.env.STRIPE_PRICE_PRO || "",
+const PRICE_MAP: Record<string, { priceId: string; mode: "payment" | "subscription"; credits: number; planName: string }> = {
+  start:     { priceId: process.env.STRIPE_PRICE_START     || "", mode: "payment",      credits: 5,   planName: "start" },
+  freelance: { priceId: process.env.STRIPE_PRICE_FREELANCE || "", mode: "subscription", credits: 15,  planName: "freelance" },
+  firma:     { priceId: process.env.STRIPE_PRICE_FIRMA     || "", mode: "subscription", credits: 40,  planName: "firma" },
+  korporat:  { priceId: process.env.STRIPE_PRICE_KORPORAT  || "", mode: "subscription", credits: 100, planName: "korporat" },
+  addon5:    { priceId: process.env.STRIPE_PRICE_ADDON5    || "", mode: "payment",      credits: 5,   planName: "addon" },
 };
 
 export async function POST(req: NextRequest) {
@@ -27,20 +28,28 @@ export async function POST(req: NextRequest) {
     }
 
     const { planId } = await req.json();
-    const priceId = PRICE_MAP[planId];
+    const plan = PRICE_MAP[planId];
 
-    if (!priceId) {
+    if (!plan || !plan.priceId) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
 
-    const checkout = await getStripe().checkout.sessions.create({
-      mode: "payment",
-      line_items: [{ price: priceId, quantity: 1 }],
+    const checkoutParams: Stripe.Checkout.SessionCreateParams = {
+      mode: plan.mode,
+      line_items: [{ price: plan.priceId, quantity: 1 }],
       success_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/plan?success=1`,
       cancel_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/plan?canceled=1`,
       customer_email: session.user.email,
-      metadata: { userId: session.user.id, planId },
-    });
+      metadata: { userId: session.user.id, planId, credits: String(plan.credits), planName: plan.planName },
+    };
+
+    if (plan.mode === "subscription") {
+      checkoutParams.subscription_data = {
+        metadata: { userId: session.user.id, planName: plan.planName, credits: String(plan.credits) },
+      };
+    }
+
+    const checkout = await getStripe().checkout.sessions.create(checkoutParams);
 
     return NextResponse.json({ url: checkout.url });
   } catch {

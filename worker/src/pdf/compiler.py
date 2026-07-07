@@ -47,50 +47,35 @@ _SOURCES_WITH_EMBEDDED_TITLE = frozenset({
 # Canonical order of sources for PDF compilation (matches cover page categories)
 _SOURCE_ORDER = {sid: idx for idx, sid in enumerate(sid for _, ids in _SOURCE_CATEGORIES for sid in ids)}
 
-# Exception-based reporting: tieto zdroje sa NEZARADIA do PDF príloh ak sú čisté (bez nálezu).
-# Zahrnú sa len ak obsahujú "POZOR" vo findings (red flag).
-# Zdroje ako ORSR, REGISTER_UZ, OBCHODNY_VESTNIK sa vždy zahrnú (core evidence).
-_EXCEPTION_BASED_SOURCES = frozenset({
-    "SP_DLZNICI",
-    "VSZP_DLZNICI",
-    "DOVERA_DLZNICI",
-    "UNION_DLZNICI",
-    "INSOLVENCY",
-    "DISKVALIFIKACIE",
-    "CRRS",
-    "FINANCNA_SPRAVA",
-    "FS_DPH_VYMAZANI",
-    "FS_DPH_RUSENIE",
-    "FS_DAN_Z_PRIJMOV",
-})
-
-# FS zdroje ktoré sú len informatívne (modrý label v TOC) — nikdy nezaradiť PDF stránu.
-# Napr. "Subjekt je registrovaný pre DPH" — len info, nie dôkaz.
-_FS_INFO_SOURCES = frozenset({
-    "FS_DPH_REGISTROVANI",
-    "FS_DAN_PRIJMOV_REG",
-})
-
-# FS zdroje s reálnymi dátami — zaradiť PDF stránu ak findings nie je prázdny ("Žiadny záznam").
-# Napr. nadmerný odpočet s hodnotami, index daňovej spoľahlivosti.
-_FS_DATA_SOURCES = frozenset({
-    "FS_DPH_NADMERNY_ODPOCET",
-    "FS_DANOVE_SUBJEKTY",
-})
+# Markers indicating "no record found" — source has no data to show in PDF appendix.
+# Ak findings/status_message obsahuje niektorý z týchto textov, PDF sa nezahrnie do príloh.
+# Platlí univerzálne pre všetky registre.
+_NO_RECORD_MARKERS = (
+    "nie je evidovaný",
+    "žiadny záznam",
+    "nenašli sa žiadne",
+    "neobsahuje žiadne",
+    "nie je v zozname",
+    "žiadne nedoplatky",
+    "žiadne výsledky",
+    "bez výsledkov",
+    "neboli nájdené žiadne",
+    "0 záznamov",
+    "žiadne záznamy",
+    "bez nálezu",
+    "nemá negatívne záznamy",
+)
 
 
-def _is_fs_data_empty(source: ScrapedSource) -> bool:
-    """True ak FS dátový zdroj nemá reálne dáta (len 'Žiadny záznam' alebo prázdne)."""
-    findings = (source.findings or source.status_message or "").upper()
-    return "ŽIADNY ZÁZNAM" in findings or "ŽIADNY ZAZNAM" in findings or not findings.strip()
-
-
-def _is_clean_source(source: ScrapedSource) -> bool:
-    """True ak zdroj je čistý (SUCCESS bez POZOR) — môže sa vynechať z PDF príloh."""
+def _has_no_record(source: ScrapedSource) -> bool:
+    """True ak zdroj nenašiel žiadny záznam — PDF sa nezahrnie do príloh.
+    Univerzálne pravidlo: záznam existuje → prilož PDF, záznam neexistuje → vynechaj PDF."""
     if source.status != "SUCCESS":
-        return False
-    findings = (source.findings or source.status_message or "").upper()
-    return "POZOR" not in findings
+        return True
+    if not source.file_path:
+        return True
+    findings = (source.findings or source.status_message or "").lower()
+    return any(marker in findings for marker in _NO_RECORD_MARKERS)
 
 
 class PdfCompiler:
@@ -146,18 +131,8 @@ class PdfCompiler:
             
             current = cover_pages + 2  # +1 za divider page, +1 za prvú stránu zdrojov
             for source in sources:
-                # FS informatívne zdroje — nikdy nezaradiť PDF stránu
-                if source.source_type in _FS_INFO_SOURCES:
-                    source.start_page = None
-                    source.page_count = 0
-                    continue
-                # FS dátové zdroje — zaradiť len ak majú reálne dáta (nie 'Žiadny záznam')
-                if source.source_type in _FS_DATA_SOURCES and _is_fs_data_empty(source):
-                    source.start_page = None
-                    source.page_count = 0
-                    continue
-                # Exception-based reporting: preskoč čisté zdroje (SUCCESS bez POZOR)
-                if source.source_type in _EXCEPTION_BASED_SOURCES and _is_clean_source(source):
+                # Univerzálne pravidlo: záznam neexistuje → vynechaj PDF
+                if _has_no_record(source):
                     source.start_page = None
                     source.page_count = 0
                     continue
@@ -221,18 +196,17 @@ class PdfCompiler:
             with ThreadPoolExecutor(max_workers=4) as pool:
                 list(pool.map(self._overlay_title_on_source, sources_needing_overlay))
 
-        skipped_clean = []
+        skipped_no_record = []
         for source in sources:
-            # Exception-based reporting: čisté zdroje už majú start_page=None z _assign_start_pages
             if source.start_page is not None and source.file_path:
                 writer.append(source.file_path)
                 label = _SOURCE_LABELS.get(source.source_type, source.source_type)
                 writer.add_outline_item(label, source.start_page - 1)
-            elif source.source_type in _EXCEPTION_BASED_SOURCES and _is_clean_source(source):
-                skipped_clean.append(source.source_type)
+            elif _has_no_record(source) and source.status == "SUCCESS":
+                skipped_no_record.append(source.source_type)
 
-        if skipped_clean:
-            logger.info(f"[PdfCompiler] Exception-based: preskočených {len(skipped_clean)} čistých zdrojov: {skipped_clean}")
+        if skipped_no_record:
+            logger.info(f"[PdfCompiler] Preskočených {len(skipped_no_record)} zdrojov bez záznamu: {skipped_no_record}")
 
         # 4. Nahradenie falošných URL odkazov z Cover Page za vnútorné prelinkovania na stránky (GoTo Action)
         # Cover page môže mať viac stránok — spracujeme anotácie na každej z nich.

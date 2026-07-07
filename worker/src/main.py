@@ -7,18 +7,20 @@ import logging
 import time
 import shutil
 
-import asyncpg
 import fitz
+import os
+from arq import create_pool
+from arq.connections import RedisSettings
 from contextlib import asynccontextmanager
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from playwright.async_api import async_playwright
 
 from .config import settings
 from .logging_setup import setup_logging
-from .db import (
-    get_db_pool,
+from .db_repository import (
+    upsert_company_name,
     update_report_status,
-    update_report_ai_status,
+    update_ai_status as update_report_ai_status,
     get_avg_completion_seconds,
     get_avg_phase_durations,
     save_phase_duration,
@@ -26,7 +28,8 @@ from .db import (
     upsert_single_report_source,
     update_source_page_counts,
     create_bug_report,
-    close_db_pool,
+    charge_credit as _charge_credit,
+    get_verifa_score,
 )
 from .models import ReportTask
 from .pdf.compiler import PdfCompiler
@@ -48,10 +51,14 @@ _report_semaphore: Optional[asyncio.Semaphore] = None
 async def lifespan(app: FastAPI):
     global _report_semaphore
     _report_semaphore = asyncio.Semaphore(3)
+    
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    app.state.redis = await create_pool(RedisSettings.from_dsn(redis_url))
+    
     cleanup_task = asyncio.create_task(_cleanup_loop())
     yield
     cleanup_task.cancel()
-    await close_db_pool()
+    await app.state.redis.close()
 
 
 app = FastAPI(title="Verifa.sk Worker", version="0.1.0", lifespan=lifespan)
@@ -74,19 +81,6 @@ async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=N
 
 def _identifier(task: ReportTask) -> str:
     return f"IČO {task.ico}"
-
-
-async def _save_company_name(pool: asyncpg.Pool, report_request_id: str, company_name: str) -> None:
-    """Uloží company_name do ReportRequest ihneď ako ho ORSR extrahuje."""
-    try:
-        await pool.execute(
-            'UPDATE "ReportRequest" SET "companyName" = $1, "updatedAt" = NOW() WHERE id = $2',
-            company_name,
-            report_request_id,
-        )
-        logger.debug(f"[WORKER] Company name saved: {company_name}")
-    except Exception as e:
-        logger.warning(f"[WORKER] Failed to save company name: {e}")
 
 
 async def _execute_report(task: ReportTask) -> None:
@@ -133,16 +127,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
     report_dir = settings.results_dir / task.report_request_id
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    pool: Optional[asyncpg.Pool] = None
     browser = None
     playwright = None
 
     try:
-        pool = await get_db_pool()
-        await update_report_status(pool, task.report_request_id, "PROCESSING")
+        await update_report_status(task.report_request_id, "PROCESSING")
 
         # Nastavíme počiatočný ETA z historických dát, upravený podľa počtu zdrojov
-        avg_seconds = await get_avg_completion_seconds(pool)
+        avg_seconds = await get_avg_completion_seconds()
         base_eta = int(avg_seconds) if avg_seconds and avg_seconds > 0 else 240
         # Source-count-weighted ETA: viac zdrojov = viac času (najmä compile)
         source_count = len(task.sources)
@@ -150,7 +142,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         initial_eta = max(base_eta, 60 + source_count * 4)
 
         # Phase-aware: načítaj historické phase timingy pre presnejšie ETA
-        phase_avgs = await get_avg_phase_durations(pool)
+        phase_avgs = await get_avg_phase_durations()
         _phase_historical = {}
         if phase_avgs:
             _phase_historical = phase_avgs
@@ -160,10 +152,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
             if hist_total > 0:
                 initial_eta = max(initial_eta, int(hist_total))
 
-        await update_report_ai_status(pool, task.report_request_id, "ai.checking_registers", initial_eta)
+        await update_report_ai_status(task.report_request_id, "ai.checking_registers", initial_eta)
 
         playwright = await async_playwright().start()
-        browser = await playwright.chromium.launch(headless=settings.playwright_headless)
+        from src.browser_manager import browser_manager
+        browser = await browser_manager.get_browser(playwright)
         t_browser = time.perf_counter()
         logger.debug(f"[WORKER] Browser launched ({t_browser - t_start:.2f}s)")
 
@@ -179,14 +172,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
             try:
                 loop = asyncio.get_running_loop()
                 t1 = loop.create_task(
-                    upsert_single_report_source(pool, task.report_request_id, source)
+                    upsert_single_report_source(task.report_request_id, source)
                 )
                 _background_tasks.add(t1)
                 t1.add_done_callback(_background_tasks.discard)
 
                 if source.source_type == "ORSR" and source.status == "SUCCESS" and getattr(source, "company_name", None):
                     t2 = loop.create_task(
-                        _save_company_name(pool, task.report_request_id, source.company_name)
+                        upsert_company_name(task.ico, source.company_name)
                     )
                     _background_tasks.add(t2)
                     t2.add_done_callback(_background_tasks.discard)
@@ -196,11 +189,17 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     elapsed_scrape = time.perf_counter() - _t_scrape_start
                     progress = _sources_done_count / _sources_total
                     if progress > 0:
-                        # Odhad celkového času scrapers + AI/compile (~60s fix)
-                        estimated_total = (elapsed_scrape / progress) + 60
-                        remaining = max(5, int(estimated_total - elapsed_scrape))
+                        # Zostávajúci čas pre scrapovanie = koľko ešte treba podľa aktuálneho tempa
+                        scrape_remaining = (elapsed_scrape / progress) - elapsed_scrape
+                        
+                        # Čas pre ďalšie fázy (AI, Auditor, Compile)
+                        other_phases_eta = 60
+                        if _phase_historical:
+                            other_phases_eta = sum(v or 0 for k, v in _phase_historical.items() if k in ['ai', 'auditor', 'compile'])
+                            
+                        remaining = max(5, int(scrape_remaining + other_phases_eta))
                         t3 = loop.create_task(
-                            update_report_ai_status(pool, task.report_request_id, "ai.checking_registers", remaining)
+                            update_report_ai_status(task.report_request_id, None, remaining)
                         )
                         _background_tasks.add(t3)
                         t3.add_done_callback(_background_tasks.discard)
@@ -236,7 +235,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         t_scrape = time.perf_counter()
         _scrape_ms = int((t_scrape - t_browser) * 1000)
-        await save_phase_duration(pool, task.report_request_id, "scrapers", _scrape_ms)
+        await save_phase_duration(task.report_request_id, "scrapers", _scrape_ms)
         _source_summary = ', '.join(f'{s.source_type}:{s.status}' for s in sources)
         _log.info(f"[{_rid}] Scrapers done ({t_scrape - t_browser:.1f}s): {_source_summary}")
 
@@ -244,8 +243,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
         orsr_result = next((s for s in sources if s.source_type == "ORSR"), None)
         if orsr_result and orsr_result.status == "FAILED" and "neexistuje" in (orsr_result.status_message or "").lower():
             _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} neexistuje v ORSR — report zrušený.")
-            await update_report_status(pool, task.report_request_id, "FAILED")
-            await update_report_ai_status(pool, task.report_request_id, "failed.orsr_not_found")
+            await update_report_status(task.report_request_id, "FAILED")
+            await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
             if ai_task and not ai_task.done():
                 ai_task.cancel()
             return
@@ -255,7 +254,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         if failed_sources:
             failed_types = [s.source_type for s in failed_sources]
             _log.info(f"[{_rid}] Retrying {len(failed_types)} failed scrapers: {failed_types}")
-            await update_report_ai_status(pool, task.report_request_id, "ai.retrying", 60)
+            await update_report_ai_status(task.report_request_id, "ai.retrying", 60)
             await asyncio.sleep(3)
 
             retry_results = await run_scrapers(
@@ -280,7 +279,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     else:
                         _log.warning(f"[{_rid}] Retry failed again for {s.source_type}: {retry_result.status}")
 
-        await upsert_report_sources(pool, task.report_request_id, sources)
+        await upsert_report_sources(task.report_request_id, sources)
 
         company_name = _extract_company_name(sources, task.target_type)
 
@@ -293,7 +292,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 _log.error(f"[{_rid}] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
         t_ai_done = time.perf_counter()
         _ai_ms = int((t_ai_done - t_ai_wait) * 1000)
-        await save_phase_duration(pool, task.report_request_id, "ai", _ai_ms)
+        await save_phase_duration(task.report_request_id, "ai", _ai_ms)
 
         # ETA update: Chief Auditor + kompilácia — phase-aware z historických dát
         hist_auditor = _phase_historical.get('auditor') if _phase_historical else None
@@ -301,15 +300,12 @@ async def _execute_report_inner(task: ReportTask) -> None:
         auditor_s = int(hist_auditor) if hist_auditor else 30
         compile_s = int(hist_compile) if hist_compile else (20 + int(source_count * 1.5))
         forensic_eta = auditor_s + compile_s
-        await update_report_ai_status(pool, task.report_request_id, "ai.forensic_analysis", forensic_eta)
+        await update_report_ai_status(task.report_request_id, "ai.forensic_analysis", forensic_eta)
 
         # Update Company.name ak scraper extrahoval reálny názov (AI pipeline mohla nastaviť placeholder)
         if company_name:
             try:
-                await pool.execute(
-                    'UPDATE "Company" SET name = $1 WHERE ico = $2',
-                    company_name, task.ico
-                )
+                await upsert_company_name(task.ico, company_name)
                 _log.info(f"[{_rid}] Company name updated to: {company_name}")
             except Exception as e:
                 _log.warning(f"[{_rid}] Failed to update company name: {e}")
@@ -324,18 +320,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 with PhaseTimer("Chief Auditor"):
                     await run_and_save_audit_verdict(task.ico)
                 # —— Snapshot skóre: prečítame aktuálny AuditVerdict a fixujeme na tento report ——
-                _score_row = await pool.fetchrow(
-                    'SELECT "verifaScore" FROM "AuditVerdict" WHERE "companyIco" = $1',
-                    task.ico
-                )
-                if _score_row:
-                    verifa_score_snapshot = _score_row["verifaScore"]
+                verifa_score_snapshot = await get_verifa_score(task.ico)
+                if verifa_score_snapshot:
                     _log.info(f"[{_rid}] verifaScore snapshot: {verifa_score_snapshot}")
             except Exception as verdict_err:
                 _log.error(f"[{_rid}] Chief Auditor zlyhal pre {task.ico}: {verdict_err}", exc_info=True)
             finally:
                 t_auditor_end = time.perf_counter()
-                await save_phase_duration(pool, task.report_request_id, "auditor", int((t_auditor_end - t_auditor_start) * 1000))
+                await save_phase_duration(task.report_request_id, "auditor", int((t_auditor_end - t_auditor_start) * 1000))
 
         # Skip REGISTER_UZ PDF ak obsahuje "Údaje nie sú dostupné" (IFRS firmy)
         # Dáta sú už v cover page (Finančný vývoj a štruktúra) z AI extrakcie
@@ -356,7 +348,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         # ETA pre kompiláciu: phase-aware z historických dát
         compile_eta = int(hist_compile) if hist_compile else (20 + int(source_count * 1.5))
-        await update_report_ai_status(pool, task.report_request_id, "ai.compiling", compile_eta)
+        await update_report_ai_status(task.report_request_id, "ai.compiling", compile_eta)
 
         compiler = PdfCompiler(settings.results_dir)
         t_compile_start = time.perf_counter()
@@ -369,11 +361,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 company_name=company_name,
             )
         t_compile = time.perf_counter()
-        await save_phase_duration(pool, task.report_request_id, "compile", int((t_compile - t_compile_start) * 1000))
+        await save_phase_duration(task.report_request_id, "compile", int((t_compile - t_compile_start) * 1000))
         _log.info(f"[{_rid}] PDF compiled: {final_path.name}")
 
         # Aktualizujeme pageCount v DB podľa reálnych hodnôt zistených compilerom
-        await update_source_page_counts(pool, task.report_request_id, sources)
+        await update_source_page_counts(task.report_request_id, sources)
 
         # Cleanup medziproduktov — ponechať len evidence_binder.pdf
         try:
@@ -398,16 +390,15 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 f"Zlyhané zdroje: {', '.join(f'{s.source_type}:{s.status}' for s in failed_sources)}\n"
                 f"Detaily: {'; '.join(s.status_message or '' for s in failed_sources if s.status_message)}"
             )
-            await create_bug_report(pool, task.report_request_id, error_details)
+            await create_bug_report(task.report_request_id, error_details)
 
         # ── Kreditná operácia: len ak COMPLETED ─────────────────────────
         if final_status == "COMPLETED":
-            await _charge_credit(pool, task.report_request_id)
+            await _charge_credit(task.report_request_id)
         else:
             _log.info(f"[{_rid}] Status {final_status} — kredit neodpočítaný")
 
         await update_report_status(
-            pool,
             task.report_request_id,
             final_status,
             result_file_path=str(final_path),
@@ -424,13 +415,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
     except Exception as exc:
         # Ak celý worker zlyhá, report označíme ako FAILED.
         _log.error(f"[{_rid}] Report {task.report_request_id} failed", exc_info=True)
-        if pool:
-            await update_report_status(pool, task.report_request_id, "FAILED")
-            await create_bug_report(
-                pool,
-                task.report_request_id,
-                f"Výnimka: {type(exc).__name__}: {exc}",
-            )
+        await update_report_status(task.report_request_id, "FAILED")
+        await create_bug_report(
+            task.report_request_id,
+            f"Výnimka: {type(exc).__name__}: {exc}",
+        )
         raise
     finally:
         if browser:
@@ -440,85 +429,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # Pool je modulový singleton — nezatvárame ho po každej úlohe.
 
 
-async def _charge_credit(pool: asyncpg.Pool, report_request_id: str) -> None:
-    """Odoberie 1 kredit z wallet používateľa pomocou optimistic locking."""
-    try:
-        # Získaj userId a walletId z ReportRequest
-        row = await pool.fetchrow(
-            'SELECT "userId" FROM "ReportRequest" WHERE id = $1',
-            report_request_id
-        )
-        if not row:
-            logger.warning(f"[WORKER] ReportRequest {report_request_id} nenájdený")
-            return
-        
-        user_id = row["userId"]
-        
-        # Získaj walletId
-        wallet_row = await pool.fetchrow(
-            'SELECT id, balance, version FROM "Wallet" WHERE "userId" = $1',
-            user_id
-        )
-        if not wallet_row:
-            logger.warning(f"[WORKER] Wallet pre user {user_id} nenájdený")
-            return
-        
-        wallet_id = wallet_row["id"]
-        old_version = wallet_row["version"]
-        
-        # Optimistic locking: pokús sa aktualizovať wallet s verziou
-        MAX_RETRIES = 3
-        success = False
-        new_balance = wallet_row["balance"] - 1
-
-        for attempt in range(MAX_RETRIES):
-            if attempt > 0:
-                await asyncio.sleep(0.5)
-                # Re-fetch the latest state
-                wallet_row = await pool.fetchrow(
-                    'SELECT id, balance, version FROM "Wallet" WHERE "userId" = $1',
-                    user_id
-                )
-                if not wallet_row:
-                    logger.warning(f"[WORKER] Wallet pre user {user_id} zmizol počas retry")
-                    return
-                wallet_id = wallet_row["id"]
-                old_version = wallet_row["version"]
-                new_balance = wallet_row["balance"] - 1
-
-            row = await pool.fetchrow(
-                '''UPDATE "Wallet" 
-                   SET balance = $1, version = version + 1, "updatedAt" = NOW()
-                   WHERE id = $2 AND version = $3
-                   RETURNING version''',
-                new_balance, wallet_id, old_version
-            )
-            
-            if row:
-                success = True
-                break
-                
-        if not success:
-            logger.warning(f"[WORKER] Optimistic lock failed pre wallet {wallet_id} po {MAX_RETRIES} pokusoch")
-            return
-        
-        # Vytvor WalletTransaction záznam
-        await pool.execute(
-            '''INSERT INTO "WalletTransaction" (id, "walletId", amount, type, status, "reportRequestId", description, "createdAt")
-               VALUES (gen_random_uuid(), $1, -1, 'CHARGE', 'COMPLETED', $2, 'Report generation', NOW())''',
-            wallet_id, report_request_id
-        )
-        
-        logger.info(f"[WORKER] Kredit odpočítaný: wallet {wallet_id}, nový balance {new_balance}")
-    except Exception as e:
-        logger.error(f"[WORKER] Kreditná operácia zlyhala: {e}", exc_info=True)
-
-
 @app.post("/tasks", dependencies=[Depends(verify_worker_secret)])
-async def create_task(task: ReportTask, background_tasks: BackgroundTasks):
+async def create_task(task: ReportTask):
     """Prijme úlohu z Next.js API a okamžite vráti task ID."""
     # Pre jednoduchosť použijeme report_request_id ako task ID.
-    background_tasks.add_task(_execute_report, task)
+    await app.state.redis.enqueue_job('execute_report_task', task.dict())
     return {"taskId": task.report_request_id, "status": "accepted"}
 
 
@@ -528,25 +443,28 @@ async def health():
 
 
 @app.post("/reprocess/{report_request_id}", dependencies=[Depends(verify_worker_secret)])
-async def reprocess_report(report_request_id: str, background_tasks: BackgroundTasks):
+async def reprocess_report(report_request_id: str):
     """Retrigger stuck report — načíte task z DB a spustí znova."""
-    pool = await get_db_pool()
-    row = await pool.fetchrow(
-        'SELECT id, ico, "targetType", "selectedSources" FROM "ReportRequest" WHERE id = $1',
-        report_request_id,
-    )
-    if not row:
-        raise HTTPException(status_code=404, detail="ReportRequest not found")
-    
-    task = ReportTask(
-        report_request_id=row["id"],
-        ico=row["ico"],
-        target_type=row["targetType"],
-        orsr_extract_type=None,
-        crz_date_from=None,
-        sources=list(row["selectedSources"]) if row["selectedSources"] else [],
-    )
-    background_tasks.add_task(_execute_report, task)
+    from prisma import Prisma
+    db = Prisma()
+    await db.connect()
+    try:
+        row = await db.reportrequest.find_unique(where={'id': report_request_id})
+        if not row:
+            raise HTTPException(status_code=404, detail="ReportRequest not found")
+        
+        task = ReportTask(
+            report_request_id=row.id,
+            ico=row.ico,
+            target_type=row.targetType,
+            orsr_extract_type=None,
+            crz_date_from=None,
+            sources=list(row.selectedSources) if row.selectedSources else [],
+        )
+    finally:
+        await db.disconnect()
+
+    await app.state.redis.enqueue_job('execute_report_task', task.dict())
     return {"taskId": report_request_id, "status": "reprocessing"}
 
 

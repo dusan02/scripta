@@ -29,7 +29,7 @@ const landingJsonLd = {
           name: "Čo je Verifa.sk due diligence report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Verifa.sk report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z viac ako 30 verejných registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s AI analýzou finančného zdravia a záverečným skóre dôveryhodnosti.",
+            text: "Verifa.sk report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z 25 verejných a privátnych registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s AI analýzou finančného zdravia a záverečným skóre dôveryhodnosti.",
           },
         },
         {
@@ -45,7 +45,7 @@ const landingJsonLd = {
           name: "Aké registre sa kontrolujú v reporte?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Report kontroluje viac ako 30 verejných registrov vrátane Obchodného registra (ORSR), Živnostenského registra (ZRSR), insolvenčných registrov, registrov daňových dlžníkov, DPH registrov, Obchodného vestníka, RÚZ finančných výkazov a ďalších.",
+            text: "Report kontroluje 25 verejných a privátnych registrov vrátane Obchodného registra (ORSR), Živnostenského registra (ZRSR), insolvenčných registrov, registrov daňových dlžníkov, DPH registrov, Obchodného vestníka, RÚZ finančných výkazov a ďalších.",
           },
         },
         {
