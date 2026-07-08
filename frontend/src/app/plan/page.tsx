@@ -147,6 +147,9 @@ export default function PlanPage() {
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.celkovyPausal")}
           </span>
+          <span className="text-[10px] mt-1" style={{ color: "transparent" }}>
+            &nbsp;
+          </span>
         </div>
 
         {/* Successful */}
@@ -166,6 +169,9 @@ export default function PlanPage() {
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.uspesne")}
           </span>
+          <span className="text-[10px] mt-1" style={{ color: "transparent" }}>
+            &nbsp;
+          </span>
         </div>
 
         {/* Failed */}
@@ -184,6 +190,9 @@ export default function PlanPage() {
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.neuspesne")}
+          </span>
+          <span className="text-[10px] mt-1" style={{ color: "transparent" }}>
+            &nbsp;
           </span>
         </div>
 
