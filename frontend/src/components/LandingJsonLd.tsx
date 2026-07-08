@@ -26,13 +26,13 @@ const landingJsonLd = {
           "@type": "Offer",
           price: "99.00",
           priceCurrency: "EUR",
-          description: "Firma — 25 reportov mesačne",
+          description: "Firma — 18 reportov mesačne",
         },
         {
           "@type": "Offer",
           price: "249.00",
           priceCurrency: "EUR",
-          description: "Korporát — 60 reportov mesačne",
+          description: "Korporát — 50 reportov mesačne",
         },
       ],
       provider: {
@@ -57,7 +57,7 @@ const landingJsonLd = {
           name: "Koľko stojí Verifa.sk report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Ponúkame štyri plány: Štart (1 report za 14 € jednorazovo), Freelance (8 reportov za 49 €/mesiac), Firma (25 reportov za 99 €/mesiac) a Korporát (60 reportov za 249 €/mesiac). Pri registrácii dostanete 5 skúšobných kreditov zadarmo na 30 dní."
+            text: "Ponúkame štyri plány: Štart (1 report za 14 € jednorazovo), Freelance (8 reportov za 49 €/mesiac), Firma (18 reportov za 99 €/mesiac) a Korporát (50 reportov za 249 €/mesiac). Pri registrácii dostanete 5 skúšobných kreditov zadarmo na 30 dní."
           },
         },
         {

@@ -68,9 +68,9 @@ export default function LandingPage() {
     {
       name: "Firma",
       subtitle: "Pre firmy s pravidelným Due Diligence",
-      credits: "25 reportov / mesiac",
+      credits: "18 reportov / mesiac",
       price: "99 € / mesiac",
-      perCredit: "3,96 € / report",
+      perCredit: "5,50 € / report",
       features: [
         "Všetko z balíka Freelance",
         "Vhodné pre obchodné a nákupné tímy",
@@ -82,9 +82,9 @@ export default function LandingPage() {
     {
       name: "Korporát",
       subtitle: "Pre profesionálov",
-      credits: "60 reportov / mesiac",
+      credits: "50 reportov / mesiac",
       price: "249 € / mesiac",
-      perCredit: "4,15 € / report",
+      perCredit: "4,98 € / report",
       features: [
         "Všetko z balíka Firma",
         "Osobný account manager s okamžitou dostupnosťou",
