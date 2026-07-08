@@ -40,9 +40,9 @@ export default function LandingPage() {
     {
       name: "Štart",
       subtitle: "Komplexné preverenie firmy",
-      credits: "1 report",
-      price: "19 €",
-      perCredit: "Vhodné pre jednorazové overenie obchodného partnera.",
+      credits: "5 reportov",
+      price: "49 €",
+      perCredit: "9,80 € / report",
       features: [
         "Pokrytie 25 verejných a privátnych registrov",
         "Finančná a právna analýza s Verifa Score",
@@ -54,9 +54,9 @@ export default function LandingPage() {
     {
       name: "Freelance",
       subtitle: "Pre účtovníkov a malé firmy",
-      credits: "5 reportov",
-      price: "49 €",
-      perCredit: "9,80 € / report",
+      credits: "15 reportov / mesiac",
+      price: "39 € / mesiac",
+      perCredit: "2,60 € / report",
       features: [
         "Všetko z balíka Štart",
         "História reportov a PDF archivácia",
@@ -68,9 +68,9 @@ export default function LandingPage() {
     {
       name: "Firma",
       subtitle: "Pre firmy s pravidelným Due Diligence",
-      credits: "20 reportov",
-      price: "149 €",
-      perCredit: "7,45 € / report",
+      credits: "40 reportov / mesiac",
+      price: "99 € / mesiac",
+      perCredit: "2,48 € / report",
       features: [
         "Všetko z balíka Freelance",
         "Vhodné pre obchodné a nákupné tímy",
@@ -82,9 +82,9 @@ export default function LandingPage() {
     {
       name: "Korporát",
       subtitle: "Pre profesionálov",
-      credits: "50 reportov",
-      price: "249 €",
-      perCredit: "4,98 € / report",
+      credits: "100 reportov / mesiac",
+      price: "249 € / mesiac",
+      perCredit: "2,49 € / report",
       features: [
         "Všetko z balíka Firma",
         "Osobný account manager s okamžitou dostupnosťou",
