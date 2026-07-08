@@ -13,7 +13,7 @@ function getStripe(): Stripe {
 }
 
 const PRICE_MAP: Record<string, { priceId: string; mode: "payment" | "subscription"; credits: number; planName: string }> = {
-  start:     { priceId: process.env.STRIPE_PRICE_START     || "", mode: "payment",      credits: 5,   planName: "start" },
+  start:     { priceId: process.env.STRIPE_PRICE_START     || "", mode: "payment",      credits: 1,   planName: "start" },
   freelance: { priceId: process.env.STRIPE_PRICE_FREELANCE || "", mode: "subscription", credits: 10,  planName: "freelance" },
   firma:     { priceId: process.env.STRIPE_PRICE_FIRMA     || "", mode: "subscription", credits: 20,  planName: "firma" },
   korporat:  { priceId: process.env.STRIPE_PRICE_KORPORAT  || "", mode: "subscription", credits: 50,  planName: "korporat" },
