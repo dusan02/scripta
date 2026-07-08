@@ -147,9 +147,6 @@ export default function PlanPage() {
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.celkovyPausal")}
           </span>
-          <span className="text-[10px] mt-1" style={{ color: "transparent" }}>
-            &nbsp;
-          </span>
         </div>
 
         {/* Successful */}
@@ -168,9 +165,6 @@ export default function PlanPage() {
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.uspesne")}
-          </span>
-          <span className="text-[10px] mt-1" style={{ color: "transparent" }}>
-            &nbsp;
           </span>
         </div>
 
@@ -191,9 +185,6 @@ export default function PlanPage() {
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.neuspesne")}
           </span>
-          <span className="text-[10px] mt-1" style={{ color: "transparent" }}>
-            &nbsp;
-          </span>
         </div>
 
         {/* Remaining */}
@@ -209,13 +200,15 @@ export default function PlanPage() {
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.zostava")}
           </span>
-          {data.daysRemaining !== null && (
-            <span className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
-              {t("plan.dniDoObnovenia", { days: data.daysRemaining })}
-            </span>
-          )}
         </div>
       </div>
+
+      {/* Days remaining info */}
+      {data.daysRemaining !== null && (
+        <div className="text-center mb-6 text-xs" style={{ color: "var(--text-muted)" }}>
+          {t("plan.dniDoObnovenia", { days: data.daysRemaining })}
+        </div>
+      )}
 
       {/* Period info */}
       <div className="text-center mb-6 text-xs" style={{ color: "var(--text-muted)" }}>
