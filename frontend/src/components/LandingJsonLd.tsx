@@ -20,7 +20,7 @@ const landingJsonLd = {
           "@type": "Offer",
           price: "49.00",
           priceCurrency: "EUR",
-          description: "Freelance — 10 reportov mesačne",
+          description: "Freelance — 8 reportov mesačne",
         },
         {
           "@type": "Offer",
@@ -57,7 +57,7 @@ const landingJsonLd = {
           name: "Koľko stojí Verifa.sk report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Ponúkame štyri plány: Štart (1 report za 14 € jednorazovo), Freelance (10 reportov za 49 €/mesiac), Firma (25 reportov za 99 €/mesiac) a Korporát (60 reportov za 249 €/mesiac). Pri registrácii dostanete 5 skúšobných kreditov zadarmo na 30 dní."
+            text: "Ponúkame štyri plány: Štart (1 report za 14 € jednorazovo), Freelance (8 reportov za 49 €/mesiac), Firma (25 reportov za 99 €/mesiac) a Korporát (60 reportov za 249 €/mesiac). Pri registrácii dostanete 5 skúšobných kreditov zadarmo na 30 dní."
           },
         },
         {

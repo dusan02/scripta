@@ -54,9 +54,9 @@ export default function LandingPage() {
     {
       name: "Freelance",
       subtitle: "Pre účtovníkov a malé firmy",
-      credits: "10 reportov / mesiac",
+      credits: "8 reportov / mesiac",
       price: "49 € / mesiac",
-      perCredit: "4,90 € / report",
+      perCredit: "6,13 € / report",
       features: [
         "Všetko z balíka Štart",
         "História reportov a PDF archivácia",
