@@ -10,6 +10,7 @@ import OfflineIndicator from "@/components/OfflineIndicator";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://verifa.sk"),
   title: {
     default: "Verifa.sk — Due Diligence reporty",
     template: "%s | Verifa.sk",
@@ -21,6 +22,32 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
+  },
+  openGraph: {
+    type: "website",
+    locale: "sk_SK",
+    siteName: "Verifa.sk",
+    title: "Verifa.sk — Due Diligence reporty",
+    description:
+      "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s AI analýzou finančného zdravia a semaformi nálezov.",
+    images: [
+      {
+        url: "/logo-verifa.png",
+        width: 1200,
+        height: 630,
+        alt: "Verifa.sk — Due Diligence reporty",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Verifa.sk — Due Diligence reporty",
+    description:
+      "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s AI analýzou finančného zdravia.",
+    images: ["/logo-verifa.png"],
+  },
+  alternates: {
+    canonical: "https://verifa.sk",
   },
 };
 

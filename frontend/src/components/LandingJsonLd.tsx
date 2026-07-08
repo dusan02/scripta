@@ -9,12 +9,32 @@ const landingJsonLd = {
       description:
         "Automatizovaná príprava komplexných due diligence reportov — zlúčené PDF výpisy zo štátnych registrov SR s AI analýzou finančného zdravia a semaformi nálezov.",
       url: "https://verifa.sk",
-      offers: {
-        "@type": "Offer",
-        price: "19.00",
-        priceCurrency: "EUR",
-        description: "Jednorazový report",
-      },
+      offers: [
+        {
+          "@type": "Offer",
+          price: "49.00",
+          priceCurrency: "EUR",
+          description: "Štart — 5 reportov jednorazovo",
+        },
+        {
+          "@type": "Offer",
+          price: "39.00",
+          priceCurrency: "EUR",
+          description: "Freelance — 15 reportov mesačne",
+        },
+        {
+          "@type": "Offer",
+          price: "99.00",
+          priceCurrency: "EUR",
+          description: "Firma — 40 reportov mesačne",
+        },
+        {
+          "@type": "Offer",
+          price: "249.00",
+          priceCurrency: "EUR",
+          description: "Korporát — 100 reportov mesačne",
+        },
+      ],
       provider: {
         "@type": "Organization",
         name: "Verifa.sk",
@@ -37,7 +57,7 @@ const landingJsonLd = {
           name: "Koľko stojí Verifa.sk report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Jednorazový report stojí 19 €. Pre pravidelné použitie ponúkame balíky: Basic (5 reportov za 49 €), Business (20 reportov za 149 €) a Pro (50 reportov za 249 €).",
+            text: "Ponúkame štyri plány: Štart (5 reportov za 49 € jednorazovo), Freelance (15 reportov za 39 €/mesiac), Firma (40 reportov za 99 €/mesiac) a Korporát (100 reportov za 249 €/mesiac). Pri registrácii dostanete 5 skúšobných kreditov zadarmo na 30 dní."
           },
         },
         {

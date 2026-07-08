@@ -35,15 +35,21 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!company) return {};
 
   const name = company.name || `IČO ${company.ico}`;
+  const slug = slugify(company.name);
+  const canonicalUrl = `https://verifa.sk/firma/${company.ico}-${slug}`;
   const title = `${name} (${company.ico}) – Forenzný Due Diligence & Finančná Analýza | Verifa.sk`;
   const description = `Automatizovaný forenzný report pre ${name} (IČO: ${company.ico}). Preverte si finančné zdravie, Altman Z-skóre a rizikové faktory pred podpisom zmluvy.`;
 
   return {
     title,
     description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
       title,
       description,
+      url: canonicalUrl,
       type: "website",
       locale: "sk_SK",
       siteName: "Verifa.sk",

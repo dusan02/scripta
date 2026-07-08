@@ -4,6 +4,9 @@ export const metadata: Metadata = {
   title: "Podmienky používania | Verifa.sk",
   description: "Podmienky používania služby Verifa.sk",
   robots: { index: false, follow: false },
+  alternates: {
+    canonical: "https://verifa.sk/terms",
+  },
 };
 
 export default function TermsPage() {
@@ -64,9 +67,21 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>8. Platenie a refundácie</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>8. Kredity, predplatné a refundácie</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Platenie prebieha cez Stripe. Kredity sú jednorazové a majú platnosť 12 mesiacov od zakúpenia. Ak sa nepodarí získať dáta z plateného zdroja, kredity za tento zdroj budú refundované.
+            <strong>Skúšobné kredity.</strong> Pri registrácii používateľ dostáva 5 skúšobných kreditov na 30 dní. Po uplynutí skúšobného obdobia bez zakúpenia plánu používateľ stratí prístup k vytváraniu reportov.
+          </p>
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+            <strong>Predplatné a plány.</strong> Služba ponúka mesačné predplatné (Freelance, Firma, Korporát) a jednorazové nákupy (Štart, dokúpenie kreditov). Platenie prebieha cez Stripe. Predplatné sa obnovuje automaticky každý mesiac, pokiaľ nie je zrušené.
+          </p>
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+            <strong>Platnosť kreditov.</strong> Kredity zakúpené alebo získané v rámci predplatného majú platnosť <strong>90 dní</strong> od dátumu ich pripísania. Po uplynutí tejto lehoty sa nevyužité kredity automaticky vymažú. Kredity sa čerpajú v poradí FIFO (najstaršie kredity sa minú ako prvé).
+          </p>
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+            <strong>Zrušenie predplatného.</strong> Používateľ môže zrušiť predplatné kedykoľvek. Po zrušení zostávajú nevyužité kredity dostupné do konca aktuálneho fakturačného obdobia. Po jeho uplynutí sa všetky zostávajúce kredity vynulujú.
+          </p>
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+            <strong>Refundácie.</strong> Ak sa nepodarí získať dáta z plateného zdroja, kredity za tento zdroj budú vrátené. Pri zlyhaní spracovania reportu na strane systému sa kredit automaticky vráti.
           </p>
         </section>
 
@@ -86,7 +101,7 @@ export default function TermsPage() {
 
         <section>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 32 }}>
-            Posledná aktualizácia: 1. júla 2026
+            Posledná aktualizácia: 7. júla 2026
           </p>
         </section>
       </div>
