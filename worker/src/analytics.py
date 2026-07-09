@@ -568,26 +568,26 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
 
     cr = last_ratios.get("current_ratio")
     if cr is None:
-        p1_raw += 5
+        p1_raw += 6
         p1_flags.append("Current ratio: N/A (bez dát)")
     elif cr >= 1.5:
-        p1_raw += 10
+        p1_raw += 12
         p1_flags.append(f"Current ratio: {cr:.2f} — výborná likvidita (≥1.5)")
     elif cr >= 1.0:
-        p1_raw += 7
+        p1_raw += 8
         p1_flags.append(f"Current ratio: {cr:.2f} — dostatočná likvidita (1.0–1.5)")
     elif cr >= 0.5:
-        p1_raw += 3
+        p1_raw += 4
         p1_flags.append(f"Current ratio: {cr:.2f} — problematická likvidita (0.5–1.0)")
     else:
         p1_flags.append(f"Current ratio: {cr:.2f} — kritická likvidita (<0.5)")
 
     equity_to_debt = last_z.get("components", {}).get("x4_equity_to_debt", None)
     if equity_to_debt is None:
-        p1_raw += 5
+        p1_raw += 6
         p1_flags.append("Vlastné imanie: N/A")
     elif equity_to_debt > 0:
-        p1_raw += 10
+        p1_raw += 12
         p1_flags.append(f"Vlastné imanie: kladné (E/D = {equity_to_debt:.2f})")
     else:
         p1_flags.append(f"Vlastné imanie: ZÁPORNÉ (E/D = {equity_to_debt:.2f}) — predĺženie")
@@ -600,10 +600,10 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             crit_events_penalty += compute_vestnik_degradation(e)
             
     if crit_events_penalty == 0:
-        p1_raw += 10
+        p1_raw += 6
         p1_flags.append("Vestník: žiadne kritické udalosti")
     elif crit_events_penalty < 1.0:
-        p1_raw += 4
+        p1_raw += 3
         p1_flags.append("Vestník: staré kritické/vysoké udalosti (znížená váha)")
     else:
         p1_flags.append(f"Vestník: aktívne kritické/vysoké udalosti (penalizácia {crit_events_penalty:.1f}x)")

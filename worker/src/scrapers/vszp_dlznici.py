@@ -42,8 +42,8 @@ class VszpDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=10000, wait_until='commit')
-                await page.wait_for_load_state('domcontentloaded', timeout=5000)
+                await page.goto(self.base_url, timeout=30000, wait_until='commit')
+                await page.wait_for_load_state('domcontentloaded', timeout=30000)
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"VšZP nedostupná: {e}")
 

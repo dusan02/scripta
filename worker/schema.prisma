@@ -16,6 +16,7 @@ model User {
   role             UserRole        @default(LAWYER)
   orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
+  rozhodnutiaDateFrom DateTime?    // Rozhodnutia dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
   tokenVersion     Int             @default(0)
   planName         String?         // Názov paušálu (basic, biznis, pro, onetime)
@@ -115,6 +116,7 @@ enum SourceType {
   REGISTER_UZ
   CRZ
   UVO
+  ROZHODNUTIA
 }
 
 enum SourceStatus {

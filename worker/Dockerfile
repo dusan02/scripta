@@ -36,6 +36,6 @@ COPY . .
 
 # Vygenerovanie Prisma klienta
 COPY prisma ./prisma
-RUN prisma generate --schema=./prisma/schema.prisma
+RUN prisma generate --schema=./prisma/schema.prisma && python -m prisma generate --schema=./prisma/schema.prisma
 
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { orsrExtractType: true, crzDateFrom: true, defaultSources: true },
+      select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, defaultSources: true },
     });
 
     if (!dbUser) {
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       orsrExtractType: dbUser.orsrExtractType,
       crzDateFrom: dbUser.crzDateFrom?.toISOString().split("T")[0] ?? null,
+      rozhodnutiaDateFrom: dbUser.rozhodnutiaDateFrom?.toISOString().split("T")[0] ?? null,
       defaultSources: dbUser.defaultSources,
     });
   } catch (error) {
@@ -37,7 +38,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { orsrExtractType, crzDateFrom, defaultSources } = body;
+    const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, defaultSources } = body;
 
     const data: Record<string, unknown> = {};
 
@@ -63,6 +64,21 @@ export async function PATCH(req: NextRequest) {
           );
         }
         data.crzDateFrom = parsed;
+      }
+    }
+
+    if (rozhodnutiaDateFrom !== undefined) {
+      if (rozhodnutiaDateFrom === null || rozhodnutiaDateFrom === "") {
+        data.rozhodnutiaDateFrom = null;
+      } else {
+        const parsed = new Date(rozhodnutiaDateFrom);
+        if (isNaN(parsed.getTime())) {
+          return NextResponse.json(
+            { error: "rozhodnutiaDateFrom must be a valid date (YYYY-MM-DD)" },
+            { status: 400 }
+          );
+        }
+        data.rozhodnutiaDateFrom = parsed;
       }
     }
 

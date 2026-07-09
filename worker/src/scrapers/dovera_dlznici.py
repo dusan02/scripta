@@ -30,7 +30,7 @@ class DoveraDlzniciScraper(BaseScraper):
 
             # 1. Navigate
             try:
-                await page.goto(self.base_url, timeout=10000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=30000, wait_until='domcontentloaded')
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] Dôvera nedostupná ({e}) — fallback PDF.")
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=False, has_no_results_text=False)

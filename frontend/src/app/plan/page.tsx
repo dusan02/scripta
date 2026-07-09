@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useT } from "@/components/LanguageProvider";
 import { LOCALE_MAP } from "@/lib/i18n";
 import { useLang } from "@/components/LanguageProvider";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 interface PlanData {
   totalReports: number;
@@ -57,6 +58,24 @@ export default function PlanPage() {
   const [data, setData] = useState<PlanData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const handlePortal = useCallback(async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const d = await res.json();
+      if (res.ok && d.url) {
+        window.location.href = d.url;
+      } else {
+        toast.error(d.error || "Failed to open portal");
+      }
+    } catch {
+      toast.error("Failed to open portal");
+    } finally {
+      setPortalLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/plan")
@@ -136,10 +155,12 @@ export default function PlanPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {/* Total credits (paušál) */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div className="flex flex-wrap gap-[2px] justify-center mb-3 max-w-[120px]">
-            {Array.from({ length: data.totalCredits }).map((_, i) => (
-              <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
-            ))}
+          <div className="flex-1 flex flex-col justify-end mb-3 w-full">
+            <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
+              {Array.from({ length: data.totalCredits }).map((_, i) => (
+                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
+              ))}
+            </div>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>
             {data.totalCredits}
@@ -151,14 +172,16 @@ export default function PlanPage() {
 
         {/* Successful */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center mb-3"
-            style={{ background: "var(--success-bg)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--success)" }}>
-              <path d="M9 11l3 3L22 4" />
-              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-            </svg>
+          <div className="flex-1 flex flex-col justify-end mb-3 w-full items-center">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: "var(--success-bg)" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--success)" }}>
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+              </svg>
+            </div>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--success)" }}>
             {data.successfulReports}
@@ -170,14 +193,16 @@ export default function PlanPage() {
 
         {/* Failed */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center mb-3"
-            style={{ background: "var(--danger-bg)" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--danger)" }}>
-              <circle cx="12" cy="12" r="10" />
-              <path d="M15 9l-6 6M9 9l6 6" />
-            </svg>
+          <div className="flex-1 flex flex-col justify-end mb-3 w-full items-center">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: "var(--danger-bg)" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--danger)" }}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M15 9l-6 6M9 9l6 6" />
+              </svg>
+            </div>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--danger)" }}>
             {data.failedReports}
@@ -189,10 +214,12 @@ export default function PlanPage() {
 
         {/* Remaining */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div className="flex flex-wrap gap-[2px] justify-center mb-3 max-w-[120px]">
-            {Array.from({ length: data.remaining }).map((_, i) => (
-              <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--success)" }} />
-            ))}
+          <div className="flex-1 flex flex-col justify-end mb-3 w-full">
+            <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
+              {Array.from({ length: data.remaining }).map((_, i) => (
+                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--success)" }} />
+              ))}
+            </div>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
             {data.remaining}
@@ -273,7 +300,7 @@ export default function PlanPage() {
         )}
       </div>
 
-      {/* Upgrade CTA */}
+      {/* Upgrade CTA + Manage Subscription */}
       <div
         className="rounded-xl p-6 text-center"
         style={{
@@ -281,6 +308,29 @@ export default function PlanPage() {
           border: "1px solid var(--border)",
         }}
       >
+        {data.planName && data.planName !== "start" && (
+          <button
+            onClick={handlePortal}
+            disabled={portalLoading}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:brightness-110 mb-4"
+            style={{
+              background: "transparent",
+              color: "var(--text)",
+              border: "1px solid var(--border)",
+              cursor: portalLoading ? "not-allowed" : "pointer",
+              opacity: portalLoading ? 0.6 : 1,
+            }}
+          >
+            {portalLoading ? (
+              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            ) : null}
+            {t("plan.spravovatPredplatne")}
+          </button>
+        )}
+
         <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
           {t("plan.potrebujeteViac")}
         </p>

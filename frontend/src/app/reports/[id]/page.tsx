@@ -195,14 +195,20 @@ const PHASE_WEIGHTS = {
 // Progress interpolates linearly from start→end over the estimated duration,
 // so the bar moves continuously instead of jumping and freezing.
 const AI_STATUS_RANGES: Record<string, { start: number; end: number; estSeconds: number }> = {
-  "ai.checking_registers": { start: 0, end: 5, estSeconds: 10 },
-  "ai.retrying":            { start: 0, end: 5, estSeconds: 10 },
-  "ai.downloading":         { start: 30, end: 40, estSeconds: 55 },
-  "ai.analyzing_statements":{ start: 40, end: 75, estSeconds: 180 },  // ← longest phase
-  "ai.risk_analysis":       { start: 75, end: 82, estSeconds: 30 },
-  "ai.final_verdict":       { start: 82, end: 90, estSeconds: 30 },
-  "ai.forensic_analysis":   { start: 90, end: 95, estSeconds: 15 },
-  "ai.compiling":           { start: 95, end: 99, estSeconds: 20 },
+  "ai.checking_registers":   { start: 0, end: 5, estSeconds: 10 },
+  "ai.retrying":              { start: 0, end: 5, estSeconds: 10 },
+  "ai.downloading":           { start: 5, end: 30, estSeconds: 55 },
+  "ai.analyzing_statements":  { start: 30, end: 40, estSeconds: 15 },
+  "ai.extracting_financials": { start: 40, end: 55, estSeconds: 120 },  // ← longest phase (IFRS chunking)
+  "ai.semantic_narrative":    { start: 55, end: 65, estSeconds: 60 },
+  "ai.forensic_notes":        { start: 65, end: 72, estSeconds: 30 },
+  "ai.risk_analysis":         { start: 72, end: 78, estSeconds: 20 },
+  "ai.final_verdict":         { start: 78, end: 82, estSeconds: 10 },
+  "ai.cross_validation":      { start: 82, end: 86, estSeconds: 15 },
+  "ai.forensic_analysis":     { start: 86, end: 90, estSeconds: 10 },
+  "ai.cross_correlation":     { start: 90, end: 93, estSeconds: 20 },
+  "ai.risk_synthesis":        { start: 93, end: 96, estSeconds: 8 },
+  "ai.compiling":             { start: 96, end: 99, estSeconds: 20 },
 };
 
 function computeWeightedProgress(
@@ -238,9 +244,14 @@ function computeWeightedProgress(
 function getPhaseLabel(aiStatus: string | null | undefined, t: (k: string) => string): string {
   if (!aiStatus || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying")
     return t("report.phaseScraping");
-  if (["ai.downloading", "ai.analyzing_statements", "ai.risk_analysis", "ai.final_verdict"].includes(aiStatus))
+  if ([
+    "ai.downloading", "ai.analyzing_statements", "ai.extracting_financials",
+    "ai.semantic_narrative", "ai.forensic_notes", "ai.risk_analysis",
+    "ai.final_verdict", "ai.cross_validation",
+  ].includes(aiStatus))
     return t("report.phaseAiPipeline");
-  if (aiStatus === "ai.forensic_analysis") return t("report.phaseVerdict");
+  if (["ai.forensic_analysis", "ai.cross_correlation", "ai.risk_synthesis"].includes(aiStatus))
+    return t("report.phaseVerdict");
   if (aiStatus === "ai.compiling") return t("report.phaseCompiling");
   return t("report.phaseScraping");
 }
@@ -336,7 +347,7 @@ function PhaseProgress({
               <span className="shrink-0 tabular-nums text-sm font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
                 [{new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}]
               </span>
-              <span className="text-[15px] font-medium truncate" style={{ color: "var(--success)" }}>
+              <span className="text-[15px] font-medium leading-snug" style={{ color: "var(--success)" }}>
                 {statusText}
               </span>
               {isScraping && sourcesTotal > 0 && (
@@ -527,6 +538,9 @@ export default function ReportDetailPage() {
       if (res.ok) {
         const data = await res.json();
         router.push(`/reports/${data.reportRequestId}`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || t("history.chybaZopakovania"));
       }
     } catch {
       toast.error(t("history.chybaZopakovania"));

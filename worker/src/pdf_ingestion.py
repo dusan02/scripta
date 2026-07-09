@@ -107,6 +107,20 @@ def extract_core_financials(pdf_path: str) -> str:
             f"[PDF] {os.path.basename(pdf_path)} | Scanned PDF detected ({total_pages} pages, no text) — using IFRS mode"
         )
 
+    # Scanned PDF detection: ak celý PDF má < 1000 znakov textu, je to naskenovaný dokument.
+    # V takom prípade neorezávaj — pošleme celý PDF do Gemini Vision (model vie čítať obrázky).
+    if total_pages >= 10:
+        all_text = preview_text
+        for i in range(min(10, total_pages), total_pages):
+            all_text += doc[i].get_text("text")
+        if len(all_text.strip()) < 1000:
+            doc.close()
+            logger.info(
+                f"[PDF] {os.path.basename(pdf_path)} | SCANNED PDF ({total_pages} pages, {len(all_text.strip())} chars) "
+                f"— skipping slicing, sending full PDF to Gemini Vision"
+            )
+            return None  # None = nepoužiť sliced verziu, pošli celý PDF
+
     max_pages = _MAX_PAGES_IFRS if is_ifrs else _MAX_PAGES_SK_GAAP
 
     pages_to_extract = []
@@ -215,7 +229,7 @@ def chunk_pdf_by_pages(pdf_path: str, chunk_size: int = 5, overlap: int = 1, max
     return chunks
 
 
-def slice_narrative_pdf(pdf_path: str, max_pages: int = 15) -> str:
+def slice_narrative_pdf(pdf_path: str, max_pages: int = 20) -> str:
     """
     Oreže výročnú správu (VS) na prvých X strán, pretože manažérska správa
     (naratíva) sa zvyčajne nachádza úplne na začiatku. Zvyšok (tabuľky) nepotrebujeme.
@@ -229,6 +243,19 @@ def slice_narrative_pdf(pdf_path: str, max_pages: int = 15) -> str:
     if total_pages <= max_pages:
         doc.close()
         return None # Netreba orezávať
+
+    # Scanned PDF detection: ak PDF má < 1000 znakov textu, je to naskenovaný dokument.
+    # Neorezávaj — pošleme celý PDF do Gemini Vision (model vie čítať obrázky).
+    all_text = ""
+    for i in range(total_pages):
+        all_text += doc[i].get_text("text")
+    if len(all_text.strip()) < 1000:
+        doc.close()
+        logger.info(
+            f"[PDF VS] {os.path.basename(pdf_path)} | SCANNED PDF ({total_pages} pages, {len(all_text.strip())} chars) "
+            f"— skipping slicing, sending full PDF to Gemini Vision"
+        )
+        return None
 
     new_pdf_path = pdf_path.replace(".pdf", "_sliced_vs.pdf")
     new_doc = fitz.open()
@@ -294,7 +321,13 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
         r"(?i)"
         r"(spriaznen|sprevoden|prepojen[áé]\s+osob|related\s+part"
         r"|podsúvah|off[\s-]?balance|ručen|guarantee|kontingent"
-        r"|contingent|súdn\w+\s+spor|litigation|legal\s+proceed)"
+        r"|contingent|súdn\w+\s+spor|litigation|legal\s+proceed"
+        r"|sankc|pokut|porušen|daňov[áé]\s+kontrol|tax\s+audit"
+        r"|insolvenc|reštruktural|bankrot|likvidác"
+        r"|zástavn|pledge|collateral|záložn"
+        r"|nedoplat|arrears|tax\s+debt|daňov[ýé]\s+d[lh]"
+        r"|environmental|enviro|emis|CO2|carbon"
+        r"|antikorup|corrupt|bribe|úplat)"
     )
 
     relevant_pages = set()

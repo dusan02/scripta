@@ -47,6 +47,13 @@ class FsDanZPrijmovScraper(FinancnaSpravaBase):
                         dan_val = row_data[9] if len(row_data) > 9 else ""
                         strata_val = row_data[10] if len(row_data) > 10 else ""
 
+                        def format_eur(val: str) -> str:
+                            try:
+                                f_val = float(val.replace(',', '.').replace(' ', ''))
+                                return f"{f_val:,.2f}".replace(',', ' ')
+                            except ValueError:
+                                return val
+
                         parts = []
                         if name_val:
                             parts.append(f"Názov: {name_val}")
@@ -57,9 +64,9 @@ class FsDanZPrijmovScraper(FinancnaSpravaBase):
                         if from_val and to_val:
                             parts.append(f"Obdobie: {from_val} — {to_val}")
                         if dan_val:
-                            parts.append(f"Vyrubená daň: {dan_val} EUR")
+                            parts.append(f"Vyrubená daň: {format_eur(dan_val)} EUR")
                         if strata_val:
-                            parts.append(f"Daňová strata: {strata_val} EUR")
+                            parts.append(f"Daňová strata: {format_eur(strata_val)} EUR")
 
                         if parts:
                             info.append("\n".join(parts))

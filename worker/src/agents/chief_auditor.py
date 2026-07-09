@@ -1,11 +1,9 @@
-import os
 import logging
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 from google.genai import types
 
 from src.config import settings
-from src.pdf_ingestion import extract_relevant_pdf_chunks
 from .shared import _get_gemini_client, _log_tokens
 
 logger = logging.getLogger(__name__)
@@ -27,7 +25,7 @@ class AuditVerdict(BaseModel):
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
     llm_analysis_status: Literal["LLM_ANALYZED", "FALLBACK_ALGORITHMIC"] = Field(default="LLM_ANALYZED", description="Status analýzy: LLM_ANALYZED = Chief Auditor vygeneroval posudok, FALLBACK_ALGORITHMIC = LLM zlyhal, použité deterministické skóre.")
 
-CHIEF_AUDITOR_PROMPT = """Si Chief Risk Officer & Head of Forensics @ Verifa.sk. Tvojou úlohou je prijať extrahované dáta (od Extraction Engine) a zistenia (od Forensic, Risk a Legal agentov) a syntetizovať ich do definitívneho verdiktu. Nevyťahuješ hrubé dáta, ale vykonávaš definitívne vyhodnotenie integrity a celkového rizika úpadku či podvodov spoločnosti na základe podkladov od svojho tímu a priamo na základe priložených PDF výpisov o verejných záväzkoch (Dlhy, Exekúcie).
+CHIEF_AUDITOR_PROMPT = """Si Chief Risk Officer & Head of Forensics @ Verifa.sk. Tvojou úlohou je prijať extrahované dáta (od Extraction Engine) a zistenia (od Forensic, Risk a Legal agentov) a syntetizovať ich do definitívneho verdiktu. Nevyťahuješ hrubé dáta, ale vykonávaš definitívne vyhodnotenie integrity a celkového rizika úpadku či podvodov spoločnosti na základe podkladov od svojho tímu a na základe štruktúrovaných CompanyEvents z PDF Reader Agent (súdne rozhodnutia, insolvencie, exekúcie, daňové nedoplatky, poisťovne, verejné zmluvy).
 
 **NOVÝ 5-PILIEROVÝ SCORECARD MODEL:**
 Algoritmické skóre (algorithmic_prescore) bolo vypočítané pomocou 5-pilierového modelu:
@@ -41,8 +39,8 @@ Podrobný rozpis skóre (scorecard_breakdown) a historické dáta nájdeš v pri
 
 **Dôležité inštrukcie pre hodnotenie:**
 1. `algorithmic_prescore` je výsledok deterministického 5-pilierového modelu. Tvojou úlohou je toto skóre **potvrdiť alebo upraviť o max ±10 bodov** na základe tvojho forenzného úsudku z naratívnych, právnych dát a PDF súborov.
-2. **PDF DÁTA:** Keďže algoritmus nevidí do priložených PDF súborov s dlhmi, pri objavení aktívnych exekúcií alebo chronických dlhov voči štátu uprav skóre smerom nadol v rámci limitu ±10 bodov.
-   - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej algoritmus v Pilieri 1 a 5 odrátal body), znova ich neodpočítavaj z PDF súborov, aby nedošlo k dvojitej penalizácii.
+2. **COMPANY EVENTS:** V `companyEvents` nájdeš štruktúrované udalosti z PDF Reader Agent — súdne rozhodnutia, insolvencie, exekúcie, daňové nedoplatky, poisťovne, verejné zmluvy. Pri objavení aktívnych exekúcií, chronických dlhov voči štátu alebo nepriaznivých súdnych rozhodnutí uprav skóre smerom nadol v rámci limitu ±10 bodov.
+   - *Pozor:* Ak je v `vestnikEvents` už evidovaná exekúcia alebo konkurz (z ktorej algoritmus v Pilieri 1 a 5 odrátal body), znova ich neodpočítavaj z `companyEvents`, aby nedošlo k dvojitej penalizácii.
 3. Ak nájdeš exekúciu alebo vážny dlh voči štátu, automaticky označ stav spoločnosti za 'KRITICKY RIZIKOVÝ' v poli `final_verdict` bez ohľadu na to, aké vysoké bolo pôvodné skóre. Prísne sa ale vyhni akýmkoľvek radám o tom, či s firmou obchodovať alebo nie.
 4. Ak spoločnosť nemá finančné výkazy alebo je novo založená, niektoré piliere budú mať neutrálnu hodnotu (N/A). Hodnoť primerane (okeele 50).
 5. Zlaté kliétky (Riziko tunelovania): Ak vidíš rast tržieb, ale výrazný pokles hotovosti a rast záväzkov voči prepojeným osobám, uprav skóre smerom nadol v rámci svojho limitu. POZOR: Pri medzinárodných korporáciách (skupiny ako Hyundai, Volkswagen, Siemens atď.) sú transakcie so spriaznenými osobami ŠTANDARDNÝ vnútro-skupinový tok (transfer pricing, zdieľané služby). Nepoužívaj termín "riziko tunelovania" pre takéto bežné operácie. Namiesto toho použi neutrálnejší opis: "vysoká miera transakcií so spriaznenými osobami". Termín "tunelovanie" rezervuj len pre prípady, kde je jasný dôkaz neštandardných cenových podmienok alebo odtoku prostriedkov bez hospodárskeho opodstatnenia.
@@ -79,9 +77,10 @@ PROCES HODNOTENIA A SYNTÉZY:
    h) AUDIT vs BEZ AUDITU: "Firma nemá audit, ALE vykazuje vysoké tržby a zisk. Bez nezávislého overenia nie je možné potvrdiť vernosť týchto čísel — dôveryhodnosť závierky je obmedzená."
 
    Tieto vzory nie sú vyčerpávajúce — aktívne hľadaj AJ ďalšie rozpory v konkrétnych dátach firmy. Čím viac krížových súvislostí nájdeš, tým vyššia kvalita posudku.
-2. ANALÝZA VEREJNÝCH ZÁVÄZKOV A EXEKÚCIÍ (Z PDF súborov):
-   - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu s aktuálnou hotovosťou.
+2. ANALÝZA VEREJNÝCH ZÁVÄZKOV, EXEKÚCIÍ A SÚDNYCH ROZHODNUTÍ (Z companyEvents):
+   - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu (z companyEvents s eventType=POISTOVNA_DLUH, DAN_NEDOPLATOK) s aktuálnou hotovosťou.
    - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti.
+   - Súdne spory: Z companyEvents s eventType=SUDNE_ROZHODNUTIE zhodnoť ich dopad. Ak firma čelí významným sankciám, platobným rozkazom alebo prehrala závažný spor, zohľadni to ako finančné a právne riziko.
    - Urči `debt_exposure_rating` (0-10), kde 0 = žiadne dlhy, 10 = katastrofálna dlhová pasca.
 3. VÝPOČET FORENŽNÉHO ADJUSTMENTU (informácia pre užívateľa):
    - V poli `verifa_score` vrátiš PRESNE hodnotu `algorithmic_prescore` — bez akejkoľvek zmeny.
@@ -116,24 +115,14 @@ PRAVIDLÁ PRE KVALITU TEXTU:
 
 async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: str = settings.model_verdict) -> AuditVerdict:
     """
-    Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami a textom extrahovaným z PDF súborov registrov.
+    Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami.
+    CompanyEvents z PDF Reader Agent sú už v data_json (z DB).
+    debt_pdfs parameter sa už nepoužíva (zostáva pre backward compatibility).
     """
     client = _get_gemini_client()
 
-    # Príprava obsahu - začneme JSON dátami
+    # Príprava obsahu — len JSON dáta (companyEvents už zahrnuté v data_json z DB)
     contents = [data_json]
-
-    # Lokálne extrahujeme RELEVANTNÉ časti z PDF súborov (keyword-based chunking).
-    # Namiesto celého textu (môže byť 200K+ tokenov pre veľké firmy) extrahujeme
-    # len riadky s forenznými kľúčovými slovami + kontext — typicky ~5K tokenov na PDF.
-    for pdf_path in debt_pdfs:
-        try:
-            pdf_text = extract_relevant_pdf_chunks(pdf_path)
-            if pdf_text.strip():
-                label = os.path.basename(pdf_path)
-                contents.append(f"\n--- PDF: {label} ---\n{pdf_text.strip()}\n")
-        except Exception as e:
-            logger.warning(f"Nepodarilo sa extrahovať text z {pdf_path}: {e}")
 
     config = types.GenerateContentConfig(
         system_instruction=CHIEF_AUDITOR_PROMPT,
@@ -148,4 +137,5 @@ async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: st
         config=config,
     )
     _log_tokens(model, response.usage_metadata, "evaluate_audit_verdict")
-    return AuditVerdict.model_validate_json(response.text)
+    raw = response.text or "{}"
+    return AuditVerdict.model_validate_json(raw)

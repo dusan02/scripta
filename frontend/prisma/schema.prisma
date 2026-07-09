@@ -18,6 +18,7 @@ model User {
   role             UserRole        @default(LAWYER)
   orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
+  rozhodnutiaDateFrom DateTime?    // Rozhodnutia dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
   tokenVersion     Int             @default(0)
   planName           String?         // Názov paušálu (start, freelance, firma, korporat)
@@ -125,6 +126,7 @@ enum SourceType {
   REGISTER_UZ
   CRZ
   UVO
+  ROZHODNUTIA
 }
 
 enum SourceStatus {
@@ -209,7 +211,27 @@ model Company {
   naceText            String?
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
+  companyEvents       CompanyEvent[]
   auditVerdict        AuditVerdict?
+}
+
+model CompanyEvent {
+  id           String   @id @default(uuid())
+  companyIco   String
+  source       String   // ROZHODNUTIA, INSOLVENCY, DISKVALIFIKACIE, DOVERA, VSZP, SP, UNION, FS_DAN, FS_DPH, CRZ, UVO, VESTNIK
+  eventType    String   // SUDNE_ROZHODNUTIE, INSOLVENCIA, DISKVALIFIKACIA, POISTOVNA_DLUH, DAN_NEDOPLATOK, VEREJNA_ZMLUVA, OBSTARAVANIE, VESTNIK_UDALOST
+  severity     String   // CRITICAL, HIGH, MEDIUM, LOW, INFO
+  title        String   // Krátky názov udalosti
+  description  String   @db.Text // Detailný popis
+  eventDate    DateTime? // Dátum udalosti (ak známy z PDF)
+  amount       Float?   // Finančná hodnota (napr. výška nedoplatku, suma zmluvy)
+  metadata     Json?    // Dodatočné dáta (súd, číslo spisu, IČO protistrany...)
+  createdAt    DateTime @default(now())
+
+  company      Company  @relation(fields: [companyIco], references: [ico])
+
+  @@index([companyIco])
+  @@index([severity])
 }
 
 model VestnikEvent {

@@ -117,9 +117,9 @@ def generate_pl_infographic(stmt) -> str:
     fig = go.Figure(data=[go.Sankey(
         arrangement="snap",
         node=dict(
-            pad=15,
-            thickness=20,
-            line=dict(color="white", width=0),
+            pad=25,
+            thickness=30,
+            line=dict(color="white", width=1),
             label=labels,
             color=colors,
             x=node_x,
@@ -128,8 +128,8 @@ def generate_pl_infographic(stmt) -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font_size=18,
-        margin=dict(l=10, r=10, t=10, b=10),
+        font=dict(size=14, family='Inter, sans-serif', color='#0f172a'),
+        margin=dict(l=20, r=20, t=20, b=20),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -198,17 +198,17 @@ def generate_cashflow_waterfall(stmt) -> str:
 
     fig = go.Figure(data=[go.Sankey(
         node=dict(
-            pad=15,
-            thickness=20,
-            line=dict(color="white", width=0),
+            pad=25,
+            thickness=30,
+            line=dict(color="white", width=1),
             label=labels,
             color=colors,
         ),
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font_size=18,
-        margin=dict(l=10, r=10, t=10, b=10),
+        font=dict(size=14, family='Inter, sans-serif', color='#0f172a'),
+        margin=dict(l=20, r=20, t=20, b=20),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -300,28 +300,28 @@ def generate_balance_sheet_infographic(stmt) -> str:
         "Ostatné pasíva",   # 11
     ]
     colors = [
-        "#22c55e", "#22c55e", "#22c55e", "#22c55e",
-        "#16a34a", "#16a34a",
-        "#3b82f6",
-        "#ef4444", "#10b981",
-        "#dc2626", "#dc2626", "#dc2626",
+        "#34d399", "#34d399", "#34d399", "#34d399",
+        "#10b981", "#0ea5e9",
+        "#1e293b",
+        "#f43f5e", "#10b981",
+        "#e11d48", "#e11d48", "#e11d48",
     ]
 
     # Ľavá strana: položky → Obežný majetok
-    if cash > 0:       source.append(0); target.append(4); value.append(cash);        link_color.append("#d1fae5")
-    if receivables > 0:source.append(1); target.append(4); value.append(receivables); link_color.append("#d1fae5")
-    if inventory > 0:  source.append(2); target.append(4); value.append(inventory);   link_color.append("#d1fae5")
-    if other_current > 0: source.append(3); target.append(4); value.append(other_current); link_color.append("#d1fae5")
+    if cash > 0:       source.append(0); target.append(4); value.append(cash);        link_color.append("rgba(16,185,129,0.25)")
+    if receivables > 0:source.append(1); target.append(4); value.append(receivables); link_color.append("rgba(16,185,129,0.25)")
+    if inventory > 0:  source.append(2); target.append(4); value.append(inventory);   link_color.append("rgba(16,185,129,0.25)")
+    if other_current > 0: source.append(3); target.append(4); value.append(other_current); link_color.append("rgba(16,185,129,0.25)")
 
     # Stred: Obežný + Dlhodobý → Celkové aktíva
-    if current > 0:    source.append(4); target.append(6); value.append(current);     link_color.append("#bbf7d0")
-    if non_current > 0:source.append(5); target.append(6); value.append(non_current); link_color.append("#bbf7d0")
+    if current > 0:    source.append(4); target.append(6); value.append(current);     link_color.append("rgba(16,185,129,0.35)")
+    if non_current > 0:source.append(5); target.append(6); value.append(non_current); link_color.append("rgba(16,185,129,0.35)")
 
     # Pravá strana: Celkové aktíva → Záväzky a iné + VK
     if liab_flow > 0:
         source.append(6); target.append(7); value.append(liab_flow);   link_color.append("#fecaca")
     if equity_flow > 0:
-        source.append(6); target.append(8); value.append(equity_flow); link_color.append("#bbf7d0")
+        source.append(6); target.append(8); value.append(equity_flow); link_color.append("rgba(16,185,129,0.35)")
 
     if short_liab > 0: source.append(7); target.append(9);  value.append(short_liab); link_color.append("#fca5a5")
     if long_liab > 0:  source.append(7); target.append(10); value.append(long_liab);  link_color.append("#fca5a5")
@@ -337,7 +337,7 @@ def generate_balance_sheet_infographic(stmt) -> str:
         node=dict(
             pad=20,
             thickness=22,
-            line=dict(color="white", width=0),
+            line=dict(color="white", width=1),
             label=labels,
             color=colors,
             x=node_x,
@@ -346,7 +346,7 @@ def generate_balance_sheet_infographic(stmt) -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font_size=18,
+        font=dict(size=14, family='Inter, sans-serif', color='#0f172a'),
         margin=dict(l=15, r=15, t=20, b=45),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -365,10 +365,20 @@ def generate_balance_sheet_infographic(stmt) -> str:
 
 # ─── Fallback Matplotlib charts ────────────────────────────────────────────────
 
-def _generate_pl_waterfall(stmt) -> str:
-    """Proper bridge/waterfall P&L chart s červenými nákladovými barmi."""
-    if not stmt:
+def _to_base64(fig, width, height):
+    try:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            img_bytes = fig.to_image(format="png", width=width, height=height, scale=2, engine="kaleido")
+        return base64.b64encode(img_bytes).decode('utf-8')
+    except Exception as e:
+        logger.warning(f"Plotly fallback chart failed: {e}")
         return ""
+
+def _generate_pl_waterfall(stmt) -> str:
+    """Proper bridge/waterfall P&L chart using Plotly."""
+    if not stmt: return ""
     revenue = getattr(stmt, 'mainActivityRevenue', None)
     gross = getattr(stmt, 'grossProfit', None)
     net = getattr(stmt, 'netProfitLoss', None)
@@ -376,211 +386,102 @@ def _generate_pl_waterfall(stmt) -> str:
     depreciation = getattr(stmt, 'depreciation', None)
     interest = getattr(stmt, 'interestExpense', None)
 
-    if revenue is None or revenue == 0:
-        return ""
+    if revenue is None or revenue == 0: return ""
 
-    def _fmt(v):
-        """Formátuje číslo na skrátenú formu."""
-        if abs(v) >= 1e9: return f'{v/1e9:.2f}B'
-        if abs(v) >= 1e6: return f'{v/1e6:.1f}M'
-        if abs(v) >= 1e3: return f'{v/1e3:.0f}k'
-        return f'{v:.0f}'
-
-    # Zostav kroky waterfall grafu
-    # Každý krok: (label, delta, typ)
-    # typ: 'total'    — plný bar od 0 (modrý/zelený/červený)
-    #      'decrease' — klesajúci pruh (červený)
-    #      'increase' — stúpajúci pruh (zelený)
     steps = []
-    steps.append(('Tržby', revenue, 'total_blue'))
-
+    steps.append({'name': 'Tržby', 'measure': 'absolute', 'y': revenue})
     if gross is not None:
         cogs = revenue - gross
         if cogs > 0:
-            steps.append(('Priame nákl.\n(COGS)', -cogs, 'decrease'))
-        steps.append(('Hrubá\nmarža', gross, 'subtotal'))
+            steps.append({'name': 'COGS', 'measure': 'relative', 'y': -cogs})
+        steps.append({'name': 'Hrubá<br>marža', 'measure': 'total'})
 
     if staff is not None and staff != 0:
-        steps.append(('Osobné\nnáklady', -abs(staff), 'decrease'))
+        steps.append({'name': 'Osobné<br>náklady', 'measure': 'relative', 'y': -abs(staff)})
     if depreciation is not None and depreciation != 0:
-        steps.append(('Odpisy', -abs(depreciation), 'decrease'))
+        steps.append({'name': 'Odpisy', 'measure': 'relative', 'y': -abs(depreciation)})
     if interest is not None and interest != 0:
-        steps.append(('Úroky', -abs(interest), 'decrease'))
+        steps.append({'name': 'Úroky', 'measure': 'relative', 'y': -abs(interest)})
     if net is not None:
-        steps.append(('Čistý\nzisk', net, 'total_net'))
+        steps.append({'name': 'Čistý<br>zisk', 'measure': 'total'})
 
-    if len(steps) < 3:
-        return ""
+    if len(steps) < 3: return ""
 
-    # Vypočítaj pozície barov (klasický bridge chart)
-    bars = []   # (x, bottom, height, color, label, value_label)
-    running = 0.0
-    for i, (label, delta, typ) in enumerate(steps):
-        if typ == 'total_blue':
-            bars.append((i, 0, delta, '#1e40af', label, _fmt(delta)))
-            running = delta
-        elif typ == 'subtotal':
-            bars.append((i, 0, delta, '#3b82f6', label, _fmt(delta)))
-            running = delta
-        elif typ == 'total_net':
-            color = '#10b981' if delta >= 0 else '#ef4444'
-            bars.append((i, 0, delta, color, label, _fmt(delta)))
-            running = delta
-        elif typ == 'decrease':
-            # Červená plocha od (running + delta) po running
-            bottom = running + delta
-            height = abs(delta)
-            bars.append((i, bottom, height, '#ef4444', label, _fmt(delta)))
-            running += delta
-        elif typ == 'increase':
-            bars.append((i, running, delta, '#10b981', label, _fmt(delta)))
-            running += delta
-
-    # Kresli
-    fig, ax = plt.subplots(figsize=(max(5.0, len(bars) * 0.95), 3.5))
-    fig.patch.set_facecolor('white')
-    ax.set_facecolor('white')
-
-    max_val = max(b[1] + b[2] for b in bars)
-    label_pad = max_val * 0.015
-
-    for (x, bottom, height, color, label, val_label) in bars:
-        # Bar
-        ax.bar(x, height, bottom=bottom, color=color, width=0.6,
-               edgecolor='white', linewidth=0.5, zorder=3)
-        # Hodnota nad/pod barom
-        top = bottom + height
-        va = 'bottom' if top >= 0 else 'top'
-        y_text = top + label_pad if top >= 0 else top - label_pad
-        ax.text(x, y_text, val_label, ha='center', va=va,
-                fontsize=8, color='#374151', fontweight='bold')
-        # Spojovacia čiara (tenká šedá) pre bridge efekt
-        if x > 0 and typ not in ('total_blue', 'total_net'):
-            pass  # Matplotlib nemá natívny bridge connector, skip
-
-    # X os
-    ax.set_xticks(range(len(bars)))
-    ax.set_xticklabels([b[4] for b in bars], fontsize=9, color='#374151',
-                        multialignment='center')
-    ax.tick_params(axis='y', labelsize=8, colors='#94a3b8')
-
-    # Mriežka a os
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(
-        lambda x, _: f'{x/1e9:.1f}B' if abs(x) >= 1e9
-                    else (f'{x/1e6:.0f}M' if abs(x) >= 1e6 else f'{x/1e3:.0f}k')
+    fig = go.Figure(go.Waterfall(
+        orientation="v",
+        measure=[s['measure'] for s in steps],
+        x=[s['name'] for s in steps],
+        y=[s.get('y', 0) for s in steps],
+        connector={"line": {"color": "rgba(226,232,240,1)", "width": 1}},
+        decreasing={"marker": {"color": "#ef4444"}},
+        increasing={"marker": {"color": "#10b981"}},
+        totals={"marker": {"color": "#1e40af"}},
+        text=[f"{s.get('y', 0):.0f}" if s['measure'] != 'total' else "" for s in steps],
+        textposition="outside",
+        textfont=dict(size=12, color='#475569')
     ))
-    ax.grid(axis='y', alpha=0.15, color='#e2e8f0', zorder=0)
-    ax.axhline(y=0, color='#94a3b8', linewidth=0.8, zorder=2)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#e2e8f0')
-    ax.spines['bottom'].set_color('#e2e8f0')
-    ax.set_ylim(bottom=min(0, min(b[1] for b in bars)) - label_pad * 3)
 
-    plt.tight_layout(pad=0.4)
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode('utf-8')
+    fig.update_layout(
+        title=dict(text='Výkaz ziskov a strát', font=dict(size=14, color='#0f172a')),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=40, r=20, t=50, b=30),
+        xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
+        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b'))
+    )
+    return _to_base64(fig, 800, 350)
 
 
 def _generate_cashflow_waterfall(stmt) -> str:
-    """Proper bridge/waterfall Cash Flow chart."""
-    if not stmt:
-        return ""
+    """Proper bridge/waterfall Cash Flow chart using Plotly."""
+    if not stmt: return ""
     net_profit = getattr(stmt, 'netProfitLoss', None)
     depreciation = getattr(stmt, 'depreciation', None)
     ocf = getattr(stmt, 'operatingCashFlow', None)
-
-    if net_profit is None and ocf is None:
-        return ""
-
-    def _fmt(v):
-        if abs(v) >= 1e9: return f'{v/1e9:.2f}B'
-        if abs(v) >= 1e6: return f'{v/1e6:.1f}M'
-        if abs(v) >= 1e3: return f'{v/1e3:.0f}k'
-        return f'{v:.0f}'
+    if net_profit is None and ocf is None: return ""
 
     steps = []
     if net_profit is not None:
-        steps.append(('Čistý\nzisk', net_profit, 'total_net'))
-    
+        steps.append({'name': 'Čistý<br>zisk', 'measure': 'absolute', 'y': net_profit})
     if depreciation is not None and depreciation != 0:
-        steps.append(('Odpisy', abs(depreciation), 'increase'))
-    
+        steps.append({'name': 'Odpisy', 'measure': 'relative', 'y': abs(depreciation)})
     if net_profit is not None and depreciation is not None and ocf is not None:
         wc_change = ocf - (net_profit + abs(depreciation))
         if wc_change != 0:
-            steps.append(('Zmeny\nv PK', wc_change, 'increase' if wc_change >= 0 else 'decrease'))
-
+            steps.append({'name': 'Zmeny<br>v PK', 'measure': 'relative', 'y': wc_change})
     if ocf is not None:
-        steps.append(('Prevádz.\nCF', ocf, 'total_ocf'))
+        steps.append({'name': 'Prevádz.<br>CF', 'measure': 'total'})
 
-    if len(steps) < 2:
-        return ""
+    if len(steps) < 2: return ""
 
-    bars = []
-    running = 0.0
-    for i, (label, delta, typ) in enumerate(steps):
-        if typ == 'total_net':
-            color = '#10b981' if delta >= 0 else '#ef4444'
-            bars.append((i, 0, delta, color, label, _fmt(delta)))
-            running = delta
-        elif typ == 'total_ocf':
-            color = '#10b981' if delta >= 0 else '#ef4444'
-            bars.append((i, 0, delta, color, label, _fmt(delta)))
-            running = delta
-        elif typ == 'decrease':
-            bottom = running + delta
-            height = abs(delta)
-            bars.append((i, bottom, height, '#ef4444', label, _fmt(delta)))
-            running += delta
-        elif typ == 'increase':
-            bars.append((i, running, delta, '#10b981', label, _fmt(delta)))
-            running += delta
-
-    fig, ax = plt.subplots(figsize=(max(4.0, len(bars) * 0.95), 3.5))
-    fig.patch.set_facecolor('white')
-    ax.set_facecolor('white')
-
-    max_val = max(b[1] + b[2] for b in bars)
-    label_pad = max_val * 0.015
-
-    for (x, bottom, height, color, label, val_label) in bars:
-        ax.bar(x, height, bottom=bottom, color=color, width=0.6,
-               edgecolor='white', linewidth=0.5, zorder=3)
-        top = bottom + height
-        va = 'bottom' if top >= 0 else 'top'
-        y_text = top + label_pad if top >= 0 else top - label_pad
-        ax.text(x, y_text, val_label, ha='center', va=va,
-                fontsize=8, color='#374151', fontweight='bold')
-
-    ax.set_xticks(range(len(bars)))
-    ax.set_xticklabels([b[4] for b in bars], fontsize=9, color='#374151', multialignment='center')
-    ax.tick_params(axis='y', labelsize=8, colors='#94a3b8')
-
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(
-        lambda x, _: f'{x/1e9:.1f}B' if abs(x) >= 1e9
-                    else (f'{x/1e6:.0f}M' if abs(x) >= 1e6 else f'{x/1e3:.0f}k')
+    fig = go.Figure(go.Waterfall(
+        orientation="v",
+        measure=[s['measure'] for s in steps],
+        x=[s['name'] for s in steps],
+        y=[s.get('y', 0) for s in steps],
+        connector={"line": {"color": "rgba(226,232,240,1)", "width": 1}},
+        decreasing={"marker": {"color": "#ef4444"}},
+        increasing={"marker": {"color": "#10b981"}},
+        totals={"marker": {"color": "#10b981" if ocf and ocf >= 0 else "#ef4444"}},
+        text=[f"{s.get('y', 0):.0f}" if s['measure'] != 'total' else "" for s in steps],
+        textposition="outside",
+        textfont=dict(size=12, color='#475569')
     ))
-    ax.grid(axis='y', alpha=0.15, color='#e2e8f0', zorder=0)
-    ax.axhline(y=0, color='#94a3b8', linewidth=0.8, zorder=2)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color('#e2e8f0')
-    ax.spines['bottom'].set_color('#e2e8f0')
-    ax.set_ylim(bottom=min(0, min(b[1] for b in bars)) - label_pad * 3)
 
-    plt.tight_layout(pad=0.4)
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode('utf-8')
+    fig.update_layout(
+        title=dict(text='Prevádzkový Cash Flow', font=dict(size=14, color='#0f172a')),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=40, r=20, t=50, b=30),
+        xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
+        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b'))
+    )
+    return _to_base64(fig, 800, 350)
 
 
 def _generate_balance_sheet_waterfall(stmt) -> str:
-    if not stmt:
-        return ""
+    """Proper balance sheet composition chart using Plotly."""
+    if not stmt: return ""
     current = getattr(stmt, 'currentAssets', None) or 0
     inventory = getattr(stmt, 'inventory', None) or 0
     cash = getattr(stmt, 'cashAndEquivalents', None) or 0
@@ -590,86 +491,47 @@ def _generate_balance_sheet_waterfall(stmt) -> str:
     short_liab = getattr(stmt, 'shortTermLiabilities', None) or 0
     long_liab = getattr(stmt, 'longTermLiabilities', None) or 0
 
-    if total_assets == 0:
-        return ""
+    if total_assets <= 0: return ""
     non_current = total_assets - current
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 2.2))
-    fig.patch.set_facecolor('white')
+    fig = go.Figure()
 
-    asset_parts, asset_labels, asset_colors = [], [], []
-    if non_current > 0:
-        asset_parts.append(non_current)
-        asset_labels.append(f'Dlhodobý majetok {non_current/total_assets*100:.0f}%')
-        asset_colors.append('#1e40af')
-    if inventory > 0:
-        asset_parts.append(inventory)
-        asset_labels.append(f'Zásoby {inventory/total_assets*100:.0f}%')
-        asset_colors.append('#3b82f6')
-    if receivables > 0:
-        asset_parts.append(receivables)
-        asset_labels.append(f'Pohľadávky {receivables/total_assets*100:.0f}%')
-        asset_colors.append('#60a5fa')
-    if cash > 0:
-        asset_parts.append(cash)
-        asset_labels.append(f'Hotovosť {cash/total_assets*100:.0f}%')
-        asset_colors.append('#93c5fd')
+    # Assets Bar
+    labels_a = ['Dlhodobý majetok', 'Zásoby', 'Pohľadávky', 'Hotovosť']
+    values_a = [non_current, inventory, receivables, cash]
+    colors_a = ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd']
+    
+    for l, v, c in zip(labels_a, values_a, colors_a):
+        if v > 0:
+            fig.add_trace(go.Bar(
+                y=['Aktíva'], x=[v], name=f"{l} ({v/total_assets*100:.0f}%)", orientation='h', marker_color=c,
+                text=f"{v/total_assets*100:.0f}%", textposition='inside', insidetextanchor='middle'
+            ))
 
-    if asset_parts:
-        ax1.barh(0, asset_parts[0], color=asset_colors[0], height=0.5, label=asset_labels[0])
-        left = asset_parts[0]
-        for i in range(1, len(asset_parts)):
-            ax1.barh(0, asset_parts[i], left=left, color=asset_colors[i], height=0.5, label=asset_labels[i])
-            left += asset_parts[i]
-
-    ax1.set_xlim(0, total_assets); ax1.set_yticks([])
-    ax1.set_title('Aktíva', fontsize=9, fontweight='bold', color='#475569', loc='left', pad=4)
-    ax1.tick_params(axis='x', labelsize=8, colors='#94a3b8')
-    ax1.xaxis.set_major_formatter(plt.FuncFormatter(
-        lambda x, _: f'{x/1e9:.1f}B' if abs(x) >= 1e9 else (f'{x/1e6:.0f}M' if abs(x) >= 1e6 else f'{x/1e3:.0f}k')
-    ))
-    ax1.spines['top'].set_visible(False); ax1.spines['right'].set_visible(False)
-    ax1.spines['left'].set_visible(False); ax1.spines['bottom'].set_color('#e2e8f0')
-    ax1.legend(fontsize=7, loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=4, frameon=False)
-
+    # Capital Bar
     total_cap = equity + short_liab + long_liab
-    if total_cap == 0:
-        total_cap = total_assets
+    if total_cap == 0: total_cap = total_assets
 
-    cap_parts, cap_labels, cap_colors = [], [], []
-    if equity != 0:
-        pct = abs(equity) / abs(total_cap) * 100
-        cap_parts.append(abs(equity))
-        cap_labels.append(f'Vlastné imanie {"–" if equity < 0 else ""}{pct:.0f}%')
-        cap_colors.append('#10b981' if equity > 0 else '#ef4444')
-    if short_liab > 0:
-        cap_parts.append(short_liab)
-        cap_labels.append(f'Krátkodobé záväzky {short_liab/abs(total_cap)*100:.0f}%')
-        cap_colors.append('#f59e0b')
-    if long_liab > 0:
-        cap_parts.append(long_liab)
-        cap_labels.append(f'Dlhodobé záväzky {long_liab/abs(total_cap)*100:.0f}%')
-        cap_colors.append('#ef4444')
+    labels_c = ['Vlastné imanie', 'Krátkodobé záv.', 'Dlhodobé záv.']
+    values_c = [abs(equity), short_liab, long_liab]
+    colors_c = ['#10b981' if equity > 0 else '#ef4444', '#f59e0b', '#ef4444']
+    
+    for l, v, c in zip(labels_c, values_c, colors_c):
+        if v > 0:
+            name = f"{l} ({v/abs(total_cap)*100:.0f}%)"
+            fig.add_trace(go.Bar(
+                y=['Pasíva'], x=[v], name=name, orientation='h', marker_color=c,
+                text=f"{v/abs(total_cap)*100:.0f}%", textposition='inside', insidetextanchor='middle'
+            ))
 
-    if cap_parts:
-        ax2.barh(0, cap_parts[0], color=cap_colors[0], height=0.5, label=cap_labels[0])
-        left = cap_parts[0]
-        for i in range(1, len(cap_parts)):
-            ax2.barh(0, cap_parts[i], left=left, color=cap_colors[i], height=0.5, label=cap_labels[i])
-            left += cap_parts[i]
-
-    ax2.set_xlim(0, abs(total_cap)); ax2.set_yticks([])
-    ax2.set_title('Kapitál a záväzky', fontsize=9, fontweight='bold', color='#475569', loc='left', pad=4)
-    ax2.tick_params(axis='x', labelsize=8, colors='#94a3b8')
-    ax2.xaxis.set_major_formatter(plt.FuncFormatter(
-        lambda x, _: f'{x/1e9:.1f}B' if abs(x) >= 1e9 else (f'{x/1e6:.0f}M' if abs(x) >= 1e6 else f'{x/1e3:.0f}k')
-    ))
-    ax2.spines['top'].set_visible(False); ax2.spines['right'].set_visible(False)
-    ax2.spines['left'].set_visible(False); ax2.spines['bottom'].set_color('#e2e8f0')
-    ax2.legend(fontsize=7, loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=3, frameon=False)
-
-    plt.tight_layout(pad=0.3)
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode('utf-8')
+    fig.update_layout(
+        barmode='stack',
+        title=dict(text='Štruktúra majetku a zdrojov', font=dict(size=14, color='#0f172a')),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=80, r=20, t=50, b=100),
+        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=10, color='#475569')),
+        xaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
+        yaxis=dict(showgrid=False, tickfont=dict(size=12, color='#0f172a', weight='bold'))
+    )
+    return _to_base64(fig, 800, 300)

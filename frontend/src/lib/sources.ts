@@ -10,21 +10,20 @@ export interface SourceInfo {
 }
 
 export const SOURCE_CATEGORIES: { id: string; label: string }[] = [
-  { id: "basic",    label: "Základné firemné a právne registre" },
-  { id: "risk",     label: "Insolvencia, exekúcie a dlhy" },
   { id: "fs",       label: "Finančná správa a DPH" },
+  { id: "risk",     label: "Insolvencia, exekúcie a dlhy" },
+  { id: "basic",    label: "Základné firemné a právne registre" },
   { id: "court",    label: "Súdy a sankcie" },
   { id: "fin",      label: "Financie a štátne zákazky" },
   { id: "asset",    label: "Majetok a práva" },
 ];
 
 export const SOURCES: SourceInfo[] = [
-  // ── 1. Základné firemné a právne registre (5) ──
+  // ── 1. Základné firemné a právne registre (4) ──
   { id: "ORSR",            name: "Obchodný register SR",   short: "ORSR", description: "Obchodný register SR — vyhľadanie firmy podľa IČO", label: "ORSR",             sublabel: "Obchodný register",          category: "basic", enabled: true },
   { id: "ZRSR",            name: "Živnostenský register SR", short: "ŽRSR", description: "Živnostenský register SR — živnostenské oprávnenia", label: "ŽRSR",         sublabel: "Živnostenský register",      category: "basic", enabled: true },
   { id: "RPO",             name: "Register práv. osôb",     short: "RPO",  description: "Register právnických osôb, podnikateľov a orgánov verejnej moci — Štatistický úrad SR", label: "RPO",          sublabel: "Register práv. osôb",        category: "basic", enabled: true },
   { id: "RPVS",            name: "Register partnerov verejného sektora", short: "RPVS", description: "RPVS — partneri verejného sektora podľa zákona o VFPO", label: "RPVS", sublabel: "Register part. ver. sektora", category: "basic", enabled: true },
-  { id: "OBCHODNY_VESTNIK", name: "Obchodný vestník",       short: "OV",   description: "Obchodný vestník SR — zverejňovanie právnych skutočností", label: "Obchodný vestník", sublabel: "Obchodný vestník SR",     category: "basic", enabled: true },
 
   // ── 2. Insolvencia, exekúcie a dlhy (7) ──
   { id: "INSOLVENCY",      name: "Register úpadcov",        short: "INS",  description: "Insolvenčný register — konania o úpadku a reštrukturalizácii", label: "Register úpadcov", sublabel: "Insolvenčný register",   category: "risk",  enabled: true },
@@ -35,9 +34,11 @@ export const SOURCES: SourceInfo[] = [
   { id: "DOVERA_DLZNICI",  name: "Dôvera",                  short: "Dôvera", description: "Zoznam dlžníkov na zdravotnom poistení — Dôvera zdravotná poisťovňa", label: "Dôvera", sublabel: "Dlžníci na zdravotnom poistení (Dôvera)", category: "risk", enabled: true },
   { id: "UNION_DLZNICI",   name: "UNION",                   short: "UNION", description: "Zoznam dlžníkov na zdravotnom poistení — UNION zdravotná poisťovňa", label: "UNION", sublabel: "Dlžníci na zdravotnom poistení (UNION)", category: "risk", enabled: true },
 
-  // ── 3. Súdy a sankcie (2) ──
+  // ── 3. Súdy a sankcie (4) ──
   { id: "CRRS",            name: "Rozhodnutia súdov",       short: "CRRS", description: "Centrálny register rozhodnutí súdov — judikatúra a rozhodnutia", label: "Rozhodnutia súdov", sublabel: "Register rozhodnutí (CRRS)", category: "court", enabled: false },
   { id: "DISKVALIFIKACIE",  name: "Register diskvalifikácií", short: "DIS", description: "Zoznam osôb so zákazom výkonu funkcie štatutára — porovnanie s osobami z ORSR", label: "Diskvalifikácie", sublabel: "Zákaz výkonu funkcie štatutára", category: "court", enabled: true },
+  { id: "ROZHODNUTIA",     name: "Rozhodnutia",             short: "ROZH", description: "Register rozhodnutí súdov — rozsudky a uznesenia", label: "Rozhodnutia", sublabel: "Súdy a rozhodnutia", category: "court", enabled: true },
+  { id: "OBCHODNY_VESTNIK", name: "Obchodný vestník",       short: "OV",   description: "Obchodný vestník SR — zverejňovanie právnych skutočností", label: "Obchodný vestník", sublabel: "Obchodný vestník SR",     category: "court", enabled: true },
 
   // ── 4. Majetok a práva (3) ──
   { id: "NCRZP",           name: "Záložné práva",           short: "NCRZP", description: "Notársky centrálny register záložných práv", label: "Záložné práva",  sublabel: "Register záložných práv (NCRZP)", category: "asset", enabled: true },

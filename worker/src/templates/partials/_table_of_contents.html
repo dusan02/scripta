@@ -208,7 +208,7 @@
             </tr>
                 {% for source in cat_sources %}
                 {% if source.source_type != "REGISTER_UZ" %}
-                {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ", "FS_DPH_REGISTROVANI"] %}
+                {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ", "FS_DPH_REGISTROVANI", "ROZHODNUTIA"] %}
                 {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
                 
                 {% set status_class = "" %}

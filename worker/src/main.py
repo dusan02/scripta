@@ -9,6 +9,7 @@ import shutil
 
 import fitz
 import os
+import httpx
 from arq import create_pool
 from arq.connections import RedisSettings
 from contextlib import asynccontextmanager
@@ -36,7 +37,7 @@ from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 from .cleanup import _cleanup_loop
 from .llm_extractor import reset_token_stats, log_token_summary
-from .pipeline import process_company, run_and_save_audit_verdict
+from .pipeline import process_company, run_and_save_audit_verdict, run_pdf_reader_agent
 from src.log_helpers import set_correlation_id, PhaseTimer, get_correlation_id
 
 setup_logging()
@@ -222,6 +223,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     ico=task.ico,
                     orsr_extract_type=task.orsr_extract_type,
                     crz_date_from=task.crz_date_from,
+                    rozhodnutia_date_from=task.rozhodnutia_date_from,
                     on_source_done=_on_source_done,
                 ),
                 timeout=180,
@@ -265,6 +267,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 ico=task.ico,
                 orsr_extract_type=task.orsr_extract_type,
                 crz_date_from=task.crz_date_from,
+                rozhodnutia_date_from=task.rozhodnutia_date_from,
                 on_source_done=_on_source_done,
             )
 
@@ -284,12 +287,21 @@ async def _execute_report_inner(task: ReportTask) -> None:
         company_name = _extract_company_name(sources, task.target_type)
 
         # Počkáme na dokončenie paralelnej AI Forenznej Pipeline pred kompiláciou
+        # Súčasne spustíme PDF Reader Agent, ktorý číta registry PDF (paralelne s AI pipeline)
         t_ai_wait = time.perf_counter()
+        pdf_reader_task = None
+        if task.target_type == "COMPANY" and task.ico and sources:
+            pdf_reader_task = asyncio.create_task(run_pdf_reader_agent(task.ico, sources))
         if ai_task:
             try:
                 await ai_task
             except Exception as ai_err:
                 _log.error(f"[{_rid}] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
+        if pdf_reader_task:
+            try:
+                await pdf_reader_task
+            except Exception as pr_err:
+                _log.error(f"[{_rid}] PDF Reader Agent zlyhal pre {task.ico}: {pr_err}", exc_info=True)
         t_ai_done = time.perf_counter()
         _ai_ms = int((t_ai_done - t_ai_wait) * 1000)
         await save_phase_duration(task.report_request_id, "ai", _ai_ms)
@@ -317,6 +329,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         if task.target_type == "COMPANY" and task.ico:
             t_auditor_start = time.perf_counter()
             try:
+                await update_report_ai_status(task.report_request_id, "ai.cross_correlation", auditor_s)
                 with PhaseTimer("Chief Auditor"):
                     await run_and_save_audit_verdict(task.ico)
                 # —— Snapshot skóre: prečítame aktuálny AuditVerdict a fixujeme na tento report ——
@@ -348,6 +361,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         # ETA pre kompiláciu: phase-aware z historických dát
         compile_eta = int(hist_compile) if hist_compile else (20 + int(source_count * 1.5))
+        await update_report_ai_status(task.report_request_id, "ai.risk_synthesis", compile_eta + 5)
+        await asyncio.sleep(2)
         await update_report_ai_status(task.report_request_id, "ai.compiling", compile_eta)
 
         compiler = PdfCompiler(settings.results_dir)
@@ -405,6 +420,19 @@ async def _execute_report_inner(task: ReportTask) -> None:
             company_name=company_name,
             verifa_score=verifa_score_snapshot,
         )
+
+        # Send email notification to user via frontend API
+        try:
+            frontend_url = os.environ.get("NEXTAUTH_URL", "http://localhost:3000")
+            worker_secret = os.environ.get("WORKER_SECRET", "")
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.post(
+                    f"{frontend_url}/api/reports/{task.report_request_id}/notify",
+                    headers={"x-worker-secret": worker_secret},
+                )
+        except Exception as notify_err:
+            _log.warning(f"[{_rid}] Email notification failed: {notify_err}")
+
         t_end = time.perf_counter()
         log_token_summary()
         _log.info(

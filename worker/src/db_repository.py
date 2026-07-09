@@ -33,6 +33,60 @@ async def _fetch_nace_from_api(ico: str):
         logger.warning(f"Zlyhal fetch NACE kódu pre {ico}: {e}")
     return None, None
 
+async def save_company_events_to_db(ico: str, events: list) -> None:
+    """Uloží CompanyEvent[] z PDF Reader Agent do databázy."""
+    from prisma import Prisma
+    db = Prisma()
+    await db.connect()
+    try:
+        await db.company.upsert(
+            where={'ico': ico},
+            data={'create': {'ico': ico}, 'update': {}}
+        )
+        # Vymaž staré eventy pre toto IČO (nahradenie pri re-run)
+        await db.companyevent.delete_many(where={'companyIco': ico})
+        for ev in events:
+            event_date = None
+            if ev.event_date:
+                try:
+                    from datetime import datetime
+                    event_date = datetime.strptime(ev.event_date, "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    pass
+            create_data = {
+                'companyIco': ico,
+                'source': ev.source,
+                'eventType': ev.event_type,
+                'severity': ev.severity,
+                'title': ev.title,
+                'description': ev.description,
+                'eventDate': event_date,
+            }
+            if ev.amount is not None:
+                create_data['amount'] = ev.amount
+            if ev.metadata is not None:
+                from prisma import Json
+                create_data['metadata'] = Json(ev.metadata)
+            await db.companyevent.create(data=create_data)
+        logger.info(f"CompanyEvent[] uložené pre IČO={ico}: {len(events)} udalostí")
+    finally:
+        await db.disconnect()
+
+
+async def get_company_events(ico: str) -> list:
+    """Načíta CompanyEvent[] z DB pre dané IČO."""
+    from prisma import Prisma
+    db = Prisma()
+    await db.connect()
+    try:
+        return await db.companyevent.find_many(
+            where={'companyIco': ico},
+            order={'severity': 'asc'},
+        )
+    finally:
+        await db.disconnect()
+
+
 async def save_to_db(data: CompanyFinancialExtraction):
     """
     Uloží extrahované finančné dáta a názor audítora do databázy pomocou Prisma Clienta.
@@ -489,6 +543,7 @@ async def get_company_with_relations(ico: str):
                     }
                 },
                 'vestnikEvents': True,
+                'companyEvents': True,
                 'auditVerdict': True,
             }
         )

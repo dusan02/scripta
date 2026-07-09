@@ -33,6 +33,7 @@ from .sp_dlznici import SpDlzniciScraper
 from .vszp_dlznici import VszpDlzniciScraper
 from .dovera_dlznici import DoveraDlzniciScraper
 from .union_dlznici import UnionDlzniciScraper
+from .rozhodnutia import RozhodnutiaScraper
 from ..models import ScrapedSource
 from src.log_helpers import log_scraper_result, get_correlation_id
 
@@ -76,6 +77,7 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "UVO": UvoScraper,
     "POVERENIA": PovereniaScraper,
     "DISKVALIFIKACIE": DiskvalifikacieScraper,
+    "ROZHODNUTIA": RozhodnutiaScraper,
 }
 
 # Scrapery, ktoré závisia na výsledku iného scraperu (potrebujú company_name).
@@ -103,6 +105,7 @@ async def run_scrapers(
     ico: Optional[str] = None,
     orsr_extract_type: Optional[str] = "CURRENT",
     crz_date_from: Optional[str] = None,
+    rozhodnutia_date_from: Optional[str] = None,
     on_source_done: Optional[Callable[[ScrapedSource], None]] = None,
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
@@ -139,6 +142,7 @@ async def run_scrapers(
                     ico=ico,
                     orsr_extract_type=orsr_extract_type,
                     crz_date_from=crz_date_from,
+                    rozhodnutia_date_from=rozhodnutia_date_from,
                     **extra_kwargs,
                 )
             finally:

@@ -7,6 +7,7 @@ import logging
 import re
 
 from playwright.async_api import Page, Browser, async_playwright, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
+from playwright_stealth import stealth_async
 
 from ..config import settings
 from ..models import ScrapedSource
@@ -69,6 +70,7 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         await context.add_init_script(STEALTH_JS)
 
         page = await context.new_page()
+        await stealth_async(page)
 
         # Block unnecessary resources to speed up page loads (len ak block_images=True).
         # Obrázky blokujeme pri text-only scraperoch; fonty/media vždy (nepotrebné pre PDF).
@@ -131,6 +133,7 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         company_name: Optional[str] = None,
         ic_dph: Optional[str] = None,
         persons: Optional[list] = None,
+        raw_data: Optional[list] = None,
     ) -> ScrapedSource:
         return ScrapedSource(
             source_type=self.source_type,
@@ -142,4 +145,5 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
             company_name=company_name,
             ic_dph=ic_dph,
             persons=persons,
+            raw_data=raw_data,
         )

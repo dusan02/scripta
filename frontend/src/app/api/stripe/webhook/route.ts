@@ -119,12 +119,59 @@ export async function POST(req: NextRequest) {
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        if (subscription.cancel_at_period_end) {
-          const userId = (subscription.metadata as Record<string, string>)?.userId;
-          if (userId) {
+        const userId = (subscription.metadata as Record<string, string>)?.userId;
+        if (userId) {
+          if (subscription.cancel_at_period_end) {
             const periodEnd = subscription.items?.data?.[0]?.current_period_end;
             const endsAt = periodEnd ? new Date(periodEnd * 1000) : new Date();
             await cancelSubscription(userId, endsAt);
+          } else if (subscription.status === "active") {
+            // Reactivated subscription
+            await prisma.user.update({
+              where: { id: userId },
+              data: {
+                subscriptionStatus: "active",
+                subscriptionEndsAt: null,
+              },
+            });
+          } else if (subscription.status === "past_due" || subscription.status === "unpaid") {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { subscriptionStatus: "past_due" },
+            });
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subDetails = invoice.parent?.subscription_details;
+        const subId = subDetails && typeof subDetails.subscription === "string" ? subDetails.subscription : null;
+        if (subId) {
+          const subscription = await stripe.subscriptions.retrieve(subId);
+          const userId = (subscription.metadata as Record<string, string>)?.userId;
+          if (userId) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { subscriptionStatus: "past_due" },
+            });
+          }
+        }
+        break;
+      }
+
+      case "invoice.finalized": {
+        // Ensure Slovak VAT (20%) is applied to the invoice
+        const invoice = event.data.object as Stripe.Invoice;
+        const hasTax = (invoice as unknown as Record<string, unknown>).tax !== undefined && (invoice as unknown as Record<string, unknown>).tax !== null;
+        if (!hasTax) {
+          try {
+            await stripe.invoices.update(invoice.id, {
+              default_tax_rates: [process.env.STRIPE_TAX_RATE_SK || ""],
+            });
+          } catch {
+            // Tax rate might not be configured — skip silently
           }
         }
         break;

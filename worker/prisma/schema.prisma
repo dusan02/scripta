@@ -1,9 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 generator py {
-  provider = "prisma-client-py"
+  provider             = "prisma-client-py"
   enable_experimental_decimal = true
 }
 
@@ -18,16 +19,24 @@ model User {
   email            String          @unique
   name             String?
   passwordHash     String?
+  emailVerified    DateTime?
   role             UserRole        @default(LAWYER)
   orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
+  rozhodnutiaDateFrom DateTime?    // Rozhodnutia dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
   tokenVersion     Int             @default(0)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  reportRequests   ReportRequest[]
-  feedback         Feedback[]
-  wallet           Wallet?
+  planName           String?         // Názov paušálu (start, freelance, firma, korporat)
+  planRenewalDate    DateTime?       // Dátum obnovenia paušálu
+  trialEndsAt        DateTime?       // Koniec skúšobného obdobia (5 zadarmo kreditov na mesiac)
+  subscriptionStatus String?         // active | canceled | past_due | trialing
+  subscriptionEndsAt DateTime?       // Dátum ukončenia predplatného (pre zrušené)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  reportRequests     ReportRequest[]
+  feedback           Feedback[]
+  wallet             Wallet?
+  creditBatches      CreditBatch[]
 }
 
 model ReportRequest {
@@ -43,11 +52,11 @@ model ReportRequest {
   completedAt     DateTime?
   aiStatus        String?
   eta             Int?
-  scrapersMs      Int?
-  aiMs            Int?
-  auditorMs       Int?
-  compileMs       Int?
-  verifaScore     Int?
+  verifaScore     Int?                // Snapshot skóre fixované pri generovaní reportu
+  scrapersMs      Int?                // Duration of scraper phase in ms
+  aiMs            Int?                // Duration of AI pipeline phase in ms
+  auditorMs       Int?                // Duration of Chief Auditor phase in ms
+  compileMs       Int?                // Duration of PDF compilation phase in ms
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -122,6 +131,7 @@ enum SourceType {
   REGISTER_UZ
   CRZ
   UVO
+  ROZHODNUTIA
 }
 
 enum SourceStatus {
@@ -129,6 +139,18 @@ enum SourceStatus {
   SUCCESS
   FAILED
   UNAVAILABLE
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@index([email])
+  @@index([expires])
 }
 
 model PasswordResetToken {
@@ -194,7 +216,27 @@ model Company {
   naceText            String?
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
+  companyEvents       CompanyEvent[]
   auditVerdict        AuditVerdict?
+}
+
+model CompanyEvent {
+  id           String   @id @default(uuid())
+  companyIco   String
+  source       String   // ROZHODNUTIA, INSOLVENCY, DISKVALIFIKACIE, DOVERA, VSZP, SP, UNION, FS_DAN, FS_DPH, CRZ, UVO, VESTNIK
+  eventType    String   // SUDNE_ROZHODNUTIE, INSOLVENCIA, DISKVALIFIKACIA, POISTOVNA_DLUH, DAN_NEDOPLATOK, VEREJNA_ZMLUVA, OBSTARAVANIE, VESTNIK_UDALOST
+  severity     String   // CRITICAL, HIGH, MEDIUM, LOW, INFO
+  title        String   // Krátky názov udalosti
+  description  String   @db.Text // Detailný popis
+  eventDate    DateTime? // Dátum udalosti (ak známy z PDF)
+  amount       Float?   // Finančná hodnota (napr. výška nedoplatku, suma zmluvy)
+  metadata     Json?    // Dodatočné dáta (súd, číslo spisu, IČO protistrany...)
+  createdAt    DateTime @default(now())
+
+  company      Company  @relation(fields: [companyIco], references: [ico])
+
+  @@index([companyIco])
+  @@index([severity])
 }
 
 model VestnikEvent {
@@ -231,11 +273,11 @@ model FinancialStatement {
   tradeReceivables                      Float?        // Pohľadávky z obch. styku
   tradePayables                         Float?        // Záväzky z obch. styku
   inventory                             Float?        // Zásoby
-  depreciation                          Float?        // Odpisy dlhodobého majetku
-  interestExpense                       Float?        // Nákladové úroky
-  investingCashFlow                     Float?        // Pen. toky z investicnej činnosti
-  financingCashFlow                     Float?        // Pen. toky z finančnej činnosti
-  employeeCount                         Int?          // Počet zamestnancov
+  depreciation                          Float?        // Odpisy dlhodobého nehmotného a hmotného majetku
+  investingCashFlow                     Float?        // Čisté peňažné toky z investičnej činnosti
+  financingCashFlow                     Float?        // Čisté peňažné toky z finančnej činnosti
+  interestExpense                       Float?        // Úroky (náklady na úroky)
+  employeeCount                         Int?          // Odhadovaný počet zamestnancov
   currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
   statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
@@ -262,17 +304,18 @@ model AuditorOpinion {
 }
 
 model NarrativeRiskAnalysis {
-  id                    String             @id @default(uuid())
-  financialStatementId  String             @unique
-  managementChanges     String?            @db.Text
-  litigationRisks       String?            @db.Text
-  goingConcernDoubts    Boolean
-  plannedInvestments    String?            @db.Text
-  forensicRedFlags      String[]
-  synthesis             String             @db.Text
-  createdAt             DateTime           @default(now())
+  id                       String             @id @default(uuid())
+  financialStatementId     String             @unique
+  managementChanges        String?            @db.Text
+  litigationRisks          String?            @db.Text
+  goingConcernDoubts       Boolean
+  plannedInvestments       String?            @db.Text
+  profitabilityExplanation String?            @db.Text
+  forensicRedFlags         String[]
+  synthesis                String             @db.Text
+  createdAt                DateTime           @default(now())
 
-  statement             FinancialStatement @relation(fields: [financialStatementId], references: [id])
+  statement                FinancialStatement @relation(fields: [financialStatementId], references: [id])
 }
 
 model NotesRiskAnalysis {
@@ -301,6 +344,22 @@ model AuditVerdict {
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])
+}
+
+model CreditBatch {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // Pôvodný počet kreditov v batchi
+  remaining   Int      // Koľko ostáva k dispozícii
+  source      String   // trial | subscription | addon | rollover
+  planName    String?
+  expiresAt   DateTime // 90 dní od vytvorenia
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([userId, createdAt])
 }
 
 model Wallet {

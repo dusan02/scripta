@@ -179,6 +179,8 @@ class PdfGeneratorMixin:
             }
             th { background: #f3f4f6 !important; font-weight: 600 !important; }
             td, th { padding: 3px 6px !important; word-break: normal !important; white-space: normal !important; overflow-wrap: break-word !important; text-align: left !important; }
+            tr { page-break-inside: avoid; break-inside: avoid; }
+            .gs-result-block, .result-item, .zmluva-item, .isu-list-item { page-break-inside: avoid; break-inside: avoid; }
         """)
         await page.emulate_media(media="print")
         await page.pdf(

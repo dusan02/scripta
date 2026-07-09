@@ -76,6 +76,23 @@ export default function RootLayout({
       <head>
         {/* No-flash theme script — must run before any rendering */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* JSON-LD structured data for SEO */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Verifa.sk",
+              url: "https://verifa.sk",
+              logo: "https://verifa.sk/logo-verifa.png",
+              description: "Automatizovaná príprava komplexných due diligence reportov zo štátnych registrov SR s AI analýzou finančného zdravia.",
+              email: "info@verifa.sk",
+              areaServed: "SK",
+              knowsAbout: ["due diligence", "finančná analýza", "forenzný audit", "registre SR", "Altman Z-score", "Piotroski model"],
+            }),
+          }}
+        />
       </head>
       <body>
         <ThemeProvider>

@@ -10,6 +10,7 @@ export interface EnqueueTaskPayload {
   sources: string[];
   orsrExtractType?: string;
   crzDateFrom?: string | null;
+  rozhodnutiaDateFrom?: string | null;
 }
 
 export async function enqueueReportTask(payload: EnqueueTaskPayload) {
@@ -20,6 +21,7 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
     sources: payload.sources,
     orsr_extract_type: payload.orsrExtractType ?? "CURRENT",
     crz_date_from: payload.crzDateFrom ?? null,
+    rozhodnutia_date_from: payload.rozhodnutiaDateFrom ?? null,
   };
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };

@@ -17,6 +17,7 @@ load_dotenv()
 from src.config import settings as _cfg
 from src.db_repository import (
     save_to_db, save_narrative_to_db, save_notes_to_db,
+    save_company_events_to_db,
     update_ai_status, get_avg_completion_seconds,
 )
 from src.log_helpers import (
@@ -31,8 +32,9 @@ from src.llm_extractor import (
 )
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
-from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf
+from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf, extract_relevant_pdf_chunks
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_NOTES, _MODEL_VESTNIK
+from src.agents.pdf_reader import extract_company_events
 from src.analytics import sanitize_cash_flow_fields, estimate_missing_cash_flow, compute_financial_trends, compute_forensic_scorecard
 
 # Nastavenie logovania do súboru pre produkciu
@@ -145,6 +147,7 @@ _RESULTS_DEBT_PATTERNS = [
     "fs_danove_subjekty_*{ico}*.pdf",
     "fs_dph_*{ico}*.pdf",
     "fs_dan_*{ico}*.pdf",
+    "ROZHODNUTIA_*{ico}*.pdf",
 ]
 _ASSETS_DEBT_PATTERNS = ["DEBTS_*.pdf", "EXC_*.pdf", "DLZ_*.pdf"]
 
@@ -220,6 +223,73 @@ def _build_fallback_verdict(company_dict: dict, scorecard) -> AuditVerdict:
         ),
         llm_analysis_status="FALLBACK_ALGORITHMIC",
     )
+
+
+async def run_pdf_reader_agent(ico: str, sources: list) -> None:
+    """
+    PDF Reader Agent: prečíta všetky PDF z registrov (z scrapers) a uloží CompanyEvent[] do DB.
+    Beží po scraperoch, paralelne s AI pipeline (IFRS/VS/Notes).
+    """
+    from src.models import ScrapedSource
+
+    # Zozbieraj dáta zo sources — preferuj raw_data (JSON z API) pred PDF text extrakciou
+    pdf_texts: list[tuple[str, str]] = []
+    for s in sources:
+        if hasattr(s, 'status') and s.status == "SUCCESS":
+            label = f"{s.source_type}_{os.path.basename(s.file_path) if s.file_path else 'no_file'}"
+
+            # 1. Preferuj raw_data (štruktúrované JSON z API) — presnejšie, žiadne halucinácie
+            if hasattr(s, 'raw_data') and s.raw_data:
+                import json as _json
+                json_text = _json.dumps(s.raw_data, ensure_ascii=False, default=str)
+                if json_text.strip() and json_text != "[]":
+                    pdf_texts.append((label, f"[JSON API DATA]\n{json_text}"))
+                    logger.info(f"[PDF Reader] Používam JSON API dáta pre {label} ({len(s.raw_data)} záznamov)")
+                    continue  # JSON dáta použité, nepotrebné čítať PDF
+
+            # 2. Fallback: extrahuj text z PDF
+            if hasattr(s, 'file_path') and s.file_path:
+                try:
+                    if os.path.exists(s.file_path) and os.path.getsize(s.file_path) > 0:
+                        text = extract_relevant_pdf_chunks(s.file_path)
+                        # Full-text fallback: ak keyword extrakcia vrátila málo textu (< 500 znakov),
+                        # extrahuj celý PDF text — typicky pre krátke výpisy z registrov
+                        if not text or len(text.strip()) < 500:
+                            try:
+                                import fitz
+                                doc = fitz.open(s.file_path)
+                                full_text = ""
+                                for page in doc:
+                                    full_text += page.get_text("text")
+                                doc.close()
+                                if full_text.strip():
+                                    text = full_text
+                                    logger.info(f"[PDF Reader] Full-text fallback pre {label} (keyword extrakcia < 500 znakov)")
+                            except Exception:
+                                pass
+                        if text and text.strip():
+                            pdf_texts.append((label, text))
+                except Exception as e:
+                    logger.warning(f"[PDF Reader] Nepodarilo sa extrahovať text z {s.file_path}: {e}")
+
+    if not pdf_texts:
+        logger.info(f"[PDF Reader Agent] IČO={ico}: žiadne PDF texty na analýzu — preskakujem.")
+        return
+
+    logger.info(f"[PDF Reader Agent] IČO={ico}: analyzujem {len(pdf_texts)} PDF dokumentov")
+    try:
+        result = await safe_llm_call(
+            extract_company_events, pdf_texts,
+            model=_cfg.model_vestnik,
+            label="PDF Reader Agent",
+        )
+        if result and result.events:
+            await save_company_events_to_db(ico, result.events)
+            logger.info(f"[PDF Reader Agent] IČO={ico}: uložených {len(result.events)} udalostí do DB")
+        else:
+            logger.info(f"[PDF Reader Agent] IČO={ico}: žiadne udalosti nájdené")
+    except Exception as e:
+        logger.error(f"[PDF Reader Agent] IČO={ico}: chyba pri analýze PDF: {e}", exc_info=True)
 
 
 async def run_and_save_audit_verdict(ico: str, force: bool = False):
@@ -311,15 +381,14 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
 
             
         company_data = json.dumps(company_dict, default=str)
-        
-        # Hľadáme PDF súbory z registrov v results/{report_id}/ aj assets/{ico}/
-        # Sudca potrebuje vidieť: dlhy poisťovniam, daňové dlhy, exekúcie, insolvenciu, diskvalifikácie
-        debt_pdfs = _collect_debt_pdfs(ico)
 
-        logger.info(f"Spúšťam Chief Auditora (The Verifa Scorer) pre IČO: {ico}. Nájdené PDF na analýzu: {len(debt_pdfs)}")
+        # Chief Auditor dostáva všetky dáta z DB (FinancialMetrics, NarrativeRisk, NotesRisk,
+        # VestnikEvents, CompanyEvents z PDF Reader Agent). Už nepotrebuje raw PDF text.
+        event_count = len(company_dict.get("companyEvents", []))
+        logger.info(f"Spúšťam Chief Auditora pre IČO: {ico}. CompanyEvents z DB: {event_count}")
         try:
             verdict = await safe_llm_call(
-                evaluate_audit_verdict, company_data, debt_pdfs,
+                evaluate_audit_verdict, company_data, [],
                 model=_cfg.model_verdict,
                 label="Chief Auditor"
             )
@@ -399,6 +468,9 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
     
     await update_ai_status(report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start, pipeline_baseline))
+    # Krátko po začiatku analýzy aktualizujeme na konkrétnejší status
+    await asyncio.sleep(2)
+    await update_ai_status(report_request_id, "ai.extracting_financials", _remaining_eta(_t_start, pipeline_baseline))
     # 2. Rozdelenie súborov na IFRS a VS
     ifrs_files = []
     vs_files = []
@@ -491,12 +563,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
         try:
             from src.pdf_ingestion import chunk_pdf_by_pages
             logger.info(f"Spracovávam finančné výkazy (chunking): {file_name}")
-            chunks = chunk_pdf_by_pages(file_path, chunk_size=15, overlap=1, max_pages=80)
+            chunks = chunk_pdf_by_pages(file_path, chunk_size=15, overlap=2, max_pages=80)
             
             if not chunks:
                 # Fallback
                 async with sem:
-                    data = await safe_llm_call(extract_financial_data, file_path, model=_MODEL_IFRS, label=f"IFRS:{file_name}")
+                    data = await safe_llm_call(extract_financial_data, file_path, model=_MODEL_IFRS, label=f"Financial Statements Analyst:{file_name}")
                     if data:
                         _ifrs_results.append(data)
                 return
@@ -505,7 +577,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 async with sem:
                     return await safe_llm_call(
                         extract_financial_data, chunk_meta["pdf_path"],
-                        model=_MODEL_IFRS, label=f"IFRS_CHUNK:{chunk_meta['chunk_id']}",
+                        model=_MODEL_IFRS, label=f"Financial Statements Analyst CHUNK:{chunk_meta['chunk_id']}",
                         chunk_meta=chunk_meta
                     )
             
@@ -536,7 +608,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                     async with sem:
                         staff_costs = await safe_llm_call(
                             extract_staff_costs_focused, retry_path,
-                            model=_MODEL_IFRS, label=f"STAFF-COSTS:{file_name}"
+                            model=_MODEL_IFRS, label=f"Financial Statements Analyst STAFF-COSTS:{file_name}"
                         )
                     if staff_costs is not None:
                         data.metriky.osobne_naklady = staff_costs
@@ -590,12 +662,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 yr_match = re.search(r'_(\d{4})_', file_name)
                 narrative_year = int(yr_match.group(1)) if yr_match and int(yr_match.group(1)) > 2000 else datetime.today().year
                 
-                sliced_path = slice_narrative_pdf(file_path, max_pages=15)
+                sliced_path = slice_narrative_pdf(file_path)
                 input_path = sliced_path if sliced_path else file_path
                 
                 narrative = await safe_llm_call(
                     extract_narrative_risk, input_path,
-                    model=_MODEL_NARRATIVE, label=f"VS:{file_name}"
+                    model=_MODEL_NARRATIVE, label=f"Annual Report Analyst:{file_name}"
                 )
                 if narrative:
                     logger.info(f"[NARRATIVE OK] {file_name} → DB uložené")
@@ -641,6 +713,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
     pdf_tasks = [_staggered_process(_process_ifrs, fp, _GLOBAL_LLM_SEM) for fp in ifrs_files] + \
                 [_staggered_process(_process_vs, fp, _GLOBAL_LLM_SEM) for fp in vs_files]
     if pdf_tasks:
+        await update_ai_status(report_request_id, "ai.semantic_narrative", _remaining_eta(_t_start, pipeline_baseline))
         with PhaseTimer(f"LLM extrakcia ({len(pdf_tasks)} files)"):
             await asyncio.gather(*pdf_tasks)
 
@@ -658,6 +731,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
             logger.error(f"[IFRS SAVE ERROR] rok={data.metriky.rok_zavierky}: {e}", exc_info=True)
 
     # 3b. Extrakcia poznámok (len pre najnovší rok, s fallbackom na staršie ak zlyhá)
+    await update_ai_status(report_request_id, "ai.forensic_notes", _remaining_eta(_t_start, pipeline_baseline))
     sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
     notes_attempts = 0
     for fp in sorted_ifrs:
@@ -671,7 +745,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
             logger.info(f"[NOTES] Spracovávam poznámky pre najnovší rok {year} z {file_name}")
             notes_data = await safe_llm_call(
                 extract_notes_risks, sliced_notes_path,
-                model=_MODEL_NOTES, label=f"NOTES:{file_name}"
+                model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}"
             )
             if notes_data:
                 await save_notes_to_db(ico, year, notes_data)
@@ -688,6 +762,9 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
     await vestnik_task
         
     await update_ai_status(report_request_id, "ai.final_verdict", _remaining_eta(_t_start, pipeline_baseline))
+    # Krátko po začiatku verdict fázy aktualizujeme na konkrétnejší status
+    await asyncio.sleep(2)
+    await update_ai_status(report_request_id, "ai.cross_validation", _remaining_eta(_t_start, pipeline_baseline))
     
     # 4. Sudca (Chief Auditor) sa spúšťa z main.py PO dokončení scraperov,
     # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia).
@@ -697,7 +774,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
     logger.info(
         f"[{get_correlation_id() or '-'}] PIPELINE SUMMARY: ico={ico} "
         f"ifrs={_ifrs_count} vs={_vs_count} "
-        f"models=IFRS:{_MODEL_IFRS}|VS:{_MODEL_NARRATIVE}|NOTES:{_MODEL_NOTES}|OV:{_MODEL_VESTNIK}|Verdikt:{_cfg.model_verdict} "
+        f"models=FinStmts:{_MODEL_IFRS}|AnnReport:{_MODEL_NARRATIVE}|Footnotes:{_MODEL_NOTES}|Vestnik:{_MODEL_VESTNIK}|PDFReader:{_cfg.model_vestnik}|Chief:{_cfg.model_verdict} "
         f"elapsed={_elapsed:.1f}s"
     )
     log_pipeline_end(ico, "OK", _elapsed)

@@ -6,6 +6,7 @@ import logging
 from threading import Lock
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import List, Optional
 
@@ -100,7 +101,7 @@ class PdfCompiler:
         output_dir = self.results_dir / report_request_id
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        generated_at = datetime.now(timezone.utc)
+        generated_at = datetime.now(ZoneInfo("Europe/Bratislava"))
         generated_at_str = generated_at.strftime("%d.%m.%Y %H:%M:%S")
 
         # 0. Zotriedime zdroje podľa kategorického poradia (rovnaké ako na cover page).
@@ -111,9 +112,14 @@ class PdfCompiler:
         for source in sources:
             if source.status == "SUCCESS" and source.file_path and Path(source.file_path).exists():
                 try:
-                    source.page_count = len(PdfReader(source.file_path).pages)
-                except Exception:
-                    source.page_count = source.page_count or 1
+                    if os.path.getsize(source.file_path) == 0:
+                        source.page_count = 0
+                        logger.warning(f"[PdfCompiler] Zdroj {source.source_type} vygeneroval prázdny súbor (0 bytes).")
+                    else:
+                        source.page_count = len(PdfReader(source.file_path).pages)
+                except Exception as e:
+                    logger.warning(f"[PdfCompiler] Zdroj {source.source_type} vygeneroval neplatné PDF: {e}")
+                    source.page_count = 0
             else:
                 source.page_count = 0
 
@@ -184,7 +190,6 @@ class PdfCompiler:
         # Divider page: "PRÍLOHY - ZDROJOVÉ DÁTA" medzi Part A a Part B
         divider_path = self._generate_divider_page(output_dir)
         writer.append(divider_path)
-        writer.add_outline_item("PRÍLOHY — Zdrojové dáta", actual_cover_pages)
 
         # Paralelizácia overlay nadpisov — každý overlay je nezávislý (vlastný súbor).
         sources_needing_overlay = [
@@ -197,21 +202,28 @@ class PdfCompiler:
                 list(pool.map(self._overlay_title_on_source, sources_needing_overlay))
 
         skipped_no_record = []
+        bookmarks = []
+        bookmarks.append(("PRÍLOHY — Zdrojové dáta", actual_cover_pages))
+        
         for source in sources:
             if source.start_page is not None and source.file_path:
                 writer.append(source.file_path)
                 label = _SOURCE_LABELS.get(source.source_type, source.source_type)
-                writer.add_outline_item(label, source.start_page - 1)
+                bookmarks.append((label, source.start_page - 1))
             elif _has_no_record(source) and source.status == "SUCCESS":
                 skipped_no_record.append(source.source_type)
 
         if skipped_no_record:
             logger.info(f"[PdfCompiler] Preskočených {len(skipped_no_record)} zdrojov bez záznamu: {skipped_no_record}")
 
+        # 6. Pridanie čísel strán do pätičky (okrem cover page a divider page)
+        # PyPDF2 3.0.1 má bug, kedy merge_page na writeri vymaže obsah.
+        # Preto to spravíme bezpečne prečítaním dočastného buffra.
+        writer = self._add_page_numbers(writer, skip_pages=actual_cover_pages + 1, bookmarks=bookmarks)
+
         # 4. Nahradenie falošných URL odkazov z Cover Page za vnútorné prelinkovania na stránky (GoTo Action)
-        # Cover page môže mať viac stránok — spracujeme anotácie na každej z nich.
-        cover_page_count = len(PdfReader(str(cover_path)).pages)
-        for cover_idx in range(cover_page_count):
+        # Spracováme PO _add_page_numbers, aby anotácie fungovali na stránkach nového writera.
+        for cover_idx in range(actual_cover_pages):
             cover_page_obj = writer.pages[cover_idx]
             if "/Annots" in cover_page_obj:
                 annots = cover_page_obj["/Annots"]
@@ -244,7 +256,7 @@ class PdfCompiler:
                                         NumberObject(0)
                                     ])
 
-        # 5. Opečiatkujeme metadata časovou pečiatkou.
+        # 5. Opečiatkujeme metadata časovou pečiatkou (po _add_page_numbers, lebo vytvára nový writer).
         writer.add_metadata(
             {
                 "/Title": f"Verifa.sk — Due Diligence Report — {identifier}",
@@ -268,6 +280,62 @@ class PdfCompiler:
         writer.close()
 
         return final_path
+
+    def _add_page_numbers(self, writer: PdfWriter, skip_pages: int, bookmarks: List[tuple]) -> PdfWriter:
+        """Pridá číslo strany do pravého dolného rohu na každú stranu okrem prvých skip_pages
+        (cover page + divider page). Y = total - skip_pages = počet obsahových strán."""
+        global _FONTS_REGISTERED
+        if not _FONTS_REGISTERED:
+            with _FONT_LOCK:
+                if not _FONTS_REGISTERED:
+                    fonts_dir = Path(__file__).parent / "fonts"
+                    pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
+                    pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
+                    _FONTS_REGISTERED = True
+
+        # Bezpečný prístup: Zapíšeme doterajší stav do buffra a znova načítame.
+        # Tým sa vyhneme PyPDF2 bugu s merge_page na modifikovaných stránkach.
+        temp_buf = io.BytesIO()
+        writer.write(temp_buf)
+        temp_buf.seek(0)
+        
+        safe_reader = PdfReader(temp_buf)
+        new_writer = PdfWriter()
+        new_writer.append_pages_from_reader(safe_reader) # Skopíruje aj metadáta a outline, ale pages si vypýtame priamo
+        
+        # Očistíme new_writer pages a nahráme ich ručne, aby sme aplikovali merge
+        new_writer = PdfWriter()
+
+        total = len(safe_reader.pages)
+        content_total = total - skip_pages
+        
+        for i in range(total):
+            page = safe_reader.pages[i]
+            if i < skip_pages:
+                new_writer.add_page(page)
+                continue
+                
+            page_w = float(page.mediabox.width)
+            page_h = float(page.mediabox.height)
+
+            buf = io.BytesIO()
+            c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
+            c.setFont("Inter", 9)
+            c.setFillColor(colors.HexColor("#94a3b8"))
+            c.drawRightString(page_w - 35, 20, f"Strana {i - skip_pages + 1} z {content_total}")
+            c.showPage()
+            c.save()
+            buf.seek(0)
+
+            overlay_reader = PdfReader(buf)
+            page.merge_page(overlay_reader.pages[0])
+            new_writer.add_page(page)
+            
+        # Obnova outline a metadát
+        for label, page_idx in bookmarks:
+            new_writer.add_outline_item(label, page_idx)
+            
+        return new_writer
 
     def _generate_divider_page(self, output_dir: Path) -> Path:
         """Vygeneruje stránku 'PRÍLOHY - ZDROJOVÉ DÁTA' ako prechod medzi Part A a Part B."""
@@ -308,10 +376,16 @@ class PdfCompiler:
         c.drawString(80, 400, "Nasledujúce stránky obsahujú originálne výpisy zo štátnych registrov.")
         c.drawString(80, 385, "Prílohy sú chronologicky zoradené podľa zdroja v Obsahu reportu.")
 
-        # Dolná čiara
-        c.setStrokeColor(colors.HexColor("#e2e8f0"))
-        c.setLineWidth(1)
-        c.line(80, 360, 515, 360)
+        # Dolná akcentná čiara
+        c.setStrokeColor(colors.HexColor("#10b981"))
+        c.setLineWidth(1.5)
+        c.line(80, 360, 200, 360)
+
+        # Brand v päte
+        c.setFont("Inter", 9)
+        c.setFillColor(colors.HexColor("#94a3b8"))
+        c.drawString(80, 60, "Verifa.sk — Due Diligence reporty zo štátnych registrov SR")
+        c.drawRightString(515, 60, "www.verifa.sk")
 
         c.showPage()
         c.save()
@@ -356,20 +430,25 @@ class PdfCompiler:
 
             # Biely background pre nadpis — aby neprekryval obsah PDF
             c.setFillColor(colors.white)
-            c.rect(0, page_h - 50, page_w, 50, fill=1, stroke=0)
+            c.rect(0, page_h - 56, page_w, 56, fill=1, stroke=0)
             
             # section-title štýl (text-sm, uppercase, text-slate-500)
             c.setFont("Inter-Bold", 10)
-            c.setFillColor(colors.HexColor("#64748b"))
+            c.setFillColor(colors.HexColor("#475569"))
             
             x_margin = 35
-            y_pos = page_h - 30
+            y_pos = page_h - 28
             c.drawString(x_margin, y_pos, label)
             
-            # border-b (border-slate-200)
-            c.setStrokeColor(colors.HexColor("#e2e8f0"))
-            c.setLineWidth(1)
-            c.line(x_margin, y_pos - 8, page_w - x_margin, y_pos - 8)
+            # Brand na pravej strane
+            c.setFont("Inter", 8)
+            c.setFillColor(colors.HexColor("#94a3b8"))
+            c.drawRightString(page_w - x_margin, y_pos, "Verifa.sk")
+            
+            # Akcentná čiara pod nadpisom (emerald, hrubšia)
+            c.setStrokeColor(colors.HexColor("#10b981"))
+            c.setLineWidth(1.5)
+            c.line(x_margin, y_pos - 10, page_w - x_margin, y_pos - 10)
             
             c.showPage()
             c.save()

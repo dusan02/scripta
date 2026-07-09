@@ -28,6 +28,7 @@ class ReportTask(BaseModel):
     sources: List[str]
     orsr_extract_type: Optional[str] = "CURRENT"
     crz_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year
+    rozhodnutia_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year
 
 
 class PersonInfo(BaseModel):
@@ -50,6 +51,7 @@ class ScrapedSource(BaseModel):
     company_name: Optional[str] = None
     ic_dph: Optional[str] = None
     persons: Optional[List[PersonInfo]] = None
+    raw_data: Optional[list] = None  # Štruktúrované dáta z API (JSON) — pre PDF Reader Agent
 
     @property
     def message(self) -> Optional[str]:  # backward compat alias

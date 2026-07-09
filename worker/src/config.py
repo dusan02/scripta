@@ -40,14 +40,15 @@ class Settings(BaseSettings):
     model_notes: str = "gemini-2.5-pro"         # Forenzný analytik (poznámky) — Pro dominuje v analýze rizík
     model_vestnik: str = "gemini-2.5-flash"     # Vestník udalosti — štruktúrovaná extrakcia
     model_verdict: str = "gemini-2.5-pro"       # Chief Auditor — audítorský posudok a skóre
-    model_fallback: str = "gemini-2.5-flash"    # Fallback pri vyčerpaní kvót
+    model_fallback: str = "gemini-2.5-flash-lite"  # Fallback pri 404/503 (odlišný model pool)
+    model_fallback_2: str = "gemini-2.5-pro"       # Sekundárny fallback (Pro tier)
     llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)
 
     # ── PDF Ingestion ─────────────────────────────────────────────────────────
     pdf_max_pages_sk_gaap: int = 20    # Úč POD, Úč MUJ — štandardné slovenské závierky
-    pdf_max_pages_ifrs: int = 60       # IFRS — veľké firmy môžu mať súvahu na stranách 20-50
-    pdf_max_pages_absolute: int = 80   # Absolútny hard limit
-    pdf_ifrs_min_notes_page: int = 20  # Pre IFRS začneme hľadať poznámky až od tejto strany
+    pdf_max_pages_ifrs: int = 80       # IFRS — veľké firmy môžu mať súvahu aj za ESG správou (strany 50-70+)
+    pdf_max_pages_absolute: int = 100  # Absolútny hard limit
+    pdf_ifrs_min_notes_page: int = 25  # Pre IFRS začneme hľadať poznámky až od tejto strany (ESG spravy môžu byť dlhé)
     pdf_sk_gaap_min_notes_page: int = 5  # Pre SK GAAP od strany 5
     pdf_scanned_min_pages: int = 30    # Ak má PDF tento počet strán a 0 textu → IFRS mode
 
@@ -74,6 +75,7 @@ class Settings(BaseSettings):
     def llm_pricing(self) -> dict[str, tuple[float, float]]:
         return {
             "gemini-2.5-flash":       (0.075, 0.30),
+            "gemini-2.5-flash-lite":  (0.075, 0.30),
             "gemini-2.5-pro":         (1.25, 10.00),
             "gemini-3.5-flash":       (1.50,  9.00),
             "gemini-3.1-pro-preview": (2.00, 12.00),

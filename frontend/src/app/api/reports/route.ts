@@ -116,8 +116,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+    console.log("INCOMING BODY SOURCES:", body.sources);
+    
     const parseResult = reportRequestSchema.safeParse(body);
     if (!parseResult.success) {
+      console.log("SCHEMA VALIDATION FAILED:", parseResult.error.flatten());
       return NextResponse.json(
         { error: "Invalid input", details: parseResult.error.flatten() },
         { status: 400 }
@@ -125,6 +128,7 @@ export async function POST(req: NextRequest) {
     }
 
     let { ico, sources } = parseResult.data;
+    console.log("PARSED SOURCES:", sources);
 
     // Validácia: iba IČO
     if (!ico) {
@@ -199,7 +203,7 @@ export async function POST(req: NextRequest) {
     try {
       const dbUser = await prisma.user.findUnique({
         where: { id: user.id },
-        select: { orsrExtractType: true, crzDateFrom: true },
+        select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true },
       });
       await enqueueReportTask({
         reportRequestId: reportRequest.id,
@@ -208,6 +212,7 @@ export async function POST(req: NextRequest) {
         sources,
         orsrExtractType: dbUser?.orsrExtractType ?? "CURRENT",
         crzDateFrom: dbUser?.crzDateFrom?.toISOString().split("T")[0] ?? null,
+        rozhodnutiaDateFrom: dbUser?.rozhodnutiaDateFrom?.toISOString().split("T")[0] ?? null,
       });
     } catch (workerErr) {
       console.error("Worker enqueue failed", workerErr);

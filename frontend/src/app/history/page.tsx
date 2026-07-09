@@ -198,33 +198,34 @@ export default function HistoryPage() {
   const handleSearchAgain = useCallback(async (e: React.MouseEvent, report: Report) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log("[handleSearchAgain] clicked, report:", report.id, "ico:", report.ico, "sources:", report.sources.map(s => s.sourceType));
     setRetryingId(report.id);
     try {
       const body: Record<string, unknown> = {
-        targetType: report.targetType,
+        targetType: "COMPANY",
         sources: report.sources.map(s => s.sourceType),
+        ico: report.ico,
       };
-      if (report.targetType === "COMPANY" && report.ico) {
-        body.ico = report.ico;
-      } else if (report.targetType === "PERSON") {
-        body.name = report.name;
-        body.surname = report.surname;
-      }
+      console.log("[handleSearchAgain] POST body:", JSON.stringify(body));
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
+      console.log("[handleSearchAgain] response:", res.status, data);
       if (res.ok && data.reportRequestId) {
         router.push(`/reports/${data.reportRequestId}`);
+      } else {
+        toast.error(data.error || t("history.chybaZopakovania"));
       }
-    } catch {
+    } catch (err) {
+      console.error("[handleSearchAgain] error:", err);
       toast.error(t("history.chybaZopakovania"));
     } finally {
       setRetryingId(null);
     }
-  }, [router]);
+  }, [router, t]);
 
   return (
     <div className="page pt-8 pb-16">

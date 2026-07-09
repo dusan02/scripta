@@ -69,13 +69,9 @@ services:
     shm_size: 1g
     ports:
       - "3010:3000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     environment:
-      - CONNECTION_TIMEOUT=60000
+      - CONNECTION_TIMEOUT=300000
+      - MAX_CONCURRENT_SESSIONS=3
 
   # ─── Python FastAPI Worker ────────────────────────────────
   worker:
@@ -93,7 +89,8 @@ services:
       DATABASE_URL: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
       APP_ENV: development
       RESULTS_DIR: /app/results
-      PLAYWRIGHT_HEADLESS: "true"
+      TZ: Europe/Bratislava
+      PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
       REDIS_URL: redis://redis:6379/0
@@ -121,7 +118,8 @@ services:
       DATABASE_URL: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
       APP_ENV: development
       RESULTS_DIR: /app/results
-      PLAYWRIGHT_HEADLESS: "true"
+      TZ: Europe/Bratislava
+      PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
       REDIS_URL: redis://redis:6379/0

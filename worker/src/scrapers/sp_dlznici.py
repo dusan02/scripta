@@ -35,8 +35,8 @@ class SpDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=10000, wait_until='commit')
-                await page.wait_for_load_state('domcontentloaded', timeout=5000)
+                await page.goto(self.base_url, timeout=30000, wait_until='commit')
+                await page.wait_for_load_state('domcontentloaded', timeout=30000)
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"SP nedostupná: {e}")
             logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
@@ -53,7 +53,7 @@ class SpDlzniciScraper(BaseScraper):
             # Vyplniť IČO — selektor podľa Drupal form: input[name="ico"]
             ico_input = page.locator('input[name="ico"]')
             try:
-                await ico_input.wait_for(timeout=5000)
+                await ico_input.wait_for(timeout=15000)
                 await ico_input.fill(ico)
                 logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
             except PlaywrightTimeoutError:
@@ -66,7 +66,7 @@ class SpDlzniciScraper(BaseScraper):
             # Kliknúť na Potvrdiť
             submit_btn = page.get_by_role("button", name="Potvrdiť")
             try:
-                await submit_btn.wait_for(timeout=5000)
+                await submit_btn.wait_for(timeout=15000)
                 await submit_btn.click()
                 logger.info(f"[{self.source_type}] Tlačidlo Potvrdiť kliknuté.")
             except PlaywrightTimeoutError:

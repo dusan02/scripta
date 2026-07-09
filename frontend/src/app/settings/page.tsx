@@ -10,15 +10,19 @@ export default function SettingsPage() {
   const t = useT();
   const [orsrExtractType, setOrsrExtractType] = useState<"CURRENT" | "FULL">("CURRENT");
   const [crzDateFrom, setCrzDateFrom] = useState<string>("");
+  const [rozhodnutiaYearFrom, setRozhodnutiaYearFrom] = useState<string>(String(new Date().getFullYear() - 1));
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear - i));
   const [defaultSources, setDefaultSources] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", defaultSources: DEFAULT_SELECTED_SOURCES });
+  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", rozhodnutiaYearFrom: String(currentYear - 1), defaultSources: DEFAULT_SELECTED_SOURCES });
 
   const hasUnsavedChanges =
     orsrExtractType !== initialRef.current.orsrExtractType ||
     crzDateFrom !== initialRef.current.crzDateFrom ||
+    rozhodnutiaYearFrom !== initialRef.current.rozhodnutiaYearFrom ||
     JSON.stringify(defaultSources) !== JSON.stringify(initialRef.current.defaultSources);
 
   useEffect(() => {
@@ -41,12 +45,17 @@ export default function SettingsPage() {
       .then((data) => {
         if (data.orsrExtractType) setOrsrExtractType(data.orsrExtractType);
         if (data.crzDateFrom) setCrzDateFrom(data.crzDateFrom);
+        if (data.rozhodnutiaDateFrom) {
+          const parsedYear = new Date(data.rozhodnutiaDateFrom).getFullYear().toString();
+          setRozhodnutiaYearFrom(parsedYear);
+        }
         if (data.defaultSources && Array.isArray(data.defaultSources) && data.defaultSources.length > 0) {
           setDefaultSources(data.defaultSources);
         }
         initialRef.current = {
           orsrExtractType: data.orsrExtractType || "CURRENT",
           crzDateFrom: data.crzDateFrom || "",
+          rozhodnutiaYearFrom: data.rozhodnutiaDateFrom ? new Date(data.rozhodnutiaDateFrom).getFullYear().toString() : String(currentYear - 1),
           defaultSources: data.defaultSources?.length > 0 ? data.defaultSources : DEFAULT_SELECTED_SOURCES,
         };
       })
@@ -64,11 +73,12 @@ export default function SettingsPage() {
       await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, defaultSources }),
+        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, rozhodnutiaDateFrom: rozhodnutiaYearFrom ? `${rozhodnutiaYearFrom}-01-01` : null, defaultSources }),
       });
       initialRef.current = {
         orsrExtractType,
         crzDateFrom,
+        rozhodnutiaYearFrom,
         defaultSources,
       };
       setSaved(true);
@@ -214,6 +224,65 @@ export default function SettingsPage() {
                 ↺ {t("settings.zrusitDefault").replace("↺ ", "")}
               </button>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Rozhodnutia Year Range */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2
+              className="text-sm font-semibold mb-1"
+              style={{ color: "var(--text)" }}
+            >
+              Rozhodnutia súdov
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Rok, od ktorého sa budú vyhľadávať rozhodnutia súdov. Defaultne je nastavený predchádzajúci rok.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div
+            className="h-10 rounded-lg animate-pulse"
+            style={{ background: "var(--bg-muted)" }}
+          />
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Od roku</label>
+              <select
+                value={rozhodnutiaYearFrom}
+                onChange={(e) => setRozhodnutiaYearFrom(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{
+                  background: "var(--bg)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                }}
+              >
+                {yearOptions.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Do roku</label>
+              <select
+                value={String(currentYear)}
+                disabled
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{
+                  background: "var(--bg-muted)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-muted)",
+                }}
+              >
+                <option value={String(currentYear)}>{currentYear}</option>
+              </select>
+            </div>
           </div>
         )}
       </div>

@@ -53,7 +53,7 @@ class OrsrScraper(BaseScraper):
                 )
 
             link_name = "Úplný" if orsr_extract_type == "FULL" else "Aktuálny"
-            company_name = await self._click_extract_link(page, link_name)
+            company_name = await self._click_extract_link(page, link_name, ico)
             if company_name is None:
                 # Fallback: skús extrahovať meno z vyhľadávacej tabuľky
                 company_name = await self._extract_company_name_from_search(page, ico)
@@ -114,7 +114,7 @@ class OrsrScraper(BaseScraper):
         text = await page.inner_text("body")
         return any(marker in text for marker in _EMPTY_MARKERS)
 
-    async def _click_extract_link(self, page: Page, link_name: str) -> Optional[str]:
+    async def _click_extract_link(self, page: Page, link_name: str, ico: str) -> Optional[str]:
         """Nájde odkaz 'Aktuálny'/'Úplný', klikne naň a extrahuje company_name z detailnej stránky.
         Ak výpis obsahuje 'Výpis je neaktuálny', nasleduje odkaz na aktuálny výpis.
         Ak výpis obsahuje 'Spis odstúpený', skúsi ďalší odkaz v zozname výsledkov."""
@@ -147,26 +147,22 @@ class OrsrScraper(BaseScraper):
                             break
                         if _TRANSFERRED_MARKER in body_text:
                             logger.info(f"[{self.source_type}] Nasledovaný výpis je odstúpený — skúšam ďalší odkaz.")
-                            await page.go_back()
-                            await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                            await self._navigate_to_search(page, ico)
                             break
                         logger.info(f"[{self.source_type}] Nasledovaný výpis je tiež neaktuálny — pokračujem v reťazi.")
                     except PlaywrightTimeoutError:
                         logger.warning(f"[{self.source_type}] Odkaz na aktuálny výpis sa nenašiel — skúšam ďalší odkaz v zozname.")
-                        await page.go_back()
-                        await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                        await self._navigate_to_search(page, ico)
                         break
                 else:
                     logger.warning(f"[{self.source_type}] Prekročený limit skokov — skúšam ďalší odkaz v zozname.")
-                    await page.go_back()
-                    await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                    await self._navigate_to_search(page, ico)
                     continue
 
             # Ak je spis odstúpený na iný súd, skús ďalší odkaz
             if _TRANSFERRED_MARKER in body_text:
                 logger.info(f"[{self.source_type}] Spis odstúpený — skúšam ďalší odkaz.")
-                await page.go_back()
-                await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                await self._navigate_to_search(page, ico)
                 continue
 
             # Výpis je OK — extrahuj company_name
@@ -175,8 +171,7 @@ class OrsrScraper(BaseScraper):
             return company_name
 
         logger.warning(f"[{self.source_type}] Všetky odkazy majú spis odstúpený — používam posledný.")
-        await page.go_back()
-        await page.wait_for_load_state("domcontentloaded", timeout=45000)
+        await self._navigate_to_search(page, ico)
         links = page.get_by_role("link", name=link_name)
         await links.last.click()
         await page.wait_for_load_state("domcontentloaded", timeout=45000)
