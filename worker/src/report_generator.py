@@ -137,6 +137,8 @@ def sanitize_llm_text(text: str) -> str:
     text = text.replace("bezúhonnost", "bezúhonnosť")
     text = text.replace("Interpretica", "Interpretácia")
     text = text.replace("Rezpečná", "Bezpečná")
+    text = text.replace("Plotroski", "Piotroski")
+    text = re.sub(r'F-score:\s*(\d)/B\b', r'F-score: \1/8', text)
     return text
 
 def format_findings(source) -> str:

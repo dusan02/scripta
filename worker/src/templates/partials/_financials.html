@@ -419,7 +419,7 @@
                         <div class="h-full bg-emerald-500 flex items-center justify-center text-[9px] text-white font-bold" style="width: {{ (dso / (dso + dpo) * 100) }}%;">DSO {{ dso|round|int }}d</div>
                         <div class="h-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold" style="width: {{ (dpo / (dso + dpo) * 100) }}%;">DPO {{ dpo|round|int }}d</div>
                     </div>
-                    <p class="text-[9px] text-slate-500 mt-1.5 text-center">{% if dso < dpo %}Zákazníci platia o <span class="font-bold text-emerald-600">{{ (dpo - dso)|round|int }} dní skôr</span> než vy dodávateľom.{% elif dso > dpo %}Vy platíte o <span class="font-bold text-rose-600">{{ (dso - dpo)|round|int }} dní skôr</span> než zákazníci vám.{% else %}Inkasujete a platíte naraz.{% endif %}</p>
+                    <p class="text-[9px] text-slate-500 mt-1.5 text-center">{% if dso < dpo %}Zákazníci platia o <span class="font-bold text-emerald-600">{{ (dpo - dso)|round|int }} dní skôr</span> než vy dodávateľom.{% elif dso > dpo %}Vy platíte o <span class="font-bold text-rose-600">{{ (dso - dpo)|round|int }} dní skôr</span> než vám zaplatia zákazníci.{% else %}Inkasujete a platíte naraz.{% endif %}</p>
                 </div>
                 {% endif %}
 

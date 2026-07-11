@@ -14,9 +14,9 @@ def get_base_layout(title):
         title=dict(text=title, font=dict(size=14, color='#0f172a', family='Inter, Arial, sans-serif')),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=40, r=40, t=50, b=30),
+        margin=dict(l=40, r=40, t=50, b=45),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10, color='#475569')),
-        xaxis=dict(showgrid=False, showline=True, linecolor='#e2e8f0', tickfont=dict(color='#64748b')),
+        xaxis=dict(showgrid=False, showline=True, linecolor='#e2e8f0', tickfont=dict(color='#64748b', size=11), tickangle=-30, automargin=True),
         yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, zerolinecolor='#cbd5e1', tickfont=dict(color='#64748b'))
     )
 
