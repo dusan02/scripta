@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 SOURCE_CATEGORIES = [
     ("Základné firemné a právne registre", ["ORSR", "ZRSR", "REGISTER_UZ", "OBCHODNY_VESTNIK", "RPO", "RPVS"]),
     ("Insolvencia, exekúcie a dlhy", ["INSOLVENCY", "POVERENIA", "FINANCNA_SPRAVA", "SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
-    ("Finančná správa a DPH", ["FS_DANOVE_SUBJEKTY", "FS_DPH_REGISTROVANI", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_BANKOVE_UCTY", "FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
+    ("Finančná správa a DPH", ["FS_DANOVE_SUBJEKTY", "FS_DPH_REGISTROVANI", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
     ("Súdy a sankcie", ["ROZHODNUTIA", "DISKVALIFIKACIE"]),
     ("Financie a štátne zákazky", ["CRZ", "UVO"]),
     ("Majetok a práva", ["NCRZP", "NCRD", "OCHRANNE_ZNAMKY"]),
@@ -55,7 +55,7 @@ SOURCE_LABELS = {
     "SP_DLZNICI": "Soc. poisťovňa", "VSZP_DLZNICI": "VšZP", "DOVERA_DLZNICI": "Dôvera", "UNION_DLZNICI": "UNION",
     "FS_DANOVE_SUBJEKTY": "Index daň. spoľahlivosti", "FS_DPH_REGISTROVANI": "Platitelia DPH",
     "FS_DPH_RUSENIE": "Zrušenie DPH", "FS_DPH_VYMAZANI": "Vymazaní z DPH",
-    "FS_DPH_NADMERNY_ODPOCET": "Nadmerný odpočet", "FS_DPH_BANKOVE_UCTY": "Bankové účty DPH",
+    "FS_DPH_NADMERNY_ODPOCET": "Nadmerný odpočet",
     "FS_DAN_Z_PRIJMOV": "Daň z príjmov PO", "FS_DAN_PRIJMOV_REG": "Reg. k dani z príjmov",
     "ROZHODNUTIA": "Rozhodnutia", "DISKVALIFIKACIE": "Diskvalifikácie",
     "NCRZP": "Záložné práva", "NCRD": "Register dražieb", "OCHRANNE_ZNAMKY": "Ochranné známky",

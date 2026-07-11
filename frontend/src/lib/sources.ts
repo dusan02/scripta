@@ -51,7 +51,7 @@ export const SOURCES: SourceInfo[] = [
   { id: "FS_DPH_RUSENIE",          name: "Zrušenie DPH",             short: "DPH", description: "Zoznam platiteľov DPH s dôvodmi na zrušenie registrácie", label: "Zrušenie DPH", sublabel: "Dôvody na zrušenie registrácie DPH", category: "fs", enabled: true },
   { id: "FS_DPH_VYMAZANI",         name: "Vymazaní z DPH",           short: "VYM", description: "Vymazaní platitelia DPH podľa §52 ods.8", label: "Vymazaní z DPH", sublabel: "Vymazaní platitelia DPH §52 ods.8", category: "fs", enabled: true },
   { id: "FS_DPH_NADMERNY_ODPOCET", name: "Nadmerný odpočet",        short: "NOP", description: "Zoznam DPH subjektov s nadmerným odpočtom a vlastnou daňovou povinnosťou", label: "Nadmerný odpočet", sublabel: "DPH subjekty s nadmerným odpočtom", category: "fs", enabled: true },
-  { id: "FS_DPH_BANKOVE_UCTY",     name: "Bankové účty DPH",         short: "BA",  description: "Zoznam zverejnených bankových účtov platiteľov DPH", label: "Bankové účty DPH", sublabel: "Zverejnené bankové účty DPH", category: "fs", enabled: false },
+
   { id: "FS_DAN_Z_PRIJMOV",        name: "Daň z príjmov PO",         short: "DAP", description: "Zoznam subjektov s výškou dane z príjmov právnickej osoby", label: "Daň z príjmov PO", sublabel: "Výška dane z príjmov PO", category: "fs", enabled: true },
   { id: "FS_DAN_PRIJMOV_REG",      name: "Registrácia k dani z príjmov", short: "DPR", description: "Zoznam daňových subjektov registrovaných na daň z príjmov", label: "Reg. k dani z príjmov", sublabel: "Registrácia k dani z príjmov", category: "fs", enabled: true },
 
