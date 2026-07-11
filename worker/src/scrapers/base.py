@@ -134,6 +134,7 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         ic_dph: Optional[str] = None,
         persons: Optional[list] = None,
         raw_data: Optional[list] = None,
+        full_extract_text: Optional[str] = None,
     ) -> ScrapedSource:
         return ScrapedSource(
             source_type=self.source_type,
@@ -146,4 +147,5 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
             ic_dph=ic_dph,
             persons=persons,
             raw_data=raw_data,
+            full_extract_text=full_extract_text,
         )

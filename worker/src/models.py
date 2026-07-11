@@ -40,6 +40,14 @@ class PersonInfo(BaseModel):
     role: str               # "statutar" alebo "spolocnik"
 
 
+class OrsrForensics(BaseModel):
+    """Forenzná analýza historických dát z ORSR."""
+    statutory_changes_count: int = 0
+    address_changes_count: int = 0
+    has_virtual_seat: bool = False
+    has_foreign_statutory: bool = False
+    high_turnover_risk: bool = False
+
 class ScrapedSource(BaseModel):
     source_type: str
     status: str  # SUCCESS, FAILED, UNAVAILABLE
@@ -52,6 +60,7 @@ class ScrapedSource(BaseModel):
     ic_dph: Optional[str] = None
     persons: Optional[List[PersonInfo]] = None
     raw_data: Optional[list] = None  # Štruktúrované dáta z API (JSON) — pre PDF Reader Agent
+    full_extract_text: Optional[str] = None  # Celý text "Úplného výpisu" pre ORSR Forensics
 
     @property
     def message(self) -> Optional[str]:  # backward compat alias

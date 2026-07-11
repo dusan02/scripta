@@ -17,7 +17,7 @@ load_dotenv()
 from src.config import settings as _cfg
 from src.db_repository import (
     save_to_db, save_narrative_to_db, save_notes_to_db,
-    save_company_events_to_db,
+    save_company_events_to_db, append_company_event_to_db,
     update_ai_status, get_avg_completion_seconds,
 )
 from src.log_helpers import (
@@ -290,6 +290,64 @@ async def run_pdf_reader_agent(ico: str, sources: list) -> None:
             logger.info(f"[PDF Reader Agent] IČO={ico}: žiadne udalosti nájdené")
     except Exception as e:
         logger.error(f"[PDF Reader Agent] IČO={ico}: chyba pri analýze PDF: {e}", exc_info=True)
+
+
+async def run_orsr_forensics_agent(ico: str, sources: list) -> None:
+    """
+    Agent pre forenznú analýzu Úplného výpisu ORSR (Biele kone, virtuálne sídla).
+    Beží paralelne s PDF Reader Agentom.
+    """
+    from src.agents.orsr_forensic import analyze_orsr_history
+    from src.utils.orsr_heuristics import is_virtual_seat, is_foreign_statutory
+    
+    orsr_source = next((s for s in sources if s.source_type == "ORSR" and s.status == "SUCCESS"), None)
+    if not orsr_source or not getattr(orsr_source, "full_extract_text", None):
+        return
+        
+    logger.info(f"[ORSR Forensic Agent] IČO={ico}: analyzujem históriu ORSR")
+    try:
+        # LLM volanie pre spočítanie zmien
+        forensics = await analyze_orsr_history(orsr_source.full_extract_text)
+
+        # Deterministické Python heuristiky — hľadáme v úplnom výpise (nie v findings)
+        forensics.has_virtual_seat = is_virtual_seat(orsr_source.full_extract_text)
+        forensics.has_foreign_statutory = bool(
+            getattr(orsr_source, "persons", None)
+            and is_foreign_statutory(orsr_source.persons)
+        )
+
+        # Vyhodnotenie severity
+        severity = "INFO"
+        title = "Analýza histórie ORSR"
+        description = f"Počet zmien štatutárov: {forensics.statutory_changes_count}, počet zmien sídla: {forensics.address_changes_count}."
+
+        if forensics.has_virtual_seat:
+            description += " Identifikované virtuálne sídlo."
+        if forensics.has_foreign_statutory:
+            description += " Identifikovaný zahraničný štatutár."
+
+        if forensics.high_turnover_risk or (forensics.has_virtual_seat and forensics.has_foreign_statutory):
+            severity = "CRITICAL"
+            title = "Riziko Bieleho koňa (ORSR Anomálie)"
+        elif forensics.has_virtual_seat or forensics.has_foreign_statutory or forensics.statutory_changes_count > 2:
+            severity = "HIGH"
+            title = "Zvýšené riziko z ORSR histórie"
+
+        from src.agents.pdf_reader import CompanyEvent
+        event = CompanyEvent(
+            source="ORSR",
+            event_type="FORENSIC_ANALYSIS",
+            severity=severity,
+            title=title,
+            description=description,
+            event_date=None,
+            amount=None,
+            metadata=forensics.model_dump(),
+        )
+        await append_company_event_to_db(ico, event)
+        logger.info(f"[ORSR Forensic Agent] IČO={ico}: Uložená forenzná analýza ({severity})")
+    except Exception as e:
+        logger.error(f"[ORSR Forensic Agent] IČO={ico}: chyba: {e}", exc_info=True)
 
 
 async def run_and_save_audit_verdict(ico: str, force: bool = False):

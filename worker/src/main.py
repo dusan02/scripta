@@ -287,11 +287,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
         company_name = _extract_company_name(sources, task.target_type)
 
         # Počkáme na dokončenie paralelnej AI Forenznej Pipeline pred kompiláciou
-        # Súčasne spustíme PDF Reader Agent, ktorý číta registry PDF (paralelne s AI pipeline)
+        # Súčasne spustíme PDF Reader Agent a ORSR Forensic Agent
         t_ai_wait = time.perf_counter()
         pdf_reader_task = None
+        orsr_forensic_task = None
         if task.target_type == "COMPANY" and task.ico and sources:
+            from src.pipeline import run_pdf_reader_agent, run_orsr_forensics_agent
             pdf_reader_task = asyncio.create_task(run_pdf_reader_agent(task.ico, sources))
+            orsr_forensic_task = asyncio.create_task(run_orsr_forensics_agent(task.ico, sources))
         if ai_task:
             try:
                 await ai_task
@@ -302,6 +305,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 await pdf_reader_task
             except Exception as pr_err:
                 _log.error(f"[{_rid}] PDF Reader Agent zlyhal pre {task.ico}: {pr_err}", exc_info=True)
+        if orsr_forensic_task:
+            try:
+                await orsr_forensic_task
+            except Exception as orsr_err:
+                _log.error(f"[{_rid}] ORSR Forensic Agent zlyhal pre {task.ico}: {orsr_err}", exc_info=True)
         t_ai_done = time.perf_counter()
         _ai_ms = int((t_ai_done - t_ai_wait) * 1000)
         await save_phase_duration(task.report_request_id, "ai", _ai_ms)
@@ -485,7 +493,7 @@ async def reprocess_report(report_request_id: str):
             report_request_id=row.id,
             ico=row.ico,
             target_type=row.targetType,
-            orsr_extract_type=None,
+            orsr_extract_type="CURRENT",
             crz_date_from=None,
             sources=list(row.selectedSources) if row.selectedSources else [],
         )

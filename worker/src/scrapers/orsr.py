@@ -52,6 +52,15 @@ class OrsrScraper(BaseScraper):
                     findings="Kritériám vyhľadávania nezodpovedá žiadny záznam — IČO neexistuje v ORSR.",
                 )
 
+            full_extract_text = None
+            if orsr_extract_type == "CURRENT":
+                # Double hop: najprv stiahni text "Úplného" pre analýzu, potom pokračuj na "Aktuálny"
+                full_company_name = await self._click_extract_link(page, "Úplný", ico)
+                if full_company_name:
+                    full_extract_text = await page.inner_text("body")
+                    # Vrátiť sa späť na vyhľadávanie
+                    await self._navigate_to_search(page, ico)
+            
             link_name = "Úplný" if orsr_extract_type == "FULL" else "Aktuálny"
             company_name = await self._click_extract_link(page, link_name, ico)
             if company_name is None:
@@ -64,6 +73,11 @@ class OrsrScraper(BaseScraper):
                     status_message=f"Výpis pre IČO {ico} nebol nájdený.",
                     findings="Záznam neexistuje alebo nebol nájdený.",
                 )
+            
+            # Ak je extract_type FULL, tak aktuálna stránka už je úplný výpis
+            if orsr_extract_type == "FULL":
+                full_extract_text = await page.inner_text("body")
+                
             logger.debug(f"[{self.source_type}] ⏱ detail_click + meno: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
@@ -86,6 +100,7 @@ class OrsrScraper(BaseScraper):
                 findings=findings,
                 company_name=company_name,
                 persons=persons,
+                full_extract_text=full_extract_text,
             )
         except ScraperUnavailableError as e:
             logger.error(f"[{self.source_type}] Nedostupný: {e}")

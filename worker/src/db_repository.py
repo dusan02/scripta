@@ -43,8 +43,11 @@ async def save_company_events_to_db(ico: str, events: list) -> None:
             where={'ico': ico},
             data={'create': {'ico': ico}, 'update': {}}
         )
-        # Vymaž staré eventy pre toto IČO (nahradenie pri re-run)
-        await db.companyevent.delete_many(where={'companyIco': ico})
+        # Vymaž staré eventy z PDF Reader Agent (nahradenie pri re-run), ale zachov FORENSIC_ANALYSIS
+        await db.companyevent.delete_many(where={
+            'companyIco': ico,
+            'NOT': {'eventType': 'FORENSIC_ANALYSIS'},
+        })
         for ev in events:
             event_date = None
             if ev.event_date:
@@ -69,6 +72,43 @@ async def save_company_events_to_db(ico: str, events: list) -> None:
                 create_data['metadata'] = Json(ev.metadata)
             await db.companyevent.create(data=create_data)
         logger.info(f"CompanyEvent[] uložené pre IČO={ico}: {len(events)} udalostí")
+    finally:
+        await db.disconnect()
+
+
+async def append_company_event_to_db(ico: str, event) -> None:
+    """Pridá jeden CompanyEvent bez vymazania existujúcich (pre paralelných agentov)."""
+    from prisma import Prisma
+    db = Prisma()
+    await db.connect()
+    try:
+        await db.company.upsert(
+            where={'ico': ico},
+            data={'create': {'ico': ico}, 'update': {}}
+        )
+        event_date = None
+        if event.event_date:
+            try:
+                from datetime import datetime
+                event_date = datetime.strptime(event.event_date, "%Y-%m-%d")
+            except (ValueError, TypeError):
+                pass
+        create_data = {
+            'companyIco': ico,
+            'source': event.source,
+            'eventType': event.event_type,
+            'severity': event.severity,
+            'title': event.title,
+            'description': event.description,
+            'eventDate': event_date,
+        }
+        if event.amount is not None:
+            create_data['amount'] = event.amount
+        if event.metadata is not None:
+            from prisma import Json
+            create_data['metadata'] = Json(event.metadata)
+        await db.companyevent.create(data=create_data)
+        logger.info(f"CompanyEvent appended pre IČO={ico}: {event.event_type}")
     finally:
         await db.disconnect()
 

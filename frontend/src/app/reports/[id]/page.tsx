@@ -341,13 +341,13 @@ function PhaseProgress({
             <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--success)" }}></div>
           </div>
 
-          {/* Current Status — single line */}
+          {/* Current Status — fully readable */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               <span className="shrink-0 tabular-nums text-sm font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
                 [{new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}]
               </span>
-              <span className="text-[15px] font-medium leading-snug" style={{ color: "var(--success)" }}>
+              <span className="text-[15px] font-medium leading-snug break-words" style={{ color: "var(--success)" }}>
                 {statusText}
               </span>
               {isScraping && sourcesTotal > 0 && (
