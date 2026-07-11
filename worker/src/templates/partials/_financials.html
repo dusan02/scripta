@@ -545,7 +545,7 @@
     </div>
     {% endif %}
 
-    {% if auditor_opinion and auditor_opinion.opinion_type %}
+    {% if auditor_opinion and auditor_opinion.opinion_type and auditor_opinion.opinion_type|string|lower != 'null' %}
     <div class="mb-3 p-3 rounded-lg border border-slate-200 bg-white flex items-start gap-3 shadow-sm">
         {% set op_icon = "✓" if auditor_opinion.opinion_type in ('UNQUALIFIED', 'BEZ_VYHRADY') else "⚠" if auditor_opinion.opinion_type in ('QUALIFIED', 'S_VYHRADOU') else "✗" %}
         {% set op_color = "text-emerald-500" if auditor_opinion.opinion_type in ('UNQUALIFIED', 'BEZ_VYHRADY') else "text-amber-500" if auditor_opinion.opinion_type in ('QUALIFIED', 'S_VYHRADOU') else "text-rose-500" %}
@@ -579,7 +579,7 @@
     {% endif %}
 
     {# ── NÁZOR AUDÍTORA + ZISTENIA COUNT (vedľa seba) ── #}
-    {% set has_auditor = latest_stmt and latest_stmt.auditorOpinion %}
+    {% set has_auditor = latest_stmt and latest_stmt.auditorOpinion and (latest_stmt.auditorOpinion.opinionType|string|lower != 'null') %}
     {% set has_evidence = evidence_list and evidence_list|length > 0 %}
     {% set positives = evidence_list | selectattr('impact', 'equalto', 'POSITIVE') | list if has_evidence else [] %}
     {% set warnings = evidence_list | selectattr('impact', 'equalto', 'WARNING') | list if has_evidence else [] %}

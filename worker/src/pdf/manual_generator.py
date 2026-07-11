@@ -21,16 +21,20 @@ from reportlab.platypus import (
 )
 
 # ─── Font registration ───
-_FONT_DIR = Path(__file__).parent.parent.parent / "assets" / "fonts"
+_FONT_DIR = Path(__file__).parent / "fonts"
 
 def _register_fonts():
     try:
         pdfmetrics.registerFont(TTFont("DejaVu", str(_FONT_DIR / "DejaVuSans.ttf")))
         pdfmetrics.registerFont(TTFont("DejaVu-Bold", str(_FONT_DIR / "DejaVuSans-Bold.ttf")))
+    except Exception:
+        return "Helvetica", "Helvetica-Bold", "Helvetica-Oblique"
+    
+    try:
         pdfmetrics.registerFont(TTFont("DejaVu-Oblique", str(_FONT_DIR / "DejaVuSans-Oblique.ttf")))
         return "DejaVu", "DejaVu-Bold", "DejaVu-Oblique"
     except Exception:
-        return "Helvetica", "Helvetica-Bold", "Helvetica-Oblique"
+        return "DejaVu", "DejaVu-Bold", "DejaVu"
 
 _FONT_REG, _FONT_BOLD, _FONT_ITALIC = _register_fonts()
 

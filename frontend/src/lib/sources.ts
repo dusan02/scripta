@@ -35,7 +35,7 @@ export const SOURCES: SourceInfo[] = [
   { id: "UNION_DLZNICI",   name: "UNION",                   short: "UNION", description: "Zoznam dlžníkov na zdravotnom poistení — UNION zdravotná poisťovňa", label: "UNION", sublabel: "Dlžníci na zdravotnom poistení (UNION)", category: "risk", enabled: true },
 
   // ── 3. Súdy a sankcie (4) ──
-  { id: "CRRS",            name: "Rozhodnutia súdov",       short: "CRRS", description: "Centrálny register rozhodnutí súdov — judikatúra a rozhodnutia", label: "Rozhodnutia súdov", sublabel: "Register rozhodnutí (CRRS)", category: "court", enabled: false },
+
   { id: "DISKVALIFIKACIE",  name: "Register diskvalifikácií", short: "DIS", description: "Zoznam osôb so zákazom výkonu funkcie štatutára — porovnanie s osobami z ORSR", label: "Diskvalifikácie", sublabel: "Zákaz výkonu funkcie štatutára", category: "court", enabled: true },
   { id: "ROZHODNUTIA",     name: "Rozhodnutia",             short: "ROZH", description: "Register rozhodnutí súdov — rozsudky a uznesenia", label: "Rozhodnutia", sublabel: "Súdy a rozhodnutia", category: "court", enabled: true },
   { id: "OBCHODNY_VESTNIK", name: "Obchodný vestník",       short: "OV",   description: "Obchodný vestník SR — zverejňovanie právnych skutočností", label: "Obchodný vestník", sublabel: "Obchodný vestník SR",     category: "court", enabled: true },

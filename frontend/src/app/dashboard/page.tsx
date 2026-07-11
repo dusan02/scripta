@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import SearchSection from "@/components/SearchSection";
 import ReportsTable from "@/components/ReportsTable";
 import AddonCredits from "@/components/AddonCredits";
-import CreditOverview from "@/components/CreditOverview";
+
 import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-[1200px] mx-auto px-4 sm:px-6" style={{ minHeight: "calc(100vh - 56px)" }}>
       <AddonCredits balance={userBalance} planName={userPlanName} />
-      <CreditOverview />
+
       <SearchSection />
       <ReportsTable reports={serializedReports} />
     </div>

@@ -555,8 +555,10 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     for stmt in reversed(sorted_stmts_raw):
         op = getattr(stmt, "auditorOpinion", None) or (stmt.get("auditorOpinion") if isinstance(stmt, dict) else None)
         if op:
-            has_audit = True
-            break
+            op_type = getattr(op, "opinionType", "") or (op.get("opinionType", "") if isinstance(op, dict) else "")
+            if op_type and str(op_type).lower() != "null":
+                has_audit = True
+                break
     if not has_audit and len(sorted_stmts_raw) > 0:
         dq_mult *= 0.85
 
@@ -799,7 +801,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     for stmt in reversed(sorted_stmts_raw):
         op = getattr(stmt, "auditorOpinion", None) or (stmt.get("auditorOpinion") if isinstance(stmt, dict) else {})
         op_type = getattr(op, "opinionType", "") or (op.get("opinionType", "") if isinstance(op, dict) else "")
-        if op_type:
+        if op_type and str(op_type).lower() != "null":
             if "bez výhrad" in op_type.lower(): p5_flags.append("Audítorský posudok: bez výhrad ✓")
             else: p5_raw = max(0, p5_raw - 3); p5_flags.append(f"Audítorský posudok: {op_type} (−3b)")
             break
