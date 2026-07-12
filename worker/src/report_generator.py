@@ -719,9 +719,9 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
         elif isinstance(raw, list):
             forensic_flags = raw
     if len(forensic_flags) >= 3:
-        _add("fraud_cat_forensic", "critical", len(forensic_flags), [str(f)[:80] for f in forensic_flags[:3]])
+        _add("fraud_cat_forensic", "critical", len(forensic_flags), [str(f)[:200] for f in forensic_flags[:3]])
     elif len(forensic_flags) >= 1:
-        _add("fraud_cat_forensic", "high", len(forensic_flags), [str(f)[:80] for f in forensic_flags[:3]])
+        _add("fraud_cat_forensic", "high", len(forensic_flags), [str(f)[:200] for f in forensic_flags[:3]])
     else:
         _add("fraud_cat_forensic", "none", 0)
 
@@ -734,7 +734,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             for field in ['goingConcernRisk', 'keyRiskFactors', 'managementChanges']:
                 val = getattr(nr, field, None)
                 if val and str(val).strip():
-                    narrative_flags.append(str(val)[:80])
+                    narrative_flags.append(str(val)[:200])
     if len(narrative_flags) >= 3:
         _add("fraud_cat_narrative", "high", len(narrative_flags), narrative_flags[:3])
     elif len(narrative_flags) >= 1:
@@ -751,7 +751,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             for field in ['redFlags', 'accountingAnomalies', 'hiddenRisks']:
                 val = getattr(nr, field, None)
                 if val and str(val).strip():
-                    notes_flags.append(str(val)[:80])
+                    notes_flags.append(str(val)[:200])
     if len(notes_flags) >= 2:
         _add("fraud_cat_notes", "high", len(notes_flags), notes_flags[:3])
     elif len(notes_flags) >= 1:

@@ -11,10 +11,10 @@
     {% include "partials/_legal.html" %}
     <div class="part-divider">{{ i18n.part_appendices }}</div>
     <div style="page-break-inside: avoid; break-inside: avoid;">
-        <div class="mb-6">
-            <h2 class="section-title">{{ i18n.glossary }}</h2>
-            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg report-caption text-slate-700">
-                <div class="grid grid-cols-3 gap-x-3 gap-y-1">
+        <div class="mb-3">
+            <h2 class="section-title" style="margin-bottom: 6px;">{{ i18n.glossary }}</h2>
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg report-caption text-slate-700">
+                <div class="grid grid-cols-3 gap-x-2 gap-y-0.5">
                     <div><strong>ROA</strong> — {{ i18n.glossary_roa }}</div>
                     <div><strong>ROE</strong> — {{ i18n.glossary_roe }}</div>
                     <div><strong>EBITDA</strong> — {{ i18n.glossary_ebitda }}</div>
@@ -40,24 +40,24 @@
                 </div>
             </div>
         </div>
-        <div class="mb-6 pt-2">
-            <h2 class="section-title">{{ i18n.methodology }}</h2>
-            <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg report-body-sm text-slate-700 leading-tight">
-                <h3 class="subsection-title mb-1.5">{{ i18n.verifa_score_model }}</h3>
-                <p class="mb-1.5">{{ i18n.methodology_intro }}</p>
-                <ul class="list-disc list-inside mb-2 space-y-0.5">
+        <div class="mb-3 pt-1">
+            <h2 class="section-title" style="margin-bottom: 6px;">{{ i18n.methodology }}</h2>
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg report-body-sm text-slate-700 leading-tight">
+                <h3 class="subsection-title mb-1">{{ i18n.verifa_score_model }}</h3>
+                <p class="mb-1">{{ i18n.methodology_intro }}</p>
+                <ul class="list-disc list-inside mb-1.5 space-y-0">
                     <li><strong>{{ i18n.pillar_p1 }}</strong> — {{ i18n.pillar_p1_desc }}</li>
                     <li><strong>{{ i18n.pillar_p2 }}</strong> — {{ i18n.pillar_p2_desc }}</li>
                     <li><strong>{{ i18n.pillar_p3 }}</strong> — {{ i18n.pillar_p3_desc }}</li>
                     <li><strong>{{ i18n.pillar_p4 }}</strong> — {{ i18n.pillar_p4_desc }}</li>
                     <li><strong>{{ i18n.pillar_p5 }}</strong> — {{ i18n.pillar_p5_desc }}</li>
                 </ul>
-                <p class="mb-1.5"><strong>{{ i18n.dq_multiplier }}</strong></p>
-                <p class="mb-1.5"><strong>{{ i18n.vestnik_degradation }}</strong></p>
-                <p class="mb-1.5"><strong>{{ i18n.auditor_correction_note }}</strong></p>
+                <p class="mb-1"><strong>{{ i18n.dq_multiplier }}</strong></p>
+                <p class="mb-1"><strong>{{ i18n.vestnik_degradation }}</strong></p>
+                <p class="mb-1"><strong>{{ i18n.auditor_correction_note }}</strong></p>
                 
-                <h3 class="subsection-title mt-3 mb-1.5">{{ i18n.score_scale }}</h3>
-                <div class="grid grid-cols-4 gap-2">
+                <h3 class="subsection-title mt-2 mb-1">{{ i18n.score_scale }}</h3>
+                <div class="grid grid-cols-4 gap-1.5 mb-2">
                     <div class="p-1.5 rounded border border-emerald-200 bg-emerald-50 text-center">
                         <p class="text-base font-black text-emerald-700">AAA</p>
                         <p class="report-caption text-emerald-600">90 – 100</p>
@@ -76,9 +76,9 @@
                     </div>
                 </div>
                 
-                <h3 class="subsection-title mt-3 mb-1.5">{{ i18n.confidence_score_title }}</h3>
-                <p class="mb-1.5">{{ i18n.confidence_score_desc }}</p>
-                <ul class="list-disc list-inside space-y-0.5">
+                <h3 class="subsection-title mt-1 mb-1">{{ i18n.confidence_score_title }}</h3>
+                <p class="mb-1">{{ i18n.confidence_score_desc }}</p>
+                <ul class="list-disc list-inside space-y-0">
                     <li><strong>{{ i18n.conf_audit }}</strong> (15 %) — {{ i18n.conf_audit_desc }}</li>
                     <li><strong>{{ i18n.conf_financial }}</strong> (20 %) — {{ i18n.conf_financial_desc }}</li>
                     <li><strong>{{ i18n.conf_history }}</strong> (20 %) — {{ i18n.conf_history_desc }}</li>
@@ -88,8 +88,8 @@
             </div>
         </div>
         
-        <div class="mt-6 pt-4 border-t border-slate-200 text-center">
-            <p class="text-[9px] leading-relaxed text-slate-400 italic max-w-4xl mx-auto">
+        <div class="mt-2 pt-2 border-t border-slate-200 text-center">
+            <p class="text-[8px] leading-tight text-slate-400 italic max-w-4xl mx-auto">
                 <strong>{{ i18n.legal_disclaimer }}</strong>
             </p>
         </div>

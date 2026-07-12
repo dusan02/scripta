@@ -1,30 +1,6 @@
 <!-- PREHĽAD PREVERENÝCH REGISTROV (Compact Grid) -->
 <div class="pt-2" style="page-break-inside: avoid; break-inside: avoid;">
-    <div class="flex justify-between items-center w-full mb-4">
-        <h2 class="section-title mb-0" style="border-bottom: 0;">{{ i18n.toc_title }}</h2>
-        <div class="flex justify-end items-center">
-            {% if logo_base64 %}
-            <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-7">
-            {% else %}
-            <span class="text-lg font-black text-[#10b981]">Verifa.sk</span>
-            {% endif %}
-        </div>
-    </div>
-
-    {# ── Analytical outputs (compact list) ── #}
-    <div class="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50">
-        <p class="subsection-title-sm mb-2">{{ i18n.toc_analytical_outputs }}</p>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-1">
-            <a href="#forenzny_posudok" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_main_assessment }}</a>
-            <a href="#scoring_breakdown" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_scoring_table }}</a>
-            <a href="#suvaha" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_balance_sheet }}</a>
-            <a href="#vykaz_ziskov" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_pl }}</a>
-            <a href="#cash_flow" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_cash_flow }}</a>
-            <a href="#financny_posudok" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_financial_assessment }}</a>
-            <span class="text-[10px] text-slate-500">→ {{ i18n.toc_legal_risks }}</span>
-            <span class="text-[10px] text-slate-500">→ {{ i18n.toc_glossary }} / {{ i18n.toc_methodology }}</span>
-        </div>
-    </div>
+    <h2 class="section-title mb-3" style="border-bottom: 0;">{{ i18n.toc_title }}</h2>
 
     {# ── Registry sources (compact grid) ── #}
     {% for cat_name, cat_sources in grouped_sources %}

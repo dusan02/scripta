@@ -109,7 +109,7 @@ I18N_STRINGS = {
         # Glossary & Methodology
         "glossary": "Glosár pojmov",
         "methodology": "Metodika",
-        "part_executive": "I. EXECUTIVE SUMMARY",
+        "part_executive": "I. VÝKONNÉ ZHRNUTIE",
         "part_financial_analysis": "II. FINANČNÁ ANALÝZA A SKÓRING",
         "part_registry": "III. LUSTRÁCIA REGISTROV A PRÁVO",
         "part_appendices": "IV. GLOSÁR POJMOV A METODIKA",

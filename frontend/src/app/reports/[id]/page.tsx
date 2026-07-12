@@ -411,6 +411,7 @@ export default function ReportDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
+  const [downloadingBoth, setDownloadingBoth] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [etaCountdown, setEtaCountdown] = useState<number | null>(null);
   const etaRef = useRef<number | null>(null);
@@ -506,6 +507,16 @@ export default function ReportDetailPage() {
       toast.error("Sťahovanie CSV zlyhalo.");
     } finally {
       setDownloadingCsv(false);
+    }
+  };
+
+  const handleDownloadBoth = async () => {
+    setDownloadingBoth(true);
+    try {
+      await handleDownload();
+      await handleDownloadCsv();
+    } finally {
+      setDownloadingBoth(false);
     }
   };
 
@@ -868,62 +879,80 @@ export default function ReportDetailPage() {
                   </div>
                 </button>
 
-                {/* Always-visible green CTA bar */}
-                <button
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  className="flex items-center justify-center gap-3 w-full max-w-[340px] px-6 py-4 rounded-xl font-bold text-[15px] transition-all hover:brightness-110 active:brightness-95 mb-2"
-                  style={{
-                    background: "var(--success)",
-                    color: "#ffffff",
-                    boxShadow: "0 8px 24px -6px color-mix(in srgb, var(--success) 40%, transparent)",
-                  }}
-                >
-                  {downloading ? (
-                    <>
-                      <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                      </svg>
-                      Sťahujem report…
-                    </>
-                  ) : (
-                    <>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                      Stiahnuť PDF report
-                    </>
-                  )}
-                </button>
-
-                {/* CSV Export Button */}
-                <button
-                  onClick={handleDownloadCsv}
-                  disabled={downloadingCsv}
-                  className="flex items-center justify-center gap-2 w-full max-w-[340px] px-6 py-3 rounded-xl font-medium text-[14px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800 mb-2"
-                  style={{
-                    border: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  {downloadingCsv ? (
-                    <>
+                {/* Download buttons row */}
+                <div className="flex gap-2 w-full max-w-[340px] mb-2">
+                  <button
+                    onClick={handleDownload}
+                    disabled={downloading || downloadingBoth}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[13px] transition-all hover:brightness-110 active:brightness-95"
+                    style={{
+                      background: "var(--success)",
+                      color: "#ffffff",
+                      boxShadow: "0 4px 12px -3px color-mix(in srgb, var(--success) 40%, transparent)",
+                    }}
+                  >
+                    {downloading ? (
                       <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
                         <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                       </svg>
-                      Sťahujem CSV…
-                    </>
-                  ) : (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                    PDF
+                  </button>
+                  <button
+                    onClick={handleDownloadCsv}
+                    disabled={downloadingCsv || downloadingBoth}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {downloadingCsv ? (
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
                         <line x1="8" y1="13" x2="16" y2="13" />
                         <line x1="8" y1="17" x2="16" y2="17" />
                       </svg>
-                      Stiahnuť finančné výkazy (CSV)
+                    )}
+                    CSV
+                  </button>
+                </div>
+
+                {/* Download both button */}
+                <button
+                  onClick={handleDownloadBoth}
+                  disabled={downloading || downloadingCsv || downloadingBoth}
+                  className="flex items-center justify-center gap-2 w-full max-w-[340px] px-6 py-2.5 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800 mb-2"
+                  style={{
+                    border: "1px solid var(--border)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  {downloadingBoth ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Sťahujem obe…
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                      Stiahnuť obe (PDF + CSV)
                     </>
                   )}
                 </button>
