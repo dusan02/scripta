@@ -12,3 +12,4 @@ uvicorn.log
 .git
 results/
 *.pdf
+*.bak
