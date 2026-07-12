@@ -269,7 +269,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 orsr_extract_type=task.orsr_extract_type,
                 crz_date_from=task.crz_date_from,
                 rozhodnutia_date_from=task.rozhodnutia_date_from,
-                on_source_done=_on_source_done,
             )
 
             # Merge retry results back into sources
@@ -384,6 +383,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 sources=sources,
                 company_name=company_name,
                 report_language=task.report_language or "sk",
+                vestnik_date_from=task.vestnik_date_from,
             )
         t_compile = time.perf_counter()
         await save_phase_duration(task.report_request_id, "compile", int((t_compile - t_compile_start) * 1000))
@@ -500,6 +500,7 @@ async def reprocess_report(report_request_id: str):
             target_type=row.targetType,
             orsr_extract_type="CURRENT",
             crz_date_from=None,
+            vestnik_date_from=getattr(row.user, 'vestnikDateFrom', None).isoformat().split("T")[0] if getattr(row.user, 'vestnikDateFrom', None) else None,
             sources=list(row.selectedSources) if row.selectedSources else [],
             report_language=getattr(row.user, 'reportLanguage', None) or "sk",
         )

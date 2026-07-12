@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [orsrExtractType, setOrsrExtractType] = useState<"CURRENT" | "FULL">("CURRENT");
   const [crzDateFrom, setCrzDateFrom] = useState<string>("");
   const [rozhodnutiaYearFrom, setRozhodnutiaYearFrom] = useState<string>(String(new Date().getFullYear() - 1));
+  const [vestnikDateFrom, setVestnikDateFrom] = useState<string>("");
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear - i));
   const [defaultSources, setDefaultSources] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
@@ -18,14 +19,15 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", rozhodnutiaYearFrom: String(currentYear - 1), defaultSources: DEFAULT_SELECTED_SOURCES, reportLanguage: "sk" });
+  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", rozhodnutiaYearFrom: String(currentYear - 1), vestnikDateFrom: "", defaultSources: DEFAULT_SELECTED_SOURCES, reportLanguage: "sk" });
 
   const hasUnsavedChanges =
     orsrExtractType !== initialRef.current.orsrExtractType ||
     crzDateFrom !== initialRef.current.crzDateFrom ||
     rozhodnutiaYearFrom !== initialRef.current.rozhodnutiaYearFrom ||
     JSON.stringify(defaultSources) !== JSON.stringify(initialRef.current.defaultSources) ||
-    reportLanguage !== initialRef.current.reportLanguage;
+    reportLanguage !== initialRef.current.reportLanguage ||
+    vestnikDateFrom !== initialRef.current.vestnikDateFrom;
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -55,10 +57,12 @@ export default function SettingsPage() {
           setDefaultSources(data.defaultSources);
         }
         if (data.reportLanguage) setReportLanguage(data.reportLanguage);
+        if (data.vestnikDateFrom) setVestnikDateFrom(data.vestnikDateFrom);
         initialRef.current = {
           orsrExtractType: data.orsrExtractType || "CURRENT",
           crzDateFrom: data.crzDateFrom || "",
           rozhodnutiaYearFrom: data.rozhodnutiaDateFrom ? new Date(data.rozhodnutiaDateFrom).getFullYear().toString() : String(currentYear - 1),
+          vestnikDateFrom: data.vestnikDateFrom || "",
           defaultSources: data.defaultSources?.length > 0 ? data.defaultSources : DEFAULT_SELECTED_SOURCES,
           reportLanguage: data.reportLanguage || "sk",
         };
@@ -77,12 +81,13 @@ export default function SettingsPage() {
       await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, rozhodnutiaDateFrom: rozhodnutiaYearFrom ? `${rozhodnutiaYearFrom}-01-01` : null, defaultSources, reportLanguage }),
+        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, rozhodnutiaDateFrom: rozhodnutiaYearFrom ? `${rozhodnutiaYearFrom}-01-01` : null, vestnikDateFrom: vestnikDateFrom || null, defaultSources, reportLanguage }),
       });
       initialRef.current = {
         orsrExtractType,
         crzDateFrom,
         rozhodnutiaYearFrom,
+        vestnikDateFrom,
         defaultSources,
         reportLanguage,
       };
@@ -288,6 +293,53 @@ export default function SettingsPage() {
                 <option value={String(currentYear)}>{currentYear}</option>
               </select>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Vestník Date From */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2
+              className="text-sm font-semibold mb-1"
+              style={{ color: "var(--text)" }}
+            >
+              Obchodný vestník
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Dátum, od ktorého sa budú v reporte zobrazovať udalosti z Obchodného vestníka. Defaultne 1 rok dozadu.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div
+            className="h-10 rounded-lg animate-pulse"
+            style={{ background: "var(--bg-muted)" }}
+          />
+        ) : (
+          <div>
+            <input
+              type="date"
+              value={vestnikDateFrom}
+              onChange={(e) => setVestnikDateFrom(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm"
+              style={{
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+            />
+            {vestnikDateFrom && (
+              <button
+                onClick={() => setVestnikDateFrom("")}
+                className="text-xs mt-2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                ↺ {t("settings.zrusitDefault").replace("↺ ", "")}
+              </button>
+            )}
           </div>
         )}
       </div>

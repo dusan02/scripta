@@ -466,7 +466,566 @@ def _translate_scorecard(breakdown: list, i18n_strings: dict) -> list:
     return result
 
 
-def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language="sk"):
+def compute_insolvency_score(stmts, i18n_strings):
+    """
+    Simple predictive insolvency model based on 5-year trends.
+    Analyzes: equity trend, revenue trend, debt ratio trend, profitability, Altman Z'' trend.
+    Returns a dict with score (0-100, higher = worse), risk level, and trend details.
+    """
+    if not stmts or len(stmts) < 2:
+        return {"score": None, "risk_level": "no_data", "risk_label": i18n_strings.get("insolvency_no_data"), "trends": [], "has_data": False}
+
+    stmts_sorted = sorted(stmts, key=lambda s: s.year)
+    years = [s.year for s in stmts_sorted]
+
+    def _trend(values):
+        """Return (direction, consecutive_count). direction = 'declining'|'stable'|'growing'"""
+        if len(values) < 2:
+            return "stable", 0
+        # Linear regression slope
+        n = len(values)
+        x_mean = (n - 1) / 2
+        y_mean = sum(values) / n
+        num = sum((i - x_mean) * (v - y_mean) for i, v in enumerate(values))
+        den = sum((i - x_mean) ** 2 for i in range(n))
+        slope = num / den if den else 0
+
+        # Count consecutive declining/growing years from the end
+        consecutive = 0
+        direction = "stable"
+        if slope < -0.01 * abs(y_mean) if y_mean else slope < 0:
+            direction = "declining"
+            for i in range(len(values) - 1, 0, -1):
+                if values[i] < values[i - 1]:
+                    consecutive += 1
+                else:
+                    break
+        elif slope > 0.01 * abs(y_mean) if y_mean else slope > 0:
+            direction = "growing"
+            for i in range(len(values) - 1, 0, -1):
+                if values[i] > values[i - 1]:
+                    consecutive += 1
+                else:
+                    break
+        return direction, consecutive
+
+    def _safe_attr(s, name):
+        v = getattr(s, name, None)
+        if v is None:
+            return None
+        return float(v)
+
+    # 1. Equity trend
+    equities = [_safe_attr(s, 'equity') for s in stmts_sorted]
+    eq_trend, eq_decline_years = _trend([e for e in equities if e is not None])
+
+    # 2. Revenue trend
+    revenues = [_safe_attr(s, 'mainActivityRevenue') or _safe_attr(s, 'totalRevenue') for s in stmts_sorted]
+    rev_trend, rev_decline_years = _trend([r for r in revenues if r is not None])
+
+    # 3. Debt ratio trend (totalLiabilities / totalAssets)
+    debt_ratios = []
+    for s in stmts_sorted:
+        tl = _safe_attr(s, 'totalLiabilities') or ((_safe_attr(s, 'shortTermLiabilities') or 0) + (_safe_attr(s, 'longTermLiabilities') or 0))
+        ta = _safe_attr(s, 'totalAssets')
+        if tl and ta and ta > 0:
+            debt_ratios.append(tl / ta)
+    debt_trend, debt_grow_years = _trend(debt_ratios)
+
+    # 4. Profitability — consecutive loss years
+    profits = [_safe_attr(s, 'netProfitLoss') for s in stmts_sorted]
+    loss_years = 0
+    profit_years = 0
+    for p in reversed(profits):
+        if p is not None and p < 0:
+            loss_years += 1
+        elif p is not None and p > 0:
+            break
+    for p in reversed(profits):
+        if p is not None and p > 0:
+            profit_years += 1
+        elif p is not None and p < 0:
+            break
+
+    # 5. Altman Z'' trend (if available)
+    altman_values = []
+    for s in stmts_sorted:
+        z = _safe_attr(s, 'altmanZScore')
+        if z is not None:
+            altman_values.append(z)
+    altman_trend, altman_decline = _trend(altman_values) if len(altman_values) >= 2 else ("stable", 0)
+
+    # --- Scoring ---
+    score = 0
+    # Equity decline: up to 25 points
+    if eq_trend == "declining":
+        score += min(25, eq_decline_years * 8)
+    # Revenue decline: up to 20 points
+    if rev_trend == "declining":
+        score += min(20, rev_decline_years * 7)
+    # Debt growing: up to 20 points
+    if debt_trend == "growing":
+        score += min(20, debt_grow_years * 7)
+    # Consecutive losses: up to 25 points
+    score += min(25, loss_years * 10)
+    # Altman declining: up to 10 points
+    if altman_trend == "declining":
+        score += min(10, altman_decline * 5)
+
+    # Bonus reduction for consistent profitability
+    if profit_years >= 3:
+        score = max(0, score - 10)
+
+    score = min(100, max(0, score))
+
+    if score >= 60:
+        risk_level = "critical"
+        risk_label = i18n_strings.get("insolvency_critical")
+    elif score >= 40:
+        risk_level = "high"
+        risk_label = i18n_strings.get("insolvency_high")
+    elif score >= 20:
+        risk_level = "medium"
+        risk_label = i18n_strings.get("insolvency_medium")
+    else:
+        risk_level = "low"
+        risk_label = i18n_strings.get("insolvency_low")
+
+    trend_label_map = {
+        "declining": i18n_strings.get("insolvency_declining"),
+        "stable": i18n_strings.get("insolvency_stable"),
+        "growing": i18n_strings.get("insolvency_growing"),
+    }
+
+    trends = []
+    if any(e is not None for e in equities):
+        trends.append({
+            "label": i18n_strings.get("insolvency_equity_trend"),
+            "direction": trend_label_map.get(eq_trend, eq_trend),
+            "detail": i18n_strings.get("insolvency_years_decline", "").format(n=eq_decline_years) if eq_decline_years > 0 else "",
+            "is_negative": eq_trend == "declining",
+        })
+    if any(r is not None for r in revenues):
+        trends.append({
+            "label": i18n_strings.get("insolvency_revenue_trend"),
+            "direction": trend_label_map.get(rev_trend, rev_trend),
+            "detail": i18n_strings.get("insolvency_years_decline", "").format(n=rev_decline_years) if rev_decline_years > 0 else "",
+            "is_negative": rev_trend == "declining",
+        })
+    if debt_ratios:
+        trends.append({
+            "label": i18n_strings.get("insolvency_debt_trend"),
+            "direction": trend_label_map.get(debt_trend, debt_trend),
+            "detail": i18n_strings.get("insolvency_years_decline", "").format(n=debt_grow_years) if debt_grow_years > 0 else "",
+            "is_negative": debt_trend == "growing",
+        })
+    if any(p is not None for p in profits):
+        if loss_years > 0:
+            trends.append({
+                "label": i18n_strings.get("insolvency_profit_trend"),
+                "direction": i18n_strings.get("insolvency_declining"),
+                "detail": i18n_strings.get("insolvency_years_loss", "").format(n=loss_years),
+                "is_negative": True,
+            })
+        else:
+            trends.append({
+                "label": i18n_strings.get("insolvency_profit_trend"),
+                "direction": i18n_strings.get("insolvency_growing"),
+                "detail": i18n_strings.get("insolvency_years_profit", "").format(n=profit_years),
+                "is_negative": False,
+            })
+    if len(altman_values) >= 2:
+        trends.append({
+            "label": i18n_strings.get("insolvency_altman_trend"),
+            "direction": trend_label_map.get(altman_trend, altman_trend),
+            "detail": "",
+            "is_negative": altman_trend == "declining",
+        })
+
+    return {
+        "score": score,
+        "risk_level": risk_level,
+        "risk_label": risk_label,
+        "trends": trends,
+        "has_data": True,
+    }
+
+
+def _translate_auditor_op(o_raw, i18n_strings):
+    """Translate auditor opinion type to the report language."""
+    if not o_raw:
+        return ""
+    lo = o_raw.lower()
+    if 'bez výhrad' in lo or 'unqualified' in lo or 'ohne vorbehalt' in lo:
+        return i18n_strings.get("auditor_unqualified", o_raw)
+    if ('výhrad' in lo and 'bez výhrad' not in lo) or ('qualified' in lo and 'unqualified' not in lo) or ('vorbehalt' in lo and 'ohne' not in lo):
+        return i18n_strings.get("auditor_qualified", o_raw)
+    if 'záporn' in lo or 'adverse' in lo:
+        return i18n_strings.get("auditor_adverse", o_raw)
+    if 'odmietnut' in lo or 'disclaimer' in lo or 'versagte' in lo:
+        return i18n_strings.get("auditor_disclaimer", o_raw)
+    return o_raw
+
+
+def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
+    """
+    Aggregate red flags from multiple sources into a heatmap grid.
+    Categories: vestnik, forensic, narrative, notes, auditor, legal, financial.
+    Each category gets a severity level (none/low/medium/high/critical) and flag count.
+    """
+    categories = []
+
+    def _add(cat_key, severity, count, details=None):
+        sev_map = {
+            "critical": ("fraud_severity_critical", "#dc2626", "#fef2f2"),
+            "high": ("fraud_severity_high", "#ea580c", "#fff7ed"),
+            "medium": ("fraud_severity_medium", "#d97706", "#fffbeb"),
+            "low": ("fraud_severity_low", "#059669", "#ecfdf5"),
+            "none": ("fraud_severity_none", "#94a3b8", "#f8fafc"),
+        }
+        label_key, color, bg = sev_map.get(severity, sev_map["none"])
+        categories.append({
+            "label": i18n_strings.get(cat_key, cat_key),
+            "severity": severity,
+            "severity_label": i18n_strings.get(label_key, severity),
+            "color": color,
+            "bg": bg,
+            "count": count,
+            "details": details or [],
+        })
+
+    # 1. Vestnik events
+    vestnik_critical = sum(1 for e in vestnik_events if getattr(e, 'severityLevel', '').lower() in ('critical', 'kriticke', 'kritisch'))
+    vestnik_high = sum(1 for e in vestnik_events if getattr(e, 'severityLevel', '').lower() in ('high', 'vysoka', 'hoch'))
+    vestnik_count = len(vestnik_events)
+    if vestnik_critical > 0:
+        _add("fraud_cat_vestnik", "critical", vestnik_count, [getattr(e, 'eventType', '') for e in vestnik_events[:3]])
+    elif vestnik_high > 0:
+        _add("fraud_cat_vestnik", "high", vestnik_count, [getattr(e, 'eventType', '') for e in vestnik_events[:3]])
+    elif vestnik_count > 0:
+        _add("fraud_cat_vestnik", "medium", vestnik_count)
+    else:
+        _add("fraud_cat_vestnik", "none", 0)
+
+    # 2. Forensic (from verdict forensicRedFlags)
+    forensic_flags = []
+    if verdict and getattr(verdict, 'forensicRedFlags', None):
+        raw = verdict.forensicRedFlags
+        if isinstance(raw, str):
+            try:
+                forensic_flags = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                forensic_flags = [raw]
+        elif isinstance(raw, list):
+            forensic_flags = raw
+    if len(forensic_flags) >= 3:
+        _add("fraud_cat_forensic", "critical", len(forensic_flags), [str(f)[:80] for f in forensic_flags[:3]])
+    elif len(forensic_flags) >= 1:
+        _add("fraud_cat_forensic", "high", len(forensic_flags), [str(f)[:80] for f in forensic_flags[:3]])
+    else:
+        _add("fraud_cat_forensic", "none", 0)
+
+    # 3. Narrative risks
+    narrative_flags = []
+
+    for stmt in (stmts or []):
+        nr = getattr(stmt, 'narrativeRisk', None)
+        if nr:
+            for field in ['goingConcernRisk', 'keyRiskFactors', 'managementChanges']:
+                val = getattr(nr, field, None)
+                if val and str(val).strip():
+                    narrative_flags.append(str(val)[:80])
+    if len(narrative_flags) >= 3:
+        _add("fraud_cat_narrative", "high", len(narrative_flags), narrative_flags[:3])
+    elif len(narrative_flags) >= 1:
+        _add("fraud_cat_narrative", "medium", len(narrative_flags), narrative_flags[:3])
+    else:
+        _add("fraud_cat_narrative", "none", 0)
+
+    # 4. Notes forensic
+    notes_flags = []
+
+    for stmt in (stmts or []):
+        nr = getattr(stmt, 'notesRisk', None)
+        if nr:
+            for field in ['redFlags', 'accountingAnomalies', 'hiddenRisks']:
+                val = getattr(nr, field, None)
+                if val and str(val).strip():
+                    notes_flags.append(str(val)[:80])
+    if len(notes_flags) >= 2:
+        _add("fraud_cat_notes", "high", len(notes_flags), notes_flags[:3])
+    elif len(notes_flags) >= 1:
+        _add("fraud_cat_notes", "medium", len(notes_flags), notes_flags[:3])
+    else:
+        _add("fraud_cat_notes", "none", 0)
+
+    # 5. Auditor opinion
+    auditor_sev = "none"
+    auditor_details = []
+
+    for stmt in (stmts or []):
+        ao = getattr(stmt, 'auditorOpinion', None)
+        if ao:
+            op = getattr(ao, 'opinionType', '').lower() if getattr(ao, 'opinionType', None) else ''
+            if 'adverse' in op or 'záporn' in op or 'odmietnut' in op:
+                auditor_sev = "critical"
+                auditor_details.append(f"{stmt.year}: {_translate_auditor_op(getattr(ao, 'opinionType', ''), i18n_strings)}")
+            elif ('qualified' in op and 'unqualified' not in op) or ('výhrad' in op and 'bez výhrad' not in op) or ('vorbehalt' in op and 'ohne' not in op):
+                if auditor_sev != "critical":
+                    auditor_sev = "high"
+                auditor_details.append(f"{stmt.year}: {_translate_auditor_op(getattr(ao, 'opinionType', ''), i18n_strings)}")
+            if getattr(ao, 'goingConcernRisk', None):
+                if auditor_sev == "none":
+                    auditor_sev = "medium"
+                auditor_details.append(f"{stmt.year}: Going Concern")
+    _add("fraud_cat_auditor", auditor_sev, len(auditor_details), auditor_details[:3])
+
+    # 6. Legal registries (from verdict evidence)
+    legal_flags = []
+    if verdict and getattr(verdict, 'evidence', None):
+        raw = verdict.evidence
+        if isinstance(raw, str):
+            try:
+                ev_list = json.loads(raw)
+                legal_flags = [e for e in ev_list if isinstance(e, dict) and e.get('impact', '').upper() in ('CRITICAL', 'WARNING')]
+            except (json.JSONDecodeError, ValueError):
+                pass
+        elif isinstance(raw, list):
+            legal_flags = [e for e in raw if isinstance(e, dict) and e.get('impact', '').upper() in ('CRITICAL', 'WARNING')]
+    critical_count = sum(1 for e in legal_flags if e.get('impact', '').upper() == 'CRITICAL')
+    if critical_count > 0:
+        _add("fraud_cat_legal", "critical", len(legal_flags))
+    elif len(legal_flags) >= 2:
+        _add("fraud_cat_legal", "high", len(legal_flags))
+    elif len(legal_flags) >= 1:
+        _add("fraud_cat_legal", "medium", len(legal_flags))
+    else:
+        _add("fraud_cat_legal", "none", 0)
+
+    # 7. Financial indicators (from insolvency-relevant metrics)
+    fin_sev = "none"
+    fin_details = []
+    if stmts and len(stmts) >= 2:
+        latest = max(stmts, key=lambda s: s.year)
+        altman = getattr(latest, 'altmanZScore', None)
+        if altman is not None and float(altman) < 1.1:
+            fin_sev = "critical"
+            fin_details.append(f"Altman Z'' = {altman:.2f} (Krizóna)")
+        elif altman is not None and float(altman) < 2.6:
+            if fin_sev == "none":
+                fin_sev = "medium"
+            fin_details.append(f"Altman Z'' = {altman:.2f} (Šedá zóna)")
+        equity = getattr(latest, 'equity', None)
+        if equity is not None and float(equity) < 0:
+            fin_sev = "critical"
+            fin_details.append("Záporné vlastné imanie")
+        net_profit = getattr(latest, 'netProfitLoss', None)
+        if net_profit is not None and float(net_profit) < 0:
+            if fin_sev == "none":
+                fin_sev = "medium"
+            fin_details.append("Čistá strata")
+    _add("fraud_cat_financial", fin_sev, len(fin_details), fin_details[:3])
+
+    # Overall risk level
+    sev_order = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+    max_sev = max(categories, key=lambda c: sev_order.get(c["severity"], 0))
+    overall_level = max_sev["severity"]
+    overall_label = max_sev["severity_label"]
+
+    return {
+        "categories": categories,
+        "overall_level": overall_level,
+        "overall_label": overall_label,
+        "has_data": True,
+    }
+
+
+def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_score,
+                                  verdict, stmts, vestnik_events, i18n_strings):
+    """
+    Aggregate strengths and weaknesses from all available data sources.
+    Returns a dict with 'strengths' and 'weaknesses' lists, each containing
+    {'label': str, 'source': str} items.
+    """
+    strengths = []
+    weaknesses = []
+
+    def _strength(label, source=""):
+        strengths.append({"label": label, "source": source})
+
+    def _weakness(label, source=""):
+        weaknesses.append({"label": label, "source": source})
+
+    # 1. From scorecard pillars
+    if scorecard_breakdown:
+        for pillar in scorecard_breakdown:
+            score = pillar.get("score", 0)
+            max_score = pillar.get("max_score", 0)
+            name = pillar.get("name", "")
+            if max_score > 0:
+                pct = (score / max_score) * 100
+                if pct >= 80:
+                    _strength(f"{name}: {score}/{max_score}", i18n_strings.get("sw_source_scorecard", ""))
+                elif pct < 40:
+                    _weakness(f"{name}: {score}/{max_score}", i18n_strings.get("sw_source_scorecard", ""))
+
+    # 2. From fraud heatmap categories
+    if fraud_heatmap and fraud_heatmap.get("has_data"):
+        for cat in fraud_heatmap.get("categories", []):
+            sev = cat.get("severity", "none")
+            label = cat.get("label", "")
+            if sev in ("none", "low"):
+                _strength(f"{label}: {cat.get('severity_label', '')}", i18n_strings.get("sw_source_heatmap", ""))
+            elif sev in ("high", "critical"):
+                _weakness(f"{label}: {cat.get('severity_label', '')}", i18n_strings.get("sw_source_heatmap", ""))
+
+    # 3. From insolvency score
+    if insolvency_score and insolvency_score.get("has_data"):
+        risk_level = insolvency_score.get("risk_level", "no_data")
+        risk_label = insolvency_score.get("risk_label", "")
+        if risk_level in ("low", "very_low"):
+            _strength(f"{i18n_strings.get('sw_insolvency_low', 'Nízke riziko insolventnosti')}: {risk_label}",
+                      i18n_strings.get("sw_source_insolvency", ""))
+        elif risk_level in ("high", "critical"):
+            _weakness(f"{i18n_strings.get('sw_insolvency_high', 'Vysoké riziko insolventnosti')}: {risk_label}",
+                      i18n_strings.get("sw_source_insolvency", ""))
+
+    # 4. From Vestník events
+    vestnik_count = len(vestnik_events) if vestnik_events else 0
+    if vestnik_count == 0:
+        _strength(i18n_strings.get("sw_clean_vestnik", "Bez záznamov v Obchodnom vestníku"),
+                  i18n_strings.get("sw_source_vestnik", ""))
+    else:
+        critical_count = sum(1 for e in vestnik_events
+                             if getattr(e, 'severityLevel', '').lower() in ('critical', 'kriticke', 'kritisch'))
+        if critical_count > 0:
+            _weakness(f"{i18n_strings.get('sw_vestnik_critical', 'Kritické záznamy v Obchodnom vestníku')} ({critical_count})",
+                      i18n_strings.get("sw_source_vestnik", ""))
+
+    # 5. From financial statements
+    if stmts and len(stmts) >= 2:
+        latest = max(stmts, key=lambda s: s.year)
+        altman = getattr(latest, 'altmanZScore', None)
+        if altman is not None:
+            try:
+                altman_val = float(altman)
+                if altman_val >= 2.6:
+                    _strength(f"Altman Z'' = {altman_val:.2f} ({i18n_strings.get('altman_safe', 'Bezpečná zóna')})",
+                              i18n_strings.get("sw_source_financials", ""))
+                elif altman_val < 1.1:
+                    _weakness(f"Altman Z'' = {altman_val:.2f} ({i18n_strings.get('altman_distress', 'Núdzová zóna')})",
+                              i18n_strings.get("sw_source_financials", ""))
+            except (ValueError, TypeError):
+                pass
+
+        equity = getattr(latest, 'equity', None)
+        if equity is not None:
+            if float(equity) > 0:
+                _strength(f"{i18n_strings.get('sw_positive_equity', 'Kladné vlastné imanie')}: {float(equity):,.0f} €".replace(",", " "),
+                          i18n_strings.get("sw_source_financials", ""))
+            else:
+                _weakness(i18n_strings.get("sw_negative_equity", "Záporné vlastné imanie"),
+                          i18n_strings.get("sw_source_financials", ""))
+
+        op_cf = getattr(latest, 'operatingCashFlow', None)
+        if op_cf is not None:
+            if float(op_cf) > 0:
+                _strength(i18n_strings.get("sw_positive_cf", "Kladný prevádzkový cash flow"),
+                          i18n_strings.get("sw_source_financials", ""))
+            else:
+                _weakness(i18n_strings.get("sw_negative_cf", "Záporný prevádzkový cash flow"),
+                          i18n_strings.get("sw_source_financials", ""))
+
+        profitable_years = sum(1 for s in stmts if (getattr(s, 'netProfitLoss', 0) or 0) > 0)
+        total_years = len(stmts)
+        if profitable_years == total_years and total_years >= 3:
+            _strength(f"{i18n_strings.get('sw_all_profitable', 'Ziskovosť všetky roky')} ({total_years}/{total_years})",
+                      i18n_strings.get("sw_source_financials", ""))
+        elif profitable_years == 0 and total_years >= 2:
+            _weakness(i18n_strings.get("sw_all_losses", "Strata vo všetkých rokoch"),
+                      i18n_strings.get("sw_source_financials", ""))
+
+    # 6. From auditor opinion
+    if stmts:
+        for stmt in reversed(sorted(stmts, key=lambda s: s.year)):
+            ao = getattr(stmt, 'auditorOpinion', None)
+            if ao:
+                op_type = getattr(ao, 'opinionType', '') or ''
+                op_lower = op_type.lower()
+                if op_type and op_lower != 'null':
+                    if 'bez výhrad' in op_lower or 'unqualified' in op_lower:
+                        _strength(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year})",
+                                  i18n_strings.get("sw_source_auditor", ""))
+                    elif 'záporn' in op_lower or 'adverse' in op_lower or 'odmietnut' in op_lower:
+                        _weakness(f"{i18n_strings.get('sw_auditor_adverse', 'Záporný/odmietnutý audítorský posudok')} ({stmt.year})",
+                                  i18n_strings.get("sw_source_auditor", ""))
+                    elif ('výhrad' in op_lower and 'bez výhrad' not in op_lower) or ('qualified' in op_lower and 'unqualified' not in op_lower):
+                        _weakness(f"{i18n_strings.get('sw_auditor_qualified', 'Audítorský posudok s výhradami')} ({stmt.year})",
+                                  i18n_strings.get("sw_source_auditor", ""))
+                    break
+
+    # 7. From verdict risk category
+    if verdict:
+        risk_cat = getattr(verdict, 'riskCategory', '')
+        if risk_cat in ('AAA',):
+            _strength(f"{i18n_strings.get('sw_risk_aaa', 'Rating AAA — najnižšie riziko')}",
+                      i18n_strings.get("sw_source_verdict", ""))
+        elif risk_cat in ('C',):
+            _weakness(f"{i18n_strings.get('sw_risk_c', 'Rating C — vysoké riziko')}",
+                      i18n_strings.get("sw_source_verdict", ""))
+
+    # ── Relevance tags: static keyword → audience mapping ──
+    relevance_map = [
+        # (keywords_in_label, [relevance_tags])
+        (["vestník", "bulletin", "handelsblatt"], [
+            i18n_strings.get("rel_compliance", "Compliance"),
+            i18n_strings.get("rel_procurement", "Verejné obstarávanie"),
+        ]),
+        (["auditor", "audit", "abschlussprü", "posudok"], [
+            i18n_strings.get("rel_investor", "Investor"),
+            i18n_strings.get("rel_compliance", "Compliance"),
+        ]),
+        (["altman", "equity", "iman", "eigenkapital"], [
+            i18n_strings.get("rel_creditor", "Veriteľ"),
+            i18n_strings.get("rel_investor", "Investor"),
+        ]),
+        (["cash flow", "cf", "liquidit", "likvid", "zahlungsfäh"], [
+            i18n_strings.get("rel_creditor", "Veriteľ"),
+            i18n_strings.get("rel_supplier", "Dodávateľ"),
+        ]),
+        (["insolven", "bankrupt", "konkurz"], [
+            i18n_strings.get("rel_creditor", "Veriteľ"),
+            i18n_strings.get("rel_compliance", "Compliance"),
+        ]),
+        (["profit", "zisk", "gewinn", "strat", "verlust", "loss"], [
+            i18n_strings.get("rel_investor", "Investor"),
+            i18n_strings.get("rel_supplier", "Dodávateľ"),
+        ]),
+        (["rating aaa", "rating c", "risk"], [
+            i18n_strings.get("rel_overview", "Prehľad"),
+        ]),
+    ]
+
+    def _tag_relevance(label):
+        label_lower = label.lower()
+        tags = set()
+        for keywords, rel_tags in relevance_map:
+            if any(kw in label_lower for kw in keywords):
+                tags.update(rel_tags)
+        return sorted(tags) if tags else []
+
+    for item in strengths + weaknesses:
+        item["relevance"] = _tag_relevance(item.get("label", ""))
+
+    has_data = len(strengths) > 0 or len(weaknesses) > 0
+    return {
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "has_data": has_data,
+    }
+
+
+def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language="sk", vestnik_date_from=None):
     i18n_strings = get_i18n_strings(report_language)
     verdict = company.auditVerdict
     if company.financialStatements:
@@ -481,6 +1040,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Vyžaduje všetky 3 nákladové položky — ak niektorá chýba, fallback sa nevykoná
     gross_profit_estimated = False
     estimated_gp_years = set()
+
     for stmt in (stmts or []):
         if getattr(stmt, 'grossProfit', None) is None:
             revenue = getattr(stmt, 'mainActivityRevenue', None)
@@ -504,6 +1064,26 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     cashflow_estimated = estimate_missing_cash_flow(stmts or [])
     latest_stmt = max(stmts, key=lambda s: s.year) if stmts else None
     vestnik_events = company.vestnikEvents or []
+    
+    # Filter vestnik events by date — default 1 year lookback
+    if vestnik_events:
+        from datetime import datetime as _dt, timedelta as _td
+        if vestnik_date_from:
+            try:
+                cutoff = _dt.fromisoformat(vestnik_date_from)
+            except (ValueError, TypeError):
+                cutoff = _dt.now() - _td(days=365)
+        else:
+            cutoff = _dt.now() - _td(days=365)
+        filtered = []
+        for e in vestnik_events:
+            pub = getattr(e, 'publishedAt', None)
+            if pub and hasattr(pub, 'year'):
+                if pub.replace(tzinfo=None) >= cutoff:
+                    filtered.append(e)
+            else:
+                filtered.append(e)
+        vestnik_events = filtered
     
     # Zoradené výkazy pre tabuľky (od najstaršieho)
     stmts_sorted = sorted(stmts, key=lambda s: s.year) if stmts else []
@@ -943,6 +1523,14 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     from datetime import datetime, timedelta
     valid_until = (datetime.now() + timedelta(days=90)).strftime('%d.%m.%Y')
 
+    # ── Compute insolvency score, fraud heatmap, and strengths/weaknesses ──
+    _insolvency = compute_insolvency_score(stmts, i18n_strings)
+    _fraud_heatmap = compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings)
+    _strengths_weaknesses = compute_strengths_weaknesses(
+        scorecard_breakdown, _fraud_heatmap, _insolvency,
+        verdict, stmts, vestnik_events, i18n_strings
+    )
+
     return {
         "company": company,
         "verdict": verdict,
@@ -1004,6 +1592,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "revenue_per_employee": revenue_per_employee,
         "report_language": report_language,
         "i18n": get_i18n_strings(report_language),
+        "insolvency_score": _insolvency,
+        "fraud_heatmap": _fraud_heatmap,
+        "strengths_weaknesses": _strengths_weaknesses,
     }
 
 def render_html_report(context: dict) -> str:
@@ -1083,6 +1674,7 @@ async def generate_forensic_pdf_report(
     generated_at: str = "",
     target_path: str = "",
     report_language: str = "sk",
+    vestnik_date_from: Optional[str] = None,
 ):
     logger.info(f"Generujem HTML/PDF report pre IČO: {ico} (report_language={report_language})")
     db = Prisma()
@@ -1102,7 +1694,7 @@ async def generate_forensic_pdf_report(
             logger.error(f"Nedostatok dát pre generovanie PDF (IČO: {ico})")
             return None
 
-        context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language=report_language)
+        context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language=report_language, vestnik_date_from=vestnik_date_from)
         html_content = render_html_report(context)
 
         pdf_path = target_path or f"assets/{ico}/Verifa_Forensic_Report_{ico}.pdf"

@@ -99,6 +99,7 @@ class PdfCompiler:
         sources: List[ScrapedSource],
         company_name: Optional[str] = None,
         report_language: str = "sk",
+        vestnik_date_from: Optional[str] = None,
     ) -> Path:
         output_dir = self.results_dir / report_request_id
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -173,6 +174,7 @@ class PdfCompiler:
             generated_at=generated_at_str,
             target_path=str(cover_path),
             report_language=report_language,
+            vestnik_date_from=vestnik_date_from,
         )
         actual_cover_pages = len(PdfReader(str(cover_path)).pages)
 
@@ -187,6 +189,7 @@ class PdfCompiler:
                 generated_at=generated_at_str,
                 target_path=str(cover_path),
                 report_language=report_language,
+                vestnik_date_from=vestnik_date_from,
             )
 
         # 5. Zlúčime cover page + divider + PDF zdrojov pomocou PdfWriter.

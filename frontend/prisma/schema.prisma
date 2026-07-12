@@ -19,6 +19,7 @@ model User {
   orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
   rozhodnutiaDateFrom DateTime?    // Rozhodnutia dátum "od" — null = defaultne 1 rok dozadu
+  vestnikDateFrom  DateTime?       // Vestník dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
   reportLanguage   String          @default("sk") // sk | en | de — jazyk PDF reportu
   tokenVersion     Int             @default(0)

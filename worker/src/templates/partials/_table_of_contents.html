@@ -1,279 +1,86 @@
-<!-- OBSAH (Table of Sources) -->
-<div class="pt-2">
-    <table class="w-full source-table border-collapse text-left">
-        <thead>
-            <tr>
-                <th colspan="3" class="border-b-0 pb-6 pt-6 bg-white">
-                    <div class="flex justify-between items-center w-full">
-                        <h2 class="section-title mb-0" style="border-bottom: 0;">{{ i18n.toc_title }}</h2>
-                        <div class="flex justify-end items-center">
-                            {% if logo_base64 %}
-                            <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-7">
-                            {% else %}
-                            <span class="text-lg font-black text-[#10b981]">Verifa.sk</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </th>
-            </tr>
-            <tr>
-                <th class="report-body-sm" style="width: 25%;">{{ i18n.col_source }} & {{ i18n.col_fulfillment }}</th>
-                <th class="report-body-sm" style="width: 65%;">{{ i18n.col_finding }}</th>
-                <th class="report-body-sm" style="width: 10%; text-align: center;">{{ i18n.page_count }}</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class="category-row">
-                <td colspan="3">{{ i18n.toc_analytical_outputs }}</td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#scoring_breakdown" class="hover:underline">{{ i18n.toc_scoring_table }} ↗</a>
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_scoring_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    {{ start_pages_map.get('SCORING_BREAKDOWN', '—') }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#forenzny_posudok" class="hover:underline">{{ i18n.toc_main_assessment }} ↗</a>
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_main_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    {{ start_pages_map.get('FORENZNY_POSUDOK', '—') }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#suvaha" class="hover:underline">{{ i18n.toc_balance_sheet }} ↗</a>
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_balance_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    {{ start_pages_map.get('SUVAHA', '—') }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#vykaz_ziskov" class="hover:underline">{{ i18n.toc_pl }} ↗</a>
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_pl_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    {{ start_pages_map.get('VYKAZ_ZISKOV', '—') }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#cash_flow" class="hover:underline">{{ i18n.toc_cash_flow }} ↗</a>
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_cf_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    {{ start_pages_map.get('CASH_FLOW', '—') }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        {{ i18n.toc_ratios }}
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_ratios_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    —
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#financny_posudok" class="hover:underline">{{ i18n.toc_financial_assessment }} ↗</a>
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_fa_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    {{ start_pages_map.get('FINANCNY_POSUDOK', '—') }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        {{ i18n.toc_legal_risks }}
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_legal_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    {{ start_pages_map.get('OBCHODNY_VESTNIK', '—') }}
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        {{ i18n.toc_glossary }}
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_glossary_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    —
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        {{ i18n.toc_methodology }}
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_methodology_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    —
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        {{ i18n.toc_conclusion }}
-                    </div>
-                    <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> {{ i18n.part_of_report }}
-                    </div>
-                </td>
-                <td class="text-slate-700 leading-normal report-body-sm">
-                    {{ i18n.toc_conclusion_desc }}
-                </td>
-                <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                    —
-                </td>
-            </tr>
-            {% for cat_name, cat_sources in grouped_sources %}
-            <tr class="category-row">
-                <td colspan="3">{{ cat_name }}</td>
-            </tr>
-                {% for source in cat_sources %}
-                {% if source.source_type != "REGISTER_UZ" %}
-                {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ", "FS_DPH_REGISTROVANI", "ROZHODNUTIA"] %}
-                {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
-                
-                {% set status_class = "" %}
-                {% set status_icon = "" %}
-                {% set status_label = "" %}
-                
-                {% set is_fs_info = source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
-                {% set has_pdf_page = start_pages_map.get(source.source_type) %}
-                
-                {% if source.status == "SUCCESS" and not has_pozor and not is_fs_info %}
-                    {% set status_class = "bg-[#10b981] text-white" %}
-                    {% set status_icon = "✓" %}
-                    {% set status_label = i18n.status_ok %}
-                {% elif source.status == "SUCCESS" and ((has_pozor and is_info) or (is_fs_info and not has_pozor)) %}
-                    {% set status_class = "bg-[#dbeafe] text-[#1e40af]" %}
-                    {% set status_icon = "i" %}
-                    {% set status_label = i18n.status_info %}
-                {% elif source.status == "SUCCESS" and has_pozor and not is_info %}
-                    {% set status_class = "bg-[#ef4444] text-white" %}
-                    {% set status_icon = "⚠" %}
-                    {% set status_label = i18n.status_warning %}
-                {% elif source.status == "UNAVAILABLE" %}
-                    {% set status_class = "bg-[#f59e0b] text-white" %}
-                    {% set status_icon = "?" %}
-                    {% set status_label = i18n.status_unavailable %}
-                {% else %}
-                    {% set status_class = "bg-[#ef4444] text-white" %}
-                    {% set status_icon = "✗" %}
-                    {% set status_label = i18n.status_failed %}
-                {% endif %}
-                
-                <tr>
-                    <td>
-                        <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                            {% if start_pages_map.get(source.source_type) %}
-                            <a href="http://PAGE_{{ start_pages_map[source.source_type] }}" class="hover:underline">
-                                {{ labels.get(source.source_type, source.source_type) }} ↗
-                            </a>
-                            {% else %}
-                            {{ labels.get(source.source_type, source.source_type) }}
-                            {% endif %}
-                        </div>
-                        <div class="inline-flex items-center gap-1.5 {{ status_class }} px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                            {% if status_icon == 'i' or status_icon == '?' %}
-                            <span class="bg-white text-current rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-black">{{ status_icon }}</span>
-                            {% else %}
-                            <span>{{ status_icon }}</span>
-                            {% endif %}
-                            {{ status_label }}
-                        </div>
-                    </td>
-                    <td class="leading-normal report-body-sm {% if status_label == i18n.status_warning or status_label == i18n.status_failed %}text-slate-100{% else %}text-slate-700{% endif %}">
-                        {% if source.source_type == "OBCHODNY_VESTNIK" and (not vestnik_events or vestnik_events|length == 0) %}
-                        {{ i18n.no_vestnik_events }}
-                        {% else %}
-                        {{ source | format_findings | safe }}
-                        {% endif %}
-                    </td>
-                    <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
-                        {{ start_pages_map.get(source.source_type, '—') }}
-                    </td>
-                </tr>
-                {% endif %}
-                {% endfor %}
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- PREHĽAD PREVERENÝCH REGISTROV (Compact Grid) -->
+<div class="pt-2" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex justify-between items-center w-full mb-4">
+        <h2 class="section-title mb-0" style="border-bottom: 0;">{{ i18n.toc_title }}</h2>
+        <div class="flex justify-end items-center">
+            {% if logo_base64 %}
+            <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-7">
+            {% else %}
+            <span class="text-lg font-black text-[#10b981]">Verifa.sk</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Analytical outputs (compact list) ── #}
+    <div class="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50">
+        <p class="subsection-title-sm mb-2">{{ i18n.toc_analytical_outputs }}</p>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+            <a href="#forenzny_posudok" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_main_assessment }}</a>
+            <a href="#scoring_breakdown" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_scoring_table }}</a>
+            <a href="#suvaha" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_balance_sheet }}</a>
+            <a href="#vykaz_ziskov" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_pl }}</a>
+            <a href="#cash_flow" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_cash_flow }}</a>
+            <a href="#financny_posudok" class="text-[10px] text-blue-600 hover:underline">→ {{ i18n.toc_financial_assessment }}</a>
+            <span class="text-[10px] text-slate-500">→ {{ i18n.toc_legal_risks }}</span>
+            <span class="text-[10px] text-slate-500">→ {{ i18n.toc_glossary }} / {{ i18n.toc_methodology }}</span>
+        </div>
+    </div>
+
+    {# ── Registry sources (compact grid) ── #}
+    {% for cat_name, cat_sources in grouped_sources %}
+    <p class="subsection-title-sm mb-1.5 mt-3">{{ cat_name }}</p>
+    <div class="grid grid-cols-2 gap-1.5 mb-2">
+        {% for source in cat_sources %}
+        {% if source.source_type != "REGISTER_UZ" %}
+        {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ", "FS_DPH_REGISTROVANI", "ROZHODNUTIA"] %}
+        {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
+        {% set is_fs_info = source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
+        
+        {% set dot_color = "#10b981" %}
+        {% set dot_bg = "#ecfdf5" %}
+        {% set status_text = i18n.status_ok %}
+        {% if source.status == "SUCCESS" and has_pozor and not is_info %}
+            {% set dot_color = "#ef4444" %}
+            {% set dot_bg = "#fef2f2" %}
+            {% set status_text = i18n.status_warning %}
+        {% elif source.status == "SUCCESS" and ((has_pozor and is_info) or (is_fs_info and not has_pozor)) %}
+            {% set dot_color = "#3b82f6" %}
+            {% set dot_bg = "#eff6ff" %}
+            {% set status_text = i18n.status_info %}
+        {% elif source.status == "UNAVAILABLE" %}
+            {% set dot_color = "#f59e0b" %}
+            {% set dot_bg = "#fffbeb" %}
+            {% set status_text = i18n.status_unavailable %}
+        {% elif source.status != "SUCCESS" %}
+            {% set dot_color = "#ef4444" %}
+            {% set dot_bg = "#fef2f2" %}
+            {% set status_text = i18n.status_failed %}
+        {% endif %}
+        
+        <div class="flex items-center gap-2 p-1.5 rounded border border-slate-200" style="background: {{ dot_bg }};">
+            <div class="flex-shrink-0 w-2.5 h-2.5 rounded-full" style="background: {{ dot_color }};"></div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-semibold text-slate-700 truncate">
+                    {% if start_pages_map.get(source.source_type) %}
+                    <a href="http://PAGE_{{ start_pages_map[source.source_type] }}" class="hover:underline">
+                        {{ labels.get(source.source_type, source.source_type) }}
+                    </a>
+                    {% else %}
+                    {{ labels.get(source.source_type, source.source_type) }}
+                    {% endif %}
+                </p>
+                <p class="text-[8px] text-slate-500 truncate">
+                    {% if source.source_type == "OBCHODNY_VESTNIK" and (not vestnik_events or vestnik_events|length == 0) %}
+                    {{ i18n.no_vestnik_events }}
+                    {% else %}
+                    {{ source | format_findings | safe | striptags | truncate(80) }}
+                    {% endif %}
+                </p>
+            </div>
+            <span class="text-[8px] font-mono text-slate-400 flex-shrink-0">{{ start_pages_map.get(source.source_type, '—') }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endfor %}
 </div>

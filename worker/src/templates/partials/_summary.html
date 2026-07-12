@@ -1,131 +1,17 @@
 <div class="page-break"></div>
-<!-- 3b. SCORING BREAKDOWN TABUĽKA -->
-{% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
-<div class="mb-10 pt-6">
-    <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
-    <table class="w-full border-collapse">
-        <thead>
-            <tr class="bg-slate-100">
-                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[38%] report-body-sm">{{ i18n.col_category }}</th>
-                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[35%] report-body-sm">{{ i18n.col_finding }}</th>
-                <th class="text-center py-2 px-3 font-bold text-slate-600 w-[15%] report-body-sm">{{ i18n.col_points }}</th>
-                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[12%] report-body-sm">{{ i18n.col_fulfillment }}</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for pillar in scorecard_breakdown %}
-            {% set pct = ((pillar.max_score > 0) and ((pillar.score / pillar.max_score) * 100)) | int %}
-            {% if pct >= 70 %}
-                {% set bar_color = "#10b981" %}
-                {% set score_color = "text-emerald-700" %}
-                {% set row_bg = "" %}
-                {% set icon = "✓" %}
-                {% set icon_color = "text-emerald-500" %}
-            {% elif pct >= 40 %}
-                {% set bar_color = "#f59e0b" %}
-                {% set score_color = "text-amber-600" %}
-                {% set row_bg = "" %}
-                {% set icon = "⚠" %}
-                {% set icon_color = "text-amber-500" %}
-            {% else %}
-                {% set bar_color = "#ef4444" %}
-                {% set score_color = "text-rose-600" %}
-                {% set row_bg = "background: #fff5f5;" %}
-                {% set icon = "✗" %}
-                {% set icon_color = "text-rose-500" %}
-            {% endif %}
-            <tr class="border-b border-slate-100" style="{{ row_bg }}">
-                <td class="py-2.5 px-3 font-semibold text-slate-800 report-body-sm"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</td>
-                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-normal">
-                    {{ pillar.detail | sanitize_llm }}
-                    {% if pillar.flags and pillar.flags|length > 0 %}
-                    <ul class="mt-1 space-y-0">
-                        {% for flag in pillar.flags %}
-                        <li class="report-caption text-slate-400 leading-tight">• {{ flag }}</li>
-                        {% endfor %}
-                    </ul>
-                    {% endif %}
-                </td>
-                <td class="py-2.5 px-3 text-center font-black report-body-sm {{ score_color }}">
-                    {{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>
-                </td>
-                <td class="py-2.5 px-3">
-                    <div class="w-full bg-slate-200 rounded-full" style="height:6px;">
-                        <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
-                    </div>
-                    <span class="report-caption text-slate-400 mt-0.5 block text-right">{{ pct }}%</span>
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr class="bg-slate-50 border-t-2 border-slate-300">
-                <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.algorithmic_score }}</td>
-                <td class="py-2.5 px-3 text-center font-bold text-slate-700 text-lg">
-                    {{ algorithmic_total }}<span class="text-slate-400 font-normal report-caption">/100</span>
-                </td>
-                <td class="py-2.5 px-3 text-right">
-                    <span class="report-body-sm text-slate-500">{{ i18n.base_model }}</span>
-                </td>
-            </tr>
-            <tr class="bg-slate-50 border-b border-slate-200">
-                <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.auditor_correction }}</td>
-                <td class="py-2.5 px-3 text-center font-bold text-lg
-                    {% if verdict.verifaScore - algorithmic_total > 0 %}text-emerald-600
-                    {% elif verdict.verifaScore - algorithmic_total < 0 %}text-rose-600
-                    {% else %}text-slate-500{% endif %}">
-                    {% if verdict.verifaScore - algorithmic_total > 0 %}+{% endif %}{{ verdict.verifaScore - algorithmic_total }}
-                </td>
-                <td class="py-2.5 px-3 text-right">
-                    <span class="report-body-sm text-slate-500">{{ i18n.based_on_registers }}</span>
-                </td>
-            </tr>
-            <tr class="bg-slate-100 border-t-2 border-slate-400">
-                <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide" colspan="2">{{ i18n.final_score }}</td>
-                <td class="py-3 px-3 text-center font-black text-xl
-                    {% if verdict.verifaScore >= 80 %}text-emerald-700
-                    {% elif verdict.verifaScore >= 50 %}text-amber-600
-                    {% else %}text-rose-600{% endif %}">
-                    {{ verdict.verifaScore }}<span class="text-slate-400 font-normal report-caption">/100</span>
-                </td>
-                <td class="py-3 px-3">
-                    <span class="font-bold report-body-sm px-2 py-1 rounded shadow-sm
-                        {% if verdict.riskCategory == 'AAA' %}bg-emerald-100 text-emerald-800 border border-emerald-200
-                        {% elif verdict.riskCategory == 'A' %}bg-emerald-50 text-emerald-700 border border-emerald-100
-                        {% elif verdict.riskCategory == 'B' %}bg-amber-50 text-amber-700 border border-amber-100
-                        {% else %}bg-rose-50 text-rose-700 border border-rose-100{% endif %}">
-                        {{ verdict.riskCategory }}
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <td colspan="4" class="py-3 px-3 bg-white border-t border-slate-200">
-                    <div class="flex gap-4 items-center">
-                        <div class="flex-1">
-                            <p class="report-caption text-slate-500">
-                                {{ i18n.pillar_weights_note }}
-                            </p>
-                        </div>
-                        {% if radar_chart_base64 %}
-                        <div class="w-52 flex-shrink-0 flex flex-col items-center">
-                            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="Radar chart pilierov" class="w-full h-auto">
-                            <p class="report-caption text-slate-400 text-center mt-1">{{ i18n.pillar_profile }}</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </td>
-            </tr>
-        </tfoot>
-    </table>
-{% endif %}
 
-    <div class="page-break"></div>
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# SEKCIA I: EXECUTIVE SUMMARY (Pre Riaditeľa / Majiteľa)                      #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+<div class="part-divider">{{ i18n.part_executive }}</div>
+
 <div class="mb-10">
     <h2 id="forenzny_posudok" class="section-title">{{ i18n.main_assessment }}</h2>
 
     {# ── Manažérske zhrnutie a Spoľahlivosť analýzy ── #}
     <div class="mb-5" style="page-break-inside: avoid; break-inside: avoid;">
-        <div class="p-4 bg-slate-50 border-l-4 border-slate-600 rounded report-body text-slate-700 text-justify shadow-sm clearfix">
+        <div class="p-4 bg-slate-50 border-l-4 border-emerald-600 rounded report-body text-slate-700 text-justify shadow-sm clearfix">
             <h3 class="subsection-title mb-2 uppercase tracking-wide">{{ i18n.executive_summary }}</h3>
             
             {% if confidence_score is defined %}
@@ -172,10 +58,59 @@
         </div>
     </div>
 
-    <div class="flex gap-6">
-        <!-- Text part -->
+    {# ── FRAUD RISK HEATMAP (visual semafor — moved here from Risk Dashboard) ── #}
+    {% if fraud_heatmap and fraud_heatmap.has_data %}
+    <div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">
+        <h2 id="fraud_heatmap" class="section-title">{{ i18n.fraud_heatmap_title }}</h2>
+        <p class="report-caption text-slate-500 mb-3">{{ i18n.fraud_heatmap_desc }}</p>
+
+        <div class="grid grid-cols-4 gap-2 mb-3">
+            {% for cat in fraud_heatmap.categories %}
+            <div class="rounded-lg p-2 text-center" style="background: {{ cat.bg }}; border: 1px solid {{ cat.color }}33;">
+                <div class="w-full h-16 rounded mb-1 flex items-center justify-center" style="background: {{ cat.color }}22; border: 1px solid {{ cat.color }}66;">
+                    {% if cat.severity == 'critical' %}
+                    <span style="color: {{ cat.color }}; font-size: 20px;">⛔</span>
+                    {% elif cat.severity == 'high' %}
+                    <span style="color: {{ cat.color }}; font-size: 20px;">⚠</span>
+                    {% elif cat.severity == 'medium' %}
+                    <span style="color: {{ cat.color }}; font-size: 20px;">○</span>
+                    {% elif cat.severity == 'low' %}
+                    <span style="color: {{ cat.color }}; font-size: 20px;">✓</span>
+                    {% else %}
+                    <span style="color: {{ cat.color }}; font-size: 20px;">—</span>
+                    {% endif %}
+                </div>
+                <p class="report-caption font-medium" style="color: {{ cat.color }};">{{ cat.label }}</p>
+                <p class="report-caption" style="color: {{ cat.color }};">{{ cat.severity_label }}</p>
+                {% if cat.count > 0 %}
+                <p class="report-caption text-slate-400">{{ i18n.fraud_flags_found.replace('{n}', cat.count|string) }}</p>
+                {% else %}
+                <p class="report-caption text-slate-400">{{ i18n.fraud_no_flags }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        {# Detail list for categories with flags #}
+        {% for cat in fraud_heatmap.categories %}
+        {% if cat.details and cat.details|length > 0 %}
+        <div class="mb-1.5 p-2 rounded-lg border" style="border-color: {{ cat.color }}33; background: {{ cat.bg }};">
+            <p class="report-caption font-bold mb-1" style="color: {{ cat.color }};">{{ cat.label }} — {{ cat.severity_label }}</p>
+            <ul class="space-y-0.5">
+                {% for detail in cat.details %}
+                <li class="report-body-sm text-slate-600">• {{ detail | sanitize_llm }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── EVIDENCE TABLE (Tvrdenie / Dôkaz) — moved before SW box for logical flow ── #}
+    <div class="page-break"></div>
+    <div class="flex gap-6 mb-6">
         <div class="flex-1">
-            
             {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
             <div class="mb-5 p-3 bg-amber-50 border border-amber-300 rounded report-body text-amber-800 shadow-sm flex items-start gap-3">
                 <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>
@@ -186,11 +121,8 @@
             </div>
             {% endif %}
 
-            {% if latest_stmt and latest_stmt.notesRisk %}
-            {# Riziká z poznámok presunuté do _financials.html pod Finančné ukazovatele #}
-            {% endif %}
-
             {% if evidence_list %}
+            <h3 class="subsection-title mb-2">{{ i18n.evidence_title }}</h3>
             <div class="border border-slate-200 rounded-lg overflow-hidden">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-50 border-b border-slate-200">
@@ -214,7 +146,72 @@
             {% else %}
             <p class="report-body text-slate-700 text-justify">{{ verdict.justification | sanitize_llm }}</p>
             {% endif %}
-
         </div>
     </div>
+
+    {# ── STRENGTHS & WEAKNESSES BOX (moved after evidence table) ── #}
+    {% if strengths_weaknesses and strengths_weaknesses.has_data %}
+    <div class="mb-6 mt-4" style="page-break-inside: avoid; break-inside: avoid;">
+        <h2 id="strengths_weaknesses" class="section-title">{{ i18n.sw_title }}</h2>
+        <div class="grid grid-cols-2 gap-4 items-start">
+            {# Strengths #}
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <h3 class="font-bold text-emerald-800 mb-2 report-body-sm uppercase tracking-wide">{{ i18n.sw_strengths }}</h3>
+                {% if strengths_weaknesses.strengths and strengths_weaknesses.strengths|length > 0 %}
+                <ul class="space-y-1.5">
+                    {% for item in strengths_weaknesses.strengths %}
+                    <li class="flex items-start gap-1.5 report-body-sm text-slate-700">
+                        <span class="text-emerald-500 font-bold flex-shrink-0">✓</span>
+                        <div class="flex-1">
+                            <span>{{ item.label | sanitize_llm }}</span>
+                            {% if item.relevance and item.relevance|length > 0 %}
+                            <div class="mt-0.5 flex flex-wrap gap-1">
+                                {% for tag in item.relevance %}
+                                <span class="report-caption px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if item.source %}
+                        <span class="report-caption text-slate-400 flex-shrink-0 ml-auto">{{ item.source }}</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="report-caption text-slate-400">{{ i18n.sw_no_data }}</p>
+                {% endif %}
+            </div>
+            {# Weaknesses #}
+            <div class="rounded-lg border border-rose-200 bg-rose-50 p-4">
+                <h3 class="font-bold text-rose-800 mb-2 report-body-sm uppercase tracking-wide">{{ i18n.sw_weaknesses }}</h3>
+                {% if strengths_weaknesses.weaknesses and strengths_weaknesses.weaknesses|length > 0 %}
+                <ul class="space-y-1.5">
+                    {% for item in strengths_weaknesses.weaknesses %}
+                    <li class="flex items-start gap-1.5 report-body-sm text-slate-700">
+                        <span class="text-rose-500 font-bold flex-shrink-0">⚠</span>
+                        <div class="flex-1">
+                            <span>{{ item.label | sanitize_llm }}</span>
+                            {% if item.relevance and item.relevance|length > 0 %}
+                            <div class="mt-0.5 flex flex-wrap gap-1">
+                                {% for tag in item.relevance %}
+                                <span class="report-caption px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-200">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if item.source %}
+                        <span class="report-caption text-slate-400 flex-shrink-0 ml-auto">{{ item.source }}</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="report-caption text-slate-400">{{ i18n.sw_no_data }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>

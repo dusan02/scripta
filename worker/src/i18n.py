@@ -20,7 +20,7 @@ I18N_STRINGS = {
         "status_failed": "Zlyhal",
 
         # Scoring table
-        "scoring_table": "1. Hodnotiaca tabuľka",
+        "scoring_table": "Hodnotiaca tabuľka",
         "col_category": "Kategória",
         "col_finding": "Hlavný nález",
         "col_points": "Body",
@@ -34,7 +34,7 @@ I18N_STRINGS = {
         "pillar_profile": "Profil pilierov",
 
         # Main assessment
-        "main_assessment": "2. Hlavný posudok",
+        "main_assessment": "Hlavný posudok",
         "executive_summary": "Manažérske zhrnutie",
         "analysis_reliability": "Spoľahlivosť analýzy",
         "limited_assessment": "Obmedzené hodnotenie",
@@ -44,7 +44,7 @@ I18N_STRINGS = {
         "col_source": "Zdroj",
 
         # Balance sheet
-        "balance_sheet": "3. Súvaha a finančné zdravie",
+        "balance_sheet": "Súvaha a finančné zdravie",
         "employees": "zamestnancov",
         "warning_mixed_consolidation": "Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.",
         "warning_non_standard_months": "Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.",
@@ -53,7 +53,7 @@ I18N_STRINGS = {
         "col_item": "Položka",
 
         # P&L
-        "pnl_statement": "4. Výkaz ziskov a strát",
+        "pnl_statement": "Výkaz ziskov a strát",
         "revenue_main": "Tržby z hlavnej činnosti",
         "total_revenue": "Celkové tržby",
         "gross_profit": "Hrubá marža",
@@ -65,7 +65,7 @@ I18N_STRINGS = {
         "interest_expense": "Úrokové náklady",
 
         # Cash flow
-        "cash_flow": "5. Prehľad peňažných tokov",
+        "cash_flow": "Prehľad peňažných tokov",
         "operating_cf": "Prevádzkový CF",
         "investing_cf": "Investičný CF",
         "financing_cf": "Finančný CF",
@@ -73,7 +73,7 @@ I18N_STRINGS = {
         "cf_estimated_note": "Poznámka: CF bol dopočítaný nepriamou metódou",
 
         # Financial health
-        "financial_health": "6. Finančné ukazovatele",
+        "financial_health": "Finančné ukazovatele",
         "profitability": "Rentabilita",
         "liquidity": "Likvidita",
         "leverage": "Zadlženosť",
@@ -90,10 +90,10 @@ I18N_STRINGS = {
         "dso_dpo_note_than_suppliers": "než vy dodávateľom",
         "dso_dpo_note_equal": "Inkasujete a platíte naraz.",
         "analytical_assessment_desc": "Analytické zhodnotenie — kľúčové zistenia, poznámky pod čiarou a názor audítora.",
-        "financial_assessment": "7. Finančný posudok",
+        "financial_assessment": "Finančný posudok",
 
         # Legal risks
-        "legal_risks": "8. Právne riziká",
+        "legal_risks": "Právne riziká",
         "risk_matrix": "Matica rizík (Pravdepodobnosť × Dopad)",
         "low_impact": "Nízky dopad",
         "medium_impact": "Stredný dopad",
@@ -107,8 +107,12 @@ I18N_STRINGS = {
         "no_legal_issues_desc": "V Obchodnom vestníku neboli zaznamenané žiadne negatívne udalosti (konkurz, reštrukturalizácia, likvidácia ani insolvenčné konanie). Spoločnosť vykazuje čistý právny profil.",
 
         # Glossary & Methodology
-        "glossary": "9. Glosár pojmov",
-        "methodology": "10. Metodika",
+        "glossary": "Glosár pojmov",
+        "methodology": "Metodika",
+        "part_executive": "I. EXECUTIVE SUMMARY",
+        "part_financial_analysis": "II. FINANČNÁ ANALÝZA A SKÓRING",
+        "part_registry": "III. LUSTRÁCIA REGISTROV A PRÁVO",
+        "part_appendices": "IV. PRÍLOHY A METODIKA",
         "verifa_score_model": "Verifa Score v2 — 5-pilierový model",
         "methodology_intro": "Hodnotenie firmy sa skladá z 5 pilierov s dynamickými váhami prispôsobenými odvetviu podľa NACE kódu:",
         "pillar_p1": "P1 — Firemná identita & registrácia",
@@ -126,22 +130,21 @@ I18N_STRINGS = {
         "auditor_correction_note": "Korekcia audítora — finálne skóre môže byť upravené o ±10 bodov na základe expertného úsudku, alebo −30 bodov pri aktívnych exekúciách.",
 
         # Table of contents
-        "toc_title": "Obsah",
+        "toc_title": "Prehľad preverených registrov",
         "toc_part_a": "ČASŤ A — Analýza",
         "toc_part_b": "ČASŤ B — Prílohy (zdrojové dáta)",
         "toc_appendices": "Prílohy — zdrojové dáta",
         "toc_analytical_outputs": "Analytické výstupy",
-        "toc_scoring_table": "1. Hodnotiaca tabuľka",
-        "toc_main_assessment": "2. Hlavný posudok",
-        "toc_balance_sheet": "3. Súvaha (Balance Sheet)",
-        "toc_pl": "4. Výkaz ziskov a strát (P&L)",
-        "toc_cash_flow": "5. Prehľad peňažných tokov (Cash Flow)",
-        "toc_ratios": "6. Finančné ukazovatele a Skóre",
-        "toc_financial_assessment": "7. Finančný posudok",
-        "toc_legal_risks": "8. Právne riziká",
-        "toc_glossary": "9. Glosár pojmov",
-        "toc_methodology": "10. Metodika",
-        "toc_conclusion": "11. Záver",
+        "toc_scoring_table": "Hodnotiaca tabuľka",
+        "toc_main_assessment": "Hlavný posudok",
+        "toc_balance_sheet": "Súvaha (Balance Sheet)",
+        "toc_pl": "Výkaz ziskov a strát (P&L)",
+        "toc_cash_flow": "Prehľad peňažných tokov (Cash Flow)",
+        "toc_ratios": "Finančné ukazovatele a Skóre",
+        "toc_financial_assessment": "Finančný posudok",
+        "toc_legal_risks": "Právne riziká",
+        "toc_glossary": "Glosár pojmov",
+        "toc_methodology": "Metodika",
         "toc_scoring_desc": "Detailný rozpad bodového hodnotenia do 5 kľúčových kategórií.",
         "toc_main_desc": "Algoritmické hodnotenie spoločnosti, zhrnutie kľúčových zistení a odporúčanie.",
         "toc_balance_desc": "Štruktúra aktív a pasív, medziročný vývoj majetku a záväzkov s grafom.",
@@ -152,7 +155,6 @@ I18N_STRINGS = {
         "toc_legal_desc": "Záznamy z Obchodného vestníka — konkurzy, reštrukturalizácie, výmazy.",
         "toc_glossary_desc": "Vysvetlenie finančných ukazovateľov (ROA, ROE, Altman Z-Score, Piotroski, likvidita).",
         "toc_methodology_desc": "Popis 5-pilierového modelu v2, DQ multiplikátora, Vestník degradation a korekcie audítora.",
-        "toc_conclusion_desc": "Zhrnutie hodnotenia, kľúčové riziká a metodické vylúčenie zodpovednosti.",
         "part_of_report": "Súčasťou reportu",
         "no_vestnik_events": "Firma nemá žiadne negatívne záznamy v aktuálnom Obchodnom vestníku.",
 
@@ -271,9 +273,7 @@ I18N_STRINGS = {
         "conf_system": "Systémová analýza",
         "conf_system_desc": "automatický audítor dokončil cross-analysis bez fallbacku",
 
-        # Conclusion
-        "conclusion_title": "11. Záver",
-        "conclusion_generated_by": "Tento report bol vygenerovaný automatizovaným systémom Verifa.sk na základe verejne dostupných údajov z registrov ORSR, RÚZ, Obchodného vestníka a ďalších zdrojov. Hodnotenie bolo vypočítané pomocou 5-pilierového modelu v2 s dynamickými váhami prispôsobenými odvetviu (NACE).",
+        # Conclusion (removed — disclaimer only remains in template)
         "key_risk_label": "Kľúčové riziko:",
         "verifa_score_label": "Verifa skóre",
         "category_label": "kategória",
@@ -553,6 +553,83 @@ I18N_STRINGS = {
         "auditor_qualified": "S výhradami",
         "auditor_adverse": "Záporný",
         "auditor_disclaimer": "Zdržanie sa posudku",
+
+        # Predictive insolvency score
+        "insolvency_title": "Prediktívne skóre insolventnosti",
+        "insolvency_desc": "Model založený na 5-ročnom trende vlastného imania, tržieb, zadlženosti a ziskovosti.",
+        "insolvency_scale": "0–100 (vyššie = vyššie riziko)",
+        "insolvency_low": "Nízke riziko",
+        "insolvency_medium": "Stredné riziko",
+        "insolvency_high": "Vysoké riziko",
+        "insolvency_critical": "Kritické riziko",
+        "insolvency_equity_trend": "Trend vlastného imania",
+        "insolvency_revenue_trend": "Trend tržieb",
+        "insolvency_debt_trend": "Trend zadlženosti",
+        "insolvency_profit_trend": "Trend ziskovosti",
+        "insolvency_altman_trend": "Trend Altman Z''",
+        "insolvency_declining": "Klesajúci",
+        "insolvency_stable": "Stabilný",
+        "insolvency_growing": "Rastúci",
+        "insolvency_years_decline": "{n} roky klesajúci",
+        "insolvency_years_loss": "{n} roky strata",
+        "insolvency_years_profit": "{n} roky profit",
+        "insolvency_no_data": "Nedostatok dát",
+
+        # Fraud risk heatmap
+        "fraud_heatmap_title": "Mapa rizík podvodu",
+        "fraud_heatmap_desc": "Agregácia red flags z viacerých zdrojov do prehľadnej teplotnej mapy.",
+        "fraud_cat_vestnik": "Obchodný vestník",
+        "fraud_cat_forensic": "Forenzná analýza",
+        "fraud_cat_narrative": "Naratívna analýza",
+        "fraud_cat_notes": "Poznámky k výkazom",
+        "fraud_cat_auditor": "Auditné overenie",
+        "fraud_cat_legal": "Právne registre",
+        "fraud_cat_financial": "Finančné ukazovatele",
+        "fraud_severity_critical": "Kritické",
+        "fraud_severity_high": "Vysoké",
+        "fraud_severity_medium": "Stredné",
+        "fraud_severity_low": "Nízke",
+        "fraud_severity_none": "Žiadne",
+        "fraud_flags_found": "{n} nájdených",
+        "fraud_no_flags": "Žiadne red flags",
+
+        # Strengths & Weaknesses
+        "sw_title": "Silné a slabé stránky",
+        "evidence_title": "Forenzné dôkazy a kľúčové zistenia",
+        "sw_strengths": "Silné stránky",
+        "sw_weaknesses": "Slabé stránky",
+        "sw_source_scorecard": "Scorecard",
+        "sw_source_heatmap": "Heatmap",
+        "sw_source_insolvency": "Insolventnosť",
+        "sw_source_vestnik": "Vestník",
+        "sw_source_financials": "Fin. výkazy",
+        "sw_source_auditor": "Auditor",
+        "sw_source_verdict": "Verdikt",
+        "sw_insolvency_low": "Nízke riziko insolventnosti",
+        "sw_insolvency_high": "Vysoké riziko insolventnosti",
+        "sw_clean_vestnik": "Bez záznamov v Obchodnom vestníku",
+        "sw_vestnik_critical": "Kritické záznamy v Obchodnom vestníku",
+        "sw_positive_equity": "Kladné vlastné imanie",
+        "sw_negative_equity": "Záporné vlastné imanie",
+        "sw_positive_cf": "Kladný prevádzkový cash flow",
+        "sw_negative_cf": "Záporný prevádzkový cash flow",
+        "sw_all_profitable": "Ziskovosť vo všetkých rokoch",
+        "sw_all_losses": "Strata vo všetkých rokoch",
+        "sw_auditor_clean": "Audítorský posudok bez výhrad",
+        "sw_auditor_adverse": "Záporný/odmietnutý audítorský posudok",
+        "sw_auditor_qualified": "Audítorský posudok s výhradami",
+        "sw_risk_aaa": "Rating AAA — najnižšie riziko",
+        "sw_risk_c": "Rating C — vysoké riziko",
+        "sw_no_data": "Nedostatok dát pre hodnotenie",
+
+        # Relevance tags
+        "rel_compliance": "Compliance",
+        "rel_procurement": "Verejné obstarávanie",
+        "rel_investor": "Investor",
+        "rel_creditor": "Veriteľ",
+        "rel_supplier": "Dodávateľ",
+        "rel_overview": "Prehľad",
+        "rel_relevant_for": "Relevantné pre",
     },
 
     "en": {
@@ -571,7 +648,7 @@ I18N_STRINGS = {
         "status_failed": "Failed",
 
         # Scoring table
-        "scoring_table": "1. Scoring Table",
+        "scoring_table": "Scoring Table",
         "col_category": "Category",
         "col_finding": "Key Finding",
         "col_points": "Points",
@@ -585,7 +662,7 @@ I18N_STRINGS = {
         "pillar_profile": "Pillar profile",
 
         # Main assessment
-        "main_assessment": "2. Main Assessment",
+        "main_assessment": "Main Assessment",
         "executive_summary": "Executive Summary",
         "analysis_reliability": "Analysis Reliability",
         "limited_assessment": "Limited Assessment",
@@ -595,7 +672,7 @@ I18N_STRINGS = {
         "col_source": "Source",
 
         # Balance sheet
-        "balance_sheet": "3. Balance Sheet & Financial Health",
+        "balance_sheet": "Balance Sheet & Financial Health",
         "employees": "employees",
         "warning_mixed_consolidation": "Warning: Mix of individual and consolidated statements — YoY comparison may be skewed.",
         "warning_non_standard_months": "Warning: Some periods do not cover 12 months. Comparison may be skewed.",
@@ -604,7 +681,7 @@ I18N_STRINGS = {
         "col_item": "Item",
 
         # P&L
-        "pnl_statement": "4. Profit & Loss Statement",
+        "pnl_statement": "Profit & Loss Statement",
         "revenue_main": "Revenue from main activity",
         "total_revenue": "Total revenue",
         "gross_profit": "Gross margin",
@@ -616,7 +693,7 @@ I18N_STRINGS = {
         "interest_expense": "Interest expense",
 
         # Cash flow
-        "cash_flow": "5. Cash Flow Statement",
+        "cash_flow": "Cash Flow Statement",
         "operating_cf": "Operating CF",
         "investing_cf": "Investing CF",
         "financing_cf": "Financing CF",
@@ -624,7 +701,7 @@ I18N_STRINGS = {
         "cf_estimated_note": "Note: CF was calculated using the indirect method",
 
         # Financial health
-        "financial_health": "6. Financial Indicators",
+        "financial_health": "Financial Indicators",
         "profitability": "Profitability",
         "liquidity": "Liquidity",
         "leverage": "Leverage",
@@ -641,10 +718,10 @@ I18N_STRINGS = {
         "dso_dpo_note_than_suppliers": "earlier than you pay suppliers",
         "dso_dpo_note_equal": "You collect and pay at the same time.",
         "analytical_assessment_desc": "Analytical assessment — key findings, footnotes and auditor's opinion.",
-        "financial_assessment": "7. Financial Assessment",
+        "financial_assessment": "Financial Assessment",
 
         # Legal risks
-        "legal_risks": "8. Legal Risks",
+        "legal_risks": "Legal Risks",
         "risk_matrix": "Risk Matrix (Probability × Impact)",
         "low_impact": "Low impact",
         "medium_impact": "Medium impact",
@@ -658,8 +735,12 @@ I18N_STRINGS = {
         "no_legal_issues_desc": "No negative events were recorded in the Commercial Bulletin (bankruptcy, restructuring, liquidation or insolvency proceedings). The company shows a clean legal profile.",
 
         # Glossary & Methodology
-        "glossary": "9. Glossary",
-        "methodology": "10. Methodology",
+        "glossary": "Glossary",
+        "methodology": "Methodology",
+        "part_executive": "I. EXECUTIVE SUMMARY",
+        "part_financial_analysis": "II. FINANCIAL ANALYSIS & SCORING",
+        "part_registry": "III. REGISTRY VERIFICATION & LEGAL",
+        "part_appendices": "IV. APPENDICES & METHODOLOGY",
         "verifa_score_model": "Verifa Score v2 — 5-Pillar Model",
         "methodology_intro": "The company assessment consists of 5 pillars with dynamic weights adjusted by industry according to NACE code:",
         "pillar_p1": "P1 — Corporate Identity & Registration",
@@ -677,22 +758,21 @@ I18N_STRINGS = {
         "auditor_correction_note": "Auditor correction — the final score may be adjusted by ±10 points based on expert judgment, or −30 points for active executions.",
 
         # Table of contents
-        "toc_title": "Table of Contents",
+        "toc_title": "Registry Verification Overview",
         "toc_part_a": "PART A — Analysis",
         "toc_part_b": "PART B — Appendices (source data)",
         "toc_appendices": "Appendices — source data",
         "toc_analytical_outputs": "Analytical Outputs",
-        "toc_scoring_table": "1. Scoring Table",
-        "toc_main_assessment": "2. Main Assessment",
-        "toc_balance_sheet": "3. Balance Sheet",
-        "toc_pl": "4. Profit & Loss Statement",
-        "toc_cash_flow": "5. Cash Flow Statement",
-        "toc_ratios": "6. Financial Ratios & Score",
-        "toc_financial_assessment": "7. Financial Assessment",
-        "toc_legal_risks": "8. Legal Risks",
-        "toc_glossary": "9. Glossary",
-        "toc_methodology": "10. Methodology",
-        "toc_conclusion": "11. Conclusion",
+        "toc_scoring_table": "Scoring Table",
+        "toc_main_assessment": "Main Assessment",
+        "toc_balance_sheet": "Balance Sheet",
+        "toc_pl": "Profit & Loss Statement",
+        "toc_cash_flow": "Cash Flow Statement",
+        "toc_ratios": "Financial Ratios & Score",
+        "toc_financial_assessment": "Financial Assessment",
+        "toc_legal_risks": "Legal Risks",
+        "toc_glossary": "Glossary",
+        "toc_methodology": "Methodology",
         "toc_scoring_desc": "Detailed breakdown of the score into 5 key categories.",
         "toc_main_desc": "Algorithmic company rating, summary of key findings and recommendation.",
         "toc_balance_desc": "Structure of assets and liabilities, year-over-year development with chart.",
@@ -703,7 +783,6 @@ I18N_STRINGS = {
         "toc_legal_desc": "Records from the Commercial Bulletin — bankruptcies, restructurings, deregistrations.",
         "toc_glossary_desc": "Explanation of financial indicators (ROA, ROE, Altman Z-Score, Piotroski, liquidity).",
         "toc_methodology_desc": "Description of the 5-pillar model v2, DQ multiplier, Vestník degradation and auditor corrections.",
-        "toc_conclusion_desc": "Summary of the assessment, key risks and methodological disclaimer.",
         "part_of_report": "Part of report",
         "no_vestnik_events": "The company has no negative records in the current Commercial Bulletin.",
 
@@ -822,9 +901,7 @@ I18N_STRINGS = {
         "conf_system": "System analysis",
         "conf_system_desc": "automated auditor completed cross-analysis without fallback",
 
-        # Conclusion
-        "conclusion_title": "11. Conclusion",
-        "conclusion_generated_by": "This report was generated by the automated Verifa.sk system based on publicly available data from ORSR, RÚZ, Commercial Bulletin and other sources. The assessment was calculated using the 5-pillar model v2 with dynamic weights adjusted by industry (NACE).",
+        # Conclusion (removed — disclaimer only remains in template)
         "key_risk_label": "Key risk:",
         "verifa_score_label": "Verifa score",
         "category_label": "category",
@@ -1104,6 +1181,83 @@ I18N_STRINGS = {
         "auditor_qualified": "Qualified opinion",
         "auditor_adverse": "Adverse opinion",
         "auditor_disclaimer": "Disclaimer of opinion",
+
+        # Predictive insolvency score
+        "insolvency_title": "Predictive Insolvency Score",
+        "insolvency_desc": "Model based on 5-year trends in equity, revenue, debt and profitability.",
+        "insolvency_scale": "0–100 (higher = higher risk)",
+        "insolvency_low": "Low risk",
+        "insolvency_medium": "Medium risk",
+        "insolvency_high": "High risk",
+        "insolvency_critical": "Critical risk",
+        "insolvency_equity_trend": "Equity trend",
+        "insolvency_revenue_trend": "Revenue trend",
+        "insolvency_debt_trend": "Debt trend",
+        "insolvency_profit_trend": "Profitability trend",
+        "insolvency_altman_trend": "Altman Z'' trend",
+        "insolvency_declining": "Declining",
+        "insolvency_stable": "Stable",
+        "insolvency_growing": "Growing",
+        "insolvency_years_decline": "{n} years declining",
+        "insolvency_years_loss": "{n} years loss",
+        "insolvency_years_profit": "{n} years profit",
+        "insolvency_no_data": "Insufficient data",
+
+        # Fraud risk heatmap
+        "fraud_heatmap_title": "Fraud Risk Heatmap",
+        "fraud_heatmap_desc": "Aggregation of red flags from multiple sources into a visual heatmap.",
+        "fraud_cat_vestnik": "Commercial Bulletin",
+        "fraud_cat_forensic": "Forensic Analysis",
+        "fraud_cat_narrative": "Narrative Analysis",
+        "fraud_cat_notes": "Notes Forensic",
+        "fraud_cat_auditor": "Audit Verification",
+        "fraud_cat_legal": "Legal Registries",
+        "fraud_cat_financial": "Financial Indicators",
+        "fraud_severity_critical": "Critical",
+        "fraud_severity_high": "High",
+        "fraud_severity_medium": "Medium",
+        "fraud_severity_low": "Low",
+        "fraud_severity_none": "None",
+        "fraud_flags_found": "{n} found",
+        "fraud_no_flags": "No red flags",
+
+        # Strengths & Weaknesses
+        "sw_title": "Strengths & Weaknesses",
+        "evidence_title": "Forensic Evidence & Key Findings",
+        "sw_strengths": "Strengths",
+        "sw_weaknesses": "Weaknesses",
+        "sw_source_scorecard": "Scorecard",
+        "sw_source_heatmap": "Heatmap",
+        "sw_source_insolvency": "Insolvency",
+        "sw_source_vestnik": "Bulletin",
+        "sw_source_financials": "Financials",
+        "sw_source_auditor": "Auditor",
+        "sw_source_verdict": "Verdict",
+        "sw_insolvency_low": "Low insolvency risk",
+        "sw_insolvency_high": "High insolvency risk",
+        "sw_clean_vestnik": "No records in Commercial Bulletin",
+        "sw_vestnik_critical": "Critical records in Commercial Bulletin",
+        "sw_positive_equity": "Positive equity",
+        "sw_negative_equity": "Negative equity",
+        "sw_positive_cf": "Positive operating cash flow",
+        "sw_negative_cf": "Negative operating cash flow",
+        "sw_all_profitable": "Profitable in all years",
+        "sw_all_losses": "Loss in all years",
+        "sw_auditor_clean": "Unqualified auditor opinion",
+        "sw_auditor_adverse": "Adverse/disclaimer auditor opinion",
+        "sw_auditor_qualified": "Qualified auditor opinion",
+        "sw_risk_aaa": "Rating AAA — lowest risk",
+        "sw_risk_c": "Rating C — high risk",
+        "sw_no_data": "Insufficient data for assessment",
+
+        # Relevance tags
+        "rel_compliance": "Compliance",
+        "rel_procurement": "Public Procurement",
+        "rel_investor": "Investor",
+        "rel_creditor": "Creditor",
+        "rel_supplier": "Supplier",
+        "rel_overview": "Overview",
+        "rel_relevant_for": "Relevant for",
     },
 
     "de": {
@@ -1122,7 +1276,7 @@ I18N_STRINGS = {
         "status_failed": "Fehlgeschlagen",
 
         # Scoring table
-        "scoring_table": "1. Bewertungstabelle",
+        "scoring_table": "Bewertungstabelle",
         "col_category": "Kategorie",
         "col_finding": "Hauptbefund",
         "col_points": "Punkte",
@@ -1136,7 +1290,7 @@ I18N_STRINGS = {
         "pillar_profile": "Säulenprofil",
 
         # Main assessment
-        "main_assessment": "2. Hauptgutachten",
+        "main_assessment": "Hauptgutachten",
         "executive_summary": "Zusammenfassung",
         "analysis_reliability": "Analysezuverlässigkeit",
         "limited_assessment": "Eingeschränkte Bewertung",
@@ -1146,7 +1300,7 @@ I18N_STRINGS = {
         "col_source": "Quelle",
 
         # Balance sheet
-        "balance_sheet": "3. Bilanz & Finanz Gesundheit",
+        "balance_sheet": "Bilanz & Finanz Gesundheit",
         "employees": "Mitarbeiter",
         "warning_mixed_consolidation": "Warnung: Mix aus Einzel- und Konzernabschlüssen — YoY-Vergleich kann verzerrt sein.",
         "warning_non_standard_months": "Warnung: Einige Perioden umfassen nicht 12 Monate. Vergleich kann verzerrt sein.",
@@ -1155,7 +1309,7 @@ I18N_STRINGS = {
         "col_item": "Posten",
 
         # P&L
-        "pnl_statement": "4. Gewinn- und Verlustrechnung",
+        "pnl_statement": "Gewinn- und Verlustrechnung",
         "revenue_main": "Umsatz aus Haupttätigkeit",
         "total_revenue": "Gesamtumsatz",
         "gross_profit": "Bruttomarge",
@@ -1167,7 +1321,7 @@ I18N_STRINGS = {
         "interest_expense": "Zinsaufwendungen",
 
         # Cash flow
-        "cash_flow": "5. Cashflow-Übersicht",
+        "cash_flow": "Cashflow-Übersicht",
         "operating_cf": "Operativer CF",
         "investing_cf": "Investitions-CF",
         "financing_cf": "Finanzierungs-CF",
@@ -1175,7 +1329,7 @@ I18N_STRINGS = {
         "cf_estimated_note": "Hinweis: CF wurde indirekt berechnet",
 
         # Financial health
-        "financial_health": "6. Finanzkennzahlen",
+        "financial_health": "Finanzkennzahlen",
         "profitability": "Rentabilität",
         "liquidity": "Liquidität",
         "leverage": "Verschuldung",
@@ -1192,10 +1346,10 @@ I18N_STRINGS = {
         "dso_dpo_note_than_suppliers": "früher als Sie Lieferanten zahlen",
         "dso_dpo_note_equal": "Sie kassieren und zahlen gleichzeitig.",
         "analytical_assessment_desc": "Analytische Bewertung — wesentliche Feststellungen, Fußnoten und Gutachtermeinung.",
-        "financial_assessment": "7. Finanzgutachten",
+        "financial_assessment": "Finanzgutachten",
 
         # Legal risks
-        "legal_risks": "8. Rechtliche Risiken",
+        "legal_risks": "Rechtliche Risiken",
         "risk_matrix": "Risikomatrix (Wahrscheinlichkeit × Auswirkung)",
         "low_impact": "Geringe Auswirkung",
         "medium_impact": "Mittlere Auswirkung",
@@ -1209,8 +1363,12 @@ I18N_STRINGS = {
         "no_legal_issues_desc": "Im Handelsblatt wurden keine negativen Ereignisse verzeichnet (Konkurs, Restrukturierung, Liquidation oder Insolvenzverfahren). Das Unternehmen weist ein sauberes Rechtsprofil auf.",
 
         # Glossary & Methodology
-        "glossary": "9. Glossar",
-        "methodology": "10. Methodik",
+        "glossary": "Glossar",
+        "methodology": "Methodik",
+        "part_executive": "I. EXECUTIVE SUMMARY",
+        "part_financial_analysis": "II. FINANZANALYSE & SCORING",
+        "part_registry": "III. REGISTERPRÜFUNG & RECHT",
+        "part_appendices": "IV. ANHÄNGE & METHODIK",
         "verifa_score_model": "Verifa Score v2 — 5-Säulen-Modell",
         "methodology_intro": "Die Unternehmensbewertung besteht aus 5 Säulen mit dynamischen Gewichten, die nach Branche gemäß NACE-Code angepasst werden:",
         "pillar_p1": "P1 — Unternehmensidentität & Registrierung",
@@ -1228,22 +1386,21 @@ I18N_STRINGS = {
         "auditor_correction_note": "Prüferkorrektur — die Endpunktzahl kann um ±10 Punkte basierend auf fachkundigem Urteil angepasst werden, oder −30 Punkte bei aktiven Zwangsvollstreckungen.",
 
         # Table of contents
-        "toc_title": "Inhaltsverzeichnis",
+        "toc_title": "Registerüberprüfung",
         "toc_part_a": "TEIL A — Analyse",
         "toc_part_b": "TEIL B — Anhänge (Quelldaten)",
         "toc_appendices": "Anhänge — Quelldaten",
         "toc_analytical_outputs": "Analytische Ergebnisse",
-        "toc_scoring_table": "1. Bewertungstabelle",
-        "toc_main_assessment": "2. Hauptgutachten",
-        "toc_balance_sheet": "3. Bilanz (Balance Sheet)",
-        "toc_pl": "4. Gewinn- und Verlustrechnung (P&L)",
-        "toc_cash_flow": "5. Cashflow-Rechnung",
-        "toc_ratios": "6. Finanzkennzahlen & Score",
-        "toc_financial_assessment": "7. Finanzgutachten",
-        "toc_legal_risks": "8. Rechtliche Risiken",
-        "toc_glossary": "9. Glossar",
-        "toc_methodology": "10. Methodik",
-        "toc_conclusion": "11. Schluss",
+        "toc_scoring_table": "Bewertungstabelle",
+        "toc_main_assessment": "Hauptgutachten",
+        "toc_balance_sheet": "Bilanz (Balance Sheet)",
+        "toc_pl": "Gewinn- und Verlustrechnung (P&L)",
+        "toc_cash_flow": "Cashflow-Rechnung",
+        "toc_ratios": "Finanzkennzahlen & Score",
+        "toc_financial_assessment": "Finanzgutachten",
+        "toc_legal_risks": "Rechtliche Risiken",
+        "toc_glossary": "Glossar",
+        "toc_methodology": "Methodik",
         "toc_scoring_desc": "Detaillierte Aufschlüsselung der Punktbewertung in 5 Schlüsselkategorien.",
         "toc_main_desc": "Algorithmische Unternehmensbewertung, Zusammenfassung der wichtigsten Erkenntnisse und Empfehlung.",
         "toc_balance_desc": "Struktur von Aktiva und Passiva, Jahresentwicklung mit Diagramm.",
@@ -1254,7 +1411,6 @@ I18N_STRINGS = {
         "toc_legal_desc": "Einträge aus dem Handelsblatt — Konkurse, Restrukturierungen, Löschungen.",
         "toc_glossary_desc": "Erklärung der Finanzkennzahlen (ROA, ROE, Altman Z-Score, Piotroski, Liquidität).",
         "toc_methodology_desc": "Beschreibung des 5-Säulen-Modells v2, DQ-Multiplikator, Vestník-Degradation und Gutachterkorrekturen.",
-        "toc_conclusion_desc": "Zusammenfassung der Bewertung, Hauptrisiken und methodischer Haftungsausschluss.",
         "part_of_report": "Teil des Berichts",
         "no_vestnik_events": "Das Unternehmen hat keine negativen Einträge im aktuellen Handelsblatt.",
 
@@ -1373,9 +1529,7 @@ I18N_STRINGS = {
         "conf_system": "Systemanalyse",
         "conf_system_desc": "automatischer Prüfer absolvierte Cross-Analysis ohne Fallback",
 
-        # Conclusion
-        "conclusion_title": "11. Schluss",
-        "conclusion_generated_by": "Dieser Bericht wurde vom automatisierten Verifa.sk-System auf Basis öffentlich verfügbarer Daten aus ORSR, RÚZ, Handelsblatt und weiteren Quellen erstellt. Die Bewertung wurde mit dem 5-Säulen-Modell v2 mit dynamischen, nach Branche (NACE) angepassten Gewichten berechnet.",
+        # Conclusion (removed — disclaimer only remains in template)
         "key_risk_label": "Hauptrisiko:",
         "verifa_score_label": "Verifa-Score",
         "category_label": "Kategorie",
@@ -1655,6 +1809,83 @@ I18N_STRINGS = {
         "auditor_qualified": "Mit Vorbehalt",
         "auditor_adverse": "Adverse",
         "auditor_disclaimer": "Versagerte Stellungnahme",
+
+        # Predictive insolvency score
+        "insolvency_title": "Prädiktive Insolvenzbewertung",
+        "insolvency_desc": "Modell basierend auf 5-Jahres-Trends von Eigenkapital, Umsatz, Verschuldung und Rentabilität.",
+        "insolvency_scale": "0–100 (höher = höheres Risiko)",
+        "insolvency_low": "Geringes Risiko",
+        "insolvency_medium": "Mittleres Risiko",
+        "insolvency_high": "Hohes Risiko",
+        "insolvency_critical": "Kritisches Risiko",
+        "insolvency_equity_trend": "Eigenkapitaltrend",
+        "insolvency_revenue_trend": "Umsatztrend",
+        "insolvency_debt_trend": "Verschuldungstrend",
+        "insolvency_profit_trend": "Rentabilitätstrend",
+        "insolvency_altman_trend": "Altman Z'' Trend",
+        "insolvency_declining": "Rückläufig",
+        "insolvency_stable": "Stabil",
+        "insolvency_growing": "Wachsend",
+        "insolvency_years_decline": "{n} Jahre rückläufig",
+        "insolvency_years_loss": "{n} Jahre Verlust",
+        "insolvency_years_profit": "{n} Jahre Gewinn",
+        "insolvency_no_data": "Unzureichende Daten",
+
+        # Fraud risk heatmap
+        "fraud_heatmap_title": "Betrugsrisiko-Heatmap",
+        "fraud_heatmap_desc": "Aggregation von Red Flags aus mehreren Quellen in einer visuellen Heatmap.",
+        "fraud_cat_vestnik": "Handelsblatt",
+        "fraud_cat_forensic": "Forensische Analyse",
+        "fraud_cat_narrative": "Narrative Analyse",
+        "fraud_cat_notes": "Notizen-Forensik",
+        "fraud_cat_auditor": "Abschlussprüfung",
+        "fraud_cat_legal": "Legal Register",
+        "fraud_cat_financial": "Finanzkennzahlen",
+        "fraud_severity_critical": "Kritisch",
+        "fraud_severity_high": "Hoch",
+        "fraud_severity_medium": "Mittel",
+        "fraud_severity_low": "Gering",
+        "fraud_severity_none": "Keine",
+        "fraud_flags_found": "{n} gefunden",
+        "fraud_no_flags": "Keine Red Flags",
+
+        # Strengths & Weaknesses
+        "sw_title": "Stärken & Schwächen",
+        "evidence_title": "Forensische Beweise & Hauptfeststellungen",
+        "sw_strengths": "Stärken",
+        "sw_weaknesses": "Schwächen",
+        "sw_source_scorecard": "Scorecard",
+        "sw_source_heatmap": "Heatmap",
+        "sw_source_insolvency": "Insolvenz",
+        "sw_source_vestnik": "Handelsblatt",
+        "sw_source_financials": "Finanzen",
+        "sw_source_auditor": "Auditor",
+        "sw_source_verdict": "Urteil",
+        "sw_insolvency_low": "Niedriges Insolvenzrisiko",
+        "sw_insolvency_high": "Hohes Insolvenzrisiko",
+        "sw_clean_vestnik": "Keine Einträge im Handelsblatt",
+        "sw_vestnik_critical": "Kritische Einträge im Handelsblatt",
+        "sw_positive_equity": "Positives Eigenkapital",
+        "sw_negative_equity": "Negatives Eigenkapital",
+        "sw_positive_cf": "Positiver operativer Cash Flow",
+        "sw_negative_cf": "Negativer operativer Cash Flow",
+        "sw_all_profitable": "Gewinn in allen Jahren",
+        "sw_all_losses": "Verlust in allen Jahren",
+        "sw_auditor_clean": "Bestätigter Auditor-Bericht",
+        "sw_auditor_adverse": "Adverse/Disclaimer Auditor-Bericht",
+        "sw_auditor_qualified": "Eingeschränkter Auditor-Bericht",
+        "sw_risk_aaa": "Rating AAA — niedrigstes Risiko",
+        "sw_risk_c": "Rating C — hohes Risiko",
+        "sw_no_data": "Unzureichende Daten für Bewertung",
+
+        # Relevance tags
+        "rel_compliance": "Compliance",
+        "rel_procurement": "Öffentliche Beschaffung",
+        "rel_investor": "Investor",
+        "rel_creditor": "Gläubiger",
+        "rel_supplier": "Lieferant",
+        "rel_overview": "Überblick",
+        "rel_relevant_for": "Relevant für",
     },
 }
 

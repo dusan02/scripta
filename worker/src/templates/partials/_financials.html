@@ -1,6 +1,183 @@
-<!-- ===== PAGE 1: SÚVAHA ===== -->
+{# ── 5-PILIEROVÝ SCORECARD (moved from _summary.html) ── #}
+{% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
+<div class="mb-10" style="page-break-inside: avoid; break-inside: avoid;">
+    <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
+    <table class="w-full border-collapse">
+        <thead>
+            <tr class="bg-slate-100">
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[38%] report-body-sm">{{ i18n.col_category }}</th>
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[35%] report-body-sm">{{ i18n.col_finding }}</th>
+                <th class="text-center py-2 px-3 font-bold text-slate-600 w-[15%] report-body-sm">{{ i18n.col_points }}</th>
+                <th class="text-left py-2 px-3 font-bold text-slate-600 w-[12%] report-body-sm">{{ i18n.col_fulfillment }}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for pillar in scorecard_breakdown %}
+            {% set pct = ((pillar.max_score > 0) and ((pillar.score / pillar.max_score) * 100)) | int %}
+            {% if pct >= 70 %}
+                {% set bar_color = "#10b981" %}
+                {% set score_color = "text-emerald-700" %}
+                {% set row_bg = "" %}
+                {% set icon = "✓" %}
+                {% set icon_color = "text-emerald-500" %}
+            {% elif pct >= 40 %}
+                {% set bar_color = "#f59e0b" %}
+                {% set score_color = "text-amber-600" %}
+                {% set row_bg = "" %}
+                {% set icon = "⚠" %}
+                {% set icon_color = "text-amber-500" %}
+            {% else %}
+                {% set bar_color = "#ef4444" %}
+                {% set score_color = "text-rose-600" %}
+                {% set row_bg = "background: #fff5f5;" %}
+                {% set icon = "✗" %}
+                {% set icon_color = "text-rose-500" %}
+            {% endif %}
+            <tr class="border-b border-slate-100" style="{{ row_bg }}">
+                <td class="py-2.5 px-3 font-semibold text-slate-800 report-body-sm"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</td>
+                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-normal">
+                    {{ pillar.detail | sanitize_llm }}
+                    {% if pillar.flags and pillar.flags|length > 0 %}
+                    <ul class="mt-1 space-y-0">
+                        {% for flag in pillar.flags %}
+                        <li class="report-caption text-slate-400 leading-tight">• {{ flag }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </td>
+                <td class="py-2.5 px-3 text-center font-black report-body-sm {{ score_color }}">
+                    {{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>
+                </td>
+                <td class="py-2.5 px-3">
+                    <div class="w-full bg-slate-200 rounded-full" style="height:6px;">
+                        <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
+                    </div>
+                    <span class="report-caption text-slate-400 mt-0.5 block text-right">{{ pct }}%</span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-slate-50 border-t-2 border-slate-300">
+                <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.algorithmic_score }}</td>
+                <td class="py-2.5 px-3 text-center font-bold text-slate-700 text-lg">
+                    {{ algorithmic_total }}<span class="text-slate-400 font-normal report-caption">/100</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                    <span class="report-body-sm text-slate-500">{{ i18n.base_model }}</span>
+                </td>
+            </tr>
+            <tr class="bg-slate-50 border-b border-slate-200">
+                <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.auditor_correction }}</td>
+                <td class="py-2.5 px-3 text-center font-bold text-lg
+                    {% if verdict.verifaScore - algorithmic_total > 0 %}text-emerald-600
+                    {% elif verdict.verifaScore - algorithmic_total < 0 %}text-rose-600
+                    {% else %}text-slate-500{% endif %}">
+                    {% if verdict.verifaScore - algorithmic_total > 0 %}+{% endif %}{{ verdict.verifaScore - algorithmic_total }}
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                    <span class="report-body-sm text-slate-500">{{ i18n.based_on_registers }}</span>
+                </td>
+            </tr>
+            <tr class="bg-slate-100 border-t-2 border-slate-400">
+                <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide" colspan="2">{{ i18n.final_score }}</td>
+                <td class="py-3 px-3 text-center font-black text-xl
+                    {% if verdict.verifaScore >= 80 %}text-emerald-700
+                    {% elif verdict.verifaScore >= 50 %}text-amber-600
+                    {% else %}text-rose-600{% endif %}">
+                    {{ verdict.verifaScore }}<span class="text-slate-400 font-normal report-caption">/100</span>
+                </td>
+                <td class="py-3 px-3">
+                    <span class="font-bold report-body-sm px-2 py-1 rounded shadow-sm
+                        {% if verdict.riskCategory == 'AAA' %}bg-emerald-100 text-emerald-800 border border-emerald-200
+                        {% elif verdict.riskCategory == 'A' %}bg-emerald-50 text-emerald-700 border border-emerald-100
+                        {% elif verdict.riskCategory == 'B' %}bg-amber-50 text-amber-700 border border-amber-100
+                        {% else %}bg-rose-50 text-rose-700 border border-rose-100{% endif %}">
+                        {{ verdict.riskCategory }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4" class="py-3 px-3 bg-white border-t border-slate-200">
+                    <div class="flex gap-4 items-center">
+                        <div class="flex-1">
+                            <p class="report-caption text-slate-500">
+                                {{ i18n.pillar_weights_note }}
+                            </p>
+                        </div>
+                        {% if radar_chart_base64 %}
+                        <div class="w-52 flex-shrink-0 flex flex-col items-center">
+                            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="Radar chart pilierov" class="w-full h-auto">
+                            <p class="report-caption text-slate-400 text-center mt-1">{{ i18n.pillar_profile }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endif %}
+
+{# ── PREDICTIVE INSOLVENCY SCORE (moved from _summary.html) ── #}
+{% if insolvency_score and insolvency_score.has_data %}
+<div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">
+    <h2 class="section-title">{{ i18n.insolvency_title }}</h2>
+    <p class="report-caption text-slate-500 mb-3">{{ i18n.insolvency_desc }}</p>
+
+    <div class="flex items-center gap-4 mb-4 p-4 rounded-lg border" style="border-color:
+        {% if insolvency_score.risk_level == 'critical' %}#ef4444; background: #fef2f2;
+        {% elif insolvency_score.risk_level == 'high' %}#f97316; background: #fff7ed;
+        {% elif insolvency_score.risk_level == 'medium' %}#f59e0b; background: #fffbeb;
+        {% else %}#10b981; background: #ecfdf5;{% endif %}">
+        <div class="flex-shrink-0">
+            <div class="relative w-20 h-20">
+                <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#e2e8f0" stroke-width="6"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke-width="6" stroke-linecap="round"
+                        stroke-dasharray="{{ insolvency_score.score * 2.136 }} 213.6"
+                        stroke="{% if insolvency_score.risk_level == 'critical' %}#ef4444{% elif insolvency_score.risk_level == 'high' %}#f97316{% elif insolvency_score.risk_level == 'medium' %}#f59e0b{% else %}#10b981{% endif %}"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-2xl font-black" style="color:
+                        {% if insolvency_score.risk_level == 'critical' %}#dc2626
+                        {% elif insolvency_score.risk_level == 'high' %}#ea580c
+                        {% elif insolvency_score.risk_level == 'medium' %}#d97706
+                        {% else %}#059669{% endif %}">{{ insolvency_score.score }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex-1">
+            <p class="text-lg font-bold" style="color:
+                {% if insolvency_score.risk_level == 'critical' %}#dc2626
+                {% elif insolvency_score.risk_level == 'high' %}#ea580c
+                {% elif insolvency_score.risk_level == 'medium' %}#d97706
+                {% else %}#059669{% endif %}">{{ insolvency_score.risk_label }}</p>
+            <p class="report-caption text-slate-500">{{ i18n.insolvency_scale }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-{{ insolvency_score.trends|length }} gap-2">
+        {% for trend in insolvency_score.trends %}
+        <div class="p-3 rounded-lg border" style="border-color: #e2e8f0; background:
+            {% if trend.is_negative %}#fef2f2{% else %}#f0fdf4{% endif %};">
+            <p class="report-caption text-slate-500 mb-1">{{ trend.label }}</p>
+            <p class="text-sm font-bold" style="color: {% if trend.is_negative %}#dc2626{% else %}#059669{% endif %}">
+                {% if trend.is_negative %}↓{% else %}↑{% endif %} {{ trend.direction }}
+            </p>
+            {% if trend.detail %}
+            <p class="report-caption" style="color: {% if trend.is_negative %}#dc2626{% else %}#059669{% endif %};">{{ trend.detail }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="page-break"></div>
-<div class="flex flex-col" style="height: 255mm; page-break-inside: avoid; overflow: hidden;">
+
+<!-- ===== PAGE 1: SÚVAHA ===== -->
+<div class="flex flex-col" style="height: 235mm; page-break-inside: avoid; overflow: hidden;">
     <h2 id="suvaha" class="section-title mb-4 flex-shrink-0">{{ i18n.balance_sheet }}</h2>
     {% if nace_code %}
     <div class="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
@@ -579,17 +756,11 @@
     </div>
     {% endif %}
 
-    {# ── NÁZOR AUDÍTORA + ZISTENIA COUNT (vedľa seba) ── #}
+    {# ── NÁZOR AUDÍTORA ── #}
     {% set has_auditor = latest_stmt and latest_stmt.auditorOpinion and (latest_stmt.auditorOpinion.opinionType|string|lower != 'null') %}
-    {% set has_evidence = evidence_list and evidence_list|length > 0 %}
-    {% set positives = evidence_list | selectattr('impact', 'equalto', 'POSITIVE') | list if has_evidence else [] %}
-    {% set warnings = evidence_list | selectattr('impact', 'equalto', 'WARNING') | list if has_evidence else [] %}
-    {% set criticals = evidence_list | selectattr('impact', 'equalto', 'CRITICAL') | list if has_evidence else [] %}
-    {% set neutrals = evidence_list | rejectattr('impact', 'in', ['POSITIVE','WARNING','CRITICAL']) | list if has_evidence else [] %}
-    {% if has_auditor or has_evidence %}
+    {% if has_auditor %}
     <div class="mb-2 p-2 rounded-lg border flex gap-3" style="border-color: #e2e8f0; background: #f8fafc;">
-        {% if has_auditor %}
-        <div class="flex items-center gap-2 {% if has_evidence %}border-r border-slate-200 pr-3{% endif %}">
+        <div class="flex items-center gap-2">
             <div class="flex-shrink-0">
                 {% if 'bez výhrad' in auditor_opinion.opinion_type|lower or 'unqualified' in auditor_opinion.opinion_type|lower or 'ohne vorbehalt' in auditor_opinion.opinion_type|lower %}
                 <div class="w-7 h-7 rounded-full bg-emerald-100 border-2 border-emerald-400 flex items-center justify-center">
@@ -616,67 +787,14 @@
                 {% endif %}
             </div>
         </div>
-        {% endif %}
-        {% if has_evidence %}
-        <div class="flex-1">
-            <p class="subsection-title-sm mb-1">{{ i18n.findings_and_risks }}</p>
-            <div class="grid grid-cols-3 gap-1">
-                {% if positives|length > 0 %}
-                <div class="bg-emerald-50 border border-emerald-200 rounded p-1 text-center">
-                    <p class="report-caption font-bold text-emerald-600">✓ {{ i18n.positive_short }}</p>
-                    <p class="text-sm font-black text-emerald-700">{{ positives|length }}</p>
-                </div>
-                {% endif %}
-                {% if warnings|length > 0 %}
-                <div class="bg-amber-50 border border-amber-200 rounded p-1 text-center">
-                    <p class="report-caption font-bold text-amber-600">⚠ {{ i18n.warning_short }}</p>
-                    <p class="text-sm font-black text-amber-700">{{ warnings|length }}</p>
-                </div>
-                {% endif %}
-                {% if criticals|length > 0 %}
-                <div class="bg-rose-50 border border-rose-200 rounded p-1 text-center">
-                    <p class="report-caption font-bold text-rose-600">⛔ {{ i18n.critical_short }}</p>
-                    <p class="text-sm font-black text-rose-700">{{ criticals|length }}</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
     </div>
     {% endif %}
 
-    {# ── RIZIKO ── #}
+    {# ── KĽÚČOVÉ RIZIKO ── #}
     {% if verdict and verdict.keyRisk %}
     <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-2">
         <p class="report-caption text-rose-500 font-bold uppercase">{{ i18n.risk_label }}</p>
         <p class="report-body-sm text-rose-700">{{ verdict.keyRisk | sanitize_llm }}</p>
-    </div>
-    {% endif %}
-
-    {# ── ZISTENIA A RIZIKÁ — detail položiek ── #}
-    {% if evidence_list and evidence_list|length > 0 %}
-    <div class="mb-2 p-2 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc; page-break-inside: avoid; break-inside: avoid;">
-        <div class="space-y-1.5">
-            {% for item in criticals[:2] + warnings[:2] + positives[:2] + neutrals[:1] %}
-            {% set impact = item.get('impact', 'NEUTRAL') %}
-            {% set bg = '#ecfdf5' if impact == 'POSITIVE' else '#fffbeb' if impact == 'WARNING' else '#fef2f2' if impact == 'CRITICAL' else '#f8fafc' %}
-            {% set border_c = '#10b981' if impact == 'POSITIVE' else '#f59e0b' if impact == 'WARNING' else '#ef4444' if impact == 'CRITICAL' else '#e2e8f0' %}
-            {% set label_c = '#059669' if impact == 'POSITIVE' else '#d97706' if impact == 'WARNING' else '#dc2626' if impact == 'CRITICAL' else '#64748b' %}
-            {% set label_text = '✓' if impact == 'POSITIVE' else '⚠' if impact == 'WARNING' else '⛔' if impact == 'CRITICAL' else '○' %}
-            <div class="p-1 rounded border flex items-start gap-1.5" style="background: {{ bg }}; border-color: {{ border_c }};">
-                <span class="report-caption font-bold flex-shrink-0" style="color: {{ label_c }};">{{ label_text }}</span>
-                <div class="flex-1 min-w-0">
-                    {% if item.get('zdroj') %}<span class="report-caption text-slate-500 block">{{ item.zdroj | sanitize_llm }}</span>{% endif %}
-                    {% if item.get('tvrdenie') %}<p class="report-body-sm text-slate-800 leading-normal">{{ item.tvrdenie | sanitize_llm }}</p>{% endif %}
-                    {% if item.get('dokaz') %}<p class="report-body-sm text-slate-600 leading-normal">→ {{ item.dokaz | sanitize_llm }}</p>{% endif %}
-                </div>
-            </div>
-            {% endfor %}
-            {% set total_shown = (criticals[:3]|length + warnings[:3]|length + positives[:2]|length + neutrals[:2]|length) %}
-            {% if evidence_list|length > total_shown %}
-            <p class="report-caption text-slate-400 italic">+{{ evidence_list|length - total_shown }} {{ i18n.more_items }}</p>
-            {% endif %}
-        </div>
     </div>
     {% endif %}
 
@@ -755,5 +873,6 @@
         {{ i18n.no_financial_data }}
     </div>
     {% endif %}
+
 
 </div>
