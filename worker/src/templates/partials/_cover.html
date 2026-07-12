@@ -9,7 +9,7 @@
     {% endif %}
     
     <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">{{ i18n.due_diligence_report }}</h2>
-    {% set display_name = company.name if company.name and company.name not in ('Nezistené', 'Nezisten', 'N/A', 'n/a', '-', 'Neznáma spoločnosť') else i18n.cover_ico_prefix ~ ' ' ~ company.ico %}
+    {% set display_name = company.name if company.name and company.name not in ('Nezistené', 'Nezisten', 'N/A', 'n/a', '-', 'Neznáma spoločnosť', 'NEUVEDENÉ', 'Neuvedené', 'Neuveden', 'Unknown', 'unknown', 'Not stated', 'Not provided') else i18n.cover_ico_prefix ~ ' ' ~ company.ico %}
     {% set display_name_html = display_name | replace(' s. r. o.', '<br>s. r. o.') | replace(' s.r.o.', '<br>s.r.o.') | replace(' a. s.', '<br>a. s.') | replace(' a.s.', '<br>a.s.') | replace(' v. o. s.', '<br>v. o. s.') | replace(' v.o.s.', '<br>v.o.s.') | replace(' k. s.', '<br>k. s.') | replace(' k.s.', '<br>k.s.') %}
     <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-6 leading-tight">{{ display_name_html | safe }}</h3>
     

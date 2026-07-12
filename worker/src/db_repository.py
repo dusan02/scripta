@@ -138,7 +138,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
         try:
             # 1. Vytvoríme alebo updatneme záznam o firme
             gemini_name = (data.nazov_spolocnosti or "").strip()
-            _INVALID_NAMES = {"", "n/a", "n/a.", "nie je známy", "neznámy", "none", "null", "-", "neznáma spoločnosť", "nezistené", "nezisten"}
+            _INVALID_NAMES = {"", "n/a", "n/a.", "nie je známy", "neznámy", "none", "null", "-", "neznáma spoločnosť", "nezistené", "nezisten", "neuvedené", "neuveden", "not stated", "not provided", "unknown"}
             is_placeholder = gemini_name.lower() in _INVALID_NAMES or gemini_name.startswith("Spoločnosť s IČO")
             
             # Fetch NACE kód
@@ -157,12 +157,15 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 }
             )
 
-            # Update fields separately if they have values
+            # Update name only if current is empty/placeholder (don't overwrite ORSR's real name)
             if gemini_name and not is_placeholder:
-                await db.company.update(
-                    where={'ico': data.ico},
-                    data={'name': gemini_name}
-                )
+                existing_co = await db.company.find_unique(where={'ico': data.ico})
+                curr_name = (existing_co.name or "").lower() if existing_co else ""
+                if not curr_name or curr_name in _INVALID_NAMES or curr_name.startswith("spoločnosť s ičo"):
+                    await db.company.update(
+                        where={'ico': data.ico},
+                        data={'name': gemini_name}
+                    )
             if nace_code:
                 await db.company.update(
                     where={'ico': data.ico},
@@ -539,7 +542,7 @@ async def upsert_company_name(ico: str, company_name: str) -> None:
     await db.connect()
     try:
         existing = await db.company.find_unique(where={'ico': ico})
-        _INVALID_NAMES = {"", "n/a", "n/a.", "none", "null", "-", "nezistené"}
+        _INVALID_NAMES = {"", "n/a", "n/a.", "none", "null", "-", "nezistené", "nezisten", "neuvedené", "neuveden", "not stated", "not provided", "unknown", "neznáma spoločnosť"}
         
         if existing:
             # Update len ak máme lepší názov
