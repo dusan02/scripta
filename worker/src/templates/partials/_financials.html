@@ -1,6 +1,6 @@
 {# ── 5-PILIEROVÝ SCORECARD (moved from _summary.html) ── #}
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
-<div class="mb-10" style="page-break-inside: avoid; break-inside: avoid;">
+<div class="mb-10">
     <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
     <table class="w-full border-collapse">
         <thead>
@@ -118,6 +118,184 @@
     </table>
 </div>
 {% endif %}
+
+{# ── FINANČNÝ POSUDOK (moved from bottom, now between Scorecard and Insolvency) ── #}
+<div class="mb-6">
+    <h2 id="financny_posudok" class="section-title">{{ i18n.financial_assessment }}</h2>
+    <p class="report-body-sm text-slate-600 mb-3">{{ i18n.analytical_assessment_desc }}</p>
+
+    {% if latest_ratios and latest_ratios.negative_equity %}
+    <div class="mb-3 p-3 rounded-lg border-l-4 border-rose-500 bg-rose-50 flex items-start gap-3">
+        <span class="text-rose-500 text-lg flex-shrink-0">⚠</span>
+        <div>
+            <strong class="block text-rose-800 mb-0.5">{{ i18n.negative_equity_warning }}</strong>
+            <p class="report-body-sm text-rose-700">{{ i18n.negative_equity_desc }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if auditor_opinion and auditor_opinion.going_concern_risk %}
+    <div class="mb-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-50 flex items-start gap-3">
+        <span class="text-amber-500 text-lg flex-shrink-0">⚠</span>
+        <div>
+            <strong class="block text-amber-800 mb-0.5">{{ i18n.going_concern_warning }}</strong>
+            <p class="report-body-sm text-amber-700">{{ i18n.going_concern_desc }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if auditor_opinion and auditor_opinion.opinion_type and auditor_opinion.opinion_type|string|lower != 'null' %}
+    <div class="mb-3 p-3 rounded-lg border border-slate-200 bg-white flex items-start gap-3 shadow-sm">
+        {% set op_lower = auditor_opinion.opinion_type|lower %}
+        {% set op_icon = "✓" if ('bez výhrad' in op_lower or 'unqualified' in op_lower or 'ohne vorbehalt' in op_lower) else ("⚠" if ('výhrad' in op_lower or 'qualified' in op_lower or 'adverse' in op_lower or 'vorbehalt' in op_lower) else "✗") %}
+        {% set op_color = "text-emerald-500" if ('bez výhrad' in op_lower or 'unqualified' in op_lower or 'ohne vorbehalt' in op_lower) else ("text-amber-500" if ('výhrad' in op_lower or 'qualified' in op_lower or 'adverse' in op_lower or 'vorbehalt' in op_lower) else "text-rose-500") %}
+        <span class="{{ op_color }} text-lg flex-shrink-0">{{ op_icon }}</span>
+        <div class="flex-1">
+            <div class="flex justify-between items-center mb-0.5">
+                <strong class="text-slate-800">{{ i18n.auditor_opinion_label }}: {{ auditor_opinion.opinion_type }}</strong>
+                {% if auditor_opinion.auditor_name %}
+                <span class="report-caption text-slate-400">{{ auditor_opinion.auditor_name }}</span>
+                {% endif %}
+            </div>
+            {% if auditor_opinion.reservation_text %}
+            <p class="report-body-sm text-slate-600">{{ auditor_opinion.reservation_text | sanitize_llm }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if verdict %}
+    {% if gross_profit_estimated %}
+    <div class="mb-2 p-2 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2">
+        <span class="text-slate-400 text-sm flex-shrink-0">ℹ</span>
+        <p class="report-caption text-slate-500 leading-normal">{{ i18n.gross_profit_est_note_short }}</p>
+    </div>
+    {% endif %}
+    {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
+    <div class="mb-2 p-2 rounded-lg border border-amber-300 bg-amber-50 flex items-center gap-2">
+        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>
+        <p class="report-caption text-amber-700 leading-normal">{{ i18n.fallback_algorithmic_note }}</p>
+    </div>
+    {% endif %}
+
+    {# ── NÁZOR AUDÍTORA ── #}
+    {% set has_auditor = latest_stmt and latest_stmt.auditorOpinion and (latest_stmt.auditorOpinion.opinionType|string|lower != 'null') %}
+    {% if has_auditor %}
+    <div class="mb-2 p-2 rounded-lg border flex gap-3" style="border-color: #e2e8f0; background: #f8fafc;">
+        <div class="flex items-center gap-2">
+            <div class="flex-shrink-0">
+                {% if 'bez výhrad' in auditor_opinion.opinion_type|lower or 'unqualified' in auditor_opinion.opinion_type|lower or 'ohne vorbehalt' in auditor_opinion.opinion_type|lower %}
+                <div class="w-7 h-7 rounded-full bg-emerald-100 border-2 border-emerald-400 flex items-center justify-center">
+                    <span class="text-emerald-600 font-bold text-xs">✓</span>
+                </div>
+                {% elif 'výhrad' in auditor_opinion.opinion_type|lower or 'qualified' in auditor_opinion.opinion_type|lower or 'adverse' in auditor_opinion.opinion_type|lower or 'vorbehalt' in auditor_opinion.opinion_type|lower %}
+                <div class="w-7 h-7 rounded-full bg-rose-100 border-2 border-rose-400 flex items-center justify-center">
+                    <span class="text-rose-600 font-bold text-xs">✗</span>
+                </div>
+                {% else %}
+                <div class="w-7 h-7 rounded-full bg-amber-100 border-2 border-amber-400 flex items-center justify-center">
+                    <span class="text-amber-600 font-bold text-xs">!</span>
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                <p class="subsection-title-sm">{{ i18n.auditor_opinion_label }} ({{ latest_stmt.year }})</p>
+                <p class="text-xs font-bold text-slate-800">{{ auditor_opinion.opinion_type }}</p>
+                {% if latest_stmt.auditorOpinion.goingConcernRisk %}
+                <p class="report-body-sm text-rose-600 font-medium">⚠ Going Concern</p>
+                {% endif %}
+                {% if latest_stmt.auditorOpinion.reservationText and latest_stmt.auditorOpinion.reservationText is not none and latest_stmt.auditorOpinion.reservationText != 'null' and latest_stmt.auditorOpinion.reservationText|trim|length > 0 %}
+                <p class="report-body-sm text-slate-600 leading-normal">{{ latest_stmt.auditorOpinion.reservationText }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── KĽÚČOVÉ RIZIKO ── #}
+    {% if verdict and verdict.keyRisk %}
+    <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-2">
+        <p class="report-caption text-rose-500 font-bold uppercase">{{ i18n.risk_label }}</p>
+        <p class="report-body-sm text-rose-700">{{ verdict.keyRisk | sanitize_llm }}</p>
+    </div>
+    {% endif %}
+
+    {# ── KĽÚČOVÉ POZNÁMKY POD ČIAROU ── #}
+    {% if latest_stmt and latest_stmt.notesRisk %}
+    {% if latest_stmt.notesRisk.relatedPartyTransactions or latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
+    <div class="mb-2">
+        <h3 class="subsection-title-sm mb-1">{{ i18n.key_footnotes }}</h3>
+        <div class="grid grid-cols-1 gap-1.5">
+            {% if latest_stmt.notesRisk.relatedPartyTransactions %}
+            <div class="p-2 bg-slate-50 rounded border border-slate-200">
+                <p class="report-label text-slate-500">{{ i18n.related_party }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
+            <div class="p-2 bg-slate-50 rounded border border-slate-200">
+                <p class="report-label text-slate-500">{{ i18n.off_balance }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.contingentRisks %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200">
+                <p class="report-label text-amber-600">{{ i18n.contingent_risks }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ── STRATEGICKÝ KONTEXT (Výročná správa) ── #}
+    {% if latest_stmt and latest_stmt.narrativeRisk %}
+    <div class="mb-2">
+        <h3 class="subsection-title-sm mb-1">{{ i18n.strategic_context }}</h3>
+        {% if latest_stmt.narrativeRisk.synthesis %}
+        <p class="report-body-sm text-slate-700 mb-2">{{ latest_stmt.narrativeRisk.synthesis }}</p>
+        {% endif %}
+        {% if latest_stmt.narrativeRisk.goingConcernDoubts %}
+        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
+            <p class="report-body-sm text-rose-700 font-medium">{{ i18n.going_concern_annual }}</p>
+        </div>
+        {% endif %}
+        {% if latest_stmt.narrativeRisk.forensicRedFlags and latest_stmt.narrativeRisk.forensicRedFlags|length > 0 %}
+        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
+            <p class="subsection-title-sm text-rose-500 mb-0.5">{{ i18n.forensic_red_flags }}</p>
+            <ul class="space-y-1">
+                {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
+                <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        <div class="grid grid-cols-2 gap-2">
+            {% if latest_stmt.narrativeRisk.managementChanges %}
+            <div><p class="report-label text-slate-500">{{ i18n.management_changes }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.plannedInvestments %}
+            <div><p class="report-label text-slate-500">{{ i18n.planned_investments }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.profitabilityExplanation %}
+            <div class="col-span-2"><p class="report-label text-slate-500">{{ i18n.profitability_explanation }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.litigationRisks %}
+            <div class="col-span-2"><p class="report-label text-rose-500">{{ i18n.litigation_risks }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+    {% if not latest_stmt %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
+        {{ i18n.no_financial_data }}
+    </div>
+    {% endif %}
+</div>
 
 {# ── PREDICTIVE INSOLVENCY SCORE (moved from _summary.html) ── #}
 {% if insolvency_score and insolvency_score.has_data %}
@@ -696,183 +874,3 @@
             </div>
         </div>
     {% endif %} {# closes main section 6 wrapper if latest_ratios and latest_stmt #}
-<!-- ===== PAGE: FINANČNÝ POSUDOK ===== -->
-<div class="page-break"></div>
-<div class="mb-6">
-    <h2 id="financny_posudok" class="section-title">{{ i18n.financial_assessment }}</h2>
-    <p class="report-body-sm text-slate-600 mb-3">{{ i18n.analytical_assessment_desc }}</p>
-
-    {% if latest_ratios and latest_ratios.negative_equity %}
-    <div class="mb-3 p-3 rounded-lg border-l-4 border-rose-500 bg-rose-50 flex items-start gap-3">
-        <span class="text-rose-500 text-lg flex-shrink-0">⚠</span>
-        <div>
-            <strong class="block text-rose-800 mb-0.5">{{ i18n.negative_equity_warning }}</strong>
-            <p class="report-body-sm text-rose-700">{{ i18n.negative_equity_desc }}</p>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if auditor_opinion and auditor_opinion.going_concern_risk %}
-    <div class="mb-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-50 flex items-start gap-3">
-        <span class="text-amber-500 text-lg flex-shrink-0">⚠</span>
-        <div>
-            <strong class="block text-amber-800 mb-0.5">{{ i18n.going_concern_warning }}</strong>
-            <p class="report-body-sm text-amber-700">{{ i18n.going_concern_desc }}</p>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if auditor_opinion and auditor_opinion.opinion_type and auditor_opinion.opinion_type|string|lower != 'null' %}
-    <div class="mb-3 p-3 rounded-lg border border-slate-200 bg-white flex items-start gap-3 shadow-sm">
-        {% set op_lower = auditor_opinion.opinion_type|lower %}
-        {% set op_icon = "✓" if ('bez výhrad' in op_lower or 'unqualified' in op_lower or 'ohne vorbehalt' in op_lower) else ("⚠" if ('výhrad' in op_lower or 'qualified' in op_lower or 'adverse' in op_lower or 'vorbehalt' in op_lower) else "✗") %}
-        {% set op_color = "text-emerald-500" if ('bez výhrad' in op_lower or 'unqualified' in op_lower or 'ohne vorbehalt' in op_lower) else ("text-amber-500" if ('výhrad' in op_lower or 'qualified' in op_lower or 'adverse' in op_lower or 'vorbehalt' in op_lower) else "text-rose-500") %}
-        <span class="{{ op_color }} text-lg flex-shrink-0">{{ op_icon }}</span>
-        <div class="flex-1">
-            <div class="flex justify-between items-center mb-0.5">
-                <strong class="text-slate-800">{{ i18n.auditor_opinion_label }}: {{ auditor_opinion.opinion_type }}</strong>
-                {% if auditor_opinion.auditor_name %}
-                <span class="report-caption text-slate-400">{{ auditor_opinion.auditor_name }}</span>
-                {% endif %}
-            </div>
-            {% if auditor_opinion.reservation_text %}
-            <p class="report-body-sm text-slate-600">{{ auditor_opinion.reservation_text | sanitize_llm }}</p>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if verdict %}
-    {% if gross_profit_estimated %}
-    <div class="mb-2 p-2 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2">
-        <span class="text-slate-400 text-sm flex-shrink-0">ℹ</span>
-        <p class="report-caption text-slate-500 leading-normal">{{ i18n.gross_profit_est_note_short }}</p>
-    </div>
-    {% endif %}
-    {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
-    <div class="mb-2 p-2 rounded-lg border border-amber-300 bg-amber-50 flex items-center gap-2">
-        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>
-        <p class="report-caption text-amber-700 leading-normal">{{ i18n.fallback_algorithmic_note }}</p>
-    </div>
-    {% endif %}
-
-    {# ── NÁZOR AUDÍTORA ── #}
-    {% set has_auditor = latest_stmt and latest_stmt.auditorOpinion and (latest_stmt.auditorOpinion.opinionType|string|lower != 'null') %}
-    {% if has_auditor %}
-    <div class="mb-2 p-2 rounded-lg border flex gap-3" style="border-color: #e2e8f0; background: #f8fafc;">
-        <div class="flex items-center gap-2">
-            <div class="flex-shrink-0">
-                {% if 'bez výhrad' in auditor_opinion.opinion_type|lower or 'unqualified' in auditor_opinion.opinion_type|lower or 'ohne vorbehalt' in auditor_opinion.opinion_type|lower %}
-                <div class="w-7 h-7 rounded-full bg-emerald-100 border-2 border-emerald-400 flex items-center justify-center">
-                    <span class="text-emerald-600 font-bold text-xs">✓</span>
-                </div>
-                {% elif 'výhrad' in auditor_opinion.opinion_type|lower or 'qualified' in auditor_opinion.opinion_type|lower or 'adverse' in auditor_opinion.opinion_type|lower or 'vorbehalt' in auditor_opinion.opinion_type|lower %}
-                <div class="w-7 h-7 rounded-full bg-rose-100 border-2 border-rose-400 flex items-center justify-center">
-                    <span class="text-rose-600 font-bold text-xs">✗</span>
-                </div>
-                {% else %}
-                <div class="w-7 h-7 rounded-full bg-amber-100 border-2 border-amber-400 flex items-center justify-center">
-                    <span class="text-amber-600 font-bold text-xs">!</span>
-                </div>
-                {% endif %}
-            </div>
-            <div>
-                <p class="subsection-title-sm">{{ i18n.auditor_opinion_label }} ({{ latest_stmt.year }})</p>
-                <p class="text-xs font-bold text-slate-800">{{ auditor_opinion.opinion_type }}</p>
-                {% if latest_stmt.auditorOpinion.goingConcernRisk %}
-                <p class="report-body-sm text-rose-600 font-medium">⚠ Going Concern</p>
-                {% endif %}
-                {% if latest_stmt.auditorOpinion.reservationText and latest_stmt.auditorOpinion.reservationText is not none and latest_stmt.auditorOpinion.reservationText != 'null' and latest_stmt.auditorOpinion.reservationText|trim|length > 0 %}
-                <p class="report-body-sm text-slate-600 leading-normal">{{ latest_stmt.auditorOpinion.reservationText }}</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    {# ── KĽÚČOVÉ RIZIKO ── #}
-    {% if verdict and verdict.keyRisk %}
-    <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-2">
-        <p class="report-caption text-rose-500 font-bold uppercase">{{ i18n.risk_label }}</p>
-        <p class="report-body-sm text-rose-700">{{ verdict.keyRisk | sanitize_llm }}</p>
-    </div>
-    {% endif %}
-
-    {# ── KĽÚČOVÉ POZNÁMKY POD ČIAROU ── #}
-    {% if latest_stmt and latest_stmt.notesRisk %}
-    {% if latest_stmt.notesRisk.relatedPartyTransactions or latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
-    <div class="mb-2">
-        <h3 class="subsection-title-sm mb-1">{{ i18n.key_footnotes }}</h3>
-        <div class="grid grid-cols-1 gap-1.5">
-            {% if latest_stmt.notesRisk.relatedPartyTransactions %}
-            <div class="p-2 bg-slate-50 rounded border border-slate-200">
-                <p class="report-label text-slate-500">{{ i18n.related_party }}</p>
-                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</p>
-            </div>
-            {% endif %}
-            {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
-            <div class="p-2 bg-slate-50 rounded border border-slate-200">
-                <p class="report-label text-slate-500">{{ i18n.off_balance }}</p>
-                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</p>
-            </div>
-            {% endif %}
-            {% if latest_stmt.notesRisk.contingentRisks %}
-            <div class="p-2 bg-amber-50 rounded border border-amber-200">
-                <p class="report-label text-amber-600">{{ i18n.contingent_risks }}</p>
-                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-    {% endif %}
-
-    {# ── STRATEGICKÝ KONTEXT (Výročná správa) ── #}
-    {% if latest_stmt and latest_stmt.narrativeRisk %}
-    <div class="mb-2">
-        <h3 class="subsection-title-sm mb-1">{{ i18n.strategic_context }}</h3>
-        {% if latest_stmt.narrativeRisk.synthesis %}
-        <p class="report-body-sm text-slate-700 mb-2">{{ latest_stmt.narrativeRisk.synthesis }}</p>
-        {% endif %}
-        {% if latest_stmt.narrativeRisk.goingConcernDoubts %}
-        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
-            <p class="report-body-sm text-rose-700 font-medium">{{ i18n.going_concern_annual }}</p>
-        </div>
-        {% endif %}
-        {% if latest_stmt.narrativeRisk.forensicRedFlags and latest_stmt.narrativeRisk.forensicRedFlags|length > 0 %}
-        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
-            <p class="subsection-title-sm text-rose-500 mb-0.5">{{ i18n.forensic_red_flags }}</p>
-            <ul class="space-y-1">
-                {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
-                <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag }}</span></li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-        <div class="grid grid-cols-2 gap-2">
-            {% if latest_stmt.narrativeRisk.managementChanges %}
-            <div><p class="report-label text-slate-500">{{ i18n.management_changes }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges }}</p></div>
-            {% endif %}
-            {% if latest_stmt.narrativeRisk.plannedInvestments %}
-            <div><p class="report-label text-slate-500">{{ i18n.planned_investments }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments }}</p></div>
-            {% endif %}
-            {% if latest_stmt.narrativeRisk.profitabilityExplanation %}
-            <div class="col-span-2"><p class="report-label text-slate-500">{{ i18n.profitability_explanation }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation }}</p></div>
-            {% endif %}
-            {% if latest_stmt.narrativeRisk.litigationRisks %}
-            <div class="col-span-2"><p class="report-label text-rose-500">{{ i18n.litigation_risks }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks }}</p></div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    {% endif %}
-
-    {% if not latest_stmt %}
-    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
-        {{ i18n.no_financial_data }}
-    </div>
-    {% endif %}
-
-
-</div>
