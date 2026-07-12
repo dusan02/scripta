@@ -29,6 +29,7 @@ class ReportTask(BaseModel):
     orsr_extract_type: Optional[str] = "CURRENT"
     crz_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year
     rozhodnutia_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year
+    report_language: Optional[str] = "sk"  # sk | en | de
 
 
 class PersonInfo(BaseModel):

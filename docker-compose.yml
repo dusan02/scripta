@@ -78,6 +78,7 @@ services:
     build:
       context: ./worker
       dockerfile: Dockerfile
+    image: scripta-worker-image
     container_name: scripta_worker
     restart: unless-stopped
     depends_on:
@@ -106,6 +107,7 @@ services:
     build:
       context: ./worker
       dockerfile: Dockerfile
+    image: scripta-worker-image
     container_name: scripta_arq_worker
     restart: unless-stopped
     command: arq src.worker_arq.WorkerSettings

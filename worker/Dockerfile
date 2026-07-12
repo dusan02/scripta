@@ -1,7 +1,12 @@
 FROM python:3.11-slim
 
+# Enable BuildKit apt cache
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
 # Inštalácia systémových závislostí pre Playwright a ďalšie knižnice
-RUN apt-get update && apt-get install -y \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     libnss3 \
@@ -18,24 +23,24 @@ RUN apt-get update && apt-get install -y \
     libgbm1 \
     libasound2 \
     libpango-1.0-0 \
-    libcairo2 \
-    && rm -rf /var/lib/apt/lists/*
+    libcairo2
 
 WORKDIR /app
 
 # Kopírovanie requirements a inštalácia Python závislostí
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install prisma
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt && \
+    pip install prisma
 
 # Inštalácia Playwright prehliadačov (ak sa scraper používa)
+# Note: Playwright browsers are installed in /root/.cache/ms-playwright
 RUN playwright install chromium
 
 # Kopírovanie zdrojového kódu
 COPY . .
 
-# Vygenerovanie Prisma klienta
-COPY prisma ./prisma
-RUN prisma generate --schema=./prisma/schema.prisma && python -m prisma generate --schema=./prisma/schema.prisma
+# Vygenerovanie Prisma klienta (iba raz)
+RUN prisma generate --schema=./prisma/schema.prisma
 
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

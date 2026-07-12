@@ -29,6 +29,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
     async def run_xml(self, **kwargs) -> Dict:
         ico: Optional[str] = kwargs.get("ico")
+        report_language: str = kwargs.get("report_language", "sk")
         if not ico:
             raise ScraperInputError("Obchodný vestník vyžaduje IČO.")
 
@@ -63,7 +64,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
         analyzed_events = []
         for event in found_events:
             try:
-                extraction: VestnikExtraction = await extract_vestnik_event(event["text"])
+                extraction: VestnikExtraction = await extract_vestnik_event(event["text"], report_language=report_language)
                 event_data = {
                     "sourceId": event["id"],
                     "publishedAt": event.get("published_at", "UNKNOWN"),

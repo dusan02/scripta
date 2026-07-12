@@ -107,6 +107,7 @@ async def run_scrapers(
     crz_date_from: Optional[str] = None,
     rozhodnutia_date_from: Optional[str] = None,
     on_source_done: Optional[Callable[[ScrapedSource], None]] = None,
+    report_language: str = "sk",
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
     dependencia skončí (paralelne s ostatnými nezávislými).
@@ -143,6 +144,7 @@ async def run_scrapers(
                     orsr_extract_type=orsr_extract_type,
                     crz_date_from=crz_date_from,
                     rozhodnutia_date_from=rozhodnutia_date_from,
+                    report_language=report_language,
                     **extra_kwargs,
                 )
             finally:

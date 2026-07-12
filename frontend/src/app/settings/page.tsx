@@ -14,16 +14,18 @@ export default function SettingsPage() {
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear - i));
   const [defaultSources, setDefaultSources] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
+  const [reportLanguage, setReportLanguage] = useState<string>("sk");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", rozhodnutiaYearFrom: String(currentYear - 1), defaultSources: DEFAULT_SELECTED_SOURCES });
+  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", rozhodnutiaYearFrom: String(currentYear - 1), defaultSources: DEFAULT_SELECTED_SOURCES, reportLanguage: "sk" });
 
   const hasUnsavedChanges =
     orsrExtractType !== initialRef.current.orsrExtractType ||
     crzDateFrom !== initialRef.current.crzDateFrom ||
     rozhodnutiaYearFrom !== initialRef.current.rozhodnutiaYearFrom ||
-    JSON.stringify(defaultSources) !== JSON.stringify(initialRef.current.defaultSources);
+    JSON.stringify(defaultSources) !== JSON.stringify(initialRef.current.defaultSources) ||
+    reportLanguage !== initialRef.current.reportLanguage;
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -52,11 +54,13 @@ export default function SettingsPage() {
         if (data.defaultSources && Array.isArray(data.defaultSources) && data.defaultSources.length > 0) {
           setDefaultSources(data.defaultSources);
         }
+        if (data.reportLanguage) setReportLanguage(data.reportLanguage);
         initialRef.current = {
           orsrExtractType: data.orsrExtractType || "CURRENT",
           crzDateFrom: data.crzDateFrom || "",
           rozhodnutiaYearFrom: data.rozhodnutiaDateFrom ? new Date(data.rozhodnutiaDateFrom).getFullYear().toString() : String(currentYear - 1),
           defaultSources: data.defaultSources?.length > 0 ? data.defaultSources : DEFAULT_SELECTED_SOURCES,
+          reportLanguage: data.reportLanguage || "sk",
         };
       })
       .catch(() => {})
@@ -73,13 +77,14 @@ export default function SettingsPage() {
       await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, rozhodnutiaDateFrom: rozhodnutiaYearFrom ? `${rozhodnutiaYearFrom}-01-01` : null, defaultSources }),
+        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, rozhodnutiaDateFrom: rozhodnutiaYearFrom ? `${rozhodnutiaYearFrom}-01-01` : null, defaultSources, reportLanguage }),
       });
       initialRef.current = {
         orsrExtractType,
         crzDateFrom,
         rozhodnutiaYearFrom,
         defaultSources,
+        reportLanguage,
       };
       setSaved(true);
       toast.success(t("settings.ulozene"));
@@ -319,6 +324,60 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* Report Language */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2
+              className="text-sm font-semibold mb-1"
+              style={{ color: "var(--text)" }}
+            >
+              {t("settings.jazykReportu")}
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {t("settings.jazykReportuPopis")}
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div
+            className="h-10 rounded-lg animate-pulse"
+            style={{ background: "var(--bg-muted)" }}
+          />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {[
+              { code: "sk", label: "Slovenčina", flag: "🇸🇰" },
+              { code: "en", label: "English", flag: "🇬🇧" },
+              { code: "de", label: "Deutsch", flag: "🇩🇪" },
+            ].map((lang) => (
+              <label
+                key={lang.code}
+                className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all"
+                style={{
+                  background: reportLanguage === lang.code ? "var(--bg-muted)" : "transparent",
+                  border: `1px solid ${reportLanguage === lang.code ? "var(--accent)" : "var(--border)"}`,
+                }}
+              >
+                <input
+                  type="radio"
+                  name="reportLanguage"
+                  value={lang.code}
+                  checked={reportLanguage === lang.code}
+                  onChange={() => setReportLanguage(lang.code)}
+                  className="accent-emerald-500"
+                />
+                <span style={{ fontSize: "16px" }}>{lang.flag}</span>
+                <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                  {lang.label}
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Save button */}
       <div className="flex items-center gap-3">
         <button
@@ -351,7 +410,7 @@ export default function SettingsPage() {
             className="text-xs font-medium fade-in"
             style={{ color: "var(--accent)" }}
           >
-            ✓ {t("settings.ulozene")}
+            {t("settings.ulozene")}
           </span>
         )}
       </div>

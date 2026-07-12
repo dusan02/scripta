@@ -14,6 +14,7 @@ from xml.sax.saxutils import escape as xml_escape
 from playwright.async_api import async_playwright
 from prisma import Prisma
 from jinja2 import Environment, FileSystemLoader
+from src.i18n import get_i18n_strings
 from src.infographics import generate_pl_infographic, generate_balance_sheet_infographic, generate_cashflow_waterfall
 
 from src.plotly_charts import (
@@ -40,26 +41,27 @@ from src.analytics import (
 
 logger = logging.getLogger(__name__)
 
-SOURCE_CATEGORIES = [
-    ("Základné firemné a právne registre", ["ORSR", "ZRSR", "REGISTER_UZ", "OBCHODNY_VESTNIK", "RPO", "RPVS"]),
-    ("Insolvencia, exekúcie a dlhy", ["INSOLVENCY", "POVERENIA", "FINANCNA_SPRAVA", "SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
-    ("Finančná správa a DPH", ["FS_DANOVE_SUBJEKTY", "FS_DPH_REGISTROVANI", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
-    ("Súdy a sankcie", ["ROZHODNUTIA", "DISKVALIFIKACIE"]),
-    ("Financie a štátne zákazky", ["CRZ", "UVO"]),
-    ("Majetok a práva", ["NCRZP", "NCRD", "OCHRANNE_ZNAMKY"]),
+SOURCE_CATEGORY_DEFS = [
+    ("cat_basic_registries", ["ORSR", "ZRSR", "REGISTER_UZ", "OBCHODNY_VESTNIK", "RPO", "RPVS"]),
+    ("cat_insolvency_debts", ["INSOLVENCY", "POVERENIA", "FINANCNA_SPRAVA", "SP_DLZNICI", "VSZP_DLZNICI", "DOVERA_DLZNICI", "UNION_DLZNICI"]),
+    ("cat_financial_tax", ["FS_DANOVE_SUBJEKTY", "FS_DPH_REGISTROVANI", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DPH_NADMERNY_ODPOCET", "FS_DAN_Z_PRIJMOV", "FS_DAN_PRIJMOV_REG"]),
+    ("cat_courts_sanctions", ["ROZHODNUTIA", "DISKVALIFIKACIE"]),
+    ("cat_finance_procurement", ["CRZ", "UVO"]),
+    ("cat_property_rights", ["NCRZP", "NCRD", "OCHRANNE_ZNAMKY"]),
 ]
 
-SOURCE_LABELS = {
-    "ORSR": "ORSR", "ZRSR": "ŽRSR", "RPO": "RPO", "RPVS": "RPVS", "OBCHODNY_VESTNIK": "Obchodný vestník",
-    "INSOLVENCY": "Register úpadcov", "POVERENIA": "Poverenia", "FINANCNA_SPRAVA": "Daňoví dlžníci",
-    "SP_DLZNICI": "Soc. poisťovňa", "VSZP_DLZNICI": "VšZP", "DOVERA_DLZNICI": "Dôvera", "UNION_DLZNICI": "UNION",
-    "FS_DANOVE_SUBJEKTY": "Index daň. spoľahlivosti", "FS_DPH_REGISTROVANI": "Platitelia DPH",
-    "FS_DPH_RUSENIE": "Zrušenie DPH", "FS_DPH_VYMAZANI": "Vymazaní z DPH",
-    "FS_DPH_NADMERNY_ODPOCET": "Nadmerný odpočet",
-    "FS_DAN_Z_PRIJMOV": "Daň z príjmov PO", "FS_DAN_PRIJMOV_REG": "Reg. k dani z príjmov",
-    "ROZHODNUTIA": "Rozhodnutia", "DISKVALIFIKACIE": "Diskvalifikácie",
-    "NCRZP": "Záložné práva", "NCRD": "Register dražieb", "OCHRANNE_ZNAMKY": "Ochranné známky",
-    "REGISTER_UZ": "Účtovné závierky", "CRZ": "Register zmlúv", "UVO": "Verejné obstarávanie",
+SOURCE_LABEL_I18N_KEYS = {
+    "ORSR": "source_orsr", "ZRSR": "source_zrsr", "RPO": "source_rpo", "RPVS": "source_rpvs",
+    "OBCHODNY_VESTNIK": "source_obchodny_vestnik",
+    "INSOLVENCY": "source_insolvency", "POVERENIA": "source_poverenia", "FINANCNA_SPRAVA": "source_financna_sprava",
+    "SP_DLZNICI": "source_sp_dlznici", "VSZP_DLZNICI": "source_vszp_dlznici", "DOVERA_DLZNICI": "source_dovera_dlznici", "UNION_DLZNICI": "source_union_dlznici",
+    "FS_DANOVE_SUBJEKTY": "source_fs_danove_subjekty", "FS_DPH_REGISTROVANI": "source_fs_dph",
+    "FS_DPH_RUSENIE": "source_fs_dph_rusenie", "FS_DPH_VYMAZANI": "source_fs_dph_vymazani",
+    "FS_DPH_NADMERNY_ODPOCET": "source_fs_dph_nadmerny_odpocet",
+    "FS_DAN_Z_PRIJMOV": "source_fs_dan_z_prijmov", "FS_DAN_PRIJMOV_REG": "source_fs_dan_prijmov_reg",
+    "ROZHODNUTIA": "source_rozhodnutia", "DISKVALIFIKACIE": "source_diskvalifikacie",
+    "NCRZP": "source_ncrzp", "NCRD": "source_ncrd", "OCHRANNE_ZNAMKY": "source_ochranne_znamky",
+    "REGISTER_UZ": "source_register_uz", "CRZ": "source_crz", "UVO": "source_uvo",
 }
 
 def format_currency(value: float) -> str:
@@ -141,26 +143,32 @@ def sanitize_llm_text(text: str) -> str:
     text = re.sub(r'F-score:\s*(\d)/B\b', r'F-score: \1/8', text)
     return text
 
-def format_findings(source) -> str:
-    raw = source.findings or source.message or "Bez záznamu."
+def format_findings(source, i18n=None) -> str:
+    fallback = (i18n or {}).get("no_records", "Bez záznamu.")
+    raw = source.findings or source.message or fallback
     raw = sanitize_llm_text(raw)
+
+    # ── Comprehensive scraper findings translation ──
+    if i18n:
+        raw = _translate_scraper_findings(raw, i18n)
+
     max_chars = 350
     if len(raw) > max_chars:
         truncated = raw[:max_chars]
         last_nl = truncated.rfind("\n")
         if last_nl > 100:
             truncated = truncated[:last_nl]
-        raw = truncated + "\n… (ďalšie záznamy v PDF výpise)"
-        
+        raw = truncated + "\n" + (i18n or {}).get("findings_truncated", "… (ďalšie záznamy v PDF výpise)")
+
     findings = xml_escape(raw)
     findings = findings.replace("\n", "<br/>")
-    
+
     findings = re.sub(
         r'(https?://[^\s&lt;&gt;]+)',
-        r'<a href="\1" class="text-blue-600 hover:underline">[Zobraziť detail]</a>',
+        r'<a href="\1" class="text-blue-600 hover:underline">' + (i18n or {}).get("findings_view_detail", "[Zobraziť detail]") + r'</a>',
         findings,
     )
-    
+
     _KEY_PATTERN = re.compile(
         r'(?m)^(Oprávnený|Povinný|Sídlo|IČO|DIČ|Predmet|Dátum|Stav|'
         r'Typ|Spoločnosť|Meno|Priezvisko|Dátum narodenia|'
@@ -170,32 +178,296 @@ def format_findings(source) -> str:
         r'Dražobník|Dražba|Najvyššie prihodenie|'
         r'Prihlasovateľ|Značka|Registračné číslo|'
         r'Účastník konania|Dôvod diskvalifikácie|'
-        r'Rozhodnutie|Súd|Spisová značka|Dátum právoplatnosti'
+        r'Rozhodnutie|Súd|Spisová značka|Dátum právoplatnosti|'
+        r'Legal form|Date of establishment|Rechtsform|Gründungsdatum|'
+        r'IČ DPH|DIČ|Obec|PSČ|Ulica|Štát|'
+        r'Zdaňovacie obdobie|Uplatnený nadmerný odpočet|Priznaná vlastná daňová povinnosť'
         r')\s*:',
     )
     findings = _KEY_PATTERN.sub(r'<b>\1:</b>', findings)
-    
+
     is_info_source = source.source_type in {"CRZ", "RPVS", "UVO", "REGISTER_UZ", "ROZHODNUTIA"}
+    warning_label = (i18n or {}).get("findings_warning", "POZOR")
+    info_label = (i18n or {}).get("findings_info", "INFO")
     if "POZOR" in findings:
         if is_info_source:
-            findings = findings.replace("POZOR!", '<span class="text-blue-600 font-bold">INFO:</span>')
-            findings = findings.replace("POZOR:", '<span class="text-blue-600 font-bold">INFO:</span>')
-            findings = findings.replace("POZOR", '<span class="text-blue-600 font-bold">INFO</span>')
+            findings = findings.replace("POZOR!", f'<span class="text-blue-600 font-bold">{info_label}:</span>')
+            findings = findings.replace("POZOR:", f'<span class="text-blue-600 font-bold">{info_label}:</span>')
+            findings = findings.replace("POZOR", f'<span class="text-blue-600 font-bold">{info_label}</span>')
         else:
-            findings = findings.replace("POZOR!", '<span class="text-rose-600 font-bold">POZOR!</span>')
-            findings = findings.replace("POZOR:", '<span class="text-rose-600 font-bold">POZOR:</span>')
-            findings = findings.replace("POZOR", '<span class="text-rose-600 font-bold">POZOR</span>')
-            
-    findings = re.sub(r'vysoko spoľahlivý', r'<span class="text-emerald-600 font-bold">\g<0></span>', findings)
-    findings = re.sub(r'menej spoľahlivý', r'<span class="text-rose-600 font-bold">\g<0></span>', findings)
-    findings = re.sub(r'(?<!vysoko )(?<!menej )spoľahlivý', r'<span class="text-amber-500 font-bold">\g<0></span>', findings)
-    findings = re.sub(r'Vyrubená daň:\s*(?!0[.,]00)([\d.,\s]+\s*EUR)', r'<span class="text-emerald-600 font-bold">Vyrubená daň: \1</span>', findings)
-    findings = re.sub(r'Daňová strata:\s*(?!0[.,]00)([\d.,\s]+\s*EUR)', r'<span class="text-rose-600 font-bold">Daňová strata: \1</span>', findings)
-    
+            findings = findings.replace("POZOR!", f'<span class="text-rose-600 font-bold">{warning_label}!</span>')
+            findings = findings.replace("POZOR:", f'<span class="text-rose-600 font-bold">{warning_label}:</span>')
+            findings = findings.replace("POZOR", f'<span class="text-rose-600 font-bold">{warning_label}</span>')
+
+    reliable_high = (i18n or {}).get("findings_reliable_high", "vysoko spoľahlivý")
+    reliable_low = (i18n or {}).get("findings_reliable_low", "menej spoľahlivý")
+    reliable_medium = (i18n or {}).get("findings_reliable_medium", "spoľahlivý")
+    findings = re.sub(re.escape(reliable_high), r'<span class="text-emerald-600 font-bold">\g<0></span>', findings)
+    findings = re.sub(re.escape(reliable_low), r'<span class="text-rose-600 font-bold">\g<0></span>', findings)
+    findings = re.sub(r'(?<!' + re.escape(reliable_high.split()[0]) + r' )(?!' + re.escape(reliable_low.split()[0]) + r' )' + re.escape(reliable_medium), r'<span class="text-amber-500 font-bold">\g<0></span>', findings)
+    tax_assessed = (i18n or {}).get("findings_tax_assessed", "Vyrubená daň")
+    tax_loss = (i18n or {}).get("findings_tax_loss", "Daňová strata")
+    findings = re.sub(re.escape(tax_assessed) + r':\s*(?!0[.,]00)([\d.,\s]+\s*EUR)', r'<span class="text-emerald-600 font-bold">' + tax_assessed + r': \1</span>', findings)
+    findings = re.sub(re.escape(tax_loss) + r':\s*(?!0[.,]00)([\d.,\s]+\s*EUR)', r'<span class="text-rose-600 font-bold">' + tax_loss + r': \1</span>', findings)
+
     return findings
 
 
-def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at):
+# ── Scraper findings translation map ──
+# (regex_pattern, i18n_key, optional_format_kwargs_extractor)
+_FINDINGS_TRANSLATIONS = [
+    # Debtor lists
+    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov VšZP\.", "scr_no_record_debtors", {"source": "VšZP"}),
+    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení\.", "scr_no_record_debtors", {"source": "Social Insurance"}),
+    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov UNION\.", "scr_no_record_debtors", {"source": "UNION"}),
+    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov Dôvery\.", "scr_no_record_debtors", {"source": "Dôvera"}),
+    # Insolvency
+    (r"Subjekt nemá negatívne záznamy v registri úpadcov(?:\s*\(Stav neurčený\))?\.", "scr_no_negative_records_insolvency", {}),
+    (r"Nájdený záznam v insolvenčnom registri — POZOR!.*", "scr_found_insolvency", {}),
+    (r"Žiadny záznam v registri úpadcov.*", "scr_no_negative_records_insolvency", {}),
+    # DPH
+    (r"Žiadny záznam — subjekt nie je v zozname daňových subjektov registrovaných pre DPH\.", "scr_not_in_dph_registered", {}),
+    (r"Žiadny záznam — subjekt nie je v zozname vymazaných platiteľov DPH\.", "scr_not_in_dph_removed", {}),
+    (r"Žiadny záznam — subjekt nie je v zozname platiteľov DPH s dôvodmi na zrušenie registrácie\.", "scr_not_in_dph_cancellation", {}),
+    (r"Žiadny záznam — subjekt nie je v zozname DPH subjektov s nadmerným odpočtom\.", "scr_not_in_dph_excess", {}),
+    # Tax
+    (r"Žiadny záznam — subjekt nie je v zozname daňových subjektov s indexom daňovej spoľahlivosti\.", "scr_not_in_tax_reliability", {}),
+    (r"Žiadny záznam v zozname daňových dlžníkov — subjekt nemá daňové nedoplatky\.", "scr_no_tax_debts", {}),
+    (r"Žiadny záznam — subjekt nie je v zozname daňových subjektov registrovaných na daň z príjmov\.", "scr_not_in_income_tax_registered", {}),
+    (r"Žiadny záznam — subjekt nie je v zozname subjektov s výškou dane z príjmov právnickej osoby\.", "scr_not_in_income_tax_amount", {}),
+    # Notarial registers
+    (r"Subjekt nie je evidovaný v Notárskom centrálnom registri záložných práv\.", "scr_not_in_ncrzp", {}),
+    (r"Subjekt nie je evidovaný v Notárskom centrálnom registri dražieb\.", "scr_not_in_ncrd", {}),
+    # Generic
+    (r"Žiadny záznam — subjekt nie je v zozname\.", "scr_not_in_list_generic", {}),
+    (r"Žiadny záznam v Živnostenskom registri SR\.", "scr_no_zrsr_record", {}),
+    (r"Žiadny záznam v Centrálnom registri zmlúv\.", "scr_no_crz_contracts", {}),
+    (r"Žiadny záznam v registri Úradu pre verejné obstarávanie\.", "scr_no_uvo_records", {}),
+    # ORSR
+    (r"Kritériám vyhľadávania nezodpovedá žiadny záznam — IČO neexistuje v ORSR\.", "scr_orsr_no_match", {}),
+    (r"Záznam neexistuje alebo nebol nájdený\.", "scr_orsr_not_found", {}),
+    (r"Aktívna spoločnosť v ORSR \(bez zistených anomálií\)\.", "scr_orsr_active", {}),
+    # RPVS
+    (r"Subjekt nie je evidovaný ako partner verejného sektora\.", "scr_not_public_sector_partner", {}),
+    (r"Subjekt je evidovaný ako partner verejného sektora \(Koneční užívatelia výhod uvedení vo výpise\)\.", "scr_rpvs_partner", {}),
+    # Court decisions
+    (r"Za ostatné obdobie sa nenašli rozhodnutia súdov\.", "scr_no_court_decisions", {}),
+    (r"POZOR:\s*Za ostatné obdobie sa našli rozhodnutia súdov \((.*?)\)\.\s*Odporúčame urobiť kontrolu\.", "scr_found_court_decisions", {}),
+    (r"INFO:\s*Za ostatné obdobie sa našli rozhodnutia súdov \((.*?)\)\.\s*Odporúčame urobiť kontrolu\.", "scr_court_decisions_found", {}),
+    # Disqualifications
+    (r"Neboli k dispozícii žiadne osoby z ORSR na porovnanie s registrom diskvalifikácií\.", "scr_no_disqualifications", {}),
+    # Data unavailable
+    (r"Dáta dočasne nedostupné — skúste vygenerovať report znovu\.", "scr_data_unavailable", {}),
+    # ZRSR unavailable
+    (r"ZRSR portál vrátil 'Odkaz je neplatný' — výpis nie je dostupný\.", "scr_zrsr_unavailable", {}),
+    # Poverenia
+    (r"Na uvedené IČO: (\d+) nebolo nájdené žiadne poverenie.*", "scr_no_poverenie", {}),
+    # DPH registered / excess / income tax (with IČO)
+    (r"Subjekt \(IČO: (\d+)\) je registrovaný pre DPH\.", "scr_dph_registered", {}),
+    (r"Subjekt \(IČO: (\d+)\) je v zozname DPH subjektov s nadmerným odpočtom\.", "scr_dph_excess_found", {}),
+    (r"Subjekt \(IČO: (\d+)\) je registrovaný na daň z príjmov(?:\s*\(detaily v PDF\))?\.", "scr_income_tax_registered", {}),
+    # RPO
+    (r"Subjekt \(IČO: (\d+)\) je v Registri právnických osôb.*", "scr_rpo_found", {}),
+    (r"Právna forma: (.+)", "scr_legal_form", {}),
+    (r"Dátum vzniku: (.+)", "scr_founded_date", {}),
+    # CRZ / UVO with counts
+    (r"INFO:\s*Pre IČO (\d+) sa našlo (\d+) zmlúv v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy v vygenerovanom PDF\.", "scr_crz_contracts_found", {}),
+    (r"POZOR:\s*Pre IČO (\d+) sa našlo (\d+) zmlúv v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy v vygenerovanom PDF\.", "scr_crz_contracts_found_warn", {}),
+    (r"INFO:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found", {}),
+    (r"POZOR:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found_warn", {}),
+    # Register účtovných závierok
+    (r"Účtovná závierka nájdená pre IČO (\d+) v Registri účtovných závierok\.", "scr_registeruz_found", {}),
+    # Tax reliability rating (with IČO and company name)
+    (r"IČO:\s*(\d+)\s*[-—]\s*(.+?)\s*[-—]\s*Hodnotenie:\s*vysoko spoľahlivý", "scr_tax_reliability_high", {}),
+    (r"IČO:\s*(\d+)\s*[-—]\s*(.+?)\s*[-—]\s*Hodnotenie:\s*menej spoľahlivý", "scr_tax_reliability_low", {}),
+    (r"IČO:\s*(\d+)\s*[-—]\s*(.+?)\s*[-—]\s*Hodnotenie:\s*spoľahlivý", "scr_tax_reliability_medium", {}),
+]
+
+
+def _translate_scraper_findings(raw: str, i18n: dict) -> str:
+    """Translate known Slovak scraper findings to the report language."""
+    for pattern, i18n_key, extra_kwargs in _FINDINGS_TRANSLATIONS:
+        m = _re.search(pattern, raw)
+        if m:
+            template = i18n.get(i18n_key, raw)
+            kwargs = dict(extra_kwargs)
+            # Extract format args from regex groups
+            groups = m.groups()
+            if i18n_key == "scr_no_poverenie" and groups:
+                kwargs["ico"] = groups[0]
+            elif i18n_key in ("scr_dph_registered", "scr_dph_excess_found", "scr_income_tax_registered", "scr_rpo_found", "scr_registeruz_found") and groups:
+                kwargs["ico"] = groups[0]
+            elif i18n_key in ("scr_found_court_decisions", "scr_court_decisions_found") and groups:
+                kwargs["parts"] = groups[0]
+            elif i18n_key in ("scr_crz_contracts_found", "scr_crz_contracts_found_warn") and len(groups) >= 3:
+                kwargs["ico"] = groups[0]
+                kwargs["count"] = groups[1]
+                kwargs["pages"] = groups[2]
+            elif i18n_key in ("scr_uvo_records_found", "scr_uvo_records_found_warn") and len(groups) >= 3:
+                kwargs["ico"] = groups[0]
+                kwargs["count"] = groups[1]
+                kwargs["pages"] = groups[2]
+            elif i18n_key == "scr_legal_form" and groups:
+                kwargs["val"] = groups[0]
+            elif i18n_key == "scr_founded_date" and groups:
+                kwargs["val"] = groups[0]
+            elif i18n_key in ("scr_tax_reliability_high", "scr_tax_reliability_low", "scr_tax_reliability_medium") and len(groups) >= 2:
+                kwargs["ico"] = groups[0]
+                kwargs["name"] = groups[1]
+            try:
+                return template.format(**kwargs)
+            except (KeyError, IndexError):
+                return template
+    return raw
+
+
+# ── Scorecard pillar name mapping (Slovak stored → i18n key) ──
+_PILLAR_NAME_MAP = {
+    "Platobná schopnosť & Exekúcie": "pillar_payment",
+    "Finančné zdravie": "pillar_financial",
+    "Ziskovosť, Stabilita a Cash Flow": "pillar_profitability",
+    "Rast & Trendová sila": "pillar_growth",
+    "Právna bezúhonnosť": "pillar_legal",
+    "Forenzný indikátor: Biely Kôň": "pillar_forensic",
+    "Data Quality Multiplier": "pillar_dq",
+}
+
+# ── Flag/detail translation patterns ──
+import re as _re
+
+def _translate_flag(flag: str, i18n_strings: dict) -> str:
+    """Translate a single scorecard flag from Slovak to the report language."""
+    # Current ratio flags
+    if flag == "Current ratio: N/A (bez dát)":
+        return i18n_strings.get("flag_cr_na", flag)
+    m = _re.match(r"Current ratio: ([\d.]+) — výborná likvidita", flag)
+    if m: return i18n_strings.get("flag_cr_excellent", flag).format(val=m.group(1))
+    m = _re.match(r"Current ratio: ([\d.]+) — dostatočná likvidita", flag)
+    if m: return i18n_strings.get("flag_cr_sufficient", flag).format(val=m.group(1))
+    m = _re.match(r"Current ratio: ([\d.]+) — problematická likvidita", flag)
+    if m: return i18n_strings.get("flag_cr_problematic", flag).format(val=m.group(1))
+    m = _re.match(r"Current ratio: ([\d.]+) — kritická likvidita", flag)
+    if m: return i18n_strings.get("flag_cr_critical", flag).format(val=m.group(1))
+    # Equity flags
+    if flag == "Vlastné imanie: N/A":
+        return i18n_strings.get("flag_equity_na", flag)
+    m = _re.match(r"Vlastné imanie: kladné \(E/D = ([\d.]+)\)", flag)
+    if m: return i18n_strings.get("flag_equity_positive", flag).format(val=m.group(1))
+    m = _re.match(r"Vlastné imanie: ZÁPORNÉ \(E/D = ([\d.]+)\)", flag)
+    if m: return i18n_strings.get("flag_equity_negative", flag).format(val=m.group(1))
+    # Vestnik flags
+    if flag == "Vestník: žiadne kritické udalosti":
+        return i18n_strings.get("flag_vestnik_none", flag)
+    if flag == "Vestník: staré kritické/vysoké udalosti (znížená váha)":
+        return i18n_strings.get("flag_vestnik_old", flag)
+    m = _re.match(r"Vestník: aktívne kritické/vysoké udalosti \(penalizácia ([\d.]+)x\)", flag)
+    if m: return i18n_strings.get("flag_vestnik_active", flag).format(val=m.group(1))
+    # Altman flags
+    if flag == "Altman Z'': N/A":
+        return i18n_strings.get("flag_altman_na", flag)
+    m = _re.match(r"Altman Z'' = ([\d.]+) — Bezpečná zóna", flag)
+    if m: return i18n_strings.get("flag_altman_safe", flag).format(val=m.group(1))
+    m = _re.match(r"Altman Z'' = ([\d.]+) — Šedá zóna", flag)
+    if m: return i18n_strings.get("flag_altman_grey", flag).format(val=m.group(1))
+    m = _re.match(r"Altman Z'' = ([\d.]+) — Núdzová zóna", flag)
+    if m: return i18n_strings.get("flag_altman_distress", flag).format(val=m.group(1))
+    # Piotroski
+    if flag == "Piotroski F-score: N/A":
+        return i18n_strings.get("flag_piotroski_na", flag)
+    # Startup
+    m = _re.match(r"STARTUP profil: .* imaním ([\d,.]+) €\)", flag)
+    if m: return i18n_strings.get("flag_startup_profile", flag).format(val=m.group(1))
+    # Data void
+    if flag == "DATA VOID: Kľúčové finančné metriky nedostupné":
+        return i18n_strings.get("flag_data_void", flag)
+    # Profitability
+    m = _re.match(r"Ziskovosť: (\d+)/(\d+) rokov v zisku", flag)
+    if m: return i18n_strings.get("flag_profitability", flag).format(p=m.group(1), n=m.group(2))
+    # Cash flow
+    if flag == "Cash Flow: Silný (CF/Rev > 10%)":
+        return i18n_strings.get("flag_cf_strong", flag)
+    if flag == "Cash Flow: Kladný":
+        return i18n_strings.get("flag_cf_positive", flag)
+    if flag.startswith("Cash Flow: Záporný"):
+        return i18n_strings.get("flag_cf_negative", flag)
+    if flag == "Cash Flow: N/A":
+        return i18n_strings.get("flag_cf_na", flag)
+    if "Divergencia CF/Zisk" in flag:
+        return i18n_strings.get("flag_cf_divergence", flag)
+    # CAGR
+    if flag == "CAGR tržieb: N/A":
+        return i18n_strings.get("flag_cagr_na", flag)
+    if flag == "CAGR: stagnácia":
+        return i18n_strings.get("flag_cagr_stagnation", flag)
+    if flag == "CAGR: pokles":
+        return i18n_strings.get("flag_cagr_decline", flag)
+    # Equity growing
+    m = _re.match(r"Vlastné imanie rastie YoY: \+([\d.]+)%", flag)
+    if m: return i18n_strings.get("flag_equity_growing", flag).format(val=m.group(1))
+    # Revenue declining
+    if "Tržby klesajú 3 roky" in flag:
+        return i18n_strings.get("flag_revenue_declining", flag)
+    # Vestnik severity flags
+    if flag == "KRITICKÉ udalosti vo Vestníku":
+        return i18n_strings.get("flag_vestnik_critical", flag)
+    if flag == "VYSOKÉ udalosti vo Vestníku":
+        return i18n_strings.get("flag_vestnik_high", flag)
+    if flag == "STREDNÉ udalosti vo Vestníku":
+        return i18n_strings.get("flag_vestnik_medium", flag)
+    if flag == "Len nízko-rizikové záznamy vo Vestníku":
+        return i18n_strings.get("flag_vestnik_low", flag)
+    if flag == "Bez záznamu v Obchodnom vestníku ✓":
+        return i18n_strings.get("flag_vestnik_clean", flag)
+    # Auditor
+    if flag == "Audítorský posudok: bez výhrad ✓":
+        return i18n_strings.get("flag_auditor_clean", flag)
+    m = _re.match(r"Audítorský posudok: (.+) \(−3b\)", flag)
+    if m: return i18n_strings.get("flag_auditor_qualified", flag).format(val=m.group(1))
+    # New company
+    if flag == "Nová firma / chýbajúce výkazy":
+        return i18n_strings.get("flag_new_company", flag)
+    # Penalty losses
+    m = _re.match(r"Penalizácia: (\d+) roky strata", flag)
+    if m: return i18n_strings.get("flag_penalty_losses", flag).format(val=m.group(1))
+    # HARD STOP detail
+    if "HARD STOP" in flag:
+        return i18n_strings.get("detail_hard_stop", flag)
+    return flag
+
+
+def _translate_scorecard(breakdown: list, i18n_strings: dict) -> list:
+    """Translate scorecard pillar names, details, and flags at display time."""
+    result = []
+    for pillar in breakdown:
+        p = dict(pillar)
+        # Translate pillar name
+        name_key = _PILLAR_NAME_MAP.get(p.get("name", ""))
+        if name_key:
+            p["name"] = i18n_strings.get(name_key, p["name"])
+        # Translate detail
+        detail = p.get("detail", "")
+        if detail:
+            if "Skóre ponížené" in detail:
+                m = _re.match(r"Skóre ponížené \(koeficient ([\d.]+)\)", detail)
+                if m:
+                    p["detail"] = i18n_strings.get("detail_dq_penalty", detail).format(val=m.group(1))
+            elif "Boli detekované kritické znaky" in detail:
+                p["detail"] = i18n_strings.get("detail_forensic_wh", detail)
+            elif "HARD STOP" in detail:
+                p["detail"] = i18n_strings.get("detail_hard_stop", detail)
+            else:
+                # Detail is typically " | ".join(flags[:2]) — translate each part
+                parts = detail.split(" | ")
+                p["detail"] = " | ".join(_translate_flag(part, i18n_strings) for part in parts)
+        # Translate flags
+        if p.get("flags"):
+            p["flags"] = [_translate_flag(f, i18n_strings) for f in p["flags"]]
+        result.append(p)
+    return result
+
+
+def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language="sk"):
+    i18n_strings = get_i18n_strings(report_language)
     verdict = company.auditVerdict
     if company.financialStatements:
         company.financialStatements = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
@@ -279,10 +551,10 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     has_short_history = bool(stmts) and len(stmts) < 2
 
     if stmts and len(stmts) >= 2:
-        chart_base64 = generate_financial_chart(stmts)
-        balance_chart_base64 = generate_balance_sheet_chart(stmts)
-        pnl_chart_base64 = generate_pnl_chart(stmts)
-        cashflow_chart_base64 = generate_cashflow_chart(stmts)
+        chart_base64 = generate_financial_chart(stmts, lang=report_language)
+        balance_chart_base64 = generate_balance_sheet_chart(stmts, lang=report_language)
+        pnl_chart_base64 = generate_pnl_chart(stmts, lang=report_language)
+        cashflow_chart_base64 = generate_cashflow_chart(stmts, lang=report_language)
     else:
         pnl_chart_base64 = ""
         cashflow_chart_base64 = ""
@@ -354,15 +626,16 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
 
     grouped_sources = []
     rendered_types = set()
-    for cat_name, types in SOURCE_CATEGORIES:
+    for cat_key, types in SOURCE_CATEGORY_DEFS:
         cat_sources = [source_map[t] for t in types if t in source_map]
         if cat_sources:
+            cat_name = i18n_strings.get(cat_key, cat_key)
             grouped_sources.append((cat_name, cat_sources))
             rendered_types.update(types)
             
     other_sources = [s for s in (sources or []) if s.source_type not in rendered_types]
     if other_sources:
-        grouped_sources.append(("Ostatné", other_sources))
+        grouped_sources.append((i18n_strings.get("cat_other", "Ostatné"), other_sources))
         
     evidence_list = []
     try:
@@ -377,19 +650,71 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 if "source" in item and "zdroj" not in item:
                     item["zdroj"] = item["source"]
                 z = item.get("zdroj", "")
-                if "profit_trend" in z: z = "Finančná analýza (Trend zisku)"
-                elif "ratios_by_year" in z: z = "Finančná analýza (Ukazovatele)"
-                elif "altman_z_scores" in z: z = "Finančná analýza (Altman Z″)"
-                elif "financialStatements" in z: z = "Účtovná závierka (RÚZ)"
-                elif "sp_dlznici" in z: z = "Sociálna poisťovňa (dlhy)"
-                elif "vszp_dlznici" in z or "union_dlznici" in z: z = "Zdravotné poisťovne (dlhy)"
-                elif "fs_danove" in z: z = "Finančná správa"
-                elif "insolvency" in z: z = "Register úpadcov"
-                elif "orsr" in z: z = "Obchodný register (ORSR)"
+                if "profit_trend" in z: z = i18n_strings.get("evidence_profit_trend", z)
+                elif "ratios_by_year" in z: z = i18n_strings.get("evidence_ratios", z)
+                elif "altman_z_scores" in z: z = i18n_strings.get("evidence_altman", z)
+                elif "financialStatements" in z: z = i18n_strings.get("evidence_financials", z)
+                elif "sp_dlznici" in z: z = i18n_strings.get("evidence_sp_dlznici", z)
+                elif "vszp_dlznici" in z or "union_dlznici" in z: z = i18n_strings.get("evidence_health_insurance", z)
+                elif "fs_danove" in z: z = i18n_strings.get("evidence_fs_danove", z)
+                elif "insolvency" in z: z = i18n_strings.get("evidence_insolvency", z)
+                elif "orsr" in z: z = i18n_strings.get("evidence_orsr", z)
                 item["zdroj"] = z
             evidence_list = raw_list
     except Exception as e:
         logger.warning(f"Nepodarilo sa naparsovať evidence z verdict.justification: {e}")
+
+    # ── i18n override for fallback verdict ──
+    # When LLM was unavailable, the verdict was stored with Slovak strings.
+    # Replace them with i18n versions based on report_language.
+    # Use a wrapper class instead of mutating the Prisma model directly.
+    class _VerdictOverride:
+        """Delegate to original verdict but override specific fields."""
+        def __init__(self, original, overrides):
+            self._original = original
+            self._overrides = overrides
+        def __getattr__(self, name):
+            if name in self._overrides:
+                return self._overrides[name]
+            return getattr(self._original, name)
+
+    if verdict and getattr(verdict, 'llmAnalysisStatus', None) == 'FALLBACK_ALGORITHMIC':
+        hard_stop = any(
+            e.get("impact") == "CRITICAL" for e in evidence_list
+        ) if evidence_list else False
+        risk_cat = getattr(verdict, 'riskCategory', 'INSUFFICIENT_DATA')
+        score_val = getattr(verdict, 'verifaScore', 0)
+
+        overrides = {
+            "executiveSummary": i18n_strings.get("fallback_exec_summary", getattr(verdict, 'executiveSummary', '')),
+            "finalVerdict": (
+                i18n_strings.get("fallback_verdict_hardstop", "")
+                if hard_stop else
+                i18n_strings.get("fallback_verdict_normal", "").format(cat=risk_cat, score=score_val)
+            ),
+            "keyRisk": (
+                i18n_strings.get("fallback_key_risk_hardstop", "")
+                if hard_stop else
+                i18n_strings.get("fallback_key_risk_normal", "")
+            ),
+        }
+
+        # Override evidence list items
+        for item in evidence_list:
+            claim = item.get("tvrdenie", item.get("claim", ""))
+            if "Algoritmické hodnotenie" in claim or "Algorithmic assessment" in claim:
+                item["tvrdenie"] = i18n_strings.get("fallback_claim", claim)
+                item["dokaz"] = i18n_strings.get("fallback_evidence", "").format(score=score_val, cat=risk_cat)
+                item["zdroj"] = i18n_strings.get("fallback_source", item.get("zdroj", ""))
+            elif "HARD STOP" in claim:
+                item["tvrdenie"] = i18n_strings.get("fallback_hardstop_claim", claim)
+                item["dokaz"] = i18n_strings.get("fallback_hardstop_evidence", item.get("dokaz", ""))
+                item["zdroj"] = i18n_strings.get("fallback_hardstop_source", item.get("zdroj", ""))
+            elif "Rozpis pilierov" in claim or "Pillar breakdown" in claim:
+                item["tvrdenie"] = i18n_strings.get("fallback_pillar_breakdown", claim)
+                item["zdroj"] = i18n_strings.get("fallback_pillar_source", item.get("zdroj", ""))
+
+        verdict = _VerdictOverride(verdict, overrides)
 
     scorecard_breakdown = []
     algorithmic_total = 0
@@ -414,6 +739,21 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             {"name": p.name, "score": p.score, "max_score": p.max_score, "detail": p.detail, "flags": p.flags}
             for p in sc_result.pillars
         ]
+
+    # i18n: Translate scorecard pillar names, details, and flags at display time
+    if scorecard_breakdown:
+        scorecard_breakdown = _translate_scorecard(scorecard_breakdown, i18n_strings)
+
+    # i18n: Override pillar breakdown evidence item with translated scorecard text
+    if evidence_list and scorecard_breakdown:
+        translated_dokaz = " | ".join(
+            f"{p['name']}: {p['score']}/{p['max_score']} — {p['detail']}"
+            for p in scorecard_breakdown
+        )
+        for item in evidence_list:
+            claim = item.get("tvrdenie", item.get("claim", ""))
+            if "Rozpis pilierov" in claim or "Pillar breakdown" in claim or i18n_strings.get("fallback_pillar_breakdown", "") in claim:
+                item["dokaz"] = translated_dokaz
 
     # Vypnutie Altman Z-Score pre finančné inštitúcie (NACE 64, 65, 66) alebo "banka"/"poisťovňa" v názve
     is_financial_institution = False
@@ -472,24 +812,41 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Trend graf pre ROA/ROE/maržu
     ratios_chart_base64 = ""
     if len(trend_ratios) >= 2:
-        ratios_chart_base64 = generate_ratios_trend_chart(trend_ratios)
+        ratios_chart_base64 = generate_ratios_trend_chart(trend_ratios, lang=report_language)
 
     # Radar chart pre 5 pilierov
     radar_chart_base64 = ""
     if scorecard_breakdown and len(scorecard_breakdown) >= 3:
-        radar_chart_base64 = generate_radar_chart(scorecard_breakdown)
+        radar_chart_base64 = generate_radar_chart(scorecard_breakdown, lang=report_language)
 
     # Auditor opinion info
     auditor_opinion = None
-    if latest_stmt and getattr(latest_stmt, 'auditorOpinions', None):
-        for ao in latest_stmt.auditorOpinions:
-            auditor_opinion = {
-                "opinion_type": getattr(ao, 'opinionType', None),
-                "going_concern_risk": getattr(ao, 'goingConcernRisk', None),
-                "reservation_text": getattr(ao, 'reservationText', None),
-                "auditor_name": getattr(ao, 'auditorName', None),
-            }
-            break
+    if latest_stmt and getattr(latest_stmt, 'auditorOpinion', None):
+        ao = latest_stmt.auditorOpinion
+        raw_opinion_type = getattr(ao, 'opinionType', None)
+        # i18n: Translate auditor opinion type from Slovak DB value
+        opinion_type = raw_opinion_type
+        if raw_opinion_type:
+            opt_lower = raw_opinion_type.lower()
+            if "bez výhrad" in opt_lower:
+                opinion_type = i18n_strings.get("auditor_unqualified", raw_opinion_type)
+            elif "výhrad" in opt_lower:
+                opinion_type = i18n_strings.get("auditor_qualified", raw_opinion_type)
+            elif "záporn" in opt_lower or "adverse" in opt_lower:
+                opinion_type = i18n_strings.get("auditor_adverse", raw_opinion_type)
+            elif "zdržan" in opt_lower or "disclaimer" in opt_lower:
+                opinion_type = i18n_strings.get("auditor_disclaimer", raw_opinion_type)
+        def _clean_db_val(v):
+            """DB may store string 'null' instead of Python None."""
+            if v is None or (isinstance(v, str) and v.strip().lower() == "null"):
+                return None
+            return v
+        auditor_opinion = {
+            "opinion_type": _clean_db_val(opinion_type),
+            "going_concern_risk": _clean_db_val(getattr(ao, 'goingConcernRisk', None)),
+            "reservation_text": _clean_db_val(getattr(ao, 'reservationText', None)),
+            "auditor_name": _clean_db_val(getattr(ao, 'auditorName', None)),
+        }
 
     # Gauge arc endpoint for cover page score gauge
     score_val = verdict.verifaScore if verdict else 0
@@ -501,11 +858,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     gauge_large_arc = 1 if arc_angle > 180 else 0
 
     # Cash flow waterfall + debt donut + balance sheet infographic
-    cf_waterfall_base64 = generate_cashflow_waterfall(latest_stmt) if latest_stmt else ""
-    debt_donut_base64 = generate_debt_donut(latest_stmt) if latest_stmt else ""
-    bs_infographic_base64 = generate_balance_sheet_infographic(latest_stmt) if latest_stmt else ""
-    pl_infographic_base64 = generate_pl_infographic(latest_stmt) if latest_stmt else ""
-    liquidity_chart_base64 = generate_liquidity_chart(stmts_sorted) if stmts_sorted else ""
+    cf_waterfall_base64 = generate_cashflow_waterfall(latest_stmt, lang=report_language) if latest_stmt else ""
+    debt_donut_base64 = generate_debt_donut(latest_stmt, lang=report_language) if latest_stmt else ""
+    bs_infographic_base64 = generate_balance_sheet_infographic(latest_stmt, lang=report_language) if latest_stmt else ""
+    pl_infographic_base64 = generate_pl_infographic(latest_stmt, lang=report_language) if latest_stmt else ""
+    liquidity_chart_base64 = generate_liquidity_chart(stmts_sorted, lang=report_language) if stmts_sorted else ""
 
     # QR code for cover page
     qr_base64 = ""
@@ -528,31 +885,31 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # 1. Audit (±15 bodov)
     has_audit = bool(auditor_opinion)
     if has_audit:
-        confidence_factors.append({"label": "Auditovaná závierka", "ok": True, "weight": 15})
+        confidence_factors.append({"label": i18n_strings.get("conf_audit_ok"), "ok": True, "weight": 15})
     else:
-        confidence_factors.append({"label": "Chýba audit", "ok": False, "weight": 15})
+        confidence_factors.append({"label": i18n_strings.get("conf_audit_missing"), "ok": False, "weight": 15})
         confidence_score -= 15
 
     # 2. Úplnosť finančných výkazov (±20 bodov)
     has_full_statements = bool(stmts) and len(stmts) >= 1
     if has_full_statements:
-        confidence_factors.append({"label": "Účtovná závierka dostupná", "ok": True, "weight": 20})
+        confidence_factors.append({"label": i18n_strings.get("conf_statements_ok"), "ok": True, "weight": 20})
     else:
-        confidence_factors.append({"label": "Chýbajú účtovné výkazy", "ok": False, "weight": 20})
+        confidence_factors.append({"label": i18n_strings.get("conf_statements_missing"), "ok": False, "weight": 20})
         confidence_score -= 20
 
     # 3. Dĺžka histórie (±20 bodov)
     stmt_count = len(stmts) if stmts else 0
     if stmt_count >= 5:
-        confidence_factors.append({"label": f"Dlhá história ({stmt_count} rokov dát)", "ok": True, "weight": 20})
+        confidence_factors.append({"label": i18n_strings.get("conf_history_long", "").format(n=stmt_count), "ok": True, "weight": 20})
     elif stmt_count >= 2:
-        confidence_factors.append({"label": f"Stredná história ({stmt_count} roky dát)", "ok": True, "weight": 10})
+        confidence_factors.append({"label": i18n_strings.get("conf_history_medium", "").format(n=stmt_count), "ok": True, "weight": 10})
         confidence_score -= 10
     elif stmt_count == 1:
-        confidence_factors.append({"label": "Krátká história (1 rok dát)", "ok": False, "weight": 20})
+        confidence_factors.append({"label": i18n_strings.get("conf_history_short"), "ok": False, "weight": 20})
         confidence_score -= 20
     else:
-        confidence_factors.append({"label": "Žiadne finančné dáta", "ok": False, "weight": 20})
+        confidence_factors.append({"label": i18n_strings.get("conf_history_none"), "ok": False, "weight": 20})
         confidence_score -= 20
 
     # 4. Pokrytie registrov (±25 bodov)
@@ -561,23 +918,23 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     if total_sources > 0:
         success_ratio = (total_sources - failed_sources) / total_sources
         if success_ratio >= 0.9:
-            confidence_factors.append({"label": "Všetky registre dostupné", "ok": True, "weight": 25})
+            confidence_factors.append({"label": i18n_strings.get("conf_registries_all"), "ok": True, "weight": 25})
         elif success_ratio >= 0.6:
-            confidence_factors.append({"label": f"Čiastočne dostupné registre ({int(success_ratio*100)}%)", "ok": True, "weight": 15})
+            confidence_factors.append({"label": i18n_strings.get("conf_registries_partial", "").format(pct=int(success_ratio*100)), "ok": True, "weight": 15})
             confidence_score -= 10
         else:
-            confidence_factors.append({"label": f"Obmedzené registre ({int(success_ratio*100)}%)", "ok": False, "weight": 25})
+            confidence_factors.append({"label": i18n_strings.get("conf_registries_limited", "").format(pct=int(success_ratio*100)), "ok": False, "weight": 25})
             confidence_score -= 25
     else:
-        confidence_factors.append({"label": "Žiadne zdroje dát", "ok": False, "weight": 25})
+        confidence_factors.append({"label": i18n_strings.get("conf_registries_none"), "ok": False, "weight": 25})
         confidence_score -= 25
 
     # 5. LLM analýza (±20 bodov)
     llm_status = getattr(verdict, 'llmAnalysisStatus', None) if verdict else None
     if llm_status and llm_status != 'FALLBACK_ALGORITHMIC':
-        confidence_factors.append({"label": "Systémová analýza dokončená", "ok": True, "weight": 20})
+        confidence_factors.append({"label": i18n_strings.get("conf_llm_ok"), "ok": True, "weight": 20})
     else:
-        confidence_factors.append({"label": "Systémová analýza nedostupná (fallback)", "ok": False, "weight": 20})
+        confidence_factors.append({"label": i18n_strings.get("conf_llm_missing"), "ok": False, "weight": 20})
         confidence_score -= 20
 
     confidence_score = max(0, min(100, confidence_score))
@@ -605,14 +962,14 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "balance_chart_base64": balance_chart_base64,
         "pnl_chart_base64": pnl_chart_base64,
         "cashflow_chart_base64": cashflow_chart_base64,
-        "altman_chart_base64": generate_altman_chart(altman_scores) if altman_scores else "",
+        "altman_chart_base64": generate_altman_chart(altman_scores, lang=report_language) if altman_scores else "",
         "logo_base64": logo_base64,
         "start_pages_map": start_pages_map or {},
         "total_pages": total_pages,
         "generated_at": generated_at,
         "counts": counts,
         "grouped_sources": grouped_sources,
-        "labels": SOURCE_LABELS,
+        "labels": {k: i18n_strings.get(v, k) for k, v in SOURCE_LABEL_I18N_KEYS.items()},
         "scorecard_breakdown": scorecard_breakdown,
         "algorithmic_total": algorithmic_total,
         "altman_scores": altman_scores,
@@ -645,6 +1002,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "company_city": company_city,
         "company_founded_year": company_founded_year,
         "revenue_per_employee": revenue_per_employee,
+        "report_language": report_language,
+        "i18n": get_i18n_strings(report_language),
     }
 
 def render_html_report(context: dict) -> str:
@@ -658,7 +1017,7 @@ def render_html_report(context: dict) -> str:
     env.filters['format_number'] = format_number
     env.filters['format_number_millions'] = format_number_millions
     env.filters['format_cf_millions'] = format_cf_millions
-    env.filters['format_findings'] = format_findings
+    env.filters['format_findings'] = lambda source, i18n=None: format_findings(source, i18n or context.get('i18n', {}))
     env.filters['sanitize_llm'] = sanitize_llm_text
     
     template = env.get_template("report_template.html")
@@ -722,9 +1081,10 @@ async def generate_forensic_pdf_report(
     start_pages_map: Optional[dict] = None,
     total_pages: int = 0,
     generated_at: str = "",
-    target_path: str = ""
+    target_path: str = "",
+    report_language: str = "sk",
 ):
-    logger.info(f"Generujem HTML/PDF report pre IČO: {ico}")
+    logger.info(f"Generujem HTML/PDF report pre IČO: {ico} (report_language={report_language})")
     db = Prisma()
     await db.connect()
     
@@ -742,7 +1102,7 @@ async def generate_forensic_pdf_report(
             logger.error(f"Nedostatok dát pre generovanie PDF (IČO: {ico})")
             return None
 
-        context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at)
+        context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language=report_language)
         html_content = render_html_report(context)
 
         pdf_path = target_path or f"assets/{ico}/Verifa_Forensic_Report_{ico}.pdf"

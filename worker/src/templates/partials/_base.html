@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sk">
+<html lang="{{ report_language|default('sk') }}">
 <head>
     <meta charset="UTF-8">
     <script src="file://{{ tailwind_dir }}/tailwind.js"></script>
@@ -44,14 +44,14 @@
                 font-weight: 600;
             }
             @top-right {
-                content: "IČO: {{ company.ico | default('') }}";
+                content: "{{ i18n.ico_label }}: {{ company.ico | default('') }}";
                 font-family: 'Inter', sans-serif;
                 font-size: 8px;
                 color: #94a3b8;
                 font-weight: 600;
             }
             @bottom-center {
-                content: "Verifa Report | {{ company.name | default('') }} | Strana " counter(page) " / " counter(pages);
+                content: "Verifa Report | {{ company.name | default('') }} | {{ i18n.page_label }} " counter(page) " / " counter(pages);
                 font-family: 'Inter', sans-serif;
                 font-size: 8px;
                 color: #94a3b8;

@@ -294,6 +294,8 @@ const sk: Dict = {
   "settings.ulozene": "✓ Uložené",
   "settings.neulozeneZmeny": "Neuložené zmeny",
   "settings.chyba": "Uloženie zlyhalo",
+"settings.jazykReportu": "Jazyk reportu",
+"settings.jazykReportuPopis": "Vyberte, v akom jazyku sa bude generovať PDF report. Prílohy zostávajú v originálnom jazyku.",
 
   // ── Messages ──
   "messages.spravy": "Správy",
@@ -782,6 +784,8 @@ const en: Dict = {
   "settings.ulozene": "✓ Saved",
   "settings.neulozeneZmeny": "Unsaved changes",
   "settings.chyba": "Save failed",
+"settings.jazykReportu": "Report language",
+"settings.jazykReportuPopis": "Select the language for the generated PDF report. Appendices remain in their original language.",
 
   // ── Messages ──
   "messages.spravy": "Messages",
@@ -1270,6 +1274,8 @@ const de: Dict = {
   "settings.ulozene": "✓ Gespeichert",
   "settings.neulozeneZmeny": "Ungespeicherte Änderungen",
   "settings.chyba": "Speichern fehlgeschlagen",
+"settings.jazykReportu": "Berichtssprache",
+"settings.jazykReportuPopis": "Wählen Sie die Sprache für den generierten PDF-Bericht. Anhänge bleiben in ihrer Originalsprache.",
 
   // ── Messages ──
   "messages.spravy": "Nachrichten",

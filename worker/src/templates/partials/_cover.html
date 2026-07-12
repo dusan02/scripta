@@ -8,13 +8,13 @@
     <h1 class="text-5xl font-black text-[#10b981] mb-10">Verifa.sk</h1>
     {% endif %}
     
-    <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">Due Diligence Report</h2>
-    {% set display_name = company.name if company.name and company.name not in ('Nezistené', 'Nezisten', 'N/A', 'n/a', '-', 'Neznáma spoločnosť') else 'IČO ' ~ company.ico %}
+    <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">{{ i18n.due_diligence_report }}</h2>
+    {% set display_name = company.name if company.name and company.name not in ('Nezistené', 'Nezisten', 'N/A', 'n/a', '-', 'Neznáma spoločnosť') else i18n.cover_ico_prefix ~ ' ' ~ company.ico %}
     {% set display_name_html = display_name | replace(' s. r. o.', '<br>s. r. o.') | replace(' s.r.o.', '<br>s.r.o.') | replace(' a. s.', '<br>a. s.') | replace(' a.s.', '<br>a.s.') | replace(' v. o. s.', '<br>v. o. s.') | replace(' v.o.s.', '<br>v.o.s.') | replace(' k. s.', '<br>k. s.') | replace(' k.s.', '<br>k.s.') %}
     <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-6 leading-tight">{{ display_name_html | safe }}</h3>
     
     <div class="bg-slate-50 border border-slate-200 rounded-lg px-8 py-4 text-center mb-8">
-        <p class="text-sm text-slate-500 uppercase tracking-widest font-bold mb-1">Identifikačné číslo (IČO)</p>
+        <p class="text-sm text-slate-500 uppercase tracking-widest font-bold mb-1">{{ i18n.identification_number }}</p>
         <p class="text-2xl font-black text-slate-800">{{ company.ico }}</p>
     </div>
 
@@ -46,7 +46,7 @@
                     <div class="font-black text-[12px] tracking-widest" style="color: {{ gauge_color }};">★ VERIFA ★</div>
                     <div class="font-black text-7xl mt-1" style="color: {{ gauge_color }}; leading-none">{{ score }}</div>
                     <div class="w-16 h-[3px] opacity-40 my-2" style="background: {{ gauge_color }};"></div>
-                    <div class="font-bold text-[11px] tracking-widest" style="color: {{ gauge_color }};">SKÓRE</div>
+                    <div class="font-bold text-[11px] tracking-widest" style="color: {{ gauge_color }};">{{ i18n.score }}</div>
                 </div>
             </div>
         </div>
@@ -57,9 +57,9 @@
         <div class="flex justify-between items-end w-full">
             <!-- Left: Meta -->
             <div class="space-y-1">
-                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">IČO</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
-                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">Vygenerované</span> <span class="text-sm font-bold">{{ generated_at }}</span></div>
-                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">Počet strán</span> <span class="text-sm font-bold">{{ total_pages }}</span></div>
+                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.ico_label }}</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
+                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.generated }}</span> <span class="text-sm font-bold">{{ generated_at }}</span></div>
+                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.page_count }}</span> <span class="text-sm font-bold">{{ total_pages }}</span></div>
             </div>
             
             <!-- Right: Semaphore -->
@@ -68,7 +68,7 @@
                 <div class="info-pill bg-[#dcfce7] border-[#bbf7d0]">
                     <span class="text-[#166534] font-bold text-sm">✓</span>
                     <span class="text-base font-black text-[#166534] w-6 text-center">{{ counts.SUCCESS }}</span>
-                    <span class="text-xs text-[#166534] font-semibold">V poriadku</span>
+                    <span class="text-xs text-[#166534] font-semibold">{{ i18n.status_ok }}</span>
                 </div>
                 {% endif %}
                 
@@ -76,7 +76,7 @@
                 <div class="info-pill bg-[#fee2e2] border-[#fecaca]">
                     <span class="text-[#991b1b] font-bold text-sm">⚠</span>
                     <span class="text-base font-black text-[#991b1b] w-6 text-center">{{ counts.WARNING }}</span>
-                    <span class="text-xs text-[#991b1b] font-semibold">Upozornenie</span>
+                    <span class="text-xs text-[#991b1b] font-semibold">{{ i18n.status_warning }}</span>
                 </div>
                 {% endif %}
                 
@@ -84,7 +84,7 @@
                 <div class="info-pill bg-[#dbeafe] border-[#bfdbfe]">
                     <span class="bg-[#1e40af] text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[9px] font-bold">i</span>
                     <span class="text-base font-black text-[#1e40af] w-6 text-center">{{ counts.INFO }}</span>
-                    <span class="text-xs text-[#1e40af] font-semibold">Informácia</span>
+                    <span class="text-xs text-[#1e40af] font-semibold">{{ i18n.status_info }}</span>
                 </div>
                 {% endif %}
                 
@@ -92,7 +92,7 @@
                 <div class="info-pill bg-[#fef9c3] border-[#fef08a]">
                     <span class="bg-[#854d0e] text-white rounded w-3.5 h-3.5 flex items-center justify-center text-[9px] font-bold">?</span>
                     <span class="text-base font-black text-[#854d0e] w-6 text-center">{{ counts.UNAVAILABLE }}</span>
-                    <span class="text-xs text-[#854d0e] font-semibold">Nedostupné</span>
+                    <span class="text-xs text-[#854d0e] font-semibold">{{ i18n.status_unavailable }}</span>
                 </div>
                 {% endif %}
                 
@@ -100,7 +100,7 @@
                 <div class="info-pill bg-[#fee2e2] border-[#fecaca]">
                     <span class="text-[#991b1b] font-bold text-sm">✗</span>
                     <span class="text-base font-black text-[#991b1b] w-6 text-center">{{ counts.FAILED }}</span>
-                    <span class="text-xs text-[#991b1b] font-semibold">Zlyhal</span>
+                    <span class="text-xs text-[#991b1b] font-semibold">{{ i18n.status_failed }}</span>
                 </div>
                 {% endif %}
             </div>

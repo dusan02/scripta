@@ -20,6 +20,7 @@ model User {
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
   rozhodnutiaDateFrom DateTime?    // Rozhodnutia dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
+  reportLanguage   String          @default("sk") // sk | en | de — jazyk PDF reportu
   tokenVersion     Int             @default(0)
   planName           String?         // Názov paušálu (start, freelance, firma, korporat)
   planRenewalDate    DateTime?       // Dátum obnovenia paušálu

@@ -9,51 +9,51 @@
     <div class="page-break"></div>
     <div style="page-break-inside: avoid; break-inside: avoid;">
         <div class="mb-6">
-            <h2 class="section-title">9. Glosár pojmov</h2>
+            <h2 class="section-title">{{ i18n.glossary }}</h2>
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg report-caption text-slate-700">
                 <div class="grid grid-cols-3 gap-x-3 gap-y-1">
-                    <div><strong>ROA</strong> — čistý zisk / aktíva. Efektivita využitia majetku.</div>
-                    <div><strong>ROE</strong> — čistý zisk / vlastné imanie. Ziskovosť pre akcionárov.</div>
-                    <div><strong>EBITDA</strong> — zisk pred úrokmi, zdanením a odpismi.</div>
-                    <div><strong>EBITDA marža</strong> — EBITDA / tržby. Prevádzková ziskovosť.</div>
-                    <div><strong>Altman Z″</strong> — predikcia stresu. &gt;2.6 bezpečné, &lt;1.1 núdzová zóna.</div>
-                    <div><strong>Piotroski F</strong> — 8-kriteriálny test kvality firmy. Skóre 0–8.</div>
-                    <div><strong>Current Ratio</strong> — obežné aktíva / krátkodobé záväzky (&gt;1.5).</div>
-                    <div><strong>Quick Ratio</strong> — (obežné aktíva − zásoby) / krátkodobé záväzky.</div>
-                    <div><strong>Cash Ratio</strong> — hotovostné aktíva / krátkodobé záväzky.</div>
-                    <div class="col-span-3 lg:col-span-1"><strong>Pracovný kapitál (Working Cap.)</strong> — obežné aktíva − krátkodobé záväzky.</div>
-                    <div><strong>D/E Ratio</strong> — záväzky / vlastné imanie. Miera zadlženosti.</div>
-                    <div><strong>DSO</strong> — priemerná doba inkasa pohľadávok (dni).</div>
-                    <div><strong>DPO</strong> — priemerná doba platby dodávateľom (dni).</div>
-                    <div><strong>CF/Zisk</strong> — prevádzkový CF / čistý zisk. Krytie zisku peniazmi.</div>
-                    <div><strong>YoY</strong> — medziročné porovnanie (rovnaké obdobie).</div>
-                    <div><strong>Going Concern</strong> — pochybnosť audítora o pokračovaní činnosti.</div>
-                    <div><strong>NACE</strong> — klasifikácia ekonomických činností (odvetvie).</div>
-                    <div><strong>RÚZ</strong> — Register účtovných závierok. Zdroj finančných výkazov.</div>
-                    <div><strong>ORSR</strong> — Obchodný register SR. Konatelia, imanie, právna forma.</div>
-                    <div><strong>RPVS</strong> — Register partnerov verejného sektora.</div>
-                    <div><strong>Related Party</strong> — transakcie so spriaznenými osobami (IAS 24).</div>
-                    <div><strong>DQ Multiplier</strong> — zníženie skóre pri chýbajúcich dátach.</div>
+                    <div><strong>ROA</strong> — {{ i18n.glossary_roa }}</div>
+                    <div><strong>ROE</strong> — {{ i18n.glossary_roe }}</div>
+                    <div><strong>EBITDA</strong> — {{ i18n.glossary_ebitda }}</div>
+                    <div><strong>EBITDA {{ i18n.ebitda_margin }}</strong> — {{ i18n.glossary_ebitda_margin }}</div>
+                    <div><strong>Altman Z″</strong> — {{ i18n.glossary_altman }}</div>
+                    <div><strong>Piotroski F</strong> — {{ i18n.glossary_piotroski }}</div>
+                    <div><strong>Current Ratio</strong> — {{ i18n.glossary_current_ratio }}</div>
+                    <div><strong>Quick Ratio</strong> — {{ i18n.glossary_quick_ratio }}</div>
+                    <div><strong>Cash Ratio</strong> — {{ i18n.glossary_cash_ratio }}</div>
+                    <div class="col-span-3 lg:col-span-1"><strong>{{ i18n.working_capital }} (Working Cap.)</strong> — {{ i18n.glossary_working_cap }}</div>
+                    <div><strong>D/E Ratio</strong> — {{ i18n.glossary_de_ratio }}</div>
+                    <div><strong>DSO</strong> — {{ i18n.glossary_dso }}</div>
+                    <div><strong>DPO</strong> — {{ i18n.glossary_dpo }}</div>
+                    <div><strong>CF/{{ i18n.net_profit_short }}</strong> — {{ i18n.glossary_cf_profit }}</div>
+                    <div><strong>YoY</strong> — {{ i18n.glossary_yoy }}</div>
+                    <div><strong>Going Concern</strong> — {{ i18n.glossary_going_concern }}</div>
+                    <div><strong>NACE</strong> — {{ i18n.glossary_nace }}</div>
+                    <div><strong>RÚZ</strong> — {{ i18n.glossary_ruz }}</div>
+                    <div><strong>ORSR</strong> — {{ i18n.glossary_orsr }}</div>
+                    <div><strong>RPVS</strong> — {{ i18n.glossary_rpvs }}</div>
+                    <div><strong>Related Party</strong> — {{ i18n.glossary_related_party }}</div>
+                    <div><strong>DQ Multiplier</strong> — {{ i18n.glossary_dq_multiplier }}</div>
                 </div>
             </div>
         </div>
         <div class="mb-6 pt-2">
-            <h2 class="section-title">10. Metodika</h2>
+            <h2 class="section-title">{{ i18n.methodology }}</h2>
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg report-body-sm text-slate-700 leading-tight">
-                <h3 class="subsection-title mb-1.5">Verifa Score v2 — 5-pilierový model</h3>
-                <p class="mb-1.5">Hodnotenie firmy sa skladá z 5 pilierov s dynamickými váhami prispôsobenými odvetviu podľa NACE kódu:</p>
+                <h3 class="subsection-title mb-1.5">{{ i18n.verifa_score_model }}</h3>
+                <p class="mb-1.5">{{ i18n.methodology_intro }}</p>
                 <ul class="list-disc list-inside mb-2 space-y-0.5">
-                    <li><strong>P1 — Firemná identita & registrácia</strong> — overenie existencie, ORSR/ZRSR, konateľ</li>
-                    <li><strong>P2 — Finančné zdravie</strong> — Altman Z″-Score, Piotroski F-score, rentabilita</li>
-                    <li><strong>P3 — Účtovná disciplína</strong> — včasnosť závierok, audit, dostupnosť RÚZ</li>
-                    <li><strong>P4 — Právne riziká</strong> — Vestník eventy, konkurzy, exekúcie, insolvencia</li>
-                    <li><strong>P5 — Registračná transparentnosť</strong> — RPVS, RPO, finančná správa</li>
+                    <li><strong>{{ i18n.pillar_p1 }}</strong> — {{ i18n.pillar_p1_desc }}</li>
+                    <li><strong>{{ i18n.pillar_p2 }}</strong> — {{ i18n.pillar_p2_desc }}</li>
+                    <li><strong>{{ i18n.pillar_p3 }}</strong> — {{ i18n.pillar_p3_desc }}</li>
+                    <li><strong>{{ i18n.pillar_p4 }}</strong> — {{ i18n.pillar_p4_desc }}</li>
+                    <li><strong>{{ i18n.pillar_p5 }}</strong> — {{ i18n.pillar_p5_desc }}</li>
                 </ul>
-                <p class="mb-1.5"><strong>DQ Multiplier</strong> — ak chýbajú dáta (krátka história, chýbajúci audit), skóre sa poníži koeficientom 0.7–0.95.</p>
-                <p class="mb-1.5"><strong>Vestník degradation</strong> — udalosti staršie ako 1 rok sa penalizujú menej (70% → 40% → 10% po 5 rokoch).</p>
-                <p class="mb-1.5"><strong>Korekcia audítora</strong> — finálne skóre môže byť upravené o ±10 bodov na základe expertného úsudku, alebo −30 bodov pri aktívnych exekúciách.</p>
+                <p class="mb-1.5"><strong>{{ i18n.dq_multiplier }}</strong></p>
+                <p class="mb-1.5"><strong>{{ i18n.vestnik_degradation }}</strong></p>
+                <p class="mb-1.5"><strong>{{ i18n.auditor_correction_note }}</strong></p>
                 
-                <h3 class="subsection-title mt-3 mb-1.5">Stupnica skóre</h3>
+                <h3 class="subsection-title mt-3 mb-1.5">{{ i18n.score_scale }}</h3>
                 <div class="grid grid-cols-4 gap-2">
                     <div class="p-1.5 rounded border border-emerald-200 bg-emerald-50 text-center">
                         <p class="text-base font-black text-emerald-700">AAA</p>
@@ -73,47 +73,42 @@
                     </div>
                 </div>
                 
-                <h3 class="subsection-title mt-3 mb-1.5">Spoľahlivosť analýzy (Confidence Score)</h3>
-                <p class="mb-1.5">Percentuálne vyjadrenie dôveryhodnosti analýzy. Začína na 100 % a znižuje sa podľa dostupnosti a kvality dát:</p>
+                <h3 class="subsection-title mt-3 mb-1.5">{{ i18n.confidence_score_title }}</h3>
+                <p class="mb-1.5">{{ i18n.confidence_score_desc }}</p>
                 <ul class="list-disc list-inside space-y-0.5">
-                    <li><strong>Audit. závierka</strong> (15 %) — nezávislé audítorské overenie</li>
-                    <li><strong>Účtovná závierka</strong> (20 %) — k dispozícii finančné výkazy z RÚZ</li>
-                    <li><strong>Dĺžka histórie</strong> (20 %) — 5+ rokov = plný podiel, 2–4 roky = −10 %, 1 rok = −20 %</li>
-                    <li><strong>Pokrytie registrov</strong> (25 %) — % úspešne načítaných zdrojov</li>
-                    <li><strong>Systémová analýza</strong> (20 %) — automatický audítor dokončil cross-analysis bez fallbacku</li>
+                    <li><strong>{{ i18n.conf_audit }}</strong> (15 %) — {{ i18n.conf_audit_desc }}</li>
+                    <li><strong>{{ i18n.conf_financial }}</strong> (20 %) — {{ i18n.conf_financial_desc }}</li>
+                    <li><strong>{{ i18n.conf_history }}</strong> (20 %) — {{ i18n.conf_history_desc }}</li>
+                    <li><strong>{{ i18n.conf_coverage }}</strong> (25 %) — {{ i18n.conf_coverage_desc }}</li>
+                    <li><strong>{{ i18n.conf_system }}</strong> (20 %) — {{ i18n.conf_system_desc }}</li>
                 </ul>
             </div>
         </div>
     </div>
     <div class="page-break"></div>
     <div class="mb-10">
-        <h2 class="section-title">11. Záver</h2>
+        <h2 class="section-title">{{ i18n.conclusion_title }}</h2>
         <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg report-body text-slate-700 text-justify">
             {% if verdict.executiveSummary %}
             <p class="mb-3">{{ verdict.executiveSummary | sanitize_llm }}</p>
             {% endif %}
             <p class="mb-3">
-                Tento report bol vygenerovaný automatizovaným systémom Verifa.sk na základe verejne dostupných údajov
-                z registrov ORSR, RÚZ, Obchodného vestníka a ďalších zdrojov.
-                Hodnotenie bolo vypočítané pomocou 5-pilierového modelu v2 s dynamickými váhami prispôsobenými odvetviu (NACE).
+                {{ i18n.conclusion_generated_by }}
             </p>
-            {% if verdict.keyRisk and verdict.keyRisk != "Žiadne" and verdict.keyRisk != "N/A" %}
+            {% if verdict.keyRisk and verdict.keyRisk != "Žiadne" and verdict.keyRisk != "None" and verdict.keyRisk != "Keine" and verdict.keyRisk != "N/A" %}
             <p class="mb-3 text-rose-700">
-                <strong>Kľúčové riziko:</strong> {{ verdict.keyRisk | sanitize_llm }}
+                <strong>{{ i18n.key_risk_label }}</strong> {{ verdict.keyRisk | sanitize_llm }}
             </p>
             {% endif %}
             <p class="report-caption text-slate-500 mt-4 pt-3 border-t border-slate-200">
-                Verifa skóre {{ verdict.verifaScore }}/100 (kategória {{ verdict.riskCategory }}).
+                {{ i18n.verifa_score_label }} {{ verdict.verifaScore }}/100 ({{ i18n.category_label }} {{ verdict.riskCategory }}).
             </p>
         </div>
     </div>
     
     <div class="mt-12 pt-6 border-t border-slate-200 text-center">
         <p class="text-[9px] leading-relaxed text-slate-400 italic max-w-4xl mx-auto">
-            <strong>Právne upozornenie:</strong> Verifa skóre a finančné reporty sú automatizované hodnotenia vypočítané podľa interného modelu na základe verejne dostupných údajov. 
-            Slúžia výhradne na informatívne účely a nenahrádzajú oficiálny audit, daňové, právne ani investičné poradenstvo. 
-            Verifa.sk nenesie zodpovednosť za presnosť ani úplnosť uvádzaných údajov (ktoré môžu byť ovplyvnené kvalitou pôvodných registrov, napr. RÚZ). 
-            Tento dokument nie je záväzným právnym posudkom. Používateľ si pri dôležitom obchodnom rozhodovaní povinne overí údaje u originálnych zdrojov.
+            <strong>{{ i18n.legal_disclaimer }}</strong>
         </p>
     </div>
 {% endblock %}

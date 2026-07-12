@@ -18,8 +18,9 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib import colors
 
-from ..report_generator import SOURCE_CATEGORIES as _SOURCE_CATEGORIES, SOURCE_LABELS as _SOURCE_LABELS
+from ..report_generator import SOURCE_CATEGORY_DEFS as _SOURCE_CATEGORIES, SOURCE_LABEL_I18N_KEYS as _SOURCE_LABEL_KEYS
 from ..models import ScrapedSource
+from ..i18n import get_i18n_strings
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +98,12 @@ class PdfCompiler:
         identifier: str,
         sources: List[ScrapedSource],
         company_name: Optional[str] = None,
+        report_language: str = "sk",
     ) -> Path:
         output_dir = self.results_dir / report_request_id
         output_dir.mkdir(parents=True, exist_ok=True)
+        self._report_language = report_language
+        i18n_strings = get_i18n_strings(report_language)
 
         generated_at = datetime.now(ZoneInfo("Europe/Bratislava"))
         generated_at_str = generated_at.strftime("%d.%m.%Y %H:%M:%S")
@@ -167,7 +171,8 @@ class PdfCompiler:
             start_pages_map=start_pages_map,
             total_pages=estimated_cover_pages + 1 + total_sources_pages,
             generated_at=generated_at_str,
-            target_path=str(cover_path)
+            target_path=str(cover_path),
+            report_language=report_language,
         )
         actual_cover_pages = len(PdfReader(str(cover_path)).pages)
 
@@ -180,7 +185,8 @@ class PdfCompiler:
                 start_pages_map=start_pages_map,
                 total_pages=actual_cover_pages + 1 + total_sources_pages,
                 generated_at=generated_at_str,
-                target_path=str(cover_path)
+                target_path=str(cover_path),
+                report_language=report_language,
             )
 
         # 5. Zlúčime cover page + divider + PDF zdrojov pomocou PdfWriter.
@@ -188,7 +194,7 @@ class PdfCompiler:
         writer.append(cover_path)
 
         # Divider page: "PRÍLOHY - ZDROJOVÉ DÁTA" medzi Part A a Part B
-        divider_path = self._generate_divider_page(output_dir)
+        divider_path = self._generate_divider_page(output_dir, report_language=report_language)
         writer.append(divider_path)
 
         # Paralelizácia overlay nadpisov — každý overlay je nezávislý (vlastný súbor).
@@ -203,12 +209,12 @@ class PdfCompiler:
 
         skipped_no_record = []
         bookmarks = []
-        bookmarks.append(("PRÍLOHY — Zdrojové dáta", actual_cover_pages))
+        bookmarks.append((i18n_strings.get("divider_title", "PRÍLOHY") + " — " + i18n_strings.get("divider_subtitle", "ZDROJOVÉ DÁTA"), actual_cover_pages))
         
         for source in sources:
             if source.start_page is not None and source.file_path:
                 writer.append(source.file_path)
-                label = _SOURCE_LABELS.get(source.source_type, source.source_type)
+                label = i18n_strings.get(_SOURCE_LABEL_KEYS.get(source.source_type, source.source_type), source.source_type)
                 bookmarks.append((label, source.start_page - 1))
             elif _has_no_record(source) and source.status == "SUCCESS":
                 skipped_no_record.append(source.source_type)
@@ -293,6 +299,8 @@ class PdfCompiler:
                     pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
                     _FONTS_REGISTERED = True
 
+        _i18n = get_i18n_strings(getattr(self, '_report_language', 'sk'))
+
         # Bezpečný prístup: Zapíšeme doterajší stav do buffra a znova načítame.
         # Tým sa vyhneme PyPDF2 bugu s merge_page na modifikovaných stránkach.
         temp_buf = io.BytesIO()
@@ -322,7 +330,7 @@ class PdfCompiler:
             c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
             c.setFont("Inter", 9)
             c.setFillColor(colors.HexColor("#94a3b8"))
-            c.drawRightString(page_w - 35, 20, f"Strana {i - skip_pages + 1} z {content_total}")
+            c.drawRightString(page_w - 35, 20, _i18n.get("page_number_format", "Strana {current} z {total}").format(current=i - skip_pages + 1, total=content_total))
             c.showPage()
             c.save()
             buf.seek(0)
@@ -337,7 +345,7 @@ class PdfCompiler:
             
         return new_writer
 
-    def _generate_divider_page(self, output_dir: Path) -> Path:
+    def _generate_divider_page(self, output_dir: Path, report_language: str = "sk") -> Path:
         """Vygeneruje stránku 'PRÍLOHY - ZDROJOVÉ DÁTA' ako prechod medzi Part A a Part B."""
         global _FONTS_REGISTERED
         if not _FONTS_REGISTERED:
@@ -347,6 +355,8 @@ class PdfCompiler:
                     pdfmetrics.registerFont(TTFont("Inter", str(fonts_dir / "Inter-Regular.ttf")))
                     pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
                     _FONTS_REGISTERED = True
+
+        i18n_strings = get_i18n_strings(report_language)
 
         divider_path = output_dir / "_divider.pdf"
         buf = io.BytesIO()
@@ -364,17 +374,17 @@ class PdfCompiler:
         # Nadpis
         c.setFont("Inter-Bold", 28)
         c.setFillColor(colors.HexColor("#0f172a"))
-        c.drawString(80, 460, "PRÍLOHY")
+        c.drawString(80, 460, i18n_strings.get("divider_title", "PRÍLOHY"))
 
         c.setFont("Inter-Bold", 16)
         c.setFillColor(colors.HexColor("#64748b"))
-        c.drawString(80, 435, "ZDROJOVÉ DÁTA — AUDIT TRAIL")
+        c.drawString(80, 435, i18n_strings.get("divider_subtitle", "ZDROJOVÉ DÁTA — AUDIT TRAIL"))
 
         # Podnadpis
         c.setFont("Inter", 11)
         c.setFillColor(colors.HexColor("#94a3b8"))
-        c.drawString(80, 400, "Nasledujúce stránky obsahujú originálne výpisy zo štátnych registrov.")
-        c.drawString(80, 385, "Prílohy sú chronologicky zoradené podľa zdroja v Obsahu reportu.")
+        c.drawString(80, 400, i18n_strings.get("divider_desc_1", "Nasledujúce stránky obsahujú originálne výpisy zo štátnych registrov."))
+        c.drawString(80, 385, i18n_strings.get("divider_desc_2", "Prílohy sú chronologicky zoradené podľa zdroja v Obsahu reportu."))
 
         # Dolná akcentná čiara
         c.setStrokeColor(colors.HexColor("#10b981"))
@@ -384,7 +394,7 @@ class PdfCompiler:
         # Brand v päte
         c.setFont("Inter", 9)
         c.setFillColor(colors.HexColor("#94a3b8"))
-        c.drawString(80, 60, "Verifa.sk — Due Diligence reporty zo štátnych registrov SR")
+        c.drawString(80, 60, i18n_strings.get("divider_footer", "Verifa.sk — Due Diligence reporty zo štátnych registrov SR"))
         c.drawRightString(515, 60, "www.verifa.sk")
 
         c.showPage()
@@ -409,7 +419,8 @@ class PdfCompiler:
                     pdfmetrics.registerFont(TTFont("Inter-Bold", str(fonts_dir / "Inter-Bold.ttf")))
                     _FONTS_REGISTERED = True
 
-        label = _SOURCE_LABELS.get(source.source_type, source.source_type)
+        _i18n = get_i18n_strings(getattr(self, '_report_language', 'sk'))
+        label = _i18n.get(_SOURCE_LABEL_KEYS.get(source.source_type, source.source_type), source.source_type)
         label = label.upper()
         try:
             reader = PdfReader(source.file_path)

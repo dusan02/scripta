@@ -167,8 +167,11 @@ def _collect_debt_pdfs(ico: str) -> list[str]:
     return list(dict.fromkeys(debt_pdfs))
 
 
-def _build_fallback_verdict(company_dict: dict, scorecard) -> AuditVerdict:
+def _build_fallback_verdict(company_dict: dict, scorecard, report_language: str = "sk") -> AuditVerdict:
     """Vytvorí fallback AuditVerdict z deterministického algoritmického skóre, keď LLM zlyhá."""
+    from src.i18n import get_i18n_strings
+    i = get_i18n_strings(report_language)
+
     prescore = scorecard.total_score if scorecard else 0
     risk_cat = scorecard.risk_category if scorecard else "INSUFFICIENT_DATA"
     hard_stop = scorecard.hard_stop if scorecard else False
@@ -180,24 +183,24 @@ def _build_fallback_verdict(company_dict: dict, scorecard) -> AuditVerdict:
 
     evidence = [
         EvidenceItem(
-            claim="Algoritmické hodnotenie (5-pilierový model)",
-            evidence=f"Skóre {prescore}/100, kategória {risk_cat}",
-            source="Deterministický algoritmus",
+            claim=i.get("fallback_claim", "Algoritmické hodnotenie (5-pilierový model)"),
+            evidence=i.get("fallback_evidence", "Skóre {score}/100, kategória {cat}").format(score=prescore, cat=risk_cat),
+            source=i.get("fallback_source", "Deterministický algoritmus"),
             impact="NEUTRAL",
         )
     ]
     if hard_stop:
         evidence.append(EvidenceItem(
-            claim="HARD STOP — konkurz/likvidácia/reštrukturalizácia",
-            evidence="Detegované vo Vestníku",
-            source="Obchodný vestník",
+            claim=i.get("fallback_hardstop_claim", "HARD STOP — konkurz/likvidácia/reštrukturalizácia"),
+            evidence=i.get("fallback_hardstop_evidence", "Detegované vo Vestníku"),
+            source=i.get("fallback_hardstop_source", "Obchodný vestník"),
             impact="CRITICAL",
         ))
     if pillar_summaries:
         evidence.append(EvidenceItem(
-            claim="Rozpis pilierov",
+            claim=i.get("fallback_pillar_breakdown", "Rozpis pilierov"),
             evidence=" | ".join(pillar_summaries),
-            source="5-pilierový scorecard",
+            source=i.get("fallback_pillar_source", "5-pilierový scorecard"),
             impact="NEUTRAL",
         ))
 
@@ -205,27 +208,23 @@ def _build_fallback_verdict(company_dict: dict, scorecard) -> AuditVerdict:
         verifa_score=prescore,
         risk_category=risk_cat,
         debt_exposure_rating=None,
-        executive_summary=(
-            "Hodnotenie bolo vypočítané na základe deterministického algoritmického modelu "
-            "(5-pilierový scorecard). LLM analýza (Chief Auditor) bola dočasne nedostupná. "
-            "Posudok môže chýbať cross-verification medzi finančnými dátami a PDF výpismi z registrov."
-        ),
+        executive_summary=i.get("fallback_exec_summary", ""),
         final_verdict=(
-            "Kriticky rizikový stav — HARD STOP (konkurz/likvidácia)."
+            i.get("fallback_verdict_hardstop", "")
             if hard_stop else
-            f"Algoritmické hodnotenie: {risk_cat} ({prescore}/100). LLM analýza nedostupná."
+            i.get("fallback_verdict_normal", "").format(cat=risk_cat, score=prescore)
         ),
         zdovodnenie=evidence,
         kľúčové_riziko=(
-            "Konkurz / likvidácia / reštrukturalizácia detegovaná vo Vestníku."
+            i.get("fallback_key_risk_hardstop", "")
             if hard_stop else
-            "LLM analýza nedostupná — odporúčame spustiť re-run pre plný forenzný posudok."
+            i.get("fallback_key_risk_normal", "")
         ),
         llm_analysis_status="FALLBACK_ALGORITHMIC",
     )
 
 
-async def run_pdf_reader_agent(ico: str, sources: list) -> None:
+async def run_pdf_reader_agent(ico: str, sources: list, report_language: str = "sk") -> None:
     """
     PDF Reader Agent: prečíta všetky PDF z registrov (z scrapers) a uloží CompanyEvent[] do DB.
     Beží po scraperoch, paralelne s AI pipeline (IFRS/VS/Notes).
@@ -282,6 +281,7 @@ async def run_pdf_reader_agent(ico: str, sources: list) -> None:
             extract_company_events, pdf_texts,
             model=_cfg.model_vestnik,
             label="PDF Reader Agent",
+            report_language=report_language,
         )
         if result and result.events:
             await save_company_events_to_db(ico, result.events)
@@ -350,7 +350,7 @@ async def run_orsr_forensics_agent(ico: str, sources: list) -> None:
         logger.error(f"[ORSR Forensic Agent] IČO={ico}: chyba: {e}", exc_info=True)
 
 
-async def run_and_save_audit_verdict(ico: str, force: bool = False):
+async def run_and_save_audit_verdict(ico: str, force: bool = False, report_language: str = "sk"):
     """
     1. Získa všetky dostupné dáta pre dané IČO z databázy (Finančné výkazy, Naratívne analýzy, Vestník).
     2. Spustí Chief Auditora.
@@ -448,11 +448,12 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False):
             verdict = await safe_llm_call(
                 evaluate_audit_verdict, company_data, [],
                 model=_cfg.model_verdict,
-                label="Chief Auditor"
+                label="Chief Auditor",
+                report_language=report_language,
             )
         except Exception as llm_err:
             logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)
-            verdict = _build_fallback_verdict(company_dict, scorecard)
+            verdict = _build_fallback_verdict(company_dict, scorecard, report_language=report_language)
         
         # ── Fix 3: Deterministické verifaScore ─────────────────────────────────
         # verifaScore = compute_forensic_scorecard().total_score (vždy, bez ohľadu na LLM).
@@ -490,7 +491,7 @@ def _remaining_eta(t_start: float, baseline: float) -> int:
 
 
 
-async def process_company(ico: str, report_request_id: Optional[str] = None):
+async def process_company(ico: str, report_request_id: Optional[str] = None, report_language: str = "sk"):
     """
     Hlavný orchestrátor pre dané IČO.
     1. Sťahuje finančné a výročné správy a spracuje ich cez LLM.
@@ -725,7 +726,8 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
                 
                 narrative = await safe_llm_call(
                     extract_narrative_risk, input_path,
-                    model=_MODEL_NARRATIVE, label=f"Annual Report Analyst:{file_name}"
+                    model=_MODEL_NARRATIVE, label=f"Annual Report Analyst:{file_name}",
+                    report_language=report_language,
                 )
                 if narrative:
                     logger.info(f"[NARRATIVE OK] {file_name} → DB uložené")
@@ -803,7 +805,8 @@ async def process_company(ico: str, report_request_id: Optional[str] = None):
             logger.info(f"[NOTES] Spracovávam poznámky pre najnovší rok {year} z {file_name}")
             notes_data = await safe_llm_call(
                 extract_notes_risks, sliced_notes_path,
-                model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}"
+                model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}",
+                report_language=report_language,
             )
             if notes_data:
                 await save_notes_to_db(ico, year, notes_data)

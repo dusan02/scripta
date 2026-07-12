@@ -4,6 +4,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
+from src.i18n import get_i18n_strings
+
 def _fmt_currency(x):
     if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
     if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
@@ -31,8 +33,9 @@ def _to_base64(fig, width=1000, height=450):
         print(f"Plotly render error: {e}")
         return ""
 
-def generate_financial_chart(statements) -> str:
+def generate_financial_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
+    i = get_i18n_strings(lang)
     statements = sorted(statements, key=lambda x: x.year)
     years = [str(s.year) for s in statements]
     revenues = [s.mainActivityRevenue or 0 for s in statements]
@@ -40,23 +43,24 @@ def generate_financial_chart(statements) -> str:
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=years, y=revenues, name='Tržby', mode='lines+markers',
+        x=years, y=revenues, name=i.get('chart_revenue', 'Tržby'), mode='lines+markers',
         line=dict(color='#1e293b', width=3, shape='spline'), marker=dict(size=8, color='#1e293b')
     ))
     color = '#10b981' if sum(profits) >= 0 else '#ef4444'
     fillcolor = 'rgba(16,185,129,0.1)' if sum(profits) >= 0 else 'rgba(239,68,68,0.1)'
     fig.add_trace(go.Scatter(
-        x=years, y=profits, name='Čistý Zisk / Strata', mode='lines+markers',
+        x=years, y=profits, name=i.get('chart_net_profit_loss', 'Čistý Zisk / Strata'), mode='lines+markers',
         fill='tozeroy', fillcolor=fillcolor,
         line=dict(color=color, width=3, shape='spline'), marker=dict(size=8)
     ))
 
-    layout = get_base_layout('Vývoj Tržieb a Zisku')
+    layout = get_base_layout(i.get('chart_revenue_profit', 'Vývoj Tržieb a Zisku'))
     fig.update_layout(**layout)
     return _to_base64(fig, 800, 400)
 
-def generate_balance_sheet_chart(statements) -> str:
+def generate_balance_sheet_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
+    i = get_i18n_strings(lang)
     statements = sorted(statements, key=lambda x: x.year)
     years = [str(s.year) for s in statements]
     assets = [s.totalAssets or 0 for s in statements]
@@ -65,26 +69,27 @@ def generate_balance_sheet_chart(statements) -> str:
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=years, y=assets, name='Celkové Aktíva', mode='lines+markers',
+        x=years, y=assets, name=i.get('chart_total_assets', 'Celkové Aktíva'), mode='lines+markers',
         line=dict(color='#94a3b8', width=2, dash='dash'), marker=dict(size=7)
     ))
     fig.add_trace(go.Scatter(
-        x=years, y=debt, name='Celkový Dlh', mode='lines+markers',
+        x=years, y=debt, name=i.get('chart_total_debt', 'Celkový Dlh'), mode='lines+markers',
         fill='tozeroy', fillcolor='rgba(225,29,72,0.05)',
         line=dict(color='#e11d48', width=3, shape='spline'), marker=dict(size=8, symbol='triangle-up')
     ))
     fig.add_trace(go.Scatter(
-        x=years, y=equity, name='Vlastné Imanie', mode='lines+markers',
+        x=years, y=equity, name=i.get('chart_equity', 'Vlastné Imanie'), mode='lines+markers',
         fill='tonexty', fillcolor='rgba(16,185,129,0.05)',
         line=dict(color='#10b981', width=3, shape='spline'), marker=dict(size=8, symbol='square')
     ))
 
-    layout = get_base_layout('Štruktúra majetku a zdrojov')
+    layout = get_base_layout(i.get('chart_balance_structure', 'Štruktúra majetku a zdrojov'))
     fig.update_layout(**layout)
     return _to_base64(fig, 800, 400)
 
-def generate_pnl_chart(statements) -> str:
+def generate_pnl_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
+    i = get_i18n_strings(lang)
     statements = sorted(statements, key=lambda x: x.year)
     years = [str(s.year) for s in statements]
     revenues = [s.mainActivityRevenue or 0 for s in statements]
@@ -93,21 +98,22 @@ def generate_pnl_chart(statements) -> str:
     net = [s.netProfitLoss or 0 for s in statements]
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=years, y=revenues, name='Tržby', marker_color='#1e293b'))
-    fig.add_trace(go.Bar(x=years, y=gross, name='Hrubá marža', marker_color='#3b82f6'))
+    fig.add_trace(go.Bar(x=years, y=revenues, name=i.get('chart_revenue', 'Tržby'), marker_color='#1e293b'))
+    fig.add_trace(go.Bar(x=years, y=gross, name=i.get('chart_gross_margin', 'Hrubá marža'), marker_color='#3b82f6'))
     fig.add_trace(go.Bar(x=years, y=ebitda, name='EBITDA', marker_color='#f59e0b'))
     net_colors = ['#10b981' if v >= 0 else '#ef4444' for v in net]
-    fig.add_trace(go.Bar(x=years, y=net, name='Čistý zisk', marker_color=net_colors))
+    fig.add_trace(go.Bar(x=years, y=net, name=i.get('chart_net_profit', 'Čistý zisk'), marker_color=net_colors))
 
-    layout = get_base_layout('Výkaz ziskov a strát')
+    layout = get_base_layout(i.get('chart_pnl', 'Výkaz ziskov a strát'))
     layout['barmode'] = 'group'
     layout['bargap'] = 0.15
     layout['bargroupgap'] = 0.1
     fig.update_layout(**layout)
     return _to_base64(fig, 800, 350)
 
-def generate_cashflow_chart(statements) -> str:
+def generate_cashflow_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
+    i = get_i18n_strings(lang)
     statements = sorted(statements, key=lambda x: x.year)
     years = [str(s.year) for s in statements]
     ocf_raw = [s.operatingCashFlow for s in statements]
@@ -118,22 +124,23 @@ def generate_cashflow_chart(statements) -> str:
     cash = [s.cashAndEquivalents or 0 for s in statements]
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=years, y=ocf, name='Prevádzkový CF', marker_color='#10b981'))
-    fig.add_trace(go.Bar(x=years, y=icf, name='Investičný CF', marker_color='#ef4444'))
-    fig.add_trace(go.Bar(x=years, y=fcf, name='Finančný CF', marker_color='#6366f1'))
+    fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color='#10b981'))
+    fig.add_trace(go.Bar(x=years, y=icf, name=i.get('chart_investing_cf', 'Investičný CF'), marker_color='#ef4444'))
+    fig.add_trace(go.Bar(x=years, y=fcf, name=i.get('chart_financing_cf', 'Finančný CF'), marker_color='#6366f1'))
     
     fig.add_trace(go.Scatter(
-        x=years, y=cash, name='Cash & ekvivalenty', mode='lines+markers',
+        x=years, y=cash, name=i.get('chart_cash_equivalents', 'Cash & ekvivalenty'), mode='lines+markers',
         line=dict(color='#1e293b', width=2, dash='dash'), marker=dict(size=8, symbol='diamond')
     ))
 
-    layout = get_base_layout('Peňažné toky a likvidita')
+    layout = get_base_layout(i.get('chart_cashflow_liquidity', 'Peňažné toky a likvidita'))
     layout['barmode'] = 'relative'
     fig.update_layout(**layout)
     return _to_base64(fig, 800, 350)
 
-def generate_liquidity_chart(statements) -> str:
+def generate_liquidity_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
+    i = get_i18n_strings(lang)
     statements = sorted(statements, key=lambda x: x.year)
     years = [str(s.year) for s in statements]
     wc = [(s.currentAssets or 0) - (s.shortTermLiabilities or 0) for s in statements]
@@ -143,20 +150,20 @@ def generate_liquidity_chart(statements) -> str:
     from plotly.subplots import make_subplots
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
-    fig.add_trace(go.Bar(x=years, y=wc, name='Pracovný kapitál', marker_color='rgba(148,163,184,0.6)'), secondary_y=False)
+    fig.add_trace(go.Bar(x=years, y=wc, name=i.get('chart_working_capital', 'Pracovný kapitál'), marker_color='rgba(148,163,184,0.6)'), secondary_y=False)
     fig.add_trace(go.Scatter(x=years, y=cr, name='Current Ratio', mode='lines+markers', line=dict(color='#3b82f6', width=2), marker=dict(size=7)), secondary_y=True)
     fig.add_trace(go.Scatter(x=years, y=qr, name='Quick Ratio', mode='lines+markers', line=dict(color='#10b981', width=2), marker=dict(size=7, symbol='diamond')), secondary_y=True)
     
     # 1.0 threshold line
     fig.add_hline(y=1.0, line_dash="dash", line_color="rgba(239,68,68,0.5)", secondary_y=True)
 
-    layout = get_base_layout('Likvidita a Pracovný kapitál')
+    layout = get_base_layout(i.get('chart_liquidity_wc', 'Likvidita a Pracovný kapitál'))
     layout['yaxis'] = dict(showgrid=False, zeroline=True, zerolinecolor='#cbd5e1')
     layout['yaxis2'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False)
     fig.update_layout(**layout)
     return _to_base64(fig, 600, 300)
 
-def generate_altman_chart(altman_scores) -> str:
+def generate_altman_chart(altman_scores, lang="sk") -> str:
     if not altman_scores or len(altman_scores) < 2: return ""
     valid = [z for z in altman_scores if z.get("z_score") is not None]
     if len(valid) < 2: return ""
@@ -189,14 +196,15 @@ def generate_altman_chart(altman_scores) -> str:
         marker=dict(size=12, color=colors, line=dict(color='#ffffff', width=2))
     ))
 
-    layout = get_base_layout('Altman Z″-Score trend')
+    layout = get_base_layout(get_i18n_strings(lang).get('chart_altman_trend', 'Altman Z″-Score trend'))
     layout['yaxis'].update(range=[min_y, max_y])
     layout['showlegend'] = False
     fig.update_layout(**layout)
     return _to_base64(fig, 600, 300)
 
-def generate_ratios_trend_chart(trend_ratios: list) -> str:
+def generate_ratios_trend_chart(trend_ratios: list, lang="sk") -> str:
     if not trend_ratios or len(trend_ratios) < 2: return ""
+    i = get_i18n_strings(lang)
     years = [str(t["year"]) for t in trend_ratios]
     roa = [t.get("roa_pct") for t in trend_ratios]
     roe = [t.get("roe_pct") for t in trend_ratios]
@@ -205,17 +213,33 @@ def generate_ratios_trend_chart(trend_ratios: list) -> str:
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=years, y=roa, name='ROA', mode='lines+markers', line=dict(color='#10b981', width=3), marker=dict(size=8)))
     fig.add_trace(go.Scatter(x=years, y=roe, name='ROE', mode='lines+markers', line=dict(color='#3b82f6', width=3), marker=dict(size=8)))
-    fig.add_trace(go.Scatter(x=years, y=margin, name='Čistá marža', mode='lines+markers', line=dict(color='#f59e0b', width=3), marker=dict(size=8)))
+    fig.add_trace(go.Scatter(x=years, y=margin, name=i.get('chart_net_margin', 'Čistá marža'), mode='lines+markers', line=dict(color='#f59e0b', width=3), marker=dict(size=8)))
 
     fig.add_hline(y=0, line_dash="dash", line_color="#cbd5e1")
-    layout = get_base_layout('Trend rentability')
-    layout['yaxis']['title'] = 'Percentá (%)'
+    layout = get_base_layout(i.get('chart_ratios_trend', 'Trend rentability'))
+    layout['yaxis']['title'] = i.get('chart_percent', 'Percentá (%)')
     fig.update_layout(**layout)
     return _to_base64(fig, 600, 300)
 
-def generate_radar_chart(pillars: list) -> str:
+def generate_radar_chart(pillars: list, lang="sk") -> str:
     if not pillars or len(pillars) < 3: return ""
-    labels = [p["name"].split("—")[0].strip()[:18] for p in pillars]
+    i = get_i18n_strings(lang)
+    _pillar_name_map = {
+        "Platobná schopnosť & Exekúcie": "pillar_payment",
+        "Finančné zdravie": "pillar_financial",
+        "Ziskovosť, Stabilita a Cash Flow": "pillar_profitability",
+        "Rast & Trendová sila": "pillar_growth",
+        "Právna bezúhonnosť": "pillar_legal",
+        "Forenzný indikátor: Biely Kôň": "pillar_forensic",
+        "Data Quality Multiplier": "pillar_dq",
+    }
+    labels = []
+    for p in pillars:
+        raw_name = p["name"].split("—")[0].strip()[:18]
+        key = _pillar_name_map.get(p["name"])
+        if key:
+            raw_name = i.get(key, raw_name).split("—")[0].strip()[:18]
+        labels.append(raw_name)
     scores = [p["score"] for p in pillars]
     max_scores = [p["max_score"] if p["max_score"] > 0 else 1 for p in pillars]
     pcts = [s / m * 100 for s, m in zip(scores, max_scores)]
@@ -241,14 +265,15 @@ def generate_radar_chart(pillars: list) -> str:
     )
     return _to_base64(fig, 500, 500)
 
-def generate_debt_donut(stmt) -> str:
+def generate_debt_donut(stmt, lang="sk") -> str:
     if not stmt: return ""
+    i = get_i18n_strings(lang)
     equity = getattr(stmt, 'equity', None) or 0
     short_liab = getattr(stmt, 'shortTermLiabilities', None) or 0
     long_liab = getattr(stmt, 'longTermLiabilities', None) or 0
     if equity == 0 and short_liab == 0 and long_liab == 0: return ""
 
-    labels_all = ['Vlastné imanie', 'Krátkodobé záväzky', 'Dlhodobé záväzky']
+    labels_all = [i.get('donut_equity', 'Vlastné imanie'), i.get('donut_short_liab', 'Krátkodobé záväzky'), i.get('donut_long_liab', 'Dlhodobé záväzky')]
     values_all = [equity, short_liab, long_liab]
     colors_all = ['#10b981', '#f59e0b', '#ef4444']
     

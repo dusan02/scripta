@@ -210,7 +210,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         ai_task = None
         if task.target_type == "COMPANY" and task.ico:
             _log.info(f"[{_rid}] Spúšťam AI analytickú pipeline paralelne pre IČO: {task.ico}")
-            ai_task = asyncio.create_task(process_company(task.ico, task.report_request_id))
+            ai_task = asyncio.create_task(process_company(task.ico, task.report_request_id, report_language=task.report_language or "sk"))
 
         _log.info(f"[{_rid}] Spúšťam {len(task.sources)} scraperov pre IČO: {task.ico}")
         try:
@@ -221,6 +221,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     browser=browser,
                     target_type=task.target_type,
                     ico=task.ico,
+                    report_language=task.report_language or "sk",
                     orsr_extract_type=task.orsr_extract_type,
                     crz_date_from=task.crz_date_from,
                     rozhodnutia_date_from=task.rozhodnutia_date_from,
@@ -293,7 +294,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         orsr_forensic_task = None
         if task.target_type == "COMPANY" and task.ico and sources:
             from src.pipeline import run_pdf_reader_agent, run_orsr_forensics_agent
-            pdf_reader_task = asyncio.create_task(run_pdf_reader_agent(task.ico, sources))
+            pdf_reader_task = asyncio.create_task(run_pdf_reader_agent(task.ico, sources, report_language=task.report_language or "sk"))
             orsr_forensic_task = asyncio.create_task(run_orsr_forensics_agent(task.ico, sources))
         if ai_task:
             try:
@@ -339,7 +340,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             try:
                 await update_report_ai_status(task.report_request_id, "ai.cross_correlation", auditor_s)
                 with PhaseTimer("Chief Auditor"):
-                    await run_and_save_audit_verdict(task.ico)
+                    await run_and_save_audit_verdict(task.ico, report_language=task.report_language or "sk")
                 # —— Snapshot skóre: prečítame aktuálny AuditVerdict a fixujeme na tento report ——
                 verifa_score_snapshot = await get_verifa_score(task.ico)
                 if verifa_score_snapshot:
@@ -382,6 +383,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 identifier=_identifier(task),
                 sources=sources,
                 company_name=company_name,
+                report_language=task.report_language or "sk",
             )
         t_compile = time.perf_counter()
         await save_phase_duration(task.report_request_id, "compile", int((t_compile - t_compile_start) * 1000))
@@ -485,7 +487,10 @@ async def reprocess_report(report_request_id: str):
     db = Prisma()
     await db.connect()
     try:
-        row = await db.reportrequest.find_unique(where={'id': report_request_id})
+        row = await db.reportrequest.find_unique(
+            where={'id': report_request_id},
+            include={'user': True},
+        )
         if not row:
             raise HTTPException(status_code=404, detail="ReportRequest not found")
         
@@ -496,6 +501,7 @@ async def reprocess_report(report_request_id: str):
             orsr_extract_type="CURRENT",
             crz_date_from=None,
             sources=list(row.selectedSources) if row.selectedSources else [],
+            report_language=getattr(row.user, 'reportLanguage', None) or "sk",
         )
     finally:
         await db.disconnect()

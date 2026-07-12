@@ -9,3 +9,6 @@ assets_test
 test_results
 errors.log
 uvicorn.log
+.git
+results/
+*.pdf

@@ -5,7 +5,7 @@
             <tr>
                 <th colspan="3" class="border-b-0 pb-6 pt-6 bg-white">
                     <div class="flex justify-between items-center w-full">
-                        <h2 class="section-title mb-0" style="border-bottom: 0;">Obsah</h2>
+                        <h2 class="section-title mb-0" style="border-bottom: 0;">{{ i18n.toc_title }}</h2>
                         <div class="flex justify-end items-center">
                             {% if logo_base64 %}
                             <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-7">
@@ -17,26 +17,26 @@
                 </th>
             </tr>
             <tr>
-                <th class="report-body-sm" style="width: 25%;">Zdroj & Stav</th>
-                <th class="report-body-sm" style="width: 65%;">Súhrnný nález</th>
-                <th class="report-body-sm" style="width: 10%; text-align: center;">Str.</th>
+                <th class="report-body-sm" style="width: 25%;">{{ i18n.col_source }} & {{ i18n.col_fulfillment }}</th>
+                <th class="report-body-sm" style="width: 65%;">{{ i18n.col_finding }}</th>
+                <th class="report-body-sm" style="width: 10%; text-align: center;">{{ i18n.page_count }}</th>
             </tr>
         </thead>
         <tbody>
             <tr class="category-row">
-                <td colspan="3">Analytické výstupy</td>
+                <td colspan="3">{{ i18n.toc_analytical_outputs }}</td>
             </tr>
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#scoring_breakdown" class="hover:underline">1. Hodnotiaca tabuľka ↗</a>
+                        <a href="#scoring_breakdown" class="hover:underline">{{ i18n.toc_scoring_table }} ↗</a>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Detailný rozpad bodového hodnotenia do 5 kľúčových kategórií.
+                    {{ i18n.toc_scoring_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('SCORING_BREAKDOWN', '—') }}
@@ -45,14 +45,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#forenzny_posudok" class="hover:underline">2. Hlavný posudok ↗</a>
+                        <a href="#forenzny_posudok" class="hover:underline">{{ i18n.toc_main_assessment }} ↗</a>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Algoritmické hodnotenie spoločnosti, zhrnutie kľúčových zistení a odporúčanie.
+                    {{ i18n.toc_main_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('FORENZNY_POSUDOK', '—') }}
@@ -61,14 +61,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#suvaha" class="hover:underline">3. Súvaha (Balance Sheet) ↗</a>
+                        <a href="#suvaha" class="hover:underline">{{ i18n.toc_balance_sheet }} ↗</a>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Štruktúra aktív a pasív, medziročný vývoj majetku a záväzkov s grafom.
+                    {{ i18n.toc_balance_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('SUVAHA', '—') }}
@@ -77,14 +77,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#vykaz_ziskov" class="hover:underline">4. Výkaz ziskov a strát (P&L) ↗</a>
+                        <a href="#vykaz_ziskov" class="hover:underline">{{ i18n.toc_pl }} ↗</a>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Tržby, marže, ziskovosť a osobné náklady s grafickým vývojom.
+                    {{ i18n.toc_pl_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('VYKAZ_ZISKOV', '—') }}
@@ -93,14 +93,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#cash_flow" class="hover:underline">5. Prehľad peňažných tokov (Cash Flow) ↗</a>
+                        <a href="#cash_flow" class="hover:underline">{{ i18n.toc_cash_flow }} ↗</a>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Peňažné toky z prevádzky, investičnej a finančnej činnosti s grafickým vývojom.
+                    {{ i18n.toc_cf_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('CASH_FLOW', '—') }}
@@ -109,14 +109,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        6. Finančné ukazovatele a Skóre
+                        {{ i18n.toc_ratios }}
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Rentabilita, likvidita, pracovný cyklus a Altman Z″-Score predikcia finančného zdravia.
+                    {{ i18n.toc_ratios_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     —
@@ -125,14 +125,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        <a href="#financny_posudok" class="hover:underline">7. Finančný posudok ↗</a>
+                        <a href="#financny_posudok" class="hover:underline">{{ i18n.toc_financial_assessment }} ↗</a>
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Názor audítora, zistenia a riziká, poznámky pod čiarou a strategický kontext z výročnej správy.
+                    {{ i18n.toc_fa_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('FINANCNY_POSUDOK', '—') }}
@@ -141,14 +141,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        8. Právne riziká
+                        {{ i18n.toc_legal_risks }}
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Záznamy z Obchodného vestníka — konkurzy, reštrukturalizácie, výmazy.
+                    {{ i18n.toc_legal_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     {{ start_pages_map.get('OBCHODNY_VESTNIK', '—') }}
@@ -157,14 +157,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        9. Glosár pojmov
+                        {{ i18n.toc_glossary }}
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Vysvetlenie finančných ukazovateľov (ROA, ROE, Altman Z-Score, Piotroski, likvidita).
+                    {{ i18n.toc_glossary_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     —
@@ -173,14 +173,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        10. Metodika
+                        {{ i18n.toc_methodology }}
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Popis 5-pilierového modelu v2, DQ multiplikátora, Vestník degradation a korekcie audítora.
+                    {{ i18n.toc_methodology_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     —
@@ -189,14 +189,14 @@
             <tr>
                 <td>
                     <div class="font-bold text-[#0f172a] mb-1 report-body-sm">
-                        11. Záver
+                        {{ i18n.toc_conclusion }}
                     </div>
                     <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">
-                        <span>✓</span> Súčasťou reportu
+                        <span>✓</span> {{ i18n.part_of_report }}
                     </div>
                 </td>
                 <td class="text-slate-700 leading-normal report-body-sm">
-                    Zhrnutie hodnotenia, kľúčové riziká a metodické vylúčenie zodpovednosti.
+                    {{ i18n.toc_conclusion_desc }}
                 </td>
                 <td class="text-center font-mono text-slate-500 report-body-sm pt-3">
                     —
@@ -221,23 +221,23 @@
                 {% if source.status == "SUCCESS" and not has_pozor and not is_fs_info %}
                     {% set status_class = "bg-[#10b981] text-white" %}
                     {% set status_icon = "✓" %}
-                    {% set status_label = "V poriadku" %}
+                    {% set status_label = i18n.status_ok %}
                 {% elif source.status == "SUCCESS" and ((has_pozor and is_info) or (is_fs_info and not has_pozor)) %}
                     {% set status_class = "bg-[#dbeafe] text-[#1e40af]" %}
                     {% set status_icon = "i" %}
-                    {% set status_label = "Informácia" %}
+                    {% set status_label = i18n.status_info %}
                 {% elif source.status == "SUCCESS" and has_pozor and not is_info %}
                     {% set status_class = "bg-[#ef4444] text-white" %}
                     {% set status_icon = "⚠" %}
-                    {% set status_label = "Upozornenie" %}
+                    {% set status_label = i18n.status_warning %}
                 {% elif source.status == "UNAVAILABLE" %}
                     {% set status_class = "bg-[#f59e0b] text-white" %}
                     {% set status_icon = "?" %}
-                    {% set status_label = "Nedostupné" %}
+                    {% set status_label = i18n.status_unavailable %}
                 {% else %}
                     {% set status_class = "bg-[#ef4444] text-white" %}
                     {% set status_icon = "✗" %}
-                    {% set status_label = "Zlyhal" %}
+                    {% set status_label = i18n.status_failed %}
                 {% endif %}
                 
                 <tr>
@@ -260,9 +260,9 @@
                             {{ status_label }}
                         </div>
                     </td>
-                    <td class="leading-normal report-body-sm {% if status_label == 'Upozornenie' or status_label == 'Zlyhal' %}text-slate-100{% else %}text-slate-700{% endif %}">
+                    <td class="leading-normal report-body-sm {% if status_label == i18n.status_warning or status_label == i18n.status_failed %}text-slate-100{% else %}text-slate-700{% endif %}">
                         {% if source.source_type == "OBCHODNY_VESTNIK" and (not vestnik_events or vestnik_events|length == 0) %}
-                        Firma nemá žiadne negatívne záznamy v aktuálnom Obchodnom vestníku.
+                        {{ i18n.no_vestnik_events }}
                         {% else %}
                         {{ source | format_findings | safe }}
                         {% endif %}

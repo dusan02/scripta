@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, defaultSources: true },
+      select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, defaultSources: true, reportLanguage: true },
     });
 
     if (!dbUser) {
@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       crzDateFrom: dbUser.crzDateFrom?.toISOString().split("T")[0] ?? null,
       rozhodnutiaDateFrom: dbUser.rozhodnutiaDateFrom?.toISOString().split("T")[0] ?? null,
       defaultSources: dbUser.defaultSources,
+      reportLanguage: dbUser.reportLanguage,
     });
   } catch (error) {
     console.error("GET /api/settings error", error);
@@ -38,7 +39,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, defaultSources } = body;
+    const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, defaultSources, reportLanguage } = body;
 
     const data: Record<string, unknown> = {};
 
@@ -90,6 +91,16 @@ export async function PATCH(req: NextRequest) {
         );
       }
       data.defaultSources = defaultSources.filter((s: unknown) => typeof s === "string");
+    }
+
+    if (reportLanguage !== undefined) {
+      if (!["sk", "en", "de"].includes(reportLanguage)) {
+        return NextResponse.json(
+          { error: "reportLanguage must be 'sk', 'en', or 'de'" },
+          { status: 400 }
+        );
+      }
+      data.reportLanguage = reportLanguage;
     }
 
     if (Object.keys(data).length === 0) {

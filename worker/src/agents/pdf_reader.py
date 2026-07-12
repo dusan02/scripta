@@ -27,7 +27,7 @@ class CompanyEventList(BaseModel):
     summary: str = Field(..., description="Krátky súhrn všetkých zistení z PDF dokumentov (2-3 vety).")
 
 
-PDF_READER_PROMPT = """Si PDF Reader Agent @ Verifa.sk. Tvojou úlohou je prečítať text extrahovaný z PDF dokumentov štátnych registrov a vytvoriť štruktúrovaný zoznam udalostí (CompanyEvent[]).
+PDF_READER_PROMPT_SK = """Si PDF Reader Agent @ Verifa.sk. Tvojou úlohou je prečítať text extrahovaný z PDF dokumentov štátnych registrov a vytvoriť štruktúrovaný zoznam udalostí (CompanyEvent[]).
 
 **Aké PDF dokumenty dostávaš:**
 - ROZHODNUTIA — súdne rozhodnutia (rozsudky, uznesenia, platobné rozkazy)
@@ -73,10 +73,103 @@ PDF_READER_PROMPT = """Si PDF Reader Agent @ Verifa.sk. Tvojou úlohou je preč�
 - Poisťovne: uveď presnú sumu nedoplatku.
 """
 
+PDF_READER_PROMPT_EN = """You are PDF Reader Agent @ Verifa.sk. Your task is to read text extracted from PDF documents of state registries and create a structured list of events (CompanyEvent[]).
+
+**What PDF documents you receive:**
+- ROZHODNUTIA — court decisions (judgments, resolutions, payment orders)
+- INSOLVENCY — insolvency register records (bankruptcy, restructuring)
+- DISKVALIFIKACIE — activity bans, director disqualifications
+- DOVERA/VSZP/SP/UNION — insurance arrears
+- FS_DAN/FS_DPH/FS_DAN_PRIJMOV — tax arrears, VAT registration
+- CRZ — contracts from Central Contract Register
+- UVO — public procurement
+- NCRZP — pledges on business shares
+- NCRD — easements
+- POVERENIA — notarial authorizations
+- ORSR/ZRSR — extracts from commercial/trade register
+
+**Rules:**
+1. For each significant record in the data, create one CompanyEvent.
+2. Assign severity:
+   - CRITICAL: bankruptcy, enforcement, disqualification, court judgment with payment, tax arrears > 10,000 EUR
+   - HIGH: insurance arrears > 1,000 EUR, tax arrears 1,000-10,000 EUR, pledge on business share
+   - MEDIUM: smaller arrears, public procurement, CRZ contracts
+   - LOW: VAT registration, routine ORSR/ZRSR records
+   - INFO: records without financial impact
+3. If data contains "no records" or "no results", do not return any event for that source.
+4. In `description` include specific facts: amounts, dates, case numbers, court, counterparties.
+5. In `amount` state the amount in EUR as a number (without currency symbol).
+6. In `event_date` state the date in YYYY-MM-DD format if available in data.
+7. In `metadata` you can store: court, case number, counterparty IČO, NACE, etc.
+8. If data is a table with multiple records (e.g. list of CRZ contracts), create an event for each contract separately.
+9. Write all text fields in English.
+
+**Input data format:**
+- Some inputs start with `[JSON API DATA]` — these are structured JSON data directly from state registry APIs.
+  This data is more accurate than PDF text. Map JSON fields directly to CompanyEvent fields.
+  For ROZHODNUTIA JSON: `formaRozhodnutia` → event_type, `spisovaZnacka` → metadata.spis, `datumVydania` → event_date, `sud.nazov` → metadata.sud, `sudca.meno` → metadata.sudca, `zvyraznenie` → description.
+- Other inputs are text extracted from PDF — analyze them normally.
+
+**Important:**
+- Do not fabricate data that is not in the PDF. If information is missing, use null.
+- If PDF has no text (empty file), do not return any events.
+- CRZ contracts: state contract amount and counterparty in metadata.
+- Public procurement (UVO): state procurement name and value.
+- Tax arrears: state exact amount and period.
+- Insurance: state exact arrears amount.
+"""
+
+PDF_READER_PROMPT_DE = """Sie sind PDF Reader Agent @ Verifa.sk. Ihre Aufgabe ist es, aus PDF-Dokumenten staatlicher Register extrahierten Text zu lesen und eine strukturierte Liste von Ereignissen (CompanyEvent[]) zu erstellen.
+
+**Welche PDF-Dokumente Sie erhalten:**
+- ROZHODNUTIA — Gerichtsentscheidungen (Urteile, Beschlüsse, Zahlungsbefehle)
+- INSOLVENCY — Insolvenzregister-Einträge (Konkurs, Restrukturierung)
+- DISKVALIFIKACIE — Tätigkeitsverbote, Geschäftsführer-Disqualifikationen
+- DOVERA/VSZP/SP/UNION — Versicherungsrückstände
+- FS_DAN/FS_DPH/FS_DAN_PRIJMOV — Steuerrückstände, USt-Registrierung
+- CRZ — Verträge aus dem Zentralen Vertragsregister
+- UVO — Öffentliche Beschaffung
+- NCRZP — Pfandrechte auf Geschäftsanteile
+- NCRD — Dienstbarkeiten
+- POVERENIA — Notarielle Vollmachten
+- ORSR/ZRSR — Auszüge aus Handels-/Gewerberegister
+
+**Regeln:**
+1. Für jeden bedeutenden Eintrag in den Daten erstellen Sie ein CompanyEvent.
+2. Schweregrad zuweisen:
+   - CRITICAL: Konkurs, Zwangsvollstreckung, Disqualifikation, Gerichtsurteil mit Zahlung, Steuerrückstände > 10.000 EUR
+   - HIGH: Versicherungsrückstände > 1.000 EUR, Steuerrückstände 1.000-10.000 EUR, Pfandrecht auf Geschäftsanteil
+   - MEDIUM: Kleinere Rückstände, öffentliche Beschaffung, CRZ-Verträge
+   - LOW: USt-Registrierung, routinemäßige ORSR/ZRSR-Einträge
+   - INFO: Einträge ohne finanzielle Auswirkung
+3. Wenn Daten "keine Einträge" oder "keine Ergebnisse" enthalten, kein Event für diese Quelle zurückgeben.
+4. In `description` konkrete Fakten angeben: Beträge, Daten, Aktenzeichen, Gericht, Gegenparteien.
+5. In `amount` den Betrag in EUR als Zahl angeben (ohne Währungssymbol).
+6. In `event_date` das Datum im Format YYYY-MM-DD angeben, falls in Daten vorhanden.
+7. In `metadata` können Sie speichern: Gericht, Aktenzeichen, IČO der Gegenpartei, NACE, etc.
+8. Wenn Daten eine Tabelle mit mehreren Einträgen sind (z.B. CRZ-Vertragsliste), für jeden Vertrag ein Event erstellen.
+9. Schreiben Sie alle Textfelder auf Deutsch.
+
+**Eingabedatenformat:**
+- Einige Eingaben beginnen mit `[JSON API DATA]` — dies sind strukturierte JSON-Daten direkt von staatlichen Register-APIs.
+  Diese Daten sind genauer als PDF-Text. Mappen Sie JSON-Felder direkt auf CompanyEvent-Felder.
+  Für ROZHODNUTIA JSON: `formaRozhodnutia` → event_type, `spisovaZnacka` → metadata.spis, `datumVydania` → event_date, `sud.nazov` → metadata.sud, `sudca.meno` → metadata.sudca, `zvyraznenie` → description.
+- Andere Eingaben sind aus PDF extrahierter Text — analysieren Sie diese normal.
+
+**Wichtig:**
+- Keine Daten erfinden, die nicht im PDF stehen. Wenn Informationen fehlen, null verwenden.
+- Wenn PDF keinen Text hat (leere Datei), keine Events zurückgeben.
+- CRZ-Verträge: Vertragsbetrag und Gegenpartei in metadata angeben.
+- Öffentliche Beschaffung (UVO): Beschaffungsname und Wert angeben.
+- Steuerrückstände: Genauen Betrag und Zeitraum angeben.
+- Versicherungen: Genauen Rückstandsbetrag angeben.
+"""
+
 
 async def extract_company_events(
     pdf_texts: List[tuple[str, str]],
     model: str = settings.model_vestnik,
+    report_language: str = "sk",
 ) -> CompanyEventList:
     """
     PDF Reader Agent: analyzuje text z PDF dokumentov registrov a vracia štruktúrované CompanyEvent[].
@@ -85,6 +178,13 @@ async def extract_company_events(
         pdf_texts: zoznam (label, text) dvojíc — label je názov súboru, text je extrahovaný obsah
         model: LLM model (default: gemini-2.5-flash)
     """
+    prompts = {
+        "sk": PDF_READER_PROMPT_SK,
+        "en": PDF_READER_PROMPT_EN,
+        "de": PDF_READER_PROMPT_DE,
+    }
+    system_prompt = prompts.get(report_language, PDF_READER_PROMPT_SK)
+
     client = _get_gemini_client()
 
     contents = []
@@ -97,7 +197,7 @@ async def extract_company_events(
         return CompanyEventList(events=[], summary="Žiadne PDF dokumenty na analýzu.")
 
     config = types.GenerateContentConfig(
-        system_instruction=PDF_READER_PROMPT,
+        system_instruction=system_prompt,
         response_mime_type="application/json",
         response_schema=CompanyEventList,
         temperature=0.0,

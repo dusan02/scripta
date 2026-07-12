@@ -12,13 +12,16 @@ try:
 except ImportError:
     HAS_PLOTLY = False
 
+from src.i18n import get_i18n_strings
+
 logger = logging.getLogger(__name__)
 
 
-def generate_pl_infographic(stmt) -> str:
+def generate_pl_infographic(stmt, lang="sk") -> str:
     """Vygeneruje P&L Sankey diagram: Tržby → Hrubá marža → Čistý zisk."""
     if not stmt:
         return ""
+    i = get_i18n_strings(lang)
 
     revenue = getattr(stmt, 'mainActivityRevenue', None)
     gross = getattr(stmt, 'grossProfit', None)
@@ -33,12 +36,12 @@ def generate_pl_infographic(stmt) -> str:
 
     # Ak chýbajú kľúčové položky alebo sú hodnoty neštandardné pre Sankey → waterfall
     if any(val is None for val in [gross, net, staff, depreciation, interest]):
-        return _generate_pl_waterfall(stmt)
+        return _generate_pl_waterfall(stmt, lang=lang)
     if gross <= 0 or net < 0:
-        return _generate_pl_waterfall(stmt)
+        return _generate_pl_waterfall(stmt, lang=lang)
 
     if not HAS_PLOTLY:
-        return _generate_pl_waterfall(stmt)
+        return _generate_pl_waterfall(stmt, lang=lang)
 
     cogs = revenue - gross
     staff_val = abs(staff)
@@ -48,14 +51,14 @@ def generate_pl_infographic(stmt) -> str:
     other_opex = gross - net - (staff_val + dep_val + int_val)
 
     labels = [
-        "Tržby",                        # 0
-        "Priame náklady (COGS)",         # 1
-        "Hrubá marža",                   # 2
-        "Osobné náklady",                # 3
-        "Odpisy",                        # 4
-        "Úroky",                         # 5
-        "Ostatné prevádzkové náklady",   # 6
-        "Čistý zisk",                    # 7
+        i.get('sankey_revenue', 'Tržby'),                        # 0
+        i.get('sankey_cogs', 'Priame náklady (COGS)'),         # 1
+        i.get('sankey_gross_margin', 'Hrubá marža'),                   # 2
+        i.get('sankey_staff', 'Osobné náklady'),                # 3
+        i.get('sankey_depreciation', 'Odpisy'),                        # 4
+        i.get('sankey_interest', 'Úroky'),                         # 5
+        i.get('sankey_other_opex', 'Ostatné prevádzkové náklady'),   # 6
+        i.get('sankey_net_profit', 'Čistý zisk'),                    # 7
     ]
     colors = [
         "#1e40af", "#ef4444", "#10b981",
@@ -90,7 +93,7 @@ def generate_pl_infographic(stmt) -> str:
         link_color.append("rgba(239,68,68,0.35)")
     elif other_opex < 0:
         # Ostatné výnosy → Hrubá marža (index 2)
-        labels.append("Ostatné výnosy")
+        labels.append(i.get('sankey_other_income', 'Ostatné výnosy'))
         colors.append("#3b82f6")
         idx_ov = len(labels) - 1
         source.append(idx_ov); target.append(2); value.append(abs(other_opex))
@@ -106,7 +109,7 @@ def generate_pl_infographic(stmt) -> str:
     out_from_gross = sum(v for s, v in zip(source, value) if s == 2)
     tol = max(in_to_gross * 0.02, 1000)
     if abs(out_from_gross - in_to_gross) > tol:
-        return _generate_pl_waterfall(stmt)
+        return _generate_pl_waterfall(stmt, lang=lang)
 
     # Explicitne definované orientačné súradnice pre uzly.
     # COGS a Hrubá marža sú umelo umiestnené do stredného stĺpca (x=0.5),
@@ -143,13 +146,14 @@ def generate_pl_infographic(stmt) -> str:
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"PL Sankey chart failed: {e}")
-        return _generate_pl_waterfall(stmt)
+        return _generate_pl_waterfall(stmt, lang=lang)
 
 
-def generate_cashflow_waterfall(stmt) -> str:
+def generate_cashflow_waterfall(stmt, lang="sk") -> str:
     """Vygeneruje Sankey graf rozkladenia cash flow."""
     if not stmt:
         return ""
+    i = get_i18n_strings(lang)
 
     net_profit = getattr(stmt, 'netProfitLoss', None)
     depreciation = getattr(stmt, 'depreciation', None)
@@ -160,10 +164,10 @@ def generate_cashflow_waterfall(stmt) -> str:
         return ""
 
     if net_profit <= 0 or ocf <= 0:
-        return _generate_cashflow_waterfall(stmt)
+        return _generate_cashflow_waterfall(stmt, lang=lang)
 
     if not HAS_PLOTLY:
-        return _generate_cashflow_waterfall(stmt)
+        return _generate_cashflow_waterfall(stmt, lang=lang)
 
     dep_val = abs(depreciation)
     gross_cf = net_profit + dep_val
@@ -172,7 +176,7 @@ def generate_cashflow_waterfall(stmt) -> str:
     if working_capital_effect >= 0:
         # Jednoduchý prípad: Čistý zisk + Odpisy + Zmeny v PK → Prevádzkový CF
         # Uzly: 0=Čistý zisk, 1=Odpisy, 2=Zmeny v PK, 3=Prevádzkový CF
-        labels = ["Čistý zisk", "Odpisy", "Zmeny v prac. kapitále", "Prevádzkový CF"]
+        labels = [i.get('sankey_net_profit', 'Čistý zisk'), i.get('sankey_depreciation', 'Odpisy'), i.get('sankey_wc_changes', 'Zmeny v prac. kapitále'), i.get('chart_operating_cf', 'Prevádzkový CF')]
         colors = ["#10b981", "#3b82f6", "#22c55e", "#10b981"]
         source = [0, 1]
         target = [3, 3]
@@ -186,7 +190,7 @@ def generate_cashflow_waterfall(stmt) -> str:
         # Čistý zisk + Odpisy → Hrubý CF
         # Hrubý CF → Prevádzkový CF + Odtok do PK
         # Uzly: 0=Čistý zisk, 1=Odpisy, 2=Hrubý peňažný tok, 3=Prevádzkový CF, 4=Záporné zmeny v PK
-        labels = ["Čistý zisk", "Odpisy", "Hrubý peňažný tok", "Prevádzkový CF", "Záporné zmeny v prac. kapitále"]
+        labels = [i.get('sankey_net_profit', 'Čistý zisk'), i.get('sankey_depreciation', 'Odpisy'), i.get('sankey_gross_cf', 'Hrubý peňažný tok'), i.get('chart_operating_cf', 'Prevádzkový CF'), i.get('sankey_negative_wc', 'Záporné zmeny v prac. kapitále')]
         colors = ["#10b981", "#3b82f6", "#1d4ed8", "#10b981", "#ef4444"]
         source = [0, 1, 2, 2]
         target = [2, 2, 3, 4]
@@ -222,13 +226,14 @@ def generate_cashflow_waterfall(stmt) -> str:
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"CF Sankey chart failed: {e}")
-        return _generate_cashflow_waterfall(stmt)
+        return _generate_cashflow_waterfall(stmt, lang=lang)
 
 
-def generate_balance_sheet_infographic(stmt) -> str:
+def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     """Vygeneruje Sankey infografiku štruktúry súvahy."""
     if not stmt:
         return ""
+    i = get_i18n_strings(lang)
 
     current = getattr(stmt, 'currentAssets', None)
     inventory = getattr(stmt, 'inventory', None)
@@ -251,7 +256,7 @@ def generate_balance_sheet_infographic(stmt) -> str:
         return ""
 
     if not HAS_PLOTLY:
-        return _generate_balance_sheet_waterfall(stmt)
+        return _generate_balance_sheet_waterfall(stmt, lang=lang)
 
     non_current = max(0, total_assets - current)
     total_liab = short_liab + long_liab
@@ -286,18 +291,18 @@ def generate_balance_sheet_infographic(stmt) -> str:
 
     # Sada uzlov:
     labels = [
-        "Hotovosť",         # 0
-        "Pohľadávky",       # 1
-        "Zásoby",           # 2
-        "Ostat. obež. maj.",# 3
-        "Obežný majetok",   # 4
-        "Dlhodobý majetok", # 5
-        "Celkové aktíva",   # 6
-        "Záväzky a iné",    # 7
-        "Vlastné imanie",   # 8
-        "Krátkodobé záv.",  # 9
-        "Dlhodobé záv.",    # 10
-        "Ostatné pasíva",   # 11
+        i.get('sankey_cash', 'Hotovosť'),         # 0
+        i.get('sankey_receivables', 'Pohľadávky'),       # 1
+        i.get('sankey_inventory', 'Zásoby'),           # 2
+        i.get('sankey_other_current', 'Ostat. obež. maj.'),# 3
+        i.get('sankey_current_assets', 'Obežný majetok'),   # 4
+        i.get('sankey_non_current', 'Dlhodobý majetok'), # 5
+        i.get('sankey_total_assets', 'Celkové aktíva'),   # 6
+        i.get('sankey_liabilities_other', 'Záväzky a iné'),    # 7
+        i.get('sankey_equity', 'Vlastné imanie'),   # 8
+        i.get('sankey_short_liab', 'Krátkodobé záv.'),  # 9
+        i.get('sankey_long_liab', 'Dlhodobé záv.'),    # 10
+        i.get('sankey_other_pasiva', 'Ostatné pasíva'),   # 11
     ]
     colors = [
         "#34d399", "#34d399", "#34d399", "#34d399",
@@ -360,7 +365,7 @@ def generate_balance_sheet_infographic(stmt) -> str:
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"BS Sankey chart failed: {e}")
-        return _generate_balance_sheet_waterfall(stmt)
+        return _generate_balance_sheet_waterfall(stmt, lang=lang)
 
 
 # ─── Fallback Matplotlib charts ────────────────────────────────────────────────
@@ -376,9 +381,10 @@ def _to_base64(fig, width, height):
         logger.warning(f"Plotly fallback chart failed: {e}")
         return ""
 
-def _generate_pl_waterfall(stmt) -> str:
+def _generate_pl_waterfall(stmt, lang="sk") -> str:
     """Proper bridge/waterfall P&L chart using Plotly."""
     if not stmt: return ""
+    i = get_i18n_strings(lang)
     revenue = getattr(stmt, 'mainActivityRevenue', None)
     gross = getattr(stmt, 'grossProfit', None)
     net = getattr(stmt, 'netProfitLoss', None)
@@ -389,21 +395,21 @@ def _generate_pl_waterfall(stmt) -> str:
     if revenue is None or revenue == 0: return ""
 
     steps = []
-    steps.append({'name': 'Tržby', 'measure': 'absolute', 'y': revenue})
+    steps.append({'name': i.get('chart_revenue', 'Tržby'), 'measure': 'absolute', 'y': revenue})
     if gross is not None:
         cogs = revenue - gross
         if cogs > 0:
             steps.append({'name': 'COGS', 'measure': 'relative', 'y': -cogs})
-        steps.append({'name': 'Hrubá<br>marža', 'measure': 'total'})
+        steps.append({'name': i.get('sankey_gross_margin_short', 'Hrubá<br>marža'), 'measure': 'total'})
 
     if staff is not None and staff != 0:
-        steps.append({'name': 'Osobné<br>náklady', 'measure': 'relative', 'y': -abs(staff)})
+        steps.append({'name': i.get('sankey_staff_short', 'Osobné<br>náklady'), 'measure': 'relative', 'y': -abs(staff)})
     if depreciation is not None and depreciation != 0:
-        steps.append({'name': 'Odpisy', 'measure': 'relative', 'y': -abs(depreciation)})
+        steps.append({'name': i.get('sankey_depreciation', 'Odpisy'), 'measure': 'relative', 'y': -abs(depreciation)})
     if interest is not None and interest != 0:
-        steps.append({'name': 'Úroky', 'measure': 'relative', 'y': -abs(interest)})
+        steps.append({'name': i.get('sankey_interest', 'Úroky'), 'measure': 'relative', 'y': -abs(interest)})
     if net is not None:
-        steps.append({'name': 'Čistý<br>zisk', 'measure': 'total'})
+        steps.append({'name': i.get('sankey_net_profit_short', 'Čistý<br>zisk'), 'measure': 'total'})
 
     if len(steps) < 3: return ""
 
@@ -422,7 +428,7 @@ def _generate_pl_waterfall(stmt) -> str:
     ))
 
     fig.update_layout(
-        title=dict(text='Výkaz ziskov a strát', font=dict(size=14, color='#0f172a')),
+        title=dict(text=i.get('chart_pnl', 'Výkaz ziskov a strát'), font=dict(size=14, color='#0f172a')),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=40, r=20, t=50, b=30),
@@ -432,9 +438,10 @@ def _generate_pl_waterfall(stmt) -> str:
     return _to_base64(fig, 800, 350)
 
 
-def _generate_cashflow_waterfall(stmt) -> str:
+def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
     """Proper bridge/waterfall Cash Flow chart using Plotly."""
     if not stmt: return ""
+    i = get_i18n_strings(lang)
     net_profit = getattr(stmt, 'netProfitLoss', None)
     depreciation = getattr(stmt, 'depreciation', None)
     ocf = getattr(stmt, 'operatingCashFlow', None)
@@ -442,15 +449,15 @@ def _generate_cashflow_waterfall(stmt) -> str:
 
     steps = []
     if net_profit is not None:
-        steps.append({'name': 'Čistý<br>zisk', 'measure': 'absolute', 'y': net_profit})
+        steps.append({'name': i.get('sankey_net_profit_short', 'Čistý<br>zisk'), 'measure': 'absolute', 'y': net_profit})
     if depreciation is not None and depreciation != 0:
-        steps.append({'name': 'Odpisy', 'measure': 'relative', 'y': abs(depreciation)})
+        steps.append({'name': i.get('sankey_depreciation', 'Odpisy'), 'measure': 'relative', 'y': abs(depreciation)})
     if net_profit is not None and depreciation is not None and ocf is not None:
         wc_change = ocf - (net_profit + abs(depreciation))
         if wc_change != 0:
-            steps.append({'name': 'Zmeny<br>v PK', 'measure': 'relative', 'y': wc_change})
+            steps.append({'name': i.get('sankey_wc_short', 'Zmeny<br>v PK'), 'measure': 'relative', 'y': wc_change})
     if ocf is not None:
-        steps.append({'name': 'Prevádz.<br>CF', 'measure': 'total'})
+        steps.append({'name': i.get('sankey_operating_cf_short', 'Prevádz.<br>CF'), 'measure': 'total'})
 
     if len(steps) < 2: return ""
 
@@ -469,7 +476,7 @@ def _generate_cashflow_waterfall(stmt) -> str:
     ))
 
     fig.update_layout(
-        title=dict(text='Prevádzkový Cash Flow', font=dict(size=14, color='#0f172a')),
+        title=dict(text=i.get('sankey_operating_cf_title', 'Prevádzkový Cash Flow'), font=dict(size=14, color='#0f172a')),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=40, r=20, t=50, b=30),
@@ -479,9 +486,10 @@ def _generate_cashflow_waterfall(stmt) -> str:
     return _to_base64(fig, 800, 350)
 
 
-def _generate_balance_sheet_waterfall(stmt) -> str:
+def _generate_balance_sheet_waterfall(stmt, lang="sk") -> str:
     """Proper balance sheet composition chart using Plotly."""
     if not stmt: return ""
+    i = get_i18n_strings(lang)
     current = getattr(stmt, 'currentAssets', None) or 0
     inventory = getattr(stmt, 'inventory', None) or 0
     cash = getattr(stmt, 'cashAndEquivalents', None) or 0
@@ -497,14 +505,14 @@ def _generate_balance_sheet_waterfall(stmt) -> str:
     fig = go.Figure()
 
     # Assets Bar
-    labels_a = ['Dlhodobý majetok', 'Zásoby', 'Pohľadávky', 'Hotovosť']
+    labels_a = [i.get('sankey_non_current', 'Dlhodobý majetok'), i.get('sankey_inventory', 'Zásoby'), i.get('sankey_receivables', 'Pohľadávky'), i.get('sankey_cash', 'Hotovosť')]
     values_a = [non_current, inventory, receivables, cash]
     colors_a = ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd']
     
     for l, v, c in zip(labels_a, values_a, colors_a):
         if v > 0:
             fig.add_trace(go.Bar(
-                y=['Aktíva'], x=[v], name=f"{l} ({v/total_assets*100:.0f}%)", orientation='h', marker_color=c,
+                y=[i.get('sankey_assets', 'Aktíva')], x=[v], name=f"{l} ({v/total_assets*100:.0f}%)", orientation='h', marker_color=c,
                 text=f"{v/total_assets*100:.0f}%", textposition='inside', insidetextanchor='middle'
             ))
 
@@ -512,7 +520,7 @@ def _generate_balance_sheet_waterfall(stmt) -> str:
     total_cap = equity + short_liab + long_liab
     if total_cap == 0: total_cap = total_assets
 
-    labels_c = ['Vlastné imanie', 'Krátkodobé záv.', 'Dlhodobé záv.']
+    labels_c = [i.get('sankey_equity', 'Vlastné imanie'), i.get('sankey_short_liab', 'Krátkodobé záv.'), i.get('sankey_long_liab', 'Dlhodobé záv.')]
     values_c = [abs(equity), short_liab, long_liab]
     colors_c = ['#10b981' if equity > 0 else '#ef4444', '#f59e0b', '#ef4444']
     
@@ -520,13 +528,13 @@ def _generate_balance_sheet_waterfall(stmt) -> str:
         if v > 0:
             name = f"{l} ({v/abs(total_cap)*100:.0f}%)"
             fig.add_trace(go.Bar(
-                y=['Pasíva'], x=[v], name=name, orientation='h', marker_color=c,
+                y=[i.get('sankey_pasiva', 'Pasíva')], x=[v], name=name, orientation='h', marker_color=c,
                 text=f"{v/abs(total_cap)*100:.0f}%", textposition='inside', insidetextanchor='middle'
             ))
 
     fig.update_layout(
         barmode='stack',
-        title=dict(text='Štruktúra majetku a zdrojov', font=dict(size=14, color='#0f172a')),
+        title=dict(text=i.get('chart_balance_structure', 'Štruktúra majetku a zdrojov'), font=dict(size=14, color='#0f172a')),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=80, r=20, t=50, b=100),
