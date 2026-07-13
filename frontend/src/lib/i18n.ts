@@ -436,7 +436,7 @@ const sk: Dict = {
   "report.patienceBody": "Spracovávame rozsiahle finančné výkazy a výročné správy. Prosím, nezatvárajte túto stránku — report sa dokončí automaticky.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Komplexný due diligence za 4 minúty",
+  "home.badge": "⚡ Komplexný due diligence do 5 minút",
   "home.heroTitle1": "Preverenie firmy",
   "home.heroTitle2": "jedným klikom",
   "home.heroSubtitle": "Zadajte IČO a dostanete kompletný PDF report s hlavným posudkom, finančnou analýzou a Verifa Score — za minúty, nie za hodiny.",
