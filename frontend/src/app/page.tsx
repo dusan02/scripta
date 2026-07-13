@@ -111,8 +111,8 @@ export default function LandingPage() {
       name: "Korporát",
       subtitle: "Pre profesionálov",
       credits: "40 reportov / mesiac",
-      price: "239 € / mesiac",
-      perCredit: "5,98 € / report",
+      price: "289 € / mesiac",
+      perCredit: "7,23 € / report",
       features: [
         "Všetko z balíka Firma",
         "Osobný account manager s okamžitou dostupnosťou",
@@ -586,51 +586,6 @@ export default function LandingPage() {
               <span style={{ color: "var(--accent)", fontSize: 18 }}>⏱️</span>
               Kredity sú platné <b>12 mesiacov</b> od zakúpenia.
             </div>
-          </div>
-
-          <div style={{ marginTop: 80, background: "var(--surface)", borderRadius: 16, border: "1px solid var(--border)", padding: "40px 32px", overflowX: "auto" }}>
-            <h3 style={{ fontSize: 24, fontWeight: 800, textAlign: "center", marginBottom: 32 }}>Detailné porovnanie parametrov</h3>
-            <table style={{ width: "100%", minWidth: 700, borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid var(--border)" }}>
-                  <th style={{ textAlign: "left", padding: "16px 8px", color: "var(--text-muted)", fontWeight: 600, width: "20%" }}>Vlastnosť</th>
-                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, width: "20%" }}>Štart</th>
-                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, width: "20%" }}>Freelance</th>
-                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, color: "var(--accent)", width: "20%" }}>Firma</th>
-                  <th style={{ textAlign: "center", padding: "16px 8px", fontWeight: 700, width: "20%" }}>Korporát</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>SLA odozva (podpora)</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>do 24 hodín</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>do 4 hodín</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>do 1 hodiny</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>okamžitá</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>Typ podpory</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>E-mail</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-secondary)" }}>E-mail, Chat</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>Telefonická podpora</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600 }}>Osobný manažér</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>API prístup</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", fontWeight: 600, color: "var(--accent)" }}>Pripravujeme</td>
-                </tr>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "16px 8px", fontWeight: 500 }}>Archivácia reportov</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--text-muted)" }}>-</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--accent)" }}>✓ 1 rok</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--accent)", fontWeight: 600 }}>✓ Neobmedzene</td>
-                  <td style={{ padding: "16px 8px", textAlign: "center", color: "var(--accent)", fontWeight: 600 }}>✓ Neobmedzene</td>
-                </tr>
-              </tbody>
-            </table>
           </div>
 
           <p style={{ textAlign: "center", marginTop: 40, fontSize: 13, color: "var(--text-muted)" }}>
