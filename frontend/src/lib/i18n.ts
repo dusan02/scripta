@@ -475,6 +475,68 @@ const sk: Dict = {
   "home.contact": "Kontakt",
   "home.rights": "Všetky práva vyhradené.",
 
+  // ── Landing page: Features ──
+  "home.featuresTitle": "Čo správa obsahuje",
+  "home.featuresSubtitle": "Konkrétne overenia a výstupy v jednom dokumente.",
+  "home.feature1Title": "Zlúčené dáta z 20+ registrov",
+  "home.feature1Desc": "ORSR, RPVS, RÚZ, insolvenčné registre, DPH, exekúcie, záložné práva a ďalšie — všetko v jednom PDF.",
+  "home.feature2Title": "Automatizovaná finančná analýza",
+  "home.feature2Desc": "5-ročná história, Altman Z-Score, Piotroski F-Score, predikcia úpadku a forenzná detekcia rizík.",
+  "home.feature3Title": "Predikcia rizika a Verifa Score",
+  "home.feature3Desc": "Záverečný posudok s Verifa Score (0-100), kategóriou rizika a odporúčaniami pre ďalšie kroky.",
+
+  // ── Landing page: How it works ──
+  "home.stepLabel": "Krok",
+  "home.step1Title": "Zadáte IČO",
+  "home.step1Desc": "Zadajte identifikačné číslo firmy, ktorú chcete preveriť.",
+  "home.step2Title": "Overenie a posudok",
+  "home.step2Desc": "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok so subjektívnym Verifa Score.",
+  "home.step3Title": "Stiahnete Správu",
+  "home.step3Desc": "Stiahnete si komplexnú Správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente.",
+
+  // ── Landing page: Registries ──
+  "home.navRegistries": "Registre",
+  "home.registriesTitle": "Pokryté registre",
+  "home.registriesSubtitle": "Všetky zdroje v jednom reporte, zoskupené podľa oblasti.",
+  "home.registriesShow": "Pozrite si zoznam všetkých 20+ prehľadávaných registrov",
+  "home.registriesHide": "Skryť zoznam registrov",
+
+  // ── Landing page: Target groups ──
+  "home.targetSubtitle": "Nástroj pre profesionálov, ktorí potrebujú rýchly a spoľahlivý due diligence.",
+  "home.target1Title": "Pre firmy a obchodníkov",
+  "home.target1Desc": "Previerka obchodných partnerov, dodávateľov a protistrán pred uzavretím zmlúv, fúziou alebo nadobudnutím podielov.",
+  "home.target2Title": "Pre právnikov a účtovníkov",
+  "home.target2Desc": "Komplexný due diligence report pre klientov — finančný a právny prehľad z 20+ registrov v jednom PDF.",
+  "home.target3Title": "Pre investorov a finančný sektor",
+  "home.target3Desc": "Hĺbková analýza bonity, predikcia úpadku a rizikový profil pred investíciou, úverom alebo poistnou zmluvou.",
+
+  // ── Landing page: Sample report ──
+  "home.sampleTitle": "Ukážka reportu",
+  "home.sampleDesc": "Pozrite si vzor vygenerovaného PDF reportu — titulná stránka, finančná analýza, právny posudok a Verifa Score.",
+
+  // ── Landing page: Pricing ──
+  "home.reportIncludesTitle": "Čo obsahuje každý report?",
+  "home.popular": "Najobľúbenejšie",
+  "home.startVerifying": "Začať overovať",
+  "home.guaranteeLabel": "Garancia:",
+  "home.guaranteeText": "Ak report nemožno vygenerovať z dôvodu výpadku registrov, vrátime vám plnú sumu alebo pripíšeme kredit.",
+  "home.creditsValid": "Kredity sú platné",
+  "home.creditsValidPeriod": "12 mesiacov",
+  "home.creditsValidFrom": "od zakúpenia.",
+
+  // ── Landing page: CTA ──
+  "home.ctaTitle": "Pripravený preveriť svojho partnera?",
+  "home.ctaDesc": "Zaregistrujte sa a začnite s komplexným due diligence reportom.",
+
+  // ── Landing page: Footer ──
+  "home.footerProduct": "Produkt",
+  "home.footerLegal": "Právne",
+  "home.footerOperator": "Prevádzkovateľ:",
+  "home.footerPrivacy": "Ochrana osobných údajov",
+  "home.footerGlossary": "Slovník pojmov",
+  "home.navRegister": "Registrácia",
+  "home.navLogin": "Prihlásiť sa",
+
   // ── Report processing UI ──
   "report.processing": "Spracovávanie údajov",
   "report.registersProgress": "Spracovanie registrov",
@@ -973,6 +1035,68 @@ const en: Dict = {
   "home.contact": "Contact",
   "home.rights": "All rights reserved.",
 
+  // ── Landing page: Features ──
+  "home.featuresTitle": "What the report includes",
+  "home.featuresSubtitle": "Specific checks and outputs in a single document.",
+  "home.feature1Title": "Merged data from 20+ registries",
+  "home.feature1Desc": "ORSR, RPVS, RÚZ, insolvency registries, VAT, executions, lien rights and more — all in one PDF.",
+  "home.feature2Title": "Automated financial analysis",
+  "home.feature2Desc": "5-year history, Altman Z-Score, Piotroski F-Score, bankruptcy prediction and forensic risk detection.",
+  "home.feature3Title": "Risk prediction and Verifa Score",
+  "home.feature3Desc": "Final assessment with Verifa Score (0-100), risk category and recommendations for next steps.",
+
+  // ── Landing page: How it works ──
+  "home.stepLabel": "Step",
+  "home.step1Title": "Enter IČO",
+  "home.step1Desc": "Enter the company identification number you want to verify.",
+  "home.step2Title": "Verification and assessment",
+  "home.step2Desc": "The system verifies data across all public registries and produces a main assessment with a subjective Verifa Score.",
+  "home.step3Title": "Download the report",
+  "home.step3Desc": "Download the comprehensive PDF report with all extracts and the assessment in one document.",
+
+  // ── Landing page: Registries ──
+  "home.navRegistries": "Registries",
+  "home.registriesTitle": "Covered registries",
+  "home.registriesSubtitle": "All sources in one report, grouped by area.",
+  "home.registriesShow": "View the full list of 20+ searched registries",
+  "home.registriesHide": "Hide registry list",
+
+  // ── Landing page: Target groups ──
+  "home.targetSubtitle": "A tool for professionals who need fast and reliable due diligence.",
+  "home.target1Title": "For businesses and traders",
+  "home.target1Desc": "Verification of business partners, suppliers and counterparties before signing contracts, mergers or acquiring shares.",
+  "home.target2Title": "For lawyers and accountants",
+  "home.target2Desc": "Comprehensive due diligence report for clients — financial and legal overview from 20+ registries in one PDF.",
+  "home.target3Title": "For investors and the financial sector",
+  "home.target3Desc": "In-depth credit analysis, bankruptcy prediction and risk profile before investment, lending or insurance contracts.",
+
+  // ── Landing page: Sample report ──
+  "home.sampleTitle": "Sample report",
+  "home.sampleDesc": "View a sample generated PDF report — cover page, financial analysis, legal assessment and Verifa Score.",
+
+  // ── Landing page: Pricing ──
+  "home.reportIncludesTitle": "What does each report include?",
+  "home.popular": "Most popular",
+  "home.startVerifying": "Start verifying",
+  "home.guaranteeLabel": "Guarantee:",
+  "home.guaranteeText": "If a report cannot be generated due to a registry outage, we will refund the full amount or credit your account.",
+  "home.creditsValid": "Credits are valid for",
+  "home.creditsValidPeriod": "12 months",
+  "home.creditsValidFrom": "from purchase.",
+
+  // ── Landing page: CTA ──
+  "home.ctaTitle": "Ready to verify your partner?",
+  "home.ctaDesc": "Register and start with a comprehensive due diligence report.",
+
+  // ── Landing page: Footer ──
+  "home.footerProduct": "Product",
+  "home.footerLegal": "Legal",
+  "home.footerOperator": "Operator:",
+  "home.footerPrivacy": "Privacy Policy",
+  "home.footerGlossary": "Glossary",
+  "home.navRegister": "Register",
+  "home.navLogin": "Log in",
+
   // ── Report processing UI ──
   "report.processing": "Processing data",
   "report.registersProgress": "Processing registers",
@@ -1470,6 +1594,68 @@ const de: Dict = {
   "home.terms": "Nutzungsbedingungen",
   "home.contact": "Kontakt",
   "home.rights": "Alle Rechte vorbehalten.",
+
+  // ── Landing page: Features ──
+  "home.featuresTitle": "Was der Bericht enthält",
+  "home.featuresSubtitle": "Konkrete Prüfungen und Ergebnisse in einem Dokument.",
+  "home.feature1Title": "Zusammengeführte Daten aus 20+ Registern",
+  "home.feature1Desc": "ORSR, RPVS, RÚZ, Insolvenzregister, USt, Zwangsvollstreckungen, Pfandrechte und mehr — alles in einem PDF.",
+  "home.feature2Title": "Automatisierte Finanzanalyse",
+  "home.feature2Desc": "5-jährige Historie, Altman Z-Score, Piotroski F-Score, Konkursvorhersage und forensische Risikoaufdeckung.",
+  "home.feature3Title": "Risikovorhersage und Verifa Score",
+  "home.feature3Desc": "Abschließendes Gutachten mit Verifa Score (0-100), Risikokategorie und Empfehlungen für weitere Schritte.",
+
+  // ── Landing page: How it works ──
+  "home.stepLabel": "Schritt",
+  "home.step1Title": "IČO eingeben",
+  "home.step1Desc": "Geben Sie die Identifikationsnummer der Firma ein, die Sie prüfen möchten.",
+  "home.step2Title": "Verifizierung und Gutachten",
+  "home.step2Desc": "Das System verifiziert Daten in allen öffentlichen Registern und erstellt ein Hauptgutachten mit subjektivem Verifa Score.",
+  "home.step3Title": "Bericht herunterladen",
+  "home.step3Desc": "Laden Sie den umfassenden PDF-Bericht mit allen Auszügen und dem Gutachten in einem Dokument herunter.",
+
+  // ── Landing page: Registries ──
+  "home.navRegistries": "Register",
+  "home.registriesTitle": "Abgedeckte Register",
+  "home.registriesSubtitle": "Alle Quellen in einem Bericht, nach Bereich gruppiert.",
+  "home.registriesShow": "Vollständige Liste der 20+ durchsuchten Register anzeigen",
+  "home.registriesHide": "Registerliste ausblenden",
+
+  // ── Landing page: Target groups ──
+  "home.targetSubtitle": "Ein Werkzeug für Profis, die schnelle und zuverlässige Due Diligence benötigen.",
+  "home.target1Title": "Für Unternehmen und Händler",
+  "home.target1Desc": "Überprüfung von Geschäftspartnern, Lieferanten und Vertragsparteien vor Vertragsabschluss, Fusion oder Anteilsübernahme.",
+  "home.target2Title": "Für Anwälte und Steuerberater",
+  "home.target2Desc": "Umfassender Due-Diligence-Bericht für Mandanten — finanzieller und rechtlicher Überblick aus 20+ Registern in einem PDF.",
+  "home.target3Title": "Für Investoren und den Finanzsektor",
+  "home.target3Desc": "Tiefgehende Bonitätsanalyse, Konkursvorhersage und Risikoprofil vor Investition, Kredit oder Versicherungsvertrag.",
+
+  // ── Landing page: Sample report ──
+  "home.sampleTitle": "Berichtsmuster",
+  "home.sampleDesc": "Sehen Sie ein Beispiel eines generierten PDF-Berichts — Deckblatt, Finanzanalyse, rechtliches Gutachten und Verifa Score.",
+
+  // ── Landing page: Pricing ──
+  "home.reportIncludesTitle": "Was enthält jeder Bericht?",
+  "home.popular": "Beliebteste",
+  "home.startVerifying": "Verifizierung starten",
+  "home.guaranteeLabel": "Garantie:",
+  "home.guaranteeText": "Wenn ein Bericht aufgrund eines Registerausfalls nicht generiert werden kann, erstatten wir den vollen Betrag oder schreiben ein Guthaben gut.",
+  "home.creditsValid": "Guthaben ist gültig für",
+  "home.creditsValidPeriod": "12 Monate",
+  "home.creditsValidFrom": "ab Kauf.",
+
+  // ── Landing page: CTA ──
+  "home.ctaTitle": "Bereit, Ihren Partner zu prüfen?",
+  "home.ctaDesc": "Registrieren Sie sich und starten Sie mit einem umfassenden Due-Diligence-Bericht.",
+
+  // ── Landing page: Footer ──
+  "home.footerProduct": "Produkt",
+  "home.footerLegal": "Rechtliches",
+  "home.footerOperator": "Betreiber:",
+  "home.footerPrivacy": "Datenschutz",
+  "home.footerGlossary": "Glossar",
+  "home.navRegister": "Registrieren",
+  "home.navLogin": "Anmelden",
 
   // ── Report processing UI ──
   "report.processing": "Datenverarbeitung",

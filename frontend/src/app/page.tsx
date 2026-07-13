@@ -180,8 +180,7 @@ export default function LandingPage() {
           {/* Desktop nav */}
           <div className="desktop-nav" style={{ alignItems: "center", gap: 24 }}>
             <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navFeatures")}</a>
-            <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Registre</a>
-            <Link href="/documents" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("nav.dokumenty")}</Link>
+            <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navRegistries")}</a>
             <a href="#cennik" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navPricing")}</a>
             <button
               onClick={toggle}
@@ -203,7 +202,7 @@ export default function LandingPage() {
                 border: "1px solid var(--border)",
               }}
             >
-              Registrácia
+              {t("home.navRegister")}
             </Link>
             <Link
               href="/login"
@@ -217,7 +216,7 @@ export default function LandingPage() {
                 fontSize: 14,
               }}
             >
-              Prihlásiť sa
+              {t("home.navLogin")}
             </Link>
           </div>
 
@@ -252,12 +251,11 @@ export default function LandingPage() {
             gap: 12,
           }}>
             <a href="#funkcie" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navFeatures")}</a>
-            <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>Registre</a>
-            <Link href="/documents" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("nav.dokumenty")}</Link>
+            <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navRegistries")}</a>
             <a href="#cennik" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navPricing")}</a>
             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-            <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8, border: "1px solid var(--border)" }}>Registrácia</Link>
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", background: "var(--accent)", color: "var(--accent-button-text)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8 }}>Prihlásiť sa</Link>
+            <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8, border: "1px solid var(--border)" }}>{t("home.navRegister")}</Link>
+            <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", background: "var(--accent)", color: "var(--accent-button-text)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8 }}>{t("home.navLogin")}</Link>
           </div>
         )}
       </nav>
@@ -308,26 +306,26 @@ export default function LandingPage() {
       {/* FEATURES */}
       <section id="funkcie" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }} className="section-pad">
         <div style={{ textAlign: "center", marginBottom: 60 }}>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Čo správa obsahuje</h2>
-          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Konkrétne overenia a výstupy v jednom dokumente.</p>
+          <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.featuresTitle")}</h2>
+          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>{t("home.featuresSubtitle")}</p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }} className="features-grid">
           {[
             {
               icon: "🔎",
-              title: "Zlúčené dáta z 20+ registrov",
-              desc: "ORSR, RPVS, RÚZ, insolvenčné registre, DPH, exekúcie, záložné práva a ďalšie — všetko v jednom PDF.",
+              title: t("home.feature1Title"),
+              desc: t("home.feature1Desc"),
             },
             {
               icon: "📊",
-              title: "Automatizovaná finančná analýza",
-              desc: "5-ročná história, Altman Z-Score, Piotroski F-Score, predikcia úpadku a forenzná detekcia rizík.",
+              title: t("home.feature2Title"),
+              desc: t("home.feature2Desc"),
             },
             {
               icon: "📋",
-              title: "Predikcia rizika a Verifa Score",
-              desc: "Záverečný posudok s Verifa Score (0-100), kategóriou rizika a odporúčaniami pre ďalšie kroky.",
+              title: t("home.feature3Title"),
+              desc: t("home.feature3Desc"),
             },
           ].map((col) => (
             <div key={col.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
@@ -352,9 +350,9 @@ export default function LandingPage() {
 
           <div style={{ display: "flex", alignItems: "stretch", justifyContent: "center", gap: 0, flexWrap: "wrap" }} className="how-steps">
             {[
-              { step: "1", icon: "search", title: "Zadáte IČO", desc: "Zadajte identifikačné číslo firmy, ktorú chcete preveriť." },
-              { step: "2", icon: "check", title: "Overenie a posudok", desc: "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok so subjektívnym Verifa Score." },
-              { step: "3", icon: "download", title: "Stiahnete Správu", desc: "Stiahnete si komplexnú Správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente." },
+              { step: "1", icon: "search", title: t("home.step1Title"), desc: t("home.step1Desc") },
+              { step: "2", icon: "check", title: t("home.step2Title"), desc: t("home.step2Desc") },
+              { step: "3", icon: "download", title: t("home.step3Title"), desc: t("home.step3Desc") },
             ].map((s, i, arr) => (
               <div key={s.step} style={{ display: "flex", alignItems: "stretch" }}>
                 <div className="how-step-card" style={{
@@ -381,7 +379,7 @@ export default function LandingPage() {
                       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Krok {s.step}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>{t("home.stepLabel")} {s.step}</div>
                   <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{s.title}</h3>
                   <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{s.desc}</p>
                 </div>
@@ -407,8 +405,8 @@ export default function LandingPage() {
       {/* REGISTRIES — Accordion */}
       <section id="registre" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }} className="section-pad">
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Pokryté registre</h2>
-          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Všetky zdroje v jednom reporte, zoskupené podľa oblasti.</p>
+          <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.registriesTitle")}</h2>
+          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>{t("home.registriesSubtitle")}</p>
         </div>
 
         <div style={{ textAlign: "center", marginBottom: showRegistries ? 40 : 0 }}>
@@ -429,7 +427,7 @@ export default function LandingPage() {
               transition: "border-color 0.2s",
             }}
           >
-            {showRegistries ? "Skryť zoznam registrov" : "Pozrite si zoznam všetkých 20+ prehľadávaných registrov"}
+            {showRegistries ? t("home.registriesHide") : t("home.registriesShow")}
             <span style={{ color: "var(--accent)", fontSize: 18, transition: "transform 0.2s", display: "inline-block", transform: showRegistries ? "rotate(180deg)" : "none" }}>⌄</span>
           </button>
         </div>
@@ -491,25 +489,25 @@ export default function LandingPage() {
       <section style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto" }} className="section-pad">
         <div style={{ textAlign: "center", marginBottom: 60 }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.whoIsItFor")}</h2>
-          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Nástroj pre profesionálov, ktorí potrebujú rýchly a spoľahlivý due diligence.</p>
+          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>{t("home.targetSubtitle")}</p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }} className="target-grid">
           {[
             {
               icon: "🏢",
-              title: "Pre firmy a obchodníkov",
-              desc: "Previerka obchodných partnerov, dodávateľov a protistrán pred uzavretím zmlúv, fúziou alebo nadobudnutím podielov.",
+              title: t("home.target1Title"),
+              desc: t("home.target1Desc"),
             },
             {
               icon: "⚖️",
-              title: "Pre právnikov a účtovníkov",
-              desc: "Komplexný due diligence report pre klientov — finančný a právny prehľad z 20+ registrov v jednom PDF.",
+              title: t("home.target2Title"),
+              desc: t("home.target2Desc"),
             },
             {
               icon: "💼",
-              title: "Pre investorov a finančný sektor",
-              desc: "Hĺbková analýza bonity, predikcia úpadku a rizikový profil pred investíciou, úverom alebo poistnou zmluvou.",
+              title: t("home.target3Title"),
+              desc: t("home.target3Desc"),
             },
           ].map((item) => (
             <div key={item.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, transition: "transform 0.2s ease, box-shadow 0.2s ease" }}>
@@ -526,8 +524,8 @@ export default function LandingPage() {
       {/* UKÁŽKA REPORTU — CTA */}
       <section style={{ padding: "80px 24px", background: "var(--bg-subtle)" }} className="section-pad">
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Ukážka reportu</h2>
-          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto 32px" }}>Pozrite si vzor vygenerovaného PDF reportu — titulná stránka, finančná analýza, právny posudok a Verifa Score.</p>
+          <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.sampleTitle")}</h2>
+          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto 32px" }}>{t("home.sampleDesc")}</p>
           <Link href="/documents" style={{ display: "inline-block", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "14px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 15 }}>
             {t("nav.dokumenty")} →
           </Link>
@@ -565,7 +563,7 @@ export default function LandingPage() {
 
           {/* Čo obsahuje každý report */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "40px 32px", marginBottom: 48 }}>
-            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 32, textAlign: "center" }}>Čo obsahuje každý report?</h3>
+            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 32, textAlign: "center" }}>{t("home.reportIncludesTitle")}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 report-includes-grid" style={{ gap: "28px 20px" }}>
               {reportIncludes.map((item) => (
                 <div key={item.main} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
@@ -584,7 +582,7 @@ export default function LandingPage() {
               <div key={plan.name} style={{ background: "var(--surface)", border: plan.highlighted ? "2px solid var(--accent)" : "1px solid var(--border)", borderRadius: 16, padding: 28, position: "relative", boxShadow: plan.highlighted ? "var(--shadow-lg)" : "var(--shadow-sm)" }}>
                 {plan.highlighted && (
                   <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--accent)", color: "var(--accent-button-text)", padding: "4px 16px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
-                    Najobľúbenejšie
+                    {t("home.popular")}
                   </div>
                 )}
                 <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 2 }}>{plan.name}</h3>
@@ -592,7 +590,7 @@ export default function LandingPage() {
                 <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{plan.price}</div>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>{plan.perCredit}</p>
                 <Link href="/register" style={{ display: "block", textAlign: "center", background: plan.highlighted ? "var(--accent)" : "var(--surface-hover)", color: plan.highlighted ? "var(--accent-button-text)" : "var(--text)", border: plan.highlighted ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 20 }}>
-                  Začať overovať
+                  {t("home.startVerifying")}
                 </Link>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                   {plan.features.map((feat) => (
@@ -627,8 +625,8 @@ export default function LandingPage() {
       <section style={{ padding: "80px 24px" }} className="section-pad">
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 24, padding: "60px 40px", position: "relative", overflow: "hidden" }} className="cta-card">
           <div style={{ position: "absolute", top: -100, right: -50, width: 300, height: 300, borderRadius: "50%", background: "var(--accent)", opacity: 0.05, filter: "blur(60px)" }} />
-          <h2 style={{ fontSize: "clamp(28px, 4vw, 36px)", fontWeight: 800, marginBottom: 16 }}>Pripravený preveriť svojho partnera?</h2>
-          <p style={{ fontSize: 17, color: "var(--text-secondary)", marginBottom: 32 }}>Zaregistrujte sa a začnite s komplexným due diligence reportom.</p>
+          <h2 style={{ fontSize: "clamp(28px, 4vw, 36px)", fontWeight: 800, marginBottom: 16 }}>{t("home.ctaTitle")}</h2>
+          <p style={{ fontSize: 17, color: "var(--text-secondary)", marginBottom: 32 }}>{t("home.ctaDesc")}</p>
           <Link href="/register" style={{ display: "inline-block", background: "var(--accent)", color: "var(--accent-button-text)", padding: "16px 40px", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, boxShadow: "var(--shadow-lg)" }}>
             {t("home.ctaStartNow")}
           </Link>
@@ -644,7 +642,8 @@ export default function LandingPage() {
             </div>
             <p style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 300, marginBottom: 16 }}>Komplexný due diligence report zo štátnych registrov SR. Automatizované, rýchle, presné.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>Prevádzkovateľ:</span>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{t("home.footerOperator")}</span>
+              {/* TODO: Pred launchom nahradiť reálnym IČO a názvom firmy */}
               <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Verifa s.r.o.</span>
               <span style={{ fontSize: 13, color: "var(--text-muted)" }}>IČO: 12345678</span>
               <a href="mailto:info@verifa.sk" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none", marginTop: 4 }}>info@verifa.sk</a>
@@ -653,20 +652,19 @@ export default function LandingPage() {
 
           <div style={{ display: "flex", gap: 48, flexWrap: "wrap" }} className="footer-links">
             <div>
-              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Produkt</h4>
+              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>{t("home.footerProduct")}</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <a href="#funkcie" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navFeatures")}</a>
-                <a href="#registre" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Registre</a>
-                <Link href="/documents" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</Link>
+                <a href="#registre" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navRegistries")}</a>
                 <a href="#cennik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
-                <Link href="/slovnik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Slovník pojmov</Link>
+                <Link href="/slovnik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerGlossary")}</Link>
               </div>
             </div>
             <div>
-              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Právne</h4>
+              <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>{t("home.footerLegal")}</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <a href="/terms" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</a>
-                <a href="/privacy" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Ochrana osobných údajov</a>
+                <a href="/privacy" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerPrivacy")}</a>
               </div>
             </div>
           </div>
