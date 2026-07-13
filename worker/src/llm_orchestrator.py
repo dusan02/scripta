@@ -42,16 +42,17 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
     """
     model = kwargs.get("model", "unknown")
     _t0 = time.perf_counter()
+    _timeout = 300 if any(k in label for k in ("Chief", "Cross-Analysis")) else 120
 
     # 404 sa neretryuje — model je vypnutý, treba fallback
     for attempt, wait in enumerate(_BACKOFF_SECONDS):
         try:
-            result = await asyncio.wait_for(func(*args, **kwargs), timeout=120)
+            result = await asyncio.wait_for(func(*args, **kwargs), timeout=_timeout)
             elapsed = time.perf_counter() - _t0
             logger.info(f"[{get_correlation_id() or '-'}] LLM OK: {label} model={model} ({elapsed:.1f}s)")
             return result
         except asyncio.TimeoutError:
-            log_llm_retry(label, model, attempt + 1, len(_BACKOFF_SECONDS), "Timeout 120s", wait)
+            log_llm_retry(label, model, attempt + 1, len(_BACKOFF_SECONDS), f"Timeout {_timeout}s", wait)
             _log_failed_call_cost(model, label, "timeout")
             if attempt < len(_BACKOFF_SECONDS) - 1:
                 await asyncio.sleep(wait)
@@ -88,7 +89,7 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
         logger.warning(f"[{get_correlation_id() or '-'}] LLM FALLBACK: {label} model={model} → {fb_model}")
         kwargs["model"] = fb_model
         try:
-            result = await asyncio.wait_for(func(*args, **kwargs), timeout=120)
+            result = await asyncio.wait_for(func(*args, **kwargs), timeout=_timeout)
             elapsed = time.perf_counter() - _t0
             logger.info(f"[{get_correlation_id() or '-'}] LLM FALLBACK OK: {label} model={fb_model} ({elapsed:.1f}s)")
             return result
