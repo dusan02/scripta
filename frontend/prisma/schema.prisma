@@ -34,6 +34,8 @@ model User {
   feedback           Feedback[]
   wallet             Wallet?
   creditBatches      CreditBatch[]
+  messages           UserMessage[]      @relation("UserMessages")
+  sentMessages       UserMessage[]      @relation("SentMessages")
 }
 
 model ReportRequest {
@@ -190,11 +192,13 @@ enum MessageType {
   ANNOUNCEMENT
   REPLY
   SYSTEM
+  USER
 }
 
 model UserMessage {
   id         String          @id @default(cuid())
   userId     String?
+  senderId   String?
   type        MessageType
   title       String
   body        String
@@ -202,7 +206,11 @@ model UserMessage {
   feedbackId  String?
   createdAt   DateTime        @default(now())
 
+  user   User? @relation("UserMessages", fields: [userId], references: [id], onDelete: Cascade)
+  sender User? @relation("SentMessages", fields: [senderId], references: [id], onDelete: SetNull)
+
   @@index([userId])
+  @@index([senderId])
   @@index([read])
 }
 

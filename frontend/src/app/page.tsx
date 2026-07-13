@@ -181,6 +181,7 @@ export default function LandingPage() {
           <div className="desktop-nav" style={{ alignItems: "center", gap: 24 }}>
             <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navFeatures")}</a>
             <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navRegistries")}</a>
+            <a href="#ukazka" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("nav.dokumenty")}</a>
             <a href="#cennik" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navPricing")}</a>
             <button
               onClick={toggle}
@@ -252,6 +253,7 @@ export default function LandingPage() {
           }}>
             <a href="#funkcie" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navFeatures")}</a>
             <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navRegistries")}</a>
+            <a href="#ukazka" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("nav.dokumenty")}</a>
             <a href="#cennik" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navPricing")}</a>
             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
             <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8, border: "1px solid var(--border)" }}>{t("home.navRegister")}</Link>
@@ -522,13 +524,13 @@ export default function LandingPage() {
       </section>
 
       {/* UKÁŽKA REPORTU — CTA */}
-      <section style={{ padding: "80px 24px", background: "var(--bg-subtle)" }} className="section-pad">
+      <section id="ukazka" style={{ padding: "80px 24px", background: "var(--bg-subtle)" }} className="section-pad">
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.sampleTitle")}</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto 32px" }}>{t("home.sampleDesc")}</p>
-          <Link href="/documents" style={{ display: "inline-block", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "14px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 15 }}>
+          <a href="/ukazka-reportu.pdf" target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "14px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 15 }}>
             {t("nav.dokumenty")} →
-          </Link>
+          </a>
         </div>
       </section>
 
@@ -656,6 +658,7 @@ export default function LandingPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <a href="#funkcie" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navFeatures")}</a>
                 <a href="#registre" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navRegistries")}</a>
+                <a href="#ukazka" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</a>
                 <a href="#cennik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
                 <Link href="/slovnik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerGlossary")}</Link>
               </div>

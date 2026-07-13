@@ -28,6 +28,11 @@ export default function MessagesPage() {
   const t = useT();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeTitle, setComposeTitle] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentOk, setSentOk] = useState(false);
 
   useEffect(() => {
     fetch("/api/messages")
@@ -64,6 +69,30 @@ export default function MessagesPage() {
     });
   };
 
+  const sendMessage = async () => {
+    if (!composeTitle.trim() || !composeBody.trim()) return;
+    setSending(true);
+    setSentOk(false);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: composeTitle, message: composeBody }),
+      });
+      if (res.ok) {
+        setComposeTitle("");
+        setComposeBody("");
+        setShowCompose(false);
+        setSentOk(true);
+        setTimeout(() => setSentOk(false), 3000);
+      }
+    } catch (error) {
+      console.error("Failed to send message", error);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="max-w-[800px] mx-auto px-4 sm:px-6 pt-8 pb-12 animate-fade-in" style={{ minHeight: "calc(100vh - 120px)" }}>
       <div className="text-center mb-8">
@@ -77,6 +106,74 @@ export default function MessagesPage() {
           {t("messages.popis")}
         </p>
       </div>
+
+      {/* Compose button + success toast */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setShowCompose(!showCompose)}
+          className="px-4 py-2 rounded-lg text-sm font-semibold"
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-button-text)",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          {showCompose ? t("messages.zrusit") : t("messages.napisatSpravu")}
+        </button>
+        {sentOk && (
+          <span className="text-xs font-medium" style={{ color: "var(--success)" }}>
+            ✓ {t("messages.uspech")}
+          </span>
+        )}
+      </div>
+
+      {/* Compose form */}
+      {showCompose && (
+        <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                {t("messages.predmet")}
+              </label>
+              <input
+                type="text"
+                value={composeTitle}
+                onChange={(e) => setComposeTitle(e.target.value)}
+                placeholder={t("messages.predmetPlaceholder")}
+                className="w-full px-3 py-2 rounded-lg text-sm border"
+                style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+              />
+            </div>
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                {t("messages.sprava")}
+              </label>
+              <textarea
+                value={composeBody}
+                onChange={(e) => setComposeBody(e.target.value)}
+                placeholder={t("messages.spravaPlaceholder")}
+                rows={5}
+                className="w-full px-3 py-2 rounded-lg text-sm border resize-none"
+                style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+              />
+            </div>
+            <button
+              onClick={sendMessage}
+              disabled={sending || !composeTitle.trim() || !composeBody.trim()}
+              className="px-4 py-2 rounded-lg text-sm font-semibold self-start"
+              style={{
+                background: sending ? "var(--bg-muted)" : "var(--accent)",
+                color: sending ? "var(--text-muted)" : "var(--accent-button-text)",
+                border: "none",
+                cursor: sending ? "not-allowed" : "pointer",
+              }}
+            >
+              {sending ? t("messages.odosiela") : t("messages.odoslat")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div

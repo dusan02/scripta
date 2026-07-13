@@ -312,6 +312,15 @@ const sk: Dict = {
   "messages.novinka": "Novinka",
   "messages.odpoved": "Odpoveď",
   "messages.system": "Systém",
+  "messages.napisatSpravu": "Napísať správu",
+  "messages.zrusit": "Zrušiť",
+  "messages.predmet": "Predmet",
+  "messages.predmetPlaceholder": "Predmet vašej správy...",
+  "messages.sprava": "Správa",
+  "messages.spravaPlaceholder": "Napíšte vašu správu...",
+  "messages.odoslat": "Odoslať",
+  "messages.odosiela": "Odosielam...",
+  "messages.uspech": "Správa odoslaná",
 
   // ── Report detail ──
   "report.prijaty": "Prijatý",
@@ -872,6 +881,15 @@ const en: Dict = {
   "messages.novinka": "News",
   "messages.odpoved": "Reply",
   "messages.system": "System",
+  "messages.napisatSpravu": "Write message",
+  "messages.zrusit": "Cancel",
+  "messages.predmet": "Subject",
+  "messages.predmetPlaceholder": "Subject of your message...",
+  "messages.sprava": "Message",
+  "messages.spravaPlaceholder": "Write your message...",
+  "messages.odoslat": "Send",
+  "messages.odosiela": "Sending...",
+  "messages.uspech": "Message sent",
 
   // ── Report detail ──
   "report.prijaty": "Received",
@@ -1432,6 +1450,15 @@ const de: Dict = {
   "messages.novinka": "Neuigkeit",
   "messages.odpoved": "Antwort",
   "messages.system": "System",
+  "messages.napisatSpravu": "Nachricht schreiben",
+  "messages.zrusit": "Abbrechen",
+  "messages.predmet": "Betreff",
+  "messages.predmetPlaceholder": "Betreff Ihrer Nachricht...",
+  "messages.sprava": "Nachricht",
+  "messages.spravaPlaceholder": "Schreiben Sie Ihre Nachricht...",
+  "messages.odoslat": "Senden",
+  "messages.odosiela": "Wird gesendet...",
+  "messages.uspech": "Nachricht gesendet",
 
   // ── Report detail ──
   "report.prijaty": "Empfangen",
