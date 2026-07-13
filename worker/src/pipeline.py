@@ -447,10 +447,14 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
         # Trendy, pomery a Altman Z sú už agregované v analyza_trendov. Z výkazov berieme
         # len narrativeRisk (going concern, red flags, synthesis) — to je pre krížovú analýzu kľúčové.
         narrative_by_year = []
+        notes_by_year = []
         for stmt in company_dict.get("financialStatements", []):
             nr = stmt.get("narrativeRisk")
             if nr:
                 narrative_by_year.append({"rok": stmt.get("year"), "narrativeRisk": nr})
+            notes = stmt.get("notesRisk")
+            if notes:
+                notes_by_year.append({"rok": stmt.get("year"), "notesRisk": notes})
 
         cross_input_dict = {
             "ico": company_dict.get("ico"),
@@ -458,6 +462,7 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
             "naceText": company_dict.get("naceText"),
             "analyza_trendov": company_dict.get("analyza_trendov", {}),
             "narrativeRisk_by_year": narrative_by_year,
+            "notesRisk_by_year": notes_by_year,
             "vestnikEvents": company_dict.get("vestnikEvents", []),
             "companyEvents": company_dict.get("companyEvents", []),
         }
@@ -505,9 +510,23 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
             f"Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}"
         )
 
+        # Deterministická risk_category — Python lookup namiesto LLM
+        # Fallback na LLM hodnotu len ak neexistujú finančné výkazy (INSUFFICIENT_DATA)
+        if scorecard is not None:
+            if deterministic_score >= 90:
+                _risk_category = "AAA"
+            elif deterministic_score >= 70:
+                _risk_category = "A"
+            elif deterministic_score >= 40:
+                _risk_category = "B"
+            else:
+                _risk_category = "C"
+        else:
+            _risk_category = verdict.risk_category
+
         verdict_payload = {
             'verifaScore': deterministic_score,
-            'riskCategory': verdict.risk_category,
+            'riskCategory': _risk_category,
             'debtExposureRating': verdict.debt_exposure_rating,
             'finalVerdict': verdict.final_verdict,
             'executiveSummary': verdict.executive_summary,
@@ -695,31 +714,34 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
     async def _process_notes(sem: asyncio.Semaphore):
         """Footnotes Analyst: extrahuje poznámky pre najnovší rok (fallback na staršie).
         Beží paralelne s IFRS/VS extrakciou. DB save je odložený (viď _notes_result)."""
-        sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
-        notes_attempts = 0
-        for fp in sorted_ifrs:
-            if notes_attempts >= 2:
-                break
-            year = _extract_year_from_fn(fp)
-            file_name = os.path.basename(fp)
-            sliced_notes_path = slice_notes_pdf(fp)
-            if sliced_notes_path:
-                notes_attempts += 1
-                logger.info(f"[NOTES] Spracovávam poznámky pre rok {year} z {file_name}")
-                async with sem:
-                    notes_data = await safe_llm_call(
-                        extract_notes_risks, sliced_notes_path,
-                        model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}",
-                        report_language=report_language,
-                    )
-                try:
-                    os.remove(sliced_notes_path)
-                except OSError:
-                    pass
-                if notes_data:
-                    _notes_result["year"] = year
-                    _notes_result["data"] = notes_data
-                    break  # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
+        try:
+            sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
+            notes_attempts = 0
+            for fp in sorted_ifrs:
+                if notes_attempts >= 2:
+                    break
+                year = _extract_year_from_fn(fp)
+                file_name = os.path.basename(fp)
+                sliced_notes_path = slice_notes_pdf(fp)
+                if sliced_notes_path:
+                    notes_attempts += 1
+                    logger.info(f"[NOTES] Spracovávam poznámky pre rok {year} z {file_name}")
+                    async with sem:
+                        notes_data = await safe_llm_call(
+                            extract_notes_risks, sliced_notes_path,
+                            model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}",
+                            report_language=report_language,
+                        )
+                    try:
+                        os.remove(sliced_notes_path)
+                    except OSError:
+                        pass
+                    if notes_data:
+                        _notes_result["year"] = year
+                        _notes_result["data"] = notes_data
+                        break  # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
+        except Exception as e:
+            logger.error(f"Chyba pri spracovaní poznámok: {e}", exc_info=True)
 
     # Vytvorenie asynchrónnej úlohy pre Vestník, aby bežala paralelne
     async def _process_vestnik():
@@ -743,7 +765,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
     if pdf_tasks:
         await update_ai_status(report_request_id, "ai.semantic_narrative", _remaining_eta(_t_start, pipeline_baseline))
         with PhaseTimer(f"LLM extrakcia ({len(pdf_tasks)} tasks)"):
-            await asyncio.gather(*pdf_tasks)
+            await asyncio.gather(*pdf_tasks, return_exceptions=True)
 
     # Cross-year duplicate detection pre osobné náklady
     # LLM môže duplikovať hodnotu z jedného roku do iného (najmä pri IFRS by-function výkazoch)
