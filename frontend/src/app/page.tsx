@@ -141,9 +141,19 @@ export default function LandingPage() {
           .how-arrow { display: none !important; }
           .footer-cols { flex-direction: column !important; gap: 32px !important; }
           .footer-links { gap: 24px !important; }
-          .hero-stats { gap: 20px !important; }
+          .hero-stats { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 24px 16px !important; }
           .pricing-guarantee { flex-direction: column !important; gap: 16px !important; text-align: center !important; }
           .cta-card { padding: 40px 24px !important; }
+          .section-pad { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 16px !important; padding-right: 16px !important; }
+          .hero-pad { padding-top: 110px !important; padding-bottom: 60px !important; }
+          .hero-cta { flex-direction: column !important; gap: 12px !important; }
+          .hero-cta a { width: 100% !important; text-align: center !important; }
+          .report-includes-grid { grid-template-columns: 1fr 1fr !important; gap: 20px 16px !important; }
+          .pricing-grid { grid-template-columns: 1fr !important; }
+          .features-grid { grid-template-columns: 1fr !important; }
+          .registries-grid { grid-template-columns: 1fr !important; }
+          .target-grid { grid-template-columns: 1fr !important; }
+          .footer-bottom { justify-content: center !important; text-align: center !important; }
         }
         @media (min-width: 769px) {
           .desktop-nav { display: flex !important; }
@@ -253,7 +263,7 @@ export default function LandingPage() {
       </nav>
 
       {/* HERO */}
-      <section style={{ paddingTop: 140, paddingBottom: 80, position: "relative", overflow: "hidden" }}>
+      <section style={{ paddingTop: 140, paddingBottom: 80, position: "relative", overflow: "hidden" }} className="hero-pad">
         <div style={{ position: "absolute", top: -200, right: -100, width: 500, height: 500, borderRadius: "50%", background: "var(--accent)", opacity: 0.06, filter: "blur(80px)" }} />
         <div style={{ position: "absolute", top: 100, left: -150, width: 400, height: 400, borderRadius: "50%", background: "var(--accent)", opacity: 0.04, filter: "blur(60px)" }} />
 
@@ -270,7 +280,7 @@ export default function LandingPage() {
             {t("home.heroSubtitle")}
           </p>
 
-          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }} className="hero-cta">
             <Link href="/register" style={{ background: "var(--accent)", color: "var(--accent-button-text)", padding: "16px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, boxShadow: "var(--shadow-lg)" }}>
               {t("home.ctaStart")}
             </Link>
@@ -296,13 +306,13 @@ export default function LandingPage() {
       </section>
 
       {/* FEATURES */}
-      <section id="funkcie" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }}>
+      <section id="funkcie" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }} className="section-pad">
         <div style={{ textAlign: "center", marginBottom: 60 }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Čo správa obsahuje</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Konkrétne overenia a výstupy v jednom dokumente.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }} className="features-grid">
           {[
             {
               icon: "🔎",
@@ -334,7 +344,7 @@ export default function LandingPage() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how" style={{ padding: "80px 24px", background: "var(--bg-subtle)", scrollMarginTop: 80 }}>
+      <section id="how" style={{ padding: "80px 24px", background: "var(--bg-subtle)", scrollMarginTop: 80 }} className="section-pad">
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 60 }}>
             <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.howItWorks")}</h2>
@@ -395,7 +405,7 @@ export default function LandingPage() {
       </section>
 
       {/* REGISTRIES — Accordion */}
-      <section id="registre" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }}>
+      <section id="registre" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }} className="section-pad">
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Pokryté registre</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Všetky zdroje v jednom reporte, zoskupené podľa oblasti.</p>
@@ -425,7 +435,7 @@ export default function LandingPage() {
         </div>
 
         {showRegistries && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "stretch" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "stretch" }} className="registries-grid">
             {[
               {
                 icon: "🏢",
@@ -478,13 +488,13 @@ export default function LandingPage() {
       </section>
 
       {/* PRE KOHO */}
-      <section style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto" }}>
+      <section style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto" }} className="section-pad">
         <div style={{ textAlign: "center", marginBottom: 60 }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.whoIsItFor")}</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Nástroj pre profesionálov, ktorí potrebujú rýchly a spoľahlivý due diligence.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }} className="target-grid">
           {[
             {
               icon: "🏢",
@@ -514,7 +524,7 @@ export default function LandingPage() {
       </section>
 
       {/* UKÁŽKA REPORTU — CTA */}
-      <section style={{ padding: "80px 24px", background: "var(--bg-subtle)" }}>
+      <section style={{ padding: "80px 24px", background: "var(--bg-subtle)" }} className="section-pad">
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Ukážka reportu</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto 32px" }}>Pozrite si vzor vygenerovaného PDF reportu — titulná stránka, finančná analýza, právny posudok a Verifa Score.</p>
@@ -525,7 +535,7 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section style={{ padding: "80px 24px", maxWidth: 900, margin: "0 auto" }}>
+      <section style={{ padding: "80px 24px", maxWidth: 900, margin: "0 auto" }} className="section-pad">
         <div style={{ textAlign: "center", marginBottom: 60 }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.faqTitle")}</h2>
         </div>
@@ -547,7 +557,7 @@ export default function LandingPage() {
       </section>
 
       {/* PRICING */}
-      <section id="cennik" style={{ padding: "80px 24px", background: "var(--bg-subtle)", scrollMarginTop: 80 }}>
+      <section id="cennik" style={{ padding: "80px 24px", background: "var(--bg-subtle)", scrollMarginTop: 80 }} className="section-pad">
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 60 }}>
             <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.navPricing")}</h2>
@@ -556,7 +566,7 @@ export default function LandingPage() {
           {/* Čo obsahuje každý report */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "40px 32px", marginBottom: 48 }}>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 32, textAlign: "center" }}>Čo obsahuje každý report?</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style={{ gap: "28px 20px" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 report-includes-grid" style={{ gap: "28px 20px" }}>
               {reportIncludes.map((item) => (
                 <div key={item.main} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                   <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, marginTop: 2 }}>✓</span>
@@ -569,7 +579,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5" style={{ alignItems: "stretch" }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pricing-grid" style={{ alignItems: "stretch" }}>
             {pricingPlans.map((plan) => (
               <div key={plan.name} style={{ background: "var(--surface)", border: plan.highlighted ? "2px solid var(--accent)" : "1px solid var(--border)", borderRadius: 16, padding: 28, position: "relative", boxShadow: plan.highlighted ? "var(--shadow-lg)" : "var(--shadow-sm)" }}>
                 {plan.highlighted && (
@@ -614,7 +624,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section style={{ padding: "80px 24px" }}>
+      <section style={{ padding: "80px 24px" }} className="section-pad">
         <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 24, padding: "60px 40px", position: "relative", overflow: "hidden" }} className="cta-card">
           <div style={{ position: "absolute", top: -100, right: -50, width: 300, height: 300, borderRadius: "50%", background: "var(--accent)", opacity: 0.05, filter: "blur(60px)" }} />
           <h2 style={{ fontSize: "clamp(28px, 4vw, 36px)", fontWeight: 800, marginBottom: 16 }}>Pripravený preveriť svojho partnera?</h2>
@@ -626,7 +636,7 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: "1px solid var(--border)", padding: "40px 24px" }}>
+      <footer style={{ borderTop: "1px solid var(--border)", padding: "40px 24px" }} className="section-pad">
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 32 }} className="footer-cols">
           <div>
             <div style={{ marginBottom: 12 }}>
@@ -658,7 +668,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div style={{ maxWidth: 1200, margin: "32px auto 0", paddingTop: 24, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ maxWidth: 1200, margin: "32px auto 0", paddingTop: 24, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }} className="footer-bottom">
           <p style={{ fontSize: 12, color: "var(--text-muted)" }}>© {new Date().getFullYear()} Verifa.sk — {t("home.rights")}</p>
         </div>
       </footer>
