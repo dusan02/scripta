@@ -14,7 +14,7 @@ const landingJsonLd = {
           "@type": "Offer",
           price: "14.00",
           priceCurrency: "EUR",
-          description: "Štart — 1 report jednorazovo",
+          description: "PAYG 1 — 1 report jednorazovo",
         },
         {
           "@type": "Offer",

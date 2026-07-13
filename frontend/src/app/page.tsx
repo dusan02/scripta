@@ -38,7 +38,7 @@ export default function LandingPage() {
 
   const pricingPlans = [
     {
-      name: "Štart",
+      name: "PAYG 1",
       subtitle: "Komplexné preverenie firmy",
       credits: "1 report",
       price: "14 €",

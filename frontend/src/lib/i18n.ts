@@ -167,6 +167,7 @@ const sk: Dict = {
   "pricing.presmerovanie": "Presmerovanie…",
   "pricing.checkoutChyba": "Chyba pri platobnom procese.",
   "pricing.start": "Štart",
+  "pricing.payg1": "PAYG 1",
   "pricing.payg5": "Pay-as-you-go 5",
   "pricing.payg20": "Pay-as-you-go 20",
   "pricing.freelance": "Freelance",
@@ -190,6 +191,7 @@ const sk: Dict = {
   "pricing.incPdfShare": "PDF report pripravený na zdieľanie",
   // ── Plan subtitles ──
   "pricing.startSubtitle": "Jednorazové preverenie firmy",
+  "pricing.payg1Subtitle": "Jednorazové preverenie firmy",
   "pricing.payg5Subtitle": "5 reportov bez záväzku",
   "pricing.payg20Subtitle": "20 reportov s zľavou",
   "pricing.freelanceSubtitle": "Pre freelancerov a malé projekty",
@@ -685,6 +687,7 @@ const en: Dict = {
   "pricing.incPdfShare": "PDF report ready for sharing",
   // ── Plan subtitles ──
   "pricing.startSubtitle": "One-time company verification",
+  "pricing.payg1Subtitle": "One-time company verification",
   "pricing.payg5Subtitle": "5 reports, no commitment",
   "pricing.payg20Subtitle": "20 reports with discount",
   "pricing.freelanceSubtitle": "For freelancers and small projects",
@@ -1180,6 +1183,7 @@ const de: Dict = {
   "pricing.incPdfShare": "PDF-Bericht zum Teilen bereit",
   // ── Plan subtitles ──
   "pricing.startSubtitle": "Einmalige Unternehmensprüfung",
+  "pricing.payg1Subtitle": "Einmalige Unternehmensprüfung",
   "pricing.payg5Subtitle": "5 Berichte ohne Bindung",
   "pricing.payg20Subtitle": "20 Berichte mit Rabatt",
   "pricing.freelanceSubtitle": "Für Freelancer und kleine Projekte",

@@ -66,8 +66,8 @@ const REPORT_INCLUDES = [
 const PACKAGES = [
   {
     id: "start",
-    nameKey: "pricing.start",
-    subtitleKey: "pricing.startSubtitle",
+    nameKey: "pricing.payg1",
+    subtitleKey: "pricing.payg1Subtitle",
     reports: 1,
     price: "14",
     pricePerReport: "14,00",
