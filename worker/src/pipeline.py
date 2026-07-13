@@ -607,57 +607,6 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
     _vs_count = len(vs_files)
     logger.info(f"[{get_correlation_id() or '-'}] Files: IFRS={_ifrs_count} VS={_vs_count}")
 
-    def _merge_financial_data(base: CompanyFinancialExtraction, new: CompanyFinancialExtraction, base_chunk_id: int, new_chunk_id: int) -> CompanyFinancialExtraction:
-        if base is None: return new
-        if new is None: return base
-        for field in base.metriky.model_fields:
-            base_val = getattr(base.metriky, field)
-            new_val = getattr(new.metriky, field)
-            
-            if new_val is not None:
-                if base_val is None:
-                    setattr(base.metriky, field, new_val)
-                elif base_val != new_val:
-                    # 1. Hlavná súvaha > Poznámky (predpokladáme, že prvé 2 chunky sú výkazy)
-                    base_is_main = base_chunk_id <= 2
-                    new_is_main = new_chunk_id <= 2
-                    
-                    if base_is_main and not new_is_main:
-                        continue
-                    elif new_is_main and not base_is_main:
-                        setattr(base.metriky, field, new_val)
-                        continue
-                        
-                    # 2. Vyššia granularita
-                    def count_decimals(v):
-                        if isinstance(v, float):
-                            s = str(v)
-                            return len(s.split('.')[1]) if '.' in s and s.split('.')[1] != '0' else 0
-                        return 0
-                    
-                    base_dec = count_decimals(base_val)
-                    new_dec = count_decimals(new_val)
-                    if new_dec > base_dec:
-                        setattr(base.metriky, field, new_val)
-                    elif base_dec > new_dec:
-                        continue
-                    else:
-                        # 3. Posledný výskyt
-                        logger.warning(f"Konflikt '{field}': chunk {base_chunk_id} ({base_val}) vs chunk {new_chunk_id} ({new_val}). Beriem {new_val}.")
-                        setattr(base.metriky, field, new_val)
-                        
-        if base.audit and new.audit:
-            # Ak base má default ("Bez výhrad") a new našiel iný názor, prepíšeme ho
-            if base.audit.nazor_auditora == "Bez výhrad" and new.audit.nazor_auditora != "Bez výhrad":
-                base.audit.nazor_auditora = new.audit.nazor_auditora
-                base.audit.auditor_vyhrady_text = new.audit.auditor_vyhrady_text
-            
-            # Ak new zistil going concern riziko, berieme ho
-            if not base.audit.going_concern_riziko and new.audit.going_concern_riziko:
-                base.audit.going_concern_riziko = new.audit.going_concern_riziko
-            
-        return base
-
     async def _process_ifrs(file_path: str, sem: asyncio.Semaphore):
         """Spracuje jeden IFRS PDF: pošle celé PDF do Gemini v jednom volaní (Flash má 1M token context)."""
         file_name = os.path.basename(file_path)
@@ -743,6 +692,39 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
             except Exception as e:
                 logger.error(f"Chyba pri spracovaní súboru {file_name}: {e}", exc_info=True)
 
+    # Notes výsledok — LLM beží paralelne, ale DB save je odložený až po IFRS save
+    # (save_notes_to_db vyžaduje existujúci FinancialStatement záznam).
+    _notes_result: dict = {}
+
+    async def _process_notes(sem: asyncio.Semaphore):
+        """Footnotes Analyst: extrahuje poznámky pre najnovší rok (fallback na staršie).
+        Beží paralelne s IFRS/VS extrakciou. DB save je odložený (viď _notes_result)."""
+        sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
+        notes_attempts = 0
+        for fp in sorted_ifrs:
+            if notes_attempts >= 2:
+                break
+            year = _extract_year_from_fn(fp)
+            file_name = os.path.basename(fp)
+            sliced_notes_path = slice_notes_pdf(fp)
+            if sliced_notes_path:
+                notes_attempts += 1
+                logger.info(f"[NOTES] Spracovávam poznámky pre rok {year} z {file_name}")
+                async with sem:
+                    notes_data = await safe_llm_call(
+                        extract_notes_risks, sliced_notes_path,
+                        model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}",
+                        report_language=report_language,
+                    )
+                try:
+                    os.remove(sliced_notes_path)
+                except OSError:
+                    pass
+                if notes_data:
+                    _notes_result["year"] = year
+                    _notes_result["data"] = notes_data
+                    break  # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
+
     # Vytvorenie asynchrónnej úlohy pre Vestník, aby bežala paralelne
     async def _process_vestnik():
         logger.info(f"Spracovávam Obchodný vestník pre IČO: {ico}")
@@ -756,13 +738,15 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
 
     vestnik_task = asyncio.create_task(_process_vestnik())
 
-    # Paralelné spracovanie všetkých PDF naraz (IFRS + VS)
+    # Paralelné spracovanie všetkých PDF naraz (IFRS + VS + Notes)
     # Semaphore(10) garantuje max 10 súčasných LLM volaní — bezpečné pre paid Gemini API
     pdf_tasks = [_process_ifrs(fp, _GLOBAL_LLM_SEM) for fp in ifrs_files] + \
                 [_process_vs(fp, _GLOBAL_LLM_SEM) for fp in vs_files]
+    if ifrs_files:
+        pdf_tasks.append(_process_notes(_GLOBAL_LLM_SEM))
     if pdf_tasks:
         await update_ai_status(report_request_id, "ai.semantic_narrative", _remaining_eta(_t_start, pipeline_baseline))
-        with PhaseTimer(f"LLM extrakcia ({len(pdf_tasks)} files)"):
+        with PhaseTimer(f"LLM extrakcia ({len(pdf_tasks)} tasks)"):
             await asyncio.gather(*pdf_tasks)
 
     # Cross-year duplicate detection pre osobné náklady
@@ -778,32 +762,12 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
         except Exception as e:
             logger.error(f"[IFRS SAVE ERROR] rok={data.metriky.rok_zavierky}: {e}", exc_info=True)
 
-    # 3b. Extrakcia poznámok (len pre najnovší rok, s fallbackom na staršie ak zlyhá)
-    await update_ai_status(report_request_id, "ai.forensic_notes", _remaining_eta(_t_start, pipeline_baseline))
-    sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
-    notes_attempts = 0
-    for fp in sorted_ifrs:
-        if notes_attempts >= 2:
-            break
-        year = _extract_year_from_fn(fp)
-        file_name = os.path.basename(fp)
-        sliced_notes_path = slice_notes_pdf(fp)
-        if sliced_notes_path:
-            notes_attempts += 1
-            logger.info(f"[NOTES] Spracovávam poznámky pre najnovší rok {year} z {file_name}")
-            notes_data = await safe_llm_call(
-                extract_notes_risks, sliced_notes_path,
-                model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}",
-                report_language=report_language,
-            )
-            if notes_data:
-                await save_notes_to_db(ico, year, notes_data)
-            try:
-                os.remove(sliced_notes_path)
-            except OSError:
-                pass
-            if notes_data:
-                break # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
+    # Odložený notes DB save — teraz už FinancialStatement existuje (viď _process_notes)
+    if _notes_result.get("data"):
+        try:
+            await save_notes_to_db(ico, _notes_result["year"], _notes_result["data"])
+        except Exception as e:
+            logger.error(f"[NOTES SAVE ERROR] rok={_notes_result.get('year')}: {e}", exc_info=True)
 
     await update_ai_status(report_request_id, "ai.risk_analysis", _remaining_eta(_t_start, pipeline_baseline))
     
