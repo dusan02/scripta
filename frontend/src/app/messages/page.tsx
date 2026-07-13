@@ -16,12 +16,14 @@ const TYPE_LABELS: Record<string, string> = {
   ANNOUNCEMENT: "messages.novinka",
   REPLY: "messages.odpoved",
   SYSTEM: "messages.system",
+  USER: "messages.odoslane",
 };
 
 const TYPE_COLORS: Record<string, string> = {
   ANNOUNCEMENT: "var(--accent)",
   REPLY: "var(--info-text)",
   SYSTEM: "var(--text-muted)",
+  USER: "var(--success)",
 };
 
 export default function MessagesPage() {
@@ -93,6 +95,11 @@ export default function MessagesPage() {
         setShowCompose(false);
         setSentOk(true);
         setTimeout(() => setSentOk(false), 3000);
+        // Refresh sent messages list
+        fetch("/api/messages/sent")
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => { if (data) setSentMessages(data.messages || []); })
+          .catch(() => {});
       }
     } catch (error) {
       console.error("Failed to send message", error);
