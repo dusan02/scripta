@@ -44,10 +44,10 @@ class SpDlzniciScraper(BaseScraper):
             # Skontrolovať či nás zablokovali
             body_text = await page.inner_text("body")
             if "Server je nedostupný" in body_text:
-                logger.error(f"[{self.source_type}] SP zablokovala prístup (geo/bot detekcia).")
+                logger.error(f"[{self.source_type}] SP — nedostupné (geo/bot obmedzenie).")
                 return self._make_result(
                     status="UNAVAILABLE",
-                    status_message="Sociálna poisťovňa zablokovala prístup (bot detekcia).",
+                    status_message="Sociálna poisťovňa — nemám prístup.",
                 )
 
             # Vyplniť IČO — selektor podľa Drupal form: input[name="ico"]
