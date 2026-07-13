@@ -166,7 +166,7 @@ export default function LandingPage() {
           position: "fixed",
           top: 0, left: 0, right: 0,
           zIndex: 100,
-          background: scrolled ? "var(--surface)" : "transparent",
+          background: scrolled ? "var(--surface)" : "var(--bg)",
           borderBottom: scrolled ? "1px solid var(--border)" : "1px solid transparent",
           transition: "all 0.3s ease",
           backdropFilter: scrolled ? "blur(12px)" : "none",
