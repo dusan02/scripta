@@ -204,7 +204,8 @@ class CrzScraper(BaseScraper):
         )
 
     async def _collect_all_rows(self, page: Page) -> tuple[list[str], int]:
-        """Zbiera všetky riadky tabuľky cez pagination stránky. Vráti (rows_html, page_count)."""
+        """Zbiera riadky tabuľky cez pagination stránky, max 30 najnovších zmlúv."""
+        MAX_CONTRACTS = 30
         all_rows_html: list[str] = []
         page_num = 1
 
@@ -217,6 +218,11 @@ class CrzScraper(BaseScraper):
             if rows_html:
                 all_rows_html.extend(rows_html)
                 logger.info(f"[{self.source_type}] Strana {page_num}: {len(rows_html)} riadkov (celkom {len(all_rows_html)})")
+
+            if len(all_rows_html) >= MAX_CONTRACTS:
+                all_rows_html = all_rows_html[:MAX_CONTRACTS]
+                logger.info(f"[{self.source_type}] Dosiahnutý limit {MAX_CONTRACTS} zmlúv — zastavujem pagination.")
+                break
 
             next_link = await self._find_next_page_link(page, page_num)
             if not next_link:
