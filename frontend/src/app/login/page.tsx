@@ -7,8 +7,12 @@ import { useLang } from "@/components/LanguageProvider";
 import { signIn } from "next-auth/react";
 import Logo from "@/components/Logo";
 
+import { useTheme } from "@/components/ThemeProvider";
+
 export default function LoginPage() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const { lang, setLang, t } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,7 +43,7 @@ export default function LoginPage() {
 
       if (res?.error) {
         if (res.error === "EMAIL_NOT_VERIFIED") {
-          setError("Váš účet ešte nebol aktivovaný. Skontrolujte svoj e-mail pre verifikačný odkaz.");
+          setError(t("login.emailNotVerified"));
         } else {
           setError(t("login.nespravne"));
         }
@@ -72,7 +76,7 @@ export default function LoginPage() {
         position: "relative"
       }}
     >
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.3)" }} />
+      <div style={{ position: "absolute", inset: 0, background: isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.15)" }} />
 
       {/* Language Switcher */}
       <div style={{ position: "absolute", top: 24, right: 24, zIndex: 20, display: "flex", gap: "8px" }}>
@@ -127,9 +131,9 @@ export default function LoginPage() {
                 borderRadius: "8px",
                 fontSize: "13px",
                 marginBottom: "24px",
-                background: "#FEF2F2",
-                border: "1px solid #F87171",
-                color: "#DC2626",
+                background: "var(--danger-bg)",
+                border: "1px solid var(--danger)",
+                color: "var(--danger)",
               }}
               role="alert"
             >

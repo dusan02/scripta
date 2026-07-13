@@ -21,6 +21,8 @@ export default function LandingPage() {
 
   const darkMode = theme === "dark";
 
+  const [showRegistries, setShowRegistries] = useState(false);
+
   const reportIncludes = [
     // Row 1: Col1, Col2, Col3, Col4
     { main: "Komplexná lustrácia registrov", sub: "ORSR, RPVS, RÚZ a ďalšie" },
@@ -241,60 +243,32 @@ export default function LandingPage() {
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Konkrétne overenia a výstupy v jednom dokumente.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
           {[
             {
               icon: "🔎",
-              title: "Overenie v registroch",
-              items: [
-                "Má firma nedoplatky na daniach — daňový dlžník",
-                "Platí sociálne a zdravotné poistné (Dôvera, VŠZP, Union)",
-                "Vedú sa voči nej exekúcie alebo konkurzné konanie",
-                "Eviduje sa v registri partnerov verejného sektora",
-                "Je v registri diskvalifikovaných osôb",
-                "Záložné práva a dražby nehnuteľností",
-                "Záznamy v Obchodnom vestníku (konkurzy, zmeny štatutárov)",
-              ],
+              title: "Zlúčené dáta z 25+ registrov",
+              desc: "ORSR, RPVS, RÚZ, insolvenčné registre, DPH, exekúcie, záložné práva a ďalšie — všetko v jednom PDF.",
             },
             {
               icon: "📊",
-              title: "Finančná analýza",
-              items: [
-                "Automatická extrakcia dát zo súvahy, výkazu ziskov a strát a cash flow",
-                "Predikcia finančného zdravia a rizika úpadku (Altman Z-Score)",
-                "Komplexné posúdenie likvidity, zadlženosti, rentability a marží",
-                "Sledovanie medziročných trendov vývoja tržieb a ziskovosti (CAGR)",
-                "Vyhodnotenie kvality zisku a pracovného cyklu podniku",
-              ],
+              title: "AI finančná analýza",
+              desc: "5-ročná história, Altman Z-Score, Piotroski F-Score, predikcia úpadku a forenzná detekcia rizík.",
             },
             {
               icon: "📋",
-              title: "Posudok a Verifa Score",
-              items: [
-                "Zhodnotenie silných a slabých stránok firmy",
-                "Identifikácia právnych a finančných rizík",
-                "Správy audítorov a poznámky pod čiarou vstupujú do posudku",
-                "Subjektívne Verifa Score (0-100) podľa vlastných algoritmov",
-                "Kategória rizika: AAA / A / B / C",
-                "Zhrnutie odporúčaní pre ďalšie kroky",
-              ],
+              title: "Predikcia rizika a Verifa Score",
+              desc: "Záverečný posudok s Verifa Score (0-100), kategóriou rizika a odporúčaniami pre ďalšie kroky.",
             },
           ].map((col) => (
             <div key={col.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
                   {col.icon}
                 </div>
                 <h3 style={{ fontSize: 17, fontWeight: 700 }}>{col.title}</h3>
               </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-                {col.items.map((item) => (
-                  <li key={item} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, marginTop: 1 }}>✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{col.desc}</p>
             </div>
           ))}
         </div>
@@ -361,62 +335,87 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* REGISTRIES */}
+      {/* REGISTRIES — Accordion */}
       <section id="registre" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }}>
-        <div style={{ textAlign: "center", marginBottom: 60 }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
           <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Pokryté registre</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Všetky zdroje v jednom reporte, zoskupené podľa oblasti.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "stretch" }}>
-          {[
-            {
-              icon: "🏢",
-              category: "Základné firemné a právne registre",
-              items: ["Obchodný register SR (ORSR)", "Živnostenský register (ŽRSR)", "Register právnických osôb (RPO)", "Register partnerov ver. sektora (RPVS)", "Obchodný vestník"],
-            },
-            {
-              icon: "⚠️",
-              category: "Insolvencia, exekúcie a dlhy",
-              items: ["Register úpadcov", "Poverenia na exekúcie", "Daňoví dlžníci", "Sociálna poisťovňa", "VšZP", "Dôvera", "UNION"],
-            },
-            {
-              icon: "💰",
-              category: "Finančná správa a DPH",
-              items: ["Index daň. spoľahlivosti", "Platitelia DPH", "Zrušenie DPH", "Vymazaní z DPH", "Nadmerný odpočet", "Daň z príjmov PO", "Reg. k dani z príjmov"],
-            },
-            {
-              icon: "⚖️",
-              category: "Súdy a sankcie",
-              items: ["Register diskvalifikácií"],
-            },
-            {
-              icon: "🏛️",
-              category: "Financie a štátne zákazky",
-              items: ["Účtovné závierky (RÚZ)", "Register zmlúv (CRZ)", "Verejné obstarávanie (UVO)"],
-            },
-            {
-              icon: "🛡️",
-              category: "Majetok a práva",
-              items: ["Záložné práva", "Register dražieb"],
-            },
-          ].map((group) => (
-            <div key={group.category} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column" }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 16 }}>
-                {group.icon}
-              </div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{group.category}</h3>
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                {group.items.map((r) => (
-                  <li key={r} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, marginTop: 1 }}>✓</span>
-                    {r}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div style={{ textAlign: "center", marginBottom: showRegistries ? 40 : 0 }}>
+          <button
+            onClick={() => setShowRegistries((v) => !v)}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: "14px 28px",
+              fontSize: 15,
+              fontWeight: 600,
+              color: "var(--text)",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              transition: "border-color 0.2s",
+            }}
+          >
+            {showRegistries ? "Skryť zoznam registrov" : "Pozrite si zoznam všetkých 25+ prehľadávaných registrov"}
+            <span style={{ color: "var(--accent)", fontSize: 18, transition: "transform 0.2s", display: "inline-block", transform: showRegistries ? "rotate(180deg)" : "none" }}>⌄</span>
+          </button>
         </div>
+
+        {showRegistries && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "stretch" }}>
+            {[
+              {
+                icon: "🏢",
+                category: "Základné firemné a právne registre",
+                items: ["Obchodný register SR (ORSR)", "Živnostenský register (ŽRSR)", "Register právnických osôb (RPO)", "Register partnerov ver. sektora (RPVS)", "Obchodný vestník"],
+              },
+              {
+                icon: "⚠️",
+                category: "Insolvencia, exekúcie a dlhy",
+                items: ["Register úpadcov", "Poverenia na exekúcie", "Daňoví dlžníci", "Sociálna poisťovňa", "VšZP", "Dôvera", "Union"],
+              },
+              {
+                icon: "💰",
+                category: "Finančná správa a DPH",
+                items: ["Index daň. spoľahlivosti", "Platitelia DPH", "Zrušenie DPH", "Vymazaní z DPH", "Nadmerný odpočet", "Daň z príjmov PO", "Reg. k dani z príjmov"],
+              },
+              {
+                icon: "⚖️",
+                category: "Súdy a sankcie",
+                items: ["Register diskvalifikácií"],
+              },
+              {
+                icon: "🏛️",
+                category: "Financie a štátne zákazky",
+                items: ["Účtovné závierky (RÚZ)", "Register zmlúv (CRZ)", "Verejné obstarávanie (ÚVO)"],
+              },
+              {
+                icon: "🛡️",
+                category: "Majetok a práva",
+                items: ["Záložné práva", "Register dražieb"],
+              },
+            ].map((group) => (
+              <div key={group.category} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column" }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 16 }}>
+                  {group.icon}
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{group.category}</h3>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {group.items.map((r) => (
+                    <li key={r} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, marginTop: 1 }}>✓</span>
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* PRE KOHO */}
@@ -426,52 +425,22 @@ export default function LandingPage() {
           <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Nástroj pre profesionálov, ktorí potrebujú rýchly a spoľahlivý due diligence.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
           {[
             {
-              icon: "⚖️",
-              title: "Právnici a advokáti",
-              desc: "Rýchla analýza protistrany pred uzatvorením zmlúv, previerka dodávateľov a klientov.",
+              icon: "🏢",
+              title: "Pre firmy a obchodníkov",
+              desc: "Previerka obchodných partnerov, dodávateľov a protistrán pred uzavretím zmlúv, fúziou alebo nadobudnutím podielov.",
             },
             {
-              icon: "📊",
-              title: "Audítori a účtovníci",
-              desc: "Komplexný prehľad o finančnom stave klienta z viacerých zdrojov v jednom reporte.",
+              icon: "⚖️",
+              title: "Pre právnikov a účtovníkov",
+              desc: "Komplexný due diligence report pre klientov — finančný a právny prehľad z 25+ registrov v jednom PDF.",
             },
             {
               icon: "💼",
-              title: "Investori a venture capital",
-              desc: "Hĺbková analýza potenciálnych investícií s Verifa Score a rizikovým profilom.",
-            },
-            {
-              icon: "🏠",
-              title: "Realitní makléri",
-              desc: "Preverenie bonity kupujúcich a predávajúcich pri realitných transakciách.",
-            },
-            {
-              icon: "🏢",
-              title: "Obchodné spoločnosti",
-              desc: "Due diligence obchodných partnerov pred nadobudnutím podielov, fúziou alebo zlúčením.",
-            },
-            {
-              icon: "🤝",
-              title: "Odberatelia a dodávatelia",
-              desc: "Overenie bonity protistrany pred uzavretím dlhodobých zmlúv a dodávateľských vzťahov.",
-            },
-            {
-              icon: "🏦",
-              title: "Banky a finančné inštitúcie",
-              desc: "Rýchle posúdenie úverového rizika klienta z verejných zdrojov pred schválením financovania.",
-            },
-            {
-              icon: "🏛️",
-              title: "Verejný sektor",
-              desc: "Previerka dodávateľov pri verejných obstarávaniach a kontrola partnerov verejného sektora.",
-            },
-            {
-              icon: "🛡️",
-              title: "Poisťovne",
-              desc: "Posúdenie rizikovosti klienta pred uzavretím poistnej zmluvy a likvidáciou škôd.",
+              title: "Pre investorov a finančný sektor",
+              desc: "Hĺbková analýza bonity, predikcia úpadku a rizikový profil pred investíciou, úverom alebo poistnou zmluvou.",
             },
           ].map((item) => (
             <div key={item.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, transition: "transform 0.2s ease, box-shadow 0.2s ease" }}>
@@ -645,7 +614,6 @@ export default function LandingPage() {
 
         <div style={{ maxWidth: 1200, margin: "32px auto 0", paddingTop: 24, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <p style={{ fontSize: 12, color: "var(--text-muted)" }}>© {new Date().getFullYear()} Verifa.sk — {t("home.rights")}</p>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>Dôverný dokument pre vnútornú potrebu. Nenahrádza právne a daňové poradenstvo.</p>
         </div>
       </footer>
     </div>

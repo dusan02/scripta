@@ -195,7 +195,7 @@ export default function RegisterPage() {
             padding: "32px", 
             width: "100%", 
             boxSizing: "border-box", 
-            background: "#FFFFFF", 
+            background: "var(--surface)", 
             borderRadius: "16px",
             boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
             border: "1px solid",

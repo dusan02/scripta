@@ -159,11 +159,11 @@ export default function DocumentsPage() {
       {/* Back link */}
       <div className="mt-12">
         <Link
-          href="/dashboard"
+          href="/"
           className="text-sm font-medium hover:underline"
           style={{ color: "var(--accent)" }}
         >
-          ← {t("nav.overenie")}
+          ← {t("nav.dokumenty")}
         </Link>
       </div>
     </div>

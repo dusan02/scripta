@@ -90,6 +90,7 @@ const sk: Dict = {
   "login.prihlasenie": "Prihlásenie do platformy",
   "login.zadajteUdaje": "Zadajte svoje prihlasovacie údaje.",
   "login.nespravne": "Nesprávny e-mail alebo heslo.",
+  "login.emailNotVerified": "Váš účet ešte nebol aktivovaný. Skontrolujte svoj e-mail pre verifikačný odkaz.",
   "login.zlyhalo": "Prihlásenie zlyhalo. Skúste znova.",
   "login.neocakavana": "Neočakávaná chyba. Skúste znova neskôr.",
   "login.email": "E-mail",
@@ -99,7 +100,7 @@ const sk: Dict = {
   "login.prihlasitSa": "Prihlásiť sa",
   "login.nemateUcet": "Nemáte účet?",
   "login.zaregistrovatSa": "Zaregistrujte sa",
-  "login.urceneAdvokatom": "Systém je určený výhradne pre advokátov.",
+  "login.urceneAdvokatom": "Nástroj pre právnikov, účtovníkov a finančných profesionálov.",
   "login.kontakt": "Kontakt",
   "login.zapamatatSiMa": "Zapamätať si ma",
   "login.alebo": "Alebo",
@@ -124,7 +125,7 @@ const sk: Dict = {
   "register.velmiSilne": "Veľmi silné",
   "register.uzMateUcet": "Už máte účet?",
   "register.prihlasitSa": "Prihlásiť sa",
-  "register.urceneAdvokatom": "Systém je určený výhradne pre advokátov.",
+  "register.urceneAdvokatom": "Nástroj pre právnikov, účtovníkov a finančných profesionálov.",
   "register.kontakt": "Kontakt",
 
   // ── Forgot password ──
@@ -462,7 +463,7 @@ const sk: Dict = {
   "home.faq4q": "Sú dáta GDPR kompatibilné?",
   "home.faq4a": "Áno, spracúvame dáta v súlade s GDPR. Viac informácií nájdete v našich Podmienkach používania.",
   "home.faq5q": "Čo ak report zlyhá?",
-  "home.faq5a": "Ak sa nepodarí získať dáta z niektorého registra, refundujeme vám kredit za tento zdroj.",
+  "home.faq5a": "Ak z dôvodu technického výpadku hlavných štátnych registrov nebude možné report vygenerovať, vrátime vám plnú sumu alebo pripíšeme kredit na nový report.",
   "home.navFeatures": "Funkcie",
   "home.navPricing": "Cenník",
   "home.ctaStart": "Začať bez záväzkov →",
@@ -494,7 +495,7 @@ const sk: Dict = {
   "report.phaseCompiling": "PDF kompilácia",
 
   // ── Documents page ──
-  "nav.dokumenty": "Dokumenty",
+  "nav.dokumenty": "Ukážka reportu",
   "docs.title": "Dokumenty",
   "docs.subtitle": "Príručky, vzory a právne dokumenty",
   "docs.manualTitle": "Používateľská príručka",
@@ -587,6 +588,7 @@ const en: Dict = {
   "login.prihlasenie": "Sign in to platform",
   "login.zadajteUdaje": "Enter your login credentials.",
   "login.nespravne": "Incorrect email or password.",
+  "login.emailNotVerified": "Your account has not been activated yet. Check your email for the verification link.",
   "login.zlyhalo": "Sign in failed. Try again.",
   "login.neocakavana": "Unexpected error. Try again later.",
   "login.email": "Email",
@@ -596,7 +598,7 @@ const en: Dict = {
   "login.prihlasitSa": "Sign in",
   "login.nemateUcet": "Don't have an account?",
   "login.zaregistrovatSa": "Sign up",
-  "login.urceneAdvokatom": "This system is exclusively for lawyers.",
+  "login.urceneAdvokatom": "A tool for lawyers, accountants and financial professionals.",
   "login.kontakt": "Contact",
   "login.zapamatatSiMa": "Remember me",
   "login.alebo": "Or",
@@ -621,7 +623,7 @@ const en: Dict = {
   "register.velmiSilne": "Very strong",
   "register.uzMateUcet": "Already have an account?",
   "register.prihlasitSa": "Sign in",
-  "register.urceneAdvokatom": "This system is exclusively for lawyers.",
+  "register.urceneAdvokatom": "A tool for lawyers, accountants and financial professionals.",
   "register.kontakt": "Contact",
 
   // ── Forgot password ──
@@ -959,7 +961,7 @@ const en: Dict = {
   "home.faq4q": "Is the data GDPR compliant?",
   "home.faq4a": "Yes, we process data in compliance with GDPR. For more information, see our Terms of Use.",
   "home.faq5q": "What if the report fails?",
-  "home.faq5a": "If we fail to retrieve data from a register, we refund your credit for that source.",
+  "home.faq5a": "If the report cannot be generated due to a technical outage of the main state registries, we will refund the full amount or credit your account for a new report.",
   "home.navFeatures": "Features",
   "home.navPricing": "Pricing",
   "home.ctaStart": "Start free →",
@@ -991,7 +993,7 @@ const en: Dict = {
   "report.phaseCompiling": "PDF compilation",
 
   // ── Documents page ──
-  "nav.dokumenty": "Documents",
+  "nav.dokumenty": "Sample Report",
   "docs.title": "Documents",
   "docs.subtitle": "Manuals, samples and legal documents",
   "docs.manualTitle": "User Manual",
@@ -1084,6 +1086,7 @@ const de: Dict = {
   "login.prihlasenie": "Anmeldung bei der Plattform",
   "login.zadajteUdaje": "Geben Sie Ihre Anmeldedaten ein.",
   "login.nespravne": "Falsche E-Mail oder Passwort.",
+  "login.emailNotVerified": "Ihr Konto wurde noch nicht aktiviert. Überprüfen Sie Ihre E-Mail auf den Verifizierungslink.",
   "login.zlyhalo": "Anmeldung fehlgeschlagen. Versuchen Sie es erneut.",
   "login.neocakavana": "Unerwarteter Fehler. Versuchen Sie es später erneut.",
   "login.email": "E-Mail",
@@ -1093,7 +1096,7 @@ const de: Dict = {
   "login.prihlasitSa": "Anmelden",
   "login.nemateUcet": "Kein Konto?",
   "login.zaregistrovatSa": "Registrieren",
-  "login.urceneAdvokatom": "Dieses System ist ausschließlich für Anwälte.",
+  "login.urceneAdvokatom": "Ein Werkzeug für Anwälte, Buchhalter und Finanzexperten.",
   "login.kontakt": "Kontakt",
   "login.zapamatatSiMa": "Angemeldet bleiben",
   "login.alebo": "Oder",
@@ -1118,7 +1121,7 @@ const de: Dict = {
   "register.velmiSilne": "Sehr stark",
   "register.uzMateUcet": "Schon ein Konto?",
   "register.prihlasitSa": "Anmelden",
-  "register.urceneAdvokatom": "Dieses System ist ausschließlich für Anwälte.",
+  "register.urceneAdvokatom": "Ein Werkzeug für Anwälte, Buchhalter und Finanzexperten.",
   "register.kontakt": "Kontakt",
 
   // ── Forgot password ──
@@ -1456,7 +1459,7 @@ const de: Dict = {
   "home.faq4q": "Sind die Daten DSGVO-konform?",
   "home.faq4a": "Ja, wir verarbeiten Daten DSGVO-konform. Weitere Informationen finden Sie in unseren Nutzungsbedingungen.",
   "home.faq5q": "Was passiert, wenn der Bericht fehlschlägt?",
-  "home.faq5a": "Wenn wir keine Daten aus einem Register abrufen können, erstatten wir Ihr Guthaben für diese Quelle.",
+  "home.faq5a": "Wenn der Bericht aufgrund eines technischen Ausfalls der wichtigsten Staatsregister nicht erstellt werden kann, erstatten wir den vollen Betrag oder schreiben Ihnen ein Guthaben für einen neuen Bericht gut.",
   "home.navFeatures": "Funktionen",
   "home.navPricing": "Preise",
   "home.ctaStart": "Kostenlos starten →",
@@ -1488,7 +1491,7 @@ const de: Dict = {
   "report.phaseCompiling": "PDF-Kompilierung",
 
   // ── Documents page ──
-  "nav.dokumenty": "Dokumente",
+  "nav.dokumenty": "Berichtmuster",
   "docs.title": "Dokumente",
   "docs.subtitle": "Handbücher, Muster und Rechtsdokumente",
   "docs.manualTitle": "Benutzerhandbuch",
