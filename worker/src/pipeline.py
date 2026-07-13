@@ -447,10 +447,31 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
         logger.info(f"Spúšťam Cross-Analysis + Chief Auditor pre IČO: {ico}. CompanyEvents z DB: {event_count}")
 
         # ── Cross-Analysis Agent (Flash) — krížová analýza, executive_summary + key_risk ──
+        # ZREDUKOVANÝ VSTUP: Cross-Analysis nepotrebuje raw IFRS/VS čísla (~25k chars).
+        # Trendy, pomery a Altman Z sú už agregované v analyza_trendov. Z výkazov berieme
+        # len narrativeRisk (going concern, red flags, synthesis) — to je pre krížovú analýzu kľúčové.
+        narrative_by_year = []
+        for stmt in company_dict.get("financialStatements", []):
+            nr = stmt.get("narrativeRisk")
+            if nr:
+                narrative_by_year.append({"rok": stmt.get("year"), "narrativeRisk": nr})
+
+        cross_input_dict = {
+            "ico": company_dict.get("ico"),
+            "name": company_dict.get("name"),
+            "naceText": company_dict.get("naceText"),
+            "analyza_trendov": company_dict.get("analyza_trendov", {}),
+            "narrativeRisk_by_year": narrative_by_year,
+            "vestnikEvents": company_dict.get("vestnikEvents", []),
+            "companyEvents": company_dict.get("companyEvents", []),
+        }
+        cross_input_json = json.dumps(cross_input_dict, default=str, ensure_ascii=False)
+        logger.info(f"Cross-Analysis vstup: {len(cross_input_json)} chars (redukovaný z {len(company_data)} chars)")
+
         cross_summary = ""
         try:
             cross_result = await safe_llm_call(
-                generate_cross_analysis, company_data,
+                generate_cross_analysis, cross_input_json,
                 model=_cfg.model_cross_analysis,
                 label="Cross-Analysis Agent",
                 report_language=report_language,
