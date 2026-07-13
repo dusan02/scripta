@@ -38,7 +38,7 @@ export default function LandingPage() {
 
   const pricingPlans = [
     {
-      name: "PAYG 1",
+      name: "1× Report",
       subtitle: "Komplexné preverenie firmy",
       credits: "1 report",
       price: "14 €",
@@ -52,7 +52,7 @@ export default function LandingPage() {
       highlighted: false,
     },
     {
-      name: "PAYG 5",
+      name: "5× Report",
       subtitle: "5 reportov bez záväzku",
       credits: "5 reportov",
       price: "59 €",
@@ -66,7 +66,7 @@ export default function LandingPage() {
       highlighted: false,
     },
     {
-      name: "PAYG 20",
+      name: "20× Report",
       subtitle: "20 reportov s zľavou",
       credits: "20 reportov",
       price: "199 €",
