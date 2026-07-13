@@ -549,7 +549,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20, alignItems: "stretch" }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5" style={{ alignItems: "stretch" }}>
             {pricingPlans.map((plan) => (
               <div key={plan.name} style={{ background: "var(--surface)", border: plan.highlighted ? "2px solid var(--accent)" : "1px solid var(--border)", borderRadius: 16, padding: 28, position: "relative", boxShadow: plan.highlighted ? "var(--shadow-lg)" : "var(--shadow-sm)" }}>
                 {plan.highlighted && (
