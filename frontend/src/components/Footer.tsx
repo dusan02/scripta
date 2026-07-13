@@ -9,6 +9,7 @@ export default function Footer() {
   const t = useT();
   
   if (
+    pathname === "/" ||
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/forgot-password" ||
