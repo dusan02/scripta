@@ -411,7 +411,6 @@ export default function ReportDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
-  const [downloadingBoth, setDownloadingBoth] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [etaCountdown, setEtaCountdown] = useState<number | null>(null);
   const etaRef = useRef<number | null>(null);
@@ -507,16 +506,6 @@ export default function ReportDetailPage() {
       toast.error("Sťahovanie CSV zlyhalo.");
     } finally {
       setDownloadingCsv(false);
-    }
-  };
-
-  const handleDownloadBoth = async () => {
-    setDownloadingBoth(true);
-    try {
-      await handleDownload();
-      await handleDownloadCsv();
-    } finally {
-      setDownloadingBoth(false);
     }
   };
 
@@ -879,11 +868,16 @@ export default function ReportDetailPage() {
                   </div>
                 </button>
 
+                {/* Download label */}
+                <p className="text-[15px] font-bold text-center mb-3" style={{ color: "var(--text)" }}>
+                  Stiahnuť report
+                </p>
+
                 {/* Download buttons row */}
                 <div className="flex gap-2 w-full max-w-[340px] mb-2">
                   <button
                     onClick={handleDownload}
-                    disabled={downloading || downloadingBoth}
+                    disabled={downloading}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-[13px] transition-all hover:brightness-110 active:brightness-95"
                     style={{
                       background: "var(--success)",
@@ -905,7 +899,7 @@ export default function ReportDetailPage() {
                   </button>
                   <button
                     onClick={handleDownloadCsv}
-                    disabled={downloadingCsv || downloadingBoth}
+                    disabled={downloadingCsv}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
                     style={{
                       border: "1px solid var(--border)",
@@ -928,34 +922,6 @@ export default function ReportDetailPage() {
                     CSV
                   </button>
                 </div>
-
-                {/* Download both button */}
-                <button
-                  onClick={handleDownloadBoth}
-                  disabled={downloading || downloadingCsv || downloadingBoth}
-                  className="flex items-center justify-center gap-2 w-full max-w-[340px] px-6 py-2.5 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800 mb-2"
-                  style={{
-                    border: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  {downloadingBoth ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                      </svg>
-                      Sťahujem obe…
-                    </>
-                  ) : (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                      </svg>
-                      Stiahnuť obe (PDF + CSV)
-                    </>
-                  )}
-                </button>
 
                 <h2 className="text-xl font-bold mb-2 flex items-center gap-2 mt-4" style={{ color: "var(--success)" }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
