@@ -403,22 +403,18 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
             else:
                 logger.info(f"Re-run LLM pre IČO {ico}: {', '.join(reasons)}")
 
-        # Extrahuje JSON dáta
-        company_dict = company.model_dump(exclude_none=True)
-        
+        # Fallback: ak operatingCashFlow chýba (zjednodušený výkaz bez CF), vypočítaj nepriamou metódou
+        # Musí sa aplikovať PRED dumpom a scorecardom, inak P3 pilier ukáže "Cash Flow: N/A"
+        if company.financialStatements:
+            estimate_missing_cash_flow(company.financialStatements)
+
+        # Jediný model_dump — po estimácii CF, aby obsahoval odhadované hodnoty
+        company_dict = company.model_dump(exclude_none=False)
+
         # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
         # Konvertujeme na None, aby LLM judge nevidel operatingCashFlow: 0 a nepísal o "nulovom cash flow"
         for stmt in company_dict.get("financialStatements", []):
             sanitize_cash_flow_fields(stmt)
-        
-        # Fallback: ak operatingCashFlow chýba (zjednodušený výkaz bez CF), vypočítaj nepriamou metódou
-        # Musí sa aplikovať PRED výpočtom scorecardu, inak P3 pilier ukáže "Cash Flow: N/A"
-        if company.financialStatements:
-            estimate_missing_cash_flow(company.financialStatements)
-            # Re-export dict s odhadovanými CF hodnotami (bez exclude_none, aby sa zachovali financialStatements)
-            company_dict = company.model_dump(exclude_none=False)
-            for stmt in company_dict.get("financialStatements", []):
-                sanitize_cash_flow_fields(stmt)
         
         # Cesta B: Deterministická agregácia a výpočet 5-ročného trendu
         scorecard = None
