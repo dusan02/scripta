@@ -14,3 +14,4 @@ from .vestnik import extract_vestnik_event, VestnikExtraction
 from .narrative import extract_narrative_risk, NarrativeRiskAnalysis
 from .notes_forensic import extract_notes_risks, NotesRiskAnalysis
 from .chief_auditor import evaluate_audit_verdict, AuditVerdict, EvidenceItem
+from .cross_analysis import generate_cross_analysis, CrossAnalysisResult

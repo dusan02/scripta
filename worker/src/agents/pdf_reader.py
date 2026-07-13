@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -174,6 +175,8 @@ async def extract_company_events(
     """
     PDF Reader Agent: analyzuje text z PDF dokumentov registrov a vracia štruktúrované CompanyEvent[].
 
+    Pre veľké vstupy (> 50k znakov) chunkuje do paralelných LLM volaní a spája výsledky.
+
     Args:
         pdf_texts: zoznam (label, text) dvojíc — label je názov súboru, text je extrahovaný obsah
         model: LLM model (default: gemini-2.5-flash)
@@ -187,6 +190,7 @@ async def extract_company_events(
 
     client = _get_gemini_client()
 
+    # Zostav obsah a zmeraj celkovú veľkosť
     contents = []
     for label, text in pdf_texts:
         if text and text.strip():
@@ -196,6 +200,63 @@ async def extract_company_events(
         logger.info("PDF Reader Agent: žiadne PDF texty na analýzu — vraciam prázdny zoznam.")
         return CompanyEventList(events=[], summary="Žiadne PDF dokumenty na analýzu.")
 
+    total_chars = sum(len(c) for c in contents)
+    _MAX_CHARS_PER_CHUNK = 50_000
+
+    # Ak je celkový obsah malý, spracuj v jednom volaní
+    if total_chars <= _MAX_CHARS_PER_CHUNK:
+        return await _extract_events_single(contents, client, model, system_prompt, report_language)
+
+    # Chunkovanie pre veľké vstupy — rozdel do batchov podľa veľkosti
+    chunks: list[list[str]] = []
+    current_chunk: list[str] = []
+    current_size = 0
+    for item in contents:
+        item_len = len(item)
+        if current_size + item_len > _MAX_CHARS_PER_CHUNK and current_chunk:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_size = 0
+        current_chunk.append(item)
+        current_size += item_len
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    logger.info(f"PDF Reader Agent: chunkujem {total_chars} znakov do {len(chunks)} batchov (max {_MAX_CHARS_PER_CHUNK} chars/batch)")
+
+    # Paralelné spracovanie chunkov
+    async def _process_chunk(chunk_idx: int, chunk: list[str]) -> CompanyEventList:
+        try:
+            result = await _extract_events_single(chunk, client, model, system_prompt, report_language)
+            logger.info(f"PDF Reader Agent: chunk {chunk_idx + 1}/{len(chunks)} — {len(result.events)} events")
+            return result
+        except Exception as e:
+            logger.error(f"PDF Reader Agent: chunk {chunk_idx + 1} zlyhal: {e}")
+            return CompanyEventList(events=[], summary=f"Chunk {chunk_idx + 1} zlyhal.")
+
+    chunk_results = await asyncio.gather(*[_process_chunk(i, c) for i, c in enumerate(chunks)])
+
+    # Merge výsledkov
+    all_events = []
+    summaries = []
+    for cr in chunk_results:
+        all_events.extend(cr.events)
+        if cr.summary:
+            summaries.append(cr.summary)
+
+    merged_summary = " ".join(summaries) if summaries else f"Spracovaných {len(chunks)} batchov, {len(all_events)} udalostí celkovo."
+    logger.info(f"PDF Reader Agent: merge {len(chunks)} chunkov → {len(all_events)} events celkovo")
+    return CompanyEventList(events=all_events, summary=merged_summary)
+
+
+async def _extract_events_single(
+    contents: list[str],
+    client,
+    model: str,
+    system_prompt: str,
+    report_language: str,
+) -> CompanyEventList:
+    """Spracuje jeden batch PDF textov v jednom LLM volaní."""
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,
         response_mime_type="application/json",

@@ -29,6 +29,7 @@ from src.llm_extractor import (
     CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, EvidenceItem,
     evaluate_audit_verdict, extract_financial_data,
     extract_narrative_risk, extract_notes_risks, extract_staff_costs_focused,
+    generate_cross_analysis,
 )
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
@@ -443,13 +444,33 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
         # Chief Auditor dostáva všetky dáta z DB (FinancialMetrics, NarrativeRisk, NotesRisk,
         # VestnikEvents, CompanyEvents z PDF Reader Agent). Už nepotrebuje raw PDF text.
         event_count = len(company_dict.get("companyEvents", []))
-        logger.info(f"Spúšťam Chief Auditora pre IČO: {ico}. CompanyEvents z DB: {event_count}")
+        logger.info(f"Spúšťam Cross-Analysis + Chief Auditor pre IČO: {ico}. CompanyEvents z DB: {event_count}")
+
+        # ── Cross-Analysis Agent (Flash) — krížová analýza, executive_summary + key_risk ──
+        cross_summary = ""
+        try:
+            cross_result = await safe_llm_call(
+                generate_cross_analysis, company_data,
+                model=_cfg.model_cross_analysis,
+                label="Cross-Analysis Agent",
+                report_language=report_language,
+            )
+            cross_summary = json.dumps({
+                "executive_summary": cross_result.executive_summary,
+                "key_risk": cross_result.key_risk,
+            }, ensure_ascii=False)
+            logger.info(f"Cross-Analysis Agent dokončený pre IČO {ico}: summary={len(cross_result.executive_summary)} chars")
+        except Exception as cross_err:
+            logger.warning(f"Cross-Analysis Agent zlyhal pre IČO {ico}: {cross_err} — Chief Auditor pokračuje bez neho.")
+
+        # ── Chief Auditor (Pro) — finálny verdikt + scorecard + evidence ──
         try:
             verdict = await safe_llm_call(
                 evaluate_audit_verdict, company_data, [],
                 model=_cfg.model_verdict,
                 label="Chief Auditor",
                 report_language=report_language,
+                cross_analysis_summary=cross_summary,
             )
         except Exception as llm_err:
             logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)

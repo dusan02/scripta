@@ -253,11 +253,18 @@ TEXTQUALITÄTSREGELN:
 - KURZE ZEITRÄUME (< 12 Monate): Bei `monthsInPeriod` < 12 nicht als negativen Trend interpretieren."""
 
 
-async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: str = settings.model_verdict, report_language: str = "sk") -> AuditVerdict:
+async def evaluate_audit_verdict(
+    data_json: str,
+    debt_pdfs: list[str],
+    model: str = settings.model_verdict,
+    report_language: str = "sk",
+    cross_analysis_summary: str = "",
+) -> AuditVerdict:
     """
     Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami.
     CompanyEvents z PDF Reader Agent sú už v data_json (z DB).
     debt_pdfs parameter sa už nepoužíva (zostáva pre backward compatibility).
+    cross_analysis_summary: voliteľný vstup od Cross-Analysis Agent (executive_summary + key_risk).
     """
     client = _get_gemini_client()
 
@@ -269,8 +276,13 @@ async def evaluate_audit_verdict(data_json: str, debt_pdfs: list[str], model: st
     }
     system_prompt = prompts.get(report_language, CHIEF_AUDITOR_PROMPT_SK)
 
-    # Príprava obsahu — len JSON dáta (companyEvents už zahrnuté v data_json z DB)
-    contents = [data_json]
+    # Príprava obsahu — JSON dáta + voliteľný cross-analysis vstup
+    if cross_analysis_summary:
+        contents = [
+            f"[CROSS-ANALYSIS AGENT OUTPUT — použi tento executive_summary a key_risk ako východiskový bod. Môžeš ho doplniť, ale zachovaj korelačnú hĺbku.]\n{cross_analysis_summary}\n\n---\n[COMPANY DATA JSON]\n{data_json}",
+        ]
+    else:
+        contents = [data_json]
 
     config = types.GenerateContentConfig(
         system_instruction=system_prompt,

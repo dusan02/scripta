@@ -108,8 +108,10 @@ def generate_pnl_chart(statements, lang="sk") -> str:
     layout['barmode'] = 'group'
     layout['bargap'] = 0.15
     layout['bargroupgap'] = 0.1
+    layout['margin'] = dict(l=50, r=40, t=55, b=55)
+    layout['yaxis']['automargin'] = True
     fig.update_layout(**layout)
-    return _to_base64(fig, 800, 350)
+    return _to_base64(fig, 800, 450)
 
 def generate_cashflow_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""

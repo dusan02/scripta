@@ -18,6 +18,7 @@ from src.agents.vestnik import extract_vestnik_event, VestnikExtraction
 from src.agents.narrative import extract_narrative_risk, NarrativeRiskAnalysis
 from src.agents.notes_forensic import extract_notes_risks, NotesRiskAnalysis
 from src.agents.chief_auditor import evaluate_audit_verdict, AuditVerdict, EvidenceItem
+from src.agents.cross_analysis import generate_cross_analysis, CrossAnalysisResult
 
 __all__ = [
     # Shared
@@ -42,4 +43,6 @@ __all__ = [
     "evaluate_audit_verdict",
     "AuditVerdict",
     "EvidenceItem",
+    "generate_cross_analysis",
+    "CrossAnalysisResult",
 ]
