@@ -58,7 +58,7 @@ export default function LandingPage() {
       price: "59 €",
       perCredit: "11,80 € / report",
       features: [
-        "Všetko z balíka Štart",
+        "Všetko z balíka 1× Report",
         "Množstevná zľava",
         "História reportov a PDF archivácia",
         "Bez mesačného záväzku",
@@ -67,12 +67,12 @@ export default function LandingPage() {
     },
     {
       name: "20× Report",
-      subtitle: "20 reportov s zľavou",
+      subtitle: "20 reportov so zľavou",
       credits: "20 reportov",
       price: "199 €",
       perCredit: "9,95 € / report",
       features: [
-        "Všetko z balíka Štart",
+        "Všetko z balíka 1× Report",
         "Množstevná zľava",
         "História reportov a PDF archivácia",
         "Export reportu",
@@ -86,7 +86,7 @@ export default function LandingPage() {
       price: "49 € / mesiac",
       perCredit: "9,80 € / report",
       features: [
-        "Všetko z balíka Štart",
+        "Všetko z balíka 1× Report",
         "História reportov a PDF archivácia",
         "Rýchlejšie spracovanie analytickým jadrom",
         "Podpora: Chat (SLA odozva do 4 hod.)",
@@ -558,8 +558,7 @@ export default function LandingPage() {
                   </div>
                 )}
                 <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 2 }}>{plan.name}</h3>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>{plan.subtitle}</p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{plan.credits}</p>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{plan.subtitle}</p>
                 <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{plan.price}</div>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>{plan.perCredit}</p>
                 <Link href="/login" style={{ display: "block", textAlign: "center", background: plan.highlighted ? "var(--accent)" : "var(--surface-hover)", color: plan.highlighted ? "var(--accent-button-text)" : "var(--text)", border: plan.highlighted ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 20 }}>
