@@ -22,18 +22,18 @@ export default function LandingPage() {
   const darkMode = theme === "dark";
 
   const reportIncludes = [
-    "Kontrola 25 verejných a privátnych registrov",
-    "AI finančná analýza",
-    "Altman Z-Score",
-    "Hodnotenie rizík",
-    "Insolvenčné konania",
-    "Exekúcie",
-    "Diskvalifikácie",
-    "Záložné práva",
-    "DPH registre",
-    "Majetkové ukazovatele",
-    "AI odporúčania",
-    "PDF report pripravený na zdieľanie",
+    { main: "Komplexná lustrácia registrov", sub: "ORSR, RPVS, RÚZ a ďalšie" },
+    { main: "Daňové a odvodové dlhy", sub: "DPH, Fin. správa, poisťovne" },
+    { main: "Štátne zákazky a zmluvy", sub: "Lustrácia v CRZ a ÚVO" },
+    { main: "Exekúcie a insolvencia", sub: "Poverenia, Register úpadcov" },
+    { main: "Záložné práva a dražby", sub: "Kontrola zaťaženia majetku" },
+    { main: "Súdne sankcie a zákazy", sub: "Diskvalifikácie štatutárov" },
+    { main: "5-ročná finančná história", sub: "Súvaha, Výkaz ziskov, Cash flow" },
+    { main: "Predikcia úpadku a zdravia", sub: "Altman Z-Score, Piotroski" },
+    { main: "Detekcia podvodov (Red Flags)", sub: "Forenzná analýza a mapa rizík" },
+    { main: "AI Manažérske zhrnutie", sub: "Slovný posudok stavu firmy" },
+    { main: "Originálne výpisy v prílohe", sub: "Audit Trail pre právnu istotu" },
+    { main: "Vizualizovaný PDF report", sub: "Prehľadné grafy a diagramy" },
   ];
 
   const pricingPlans = [
@@ -537,13 +537,16 @@ export default function LandingPage() {
           </div>
 
           {/* Čo obsahuje každý report */}
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 32, marginBottom: 48 }}>
-            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24, textAlign: "center" }}>Čo obsahuje každý report?</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "40px 32px", marginBottom: 48 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 32, textAlign: "center" }}>Čo obsahuje každý report?</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style={{ gap: "28px 20px" }}>
               {reportIncludes.map((item) => (
-                <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-secondary)" }}>
-                  <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0 }}>✓</span>
-                  {item}
+                <div key={item.main} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, marginTop: 2 }}>✓</span>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.4, marginBottom: 2 }}>{item.main}</span>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>{item.sub}</span>
+                  </div>
                 </div>
               ))}
             </div>
