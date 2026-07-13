@@ -22,17 +22,20 @@ export default function LandingPage() {
   const darkMode = theme === "dark";
 
   const reportIncludes = [
+    // Row 1: Col1, Col2, Col3, Col4
     { main: "Komplexná lustrácia registrov", sub: "ORSR, RPVS, RÚZ a ďalšie" },
-    { main: "Daňové a odvodové dlhy", sub: "DPH, Fin. správa, poisťovne" },
-    { main: "Štátne zákazky a zmluvy", sub: "Lustrácia v CRZ a ÚVO" },
     { main: "Exekúcie a insolvencia", sub: "Poverenia, Register úpadcov" },
-    { main: "Záložné práva a dražby", sub: "Kontrola zaťaženia majetku" },
-    { main: "Súdne sankcie a zákazy", sub: "Diskvalifikácie štatutárov" },
     { main: "5-ročná finančná história", sub: "Súvaha, Výkaz ziskov, Cash flow" },
-    { main: "Predikcia úpadku a zdravia", sub: "Altman Z-Score, Piotroski" },
-    { main: "Detekcia podvodov (Red Flags)", sub: "Forenzná analýza a mapa rizík" },
     { main: "AI Manažérske zhrnutie", sub: "Slovný posudok stavu firmy" },
+    // Row 2: Col1, Col2, Col3, Col4
+    { main: "Daňové a odvodové dlhy", sub: "DPH, Fin. správa, poisťovne" },
+    { main: "Záložné práva a dražby", sub: "Kontrola zaťaženia majetku" },
+    { main: "Predikcia úpadku a zdravia", sub: "Altman Z-Score, Piotroski" },
     { main: "Originálne výpisy v prílohe", sub: "Audit Trail pre právnu istotu" },
+    // Row 3: Col1, Col2, Col3, Col4
+    { main: "Štátne zákazky a zmluvy", sub: "Lustrácia v CRZ a ÚVO" },
+    { main: "Súdne sankcie a zákazy", sub: "Diskvalifikácie štatutárov" },
+    { main: "Detekcia podvodov (Red Flags)", sub: "Forenzná analýza a mapa rizík" },
     { main: "Vizualizovaný PDF report", sub: "Prehľadné grafy a diagramy" },
   ];
 
