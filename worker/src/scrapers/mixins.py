@@ -27,6 +27,17 @@ class PdfGeneratorMixin:
             await page.wait_for_load_state("load", timeout=15000)
         except PlaywrightTimeout:
             logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] load event timeout — pokračujem s generovaním PDF napriek tomu.")
+
+        # Čakaj na kritický obsah (tabuľka alebo hlavný content) — nielen load event.
+        # Bez tohto môže PDF vzniknúť z nedočítanej stránky (HTML kostra bez dát).
+        try:
+            await page.wait_for_selector(
+                "table, .detail, .main-content, [class*='detail'], [class*='content'], main",
+                timeout=8000,
+            )
+        except PlaywrightTimeout:
+            logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Content selector timeout — stránka možno nemá dáta.")
+
         try:
             await page.evaluate("""
                 async () => {
@@ -43,7 +54,23 @@ class PdfGeneratorMixin:
             """)
         except Exception as img_err:
             logger.debug(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Nepodarilo sa počkať na obrázky: {img_err}")
+
         await page.pdf(path=str(output_path), format="A4", print_background=True)
+
+        # Post-generácia validácia: over že PDF nie je prázdne a obsahuje text.
+        try:
+            from PyPDF2 import PdfReader
+            reader = PdfReader(str(output_path))
+            if len(reader.pages) == 0:
+                logger.error(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF má 0 strán — generácia zlyhala.")
+                return 0
+            extracted_text = reader.pages[0].extract_text() or ""
+            if len(extracted_text.strip()) < 10:
+                logger.error(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF obsahuje prázdny text (<10 chars) — stránka nebola načítaná.")
+                return 0
+        except Exception as pdf_err:
+            logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF validácia zlyhala (pokračujem): {pdf_err}")
+
         return 1
 
     async def _download_pdf(self, page: Page, download_button_selector: str, output_path: Path) -> int:

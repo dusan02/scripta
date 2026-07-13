@@ -83,7 +83,10 @@ class OrsrScraper(BaseScraper):
 
             pdf_output = output_dir / f"orsr_{ico}.pdf"
             try:
-                await self._print_page_to_pdf(page, pdf_output)
+                pdf_ok = await self._print_page_to_pdf(page, pdf_output)
+                if pdf_ok == 0:
+                    logger.error(f"[{self.source_type}] PDF validácia zlyhala — stránka nebola načítaná.")
+                    return self._make_result(status="FAILED", status_message="ORSR PDF je prázdne alebo neúplné — stránka sa nepodarila načítať.")
                 logger.debug(f"[{self.source_type}] ⏱ print_pdf: {time.perf_counter() - _t:.2f}s")
                 logger.info(f"[{self.source_type}] PDF: {pdf_output}")
             except Exception as e:
