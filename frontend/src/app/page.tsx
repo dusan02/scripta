@@ -21,7 +21,7 @@ export default function LandingPage() {
 
   const darkMode = theme === "dark";
 
-  const [showRegistries, setShowRegistries] = useState(false);
+  const [showRegistries, setShowRegistries] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const reportIncludes = [
@@ -29,7 +29,7 @@ export default function LandingPage() {
     { main: "Komplexná lustrácia registrov", sub: "ORSR, RPVS, RÚZ a ďalšie" },
     { main: "Exekúcie a insolvencia", sub: "Poverenia, Register úpadcov" },
     { main: "5-ročná finančná história", sub: "Súvaha, Výkaz ziskov, Cash flow" },
-    { main: "AI Manažérske zhrnutie", sub: "Slovný posudok stavu firmy" },
+    { main: "Automatizovaný manažérsky posudok", sub: "Slovný posudok stavu firmy" },
     // Row 2: Col1, Col2, Col3, Col4
     { main: "Daňové a odvodové dlhy", sub: "DPH, Fin. správa, poisťovne" },
     { main: "Záložné práva a dražby", sub: "Kontrola zaťaženia majetku" },
@@ -321,7 +321,7 @@ export default function LandingPage() {
             },
             {
               icon: "📊",
-              title: "AI finančná analýza",
+              title: "Automatizovaná finančná analýza",
               desc: "5-ročná história, Altman Z-Score, Piotroski F-Score, predikcia úpadku a forenzná detekcia rizík.",
             },
             {
