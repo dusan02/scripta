@@ -17,7 +17,7 @@ const PRICE_MAP: Record<string, { priceId: string; mode: "payment" | "subscripti
   payg5:     { priceId: process.env.STRIPE_PRICE_PAYG5     || "", mode: "payment",      credits: 5,   planName: "payg5" },
   payg20:    { priceId: process.env.STRIPE_PRICE_PAYG20    || "", mode: "payment",      credits: 20,  planName: "payg20" },
   freelance: { priceId: process.env.STRIPE_PRICE_FREELANCE || "", mode: "subscription", credits: 5,   planName: "freelance" },
-  firma:     { priceId: process.env.STRIPE_PRICE_FIRMA     || "", mode: "subscription", credits: 18,  planName: "firma" },
+  firma:     { priceId: process.env.STRIPE_PRICE_FIRMA     || "", mode: "subscription", credits: 20,  planName: "firma" },
   korporat:  { priceId: process.env.STRIPE_PRICE_KORPORAT  || "", mode: "subscription", credits: 40,  planName: "korporat" },
   addon5:    { priceId: process.env.STRIPE_PRICE_ADDON5    || "", mode: "payment",      credits: 5,   planName: "addon" },
 };

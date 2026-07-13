@@ -96,9 +96,9 @@ export default function LandingPage() {
     {
       name: "Firma",
       subtitle: "Pre firmy s pravidelným Due Diligence",
-      credits: "18 reportov / mesiac",
-      price: "129 € / mesiac",
-      perCredit: "7,17 € / report",
+      credits: "20 reportov / mesiac",
+      price: "159 € / mesiac",
+      perCredit: "7,95 € / report",
       features: [
         "Všetko z balíka Freelance",
         "Vhodné pre obchodné a nákupné tímy",
