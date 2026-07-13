@@ -180,9 +180,9 @@ export default function LandingPage() {
           {/* Desktop nav */}
           <div className="desktop-nav" style={{ alignItems: "center", gap: 24 }}>
             <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navFeatures")}</a>
-            <a href="#cennik" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navPricing")}</a>
             <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Registre</a>
             <Link href="/documents" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("nav.dokumenty")}</Link>
+            <a href="#cennik" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navPricing")}</a>
             <button
               onClick={toggle}
               style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 16 }}
@@ -252,9 +252,9 @@ export default function LandingPage() {
             gap: 12,
           }}>
             <a href="#funkcie" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navFeatures")}</a>
-            <a href="#cennik" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navPricing")}</a>
             <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>Registre</a>
             <Link href="/documents" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("nav.dokumenty")}</Link>
+            <a href="#cennik" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navPricing")}</a>
             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
             <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8, border: "1px solid var(--border)" }}>Registrácia</Link>
             <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", background: "var(--accent)", color: "var(--accent-button-text)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8 }}>Prihlásiť sa</Link>
@@ -656,9 +656,10 @@ export default function LandingPage() {
               <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Produkt</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <a href="#funkcie" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navFeatures")}</a>
-                <a href="#cennik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
                 <a href="#registre" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Registre</a>
                 <Link href="/documents" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</Link>
+                <a href="#cennik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
+                <Link href="/slovnik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Slovník pojmov</Link>
               </div>
             </div>
             <div>
