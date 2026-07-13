@@ -50,8 +50,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Globálny semaphore pre LLM volania — zdieľaný medzi všetkými reportmi
-# Gemini free tier ~5 RPM; 2 paralelné volania + staggered delay = bezpečné
-_GLOBAL_LLM_SEM = asyncio.Semaphore(3)
+# Paid Gemini API: 360 RPM, 1M TPM — semaphore 10 je bezpečné
+_GLOBAL_LLM_SEM = asyncio.Semaphore(10)
 
 # Fallback baseline ak nie sú historické dáta (sekundy)
 _PIPELINE_BASELINE_FALLBACK = _cfg.pipeline_baseline_fallback
@@ -638,56 +638,22 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
         return base
 
     async def _process_ifrs(file_path: str, sem: asyncio.Semaphore):
-        """Spracuje jeden IFRS PDF: rozdelí na chunky → paralelne Gemini → merge."""
+        """Spracuje jeden IFRS PDF: pošle celé PDF do Gemini v jednom volaní (Flash má 1M token context)."""
         file_name = os.path.basename(file_path)
         try:
-            from src.pdf_ingestion import chunk_pdf_by_pages
-            logger.info(f"Spracovávam finančné výkazy (chunking): {file_name}")
-            chunks = chunk_pdf_by_pages(file_path, chunk_size=15, overlap=2, max_pages=80)
-            
-            if not chunks:
-                # Fallback
-                async with sem:
-                    data = await safe_llm_call(extract_financial_data, file_path, model=_MODEL_IFRS, label=f"Financial Statements Analyst:{file_name}")
-                    if data:
-                        _ifrs_results.append(data)
-                return
-            
-            async def _process_chunk(chunk_meta):
-                async with sem:
-                    return await safe_llm_call(
-                        extract_financial_data, chunk_meta["pdf_path"],
-                        model=_MODEL_IFRS, label=f"Financial Statements Analyst CHUNK:{chunk_meta['chunk_id']}",
-                        chunk_meta=chunk_meta
-                    )
-            
-            chunk_tasks = [_process_chunk(c) for c in chunks]
-            chunk_results = await asyncio.gather(*chunk_tasks)
-            
-            merged_data = None
-            merged_chunk_id = 1
-            for i, res in enumerate(chunk_results):
-                if res:
-                    chunk_id = chunks[i]["chunk_id"]
-                    if not merged_data:
-                        merged_data = res
-                        merged_chunk_id = chunk_id
-                    else:
-                        merged_data = _merge_financial_data(merged_data, res, merged_chunk_id, chunk_id)
-            
-            for chunk in chunks:
-                try: os.remove(chunk["pdf_path"])
-                except: pass
-            
-            if merged_data:
-                data = merged_data
-                
+            logger.info(f"Spracovávam finančné výkazy: {file_name}")
+            async with sem:
+                data = await safe_llm_call(
+                    extract_financial_data, file_path,
+                    model=_MODEL_IFRS, label=f"Financial Statements Analyst:{file_name}"
+                )
+
+            if data:
                 if data.metriky.osobne_naklady is None:
-                    retry_path = file_path
                     logger.info(f"[STAFF COSTS RETRY] Osobné náklady chýbajú. Spúšťam cielene vyhľadávanie v {file_name}")
                     async with sem:
                         staff_costs = await safe_llm_call(
-                            extract_staff_costs_focused, retry_path,
+                            extract_staff_costs_focused, file_path,
                             model=_MODEL_IFRS, label=f"Financial Statements Analyst STAFF-COSTS:{file_name}"
                         )
                     if staff_costs is not None:
@@ -695,41 +661,33 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                         logger.info(f"[STAFF COSTS RETRY] Osobné náklady doplnené: {staff_costs} pre {file_name}")
                     else:
                         logger.warning(f"[STAFF COSTS RETRY] Osobné náklady sa nepodarilo nájsť v {file_name}")
-                        
-                if data:
-                    # Fallback: compute missing balance sheet totals from sub-items
-                    # Order matters: compute obezny_majetok first, then celkove_aktiva from it
-                    # to avoid double-counting (obežný majetok + its own sub-items)
-                    m = data.metriky
-                    if m.obezny_majetok is None:
-                        current_sub = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
-                        if len(current_sub) >= 2:
-                            m.obezny_majetok = sum(current_sub)
-                            logger.info(f"[FALLBACK] {file_name}: obezny_majetok vypočítané z sub-items: {m.obezny_majetok}")
-                    if m.celkove_aktiva is None and m.obezny_majetok is not None:
-                        # Lower bound: celkové aktíva ≥ obežný majetok (chýva neobežný/fixed assets)
-                        m.celkove_aktiva = m.obezny_majetok
-                        logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
-                    if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None:
-                        # Equity = Assets - Liabilities
-                        # UPOZORNENIE: Toto je horný odhad (upper bound) — v schéme nemáme
-                        # rezervy, časové rozlíšenie ani samostatné bankové úvery.
-                        # Vyžadujeme obe zložky záväzkov, aby sme minimalizovali skreslenie.
-                        if m.kratkodobe_zavazky is not None and m.dlhodobe_zavazky is not None:
-                            computed_equity = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobe_zavazky)
-                            if computed_equity > 0:
-                                m.vlastne_imanie_celkom = computed_equity
-                                logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad, môže byť nadhodnotené): {m.vlastne_imanie_celkom}")
-                            else:
-                                logger.warning(f"[FALLBACK-SKIP] {file_name}: vlastne_imanie by bolo záporné ({computed_equity}), pravdepodobne chýbajú záväzky — preskakujem")
-                    logger.info(
-                        f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
-                        f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
-                        f"revenue={data.metriky.trzby_z_hlavnej_cinnosti}"
-                    )
-                    _ifrs_results.append(data)
-                else:
-                    logger.warning(f"[IFRS EMPTY] {file_name} → safe_llm_call vrátil None")
+
+                # Fallback: compute missing balance sheet totals from sub-items
+                m = data.metriky
+                if m.obezny_majetok is None:
+                    current_sub = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
+                    if len(current_sub) >= 2:
+                        m.obezny_majetok = sum(current_sub)
+                        logger.info(f"[FALLBACK] {file_name}: obezny_majetok vypočítané z sub-items: {m.obezny_majetok}")
+                if m.celkove_aktiva is None and m.obezny_majetok is not None:
+                    m.celkove_aktiva = m.obezny_majetok
+                    logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
+                if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None:
+                    if m.kratkodobe_zavazky is not None and m.dlhodobe_zavazky is not None:
+                        computed_equity = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobe_zavazky)
+                        if computed_equity > 0:
+                            m.vlastne_imanie_celkom = computed_equity
+                            logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad): {m.vlastne_imanie_celkom}")
+                        else:
+                            logger.warning(f"[FALLBACK-SKIP] {file_name}: vlastne_imanie by bolo záporné ({computed_equity}) — preskakujem")
+                logger.info(
+                    f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
+                    f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
+                    f"revenue={data.metriky.trzby_z_hlavnej_cinnosti}"
+                )
+                _ifrs_results.append(data)
+            else:
+                logger.warning(f"[IFRS EMPTY] {file_name} → safe_llm_call vrátil None")
         except Exception as e:
             logger.error(f"Chyba pri spracovaní súboru {file_name}: {e}", exc_info=True)
 
@@ -777,22 +735,10 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
 
     vestnik_task = asyncio.create_task(_process_vestnik())
 
-    # Paralelné spracovanie PDF s globálnym obmedzením concurrency
-    # _GLOBAL_LLM_SEM(3) je zdieľaný medzi všetkými reportmi — Gemini free tier ~10 RPM
-    _stagger_counter = 0
-
-    _STAGGER_MAX_DELAY = 10.0  # strop — stagger len rozloží úvodný burst, concurrency rieši semaphore(2)
-
-    async def _staggered_process(coro_func, *args, **kwargs):
-        nonlocal _stagger_counter
-        _stagger_counter += 1
-        delay = min((_stagger_counter - 1) * 2.0, _STAGGER_MAX_DELAY)  # 0, 2, 4, 6, 8, 10, 10, ...
-        if delay > 0:
-            await asyncio.sleep(delay)
-        return await coro_func(*args, **kwargs)
-
-    pdf_tasks = [_staggered_process(_process_ifrs, fp, _GLOBAL_LLM_SEM) for fp in ifrs_files] + \
-                [_staggered_process(_process_vs, fp, _GLOBAL_LLM_SEM) for fp in vs_files]
+    # Paralelné spracovanie všetkých PDF naraz (IFRS + VS)
+    # Semaphore(10) garantuje max 10 súčasných LLM volaní — bezpečné pre paid Gemini API
+    pdf_tasks = [_process_ifrs(fp, _GLOBAL_LLM_SEM) for fp in ifrs_files] + \
+                [_process_vs(fp, _GLOBAL_LLM_SEM) for fp in vs_files]
     if pdf_tasks:
         await update_ai_status(report_request_id, "ai.semantic_narrative", _remaining_eta(_t_start, pipeline_baseline))
         with PhaseTimer(f"LLM extrakcia ({len(pdf_tasks)} files)"):
