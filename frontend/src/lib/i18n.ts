@@ -321,6 +321,8 @@ const sk: Dict = {
   "messages.odoslat": "Odoslať",
   "messages.odosiela": "Odosielam...",
   "messages.uspech": "Správa odoslaná",
+  "messages.prijate": "Prijaté",
+  "messages.odoslane": "Odoslané",
 
   // ── Report detail ──
   "report.prijaty": "Prijatý",
@@ -890,6 +892,8 @@ const en: Dict = {
   "messages.odoslat": "Send",
   "messages.odosiela": "Sending...",
   "messages.uspech": "Message sent",
+  "messages.prijate": "Inbox",
+  "messages.odoslane": "Sent",
 
   // ── Report detail ──
   "report.prijaty": "Received",
@@ -1459,6 +1463,8 @@ const de: Dict = {
   "messages.odoslat": "Senden",
   "messages.odosiela": "Wird gesendet...",
   "messages.uspech": "Nachricht gesendet",
+  "messages.prijate": "Posteingang",
+  "messages.odoslane": "Gesendet",
 
   // ── Report detail ──
   "report.prijaty": "Empfangen",

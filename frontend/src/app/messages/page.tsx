@@ -27,7 +27,9 @@ const TYPE_COLORS: Record<string, string> = {
 export default function MessagesPage() {
   const t = useT();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sentMessages, setSentMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"inbox" | "sent">("inbox");
   const [showCompose, setShowCompose] = useState(false);
   const [composeTitle, setComposeTitle] = useState("");
   const [composeBody, setComposeBody] = useState("");
@@ -56,6 +58,12 @@ export default function MessagesPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Načítať odoslané správy
+    fetch("/api/messages/sent")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setSentMessages(data.messages || []); })
+      .catch(() => {});
   }, []);
 
   const formatDate = (iso: string) => {
@@ -175,12 +183,40 @@ export default function MessagesPage() {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setTab("inbox")}
+          className="px-4 py-2 rounded-lg text-sm font-medium"
+          style={{
+            background: tab === "inbox" ? "var(--accent)" : "var(--surface)",
+            color: tab === "inbox" ? "var(--accent-button-text)" : "var(--text-secondary)",
+            border: tab === "inbox" ? "none" : "1px solid var(--border)",
+            cursor: "pointer",
+          }}
+        >
+          {t("messages.prijate")}
+        </button>
+        <button
+          onClick={() => setTab("sent")}
+          className="px-4 py-2 rounded-lg text-sm font-medium"
+          style={{
+            background: tab === "sent" ? "var(--accent)" : "var(--surface)",
+            color: tab === "sent" ? "var(--accent-button-text)" : "var(--text-secondary)",
+            border: tab === "sent" ? "none" : "1px solid var(--border)",
+            cursor: "pointer",
+          }}
+        >
+          {t("messages.odoslane")}
+        </button>
+      </div>
+
       {loading ? (
         <div
           className="h-32 rounded-lg animate-pulse"
           style={{ background: "var(--bg-muted)" }}
         />
-      ) : messages.length === 0 ?(
+      ) : (tab === "inbox" ? messages : sentMessages).length === 0 ?(
         <div
           className="card p-8 text-center"
           style={{ border: "1px solid var(--border)" }}
@@ -191,7 +227,7 @@ export default function MessagesPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {messages.map((msg) => (
+          {(tab === "inbox" ? messages : sentMessages).map((msg) => (
             <div
               key={msg.id}
               className="card p-4"
