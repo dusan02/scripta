@@ -61,7 +61,7 @@ const landingJsonLd = {
           name: "Čo je Verifa.sk due diligence report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Verifa.sk report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z 25 verejných a privátnych registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s AI analýzou finančného zdravia a záverečným skóre dôveryhodnosti.",
+            text: "Verifa.sk report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z 20+ verejných a privátnych registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s AI analýzou finančného zdravia a záverečným skóre dôveryhodnosti.",
           },
         },
         {
@@ -69,7 +69,7 @@ const landingJsonLd = {
           name: "Koľko stojí Verifa.sk report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Ponúkame šesť plánov: Štart (1 report za 14 € jednorazovo), 5× Report (5 reportov za 59 € jednorazovo), 20× Report (20 reportov za 199 € jednorazovo), Freelance (5 reportov za 49 €/mesiac), Firma (20 reportov za 159 €/mesiac) a Korporát (40 reportov za 289 €/mesiac). Pri registrácii dostanete 1 skúšobný kredit zadarmo na 30 dní."
+            text: "Ponúkame šesť plánov: 1× Report (1 report za 14 € jednorazovo), 5× Report (5 reportov za 59 € jednorazovo), 20× Report (20 reportov za 199 € jednorazovo), Freelance (5 reportov za 49 €/mesiac), Firma (20 reportov za 159 €/mesiac) a Korporát (40 reportov za 289 €/mesiac). Pri registrácii dostanete 1 skúšobný kredit zadarmo na 30 dní."
           },
         },
         {
@@ -77,7 +77,7 @@ const landingJsonLd = {
           name: "Aké registre sa kontrolujú v reporte?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Report kontroluje 25 verejných a privátnych registrov vrátane Obchodného registra (ORSR), Živnostenského registra (ZRSR), insolvenčných registrov, registrov daňových dlžníkov, DPH registrov, Obchodného vestníka, RÚZ finančných výkazov a ďalších.",
+            text: "Report kontroluje 20+ verejných a privátnych registrov vrátane Obchodného registra (ORSR), Živnostenského registra (ZRSR), insolvenčných registrov, registrov daňových dlžníkov, DPH registrov, Obchodného vestníka, RÚZ finančných výkazov a ďalších.",
           },
         },
         {

@@ -22,6 +22,7 @@ export default function LandingPage() {
   const darkMode = theme === "dark";
 
   const [showRegistries, setShowRegistries] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const reportIncludes = [
     // Row 1: Col1, Col2, Col3, Col4
@@ -131,6 +132,24 @@ export default function LandingPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <LandingJsonLd />
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-nav { display: none !important; }
+          .mobile-nav { display: flex !important; }
+          .how-steps { flex-direction: column !important; align-items: center !important; gap: 16px !important; }
+          .how-step-card { width: 100% !important; max-width: 400px !important; }
+          .how-arrow { display: none !important; }
+          .footer-cols { flex-direction: column !important; gap: 32px !important; }
+          .footer-links { gap: 24px !important; }
+          .hero-stats { gap: 20px !important; }
+          .pricing-guarantee { flex-direction: column !important; gap: 16px !important; text-align: center !important; }
+          .cta-card { padding: 40px 24px !important; }
+        }
+        @media (min-width: 769px) {
+          .desktop-nav { display: flex !important; }
+          .mobile-nav { display: none !important; }
+        }
+      `}</style>
       {/* NAV */}
       <nav
         style={{
@@ -148,7 +167,8 @@ export default function LandingPage() {
             <Logo size="md" />
           </Link>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          {/* Desktop nav */}
+          <div className="desktop-nav" style={{ alignItems: "center", gap: 24 }}>
             <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navFeatures")}</a>
             <a href="#cennik" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navPricing")}</a>
             <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Registre</a>
@@ -190,7 +210,46 @@ export default function LandingPage() {
               Prihlásiť sa
             </Link>
           </div>
+
+          {/* Mobile nav controls */}
+          <div className="mobile-nav" style={{ alignItems: "center", gap: 8 }}>
+            <button
+              onClick={toggle}
+              style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 16 }}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+            <LanguageSwitcher />
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 18, color: "var(--text)" }}
+              aria-label="Menu"
+            >
+              {mobileMenuOpen ? "✕" : "☰"}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div style={{
+            background: "var(--surface)",
+            borderBottom: "1px solid var(--border)",
+            padding: "16px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}>
+            <a href="#funkcie" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navFeatures")}</a>
+            <a href="#cennik" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navPricing")}</a>
+            <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>Registre</a>
+            <Link href="/documents" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("nav.dokumenty")}</Link>
+            <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+            <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8, border: "1px solid var(--border)" }}>Registrácia</Link>
+            <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", background: "var(--accent)", color: "var(--accent-button-text)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8 }}>Prihlásiť sa</Link>
+          </div>
+        )}
       </nav>
 
       {/* HERO */}
@@ -215,17 +274,17 @@ export default function LandingPage() {
             <Link href="/register" style={{ background: "var(--accent)", color: "var(--accent-button-text)", padding: "16px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 700, fontSize: 16, boxShadow: "var(--shadow-lg)" }}>
               {t("home.ctaStart")}
             </Link>
-            <a href="#funkcie" style={{ background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "16px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 16 }}>
+            <a href="#how" style={{ background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "16px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 16 }}>
               {t("home.howItWorks")}
             </a>
           </div>
 
-          <div style={{ marginTop: 48, display: "flex", gap: 32, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ marginTop: 48, display: "flex", gap: 32, justifyContent: "center", flexWrap: "wrap" }} className="hero-stats">
             {[
-              { num: "20 +", label: t("home.statRegisters") },
-              { num: "~ 4 min", label: t("home.statAvgTime") },
-              { num: "100", label: t("home.statScoreRange") },
-              { num: "PDF", label: t("home.statReport") },
+              { num: "20+", label: t("home.statRegisters") },
+              { num: "~5 min", label: t("home.statAvgTime") },
+              { num: "0-100", label: t("home.statScoreRange") },
+              { num: "1 PDF", label: t("home.statReport") },
             ].map((s) => (
               <div key={s.label} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 28, fontWeight: 900, color: "var(--accent)" }}>{s.num}</div>
@@ -247,7 +306,7 @@ export default function LandingPage() {
           {[
             {
               icon: "🔎",
-              title: "Zlúčené dáta z 25+ registrov",
+              title: "Zlúčené dáta z 20+ registrov",
               desc: "ORSR, RPVS, RÚZ, insolvenčné registre, DPH, exekúcie, záložné práva a ďalšie — všetko v jednom PDF.",
             },
             {
@@ -275,20 +334,20 @@ export default function LandingPage() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section style={{ padding: "80px 24px", background: "var(--bg-subtle)" }}>
+      <section id="how" style={{ padding: "80px 24px", background: "var(--bg-subtle)", scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 60 }}>
             <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.howItWorks")}</h2>
           </div>
 
-          <div style={{ display: "flex", alignItems: "stretch", justifyContent: "center", gap: 0, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "stretch", justifyContent: "center", gap: 0, flexWrap: "wrap" }} className="how-steps">
             {[
               { step: "1", icon: "search", title: "Zadáte IČO", desc: "Zadajte identifikačné číslo firmy, ktorú chcete preveriť." },
               { step: "2", icon: "check", title: "Overenie a posudok", desc: "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok so subjektívnym Verifa Score." },
               { step: "3", icon: "download", title: "Stiahnete Správu", desc: "Stiahnete si komplexnú Správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente." },
             ].map((s, i, arr) => (
               <div key={s.step} style={{ display: "flex", alignItems: "stretch" }}>
-                <div style={{
+                <div className="how-step-card" style={{
                   width: 220,
                   height: "100%",
                   textAlign: "center",
@@ -317,7 +376,7 @@ export default function LandingPage() {
                   <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{s.desc}</p>
                 </div>
                 {i < arr.length - 1 && (
-                  <div style={{
+                  <div className="how-arrow" style={{
                     display: "flex",
                     alignItems: "center",
                     flexShrink: 0,
@@ -360,7 +419,7 @@ export default function LandingPage() {
               transition: "border-color 0.2s",
             }}
           >
-            {showRegistries ? "Skryť zoznam registrov" : "Pozrite si zoznam všetkých 25+ prehľadávaných registrov"}
+            {showRegistries ? "Skryť zoznam registrov" : "Pozrite si zoznam všetkých 20+ prehľadávaných registrov"}
             <span style={{ color: "var(--accent)", fontSize: 18, transition: "transform 0.2s", display: "inline-block", transform: showRegistries ? "rotate(180deg)" : "none" }}>⌄</span>
           </button>
         </div>
@@ -435,7 +494,7 @@ export default function LandingPage() {
             {
               icon: "⚖️",
               title: "Pre právnikov a účtovníkov",
-              desc: "Komplexný due diligence report pre klientov — finančný a právny prehľad z 25+ registrov v jednom PDF.",
+              desc: "Komplexný due diligence report pre klientov — finančný a právny prehľad z 20+ registrov v jednom PDF.",
             },
             {
               icon: "💼",
@@ -454,29 +513,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* UKÁŽKY REPORTU */}
+      {/* UKÁŽKA REPORTU — CTA */}
       <section style={{ padding: "80px 24px", background: "var(--bg-subtle)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 60 }}>
-            <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Ukážky reportov</h2>
-            <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>Pozrite si, ako vyzerá výstupný PDF report.</p>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-            {[
-              { title: "Cover page", desc: "Titulná stránka so zhrnutím a semaformi." },
-              { title: "Finančná analýza", desc: "Grafy a tabuľky z účtovných závierok." },
-              { title: "Právny posudok", desc: "Vyhodnotenie rizík a Verifa Score." },
-            ].map((item) => (
-              <div key={item.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, textAlign: "center" }}>
-                <div style={{ width: "100%", aspectRatio: "16/11", background: "var(--bg-muted)", borderRadius: 12, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 14 }}>
-                  PDF náhľad
-                </div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{item.title}</h3>
-                <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
+        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
+          <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>Ukážka reportu</h2>
+          <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto 32px" }}>Pozrite si vzor vygenerovaného PDF reportu — titulná stránka, finančná analýza, právny posudok a Verifa Score.</p>
+          <Link href="/documents" style={{ display: "inline-block", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "14px 32px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 15 }}>
+            {t("nav.dokumenty")} →
+          </Link>
         </div>
       </section>
 
@@ -491,6 +535,7 @@ export default function LandingPage() {
             { q: t("home.faq1q"), a: t("home.faq1a") },
             { q: t("home.faq2q"), a: t("home.faq2a") },
             { q: t("home.faq3q"), a: t("home.faq3a") },
+            { q: t("home.faq4q"), a: t("home.faq4a") },
             { q: t("home.faq5q"), a: t("home.faq5a") },
           ].map((item, i) => (
             <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 24 }}>
@@ -536,7 +581,7 @@ export default function LandingPage() {
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{plan.subtitle}</p>
                 <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{plan.price}</div>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>{plan.perCredit}</p>
-                <Link href="/login" style={{ display: "block", textAlign: "center", background: plan.highlighted ? "var(--accent)" : "var(--surface-hover)", color: plan.highlighted ? "var(--accent-button-text)" : "var(--text)", border: plan.highlighted ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 20 }}>
+                <Link href="/register" style={{ display: "block", textAlign: "center", background: plan.highlighted ? "var(--accent)" : "var(--surface-hover)", color: plan.highlighted ? "var(--accent-button-text)" : "var(--text)", border: plan.highlighted ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 20 }}>
                   Začať overovať
                 </Link>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -551,10 +596,10 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 40, flexWrap: "wrap", fontSize: 14, color: "var(--text-secondary)" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 40, flexWrap: "wrap", fontSize: 14, color: "var(--text-secondary)" }} className="pricing-guarantee">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ color: "var(--accent)", fontSize: 18 }}>🛡️</span>
-              <b>Garancia spokojnosti:</b> Nenašli ste subjekt v registroch? Vrátime vám kredit.
+              <b>Garancia:</b> Ak report nemožno vygenerovať z dôvodu výpadku registrov, vrátime vám plnú sumu alebo pripíšeme kredit.
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ color: "var(--accent)", fontSize: 18 }}>⏱️</span>
@@ -570,7 +615,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section style={{ padding: "80px 24px" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 24, padding: 60, position: "relative", overflow: "hidden" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 24, padding: "60px 40px", position: "relative", overflow: "hidden" }} className="cta-card">
           <div style={{ position: "absolute", top: -100, right: -50, width: 300, height: 300, borderRadius: "50%", background: "var(--accent)", opacity: 0.05, filter: "blur(60px)" }} />
           <h2 style={{ fontSize: "clamp(28px, 4vw, 36px)", fontWeight: 800, marginBottom: 16 }}>Pripravený preveriť svojho partnera?</h2>
           <p style={{ fontSize: 17, color: "var(--text-secondary)", marginBottom: 32 }}>Zaregistrujte sa a začnite s komplexným due diligence reportom.</p>
@@ -582,7 +627,7 @@ export default function LandingPage() {
 
       {/* FOOTER */}
       <footer style={{ borderTop: "1px solid var(--border)", padding: "40px 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 32 }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 32 }} className="footer-cols">
           <div>
             <div style={{ marginBottom: 12 }}>
               <Logo size="md" />
@@ -590,7 +635,7 @@ export default function LandingPage() {
             <p style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 300 }}>Komplexný due diligence report zo štátnych registrov SR. Automatizované, rýchle, presné.</p>
           </div>
 
-          <div style={{ display: "flex", gap: 48, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 48, flexWrap: "wrap" }} className="footer-links">
             <div>
               <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>Produkt</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -600,6 +645,7 @@ export default function LandingPage() {
                 <Link href="/register" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Registrácia</Link>
                 <Link href="/login" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Prihlásiť sa</Link>
                 <a href="/terms" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</a>
+                <a href="/privacy" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Ochrana osobných údajov</a>
               </div>
             </div>
             <div>
