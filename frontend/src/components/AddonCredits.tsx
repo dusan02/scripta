@@ -12,7 +12,7 @@ interface AddonCreditsProps {
 }
 
 const ADDON_CREDITS = 5;
-const ADDON_PRICE = process.env.NEXT_PUBLIC_ADDON_PRICE || "59";
+const ADDON_PRICE = process.env.NEXT_PUBLIC_ADDON_PRICE || "45";
 
 const UPSELL_MAP: Record<string, string> = {
   freelance: "firma",

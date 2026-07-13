@@ -176,8 +176,8 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          // Grant 5 free trial credits via CreditBatch
-          await addCreditBatch(newUser.id, 5, "trial");
+          // Grant 1 free trial credit via CreditBatch
+          await addCreditBatch(newUser.id, 1, "trial");
         } else if (!existingUser.emailVerified) {
           await prisma.user.update({
             where: { id: existingUser.id },

@@ -77,12 +77,36 @@ const PACKAGES = [
     highlight: false,
   },
   {
+    id: "payg5",
+    nameKey: "pricing.payg5",
+    subtitleKey: "pricing.payg5Subtitle",
+    reports: 5,
+    price: "59",
+    pricePerReport: "11,80",
+    isSubscription: false,
+    featureKeys: ["pricing.featAllFromStart", "pricing.featZlavnenie", "pricing.featHistoria", "pricing.featPdfArchivacia"],
+    featureTooltipKeys: [null, null, null, null],
+    highlight: false,
+  },
+  {
+    id: "payg20",
+    nameKey: "pricing.payg20",
+    subtitleKey: "pricing.payg20Subtitle",
+    reports: 20,
+    price: "199",
+    pricePerReport: "9,95",
+    isSubscription: false,
+    featureKeys: ["pricing.featAllFromStart", "pricing.featZlavnenie", "pricing.featHistoria", "pricing.featPdfArchivacia", "pricing.featExportReportu"],
+    featureTooltipKeys: [null, null, null, null, null],
+    highlight: false,
+  },
+  {
     id: "freelance",
     nameKey: "pricing.freelance",
     subtitleKey: "pricing.freelanceSubtitle",
-    reports: 8,
+    reports: 5,
     price: "49",
-    pricePerReport: "6,13",
+    pricePerReport: "9,80",
     isSubscription: true,
     featureKeys: ["pricing.featAllFromStart", "pricing.feat15Kreditov", "pricing.featHistoria", "pricing.featPrioritneSpracovanie", "pricing.featPdfArchivacia", "pricing.featRollOver"],
     featureTooltipKeys: [null, null, null, null, null, null],
@@ -93,8 +117,8 @@ const PACKAGES = [
     nameKey: "pricing.firma",
     subtitleKey: "pricing.firmaSubtitle",
     reports: 18,
-    price: "99",
-    pricePerReport: "5,50",
+    price: "129",
+    pricePerReport: "7,17",
     isSubscription: true,
     featureKeys: ["pricing.featAllFromFreelance", "pricing.feat40Kreditov", "pricing.featPrioritnaPodpora", "pricing.featRychlejsieSpracovanie", "pricing.featObchodneTimy", "pricing.featUctovneKancelarie", "pricing.featRollOver"],
     featureTooltipKeys: [null, null, null, null, null, null, null],
@@ -104,9 +128,9 @@ const PACKAGES = [
     id: "korporat",
     nameKey: "pricing.korporat",
     subtitleKey: "pricing.korporatSubtitle",
-    reports: 50,
-    price: "249",
-    pricePerReport: "4,98",
+    reports: 40,
+    price: "239",
+    pricePerReport: "5,98",
     isSubscription: true,
     featureKeys: ["pricing.featAllFromFirma", "pricing.feat100Kreditov", "pricing.featPrioritnaPodpora", "pricing.featOsobnyAccount", "pricing.featNajnejsiaCena", "pricing.featBankyAdvokati", "pricing.featRollOver"],
     featureTooltipKeys: [null, null, null, null, null, null, null],
@@ -173,7 +197,7 @@ export default function PricingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PACKAGES.map((pkg) => {
           const isSelected = selectedPlan === pkg.id;
           return (
@@ -222,7 +246,7 @@ export default function PricingPage() {
                   </span>
                 </div>
                 <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {pkg.isSubscription ? t("pricing.mesiacne", { n: pkg.reports, price: pkg.pricePerReport }) : t("pricing.jednorazove")}
+                  {pkg.isSubscription ? t("pricing.mesiacne", { n: pkg.reports, price: pkg.pricePerReport }) : t("pricing.reportovZaReport", { n: pkg.reports, price: pkg.pricePerReport })}
                 </p>
               </div>
 
