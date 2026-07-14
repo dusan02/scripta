@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
     data: { emailVerified: new Date(), trialEndsAt },
   });
 
-  // Create wallet with 5 free trial credits via CreditBatch
-  await addCreditBatch(user.id, 5, "trial");
+  // Create wallet with 1 free trial credit via CreditBatch
+  await addCreditBatch(user.id, 1, "trial");
 
   await prisma.verificationToken.delete({ where: { id: verificationRecord.id } });
 

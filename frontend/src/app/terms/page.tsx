@@ -41,7 +41,7 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>4. Ochrana osobných údajov (GDPR)</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Spracúvame osobné údaje v súlade s nariadením GDPR. Údaje získavané zo štátnych registrov sú verejne dostupné. Používateľ má právo na prístup k svojim údajom, ich opravu alebo vymazanie. Viac informácií nájdete v našich Zásadoch ochrany osobných údajov.
+            Spracúvame osobné údaje v súlade s nariadením GDPR. Údaje získavané zo štátnych registrov sú verejne dostupné. Používateľ má právo na prístup k svojim údajom, ich opravu alebo vymazanie. Viac informácií nájdete v našich <a href="/privacy" style={{ color: "var(--accent)", textDecoration: "none" }}>Zásadoch ochrany osobných údajov</a>. Pre firemných zákazníkov je k dispozícii aj <a href="/dpa" style={{ color: "var(--accent)", textDecoration: "none" }}>Spracovateľská zmluva (DPA)</a>.
           </p>
         </section>
 
@@ -69,7 +69,7 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>8. Kredity, predplatné a refundácie</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            <strong>Skúšobné kredity.</strong> Pri registrácii používateľ dostáva 5 skúšobných kreditov na 30 dní. Po uplynutí skúšobného obdobia bez zakúpenia plánu používateľ stratí prístup k vytváraniu reportov.
+            <strong>Skúšobný kredit.</strong> Pri registrácii používateľ dostáva 1 skúšobný kredit na 30 dní. Po uplynutí skúšobného obdobia bez zakúpenia plánu používateľ stratí prístup k vytváraniu reportov.
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
             <strong>Predplatné a plány.</strong> Služba ponúka mesačné predplatné (Freelance, Firma, Korporát) a jednorazové nákupy (Štart, dokúpenie kreditov). Platenie prebieha cez Stripe. Predplatné sa obnovuje automaticky každý mesiac, pokiaľ nie je zrušené.
