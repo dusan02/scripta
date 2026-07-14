@@ -10,6 +10,7 @@ from .shared import (
     _gemini_uploaded_file,
     _log_tokens,
     CompanyFinancialExtraction,
+    VerificationExtraction,
 )
 
 logger = logging.getLogger(__name__)
@@ -152,5 +153,58 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
         if val is not None and val < 0:
             logger.warning(f"[LLM] Prepisujem náklad {cost_field}={val} → {abs(val)} (náklad musí byť kladný)")
             setattr(data.metriky, cost_field, abs(val))
+
+    return data
+
+async def verify_critical_numbers_blind(file_path: str, model: str = settings.model_fallback) -> VerificationExtraction:
+    """
+    Slepá verifikácia kľúčových polí na celom PDF.
+    Používa sa pre lacnejší model (Flash), na overenie OCR z prvého behu.
+    """
+    client = _get_gemini_client()
+    prompt_text = (
+        "Si finančný audítor. V priloženom dokumente nájdi presné hodnoty pre týchto 5 polí. "
+        "Ak si nie si istý alebo hodnotu nevieš nájsť, vráť null. "
+        "Nezabudni na pravidlá pre 'v tisícoch EUR' alebo 'v miliónoch EUR' (vtedy hodnoty vynásob príslušne)."
+    )
+    
+    config = types.GenerateContentConfig(
+        system_instruction=prompt_text,
+        response_mime_type="application/json",
+        response_schema=VerificationExtraction,
+        temperature=0.0
+    )
+    
+    with _gemini_uploaded_file(client, file_path) as uploaded_file:
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=[uploaded_file],
+            config=config,
+        )
+        _log_tokens(model, response.usage_metadata, "verify_critical_numbers_blind")
+        
+    data = VerificationExtraction.model_validate_json(response.text)
+
+    # Sanity check: rovnaká logika ako v extract_financial_data —
+    # ak Flash ignoroval "v tisícoch EUR", násobíme ×1000 alebo ×1 000 000.
+    _MONETARY_FIELDS = [
+        "celkove_aktiva", "trzby_z_hlavnej_cinnosti",
+        "zisk_alebo_strata_po_zdaneni", "vlastne_imanie_celkom",
+        "ciste_penazne_toky_z_prevadzkovej_cinnosti",
+    ]
+    if data.celkove_aktiva is not None and data.celkove_aktiva > 0:
+        if data.celkove_aktiva < 100:
+            logger.warning(f"[VERIFY SANITY] celkove_aktiva={data.celkove_aktiva} < 100 — násobím ×1 000 000")
+            multiplier = 1_000_000
+        elif data.celkove_aktiva < 10000:
+            logger.warning(f"[VERIFY SANITY] celkove_aktiva={data.celkove_aktiva} < 10 000 — násobím ×1 000")
+            multiplier = 1_000
+        else:
+            multiplier = 1
+        if multiplier > 1:
+            for field_name in _MONETARY_FIELDS:
+                val = getattr(data, field_name, None)
+                if val is not None:
+                    setattr(data, field_name, val * multiplier)
 
     return data

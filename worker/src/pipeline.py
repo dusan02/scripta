@@ -29,7 +29,8 @@ from src.llm_extractor import (
     CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, EvidenceItem,
     evaluate_audit_verdict, extract_financial_data,
     extract_narrative_risk, extract_notes_risks, extract_staff_costs_focused,
-    generate_cross_analysis,
+    verify_critical_numbers_blind, generate_cross_analysis,
+    verify_report_quality,
 )
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
@@ -293,7 +294,7 @@ async def run_pdf_reader_agent(ico: str, sources: list, report_language: str = "
         logger.error(f"[PDF Reader Agent] IČO={ico}: chyba pri analýze PDF: {e}", exc_info=True)
 
 
-async def run_orsr_forensics_agent(ico: str, sources: list) -> None:
+async def run_orsr_forensics_agent(ico: str, sources: list, report_language: str = "sk") -> None:
     """
     Agent pre forenznú analýzu Úplného výpisu ORSR (Biele kone, virtuálne sídla).
     Beží paralelne s PDF Reader Agentom.
@@ -308,7 +309,7 @@ async def run_orsr_forensics_agent(ico: str, sources: list) -> None:
     logger.info(f"[ORSR Forensic Agent] IČO={ico}: analyzujem históriu ORSR")
     try:
         # LLM volanie pre spočítanie zmien
-        forensics = await analyze_orsr_history(orsr_source.full_extract_text)
+        forensics = await analyze_orsr_history(orsr_source.full_extract_text, report_language=report_language)
 
         # Deterministické Python heuristiky — hľadáme v úplnom výpise (nie v findings)
         forensics.has_virtual_seat = is_virtual_seat(orsr_source.full_extract_text)
@@ -347,6 +348,65 @@ async def run_orsr_forensics_agent(ico: str, sources: list) -> None:
         )
         await append_company_event_to_db(ico, event)
         logger.info(f"[ORSR Forensic Agent] IČO={ico}: Uložená forenzná analýza ({severity})")
+
+        # ── Deterministický scan ORSR pre historické konkurzy/reštrukturalizácie ──
+        # Vestník API má lookback 365 dní. Ak firma prešla konkurzom pred rokom,
+        # Vestník to už neukáže, ale ORSR "Ďalšie právne skutočnosti" to stále obsahuje.
+        # Tento scan zachytí gap a vytvorí synthetický VestnikEvent.
+        _CRITICAL_KEYWORDS = [
+            "konkurz", "konkurzné", "vyhlásenie konkurzu",
+            "reštrukturalizácia", "restrukturalizácia",
+            "likvidácia", "likvidátor",
+            "zrušenie spoločnosti", "zrušená",
+        ]
+        orsr_text_lower = orsr_source.full_extract_text.lower()
+        found_keywords = [kw for kw in _CRITICAL_KEYWORDS if kw in orsr_text_lower]
+
+        if found_keywords:
+            # Skontroluj, či už nemáme vestnik event s rovnakou problematikou
+            # (aby sme neduplikovali penalizáciu)
+            from src.db_repository import get_company_with_relations
+            existing_company = await get_company_with_relations(ico)
+            existing_vestnik_types = []
+            if existing_company and existing_company.vestnikEvents:
+                for ve in existing_company.vestnikEvents:
+                    ve_type = (ve.eventType or "").lower()
+                    existing_vestnik_types.append(ve_type)
+
+            # Ak už máme vestnik event o konkurze/reštrukturalizácii, preskoč
+            already_covered = any(
+                any(kw in vt for kw in ["konkurz", "reštruktural", "restruktural", "likvid"])
+                for vt in existing_vestnik_types
+            )
+
+            matched = ", ".join(found_keywords[:3])
+
+            if not already_covered:
+                critical_event = CompanyEvent(
+                    source="ORSR",
+                    event_type="HISTORICAL_BANKRUPTCY",
+                    severity="CRITICAL",
+                    title=f"Historický záznam o insolvencii v ORSR ({matched})",
+                    description=(
+                        f"V Úplnom výpise z ORSR bola nájdená zmienka o: {matched}. "
+                        f"Táto udalosť môže byť staršia ako lookback okno Obchodného vestníka "
+                        f"a nemusí byť v ňom zachytená. Overte aktuálny stav v RKR."
+                    ),
+                    event_date=None,
+                    amount=None,
+                    metadata={"keywords_found": found_keywords, "source": "ORSR_text_scan"},
+                )
+                await append_company_event_to_db(ico, critical_event)
+                logger.warning(
+                    f"[ORSR Forensic Agent] IČO={ico}: Nájdené historické kľúčové slová v ORSR: {matched} — "
+                    f"vytvorený synthetický CRITICAL event"
+                )
+            else:
+                logger.info(
+                    f"[ORSR Forensic Agent] IČO={ico}: Nájdené kľúčové slová ({matched}), "
+                    f"ale vestník už obsahuje relevantný event — preskakujem"
+                )
+
     except Exception as e:
         logger.error(f"[ORSR Forensic Agent] IČO={ico}: chyba: {e}", exc_info=True)
 
@@ -497,7 +557,28 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
         except Exception as llm_err:
             logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)
             verdict = _build_fallback_verdict(company_dict, scorecard, report_language=report_language)
-        
+
+        # ── Report QA Agent (Flash) — verifikácia verdiktu proti zdrojovým dátam ──
+        qa_discrepancies = []
+        try:
+            verdict_json = json.dumps(verdict.model_dump(), default=str, ensure_ascii=False)
+            qa_result = await safe_llm_call(
+                verify_report_quality, verdict_json, company_data,
+                model=_cfg.model_fallback, label="Report QA Agent",
+                report_language=report_language,
+            )
+            if qa_result and not qa_result.overall_ok:
+                qa_discrepancies = qa_result.discrepancies
+                for d in qa_discrepancies:
+                    if d.severity == "CRITICAL":
+                        logger.warning(f"[QA CRITICAL] IČO {ico}: {d.field} — verdict={d.verdict_value} vs source={d.source_value}")
+                    else:
+                        logger.info(f"[QA {d.severity}] IČO {ico}: {d.field} — verdict={d.verdict_value} vs source={d.source_value}")
+            else:
+                logger.info(f"[QA OK] IČO {ico}: Report QA Agent nenašiel nezrovnalosti")
+        except Exception as qa_err:
+            logger.warning(f"Report QA Agent zlyhal pre IČO {ico}: {qa_err} — preskakujem QA kontrolu.")
+
         # ── Fix 3: Deterministické verifaScore ─────────────────────────────────
         # verifaScore = compute_forensic_scorecard().total_score (vždy, bez ohľadu na LLM).
         # LLM forenzný adjustment (llm_score_adjustment) je len informatívny — neukladá sa do skóre.
@@ -628,12 +709,52 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
         try:
             logger.info(f"Spracovávam finančné výkazy: {file_name}")
             async with sem:
-                data = await safe_llm_call(
-                    extract_financial_data, file_path,
-                    model=_MODEL_IFRS, label=f"Financial Statements Analyst:{file_name}"
-                )
+                if file_path.lower().endswith(".pdf"):
+                    data, verify_data = await asyncio.gather(
+                        safe_llm_call(
+                            extract_financial_data, file_path,
+                            model=_MODEL_IFRS, label=f"Financial Statements Analyst:{file_name}"
+                        ),
+                        safe_llm_call(
+                            verify_critical_numbers_blind, file_path,
+                            model="gemini-1.5-flash", label=f"Financial Verification Analyst:{file_name}"
+                        )
+                    )
+                else:
+                    data = await safe_llm_call(
+                        extract_financial_data, file_path,
+                        model=_MODEL_IFRS, label=f"Financial Statements Analyst:{file_name}"
+                    )
+                    verify_data = None
 
             if data:
+                if verify_data:
+                    def values_match(pro: Optional[float], flash: Optional[float], tolerance: float = 0.01) -> bool:
+                        if pro is None or flash is None:
+                            return False
+                        if pro == 0 and flash == 0:
+                            return True
+                        return abs(pro - flash) / max(abs(pro), abs(flash)) <= tolerance
+
+                    check_fields = [
+                        "celkove_aktiva", "trzby_z_hlavnej_cinnosti", 
+                        "zisk_alebo_strata_po_zdaneni", "vlastne_imanie_celkom", 
+                        "ciste_penazne_toky_z_prevadzkovej_cinnosti"
+                    ]
+                    
+                    for field in check_fields:
+                        val_pro = getattr(data.metriky, field, None)
+                        val_flash = getattr(verify_data, field, None)
+                        
+                        if val_flash is None:
+                            data.verification_confidence[field] = "MEDIUM"
+                        elif values_match(val_pro, val_flash):
+                            data.verification_confidence[field] = "HIGH"
+                        else:
+                            data.verification_confidence[field] = "LOW"
+                            setattr(data.metriky, field, None)
+                            logger.warning(f"[VERIFY MISMATCH] {file_name}: {field} PRO={val_pro} FLASH={val_flash} -> SETTING TO NULL")
+
                 if data.metriky.osobne_naklady is None:
                     logger.info(f"[STAFF COSTS RETRY] Osobné náklady chýbajú. Spúšťam cielene vyhľadávanie v {file_name}")
                     async with sem:
@@ -648,16 +769,18 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                         logger.warning(f"[STAFF COSTS RETRY] Osobné náklady sa nepodarilo nájsť v {file_name}")
 
                 # Fallback: compute missing balance sheet totals from sub-items
+                # NEPREPISUJ polia, ktoré verifikácia nastavila na None (LOW confidence mismatch)
                 m = data.metriky
+                _low_confidence_fields = {k for k, v in data.verification_confidence.items() if v == "LOW"}
                 if m.obezny_majetok is None:
                     current_sub = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
                     if len(current_sub) >= 2:
                         m.obezny_majetok = sum(current_sub)
                         logger.info(f"[FALLBACK] {file_name}: obezny_majetok vypočítané z sub-items: {m.obezny_majetok}")
-                if m.celkove_aktiva is None and m.obezny_majetok is not None:
+                if m.celkove_aktiva is None and m.obezny_majetok is not None and "celkove_aktiva" not in _low_confidence_fields:
                     m.celkove_aktiva = m.obezny_majetok
                     logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
-                if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None:
+                if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None and "vlastne_imanie_celkom" not in _low_confidence_fields:
                     if m.kratkodobe_zavazky is not None and m.dlhodobe_zavazky is not None:
                         computed_equity = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobe_zavazky)
                         if computed_equity > 0:
@@ -751,6 +874,22 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
             ov_result = await ov_scraper.run_xml(ico=ico)
             if ov_result.get("status") == "SUCCESS" and ov_result.get("events"):
                 await save_vestnik_events_to_db(ico, ov_result["events"])
+
+            # Propagácia white_horse_risk do DB ako CompanyEvent
+            if ov_result.get("white_horse_risk") and ov_result.get("cross_event_pattern"):
+                from src.agents.pdf_reader import CompanyEvent as PdfCompanyEvent
+                white_horse_event = PdfCompanyEvent(
+                    source="OBCHODNY_VESTNIK",
+                    event_type="WHITE_HORSE_PATTERN",
+                    severity="CRITICAL",
+                    title="Vzorec schránkovej firmy (biely kôň) detekovaný",
+                    description=ov_result["cross_event_pattern"],
+                    event_date=None,
+                    amount=None,
+                    metadata={"detection_method": "vestnik_batch_cross_analysis"},
+                )
+                await append_company_event_to_db(ico, white_horse_event)
+                logger.warning(f"[Vestník] IČO {ico}: White horse pattern uložený do DB ako CRITICAL CompanyEvent")
         except Exception as e:
             logger.error(f"Chyba pri paralelnom spracovaní Vestníka: {e}", exc_info=True)
 

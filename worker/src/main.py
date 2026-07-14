@@ -294,7 +294,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         if task.target_type == "COMPANY" and task.ico and sources:
             from src.pipeline import run_pdf_reader_agent, run_orsr_forensics_agent
             pdf_reader_task = asyncio.create_task(run_pdf_reader_agent(task.ico, sources, report_language=task.report_language or "sk"))
-            orsr_forensic_task = asyncio.create_task(run_orsr_forensics_agent(task.ico, sources))
+            orsr_forensic_task = asyncio.create_task(run_orsr_forensics_agent(task.ico, sources, report_language=task.report_language or "sk"))
         if ai_task:
             try:
                 await ai_task

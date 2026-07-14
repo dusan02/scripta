@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict
 from prisma import Prisma
 
-from src.llm_extractor import extract_vestnik_event, VestnikExtraction
+from src.llm_extractor import extract_vestnik_event, extract_vestnik_events_batch, VestnikExtraction, VestnikBatchResult
 from ..models import ScrapedSource
 from .base import BaseScraper, ScraperInputError
 
@@ -60,25 +60,61 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
         logger.info(f"[OV] IČO {ico_clean}: nájdených {len(found_events)} relevantných záznamov")
 
-        # Pošleme kritické záznamy do Gemini na analýzu
+        # Batch spracovanie — jeden LLM call pre všetky eventy naraz.
+        # Namiesto N sériových volaní urobíme 1 volanie, ktoré vidí všetky eventy
+        # a dokáže detegovať cross-event vzorce (white horse, chronická insolvencia).
         analyzed_events = []
-        for event in found_events:
+        batch_result = VestnikBatchResult()
+        if found_events:
             try:
-                extraction: VestnikExtraction = await extract_vestnik_event(event["text"], report_language=report_language)
-                event_data = {
-                    "sourceId": event["id"],
-                    "publishedAt": event.get("published_at", "UNKNOWN"),
-                    "rawType": event.get("kind_name", event.get("file_name", "Neznámy typ")),
-                    "analysis": extraction,
-                }
-                analyzed_events.append(event_data)
+                batch_result: VestnikBatchResult = await extract_vestnik_events_batch(
+                    found_events, report_language=report_language
+                )
+
+                # Map batch results späť na eventy podľa source_index
+                for item in batch_result.events:
+                    idx = item.source_index
+                    if 0 <= idx < len(found_events):
+                        event = found_events[idx]
+                        extraction = VestnikExtraction(
+                            typ_udalosti=item.typ_udalosti,
+                            rizikovost=item.rizikovost,
+                            zhrnutie=item.zhrnutie,
+                            red_flags=item.red_flags,
+                        )
+                        analyzed_events.append({
+                            "sourceId": event["id"],
+                            "publishedAt": event.get("published_at", "UNKNOWN"),
+                            "rawType": event.get("kind_name", event.get("file_name", "Neznámy typ")),
+                            "analysis": extraction,
+                        })
+
+                if batch_result.white_horse_risk:
+                    logger.warning(f"[OV] IČO {ico_clean}: WHITE HORSE RISK detekovaný! Vzorec: {batch_result.cross_event_pattern}")
+                if batch_result.cross_event_pattern:
+                    logger.info(f"[OV] IČO {ico_clean}: Cross-event vzorec: {batch_result.cross_event_pattern}")
+
             except Exception as e:
-                logger.warning(f"[OV] Gemini analýza zlyhala pre záznam {event['id']}: {e}")
+                logger.warning(f"[OV] Batch analýza zlyhala pre IČO {ico_clean}: {e} — fallback na per-event")
+                # Fallback na pôvodný per-event prístup
+                for event in found_events:
+                    try:
+                        extraction: VestnikExtraction = await extract_vestnik_event(event["text"], report_language=report_language)
+                        analyzed_events.append({
+                            "sourceId": event["id"],
+                            "publishedAt": event.get("published_at", "UNKNOWN"),
+                            "rawType": event.get("kind_name", event.get("file_name", "Neznámy typ")),
+                            "analysis": extraction,
+                        })
+                    except Exception as e2:
+                        logger.warning(f"[OV] Gemini analýza zlyhala pre záznam {event['id']}: {e2}")
 
         return {
             "status": "SUCCESS",
             "events_found": len(analyzed_events),
             "events": analyzed_events,
+            "white_horse_risk": batch_result.white_horse_risk if found_events else False,
+            "cross_event_pattern": batch_result.cross_event_pattern if found_events else "",
         }
 
     async def _fetch_and_filter(
@@ -86,11 +122,9 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
     ) -> List[Dict]:
         """
         Fetch z ekosystem sync API a filtrácia podľa štruktúrneho poľa cin/debtor.cin.
-        Používa 30-dňový lookback — sync API vracia všetky zmeny od daného dátumu,
-        takže dlhší lookback by stiahol milióny záznamov.
-        Pre historické dáta by bol potrebný one-time bulk import.
+        Používa 365-dňový lookback — pokrýva historické konkurzy/reštrukturalizácie.
         """
-        from_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        from_date = (datetime.utcnow() - timedelta(days=365)).isoformat()
 
         results = []
         url = f"{_API_BASE}/{endpoint}/sync"

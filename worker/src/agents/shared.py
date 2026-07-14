@@ -119,3 +119,11 @@ class CompanyFinancialExtraction(BaseModel):
     nazov_spolocnosti: str = Field(..., description="Oficiálny názov spoločnosti.")
     audit: AuditorReportData
     metriky: FinancialMetrics
+    verification_confidence: dict[str, str] = Field(default_factory=dict, description="Mapovanie pola na confidence level: HIGH, MEDIUM, LOW")
+
+class VerificationExtraction(BaseModel):
+    celkove_aktiva: Optional[float] = Field(None, description="Celkové aktíva (Total assets). Ak nenájdeš s istotou, vráť null.")
+    trzby_z_hlavnej_cinnosti: Optional[float] = Field(None, description="Tržby z hlavnej činnosti (Revenue). Ak nenájdeš s istotou, vráť null.")
+    zisk_alebo_strata_po_zdaneni: Optional[float] = Field(None, description="Čistý zisk alebo strata (Net profit/loss). Ak nenájdeš s istotou, vráť null.")
+    vlastne_imanie_celkom: Optional[float] = Field(None, description="Vlastné imanie celkom (Total equity). Ak nenájdeš s istotou, vráť null.")
+    ciste_penazne_toky_z_prevadzkovej_cinnosti: Optional[float] = Field(None, description="Prevádzkový cash flow. Ak nenájdeš s istotou, vráť null.")
