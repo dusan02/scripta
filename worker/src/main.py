@@ -266,6 +266,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 browser=browser,
                 target_type=task.target_type,
                 ico=task.ico,
+                report_language=task.report_language or "sk",
                 orsr_extract_type=task.orsr_extract_type,
                 crz_date_from=task.crz_date_from,
                 rozhodnutia_date_from=task.rozhodnutia_date_from,

@@ -717,7 +717,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                         ),
                         safe_llm_call(
                             verify_critical_numbers_blind, file_path,
-                            model="gemini-1.5-flash", label=f"Financial Verification Analyst:{file_name}"
+                            model=_cfg.model_fallback, label=f"Financial Verification Analyst:{file_name}"
                         )
                     )
                 else:

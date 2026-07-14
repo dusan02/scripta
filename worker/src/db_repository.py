@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 from typing import Optional, cast
 from prisma import Prisma
 import httpx
@@ -35,7 +36,6 @@ async def _fetch_nace_from_api(ico: str):
 
 async def save_company_events_to_db(ico: str, events: list) -> None:
     """Uloží CompanyEvent[] z PDF Reader Agent do databázy."""
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -78,7 +78,6 @@ async def save_company_events_to_db(ico: str, events: list) -> None:
 
 async def append_company_event_to_db(ico: str, event) -> None:
     """Pridá jeden CompanyEvent bez vymazania existujúcich (pre paralelných agentov)."""
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -115,7 +114,6 @@ async def append_company_event_to_db(ico: str, event) -> None:
 
 async def get_company_events(ico: str) -> list:
     """Načíta CompanyEvent[] z DB pre dané IČO."""
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -222,126 +220,9 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 },
                 data={
                     'create': create_data,  # type: ignore
-                    'update': {},
+                    'update': stmt_data,
                 }
             )
-
-            # Update fields separately if they have values
-            if 'totalAssets' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'totalAssets': stmt_data['totalAssets']}
-                )
-            if 'currentAssets' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'currentAssets': stmt_data['currentAssets']}
-                )
-            if 'equity' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'equity': stmt_data['equity']}
-                )
-            if 'shortTermLiabilities' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'shortTermLiabilities': stmt_data['shortTermLiabilities']}
-                )
-            if 'longTermLiabilities' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'longTermLiabilities': stmt_data['longTermLiabilities']}
-                )
-            if 'mainActivityRevenue' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'mainActivityRevenue': stmt_data['mainActivityRevenue']}
-                )
-            if 'grossProfit' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'grossProfit': stmt_data['grossProfit']}
-                )
-            if 'netProfitLoss' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'netProfitLoss': stmt_data['netProfitLoss']}
-                )
-            if 'cashAndEquivalents' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'cashAndEquivalents': stmt_data['cashAndEquivalents']}
-                )
-            if 'operatingCashFlow' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'operatingCashFlow': stmt_data['operatingCashFlow']}
-                )
-            if 'staffCosts' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'staffCosts': stmt_data['staffCosts']}
-                )
-            if 'tradeReceivables' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'tradeReceivables': stmt_data['tradeReceivables']}
-                )
-            if 'tradePayables' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'tradePayables': stmt_data['tradePayables']}
-                )
-            if 'inventory' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'inventory': stmt_data['inventory']}
-                )
-            if 'depreciation' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'depreciation': stmt_data['depreciation']}
-                )
-            if 'investingCashFlow' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'investingCashFlow': stmt_data['investingCashFlow']}
-                )
-            if 'financingCashFlow' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'financingCashFlow': stmt_data['financingCashFlow']}
-                )
-            if 'interestExpense' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'interestExpense': stmt_data['interestExpense']}
-                )
-            if 'employeeCount' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'employeeCount': stmt_data['employeeCount']}
-                )
-            if 'currency' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'currency': stmt_data['currency']}
-                )
-            if 'statementType' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'statementType': stmt_data['statementType']}
-                )
-            if 'monthsInPeriod' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'monthsInPeriod': stmt_data['monthsInPeriod']}
-                )
-            if 'isConsolidated' in stmt_data:
-                await db.financialstatement.update(
-                    where={'id': statement.id},
-                    data={'isConsolidated': stmt_data['isConsolidated']}
-                )
 
             # 3. Uložíme názor audítora (naviazaný na konkrétny výkaz)
             await db.auditoropinion.upsert(
@@ -426,7 +307,6 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
         await db.disconnect()
 
 async def save_notes_to_db(ico: str, year: int, notes_risk):
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -471,7 +351,6 @@ _AVG_CACHE_TTL = 120  # 2 minúty
 async def get_avg_completion_seconds(limit: int = 20) -> Optional[float]:
     """Vráti priemerný čas dokončenia (v sekundách) z posledných N completed/partial reportov."""
     import time as _time
-    from prisma import Prisma
     
     now = _time.perf_counter()
     cached = _avg_cache.get("value")
@@ -510,7 +389,6 @@ async def update_ai_status(report_request_id: Optional[str], ai_status: Optional
     """Aktualizuje informačný status pre AI pipeline a odhadovaný čas cez Prisma."""
     if not report_request_id:
         return
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -527,7 +405,6 @@ async def update_ai_status(report_request_id: Optional[str], ai_status: Optional
         await db.disconnect()
 
 async def get_report_request_company_name(report_request_id: str) -> Optional[str]:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -537,7 +414,6 @@ async def get_report_request_company_name(report_request_id: str) -> Optional[st
         await db.disconnect()
 
 async def upsert_company_name(ico: str, company_name: str) -> None:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -559,7 +435,6 @@ async def upsert_company_name(ico: str, company_name: str) -> None:
 
 async def get_verifa_score(ico: str) -> Optional[int]:
     """Prečíta aktuálne verifaScore z AuditVerdict pre dané IČO."""
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -571,7 +446,6 @@ async def get_verifa_score(ico: str) -> Optional[int]:
 
 async def get_company_with_relations(ico: str):
     """Načíta spoločnosť so všetkými reláciami pre Chief Auditora."""
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -596,7 +470,6 @@ async def get_company_with_relations(ico: str):
 
 async def save_audit_verdict(ico: str, verdict_payload: dict):
     """Uloží konečný verdikt do databázy."""
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -615,12 +488,6 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
         await db.disconnect()
 
 
-from typing import Optional, List
-from datetime import datetime, timezone
-import logging
-
-logger = logging.getLogger(__name__)
-
 async def update_report_status(
     report_request_id: str,
     status: str,
@@ -628,7 +495,6 @@ async def update_report_status(
     company_name: Optional[str] = None,
     verifa_score: Optional[int] = None,
 ) -> None:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -653,7 +519,6 @@ async def update_report_status(
 
 
 async def get_avg_phase_durations(limit: int = 20) -> Optional[dict]:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -694,7 +559,6 @@ async def get_avg_phase_durations(limit: int = 20) -> Optional[dict]:
 
 
 async def save_phase_duration(report_request_id: str, phase: str, duration_ms: int) -> None:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -713,7 +577,6 @@ async def save_phase_duration(report_request_id: str, phase: str, duration_ms: i
 
 
 async def upsert_report_sources(report_request_id: str, sources: list) -> None:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -755,7 +618,6 @@ async def upsert_single_report_source(report_request_id: str, source) -> None:
 
 
 async def update_source_page_counts(report_request_id: str, sources: list) -> None:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -777,7 +639,6 @@ async def update_source_page_counts(report_request_id: str, sources: list) -> No
 
 
 async def create_bug_report(report_request_id: str, error_details: str) -> None:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
@@ -818,7 +679,6 @@ async def create_bug_report(report_request_id: str, error_details: str) -> None:
 
 
 async def charge_credit(report_request_id: str) -> None:
-    from prisma import Prisma
     db = Prisma()
     await db.connect()
     try:
