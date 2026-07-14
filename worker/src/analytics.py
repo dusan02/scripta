@@ -289,9 +289,9 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
 
         # ── Likvidita ──
         ratios = {
-            "current_ratio": _safe_div(current_assets, short_liabilities) if current_assets > 0 else None,
+            "current_ratio": _safe_div(current_assets, short_liabilities),
             "cash_ratio": _safe_div(cash, short_liabilities),
-            "quick_ratio": _safe_div(current_assets - inventory, short_liabilities) if current_assets > 0 else None,
+            "quick_ratio": _safe_div(current_assets - inventory, short_liabilities),
             "working_capital": round(current_assets - short_liabilities, 0) if (current_assets > 0 or short_liabilities > 0) else None,
         }
 
@@ -314,7 +314,7 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
 
         # ── EBITDA (approx: net_profit + interest + depreciation) ──
         # Náklady na úroky (interest) môžu byť v DB uložené ako záporné — prirátavame absolútnu hodnotu.
-        ratios["ebitda"] = round(net_profit + abs(interest) + depreciation, 0) if (interest != 0 or depreciation != 0) else None
+        ratios["ebitda"] = round(net_profit + abs(interest) + depreciation, 0)
         if ratios["ebitda"] is not None and revenue > 0:
             ratios["ebitda_margin_pct"] = round((ratios["ebitda"] / revenue) * 100, 2)
         else:
@@ -830,11 +830,11 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     if dq_mult < 1.0:
         pillars.append(ScorecardPillar(
             name="Data Quality Multiplier",
-            score=int(total_score * dq_mult) - total_score, max_score=0,
+            score=int(round(total_score * dq_mult)) - total_score, max_score=0,
             detail=f"Skóre ponížené (koeficient {dq_mult:.2f}) pre chýbajúce dáta, históriu alebo audit.",
             flags=[]
         ))
-        total_score = int(total_score * dq_mult)
+        total_score = int(round(total_score * dq_mult))
 
     return ScorecardResult(
         total_score=total_score,
