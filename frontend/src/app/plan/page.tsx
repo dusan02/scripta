@@ -115,10 +115,10 @@ export default function PlanPage() {
       <div className="max-w-[700px] mx-auto px-4 sm:px-6 pt-8 pb-8 animate-fade-in">
         <div className="card p-8 text-center">
           <p className="text-sm mb-2" style={{ color: "var(--text-muted)" }}>
-            Nepodarilo sa načítať údaje o paušáli.
+            {t("plan.chybaNacitania")}
           </p>
           <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-            Skúste obnoviť stránku alebo sa prihláste znova.
+            {t("plan.skusteObnovit")}
           </p>
           {error && (
             <div className="mt-4 p-3 rounded-lg text-xs" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
@@ -144,7 +144,7 @@ export default function PlanPage() {
           className="text-2xl font-bold tracking-tight mb-1"
           style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
         >
-          Paušál{planLabel ? ` - ${planLabel}` : ""}
+          {t("plan.titul")}{planLabel ? ` - ${planLabel}` : ""}
         </h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           {t("plan.prehlad")}
@@ -157,7 +157,7 @@ export default function PlanPage() {
         <div className="card p-5 flex flex-col items-center text-center">
           <div className="flex-1 flex flex-col justify-end mb-3 w-full">
             <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
-              {Array.from({ length: data.totalCredits }).map((_, i) => (
+              {Array.from({ length: Math.min(data.totalCredits, 40) }).map((_, i) => (
                 <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
               ))}
             </div>
@@ -216,7 +216,7 @@ export default function PlanPage() {
         <div className="card p-5 flex flex-col items-center text-center">
           <div className="flex-1 flex flex-col justify-end mb-3 w-full">
             <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
-              {Array.from({ length: data.remaining }).map((_, i) => (
+              {Array.from({ length: Math.min(data.remaining, 40) }).map((_, i) => (
                 <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--success)" }} />
               ))}
             </div>
@@ -339,7 +339,7 @@ export default function PlanPage() {
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:brightness-110"
           style={{
             background: "var(--accent)",
-            color: "#000000",
+            color: "var(--accent-button-text)",
           }}
         >
           {t("plan.kontaktujte")}

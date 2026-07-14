@@ -100,6 +100,21 @@ function DownloadButton({ href, label }: { href: string; label: string }) {
   );
 }
 
+function ViewButton({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 hover:opacity-90"
+      style={{
+        background: "var(--accent)",
+        color: "var(--accent-button-text)",
+      }}
+    >
+      {label} →
+    </Link>
+  );
+}
+
 export default function DocumentsPage() {
   const t = useT();
 
@@ -142,17 +157,29 @@ export default function DocumentsPage() {
         <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>{t("docs.termsTitle")}</h2>
         <div className="space-y-4">
           <DocCard
-            icon={<ClockIcon />}
+            icon={<FileIcon />}
             title={t("docs.termsTitle")}
             description={t("docs.termsDesc")}
-            status="soon"
-          />
+            status="available"
+          >
+            <ViewButton href="/terms" label={t("docs.zobrazit")} />
+          </DocCard>
           <DocCard
-            icon={<ClockIcon />}
+            icon={<FileIcon />}
             title={t("docs.gdprTitle")}
             description={t("docs.gdprDesc")}
-            status="soon"
-          />
+            status="available"
+          >
+            <ViewButton href="/privacy" label={t("docs.zobrazit")} />
+          </DocCard>
+          <DocCard
+            icon={<FileIcon />}
+            title={t("docs.dpaTitle")}
+            description={t("docs.dpaDesc")}
+            status="available"
+          >
+            <ViewButton href="/dpa" label={t("docs.zobrazit")} />
+          </DocCard>
         </div>
       </div>
 
@@ -163,7 +190,7 @@ export default function DocumentsPage() {
           className="text-sm font-medium hover:underline"
           style={{ color: "var(--accent)" }}
         >
-          ← {t("nav.dokumenty")}
+          ← {t("docs.spatDomov")}
         </Link>
       </div>
     </div>

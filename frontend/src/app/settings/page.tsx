@@ -246,10 +246,10 @@ export default function SettingsPage() {
               className="text-sm font-semibold mb-1"
               style={{ color: "var(--text)" }}
             >
-              Rozhodnutia súdov
+              {t("settings.rozhodnutia")}
             </h2>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Rok, od ktorého sa budú vyhľadávať rozhodnutia súdov. Defaultne je nastavený predchádzajúci rok.
+              {t("settings.rozhodnutiaPopis")}
             </p>
           </div>
         </div>
@@ -262,7 +262,7 @@ export default function SettingsPage() {
         ) : (
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Od roku</label>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>{t("settings.odRoku")}</label>
               <select
                 value={rozhodnutiaYearFrom}
                 onChange={(e) => setRozhodnutiaYearFrom(e.target.value)}
@@ -279,7 +279,7 @@ export default function SettingsPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Do roku</label>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>{t("settings.doRoku")}</label>
               <select
                 value={String(currentYear)}
                 disabled
@@ -305,10 +305,10 @@ export default function SettingsPage() {
               className="text-sm font-semibold mb-1"
               style={{ color: "var(--text)" }}
             >
-              Obchodný vestník
+              {t("settings.vestnik")}
             </h2>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Dátum, od ktorého sa budú v reporte zobrazovať udalosti z Obchodného vestníka. Defaultne 1 rok dozadu.
+              {t("settings.vestnikPopis")}
             </p>
           </div>
         </div>
@@ -438,7 +438,7 @@ export default function SettingsPage() {
           className="btn-primary"
           style={{
             background: "var(--accent)",
-            color: "white",
+            color: "var(--accent-button-text)",
             border: "none",
             height: "40px",
             padding: "0 24px",

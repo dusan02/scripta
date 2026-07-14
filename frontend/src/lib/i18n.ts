@@ -304,6 +304,12 @@ const sk: Dict = {
   "settings.chyba": "Uloženie zlyhalo",
 "settings.jazykReportu": "Jazyk reportu",
 "settings.jazykReportuPopis": "Vyberte, v akom jazyku sa bude generovať PDF report. Prílohy zostávajú v originálnom jazyku.",
+"settings.rozhodnutia": "Rozhodnutia súdov",
+"settings.rozhodnutiaPopis": "Rok, od ktorého sa budú vyhľadávať rozhodnutia súdov. Defaultne je nastavený predchádzajúci rok.",
+"settings.odRoku": "Od roku",
+"settings.doRoku": "Do roku",
+"settings.vestnik": "Obchodný vestník",
+"settings.vestnikPopis": "Dátum, od ktorého sa budú v reporte zobrazovať udalosti z Obchodného vestníka. Defaultne 1 rok dozadu.",
 
   // ── Messages ──
   "messages.spravy": "Správy",
@@ -436,6 +442,9 @@ const sk: Dict = {
   "plan.potrebujeteViac": "Potrebujete viac reportov?",
   "plan.kontaktujte": "Kontaktujte nás",
   "plan.spravovatPredplatne": "Spravovať predplatné",
+  "plan.titul": "Paušál",
+  "plan.chybaNacitania": "Nepodarilo sa načítať údaje o paušáli.",
+  "plan.skusteObnovit": "Skúste obnoviť stránku alebo sa prihláste znova.",
 
   // ── AI status (worker → frontend) ──
   "ai.checking_registers": "Iniciujem vyhodnocovanie verejných dát",
@@ -587,6 +596,10 @@ const sk: Dict = {
   "docs.termsDesc": "Podmienky používania platformy Verifa.sk, práva a povinnosti strán.",
   "docs.gdprTitle": "Ochrana osobných údajov",
   "docs.gdprDesc": "Informácie o spracovaní osobných údajov v zmysle GDPR.",
+  "docs.dpaTitle": "Dohoda o spracúvaní údajov (DPA)",
+  "docs.dpaDesc": "Dohoda o spracúvaní osobných údajov medzi Verifa.sk a klientom podľa čl. 28 GDPR.",
+  "docs.zobrazit": "Zobraziť",
+  "docs.spatDomov": "Späť domov",
 };
 
 const en: Dict = {
@@ -879,6 +892,12 @@ const en: Dict = {
   "settings.chyba": "Save failed",
 "settings.jazykReportu": "Report language",
 "settings.jazykReportuPopis": "Select the language for the generated PDF report. Appendices remain in their original language.",
+"settings.rozhodnutia": "Court decisions",
+"settings.rozhodnutiaPopis": "Year from which court decisions will be searched. Defaults to the previous year.",
+"settings.odRoku": "From year",
+"settings.doRoku": "To year",
+"settings.vestnik": "Commercial Bulletin",
+"settings.vestnikPopis": "Date from which Commercial Bulletin events will be shown in the report. Defaults to 1 year back.",
 
   // ── Messages ──
   "messages.spravy": "Messages",
@@ -1011,6 +1030,9 @@ const en: Dict = {
   "plan.potrebujeteViac": "Need more reports?",
   "plan.kontaktujte": "Contact us",
   "plan.spravovatPredplatne": "Manage subscription",
+  "plan.titul": "Plan",
+  "plan.chybaNacitania": "Failed to load plan data.",
+  "plan.skusteObnovit": "Try refreshing the page or sign in again.",
 
   // ── AI status (worker → frontend) ──
   "ai.checking_registers": "Initiating public data evaluation",
@@ -1162,6 +1184,10 @@ const en: Dict = {
   "docs.termsDesc": "Terms of use for the Verifa.sk platform, rights and obligations of parties.",
   "docs.gdprTitle": "Data Protection (GDPR)",
   "docs.gdprDesc": "Information on personal data processing in accordance with GDPR.",
+  "docs.dpaTitle": "Data Processing Agreement (DPA)",
+  "docs.dpaDesc": "Data processing agreement between Verifa.sk and the client under GDPR Art. 28.",
+  "docs.zobrazit": "View",
+  "docs.spatDomov": "Back home",
 };
 
 const de: Dict = {
@@ -1454,6 +1480,12 @@ const de: Dict = {
   "settings.chyba": "Speichern fehlgeschlagen",
 "settings.jazykReportu": "Berichtssprache",
 "settings.jazykReportuPopis": "Wählen Sie die Sprache für den generierten PDF-Bericht. Anhänge bleiben in ihrer Originalsprache.",
+"settings.rozhodnutia": "Gerichtsentscheidungen",
+"settings.rozhodnutiaPopis": "Jahr, ab dem Gerichtsentscheidungen gesucht werden. Standardmäßig das Vorjahr.",
+"settings.odRoku": "Ab Jahr",
+"settings.doRoku": "Bis Jahr",
+"settings.vestnik": "Handelsregister",
+"settings.vestnikPopis": "Datum, ab dem Handelsregister-Ereignisse im Bericht angezeigt werden. Standardmäßig 1 Jahr zurück.",
 
   // ── Messages ──
   "messages.spravy": "Nachrichten",
@@ -1586,6 +1618,9 @@ const de: Dict = {
   "plan.potrebujeteViac": "Benötigen Sie mehr Berichte?",
   "plan.kontaktujte": "Kontaktieren Sie uns",
   "plan.spravovatPredplatne": "Abonnement verwalten",
+  "plan.titul": "Plan",
+  "plan.chybaNacitania": "Plandaten konnten nicht geladen werden.",
+  "plan.skusteObnovit": "Aktualisieren Sie die Seite oder melden Sie sich erneut an.",
 
   // ── AI status (worker → frontend) ──
   "ai.checking_registers": "Initialisierung der Auswertung öffentlicher Daten",
@@ -1737,6 +1772,10 @@ const de: Dict = {
   "docs.termsDesc": "Nutzungsbedingungen der Verifa.sk Plattform, Rechte und Pflichten der Parteien.",
   "docs.gdprTitle": "Datenschutz (GDPR)",
   "docs.gdprDesc": "Informationen zur Verarbeitung personenbezogener Daten gemäß GDPR.",
+  "docs.dpaTitle": "Datenverarbeitungsvereinbarung (DPA)",
+  "docs.dpaDesc": "Datenverarbeitungsvereinbarung zwischen Verifa.sk und dem Kunden gemäß GDPR Art. 28.",
+  "docs.zobrazit": "Anzeigen",
+  "docs.spatDomov": "Zurück zur Startseite",
 };
 
 export const translations: Record<Lang, Dict> = { sk, en, de };

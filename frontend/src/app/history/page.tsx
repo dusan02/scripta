@@ -198,7 +198,6 @@ export default function HistoryPage() {
   const handleSearchAgain = useCallback(async (e: React.MouseEvent, report: Report) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log("[handleSearchAgain] clicked, report:", report.id, "ico:", report.ico, "sources:", report.sources.map(s => s.sourceType));
     setRetryingId(report.id);
     try {
       const body: Record<string, unknown> = {
@@ -206,21 +205,18 @@ export default function HistoryPage() {
         sources: report.sources.map(s => s.sourceType),
         ico: report.ico,
       };
-      console.log("[handleSearchAgain] POST body:", JSON.stringify(body));
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      console.log("[handleSearchAgain] response:", res.status, data);
       if (res.ok && data.reportRequestId) {
         router.push(`/reports/${data.reportRequestId}`);
       } else {
         toast.error(data.error || t("history.chybaZopakovania"));
       }
-    } catch (err) {
-      console.error("[handleSearchAgain] error:", err);
+    } catch {
       toast.error(t("history.chybaZopakovania"));
     } finally {
       setRetryingId(null);
@@ -660,9 +656,6 @@ export default function HistoryPage() {
                             </svg>
                           )}
                         </button>
-                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                          {formatDate(report.createdAt, locale)}
-                        </span>
                       </div>
                     </div>
                   </div>

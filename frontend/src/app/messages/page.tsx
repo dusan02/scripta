@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
+import { LOCALE_MAP } from "@/lib/i18n";
 
 interface Message {
   id: string;
@@ -28,6 +29,8 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function MessagesPage() {
   const t = useT();
+  const { lang } = useLang();
+  const locale = LOCALE_MAP[lang];
   const [messages, setMessages] = useState<Message[]>([]);
   const [sentMessages, setSentMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +73,7 @@ export default function MessagesPage() {
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleDateString("sk-SK", {
+    return d.toLocaleDateString(locale, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
