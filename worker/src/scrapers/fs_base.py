@@ -242,7 +242,7 @@ class FinancnaSpravaBase(BaseScraper):
             try:
                 link = page.get_by_role("link", name=self.zoznam_link_name).first
                 await link.wait_for(timeout=10000)
-                await link.click()
+                await link.click(force=True)
                 await page.wait_for_load_state("domcontentloaded", timeout=15000)
                 logger.info(f"[{self.source_type}] Na stránke zoznamu, URL: {page.url}")
             except PlaywrightTimeoutError:
@@ -251,7 +251,7 @@ class FinancnaSpravaBase(BaseScraper):
                 try:
                     partial_link = page.get_by_role("link", name=self.zoznam_link_name, exact=False).first
                     await partial_link.wait_for(timeout=5000)
-                    await partial_link.click()
+                    await partial_link.click(force=True)
                     await page.wait_for_load_state("domcontentloaded", timeout=15000)
                     logger.info(f"[{self.source_type}] Na stránke zoznamu (partial match), URL: {page.url}")
                 except PlaywrightTimeoutError:
@@ -446,6 +446,24 @@ class FinancnaSpravaBase(BaseScraper):
                 logger.info(f"[{self.source_type}] Žiadny modal sa nenašiel, pokračujem.")
         except Exception as e:
             logger.warning(f"[{self.source_type}] Modal handling chyba: {e}")
+
+        # Zatvorenie kb-overlay (cookie consent / survey banner ktorý blokuje kliknutia)
+        try:
+            kb_overlay = page.locator('#kb-overlay')
+            if await kb_overlay.count() > 0:
+                # Skúsime kliknúť na zavrieť/súhlasím button vnútri overlay-a
+                for btn_text in ['Súhlasím', 'Prijať', 'Zavrieť', 'X', '×', 'Zrušiť']:
+                    btn = kb_overlay.locator(f'button:has-text("{btn_text}"), a:has-text("{btn_text}")')
+                    if await btn.count() > 0:
+                        await btn.first.click(timeout=3000)
+                        logger.info(f"[{self.source_type}] kb-overlay zatvorený cez button '{btn_text}'.")
+                        break
+                else:
+                    # Ak nenašli button, skryjeme overlay cez JS
+                    await page.evaluate("document.getElementById('kb-overlay')?.remove()")
+                    logger.info(f"[{self.source_type}] kb-overlay odstránený cez JS.")
+        except Exception as e:
+            logger.debug(f"[{self.source_type}] kb-overlay handling: {e}")
 
     async def _find_search_input(self, page: Page, search_by: str = "name"):
         """Nájde input pre vyhľadávanie — podľa search_by (ico/name). Skúša aj iframes."""
