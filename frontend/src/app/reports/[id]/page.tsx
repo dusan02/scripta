@@ -351,12 +351,12 @@ function PhaseProgress({
               <span className="text-[15px] font-medium leading-snug break-words" style={{ color: "var(--success)" }}>
                 {statusText}
               </span>
-              {isScraping && sourcesTotal > 0 && (
-                <span className="shrink-0 text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
-                  {sourcesCompleted}/{sourcesTotal}
-                </span>
-              )}
             </div>
+            {isScraping && sourcesTotal > 0 && (
+              <div className="mt-1 text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
+                {sourcesCompleted}/{sourcesTotal} zdrojov
+              </div>
+            )}
           </div>
 
           {/* Percentage badge */}

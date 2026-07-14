@@ -3,6 +3,12 @@ generator client {
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
+generator client_py {
+  provider             = "prisma-client-py"
+  output               = "../../worker/venv/lib/python3.9/site-packages/prisma"
+  enable_experimental_decimal = true
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
