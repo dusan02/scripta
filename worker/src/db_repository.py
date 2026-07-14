@@ -164,15 +164,15 @@ async def save_to_db(data: CompanyFinancialExtraction):
                         where={'ico': data.ico},
                         data={'name': gemini_name}
                     )
-            if nace_code:
+            if nace_code or nace_text:
+                nace_update: dict = {}
+                if nace_code:
+                    nace_update['naceCode'] = nace_code
+                if nace_text:
+                    nace_update['naceText'] = nace_text
                 await db.company.update(
                     where={'ico': data.ico},
-                    data={'naceCode': nace_code}
-                )
-            if nace_text:
-                await db.company.update(
-                    where={'ico': data.ico},
-                    data={'naceText': nace_text}
+                    data=nace_update
                 )
 
             # 2. Uložíme finančné výkazy
