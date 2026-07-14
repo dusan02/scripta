@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/components/LanguageProvider";
 import Footer from "@/components/Footer";
 import ToasterProvider from "@/components/ToasterProvider";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import CookieBanner from "@/components/CookieBanner";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
@@ -103,6 +104,7 @@ export default function RootLayout({
               <Footer />
               <ToasterProvider />
               <OfflineIndicator />
+              <CookieBanner />
             </LanguageProvider>
           </AuthProvider>
         </ThemeProvider>

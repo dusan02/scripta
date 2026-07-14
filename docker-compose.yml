@@ -136,6 +136,34 @@ services:
     volumes:
       - worker_results:/app/results
 
+  # ─── DB Backup (cron pg_dump at 3am) ──────────────────────
+  db-backup:
+    image: postgres:16-alpine
+    container_name: scripta_db_backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: scripta
+      DB_NAME: scripta
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: "30"
+      S3_BUCKET: ${S3_BACKUP_BUCKET:-}
+      PGPASSWORD: scripta_dev_password
+      TZ: Europe/Bratislava
+    volumes:
+      - db_backups:/backups
+      - ./scripts/backup-db.sh:/backup-db.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "0 3 * * * /backup-db.sh >> /var/log/backup.log 2>&1" > /etc/crontabs/root &&
+        crond -f -l 2
+
 volumes:
   postgres_data:
   worker_results:
+  db_backups:

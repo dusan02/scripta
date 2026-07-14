@@ -46,6 +46,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Rate limiting: max 5 messages per hour per user
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentCount = await prisma.userMessage.count({
+      where: {
+        type: "USER",
+        senderId: user.id,
+        createdAt: { gte: oneHourAgo },
+      },
+    });
+
+    if (recentCount >= 5) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Max 5 messages per hour." },
+        { status: 429 }
+      );
+    }
+
     // Uložiť správu od používateľa
     const msg = await prisma.userMessage.create({
       data: {
