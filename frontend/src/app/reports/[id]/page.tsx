@@ -195,6 +195,7 @@ const PHASE_WEIGHTS = {
 // Progress interpolates linearly from start→end over the estimated duration,
 // so the bar moves continuously instead of jumping and freezing.
 const AI_STATUS_RANGES: Record<string, { start: number; end: number; estSeconds: number }> = {
+  "ai.queued":               { start: 0, end: 1, estSeconds: 10 },
   "ai.checking_registers":   { start: 0, end: 5, estSeconds: 10 },
   "ai.retrying":              { start: 0, end: 5, estSeconds: 10 },
   "ai.downloading":           { start: 5, end: 30, estSeconds: 55 },
@@ -242,7 +243,7 @@ function computeWeightedProgress(
 }
 
 function getPhaseLabel(aiStatus: string | null | undefined, t: (k: string) => string): string {
-  if (!aiStatus || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying")
+  if (!aiStatus || aiStatus === "ai.queued" || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying")
     return t("report.phaseScraping");
   if ([
     "ai.downloading", "ai.analyzing_statements", "ai.extracting_financials",
@@ -276,7 +277,7 @@ function PhaseProgress({
   const t = useT();
   const phaseLabel = getPhaseLabel(aiStatus, t);
   const statusText = aiStatus ? t(aiStatus) : t("report.processing");
-  const isScraping = !aiStatus || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
+  const isScraping = !aiStatus || aiStatus === "ai.queued" || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
   const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
 
   // Track elapsed time to show patience warning

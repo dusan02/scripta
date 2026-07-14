@@ -472,6 +472,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
 async def create_task(task: ReportTask):
     """Prijme úlohu z Next.js API a okamžite vráti task ID."""
     # Pre jednoduchosť použijeme report_request_id ako task ID.
+    # Okamžite nastavíme ai.queued, aby user videl aktivitu hneď (pred arq pickup).
+    try:
+        await update_report_ai_status(task.report_request_id, "ai.queued", 5)
+    except Exception:
+        pass  # DB update je best-effort — enqueue je dôležitejší
     await app.state.redis.enqueue_job('execute_report_task', task.dict())
     return {"taskId": task.report_request_id, "status": "accepted"}
 

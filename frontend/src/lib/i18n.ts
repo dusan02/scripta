@@ -447,6 +447,7 @@ const sk: Dict = {
   "plan.skusteObnovit": "Skúste obnoviť stránku alebo sa prihláste znova.",
 
   // ── AI status (worker → frontend) ──
+  "ai.queued": "Zaraďujem report do fronty na spracovanie",
   "ai.checking_registers": "Iniciujem vyhodnocovanie verejných dát",
   "ai.retrying": "Opakovaný pokus o stiahnutie dát z registrov",
   "ai.downloading": "Spúšťam vyhľadávanie v centrálnych registroch a exekučných databázach",
@@ -1035,6 +1036,7 @@ const en: Dict = {
   "plan.skusteObnovit": "Try refreshing the page or sign in again.",
 
   // ── AI status (worker → frontend) ──
+  "ai.queued": "Queuing report for processing",
   "ai.checking_registers": "Initiating public data evaluation",
   "ai.retrying": "Retrying data retrieval from registries",
   "ai.downloading": "Searching central registries and enforcement databases",
@@ -1623,6 +1625,7 @@ const de: Dict = {
   "plan.skusteObnovit": "Aktualisieren Sie die Seite oder melden Sie sich erneut an.",
 
   // ── AI status (worker → frontend) ──
+  "ai.queued": "Bericht wird zur Verarbeitung eingereiht",
   "ai.checking_registers": "Initialisierung der Auswertung öffentlicher Daten",
   "ai.retrying": "Erneuter Versuch des Datenabrufs aus Registern",
   "ai.downloading": "Durchsuche zentrale Register und Vollstreckungsdatenbanken",
