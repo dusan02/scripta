@@ -49,6 +49,12 @@ export async function GET(
     // In Docker, results are shared via volume at /app/results
     // resultFilePath may be /app/results/<id>/evidence_binder.pdf (from worker)
     const resultsDir = process.env.RESULTS_DIR || "/app/results";
+
+    // Strip leading "results/" if RESULTS_DIR already ends with /results (avoids double results/results/)
+    if (!path.isAbsolute(filePath) && filePath.startsWith("results/") && resultsDir.endsWith("/results")) {
+      filePath = filePath.slice("results/".length);
+    }
+
     const resolvedFilePath = path.isAbsolute(filePath)
       ? filePath
       : path.resolve(resultsDir, filePath);
