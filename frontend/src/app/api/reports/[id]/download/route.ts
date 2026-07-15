@@ -55,6 +55,12 @@ export async function GET(
       filePath = filePath.slice("results/".length);
     }
 
+    // Map absolute /app/results/ paths (from worker inside Docker) to local RESULTS_DIR
+    // so downloads work when next dev runs outside Docker
+    if (path.isAbsolute(filePath) && filePath.startsWith("/app/results/")) {
+      filePath = filePath.slice("/app/results/".length);
+    }
+
     const resolvedFilePath = path.isAbsolute(filePath)
       ? filePath
       : path.resolve(resultsDir, filePath);
