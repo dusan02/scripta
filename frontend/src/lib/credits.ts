@@ -78,56 +78,84 @@ export async function consumeCredits(
   amount: number,
   reportRequestId?: string
 ): Promise<boolean> {
-  return await prisma.$transaction(async (tx) => {
-    // Lock rows using raw query
-    const batches = await tx.$queryRaw<any[]>`
-      SELECT * FROM "CreditBatch" 
-      WHERE "userId" = ${userId} AND remaining > 0 AND "expiresAt" > NOW() 
-      ORDER BY "createdAt" ASC 
-      FOR UPDATE
-    `;
+  const MAX_RETRIES = 3;
+  let lastError: unknown;
 
-    const totalAvailable = batches.reduce((sum, b) => sum + b.remaining, 0);
-    if (totalAvailable < amount) return false;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // Lock wallet row first to avoid race conditions and overdraft
+        const walletRows = await tx.$queryRaw<any[]>`
+          SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
+        `;
+        const wallet = walletRows[0];
+        if (!wallet) return false;
 
-    const wallet = await tx.wallet.findUnique({ where: { userId } });
-    if (!wallet) return false;
+        const walletBalance = Number(wallet.balance);
+        if (walletBalance < amount) return false;
 
-    let toConsume = amount;
+        // Lock batches and check availability
+        const batches = await tx.$queryRaw<any[]>`
+          SELECT * FROM "CreditBatch" 
+          WHERE "userId" = ${userId} AND remaining > 0 AND "expiresAt" > NOW() 
+          ORDER BY "createdAt" ASC 
+          FOR UPDATE
+        `;
 
-    for (const batch of batches) {
-      if (toConsume <= 0) break;
-      const deduct = Math.min(batch.remaining, toConsume);
+        const totalAvailable = batches.reduce((sum, b) => sum + b.remaining, 0);
+        if (totalAvailable < amount) return false;
 
-      await tx.creditBatch.update({
-        where: { id: batch.id },
-        data: { remaining: { decrement: deduct } },
+        let toConsume = amount;
+
+        for (const batch of batches) {
+          if (toConsume <= 0) break;
+          const deduct = Math.min(batch.remaining, toConsume);
+
+          await tx.creditBatch.update({
+            where: { id: batch.id },
+            data: { remaining: { decrement: deduct } },
+          });
+
+          toConsume -= deduct;
+        }
+
+        // Conditional update with optimistic locking; if version changed, throw conflict
+        const updated = await tx.wallet.updateMany({
+          where: { id: wallet.id, version: wallet.version },
+          data: {
+            balance: { decrement: amount },
+            version: { increment: 1 },
+          },
+        });
+
+        if (updated.count === 0) {
+          throw new Error("Wallet version conflict");
+        }
+
+        await tx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            amount,
+            type: "CHARGE",
+            status: "COMPLETED",
+            reportRequestId: reportRequestId || null,
+            description: `Spotreba kreditov — report${reportRequestId ? ` ${reportRequestId}` : ""}`,
+          },
+        });
+
+        return true;
       });
-
-      toConsume -= deduct;
+    } catch (err) {
+      lastError = err;
+      if (err instanceof Error && err.message === "Wallet version conflict") {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        continue;
+      }
+      throw err;
     }
+  }
 
-    await tx.wallet.update({
-      where: { userId },
-      data: {
-        balance: { decrement: amount },
-        version: { increment: 1 },
-      },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        amount,
-        type: "CHARGE",
-        status: "COMPLETED",
-        reportRequestId: reportRequestId || null,
-        description: `Spotreba kreditov — report${reportRequestId ? ` ${reportRequestId}` : ""}`,
-      },
-    });
-
-    return true;
-  });
+  throw lastError;
 }
 
 /**

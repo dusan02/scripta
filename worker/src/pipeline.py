@@ -529,6 +529,43 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
         cross_input_json = json.dumps(cross_input_dict, default=str, ensure_ascii=False)
         logger.info(f"Cross-Analysis vstup: {len(cross_input_json)} chars (redukovaný z {len(company_data)} chars)")
 
+        # Redukovaný vstup pre Chief Auditora — obsahuje kľúčové metriky z výkazov,
+        # ale neposiela znova plné texty naratívnych/poznámkových analýz (tie sú v cross_input_dict).
+        auditor_input_dict = {
+            **cross_input_dict,
+            "financialStatements": [
+                {
+                    "year": stmt.get("year"),
+                    "auditorOpinion": stmt.get("auditorOpinion"),
+                    "monthsInPeriod": stmt.get("monthsInPeriod"),
+                    "isConsolidated": stmt.get("isConsolidated"),
+                    "currency": stmt.get("currency"),
+                    "statementType": stmt.get("statementType"),
+                    "totalAssets": stmt.get("totalAssets"),
+                    "currentAssets": stmt.get("currentAssets"),
+                    "equity": stmt.get("equity"),
+                    "shortTermLiabilities": stmt.get("shortTermLiabilities"),
+                    "longTermLiabilities": stmt.get("longTermLiabilities"),
+                    "mainActivityRevenue": stmt.get("mainActivityRevenue"),
+                    "grossProfit": stmt.get("grossProfit"),
+                    "netProfitLoss": stmt.get("netProfitLoss"),
+                    "cashAndEquivalents": stmt.get("cashAndEquivalents"),
+                    "operatingCashFlow": stmt.get("operatingCashFlow"),
+                    "staffCosts": stmt.get("staffCosts"),
+                    "tradeReceivables": stmt.get("tradeReceivables"),
+                    "tradePayables": stmt.get("tradePayables"),
+                    "inventory": stmt.get("inventory"),
+                    "depreciation": stmt.get("depreciation"),
+                    "investingCashFlow": stmt.get("investingCashFlow"),
+                    "financingCashFlow": stmt.get("financingCashFlow"),
+                    "interestExpense": stmt.get("interestExpense"),
+                    "employeeCount": stmt.get("employeeCount"),
+                }
+                for stmt in company_dict.get("financialStatements", [])
+            ],
+        }
+        auditor_input_json = json.dumps(auditor_input_dict, default=str, ensure_ascii=False)
+
         cross_summary = ""
         try:
             cross_result = await safe_llm_call(
@@ -547,8 +584,9 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
 
         # ── Chief Auditor (Pro) — finálny verdikt + scorecard + evidence ──
         try:
+            logger.info(f"Chief Auditor vstup: {len(auditor_input_json)} chars (redukovaný z {len(company_data)} chars)")
             verdict = await safe_llm_call(
-                evaluate_audit_verdict, company_data, [],
+                evaluate_audit_verdict, auditor_input_json, [],
                 model=_cfg.model_verdict,
                 label="Chief Auditor",
                 report_language=report_language,
@@ -578,6 +616,22 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
                 logger.info(f"[QA OK] IČO {ico}: Report QA Agent nenašiel nezrovnalosti")
         except Exception as qa_err:
             logger.warning(f"Report QA Agent zlyhal pre IČO {ico}: {qa_err} — preskakujem QA kontrolu.")
+
+        # Ak QA našlo CRITICAL nezrovnalosti, zavoláme Chief Auditora znova so spätnou väzbou.
+        if qa_discrepancies and any(d.severity == "CRITICAL" for d in qa_discrepancies):
+            try:
+                qa_discrepancies_json = json.dumps([d.model_dump() for d in qa_discrepancies], ensure_ascii=False)
+                logger.warning(f"[QA RE-RUN] IČO {ico}: re-running Chief Auditor with {len(qa_discrepancies)} discrepancies")
+                verdict = await safe_llm_call(
+                    evaluate_audit_verdict, auditor_input_json, [],
+                    model=_cfg.model_verdict,
+                    label="Chief Auditor (QA re-run)",
+                    report_language=report_language,
+                    cross_analysis_summary=cross_summary,
+                    qa_discrepancies_json=qa_discrepancies_json,
+                )
+            except Exception as rerun_err:
+                logger.warning(f"[QA RE-RUN] IČO {ico}: re-run zlyhal: {rerun_err} — používam pôvodný verdict.")
 
         # ── Fix 3: Deterministické verifaScore ─────────────────────────────────
         # verifaScore = compute_forensic_scorecard().total_score (vždy, bez ohľadu na LLM).
@@ -752,15 +806,15 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                             data.verification_confidence[field] = "HIGH"
                         else:
                             data.verification_confidence[field] = "LOW"
-                            setattr(data.metriky, field, None)
-                            logger.warning(f"[VERIFY MISMATCH] {file_name}: {field} PRO={val_pro} FLASH={val_flash} -> SETTING TO NULL")
+                            logger.warning(f"[VERIFY MISMATCH] {file_name}: {field} PRO={val_pro} FLASH={val_flash} -> KEEPING PRO VALUE (LOW CONFIDENCE)")
 
                 if data.metriky.osobne_naklady is None:
                     logger.info(f"[STAFF COSTS RETRY] Osobné náklady chýbajú. Spúšťam cielene vyhľadávanie v {file_name}")
                     async with sem:
                         staff_costs = await safe_llm_call(
                             extract_staff_costs_focused, file_path,
-                            model=_MODEL_IFRS, label=f"Financial Statements Analyst STAFF-COSTS:{file_name}"
+                            model=_MODEL_IFRS, label=f"Financial Statements Analyst STAFF-COSTS:{file_name}",
+                            report_language=report_language,
                         )
                     if staff_costs is not None:
                         data.metriky.osobne_naklady = staff_costs

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SourceType, ReportStatus } from "@prisma/client";
 import { PrismaClient } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask, checkWorkerHealth } from "@/lib/worker";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
@@ -116,11 +117,9 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    console.log("INCOMING BODY SOURCES:", body.sources);
-    
+
     const parseResult = reportRequestSchema.safeParse(body);
     if (!parseResult.success) {
-      console.log("SCHEMA VALIDATION FAILED:", parseResult.error.flatten());
       return NextResponse.json(
         { error: "Invalid input", details: parseResult.error.flatten() },
         { status: 400 }
@@ -128,15 +127,6 @@ export async function POST(req: NextRequest) {
     }
 
     let { ico, sources } = parseResult.data;
-    console.log("PARSED SOURCES:", sources);
-
-    // Validácia: iba IČO
-    if (!ico) {
-      return NextResponse.json(
-        { error: "IČO is required" },
-        { status: 400 }
-      );
-    }
 
     // PREFILTRUJ zdroje podľa user settings (defaultSources z DB)
     const dbUser = await prisma.user.findUnique({
@@ -145,7 +135,7 @@ export async function POST(req: NextRequest) {
     });
     if (dbUser?.defaultSources && Array.isArray(dbUser.defaultSources) && dbUser.defaultSources.length > 0) {
       const userSources = dbUser.defaultSources as string[];
-      const filteredSources = sources.filter((s: string) => userSources.includes(s));
+      const filteredSources = sources.filter((s) => userSources.includes(s));
       if (filteredSources.length === 0) {
         return NextResponse.json(
           { error: "Nemáte vybrané žiadne zdroje v Nastaveniach." },
@@ -153,7 +143,7 @@ export async function POST(req: NextRequest) {
         );
       }
       // Použi prefiltrované zdroje
-      sources = filteredSources as any;
+      sources = filteredSources as SourceType[];
     }
 
     // OVERENIE: Worker je online pred vytvorením DB záznamu
@@ -263,6 +253,8 @@ export async function DELETE(req: NextRequest) {
       const result = await prisma.reportRequest.deleteMany({
         where: { userId: user.id },
       });
+      revalidatePath("/history");
+      revalidatePath("/dashboard");
       return NextResponse.json({ deleted: result.count });
     }
 
@@ -276,6 +268,8 @@ export async function DELETE(req: NextRequest) {
       const result = await prisma.reportRequest.deleteMany({
         where: { id: { in: idList }, userId: user.id },
       });
+      revalidatePath("/history");
+      revalidatePath("/dashboard");
       return NextResponse.json({ deleted: result.count });
     }
 
@@ -299,6 +293,8 @@ export async function DELETE(req: NextRequest) {
       where: { id: reportId },
     });
 
+    revalidatePath("/history");
+    revalidatePath("/dashboard");
     return NextResponse.json({ deleted: 1 });
   } catch (error) {
     console.error("DELETE /api/reports error", error);

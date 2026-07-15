@@ -27,8 +27,6 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    console.log("DEBUG API route report.aiStatus:", report.aiStatus);
-
     // Verifa skóre: preferujeme snapshot uložený priamo na reporte (fixované v čase generovania).
     // Fallback na AuditVerdict len pre staré reporty pred migráciou (report.verifaScore === null).
     let verifaScore = 100;

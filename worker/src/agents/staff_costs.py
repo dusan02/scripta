@@ -14,7 +14,7 @@ class StaffCostsResult(BaseModel):
     osobne_naklady: Optional[float] = Field(..., description="Osobné/personálne náklady (Staff costs / Employee benefits) v EUR. Súčet mzdových nákladov + sociálneho poistenia + odvodov. Ak chýba, vráť null.")
     found_in: str = Field(..., description="Kde sa našlo: 'income_statement' alebo 'notes' alebo 'not_found'.")
 
-_STAFF_COSTS_PROMPT = """Si Targeted Forensic Searcher @ Verifa.sk. Tvojou JEDINOU úlohou je detailné vyhľadávanie a kvantifikácia osobných/personálnych nákladov (staff costs / employee benefits) v účtovnej závierke, kde štandardná extrakcia zlyhala.
+_STAFF_COSTS_PROMPT_SK = """Si Targeted Forensic Searcher @ Verifa.sk. Tvojou JEDINOU úlohou je detailné vyhľadávanie a kvantifikácia osobných/personálnych nákladov (staff costs / employee benefits) v účtovnej závierke, kde štandardná extrakcia zlyhala.
 
 Hľadaj tieto názvy položiek (skús všetky):
 - Slovensky: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"
@@ -28,17 +28,58 @@ KRITICKÉ: Výkaz ziskov a strát môže byť prezentovaný PODĽA FUNKCIE (by f
 PRAVIDLÁ:
 - Všetky hodnoty extrahuj V EURÁCH. Ak tabuľka uvádza "v tisícoch EUR", vynásob 1000. Ak "v miliónoch EUR", vynásob 1 000 000.
 - Extrahuj hodnotu pre AKTUÁLNE účtovné obdobie (prvý stĺpec dát / current year).
-- Nákladové položky VŽDY extrahuj ako KLDNÉ čísla (absolútna hodnota). Zátvorky (1500) = 1500.
+- Nákladové položky VŽDY extrahuj ako KLADNÉ čísla (absolútna hodnota). Zátvorky (1500) = 1500.
 - Ak hodnotu nenájdeš ani vo výkaze ani v poznámkach, vráť null a found_in='not_found'."""
 
+_STAFF_COSTS_PROMPT_EN = """You are Targeted Forensic Searcher @ Verifa.sk. Your ONLY task is to search for and quantify staff costs / employee benefits in the financial statements where the main extraction failed.
 
-async def extract_staff_costs_focused(file_path: str, model: str = settings.model_ifrs) -> Optional[float]:
+Look for these line item names (try all of them):
+- English: "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs", "Personnel costs", "Labor costs"
+- Slovak: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"
+
+CRITICAL: The income statement may be presented BY FUNCTION, not by nature. In that case:
+1. The income statement will NOT have a separate "Staff costs" line — they are buried inside "Cost of sales", "Administrative expenses", "Selling expenses".
+2. In that case, LOOK IN THE NOTES — specifically the employee benefits / staff costs disclosure note.
+3. Notes typically contain a breakdown table: "Wages and salaries" + "Social security contributions" + "Other staff costs" = Total. Sum all components.
+
+RULES:
+- Extract all values in EUR. If the table says "in thousands of EUR", multiply by 1000. If "in millions of EUR", multiply by 1,000,000.
+- Extract the value for the CURRENT accounting period (first data column / current year).
+- Cost items are ALWAYS positive (absolute value). Parentheses (1500) = 1500.
+- If you cannot find the value in either statement or notes, return null and found_in='not_found'."""
+
+_STAFF_COSTS_PROMPT_DE = """Sie sind Targeted Forensic Searcher @ Verifa.sk. Ihre EINZIGE Aufgabe ist die gezielte Suche und Quantifizierung der Personalkosten (staff costs / employee benefits) in den Jahresabschlüssen, bei denen die Hauptextraktion fehlgeschlagen ist.
+
+Suchen Sie nach folgenden Postenbezeichnungen (probieren Sie alle):
+- Deutsch/Englisch: "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs", "Personnel costs", "Labor costs", "Lohnkosten", "Gehälter", "Sozialabgaben"
+- Slowakisch: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"
+
+KRITISCH: Die Gewinn- und Verlustrechnung kann NACH FUNKTIONEN dargestellt sein, nicht nach Aufwandsarten. In diesem Fall:
+1. Die Gewinn- und Verlustrechnung hat KEINE separate Zeile "Personalkosten" — sie ist in "Cost of sales", "Administrative expenses", "Selling expenses" enthalten.
+2. In diesem Fall im ANHANG suchen — speziell im Hinweis zu employee benefits / staff costs.
+3. Der Anhang enthält typisch eine Aufstellung: "Wages and salaries" + "Social security contributions" + "Other staff costs" = Total. Summieren Sie alle Komponenten.
+
+REGELN:
+- Alle Werte in EUR extrahieren. Wenn die Tabelle "in Tausend EUR" angibt, mit 1000 multiplizieren. Wenn "in Millionen EUR", mit 1.000.000 multiplizieren.
+- Wert für das LAUFENDE Rechnungslegungszeitraum extrahieren (erste Datenspalte / current year).
+- Kostenposten sind IMMER positiv (absoluter Wert). Klammern (1500) = 1500.
+- Wenn der Wert weder im Ausweis noch im Anhang gefunden wird, null zurückgeben und found_in='not_found'."""
+
+
+async def extract_staff_costs_focused(file_path: str, model: str = settings.model_ifrs, report_language: str = "sk") -> Optional[float]:
     """
     Cielene extrahuje iba osobné náklady z PDF/TXT.
     Používa sa ako retry keď hlavná extrakcia vráti None pre osobne_naklady.
     Využíva špecifický prompt zameraný na IFRS by-function výkazy kde sú mzdové
     náklady v poznámkach, nie v hlavnom výkaze.
     """
+    prompts = {
+        "sk": _STAFF_COSTS_PROMPT_SK,
+        "en": _STAFF_COSTS_PROMPT_EN,
+        "de": _STAFF_COSTS_PROMPT_DE,
+    }
+    system_prompt = prompts.get(report_language, _STAFF_COSTS_PROMPT_SK)
+
     filename = os.path.basename(file_path)
     match = re.search(r'_(\d{4})_', filename)
     expected_year = int(match.group(1)) if match else None
@@ -46,7 +87,7 @@ async def extract_staff_costs_focused(file_path: str, model: str = settings.mode
     client = _get_gemini_client()
 
     config = types.GenerateContentConfig(
-        system_instruction=_STAFF_COSTS_PROMPT,
+        system_instruction=system_prompt,
         response_mime_type="application/json",
         response_schema=StaffCostsResult,
         temperature=0.0

@@ -28,6 +28,26 @@ class CompanyEventList(BaseModel):
     summary: str = Field(..., description="Krátky súhrn všetkých zistení z PDF dokumentov (2-3 vety).")
 
 
+def _deduplicate_events(events: List[CompanyEvent]) -> List[CompanyEvent]:
+    """Odstráni duplicitné udalosti z rôznych chunkov podľa normalizovaného kľúča."""
+    seen = set()
+    unique = []
+    for event in events:
+        key = (
+            event.source.lower() if event.source else "",
+            event.event_type.lower() if event.event_type else "",
+            (event.title or "").lower().strip(),
+            event.event_date or "",
+            event.amount,
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(event)
+        else:
+            logger.debug(f"PDF Reader: removing duplicate event {key}")
+    return unique
+
+
 PDF_READER_PROMPT_SK = """Si PDF Reader Agent @ Verifa.sk. Tvojou úlohou je prečítať text extrahovaný z PDF dokumentov štátnych registrov a vytvoriť štruktúrovaný zoznam udalostí (CompanyEvent[]).
 
 **Aké PDF dokumenty dostávaš:**
@@ -243,6 +263,8 @@ async def extract_company_events(
         all_events.extend(cr.events)
         if cr.summary:
             summaries.append(cr.summary)
+
+    all_events = _deduplicate_events(all_events)
 
     merged_summary = " ".join(summaries) if summaries else f"Spracovaných {len(chunks)} batchov, {len(all_events)} udalostí celkovo."
     logger.info(f"PDF Reader Agent: merge {len(chunks)} chunkov → {len(all_events)} events celkovo")

@@ -4,18 +4,18 @@ services:
   # ─── PostgreSQL ───────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: scripta_postgres
+    container_name: verifa_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: scripta
-      POSTGRES_PASSWORD: scripta_dev_password
-      POSTGRES_DB: scripta
+      POSTGRES_USER: verifa
+      POSTGRES_PASSWORD: verifa_dev_password
+      POSTGRES_DB: verifa
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scripta"]
+      test: ["CMD-SHELL", "pg_isready -U verifa"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,14 +25,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: scripta_frontend
+    container_name: verifa_frontend
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
-      DATABASE_URL_UNPOOLED: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
+      DATABASE_URL: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
+      DATABASE_URL_UNPOOLED: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change_me_in_production_please}
       WORKER_URL: http://worker:8000
@@ -51,7 +51,7 @@ services:
   # ─── Redis (Arq Broker) ───────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: scripta_redis
+    container_name: verifa_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -64,7 +64,7 @@ services:
   # ─── Browserless (Playwright Scraping) ────────────────────
   browserless:
     image: ghcr.io/browserless/chromium:latest
-    container_name: scripta_browserless
+    container_name: verifa_browserless
     restart: unless-stopped
     shm_size: 1g
     ports:
@@ -78,8 +78,8 @@ services:
     build:
       context: ./worker
       dockerfile: Dockerfile
-    image: scripta-worker-image
-    container_name: scripta_worker
+    image: verifa-worker-image
+    container_name: verifa_worker
     restart: unless-stopped
     depends_on:
       postgres:
@@ -87,7 +87,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
+      DATABASE_URL: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
       APP_ENV: development
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
@@ -107,8 +107,8 @@ services:
     build:
       context: ./worker
       dockerfile: Dockerfile
-    image: scripta-worker-image
-    container_name: scripta_arq_worker
+    image: verifa-worker-image
+    container_name: verifa_arq_worker
     restart: unless-stopped
     command: arq src.worker_arq.WorkerSettings
     depends_on:
@@ -117,7 +117,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://scripta:scripta_dev_password@postgres:5432/scripta
+      DATABASE_URL: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
       APP_ENV: development
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
@@ -139,7 +139,7 @@ services:
   # ─── DB Backup (cron pg_dump at 3am) ──────────────────────
   db-backup:
     image: postgres:16-alpine
-    container_name: scripta_db_backup
+    container_name: verifa_db_backup
     restart: unless-stopped
     depends_on:
       postgres:
@@ -147,12 +147,12 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_USER: scripta
-      DB_NAME: scripta
+      DB_USER: verifa
+      DB_NAME: verifa
       BACKUP_DIR: /backups
       RETENTION_DAYS: "30"
       S3_BUCKET: ${S3_BACKUP_BUCKET:-}
-      PGPASSWORD: scripta_dev_password
+      PGPASSWORD: verifa_dev_password
       TZ: Europe/Bratislava
     volumes:
       - db_backups:/backups

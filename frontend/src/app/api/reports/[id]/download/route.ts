@@ -61,7 +61,12 @@ export async function GET(
 
     // Path traversal protection
     const resolvedResultsDir = path.resolve(resultsDir);
-    if (!resolvedFilePath.startsWith(resolvedResultsDir + path.sep) && resolvedFilePath !== resolvedResultsDir) {
+    const relativePath = path.relative(resolvedResultsDir, resolvedFilePath);
+    if (
+      relativePath.startsWith("..") ||
+      relativePath.includes("\0") ||
+      path.isAbsolute(relativePath)
+    ) {
       return NextResponse.json(
         { error: "Invalid file path" },
         { status: 403 }

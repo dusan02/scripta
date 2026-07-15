@@ -12,7 +12,8 @@ interface AddonCreditsProps {
 }
 
 const ADDON_CREDITS = 5;
-const ADDON_PRICE = process.env.NEXT_PUBLIC_ADDON_PRICE || "45";
+const ADDON_PRICE = process.env.NEXT_PUBLIC_ADDON_PRICE || "59";
+const ADDON_PRICE_PER_REPORT = "11,80";
 
 const UPSELL_MAP: Record<string, string> = {
   freelance: "firma",
@@ -73,9 +74,13 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
               {t("addon.nadpis")}
             </h3>
           </div>
-          <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
-            {t("addon.popis", { credits: ADDON_CREDITS, price: ADDON_PRICE })}
+          <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
+            {t("addon.popis")}
           </p>
+          <div className="flex items-baseline gap-2 mb-3">
+            <span className="text-lg font-bold" style={{ color: "var(--text)" }}>59 €</span>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{t("addon.cenaZaReport")}</span>
+          </div>
 
           <div className="flex items-center gap-3 flex-wrap">
             <button
@@ -95,7 +100,7 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
                   <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                 </svg>
               ) : null}
-              {loading ? t("addon.presmerovanie") : t("addon.kupit", { credits: ADDON_CREDITS, price: ADDON_PRICE })}
+              {loading ? t("addon.presmerovanie") : t("addon.kupit")}
             </button>
 
             {upsellPlan && (

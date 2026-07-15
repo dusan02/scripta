@@ -25,7 +25,7 @@ const sk: Dict = {
   "nav.reportovat": "Reportovať",
   "nav.reportovatTitle": "Nahlásiť chybu alebo poslať spätnú väzbu",
   "nav.odhlasit": "Odhlásiť sa",
-  "nav.reportovTentoMesiac": "Reportov tento mesiac",
+  "nav.reportovTentoMesiac": "Kreditov tento mesiac",
   "nav.menu": "Menu",
   "nav.svetly": "Prepnúť na svetlý režim",
   "nav.tmavy": "Prepnúť na tmavý režim",
@@ -235,8 +235,9 @@ const sk: Dict = {
 
   // ── Add-on credits ──
   "addon.nadpis": "Vyčerpali ste kredity",
-  "addon.popis": "Dokúpte si {credits} reportov za {price} € a pokračujte v práci.",
-  "addon.kupit": "Dokúpiť {credits} reportov za {price} €",
+  "addon.popis": "5 reportov bez záväzku",
+  "addon.kupit": "Dokúpiť 5 reportov za 59 €",
+  "addon.cenaZaReport": "11,80 € / report",
   "addon.presmerovanie": "Presmerovanie…",
   "addon.checkoutChyba": "Chyba pri platobnom procese.",
   "addon.upsell": "Chcete nižšiu cenu za report? Prejdite na vyšší balík {plan}.",
@@ -614,7 +615,7 @@ const en: Dict = {
   "nav.reportovat": "Report",
   "nav.reportovatTitle": "Report a bug or send feedback",
   "nav.odhlasit": "Log out",
-  "nav.reportovTentoMesiac": "Reports this month",
+  "nav.reportovTentoMesiac": "Credits this month",
   "nav.menu": "Menu",
   "nav.svetly": "Switch to light mode",
   "nav.tmavy": "Switch to dark mode",
@@ -824,8 +825,9 @@ const en: Dict = {
 
   // ── Add-on credits ──
   "addon.nadpis": "You've run out of credits",
-  "addon.popis": "Buy {credits} reports for {price} € and continue working.",
-  "addon.kupit": "Buy {credits} reports for {price} €",
+  "addon.popis": "5 reports, no commitment",
+  "addon.kupit": "Buy 5 reports for 59 €",
+  "addon.cenaZaReport": "11.80 € / report",
   "addon.presmerovanie": "Redirecting…",
   "addon.checkoutChyba": "Checkout error.",
   "addon.upsell": "Want a lower price per report? Upgrade to {plan}.",
@@ -1203,7 +1205,7 @@ const de: Dict = {
   "nav.reportovat": "Melden",
   "nav.reportovatTitle": "Fehler melden oder Feedback senden",
   "nav.odhlasit": "Abmelden",
-  "nav.reportovTentoMesiac": "Berichte diesen Monat",
+  "nav.reportovTentoMesiac": "Krediten diesen Monat",
   "nav.menu": "Menü",
   "nav.svetly": "Zum hellen Modus wechseln",
   "nav.tmavy": "Zum dunklen Modus wechseln",
@@ -1413,8 +1415,9 @@ const de: Dict = {
 
   // ── Add-on credits ──
   "addon.nadpis": "Ihre Credits sind aufgebraucht",
-  "addon.popis": "Kaufen Sie {credits} Berichte für {price} € und arbeiten Sie weiter.",
-  "addon.kupit": "{credits} Berichte für {price} € kaufen",
+  "addon.popis": "5 Berichte ohne Verpflichtung",
+  "addon.kupit": "5 Berichte für 59 € kaufen",
+  "addon.cenaZaReport": "11,80 € / Bericht",
   "addon.presmerovanie": "Weiterleitung…",
   "addon.checkoutChyba": "Fehler beim Checkout.",
   "addon.upsell": "Wollen Sie einen niedrigeren Preis pro Bericht? Wechseln Sie zu {plan}.",

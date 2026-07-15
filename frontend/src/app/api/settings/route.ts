@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { SOURCE_IDS } from "@/lib/sources";
 
 export async function GET(req: NextRequest) {
   try {
@@ -106,17 +107,26 @@ export async function PATCH(req: NextRequest) {
           { status: 400 }
         );
       }
-      data.defaultSources = defaultSources.filter((s: unknown) => typeof s === "string");
+      const allowedSources = new Set(SOURCE_IDS);
+      const validSources = defaultSources.filter((s: unknown) => typeof s === "string" && allowedSources.has(s as string));
+      if (validSources.length === 0 && defaultSources.length > 0) {
+        return NextResponse.json(
+          { error: "defaultSources contains no valid source IDs" },
+          { status: 400 }
+        );
+      }
+      data.defaultSources = validSources;
     }
 
     if (reportLanguage !== undefined) {
-      if (!["sk", "en", "de"].includes(reportLanguage)) {
+      const normalizedLang = typeof reportLanguage === "string" ? reportLanguage.toLowerCase() : null;
+      if (!normalizedLang || !["sk", "en", "de"].includes(normalizedLang)) {
         return NextResponse.json(
           { error: "reportLanguage must be 'sk', 'en', or 'de'" },
           { status: 400 }
         );
       }
-      data.reportLanguage = reportLanguage;
+      data.reportLanguage = normalizedLang;
     }
 
     if (Object.keys(data).length === 0) {

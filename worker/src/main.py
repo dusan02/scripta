@@ -50,9 +50,12 @@ _report_semaphore: Optional[asyncio.Semaphore] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.app_env == "production" and not settings.worker_secret:
+        raise RuntimeError("WORKER_SECRET must be set in production")
+
     global _report_semaphore
     _report_semaphore = asyncio.Semaphore(3)
-    
+
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     app.state.redis = await create_pool(RedisSettings.from_dsn(redis_url))
     
@@ -250,6 +253,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
             await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
             if ai_task and not ai_task.done():
                 ai_task.cancel()
+                try:
+                    await ai_task
+                except asyncio.CancelledError:
+                    pass
             return
 
         # ── Retry failed scrapers (one pass) ──────────────────────────────
@@ -299,16 +306,22 @@ async def _execute_report_inner(task: ReportTask) -> None:
         if ai_task:
             try:
                 await ai_task
+            except asyncio.CancelledError:
+                _log.info(f"[{_rid}] AI Pipeline bola zrušená pre {task.ico}")
             except Exception as ai_err:
                 _log.error(f"[{_rid}] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
         if pdf_reader_task:
             try:
                 await pdf_reader_task
+            except asyncio.CancelledError:
+                _log.info(f"[{_rid}] PDF Reader Agent bol zrušený pre {task.ico}")
             except Exception as pr_err:
                 _log.error(f"[{_rid}] PDF Reader Agent zlyhal pre {task.ico}: {pr_err}", exc_info=True)
         if orsr_forensic_task:
             try:
                 await orsr_forensic_task
+            except asyncio.CancelledError:
+                _log.info(f"[{_rid}] ORSR Forensic Agent bol zrušený pre {task.ico}")
             except Exception as orsr_err:
                 _log.error(f"[{_rid}] ORSR Forensic Agent zlyhal pre {task.ico}: {orsr_err}", exc_info=True)
         t_ai_done = time.perf_counter()

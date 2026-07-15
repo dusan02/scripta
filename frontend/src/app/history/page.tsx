@@ -431,7 +431,7 @@ export default function HistoryPage() {
                 </button>
               ) : (
                 <Link
-                  href="/"
+                  href="/dashboard"
                   className="btn-primary mt-4"
                   style={{ textDecoration: "none" }}
                 >

@@ -24,10 +24,6 @@ class Settings(BaseSettings):
     # Shared-secret medzi Next.js API a workerom (voliteľné v dev; povinné v produkcii)
     worker_secret: Optional[str] = None
 
-    # CRE — Centrálny register exekúcií (voliteľné; bez nich scraper vráti UNAVAILABLE)
-    cre_username: Optional[str] = None
-    cre_password: Optional[str] = None
-
     # Proxy rotation — pre anti-detekciu (voliteľné)
     # Formát: "http://user:pass@host:port" alebo "http://host:port"
     # Viacero proxy oddelených čiarkou — round-robin medzi scrapermi

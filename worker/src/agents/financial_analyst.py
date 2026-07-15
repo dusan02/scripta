@@ -24,7 +24,7 @@ KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
 - Všetky finančné hodnoty extrahuj V EURÁCH (nie v tisícoch ani miliónoch EUR). Ak tabuľka uvádza "v tisícoch EUR" (alebo anglicky "in thousands of EUR" / "EUR '000" / "in ths. EUR"), vynásob hodnotu 1000. Ak uvádza "v miliónoch EUR" (alebo "in millions of EUR" / "EUR mn"), vynásob 1 000 000.
 - VÝNIMKA MENA: Ak je výkaz v CZK alebo USD (nie EUR), extrahuj čísla bez konverzie a nastav pole `mena` na 'CZK' alebo 'USD'. Ak je výkaz v EUR, nastav `mena` na 'EUR'.
 - Pri číslach v zátvorkách (napr. (1500)) ich konvertuj na negatívne float hodnoty (-1500.0).
-- VÝNIMKA: Nákladové položky (osobné náklady, odpisy, úroky, náklady na predaný tovar, mzdové náklady, sociálne poistenie) VŽDY extrahuj ako KLDNÉ čísla (absolútna hodnota). Náklady sú vždy kladné — znamienko mínus patrí len strate/zápornému hospodárskemu výsledku a záporným cash flow tokom. Ak je náklad v zátvorkách (1500), extrahuj ho ako 1500.0 (kladné).
+- VÝNIMKA: Nákladové položky (osobné náklady, odpisy, úroky, náklady na predaný tovar, mzdové náklady, sociálne poistenie) VŽDY extrahuj ako KLADNÉ čísla (absolútna hodnota). Náklady sú vždy kladné — znamienko mínus patrí len strate/zápornému hospodárskemu výsledku a záporným cash flow tokom. Ak je náklad v zátvorkách (1500), extrahuj ho ako 1500.0 (kladné).
 - Ak narazíš na tabuľku s dvoma stĺpcami dát (rok X a rok X-1), extrahuj prioritne stĺpec pre rok X (aktuálne účtovné obdobie).
 - Aj keď sa jedná o malú s.r.o. (Mikro účtovná jednotka) a dokument nemá hlavičku IFRS, MUSÍŠ extrahovať hodnoty do príslušných polí (Tržby, Zisk, Aktíva...). Neodmietaj extrakciu len preto, že to nie je IFRS!
 - Malé firmy (Úč MUJ) NEPOTREBUJÚ audítora. Ak v dokumente nie je správa audítora, nastav `nazor_auditora` VŽDY na 'Bez výhrad' a nevykazuj žiadne výhrady ani going concern riziká.
@@ -32,7 +32,7 @@ KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
 
 PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
 - `dlhodobe_zavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans".
-- `hruba_marza` (Gross profit): V SK GAAP = Obchodná marža + Výrobná spotreba; v IFRS = Revenue - Cost of sales.
+- `hruba_marza` (Gross profit): V SK GAAP hľadaj riadok 'Hrubý zisk' / 'Gross profit'; ak nie je uvedený, použi 'Pridanú hodnotu' (Value added) ako približný proxy, alebo vypočítaj (Tržby - Náklady na predaný tovar - Výrobná spotreba). V IFRS = Revenue - Cost of sales.
 - `osobne_naklady` (Staff costs): KRITICKÉ — Hľadaj vo Výkaze ziskov a strát: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs". Toto je súčet mzdových nákladov + sociálneho poistenia + odvodov. Pre výrobné firmy (Mobis, Kia, Volkswagen) sú to miliónové čiastky — ak nájdeš nulu alebo prázdne, skontroluj či naozaj chýbajú alebo sa len nepomenovali inak. NIKDY nevracaj null ak je hodnota fyzicky v tabuľke uvedená.
   KRITICKÉ PRE IFRS BY-FUNCTION: Mnoho IFRS závierok (najmä výrobné firmy ako Mobis, Kia, Volkswagen) prezentuje Výkaz ziskov a strát PODĽA FUNKCIE (by function), nie podľa druhu (by nature). V takom prípade Výkaz ziskov a strát NEOBSAHUJE samostatný riadok "Osobné náklady" / "Staff costs" — namiesto toho sú mzdové náklady súčasťou položiek ako "Cost of sales" / "Náklady na predaný tovar", "Administrative expenses" / "Verejnoprospešné náklady", "Selling expenses" / "Náklady na predaj". V takom prípade HĽADAJ osobné náklady V POZNÁMKACH (Notes) — konkrétne v poznámke o zamestnaneckých dávkach / employee benefits / staff costs disclosure, ktorá typicky uvádza rozklad nákladov podľa druhu. Ak nájdeš v poznámkach tabuľku s rozkladom "Wages and salaries" + "Social security" + "Other staff costs", sčítaj ich a vlož do `osobne_naklady`. Ak v poznámkach nájdeš iba jednu hodnotu pre "Employee benefits" alebo "Staff costs", použi ju priamo.
 - `pohladavky_z_obchodneho_styku` a `zavazky_z_obchodneho_styku`: Hľadaj Trade receivables / Trade payables. Kľúčové pre likviditu.
@@ -148,7 +148,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
 
     # Safety net: nákladové položky musia byť vždy kladné.
     # LLM môže napriek pokynom vrátiť záporné hodnoty (napr. zátvorky).
-    for cost_field in ("osobne_naklady", "uroky", "odpisy", "hruba_marza"):
+    for cost_field in ("osobne_naklady", "uroky", "odpisy"):
         val = getattr(data.metriky, cost_field, None)
         if val is not None and val < 0:
             logger.warning(f"[LLM] Prepisujem náklad {cost_field}={val} → {abs(val)} (náklad musí byť kladný)")
