@@ -114,12 +114,16 @@ class FinancialMetrics(BaseModel):
     pocet_mesiacov_obdobia: Optional[int] = Field(..., description="Zisti počet mesiacov (od - do) na prvej strane dokumentu. Dôkladne zisti, či výkaz pokrýva 12 mesiacov alebo kratšie/dlhšie obdobie. Ak to nie je možné určiť, vráť null.")
     is_consolidated: bool = Field(..., description="Dôkladne prever prvú stranu. True ak ide o konsolidovanú závierku (hľadaj slová 'konsolidovaná', 'consolidated'). Zbystri pozornosť ak názov firmy obsahuje 'Holding' alebo 'Group'. Ak je to individuálna (samostatná) závierka, vráť False.")
 
+class VerificationConfidenceItem(BaseModel):
+    field: str = Field(..., description="Názov pola, napr. celkove_aktiva, trzby_z_hlavnej_cinnosti.")
+    confidence: str = Field(..., description="Confidence level: HIGH, MEDIUM, LOW")
+
 class CompanyFinancialExtraction(BaseModel):
     ico: str = Field(...)
     nazov_spolocnosti: str = Field(..., description="Oficiálny názov spoločnosti.")
     audit: AuditorReportData
     metriky: FinancialMetrics
-    verification_confidence: dict[str, str] = Field(default_factory=dict, description="Mapovanie pola na confidence level: HIGH, MEDIUM, LOW")
+    verification_confidence: list[VerificationConfidenceItem] = Field(default_factory=list, description="Zoznam confidence levelov pre polia: HIGH, MEDIUM, LOW")
 
 class VerificationExtraction(BaseModel):
     celkove_aktiva: Optional[float] = Field(None, description="Celkové aktíva (Total assets). Ak nenájdeš s istotou, vráť null.")

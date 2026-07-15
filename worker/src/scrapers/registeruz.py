@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 
 _NO_RESULTS_TEXT = "neboli nájdené žiadne"
 
-# (tab_id, tab_name) — URL pattern: /financialreport/show/{report_id}/{tab_id}
-_TABS = [
+# Default tab IDs (used as fallback if dynamic discovery fails).
+# Tab IDs vary by report type — e.g. Úč MUJ uses 543/544/545, Úč POD uses 550/551/552.
+_DEFAULT_TABS = [
     (0,   "Titulná strana"),
     (550, "Strana aktív"),
     (551, "Strana pasív"),
@@ -24,6 +25,14 @@ _TABS = [
 ]
 
 _REPORT_URL = "https://www.registeruz.sk/cruz-public/domain/financialreport/show/{rid}/{tid}"
+
+# Tab names we want to scrape (in order), mapped to display labels
+_TAB_NAMES = {
+    "Titulná strana": "Titulná strana",
+    "Strana aktív": "Strana aktív",
+    "Strana pasív": "Strana pasív",
+    "Výkaz ziskov a strát": "Výkaz ziskov a strát",
+}
 
 
 class RegisterUzScraper(BaseScraper):
@@ -360,6 +369,47 @@ class RegisterUzScraper(BaseScraper):
         tab_pdf = output_dir / f"{self.source_type}_{ico}_tab{tab_id}.pdf"
         await self._cdp_print_pdf(page, tab_pdf)
 
+    async def _discover_tabs(self, page: Page, report_id: str) -> list[tuple[int, str]]:
+        """Dynamically discover tab IDs from the titulná strana navigation links.
+        Tab IDs vary by report type (Úč MUJ: 543/544/545, Úč POD: 550/551/552, etc.)."""
+        try:
+            url = _REPORT_URL.format(rid=report_id, tid=0)
+            await page.goto(url, wait_until="commit", timeout=15000)
+            try:
+                await page.wait_for_load_state("networkidle", timeout=3000)
+            except PlaywrightTimeoutError:
+                pass
+
+            tabs = await page.evaluate(r"""() => {
+                const tabs = [];
+                document.querySelectorAll('a[href*="/financialreport/show/' + """ + f"{report_id}" + r""" + '/"]').forEach(a => {
+                    const href = a.getAttribute('href');
+                    const match = href.match(/\/financialreport\/show\/\d+\/(\d+)$/);
+                    if (match) {
+                        const tabId = parseInt(match[1]);
+                        const name = a.textContent.trim();
+                        if (name) tabs.push({id: tabId, name: name});
+                    }
+                });
+                return tabs;
+            }""")
+
+            if tabs:
+                # Filter to only the tabs we want and preserve order
+                result = []
+                for tab_name in _TAB_NAMES:
+                    match = next((t for t in tabs if t["name"] == tab_name), None)
+                    if match:
+                        result.append((match["id"], _TAB_NAMES[tab_name]))
+                if result:
+                    logger.info(f"[{self.source_type}] Dynamicke tab IDs: {result}")
+                    return result
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Dynamic tab discovery zlyhal: {e}")
+
+        logger.info(f"[{self.source_type}] Používam default tab IDs: {_DEFAULT_TABS}")
+        return _DEFAULT_TABS
+
     async def _scrape_tabs(
         self, page: Page, report_id: str, ico: str,
         output_dir: Path, file_path: Path,
@@ -370,7 +420,9 @@ class RegisterUzScraper(BaseScraper):
         tab_pdfs: list[Path] = []
         tab_labels: list[str] = []
 
-        for tab_id, tab_name in _TABS:
+        tabs = await self._discover_tabs(page, report_id)
+
+        for tab_id, tab_name in tabs:
             url = _REPORT_URL.format(rid=report_id, tid=tab_id)
             try:
                 await asyncio.wait_for(

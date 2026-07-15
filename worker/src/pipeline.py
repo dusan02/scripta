@@ -30,7 +30,7 @@ from src.llm_extractor import (
     evaluate_audit_verdict, extract_financial_data,
     extract_narrative_risk, extract_notes_risks, extract_staff_costs_focused,
     verify_critical_numbers_blind, generate_cross_analysis,
-    verify_report_quality,
+    verify_report_quality, VerificationConfidenceItem,
 )
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
@@ -801,11 +801,11 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                         val_flash = getattr(verify_data, field, None)
                         
                         if val_flash is None:
-                            data.verification_confidence[field] = "MEDIUM"
+                            data.verification_confidence.append(VerificationConfidenceItem(field=field, confidence="MEDIUM"))
                         elif values_match(val_pro, val_flash):
-                            data.verification_confidence[field] = "HIGH"
+                            data.verification_confidence.append(VerificationConfidenceItem(field=field, confidence="HIGH"))
                         else:
-                            data.verification_confidence[field] = "LOW"
+                            data.verification_confidence.append(VerificationConfidenceItem(field=field, confidence="LOW"))
                             logger.warning(f"[VERIFY MISMATCH] {file_name}: {field} PRO={val_pro} FLASH={val_flash} -> KEEPING PRO VALUE (LOW CONFIDENCE)")
 
                 if data.metriky.osobne_naklady is None:
@@ -825,7 +825,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                 # Fallback: compute missing balance sheet totals from sub-items
                 # NEPREPISUJ polia, ktoré verifikácia nastavila na None (LOW confidence mismatch)
                 m = data.metriky
-                _low_confidence_fields = {k for k, v in data.verification_confidence.items() if v == "LOW"}
+                _low_confidence_fields = {item.field for item in data.verification_confidence if item.confidence == "LOW"}
                 if m.obezny_majetok is None:
                     current_sub = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
                     if len(current_sub) >= 2:

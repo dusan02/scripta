@@ -11,6 +11,7 @@ from src.agents.shared import (
     AuditorReportData,
     FinancialMetrics,
     CompanyFinancialExtraction,
+    VerificationConfidenceItem,
     VerificationExtraction,
 )
 from src.agents.financial_analyst import extract_financial_data, verify_critical_numbers_blind
