@@ -1,7 +1,7 @@
 <!-- 8. PRÁVNE RIZIKÁ (Obchodný vestník a systémové varovania) -->
+{% if vestnik_events and vestnik_events|length > 0 %}
 <div class="mb-4 mt-4">
     <h2 class="section-title">{{ i18n.legal_risks }}</h2>
-{% if vestnik_events and vestnik_events|length > 0 %}
 
     {# ── Risk heatmap matica ── #}
     <div class="mb-4 p-3 rounded-lg border border-slate-200 bg-slate-50">
@@ -19,7 +19,7 @@
             {% for prob_label, bg, txt in heat_cells %}
             <div class="font-bold text-slate-500 py-2 flex items-center justify-center">{{ prob_label }}</div>
             {% for i in range(3) %}
-            {% set cell_count = vestnik_events | selectattr('severityLevel', 'equal', 'CRITICAL' if i == 2 else 'HIGH' if i == 1 else 'MEDIUM') | list | length %}
+            {% set cell_count = vestnik_events | selectattr('severityLevel', 'equalto', 'CRITICAL' if i == 2 else 'HIGH' if i == 1 else 'MEDIUM') | list | length %}
             <div class="py-2 rounded font-semibold" style="background: {{ bg }}; color: {{ txt }};">
                 {% if cell_count > 0 %}{{ cell_count }} event{% if cell_count > 1 %}y{% endif %}{% else %}—{% endif %}
             </div>
@@ -66,7 +66,11 @@
         </div>
     {% endfor %}
     </div>
+</div>
 {% else %}
+{# Keď nie sú právne riziká — celá sekcia (nadpis + zelený box) musí zostať na jednej strane #}
+<div class="mb-4 mt-4" style="page-break-inside: avoid; break-inside: avoid;">
+    <h2 class="section-title">{{ i18n.legal_risks }}</h2>
     <div class="p-4 rounded-lg border-l-4 border-emerald-500 bg-emerald-50">
         <div class="flex items-start gap-3">
             <span class="text-emerald-500 text-lg flex-shrink-0">✓</span>
@@ -76,7 +80,6 @@
             </div>
         </div>
     </div>
-{% endif %}
 </div>
-
+{% endif %}
 

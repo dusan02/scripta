@@ -142,6 +142,7 @@ export default function PricingSection() {
               <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 2 }}>{plan.name}</h3>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{plan.subtitle}</p>
               <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 4 }}>{plan.price}</div>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>{plan.credits}</p>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>{plan.perCredit}</p>
               <Link href="/register" style={{ display: "block", textAlign: "center", background: plan.highlighted ? "var(--accent)" : "var(--surface-hover)", color: plan.highlighted ? "var(--accent-button-text)" : "var(--text)", border: plan.highlighted ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 20 }}>
                 {t("home.startVerifying")}

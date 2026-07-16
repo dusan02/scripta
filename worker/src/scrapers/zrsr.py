@@ -176,42 +176,58 @@ class ZrsrScraper(BaseScraper):
                 findings="Žiadny záznam v Živnostenskom registri SR.",
             )
 
-        # Pokus o klik na detail
-        try:
-            # Počkáme, kým sa zjaví link na detail
+        # Pokus o klik na detail — s retry na 'Odkaz je neplatný'
+        max_detail_retries = 2
+        for detail_attempt in range(max_detail_retries):
             try:
-                await page.wait_for_selector("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']", timeout=10000)
-            except PlaywrightTimeoutError:
-                pass # Možno sme hľadali firmu, ktorá nemá detail
-            
-            detail_link = page.locator("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']").first
-            if await detail_link.count() > 0:
-                logger.info(f"[{self.source_type}] Klikám na detail.")
-                async with page.expect_navigation(timeout=30000):
-                    await detail_link.click(timeout=10000)
-
-                # Verifikácia, že sme na správnej stránke
+                # Počkáme, kým sa zjaví link na detail
                 try:
-                    await page.wait_for_selector("text=Výpis zo živnostenského registra", timeout=10000)
-                    logger.info(f"[{self.source_type}] Detail úspešne overený.")
+                    await page.wait_for_selector("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']", timeout=10000)
                 except PlaywrightTimeoutError:
-                    html = await page.content()
-                    if "Odkaz je neplatný" in html:
-                        logger.error(f"[{self.source_type}] Štátny portál vrátil chybu 'Odkaz je neplatný'.")
-                        return self._make_result(
-                            status="UNAVAILABLE",
-                            status_message="ZRSR portál vrátil 'Odkaz je neplatný' — výpis nie je dostupný.",
-                        )
-                    else:
-                        logger.warning(f"[{self.source_type}] Nenašiel sa text 'Výpis zo živnostenského registra'.")
-                        return self._make_result(
-                            status="UNAVAILABLE",
-                            status_message="ZRSR detail stránka sa nenačítala správne — možno maintenance alebo zmena layoutu.",
-                        )
-            else:
-                logger.info(f"[{self.source_type}] Detail link nenájdený, generujem PDF z aktuálneho pohľadu.")
-        except Exception as e:
-            logger.warning(f"[{self.source_type}] Chyba pri klikaní na detail, pokračujem s aktuálnou stránkou: {e}")
+                    pass
+                
+                detail_link = page.locator("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']").first
+                if await detail_link.count() > 0:
+                    logger.info(f"[{self.source_type}] Klikám na detail (attempt {detail_attempt+1}/{max_detail_retries}).")
+                    async with page.expect_navigation(timeout=30000):
+                        await detail_link.click(timeout=10000)
+
+                    # Verifikácia, že sme na správnej stránke
+                    try:
+                        await page.wait_for_selector("text=Výpis zo živnostenského registra", timeout=10000)
+                        logger.info(f"[{self.source_type}] Detail úspešne overený.")
+                        break
+                    except PlaywrightTimeoutError:
+                        html = await page.content()
+                        if "Odkaz je neplatný" in html:
+                            logger.warning(f"[{self.source_type}] 'Odkaz je neplatný' (attempt {detail_attempt+1}/{max_detail_retries}).")
+                            if detail_attempt < max_detail_retries - 1:
+                                logger.info(f"[{self.source_type}] Retry: vrátim sa na výsledky a skúsim znova.")
+                                await page.go_back(timeout=15000)
+                                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                                await page.wait_for_timeout(1500)
+                                continue
+                            else:
+                                logger.error(f"[{self.source_type}] 'Odkaz je neplatný' aj po {max_detail_retries} pokusoch.")
+                                return self._make_result(
+                                    status="UNAVAILABLE",
+                                    status_message="ZRSR portál vrátil 'Odkaz je neplatný' — výpis nie je dostupný.",
+                                )
+                        else:
+                            logger.warning(f"[{self.source_type}] Nenašiel sa text 'Výpis zo živnostenského registra'.")
+                            return self._make_result(
+                                status="UNAVAILABLE",
+                                status_message="ZRSR detail stránka sa nenačítala správne — možno maintenance alebo zmena layoutu.",
+                            )
+                else:
+                    logger.info(f"[{self.source_type}] Detail link nenájdený, generujem PDF z aktuálneho pohľadu.")
+                    break
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] Chyba pri klikaní na detail (attempt {detail_attempt+1}): {e}")
+                if detail_attempt < max_detail_retries - 1:
+                    await page.wait_for_timeout(2000)
+                    continue
+                break
 
         logger.debug(f"[{self.source_type}] ⏱ detail + spracovanie: {time.perf_counter() - _t:.2f}s")
         _t = time.perf_counter()
@@ -248,7 +264,8 @@ class ZrsrScraper(BaseScraper):
 
     async def _solve_altcha(self, page: Page) -> bool:
         """Pokúsi sa vyriešiť Altcha proof-of-work challenge.
-        Altcha je web component so shadow DOM — treba kliknúť na vnútorný checkbox.
+        Altcha je web component so shadow DOM — treba kliknúť na vnútorný checkbox
+        alebo na label 'Nie som robot'.
         Vráti True ak sa podarilo, False ak nie."""
         for attempt in range(3):
             try:
@@ -259,18 +276,27 @@ class ZrsrScraper(BaseScraper):
                         await page.wait_for_timeout(2000)
                     continue
 
-                # Skús 1: Klik na checkbox (light DOM alebo shadow DOM)
+                # Skús 1: Klik na label 'Nie som robot' (najspoľahlivejšie)
                 try:
-                    checkbox = page.locator("altcha-widget input[type='checkbox'], altcha-widget >> shadow >> input[type='checkbox']")
-                    if await checkbox.count() > 0:
-                        logger.info(f"[{self.source_type}] Klikám na Altcha checkbox (attempt {attempt+1}/3).")
-                        await checkbox.click(timeout=5000)
+                    label = page.locator("label[for^='altcha_checkbox']")
+                    if await label.count() > 0:
+                        logger.info(f"[{self.source_type}] Klikám na 'Nie som robot' label (attempt {attempt+1}/3).")
+                        await label.click(timeout=5000)
                     else:
-                        raise Exception("No checkbox in shadow DOM")
+                        raise Exception("No label found")
                 except Exception:
-                    # Skús 2: Klik na samotný widget element
-                    logger.info(f"[{self.source_type}] Klikám na Altcha widget element (attempt {attempt+1}/3).")
-                    await widget.click(timeout=5000)
+                    # Skús 2: Klik na checkbox (light DOM alebo shadow DOM)
+                    try:
+                        checkbox = page.locator("altcha-widget input[type='checkbox'], altcha-widget >> shadow >> input[type='checkbox']")
+                        if await checkbox.count() > 0:
+                            logger.info(f"[{self.source_type}] Klikám na Altcha checkbox (attempt {attempt+1}/3).")
+                            await checkbox.click(timeout=5000)
+                        else:
+                            raise Exception("No checkbox in shadow DOM")
+                    except Exception:
+                        # Skús 3: Klik na samotný widget element
+                        logger.info(f"[{self.source_type}] Klikám na Altcha widget element (attempt {attempt+1}/3).")
+                        await widget.click(timeout=5000)
 
                 # Počkaj na proof-of-work — Altcha počíta hash, môže trvať
                 logger.info(f"[{self.source_type}] Čakám na Altcha proof-of-work...")

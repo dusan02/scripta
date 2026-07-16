@@ -344,6 +344,33 @@ async def _execute_report_inner(task: ReportTask) -> None:
             except Exception as e:
                 _log.warning(f"[{_rid}] Failed to update company name: {e}")
 
+        # ── Save insolvency finding as CRITICAL VestnikEvent so scorecard picks it up ──
+        if task.target_type == "COMPANY" and task.ico:
+            insolvency_result = next((s for s in sources if s.source_type == "INSOLVENCY"), None)
+            if insolvency_result and insolvency_result.status == "SUCCESS" and insolvency_result.findings and "POZOR" in (insolvency_result.findings or ""):
+                try:
+                    from prisma import Prisma
+                    _db = Prisma()
+                    await _db.connect()
+                    try:
+                        existing = await _db.vestnikevent.find_first(
+                            where={"companyIco": task.ico, "eventType": "KONKURZ"}
+                        )
+                        if not existing:
+                            await _db.vestnikevent.create({
+                                "companyIco": task.ico,
+                                "eventType": "KONKURZ",
+                                "severityLevel": "CRITICAL",
+                                "summary": "Spoločnosť je v konkurze/reštrukturalizácii — nájdený záznam v registri úpadcov.",
+                                "publishedAt": datetime.now(timezone.utc).replace(tzinfo=None),
+                                "sourceId": f"INSOLVENCY_{task.ico}",
+                            })
+                            _log.info(f"[{_rid}] Insolvency finding saved as CRITICAL VestnikEvent for IČO {task.ico}")
+                    finally:
+                        await _db.disconnect()
+                except Exception as ins_err:
+                    _log.warning(f"[{_rid}] Failed to save insolvency VestnikEvent: {ins_err}")
+
         # Chief Auditor (sudca) sa spúšťa PO dokončení scraperov aj AI pipeline,
         # aby mal prístup k PDF súborom z registrov (dlhy, exekúcie, insolvencia)
         # aj k DB dátam (finančné výkazy, naratív, vestník).
@@ -492,6 +519,32 @@ async def create_task(task: ReportTask):
         pass  # DB update je best-effort — enqueue je dôležitejší
     await app.state.redis.enqueue_job('execute_report_task', task.dict())
     return {"taskId": task.report_request_id, "status": "accepted"}
+
+
+@app.post("/tasks/{report_request_id}/cancel", dependencies=[Depends(verify_worker_secret)])
+async def cancel_report_task(report_request_id: str):
+    """Zruší arq job pre daný report (ak ešte beží)."""
+    try:
+        jobs = await app.state.redis.queued_jobs()
+        for job in jobs:
+            if job.func_name == "execute_report_task":
+                task_dict = job.args[0] if job.args else {}
+                if isinstance(task_dict, dict) and task_dict.get("report_request_id") == report_request_id:
+                    await app.state.redis.abort_job(job.id)
+                    logger.info(f"[{report_request_id}] arq job aborted: {job.id}")
+                    return {"taskId": report_request_id, "status": "cancelled"}
+        # Skús aj running jobs
+        running = await app.state.redis.all_jobs()
+        for job in running:
+            if job.func_name == "execute_report_task":
+                task_dict = job.args[0] if job.args else {}
+                if isinstance(task_dict, dict) and task_dict.get("report_request_id") == report_request_id:
+                    await app.state.redis.abort_job(job.id)
+                    logger.info(f"[{report_request_id}] arq running job aborted: {job.id}")
+                    return {"taskId": report_request_id, "status": "cancelled"}
+    except Exception as e:
+        logger.warning(f"[{report_request_id}] Cancel failed: {e}")
+    return {"taskId": report_request_id, "status": "not_found_or_done"}
 
 
 @app.get("/health")

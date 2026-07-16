@@ -38,7 +38,7 @@ interface Report {
   sources: ReportSource[];
 }
 
-const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "PARTIAL"];
+const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "PARTIAL", "CANCELLED"];
 const POLL_INTERVAL_MS = 5000;
 
 function formatDate(iso: string, locale: string) {
@@ -413,6 +413,8 @@ export default function ReportDetailPage() {
   const [downloading, setDownloading] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelCountdown, setCancelCountdown] = useState(8);
   const [etaCountdown, setEtaCountdown] = useState<number | null>(null);
   const etaRef = useRef<number | null>(null);
 
@@ -465,6 +467,40 @@ export default function ReportDetailPage() {
     const timer = setInterval(fetchReport, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [report, isFinished, fetchReport]);
+
+  // Cancel countdown timer (8 seconds window)
+  useEffect(() => {
+    if (isFinished || cancelling) return;
+    const timer = setInterval(() => {
+      setCancelCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isFinished, cancelling]);
+
+  const handleCancel = async () => {
+    if (!report) return;
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/reports/${params.id}/cancel`, { method: "POST" });
+      if (res.ok) {
+        toast.success(t("report.zruseny"));
+        await fetchReport();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || t("report.stornoChyba"));
+      }
+    } catch {
+      toast.error(t("report.stornoChyba"));
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -605,6 +641,7 @@ export default function ReportDetailPage() {
   const canRetryFailed = report.status === "FAILED";
   const canRetryPartial = report.status === "PARTIAL";
   const canRetry = canRetryFailed || canRetryPartial;
+  const canCancel = !isFinished && cancelCountdown > 0 && report.status !== "CANCELLED";
 
   const score = report.verifaScore ?? 100;
   let scoreColorText = "text-emerald-600";
@@ -712,6 +749,40 @@ export default function ReportDetailPage() {
                       <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                     </svg>
                     {t("report.znovuOverit")}
+                  </>
+                )}
+              </button>
+            )}
+            {canCancel && (
+              <button
+                id="cancel-btn"
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
+                style={{
+                  background: "transparent",
+                  color: "var(--danger)",
+                  height: "36px",
+                  padding: "0 14px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  border: "1px solid var(--danger)",
+                }}
+              >
+                {cancelling ? (
+                  <>
+                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    {t("report.storujem")}
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                    </svg>
+                    {t("report.storno")} ({cancelCountdown}s)
                   </>
                 )}
               </button>

@@ -101,6 +101,7 @@ enum ReportStatus {
   COMPLETED
   FAILED
   PARTIAL
+  CANCELLED
 }
 
 enum TargetType {

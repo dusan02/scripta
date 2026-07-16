@@ -620,7 +620,7 @@ I18N_STRINGS = {
         "sw_auditor_qualified": "Audítorský posudok s výhradami",
         "sw_risk_aaa": "Rating AAA — najnižšie riziko",
         "sw_risk_c": "Rating C — vysoké riziko",
-        "sw_no_data": "Nedostatok dát pre hodnotenie",
+        "sw_no_data": "Žiadne identifikované slabé stránky",
 
         # Relevance tags
         "rel_compliance": "Compliance",
@@ -1248,7 +1248,7 @@ I18N_STRINGS = {
         "sw_auditor_qualified": "Qualified auditor opinion",
         "sw_risk_aaa": "Rating AAA — lowest risk",
         "sw_risk_c": "Rating C — high risk",
-        "sw_no_data": "Insufficient data for assessment",
+        "sw_no_data": "No weaknesses identified",
 
         # Relevance tags
         "rel_compliance": "Compliance",
@@ -1876,7 +1876,7 @@ I18N_STRINGS = {
         "sw_auditor_qualified": "Eingeschränkter Auditor-Bericht",
         "sw_risk_aaa": "Rating AAA — niedrigstes Risiko",
         "sw_risk_c": "Rating C — hohes Risiko",
-        "sw_no_data": "Unzureichende Daten für Bewertung",
+        "sw_no_data": "Keine Schwachstellen identifiziert",
 
         # Relevance tags
         "rel_compliance": "Compliance",

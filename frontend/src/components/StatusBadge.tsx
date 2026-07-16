@@ -13,6 +13,7 @@ const STATUS_CONFIG: Record<string, { key: string; dotColor: string; badgeClass:
   COMPLETED:  { key: "status.dokoncene",  dotColor: "var(--success)",     badgeClass: "badge-success",    glowVar: "var(--glow-success)" },
   PARTIAL:    { key: "status.ciastocne",  dotColor: "var(--warning)",     badgeClass: "badge-warning",    glowVar: "var(--glow-warning)" },
   FAILED:     { key: "status.zlyhalo",    dotColor: "var(--danger)",      badgeClass: "badge-error",      glowVar: "var(--glow-danger)" },
+  CANCELLED:  { key: "report.zruseny",    dotColor: "var(--text-muted)",  badgeClass: "badge-pending" },
   SUCCESS:    { key: "status.ok",         dotColor: "var(--success)",     badgeClass: "badge-success",    glowVar: "var(--glow-success)" },
   UNAVAILABLE:{ key: "status.nedostupne", dotColor: "var(--warning)",     badgeClass: "badge-warning",    glowVar: "var(--glow-warning)" },
 };

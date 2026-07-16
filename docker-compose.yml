@@ -46,7 +46,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - worker_results:/app/results:ro  # read-only prístup k vygenerovaným PDF
+      - ./worker/results:/app/results:ro  # read-only prístup k vygenerovaným PDF
 
   # ─── Redis (Arq Broker) ───────────────────────────────────
   redis:
@@ -100,7 +100,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - worker_results:/app/results  # Evidence Binder PDF súbory
+      - ./worker/results:/app/results  # Evidence Binder PDF súbory
 
   # ─── Arq Background Worker ────────────────────────────────
   arq_worker:
@@ -134,7 +134,7 @@ services:
       timeout: 5s
       retries: 3
     volumes:
-      - worker_results:/app/results
+      - ./worker/results:/app/results
 
   # ─── DB Backup (cron pg_dump at 3am) ──────────────────────
   db-backup:
@@ -165,5 +165,4 @@ services:
 
 volumes:
   postgres_data:
-  worker_results:
   db_backups:

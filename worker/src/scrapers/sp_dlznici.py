@@ -34,21 +34,32 @@ class SpDlzniciScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
-            try:
-                await page.goto(self.base_url, timeout=30000, wait_until='commit')
-                await page.wait_for_load_state('domcontentloaded', timeout=30000)
-            except (PlaywrightTimeoutError, PlaywrightError) as e:
-                raise ScraperUnavailableError(f"SP nedostupná: {e}")
-            logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
+            max_retries = 2
+            for nav_attempt in range(max_retries):
+                try:
+                    await page.goto(self.base_url, timeout=30000, wait_until='commit')
+                    await page.wait_for_load_state('domcontentloaded', timeout=30000)
+                except (PlaywrightTimeoutError, PlaywrightError) as e:
+                    if nav_attempt < max_retries - 1:
+                        logger.warning(f"[{self.source_type}] SP nedostupná (attempt {nav_attempt+1}/{max_retries}): {e}")
+                        await page.wait_for_timeout(3000)
+                        continue
+                    raise ScraperUnavailableError(f"SP nedostupná: {e}")
+                logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
 
-            # Skontrolovať či nás zablokovali
-            body_text = await page.inner_text("body")
-            if "Server je nedostupný" in body_text:
-                logger.error(f"[{self.source_type}] SP — nedostupné (geo/bot obmedzenie).")
-                return self._make_result(
-                    status="UNAVAILABLE",
-                    status_message="Sociálna poisťovňa — nemám prístup.",
-                )
+                # Skontrolovať či nás zablokovali
+                body_text = await page.inner_text("body")
+                if "Server je nedostupný" in body_text:
+                    if nav_attempt < max_retries - 1:
+                        logger.warning(f"[{self.source_type}] SP — 'Server je nedostupný' (attempt {nav_attempt+1}/{max_retries}). Retry o 3s.")
+                        await page.wait_for_timeout(3000)
+                        continue
+                    logger.error(f"[{self.source_type}] SP — nedostupné aj po {max_retries} pokusoch.")
+                    return self._make_result(
+                        status="UNAVAILABLE",
+                        status_message="Sociálna poisťovňa — nemám prístup.",
+                    )
+                break
 
             # Vyplniť IČO — selektor podľa Drupal form: input[name="ico"]
             ico_input = page.locator('input[name="ico"]')

@@ -174,7 +174,7 @@ const sk: Dict = {
   "pricing.freelance": "Freelance",
   "pricing.firma": "Firma",
   "pricing.korporat": "Korporát",
-  "pricing.mesiacne": "{n} kreditov / mesiac · {price} € / report",
+  "pricing.mesiacne": "{n} reportov / mesiac · {price} € / report",
   "pricing.potrebujeteViac": "Potrebujete viac reportov? Kontaktujte nás na",
   "pricing.coObsahuje": "Čo obsahuje každý report?",
   // ── Report includes ──
@@ -358,6 +358,10 @@ const sk: Dict = {
   "report.zdrojePripravuju": "Zdroje sa pripravujú…",
   "report.zdrojeZlyhali": "zdroje zlyhali",
   "report.nar": "Nar.",
+  "report.storno": "Storno",
+  "report.storujem": "Ruším…",
+  "report.stornoChyba": "Zrušenie zlyhalo.",
+  "report.zruseny": "Zrušené",
 
   // ── StatusBadge ──
   "status.caka": "Čaká",
@@ -764,7 +768,7 @@ const en: Dict = {
   "pricing.freelance": "Freelance",
   "pricing.firma": "Firma",
   "pricing.korporat": "Corporate",
-  "pricing.mesiacne": "{n} credits / month · {price} € / report",
+  "pricing.mesiacne": "{n} reports / month · {price} € / report",
   "pricing.potrebujeteViac": "Need more reports? Contact us at",
   "pricing.coObsahuje": "What's included in each report?",
   // ── Report includes ──
@@ -948,6 +952,10 @@ const en: Dict = {
   "report.zdrojePripravuju": "Preparing sources…",
   "report.zdrojeZlyhali": "sources failed",
   "report.nar": "Born",
+  "report.storno": "Cancel",
+  "report.storujem": "Cancelling…",
+  "report.stornoChyba": "Cancellation failed.",
+  "report.zruseny": "Cancelled",
 
   // ── StatusBadge ──
   "status.caka": "Pending",
@@ -1354,7 +1362,7 @@ const de: Dict = {
   "pricing.freelance": "Freelance",
   "pricing.firma": "Firma",
   "pricing.korporat": "Corporate",
-  "pricing.mesiacne": "{n} Credits / Monat · {price} € / Bericht",
+  "pricing.mesiacne": "{n} Berichte / Monat · {price} € / Bericht",
   "pricing.potrebujeteViac": "Brauchen Sie mehr Berichte? Kontaktieren Sie uns unter",
   "pricing.coObsahuje": "Was enthält jeder Bericht?",
   // ── Report includes ──
@@ -1538,6 +1546,10 @@ const de: Dict = {
   "report.zdrojePripravuju": "Quellen werden vorbereitet…",
   "report.zdrojeZlyhali": "Quellen fehlgeschlagen",
   "report.nar": "Geb.",
+  "report.storno": "Storno",
+  "report.storujem": "Abbrechen…",
+  "report.stornoChyba": "Stornierung fehlgeschlagen.",
+  "report.zruseny": "Storniert",
 
   // ── StatusBadge ──
   "status.caka": "Wartend",
