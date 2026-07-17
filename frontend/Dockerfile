@@ -14,7 +14,11 @@ COPY package*.json ./
 COPY prisma ./prisma
 
 RUN npm ci --ignore-scripts
-RUN npx prisma generate
+RUN cp prisma/schema.prisma prisma/schema.prisma.bak && \
+    sed '/generator client_py/,/^}/d' prisma/schema.prisma > prisma/schema_js.prisma && \
+    mv prisma/schema_js.prisma prisma/schema.prisma && \
+    npx prisma generate && \
+    mv prisma/schema.prisma.bak prisma/schema.prisma
 
 # ─── Stage 2: Build ────────────────────────────────────────
 FROM node:18-slim AS builder

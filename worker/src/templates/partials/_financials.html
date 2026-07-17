@@ -341,7 +341,7 @@
             {% if trend.is_negative %}#fef2f2{% else %}#f0fdf4{% endif %};">
             <p class="report-caption text-slate-500 mb-1">{{ trend.label }}</p>
             <p class="text-sm font-bold" style="color: {% if trend.is_negative %}#dc2626{% else %}#059669{% endif %}">
-                {% if trend.is_negative %}↓{% else %}↑{% endif %} {{ trend.direction }}
+                {% if 'declining' in trend.direction|lower or 'klesa' in trend.direction|lower or 'rück' in trend.direction|lower %}↓{% elif 'growing' in trend.direction|lower or 'rast' in trend.direction|lower or 'wachsend' in trend.direction|lower %}↑{% else %}→{% endif %} {{ trend.direction }}
             </p>
             {% if trend.detail %}
             <p class="report-caption" style="color: {% if trend.is_negative %}#dc2626{% else %}#059669{% endif %};">{{ trend.detail }}</p>
@@ -542,12 +542,13 @@
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3">
         <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 200px;">
     </div>
-    {% else %}
+    {% elif not has_cashflow_data %}
     <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 report-body-sm text-amber-800">
         <strong>{{ i18n.cashflow_data_unavailable }}</strong>
     </div>
     {% endif %}
 
+    {% if has_cashflow_data %}
     <table class="w-full text-xs border-collapse mb-4">
         <thead>
             <tr class="bg-slate-100">
@@ -588,7 +589,7 @@
     {% if cashflow_estimated %}
     <p class="report-caption text-slate-400 mb-4">{{ i18n.cashflow_est_note }}</p>
     {% endif %}
-
+    {% endif %}
 
     {% if cf_waterfall_base64 or debt_donut_base64 %}
     <div class="flex flex-row justify-between items-end mt-3 gap-4" style="margin-top: auto;">
@@ -632,7 +633,7 @@
                 <svg class="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
                 </svg>
-                <span class="report-body-sm font-bold text-slate-700">{{ employee_count }}</span>
+                <span class="report-body-sm font-bold text-slate-700">{% if employee_count_estimated %}~{% endif %}{{ employee_count }}</span>
                 <span class="report-caption text-slate-400">{{ i18n.employees_short }}</span>
             </div>
             {% endif %}

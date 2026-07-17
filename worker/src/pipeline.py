@@ -452,6 +452,13 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
                     reasons.append(f"nový finančný výkaz ({s.year})")
                     break
 
+            # 2b. Nové CompanyEvents (ORSR forensic, PDF Reader, etc.)?
+            for e in (company.companyEvents or []):
+                e_ts = e.createdAt.replace(tzinfo=timezone.utc) if e.createdAt else None
+                if e_ts and e_ts > verdict_ts:
+                    reasons.append(f"nový company event ({e.source}/{e.eventType})")
+                    break
+
             # 3. Fallback: verdict príliš starý
             age_days = (datetime.now(timezone.utc) - verdict_ts).days
             if age_days > STALE_TTL_DAYS:

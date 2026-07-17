@@ -546,6 +546,7 @@ def compute_insolvency_score(stmts, i18n_strings):
             profit_years += 1
         elif p is not None and p < 0:
             break
+    profit_trend, profit_consecutive = _trend([p for p in profits if p is not None]) if len([p for p in profits if p is not None]) >= 2 else ("stable", 0)
 
     # 5. Altman Z'' trend (if available)
     altman_values = []
@@ -630,9 +631,9 @@ def compute_insolvency_score(stmts, i18n_strings):
         else:
             trends.append({
                 "label": i18n_strings.get("insolvency_profit_trend"),
-                "direction": i18n_strings.get("insolvency_growing"),
+                "direction": trend_label_map.get(profit_trend, profit_trend),
                 "detail": i18n_strings.get("insolvency_years_profit", "").format(n=profit_years),
-                "is_negative": False,
+                "is_negative": profit_trend == "declining",
             })
     if len(altman_values) >= 2:
         trends.append({
@@ -731,7 +732,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     for stmt in (stmts or []):
         nr = getattr(stmt, 'narrativeRisk', None)
         if nr:
-            for field in ['goingConcernRisk', 'keyRiskFactors', 'managementChanges']:
+            for field in ['goingConcernDoubts', 'goingConcernRisk', 'keyRiskFactors', 'managementChanges']:
                 val = getattr(nr, field, None)
                 if val and str(val).strip():
                     text = str(val)
@@ -779,7 +780,13 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             if getattr(ao, 'goingConcernRisk', None):
                 if auditor_sev == "none":
                     auditor_sev = "medium"
-                auditor_details.append(f"{stmt.year}: Going Concern")
+                auditor_details.append(f"{stmt.year}: Going Concern (auditor)")
+            # Also check NarrativeRisk goingConcernDoubts for this statement
+            nr = getattr(stmt, 'narrativeRisk', None)
+            if nr and getattr(nr, 'goingConcernDoubts', None):
+                if auditor_sev == "none":
+                    auditor_sev = "medium"
+                auditor_details.append(f"{stmt.year}: Going Concern (narrative)")
     _add("fraud_cat_auditor", auditor_sev, len(auditor_details), auditor_details[:3])
 
     # 6. Legal registries (from verdict evidence)
@@ -955,9 +962,19 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
                 op_type = getattr(ao, 'opinionType', '') or ''
                 op_lower = op_type.lower()
                 if op_type and op_lower != 'null':
+                    # Check if going concern doubts exist in narrative analysis
+                    nr = getattr(stmt, 'narrativeRisk', None)
+                    has_going_concern = (
+                        getattr(ao, 'goingConcernRisk', None) or
+                        (nr and getattr(nr, 'goingConcernDoubts', None))
+                    )
                     if 'bez výhrad' in op_lower or 'unqualified' in op_lower:
-                        _strength(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year})",
-                                  i18n_strings.get("sw_source_auditor", ""))
+                        if has_going_concern:
+                            _weakness(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year}) — Going Concern pochybnosti",
+                                      i18n_strings.get("sw_source_auditor", ""))
+                        else:
+                            _strength(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year})",
+                                      i18n_strings.get("sw_source_auditor", ""))
                     elif 'záporn' in op_lower or 'adverse' in op_lower or 'odmietnut' in op_lower:
                         _weakness(f"{i18n_strings.get('sw_auditor_adverse', 'Záporný/odmietnutý audítorský posudok')} ({stmt.year})",
                                   i18n_strings.get("sw_source_auditor", ""))
@@ -1064,6 +1081,12 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Fallback: ak operatingCashFlow chýba (zjednodušený výkaz bez CF), vypočítaj nepriamou metódou
     # Operating CF ≈ Net Profit + Depreciation - ΔInventory - ΔTrade Receivables + ΔTrade Payables
     cashflow_estimated = estimate_missing_cash_flow(stmts or [])
+    has_cashflow_data = any(
+        getattr(s, 'operatingCashFlow', None) is not None or
+        getattr(s, 'investingCashFlow', None) is not None or
+        getattr(s, 'financingCashFlow', None) is not None
+        for s in (stmts or [])
+    )
     latest_stmt = max(stmts, key=lambda s: s.year) if stmts else None
     vestnik_events = company.vestnikEvents or []
     
@@ -1101,10 +1124,12 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     
     # Počet zamestnancov z najnovšieho výkazu (alebo odhad z staffCosts)
     employee_count = getattr(latest_stmt, 'employeeCount', None) if latest_stmt else None
+    employee_count_estimated = False
     if not employee_count and latest_stmt:
         staff_costs = getattr(latest_stmt, 'staffCosts', 0) or 0
         if staff_costs > 0:
             employee_count = max(1, round(staff_costs / 12000))  # odhad: priemerná ročná mzda ~12k €
+            employee_count_estimated = True
     
     # Tržby na zamestnanca
     revenue_per_employee = None
@@ -1313,6 +1338,10 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 for e in vestnik_events
             ],
             "financialStatements": stmts,
+            "companyEvents": [
+                {"source": e.source, "eventType": e.eventType, "severity": e.severity, "metadata": e.metadata}
+                for e in (getattr(company, 'companyEvents', None) or [])
+            ],
         }
         trends_for_scoring = compute_financial_trends(stmts)
         sc_result = compute_forensic_scorecard(company_dict_for_scoring, trends_for_scoring)
@@ -1544,9 +1573,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "gross_profit_all_estimated": gross_profit_all_estimated,
         "estimated_gp_years": estimated_gp_years,
         "cashflow_estimated": cashflow_estimated,
+        "has_cashflow_data": has_cashflow_data,
         "nace_code": nace_code,
         "nace_text": nace_text,
         "employee_count": employee_count,
+        "employee_count_estimated": employee_count_estimated,
         "vestnik_events": vestnik_events,
         "chart_image_base64": chart_base64,
         "balance_chart_base64": balance_chart_base64,
@@ -1688,7 +1719,8 @@ async def generate_forensic_pdf_report(
             include={
                 'auditVerdict': True,
                 'financialStatements': {'orderBy': {'year': 'asc'}, 'include': {'auditorOpinion': True, 'narrativeRisk': True, 'notesRisk': True}},
-                'vestnikEvents': {'orderBy': {'publishedAt': 'desc'}}
+                'vestnikEvents': {'orderBy': {'publishedAt': 'desc'}},
+                'companyEvents': True,
             }
         )
         

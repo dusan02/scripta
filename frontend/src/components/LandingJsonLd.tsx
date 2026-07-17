@@ -1,3 +1,5 @@
+"use client";
+
 const landingJsonLd = {
   "@context": "https://schema.org",
   "@graph": [

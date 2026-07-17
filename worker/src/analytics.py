@@ -827,6 +827,55 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             ))
             total_score = max(0, total_score - wh["penalty"])
 
+    # ── ORSR Forenzná penalizácia ────────────────────────────────────────────
+    # ORSR Forensic Agent ukladá CompanyEvent so source=ORSR, eventType=FORENSIC_ANALYSIS
+    # Tieto obsahujú statutory_changes_count, high_turnover_risk, has_virtual_seat, has_foreign_statutory
+    # Scorecard ich musí započítať — inak firma s 102 zmenami štatutárov dostane AAA.
+    orsr_events = company_dict.get("companyEvents", [])
+    orsr_forensic_penalty = 0
+    orsr_forensic_flags = []
+    for ev in orsr_events:
+        ev_source = ev.get("source", "") if isinstance(ev, dict) else getattr(ev, "source", "")
+        ev_type = ev.get("eventType", "") if isinstance(ev, dict) else getattr(ev, "eventType", "")
+        if ev_source != "ORSR" or ev_type != "FORENSIC_ANALYSIS":
+            continue
+        ev_sev = ev.get("severity", "INFO") if isinstance(ev, dict) else getattr(ev, "severity", "INFO")
+        ev_meta = ev.get("metadata", {}) if isinstance(ev, dict) else getattr(ev, "metadata", {})
+        if isinstance(ev_meta, str):
+            import json as _json
+            try:
+                ev_meta = _json.loads(ev_meta)
+            except Exception:
+                ev_meta = {}
+        stat_changes = int(ev_meta.get("statutory_changes_count", 0) or 0)
+        high_turnover = bool(ev_meta.get("high_turnover_risk", False))
+        has_virtual = bool(ev_meta.get("has_virtual_seat", False))
+        has_foreign = bool(ev_meta.get("has_foreign_statutory", False))
+
+        if ev_sev == "CRITICAL":
+            orsr_forensic_penalty += 3
+            orsr_forensic_flags.append(f"ORSR CRITICAL: {stat_changes} zmien štatutárov, vysoké riziko bieleho koňa (−3b)")
+        elif ev_sev == "HIGH":
+            orsr_forensic_penalty += 2
+            orsr_forensic_flags.append(f"ORSR HIGH: zvýšené riziko z ORSR histórie (−2b)")
+
+        # Mierna penalizácia za extrémny počet zmien (>50)
+        if stat_changes > 50:
+            orsr_forensic_penalty += 2
+            orsr_forensic_flags.append(f"Vysoký počet zmien štatutárov ({stat_changes}): −2b")
+
+        if has_virtual and has_foreign:
+            orsr_forensic_penalty += 1
+            orsr_forensic_flags.append("Virtuálne sídlo + zahraničný štatutár (−1b)")
+
+    if orsr_forensic_penalty > 0:
+        orsr_forensic_penalty = min(orsr_forensic_penalty, 5)  # Cap at 5
+        pillars.append(ScorecardPillar(
+            name="ORSR Forenzná penalizácia", score=-orsr_forensic_penalty, max_score=0,
+            detail="Penalizácia za forenzné anomálie z ORSR histórie.", flags=orsr_forensic_flags
+        ))
+        total_score = max(0, total_score - orsr_forensic_penalty)
+
     if dq_mult < 1.0:
         pillars.append(ScorecardPillar(
             name="Data Quality Multiplier",
