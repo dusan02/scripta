@@ -111,8 +111,10 @@ ROW_ST_BANK_LOANS = 139
 ```python
 ROW_NET_REVENUE = 1
 ROW_OPERATING_INCOME = 2
+ROW_COST_OF_GOODS_SOLD = 10   # Náklady na predaný tovar a služby (COGS)
 ROW_PERSONNEL_COSTS = 15
 ROW_DEPRECIATION = 21
+ROW_OPERATING_PROFIT = 27
 ROW_VALUE_ADDED = 28
 ROW_INTEREST_EXPENSE = 49
 ROW_NET_PROFIT = 61
@@ -122,9 +124,10 @@ ROW_NET_PROFIT = 61
 |---|---|---|
 | 1 | Čistý obrat | `trzby_z_hlavnej_cinnosti` |
 | 2 | Výnosy z hospodárskej činnosti spolu | fallback pre `trzby_z_hlavnej_cinnosti` |
+| 10 | Náklady na predaný tovar a služby | `hruba_marza` (= Tržby - COGS) |
 | 15 | Osobné náklady | `osobne_naklady` |
 | 21 | Odpisy | `odpisy` |
-| 28 | Pridaná hodnota | `hruba_marza` (proxy) |
+| 28 | Pridaná hodnota | fallback pre `hruba_marza` (ak COGS chýba) |
 | 49 | Nákladové úroky | `uroky` |
 | 61 | Výsledok hospodárenia po zdanení | `zisk_alebo_strata_po_zdaneni` |
 
@@ -144,6 +147,11 @@ def _to_float(val) -> Optional[float]:
         cleaned = val.strip()
         if not cleaned:
             return None
+        # Zátvorková notácia: (1234) → -1234 (slovenský účtovný štandard)
+        is_negative = False
+        if cleaned.startswith('(') and cleaned.endswith(')'):
+            is_negative = True
+            cleaned = cleaned[1:-1].strip()
         # Medzery / nbsp ako tisícové oddeľovače
         cleaned = re.sub(r'[\s\xa0]', '', cleaned)
         if ',' in cleaned and '.' in cleaned:
@@ -157,7 +165,10 @@ def _to_float(val) -> Optional[float]:
             parts = cleaned.split('.')
             cleaned = ''.join(parts[:-1]) + '.' + parts[-1]
         try:
-            return float(cleaned) if cleaned else None
+            result = float(cleaned) if cleaned else None
+            if result is not None and is_negative:
+                result = -result
+            return result
         except ValueError:
             return None
     return None
@@ -166,6 +177,7 @@ def _to_float(val) -> Optional[float]:
 Podporuje:
 - `"1 234 567,89"` → `1234567.89`
 - `"1,234,567.89"` → `1234567.89`
+- `"(1 234)"` → `-1234.0` (slovenská zátvorková notácia pre záporné čísla)
 - `1234567` → `1234567.0`
 - prázdne, `None`, medzery → `None`
 
@@ -266,8 +278,20 @@ def parse_tables_to_metrics(tables: list[dict], titulna_strana: dict, ico: str) 
     if year is None:
         return None
 
+    # ── Detekcia jednotiek: EUR vs tisíce EUR ──
+    # RÚZ JSON zvyčajne vracia hodnoty v EUR. Niektoré výkazy však používajú tisíce EUR.
+    # Heuristika: ak celkové aktíva < 1000 a počet zamestnancov > 10, pravdepodobne tisíce EUR.
+    unit_multiplier = 1.0
+    _preliminary_assets = _get_activ_value(ordered, ROW_TOTAL_ASSETS)
+    _preliminary_zam = titulna_strana.get("pocetZamestnancov") or titulna_strana.get("priemernyPocetZamestnancov")
+    if _preliminary_assets is not None and _preliminary_zam is not None:
+        zam_int = int(float(_preliminary_zam))
+        if abs(_preliminary_assets) < 1000 and zam_int > 10:
+            unit_multiplier = 1000.0
+            logger.warning(f"[RUZ_PARSER] IČO {ico}: detekované tisíce EUR — násobím ×1000")
+
     # Počet zamestnancov a mesiacov
-    pocet_zam = titulna_strana.get("pocetZamestnancov") or titulna_strana.get("priemernyPocetZamestnancov")
+    pocet_zam = _preliminary_zam
     pocet_zam_int = int(float(pocet_zam)) if pocet_zam is not None else None
     months = _compute_months(titulna_strana.get("obdobieOd", ""), obdobie_do)
     konsolidovana = titulna_strana.get("konsolidovana", False)
@@ -289,7 +313,6 @@ def parse_tables_to_metrics(tables: list[dict], titulna_strana: dict, ico: str) 
 
     has_income = len(ordered) > 2
     trzby      = _get_income_value(ordered, ROW_NET_REVENUE) if has_income else None
-    marza      = _get_income_value(ordered, ROW_VALUE_ADDED) if has_income else None
     naklady    = _get_income_value(ordered, ROW_PERSONNEL_COSTS) if has_income else None
     odpisy     = _get_income_value(ordered, ROW_DEPRECIATION) if has_income else None
     uroky      = _get_income_value(ordered, ROW_INTEREST_EXPENSE) if has_income else None
@@ -297,6 +320,37 @@ def parse_tables_to_metrics(tables: list[dict], titulna_strana: dict, ico: str) 
 
     if trzby is None and has_income:
         trzby = _get_income_value(ordered, ROW_OPERATING_INCOME)
+
+    # Hrubá marža: preferovaný výpočet = Tržby - COGS (riadok 10)
+    # Fallback: Pridaná hodnota (riadok 28) ak COGS nie je k dispozícii
+    marza = None
+    if has_income:
+        cogs = _get_income_value(ordered, ROW_COST_OF_GOODS_SOLD)
+        if trzby is not None and cogs is not None:
+            marza = trzby - cogs
+        if marza is None:
+            marza = _get_income_value(ordered, ROW_VALUE_ADDED)
+
+    # ── Aplikácia unit multiplier (EUR vs tisíce EUR) ──
+    if unit_multiplier != 1.0:
+        celkove_aktiva = celkove_aktiva * unit_multiplier if celkove_aktiva is not None else None
+        obezny_majetok = obezny_majetok * unit_multiplier if obezny_majetok is not None else None
+        zasoby = zasoby * unit_multiplier if zasoby is not None else None
+        peniaze = peniaze * unit_multiplier if peniaze is not None else None
+        pohladavky = pohladavky * unit_multiplier if pohladavky is not None else None
+        vlastne_imanie = vlastne_imanie * unit_multiplier if vlastne_imanie is not None else None
+        dlhodobe = dlhodobe * unit_multiplier if dlhodobe is not None else None
+        kratkodobe = kratkodobe * unit_multiplier if kratkodobe is not None else None
+        zav_obchod = zav_obchod * unit_multiplier if zav_obchod is not None else None
+        zam_zav = zam_zav * unit_multiplier if zam_zav is not None else None
+        sp_zav = sp_zav * unit_multiplier if sp_zav is not None else None
+        dan_zav = dan_zav * unit_multiplier if dan_zav is not None else None
+        trzby = trzby * unit_multiplier if trzby is not None else None
+        naklady = naklady * unit_multiplier if naklady is not None else None
+        odpisy = odpisy * unit_multiplier if odpisy is not None else None
+        uroky = uroky * unit_multiplier if uroky is not None else None
+        zisk = zisk * unit_multiplier if zisk is not None else None
+        marza = marza * unit_multiplier if marza is not None else None
 
     metrics = FinancialMetrics(
         rok_zavierky=year,
@@ -520,9 +574,10 @@ await db.financialstatement.upsert(
 3. **Cash flow chýba.** `ciste_penazne_toky_z_prevadzkovej_cinnosti`, `investicny_cash_flow`, `financny_cash_flow` sú `None`, lebo šablóna 699 neobsahuje výkaz peňažných tokov. Používa sa následný `estimate_missing_cash_flow`.
 4. **Konsolidované závierky.** Parser beží len ak `konsolidovana == False`. Konsolidované SK GAAP/IFRS idú cez LLM.
 5. **Audítorský názor.** Parser neextrahuje audítorskú správu. `auditoropinion` ostáva prázdny, kým sa nepridá samostatná extrakcia z notes PDF.
-6. **Jednotky.** Predpokladá sa, že RÚZ vracia hodnoty v EUR. Ak by vracal v tisícoch EUR, čísla by boli 1000× menšie. **Treba overiť.**
-7. **Negatívne čísla v zátvorkách.** `_to_float` nekonvertuje `(1234)` na `-1234`. Ak RÚZ používa túto notáciu, treba doplniť.
-8. **Cashflow proxy.** `hruba_marza` je mapovaná z riadku 28 "Pridaná hodnota". Pre niektoré výkazy to môže byť hrubá marža, pre iné iba pridaná hodnota.
+6. **Jednotky — RIEŠENÉ.** `_to_float` a `parse_tables_to_metrics` obsahujú detekciu tisícov EUR: ak `celkové aktíva < 1000` a `počet zamestnancov > 10`, všetky hodnoty sa násobia ×1000. Zaloguje sa varovanie.
+7. **Negatívne čísla v zátvorkách — RIEŠENÉ.** `_to_float` konvertuje `(1234)` na `-1234` podľa slovenského účtovného štandardu.
+8. **Hrubá marža — RIEŠENÉ.** `hruba_marza` sa primárne počíta ako `Tržby (riadok 1) - COGS (riadok 10)`. Fallback na Pridanú hodnotu (riadok 28) ak COGS chýba.
+9. **IFRS závierky.** Stále spracovávané cez LLM (prichádzajú ako PDF, nie JSON). Pre veľké firmy (Mondi, Foxconn) je možné v budúcnosti vytvoriť layout parser z PDF.
 
 ## 12. Čo overiť pri teste
 
@@ -531,5 +586,9 @@ await db.financialstatement.upsert(
   - `vlastne_imanie_celkom` vs. strana pasív.
   - `trzby_z_hlavnej_cinnosti` vs. výkaz ziskov a strát.
   - `danove_zavazky` vs. riadok 133 pasív.
+  - `hruba_marza` vs. ručný výpočet (Tržby - COGS) alebo Pridaná hodnota.
 - Skontroluj logy sanity checkov — `Balance sheet mismatch` by mal byť minimálny.
 - Over, že `.metrics.json` sa vytvorí vedľa `.txt` a pipeline ho načíta (`[SK_GAAP PARSED]` log).
+- Over zátvorkovú notáciu: ak závierka obsahuje stratu v zátvorke `(1234)`, skontroluj že `zisk_alebo_strata_po_zdaneni` je `-1234`.
+- Over jednotky: ak sa v logu objaví `detekované tisíce EUR`, skontroluj že hodnoty sú ×1000 väčšie ako v JSON.
+- Over `hruba_marza`: ak je COGS (riadok 10) k dispozícii, `hruba_marza` by mala byť `Tržby - COGS`, nie Pridaná hodnota.
