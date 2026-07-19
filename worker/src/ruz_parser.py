@@ -59,7 +59,7 @@ ROW_ST_BANK_LOANS = 139
 # Výkaz ziskov a strát (table 2)
 ROW_NET_REVENUE = 1
 ROW_OPERATING_INCOME = 2
-ROW_OPERATING_EXPENSES = 10
+ROW_COST_OF_GOODS_SOLD = 10   # Náklady na predaný tovar a služby (COGS)
 ROW_PERSONNEL_COSTS = 15
 ROW_DEPRECIATION = 21
 ROW_OPERATING_PROFIT = 27
@@ -95,8 +95,11 @@ _INCOME_PREV_COL = 4
 def _to_float(val) -> Optional[float]:
     """Safely convert a value to float.
 
-    Handles Slovak formatting: spaces/nbsp as thousand separators,
-    comma as decimal separator. Returns None for empty/non-numeric values.
+    Handles Slovak formatting:
+    - spaces/nbsp as thousand separators
+    - comma as decimal separator
+    - parentheses notation (1234) as negative numbers → -1234
+    Returns None for empty/non-numeric values.
     """
     if val is None or val == "" or val == " ":
         return None
@@ -108,6 +111,11 @@ def _to_float(val) -> Optional[float]:
         cleaned = val.strip()
         if not cleaned:
             return None
+        # Parentheses notation: (1234) → -1234 (Slovak accounting standard)
+        is_negative = False
+        if cleaned.startswith('(') and cleaned.endswith(')'):
+            is_negative = True
+            cleaned = cleaned[1:-1].strip()
         # Remove thousand separators (spaces/nbsp), keep last comma/dot as decimal
         cleaned = re.sub(r'[\s\xa0]', '', cleaned)
         if ',' in cleaned and '.' in cleaned:
@@ -121,7 +129,10 @@ def _to_float(val) -> Optional[float]:
             parts = cleaned.split('.')
             cleaned = ''.join(parts[:-1]) + '.' + parts[-1]
         try:
-            return float(cleaned) if cleaned else None
+            result = float(cleaned) if cleaned else None
+            if result is not None and is_negative:
+                result = -result
+            return result
         except ValueError:
             return None
     return None
@@ -296,6 +307,27 @@ def parse_tables_to_metrics(
     obdobie_do = titulna_strana.get("obdobieDo", "")
     konsolidovana = titulna_strana.get("konsolidovana", False)
 
+    # ── Unit detection: EUR vs tisíce EUR ──
+    # RÚZ JSON zvyčajne vracia hodnoty v EUR. Niektoré výkazy však používajú tisíce EUR.
+    # Detekcia: ak celkové aktíva < 1000 pre bežnú firmu, pravdepodobne sú to tisíce EUR.
+    # RÚZ API neposkytuje explicitné pole pre jednotky, tak použijeme heuristiku:
+    #   - Ak total_assets < 1000 a zároveň pocet_zamestnancov > 10, pravdepodobne tisíce EUR
+    #   - Pri tisícoch EUR násobíme všetky hodnoty × 1000
+    unit_multiplier = 1.0
+    _preliminary_assets = _get_activ_value(ordered, ROW_TOTAL_ASSETS)
+    _preliminary_zam = titulna_strana.get("pocetZamestnancov") or titulna_strana.get("priemernyPocetZamestnancov")
+    if _preliminary_assets is not None and _preliminary_zam is not None:
+        try:
+            zam_int = int(float(_preliminary_zam))
+            if abs(_preliminary_assets) < 1000 and zam_int > 10:
+                unit_multiplier = 1000.0
+                logger.warning(
+                    f"[RUZ_PARSER] IČO {ico}: detekované tisíce EUR "
+                    f"(assets={_preliminary_assets}, zamestnanci={zam_int}) — násobím ×1000"
+                )
+        except (ValueError, TypeError):
+            pass
+
     # Extract year from obdobieDo (ISO or Slovak date string)
     year = None
     if obdobie_do:
@@ -342,7 +374,6 @@ def parse_tables_to_metrics(
 
     # Income statement
     trzby = _get_income_value(ordered, ROW_NET_REVENUE) if has_income else None
-    hruba_marza = _get_income_value(ordered, ROW_VALUE_ADDED) if has_income else None
     osobne_naklady = _get_income_value(ordered, ROW_PERSONNEL_COSTS) if has_income else None
     odpisy = _get_income_value(ordered, ROW_DEPRECIATION) if has_income else None
     uroky = _get_income_value(ordered, ROW_INTEREST_EXPENSE) if has_income else None
@@ -351,6 +382,38 @@ def parse_tables_to_metrics(
     # If revenue is None, try operating income total as fallback
     if trzby is None and has_income:
         trzby = _get_income_value(ordered, ROW_OPERATING_INCOME)
+
+    # Hrubá marža: preferovaný výpozet = Tržby - Náklady na predaný tovar (COGS)
+    # Ak nie sú k dispozícii obe hodnoty, fallback na Pridanú hodnotu (riadok 28)
+    hruba_marza = None
+    if has_income:
+        cogs = _get_income_value(ordered, ROW_COST_OF_GOODS_SOLD)
+        if trzby is not None and cogs is not None:
+            hruba_marza = trzby - cogs
+        if hruba_marza is None:
+            # Fallback: Pridaná hodnota (proxy pre hrubú maržu v SK GAAP)
+            hruba_marza = _get_income_value(ordered, ROW_VALUE_ADDED)
+
+    # ── Apply unit multiplier (EUR vs tisíce EUR) ──
+    if unit_multiplier != 1.0:
+        celkove_aktiva = celkove_aktiva * unit_multiplier if celkove_aktiva is not None else None
+        obezny_majetok = obezny_majetok * unit_multiplier if obezny_majetok is not None else None
+        zasoby = zasoby * unit_multiplier if zasoby is not None else None
+        peniaze = peniaze * unit_multiplier if peniaze is not None else None
+        pohladavky = pohladavky * unit_multiplier if pohladavky is not None else None
+        vlastne_imanie = vlastne_imanie * unit_multiplier if vlastne_imanie is not None else None
+        dlhodobe_zavazky = dlhodobe_zavazky * unit_multiplier if dlhodobe_zavazky is not None else None
+        kratkodobe_zavazky = kratkodobe_zavazky * unit_multiplier if kratkodobe_zavazky is not None else None
+        zavazky_obchod = zavazky_obchod * unit_multiplier if zavazky_obchod is not None else None
+        zavazky_zamestnanci = zavazky_zamestnanci * unit_multiplier if zavazky_zamestnanci is not None else None
+        zavazky_sp = zavazky_sp * unit_multiplier if zavazky_sp is not None else None
+        danove_zavazky = danove_zavazky * unit_multiplier if danove_zavazky is not None else None
+        trzby = trzby * unit_multiplier if trzby is not None else None
+        osobne_naklady = osobne_naklady * unit_multiplier if osobne_naklady is not None else None
+        odpisy = odpisy * unit_multiplier if odpisy is not None else None
+        uroky = uroky * unit_multiplier if uroky is not None else None
+        zisk_po_zdaneni = zisk_po_zdaneni * unit_multiplier if zisk_po_zdaneni is not None else None
+        hruba_marza = hruba_marza * unit_multiplier if hruba_marza is not None else None
 
     # Build FinancialMetrics
     metrics = FinancialMetrics(
