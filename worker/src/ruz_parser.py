@@ -119,8 +119,15 @@ def _to_float(val) -> Optional[float]:
         # Remove thousand separators (spaces/nbsp), keep last comma/dot as decimal
         cleaned = re.sub(r'[\s\xa0]', '', cleaned)
         if ',' in cleaned and '.' in cleaned:
-            # Mixed: assume dot is thousand, comma is decimal
-            cleaned = cleaned.replace('.', '').replace(',', '.')
+            # Mixed: the last separator is the decimal separator
+            last_comma = cleaned.rfind(',')
+            last_dot = cleaned.rfind('.')
+            if last_comma > last_dot:
+                # Comma is decimal → dot is thousand
+                cleaned = cleaned.replace('.', '').replace(',', '.')
+            else:
+                # Dot is decimal → comma is thousand
+                cleaned = cleaned.replace(',', '')
         elif ',' in cleaned:
             # Only comma: assume decimal separator
             cleaned = cleaned.replace(',', '.')
