@@ -349,11 +349,13 @@ def generate_employee_chart(statements, lang="sk") -> str:
     ))
 
     layout = get_base_layout(i.get('chart_employee_count', 'Vývoj počtu zamestnancov'))
-    layout['yaxis'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False, tickfont=dict(color='#64748b'), title=dict(text=i.get('chart_employees', 'zamestnancov'), font=dict(size=10, color='#64748b')))
+    max_count = max(counts) if counts else 100
+    layout['yaxis'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False, tickfont=dict(color='#64748b'), title=dict(text=i.get('chart_employees', 'zamestnancov'), font=dict(size=10, color='#64748b')), range=[0, max_count * 1.18])
     layout['showlegend'] = False
+    layout['margin'] = dict(l=40, r=40, t=50, b=45, pad=5)
     fig.update_layout(**layout)
     fig.update_xaxes(tickmode='array', tickvals=list(range(len(years))), ticktext=years, type='category')
-    return _to_base64(fig, 600, 280)
+    return _to_base64(fig, 600, 320)
 
 
 def generate_rpe_chart(statements, lang="sk") -> str:
@@ -382,7 +384,7 @@ def generate_rpe_chart(statements, lang="sk") -> str:
 
     avg = sum(rpe) / len(rpe)
     fig.add_hline(y=avg, line_dash="dash", line_color="rgba(148,163,184,0.6)",
-                  annotation_text=f'Ø {int(avg):,} €'.replace(',', ' '),
+                  annotation_text=f'Priemer {int(avg):,} €'.replace(',', ' '),
                   annotation_position="top right",
                   annotation_font=dict(size=9, color='#94a3b8'))
 

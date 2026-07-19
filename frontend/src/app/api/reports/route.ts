@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
     try {
       const dbUser = await prisma.user.findUnique({
         where: { id: user.id },
-        select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, vestnikDateFrom: true, reportLanguage: true },
+        select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, vestnikDateFrom: true, reportLanguage: true, attachmentsConfig: true },
       });
       await enqueueReportTask({
         reportRequestId: reportRequest.id,
@@ -205,6 +205,7 @@ export async function POST(req: NextRequest) {
         rozhodnutiaDateFrom: dbUser?.rozhodnutiaDateFrom?.toISOString().split("T")[0] ?? null,
         vestnikDateFrom: dbUser?.vestnikDateFrom?.toISOString().split("T")[0] ?? null,
         reportLanguage: dbUser?.reportLanguage ?? "sk",
+        attachmentsConfig: dbUser?.attachmentsConfig as Record<string, boolean> | null ?? null,
       });
     } catch (workerErr) {
       console.error("Worker enqueue failed", workerErr);

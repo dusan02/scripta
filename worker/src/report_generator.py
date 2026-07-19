@@ -382,9 +382,9 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     # Equity flags
     if flag == "Vlastné imanie: N/A":
         return i18n_strings.get("flag_equity_na", flag)
-    m = _re.match(r"Vlastné imanie: kladné \(E/D = ([\d.]+)\)", flag)
+    m = _re.match(r"Vlastné imanie: kladné \(D/E = ([\d.]+)\)", flag)
     if m: return i18n_strings.get("flag_equity_positive", flag).format(val=m.group(1))
-    m = _re.match(r"Vlastné imanie: ZÁPORNÉ \(E/D = ([\d.]+)\)", flag)
+    m = _re.match(r"Vlastné imanie: ZÁPORNÉ \(D/E = ([\d.]+)\)", flag)
     if m: return i18n_strings.get("flag_equity_negative", flag).format(val=m.group(1))
     # Vestnik flags
     if flag == "Vestník: žiadne kritické udalosti":

@@ -21,6 +21,7 @@ from reportlab.lib import colors
 from ..report_generator import SOURCE_CATEGORY_DEFS as _SOURCE_CATEGORIES, SOURCE_LABEL_I18N_KEYS as _SOURCE_LABEL_KEYS
 from ..models import ScrapedSource
 from ..i18n import get_i18n_strings
+from ..attachment_filter import AttachmentFilter, RED_FLAG_SOURCE_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,7 @@ class PdfCompiler:
         company_name: Optional[str] = None,
         report_language: str = "sk",
         vestnik_date_from: Optional[str] = None,
+        attachments_config: Optional[dict[str, bool]] = None,
     ) -> Path:
         output_dir = self.results_dir / report_request_id
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -109,7 +111,26 @@ class PdfCompiler:
         generated_at = datetime.now(ZoneInfo("Europe/Bratislava"))
         generated_at_str = generated_at.strftime("%d.%m.%Y %H:%M:%S")
 
-        # 0. Zotriedime zdroje podľa kategorického poradia (rovnaké ako na cover page).
+        # 0a. Aplikujeme AttachmentFilter — selektívne vylúčenie príloh podľa užívateľských nastavení.
+        # Pozor: zdroje sa NEodstraňujú zo zoznamu — cover page (Part A) stále potrebuje všetky zdroje
+        # na zobrazenie náleziev. Filter len označí vylúčené zdroje, ktoré sa nezaradia do PDF binderu (Part B).
+        attachment_filter = AttachmentFilter.from_dict(attachments_config)
+        excluded_source_types = attachment_filter.get_excluded_source_types()
+        if excluded_source_types:
+            skipped_attachments = [s for s in sources if s.source_type in excluded_source_types]
+            for s in skipped_attachments:
+                logger.info(f"[PdfCompiler] Príloha VYLÚČENÁ užívateľom: {s.source_type} (status={s.status})")
+            # Varovanie ak vylúčený zdroj obsahuje red flag
+            red_flag_excluded = [
+                s for s in skipped_attachments
+                if s.source_type in RED_FLAG_SOURCE_TYPES and s.status == "SUCCESS"
+                and not _has_no_record(s)
+            ]
+            if red_flag_excluded:
+                rf_types = [s.source_type for s in red_flag_excluded]
+                logger.warning(f"[PdfCompiler] ⚠️ Vylúčené prílohy obsahujú red flag nálezy: {rf_types} — report nie je kompletný!")
+
+        # 0b. Zotriedime zdroje podľa kategorického poradia (rovnaké ako na cover page).
         sources = sorted(sources, key=lambda s: _SOURCE_ORDER.get(s.source_type, 999))
 
         # 1. Spočítame skutočný počet strán pre všetky zdroje.
@@ -144,6 +165,11 @@ class PdfCompiler:
             for source in sources:
                 # Univerzálne pravidlo: záznam neexistuje → vynechaj PDF
                 if _has_no_record(source):
+                    source.start_page = None
+                    source.page_count = 0
+                    continue
+                # AttachmentFilter: vylúčený zdroj → žiadny link, žiadne PDF v binderi
+                if source.source_type in excluded_source_types:
                     source.start_page = None
                     source.page_count = 0
                     continue

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, vestnikDateFrom: true, defaultSources: true, reportLanguage: true },
+      select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, vestnikDateFrom: true, defaultSources: true, reportLanguage: true, attachmentsConfig: true },
     });
 
     if (!dbUser) {
@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       vestnikDateFrom: dbUser.vestnikDateFrom?.toISOString().split("T")[0] ?? null,
       defaultSources: dbUser.defaultSources,
       reportLanguage: dbUser.reportLanguage,
+      attachmentsConfig: dbUser.attachmentsConfig,
     });
   } catch (error) {
     console.error("GET /api/settings error", error);
@@ -41,7 +42,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, vestnikDateFrom, defaultSources, reportLanguage } = body;
+    const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, vestnikDateFrom, defaultSources, reportLanguage, attachmentsConfig } = body;
 
     const data: Record<string, unknown> = {};
 
@@ -127,6 +128,21 @@ export async function PATCH(req: NextRequest) {
         );
       }
       data.reportLanguage = normalizedLang;
+    }
+
+    if (attachmentsConfig !== undefined) {
+      if (attachmentsConfig === null) {
+        data.attachmentsConfig = null;
+      } else if (typeof attachmentsConfig === "object" && !Array.isArray(attachmentsConfig)) {
+        const validKeys = ["obchodny_register", "zivnostensky_register", "auditorska_sprava", "uctovna_zavierka_a_poznámky"];
+        const filtered: Record<string, boolean> = {};
+        for (const [key, val] of Object.entries(attachmentsConfig)) {
+          if (validKeys.includes(key) && typeof val === "boolean") {
+            filtered[key] = val;
+          }
+        }
+        data.attachmentsConfig = filtered;
+      }
     }
 
     if (Object.keys(data).length === 0) {

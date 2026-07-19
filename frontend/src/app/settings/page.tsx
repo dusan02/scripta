@@ -16,10 +16,16 @@ export default function SettingsPage() {
   const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear - i));
   const [defaultSources, setDefaultSources] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
   const [reportLanguage, setReportLanguage] = useState<string>("sk");
+  const [attachmentsConfig, setAttachmentsConfig] = useState<Record<string, boolean>>({
+    obchodny_register: true,
+    zivnostensky_register: true,
+    auditorska_sprava: true,
+    "uctovna_zavierka_a_poznámky": false,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const initialRef = useRef({ orsrExtractType: "CURRENT", crzDateFrom: "", rozhodnutiaYearFrom: String(currentYear - 1), vestnikDateFrom: "", defaultSources: DEFAULT_SELECTED_SOURCES, reportLanguage: "sk" });
+  const initialRef = useRef<Record<string, unknown>>({ orsrExtractType: "CURRENT", crzDateFrom: "", rozhodnutiaYearFrom: String(currentYear - 1), vestnikDateFrom: "", defaultSources: DEFAULT_SELECTED_SOURCES, reportLanguage: "sk", attachmentsConfig: { obchodny_register: true, zivnostensky_register: true, auditorska_sprava: true, "uctovna_zavierka_a_poznámky": false } });
 
   const hasUnsavedChanges =
     orsrExtractType !== initialRef.current.orsrExtractType ||
@@ -27,7 +33,8 @@ export default function SettingsPage() {
     rozhodnutiaYearFrom !== initialRef.current.rozhodnutiaYearFrom ||
     JSON.stringify(defaultSources) !== JSON.stringify(initialRef.current.defaultSources) ||
     reportLanguage !== initialRef.current.reportLanguage ||
-    vestnikDateFrom !== initialRef.current.vestnikDateFrom;
+    vestnikDateFrom !== initialRef.current.vestnikDateFrom ||
+    JSON.stringify(attachmentsConfig) !== JSON.stringify(initialRef.current.attachmentsConfig);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -58,6 +65,9 @@ export default function SettingsPage() {
         }
         if (data.reportLanguage) setReportLanguage(data.reportLanguage);
         if (data.vestnikDateFrom) setVestnikDateFrom(data.vestnikDateFrom);
+        const defaultAc = { obchodny_register: true, zivnostensky_register: true, auditorska_sprava: true, "uctovna_zavierka_a_poznámky": false };
+        const loadedAc = data.attachmentsConfig ? { ...defaultAc, ...data.attachmentsConfig } : defaultAc;
+        setAttachmentsConfig(loadedAc);
         initialRef.current = {
           orsrExtractType: data.orsrExtractType || "CURRENT",
           crzDateFrom: data.crzDateFrom || "",
@@ -65,6 +75,7 @@ export default function SettingsPage() {
           vestnikDateFrom: data.vestnikDateFrom || "",
           defaultSources: data.defaultSources?.length > 0 ? data.defaultSources : DEFAULT_SELECTED_SOURCES,
           reportLanguage: data.reportLanguage || "sk",
+          attachmentsConfig: loadedAc,
         };
       })
       .catch(() => {})
@@ -81,7 +92,7 @@ export default function SettingsPage() {
       await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, rozhodnutiaDateFrom: rozhodnutiaYearFrom ? `${rozhodnutiaYearFrom}-01-01` : null, vestnikDateFrom: vestnikDateFrom || null, defaultSources, reportLanguage }),
+        body: JSON.stringify({ orsrExtractType, crzDateFrom: crzDateFrom || null, rozhodnutiaDateFrom: rozhodnutiaYearFrom ? `${rozhodnutiaYearFrom}-01-01` : null, vestnikDateFrom: vestnikDateFrom || null, defaultSources, reportLanguage, attachmentsConfig }),
       });
       initialRef.current = {
         orsrExtractType,
@@ -90,6 +101,7 @@ export default function SettingsPage() {
         vestnikDateFrom,
         defaultSources,
         reportLanguage,
+        attachmentsConfig,
       };
       setSaved(true);
       toast.success(t("settings.ulozene"));
@@ -423,6 +435,63 @@ export default function SettingsPage() {
                 <span style={{ fontSize: "16px" }}>{lang.flag}</span>
                 <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
                   {lang.label}
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Attachments Config */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2
+              className="text-sm font-semibold mb-1"
+              style={{ color: "var(--text)" }}
+            >
+              Prílohy v PDF reporte
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Vyberte, ktoré prílohy sa majú pripojiť k vygenerovanému PDF reportu.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div
+            className="h-32 rounded-lg animate-pulse"
+            style={{ background: "var(--bg-muted)" }}
+          />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {[
+              { key: "obchodny_register", label: "Obchodný register (ORSR)", desc: "Výpis z obchodného registra" },
+              { key: "zivnostensky_register", label: "Živnostensky register (ZRSR)", desc: "Výpis zo živnostenského registra" },
+              { key: "auditorska_sprava", label: "Audítorská správa", desc: "Audítorský posudok k účtovnej závierke" },
+              { key: "uctovna_zavierka_a_poznámky", label: "Účtovná závierka a poznámky", desc: "Dlhé prílohy — môžu mať stovky strán" },
+            ].map((item) => (
+              <label
+                key={item.key}
+                className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all"
+                style={{
+                  background: attachmentsConfig[item.key] ? "var(--bg-muted)" : "transparent",
+                  border: `1px solid ${attachmentsConfig[item.key] ? "var(--accent)" : "var(--border)"}`,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={attachmentsConfig[item.key] ?? true}
+                  onChange={(e) => setAttachmentsConfig((p) => ({ ...p, [item.key]: e.target.checked }))}
+                  className="accent-emerald-500"
+                />
+                <div>
+                  <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                    {item.label}
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {item.desc}
+                  </div>
                 </div>
               </label>
             ))}

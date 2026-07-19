@@ -13,6 +13,7 @@ export interface EnqueueTaskPayload {
   rozhodnutiaDateFrom?: string | null;
   vestnikDateFrom?: string | null;
   reportLanguage?: string;
+  attachmentsConfig?: Record<string, boolean> | null;
 }
 
 export async function enqueueReportTask(payload: EnqueueTaskPayload) {
@@ -26,6 +27,7 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
     rozhodnutia_date_from: payload.rozhodnutiaDateFrom ?? null,
     vestnik_date_from: payload.vestnikDateFrom ?? null,
     report_language: payload.reportLanguage ?? "sk",
+    attachments_config: payload.attachmentsConfig ?? null,
   };
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };

@@ -71,6 +71,7 @@ PRAVIDLÁ VÝSTUPU:
 - V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
 - Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelenie a vážný finančný stres, NEUTRAL pre neutrálne info).
 - Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
+- EVIDENCE ITEMS = IBA HISTORICKÉ FAKTY: Každý EvidenceItem v `zdovodnenie` musí obsahovať iba overiteľné historické fakty z poskytnutých dát (čísla z závierky, udalosti z registrov, citácie z PDF). NIKDY neuvádzaj predikcie, prognózy ani odhady budúceho vývoja (napr. "predikovaný pokles ziskovosti") ako evidence item. Budúce trendy môžeš spomenúť v `executive_summary`, ale nie ako samostatný dôkaz v tabuľke.
 - V poli `zdovodnenie` vysvetli `llm_score_adjustment`: ak je nenulový, uvedie jeden EvidenceItem opisujúci, prečo by si score korigoval (napr. "PDF dlhy neobsahujú aktívne exekúcie, llm_score_adjustment = 0").
 - Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), zvol 'INSUFFICIENT_DATA' v risk_category.
 
@@ -122,6 +123,7 @@ OUTPUT RULES:
 - In the 'zdovodnenie' field, return a list of `EvidenceItem` objects.
 - For each `EvidenceItem` you MUST assign the correct `impact` (POSITIVE for good news, WARNING for warnings, CRITICAL for enforcement actions, tunneling and serious financial stress, NEUTRAL for neutral info).
 - For each of the 5 pillars, find at least one strong piece of evidence.
+- EVIDENCE ITEMS = HISTORICAL FACTS ONLY: Each EvidenceItem in `zdovodnenie` must contain only verifiable historical facts from the provided data (financial statement numbers, registry events, PDF citations). NEVER include predictions, forecasts or estimates of future performance (e.g. "predicted decline in profitability") as an evidence item. Future trends may be mentioned in `executive_summary`, but not as a standalone evidence in the table.
 - In the `zdovodnenie` field, explain `llm_score_adjustment`: if non-zero, include one EvidenceItem describing why you would adjust the score (e.g. "PDF debts do not contain active enforcement actions, llm_score_adjustment = 0").
 - If you lack sufficient data (missing PDFs for the given IČO), select 'INSUFFICIENT_DATA' in risk_category.
 
@@ -161,6 +163,7 @@ BEWERTUNGS- UND SYNTHESPROZESS:
 AUSGABEREGELN:
 - Füllen Sie das Pydantic-Schema `AuditVerdict` aus.
 - Für jede der 5 Säulen finden Sie mindestens ein starkes Beweisstück.
+- EVIDENCE ITEMS = NUR HISTORISCHE FAKTEN: Jedes EvidenceItem in `zdovodnenie` darf nur überprüfbare historische Fakten aus den bereitgestellten Daten enthalten (Zahlen aus dem Jahresabschluss, Registerereignisse, PDF-Zitate). NIE Prognosen, Vorhersagen oder Schätzungen der zukünftigen Entwicklung (z.B. "vorhergesagter Gewinnrückgang") als EvidenceItem aufnehmen. Zukünftige Trends können in `executive_summary` erwähnt werden, aber nicht als eigenständiger Beweis in der Tabelle.
 
 {COMMON_TEXT_QUALITY_RULES['de']}"""
 

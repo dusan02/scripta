@@ -28,6 +28,7 @@ model User {
   vestnikDateFrom  DateTime?       // Vestník dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
   reportLanguage   String          @default("sk") // sk | en | de — jazyk PDF reportu
+  attachmentsConfig Json?          // User default: {obchodny_register: true, zivnostensky_register: true, auditorska_sprava: true, uctovna_zavierka_a_poznámky: false}
   tokenVersion     Int             @default(0)
   planName           String?         // Názov paušálu (start, freelance, firma, korporat)
   planRenewalDate    DateTime?       // Dátum obnovenia paušálu
@@ -62,6 +63,7 @@ model ReportRequest {
   aiMs            Int?                // Duration of AI pipeline phase in ms
   auditorMs       Int?                // Duration of Chief Auditor phase in ms
   compileMs       Int?                // Duration of PDF compilation phase in ms
+  attachmentsConfig Json?             // Per-report override of attachment visibility
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)

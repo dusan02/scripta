@@ -298,10 +298,10 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         i.get('sankey_current_assets', 'Obežný majetok'),   # 4
         i.get('sankey_non_current', 'Dlhodobý majetok'), # 5
         i.get('sankey_total_assets', 'Celkové aktíva'),   # 6
-        " ",    # 7 (Záväzky a iné - empty space prevents overlap with short_liab)
+        i.get('sankey_liabilities', 'Záväzky'),             # 7 (Záväzky — zdroj na rozdelenie do podkategórií)
         i.get('sankey_equity', 'Vlastné imanie'),   # 8
-        i.get('sankey_short_liab', 'Krátkodobé záv.'),  # 9
-        i.get('sankey_long_liab', 'Dlhodobé záv.'),    # 10
+        i.get('sankey_short_liab', 'Krátkodobé záväzky'),  # 9
+        i.get('sankey_long_liab', 'Dlhodobé záväzky'),    # 10
         i.get('sankey_other_pasiva', 'Ostatné pasíva'),   # 11
     ]
     colors = [

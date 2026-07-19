@@ -19,17 +19,39 @@ _FALLBACK_MODEL = settings.model_fallback
 _FALLBACK_MODEL_2 = settings.model_fallback_2
 
 
-def _log_failed_call_cost(model: str, label: str, reason: str) -> None:
+def _log_failed_call_cost(model: str, label: str, reason: str, prompt_text: str = "") -> None:
     """Zaloguje odhadovaný náklad za neúspešné LLM volanie.
     Google účtuje input tokens aj pri 503/429 chybách (response sa nevygeneruje, ale input sa spracuje).
-    Nemáme presné usage metadata, tak použijeme odhad z logu label-u."""
+    Pokúsi sa odhadnúť input tokeny z veľkosti prompt textu."""
     from src.agents.shared import _token_stats
     from src.log_helpers import get_correlation_id
     cid = get_correlation_id() or "-"
     price_in, _ = settings.llm_pricing.get(model, (0.0, 0.0))
-    # Odhad: 503/490 zvyčajne znamená že input bol spracovaný ale output nepršiel.
-    # Nemáme presný token count, len zalogujeme varovanie.
-    logger.warning(f"[{cid}] LLM FAILED COST: {label} model={model} reason={reason} — Google môže účtovať input tokens")
+    # Odhad input tokenov: ~4 znaky na token (približný odhad pre text + PDF metadata)
+    est_input_tokens = 0
+    if prompt_text:
+        est_input_tokens = len(prompt_text) // 4
+    elif label:
+        # Ak nemáme prompt text, odhadneme z labelu — pre PDF analýzu je typicky 50k-200k tokenov
+        if any(k in label for k in ("IFRS", "VS_", "Annual Report", "Financial Statements", "Footnotes")):
+            est_input_tokens = 100_000  # PDF súbory sú veľké
+        elif any(k in label for k in ("Chief", "Cross-Analysis", "Report QA")):
+            est_input_tokens = 50_000  # Zhrnutia a analýzy
+        else:
+            est_input_tokens = 10_000  # Menšie cally
+    est_cost = (est_input_tokens * price_in) / 1_000_000
+    logger.warning(
+        f"[{cid}] LLM FAILED COST: {label} model={model} reason={reason} "
+        f"est_input~{est_input_tokens:,} tok est_cost~${est_cost:.5f} — Google môže účtovať input tokens"
+    )
+    # Accumulate failed costs
+    if model not in _token_stats:
+        _token_stats[model] = {"calls": 0, "input": 0, "output": 0, "cost": 0.0, "failed_calls": 0, "failed_cost": 0.0}
+    if "failed_calls" not in _token_stats[model]:
+        _token_stats[model]["failed_calls"] = 0
+        _token_stats[model]["failed_cost"] = 0.0
+    _token_stats[model]["failed_calls"] += 1
+    _token_stats[model]["failed_cost"] += est_cost
 
 async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
     """

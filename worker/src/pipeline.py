@@ -838,10 +838,34 @@ async def process_company(
     logger.info(f"[{get_correlation_id() or '-'}] Files: IFRS={_ifrs_count} VS={_vs_count}")
 
     async def _process_ifrs(file_path: str, sem: asyncio.Semaphore):
-        """Spracuje jeden IFRS PDF: pošle celé PDF do Gemini v jednom volaní (Flash má 1M token context)."""
+        """Spracuje jeden IFRS PDF: pošle celé PDF do Gemini v jednom volaní (Flash má 1M token context).
+
+        Pre SK GAAP .txt súbory s .metrics.json sidecarom preskočí LLM a použije priamo parsované dáta.
+        RÚZ "notes" PDF (prílohy k SK GAAP) preskočí — inak by prázdne metriky z LLM prepísali parsované dáta.
+        """
         file_name = os.path.basename(file_path)
         try:
             logger.info(f"Spracovávam finančné výkazy: {file_name}")
+
+            # ── RÚZ notes PDF (auditor reports / poznámky k SK GAAP) — preskočíme LLM extrakciu ──
+            if file_path.lower().endswith(".pdf") and "notes" in file_name.lower():
+                logger.info(f"[SK_GAAP NOTES] {file_name} — preskakujem LLM extrakciu (bude spracované cez _process_notes)")
+                return
+
+            # ── SK GAAP fast path: check for JSON-parsed metrics sidecar ──
+            if file_path.lower().endswith(".txt"):
+                from src.ruz_parser import load_metrics_sidecar, metrics_to_extraction
+                parsed_metrics = load_metrics_sidecar(file_path)
+                if parsed_metrics is not None:
+                    logger.info(f"[SK_GAAP PARSED] {file_name} → rok={parsed_metrics.rok_zavierky} "
+                                f"assets={parsed_metrics.celkove_aktiva} revenue={parsed_metrics.trzby_z_hlavnej_cinnosti} "
+                                f"(preskakujem LLM)")
+                    data = metrics_to_extraction(parsed_metrics, ico, company_name or fallback_name)
+                    _ifrs_results.append(data)
+                    return
+                else:
+                    logger.info(f"[SK_GAAP] {file_name} — žiadny metrics sidecar, používam LLM extrakciu")
+
             async with sem:
                 if file_path.lower().endswith(".pdf"):
                     data, verify_data = await asyncio.gather(

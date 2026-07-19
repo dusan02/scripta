@@ -10,7 +10,7 @@
     {# ── Manažérske zhrnutie a Spoľahlivosť analýzy ── #}
     <div class="mb-5" style="page-break-inside: avoid; break-inside: avoid;">
         <div class="p-4 bg-slate-50 border-l-4 border-emerald-600 rounded report-body text-slate-700 text-justify shadow-sm clearfix">
-            <h3 class="subsection-title mb-2 uppercase tracking-wide">{{ i18n.executive_summary }}</h3>
+            <h3 class="subsection-title mb-2 tracking-wide">{{ i18n.executive_summary }}</h3>
             
             {% if confidence_score is defined %}
             <div class="float-right ml-5 mb-2 w-48 p-3 rounded-lg border border-slate-200 bg-white shadow-sm flex flex-col justify-center">
@@ -29,7 +29,7 @@
                         </div>
                     </div>
                     <div>
-                        <h3 class="subsection-title-sm text-slate-700 leading-tight uppercase tracking-wide" style="font-size: 8px;">{{ i18n.analysis_reliability }}</h3>
+                        <h3 class="subsection-title-sm text-slate-700 leading-tight tracking-wide" style="font-size: 8px;">{{ i18n.analysis_reliability }}</h3>
                     </div>
                 </div>
                 <div class="flex flex-col gap-1.5 mt-1">

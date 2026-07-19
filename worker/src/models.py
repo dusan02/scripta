@@ -31,6 +31,7 @@ class ReportTask(BaseModel):
     rozhodnutia_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year
     vestnik_date_from: Optional[str] = None  # YYYY-MM-DD or None for default 1 year
     report_language: Optional[str] = "sk"  # sk | en | de
+    attachments_config: Optional[dict[str, bool]] = None  # kategória → on/off; None = default
 
 
 class PersonInfo(BaseModel):

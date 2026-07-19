@@ -294,11 +294,13 @@ async def _process_zavierka(
     extracted_tables: list[str] = []
     saved_files: list[str] = []
 
+    all_vykazy = []
     for vid in vykaz_ids:
         vykaz = await _api_get(client, "uctovny-vykaz", {"id": vid})
         if not vykaz:
             continue
 
+        all_vykazy.append(vykaz)
         obsah = vykaz.get("obsah", {})
         tabs = obsah.get("tabulky", [])
 
@@ -310,9 +312,28 @@ async def _process_zavierka(
             pdfs = await _download_prilohy(vykaz.get("prilohy", []))
             downloaded_pdfs.extend(pdfs)
 
+    # ── Direct JSON parsing for SK GAAP (non-consolidated) ──
+    # Eliminates LLM hallucinations by extracting metrics from structured JSON.
+    parsed_metrics = None
+    if not konsolidovana and all_vykazy:
+        try:
+            from src.ruz_parser import parse_zavierka_to_metrics, save_metrics_sidecar
+            parsed_metrics = parse_zavierka_to_metrics(all_vykazy, ico)
+            if parsed_metrics:
+                logger.info(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — metrics extracted (assets={parsed_metrics.celkove_aktiva}, revenue={parsed_metrics.trzby_z_hlavnej_cinnosti})")
+            else:
+                logger.debug(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — no tables found for parsing")
+        except Exception as e:
+            logger.warning(f"[RUZ_API] JSON parser failed for IČO {ico} rok {year}: {e}")
+
     if extracted_tables:
         txt_path = _save_text(extracted_tables, ftype, year, ico, period, index, out_path)
         saved_files.append(txt_path)
+
+        # Save metrics sidecar if parsing succeeded
+        if parsed_metrics is not None:
+            from src.ruz_parser import save_metrics_sidecar
+            save_metrics_sidecar(parsed_metrics, txt_path)
 
     if downloaded_pdfs:
         suffix = "notes" if extracted_tables else ""

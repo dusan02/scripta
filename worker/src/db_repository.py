@@ -181,6 +181,22 @@ async def get_company_events(ico: str) -> list:
         await db.disconnect()
 
 
+def _is_unknown_auditor_opinion(audit) -> bool:
+    """Vráti True ak audítorský názor nie je spoľahlivo známy (nezámocký/placeholder).
+
+    Používa sa na zabránenie prepísania reálneho audítorského názoru metrikami parsovanými z JSON.
+    """
+    if not audit:
+        return True
+    opinion = (audit.nazor_auditora or "").strip().lower()
+    unknown_values = {
+        "", "neznámy", "unknown", "n/a", "nie je známy", "nezistené",
+        "neuvedené", "not stated", "not provided", "not available",
+        "neuvedený", "nezistený",
+    }
+    return opinion in unknown_values
+
+
 async def save_to_db(data: CompanyFinancialExtraction):
     """
     Uloží extrahované finančné dáta a názor audítora do databázy pomocou Prisma Clienta.
@@ -284,22 +300,27 @@ async def save_to_db(data: CompanyFinancialExtraction):
             )
 
             # 3. Uložíme názor audítora (naviazaný na konkrétny výkaz)
-            await db.auditoropinion.upsert(
-                where={'financialStatementId': statement.id},
-                data={
-                    'create': {
-                        'financialStatementId': statement.id,
-                        'opinionType': data.audit.nazor_auditora,
-                        'goingConcernRisk': data.audit.going_concern_riziko,
-                        'reservationText': _clean_text(data.audit.auditor_vyhrady_text),
-                    },
-                    'update': {
-                        'opinionType': data.audit.nazor_auditora,
-                        'goingConcernRisk': data.audit.going_concern_riziko,
-                        'reservationText': _clean_text(data.audit.auditor_vyhrady_text),
+            # Neprepisuj placeholder audítorský názor parsovanými metrikami z JSON —
+            # čakáme na reálny audítorský výstup z LLM/notes PDF.
+            if not _is_unknown_auditor_opinion(data.audit):
+                await db.auditoropinion.upsert(
+                    where={'financialStatementId': statement.id},
+                    data={
+                        'create': {
+                            'financialStatementId': statement.id,
+                            'opinionType': data.audit.nazor_auditora,
+                            'goingConcernRisk': data.audit.going_concern_riziko,
+                            'reservationText': _clean_text(data.audit.auditor_vyhrady_text),
+                        },
+                        'update': {
+                            'opinionType': data.audit.nazor_auditora,
+                            'goingConcernRisk': data.audit.going_concern_riziko,
+                            'reservationText': _clean_text(data.audit.auditor_vyhrady_text),
+                        }
                     }
-                }
-            )
+                )
+            else:
+                logger.debug(f"[DB] Preskakujem uloženie audítorského názoru pre {data.ico}/{data.metriky.rok_zavierky}: neznámy názor")
         finally:
             await db.disconnect()
 

@@ -60,7 +60,7 @@ def _log_tokens(model: str, usage, label: str) -> None:
     _token_stats[model]["cost"] += cost_usd
 
 def log_token_summary() -> None:
-    """Zaloguje súhrn token cost za celý report."""
+    """Zaloguje súhrn token cost za celý report — vrátane odhadu za failed cally."""
     if not _token_stats:
         return
     from src.log_helpers import get_correlation_id
@@ -68,15 +68,27 @@ def log_token_summary() -> None:
     total_cost = 0.0
     total_in = 0
     total_out = 0
+    total_failed_cost = 0.0
+    total_failed_calls = 0
     parts = []
     for model, stats in _token_stats.items():
         total_cost += stats["cost"]
         total_in += stats["input"]
         total_out += stats["output"]
-        parts.append(f"{model}: {stats['calls']} calls, {stats['input']:,}+{stats['output']:,} tok, ${stats['cost']:.4f}")
+        failed_calls = stats.get("failed_calls", 0)
+        failed_cost = stats.get("failed_cost", 0.0)
+        total_failed_cost += failed_cost
+        total_failed_calls += failed_calls
+        part = f"{model}: {stats['calls']} ok calls, {stats['input']:,}+{stats['output']:,} tok, ${stats['cost']:.4f}"
+        if failed_calls:
+            part += f" | {failed_calls} failed, ~${failed_cost:.4f}"
+        parts.append(part)
+    grand_total = total_cost + total_failed_cost
     logger.info(
         f"[{cid}] LLM SUMMARY: {len(_token_stats)} models, "
-        f"{total_in:,}+{total_out:,} tok, ${total_cost:.4f} | "
+        f"{total_in:,}+{total_out:,} tok, ${total_cost:.4f} ok"
+        + (f" + ~${total_failed_cost:.4f} failed ({total_failed_calls} calls)" if total_failed_calls else "")
+        + f" = ~${grand_total:.4f} total | "
         f"{' | '.join(parts)}"
     )
 

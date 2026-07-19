@@ -422,6 +422,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 company_name=company_name,
                 report_language=task.report_language or "sk",
                 vestnik_date_from=task.vestnik_date_from,
+                attachments_config=task.attachments_config,
             )
         t_compile = time.perf_counter()
         await save_phase_duration(task.report_request_id, "compile", int((t_compile - t_compile_start) * 1000))
