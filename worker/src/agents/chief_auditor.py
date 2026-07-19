@@ -67,6 +67,7 @@ PROCES HODNOTENIA A SYNTÉZY:
 PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
 - `verifa_score` = `algorithmic_prescore` (bez zmeny — porušenie tohto pravidla spôsobí chybu).
+- ZÁKAZ HALUCINOVANIA: NIKDY neuvádzaj vo verdikte čísla (napr. počet zmien štatutárov, výšky tržieb), ktoré nie sú EXPLICITNE uvedené v poskytnutých zdrojových dátach. Ak vstupné dáta hovoria o 37 zmenách štatutárov, nepoužívaj svoje externé znalosti na úpravu tohto čísla (napr. na 107). Použi výlučne poskytnuté údaje.
 - V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
 - Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelenie a vážný finančný stres, NEUTRAL pre neutrálne info).
 - Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
@@ -117,6 +118,7 @@ EVALUATION AND SYNTHESIS PROCESS:
 OUTPUT RULES:
 - You must fill the Pydantic schema `AuditVerdict`.
 - `verifa_score` = `algorithmic_prescore` (without change — violating this rule causes an error).
+- NO HALLUCINATION: NEVER mention numbers in the verdict (e.g. number of director changes, revenue amounts) that are not EXPLICITLY stated in the provided source data. If input data says 37 director changes, do not use your external knowledge to change this number (e.g. to 107). Use exclusively the provided data.
 - In the 'zdovodnenie' field, return a list of `EvidenceItem` objects.
 - For each `EvidenceItem` you MUST assign the correct `impact` (POSITIVE for good news, WARNING for warnings, CRITICAL for enforcement actions, tunneling and serious financial stress, NEUTRAL for neutral info).
 - For each of the 5 pillars, find at least one strong piece of evidence.

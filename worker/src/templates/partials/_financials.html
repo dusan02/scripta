@@ -13,8 +13,15 @@
         </thead>
         <tbody>
         {% for pillar in scorecard_breakdown %}
-            {% set pct = ((pillar.max_score > 0) and ((pillar.score / pillar.max_score) * 100)) | int %}
-            {% if pct >= 70 %}
+            {% set is_penalty = pillar.max_score == 0 %}
+            {% set pct = (not is_penalty and pillar.max_score > 0) and ((pillar.score / pillar.max_score) * 100) | int %}
+            {% if is_penalty %}
+                {% set bar_color = "#8b5cf6" %}
+                {% set score_color = "text-violet-700" %}
+                {% set row_bg = "background: #faf5ff;" %}
+                {% set icon = "⚠" %}
+                {% set icon_color = "text-violet-500" %}
+            {% elif pct >= 70 %}
                 {% set bar_color = "#10b981" %}
                 {% set score_color = "text-emerald-700" %}
                 {% set row_bg = "" %}
@@ -46,18 +53,43 @@
                     {% endif %}
                 </td>
                 <td class="py-2.5 px-3 text-center font-black report-body-sm {{ score_color }}">
-                    {{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>
+                    {% if is_penalty %}{{ pillar.score }}b{% else %}{{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>{% endif %}
                 </td>
                 <td class="py-2.5 px-3">
+                    {% if is_penalty %}
+                    <span class="report-caption text-violet-500 text-center block">penalizácia</span>
+                    {% else %}
                     <div class="w-full bg-slate-200 rounded-full" style="height:6px;">
                         <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
                     </div>
                     <span class="report-caption text-slate-400 mt-0.5 block text-right">{{ pct }}%</span>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}
         </tbody>
         <tfoot>
+            {% set positive_total = namespace(val=0) %}
+            {% set penalty_total = namespace(val=0) %}
+            {% for p in scorecard_breakdown %}
+                {% if p.max_score > 0 %}
+                    {% set positive_total.val = positive_total.val + p.score %}
+                {% else %}
+                    {% set penalty_total.val = penalty_total.val + p.score %}
+                {% endif %}
+            {% endfor %}
+            {% if penalty_total.val != 0 %}
+            <tr class="bg-slate-50 border-t border-slate-200 text-slate-400">
+                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_pillars | default("Súčet pilierov") }}</td>
+                <td class="py-1 px-3 text-center report-caption">{{ positive_total.val }}b</td>
+                <td></td>
+            </tr>
+            <tr class="bg-slate-50 text-slate-400">
+                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_penalties | default("Penalizácie") }}</td>
+                <td class="py-1 px-3 text-center report-caption">{{ penalty_total.val }}b</td>
+                <td></td>
+            </tr>
+            {% endif %}
             <tr class="bg-slate-50 border-t-2 border-slate-300">
                 <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.algorithmic_score }}</td>
                 <td class="py-2.5 px-3 text-center font-bold text-slate-700 text-lg">
@@ -70,10 +102,10 @@
             <tr class="bg-slate-50 border-b border-slate-200">
                 <td class="py-2.5 px-3 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.auditor_correction }}</td>
                 <td class="py-2.5 px-3 text-center font-bold text-lg
-                    {% if verdict.verifaScore - algorithmic_total > 0 %}text-emerald-600
-                    {% elif verdict.verifaScore - algorithmic_total < 0 %}text-rose-600
+                    {% if verdict.llmScoreAdjustment > 0 %}text-emerald-600
+                    {% elif verdict.llmScoreAdjustment < 0 %}text-rose-600
                     {% else %}text-slate-500{% endif %}">
-                    {% if verdict.verifaScore - algorithmic_total > 0 %}+{% endif %}{{ verdict.verifaScore - algorithmic_total }}
+                    {% if verdict.llmScoreAdjustment > 0 %}+{% endif %}{{ verdict.llmScoreAdjustment }}
                 </td>
                 <td class="py-2.5 px-3 text-right">
                     <span class="report-body-sm text-slate-500">{{ i18n.based_on_registers }}</span>
@@ -290,6 +322,112 @@
 
     {% endif %}
 
+    {# ── ZÁVÄZKY VOČI ŠTÁTU A SP — PRÁVNE RIZIKOVÉ ALERTY ── #}
+    {% if state_liabilities_alert and state_liabilities_alert.alerts|length > 0 %}
+    <div class="mb-3">
+        <h3 class="subsection-title-sm mb-1.5">⚖ Záväzky voči štátu a SP</h3>
+        {% for alert in state_liabilities_alert.alerts %}
+        <div class="mb-1.5 p-2.5 rounded-lg border-l-4 flex items-start gap-2
+            {% if alert.severity == 'CRITICAL' %}border-rose-500 bg-rose-50
+            {% elif alert.severity == 'WARNING' %}border-amber-400 bg-amber-50
+            {% else %}border-slate-300 bg-slate-50{% endif %}">
+            <span class="flex-shrink-0 font-bold
+                {% if alert.severity == 'CRITICAL' %}text-rose-500
+                {% elif alert.severity == 'WARNING' %}text-amber-500
+                {% else %}text-slate-400{% endif %}">
+                {% if alert.severity == 'CRITICAL' %}🔴{% elif alert.severity == 'WARNING' %}🟡{% else %}ℹ{% endif %}
+            </span>
+            <p class="report-body-sm
+                {% if alert.severity == 'CRITICAL' %}text-rose-800
+                {% elif alert.severity == 'WARNING' %}text-amber-800
+                {% else %}text-slate-600{% endif %}">
+                {{ alert.message }}
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── RPE ALERT — SCHRÁNKOVÁ ŠTRUKTÚRA ── #}
+    {% if rpe_alert and rpe_alert.alert %}
+    <div class="mb-3 p-2.5 rounded-lg border-l-4 flex items-start gap-2
+        {% if rpe_alert.alert.severity == 'CRITICAL' %}border-rose-500 bg-rose-50{% else %}border-amber-400 bg-amber-50{% endif %}">
+        <span class="flex-shrink-0 font-bold
+            {% if rpe_alert.alert.severity == 'CRITICAL' %}text-rose-500{% else %}text-amber-500{% endif %}">
+            {% if rpe_alert.alert.severity == 'CRITICAL' %}🔴{% else %}🟡{% endif %}
+        </span>
+        <p class="report-body-sm
+            {% if rpe_alert.alert.severity == 'CRITICAL' %}text-rose-800{% else %}text-amber-800{% endif %}">
+            {{ rpe_alert.alert.message }}
+        </p>
+    </div>
+    {% endif %}
+
+    {# ── YoY SÚHRNNÁ TABUĽKA ── #}
+    {% if yoy_table and yoy_table.rows|length > 0 %}
+    <div class="mb-3">
+        <h3 class="subsection-title-sm mb-1.5">📊 Kľúčové ukazovateľe — medziročný prehľad</h3>
+        <p class="report-caption mb-2">{{ i18n.values_in_millions }}</p>
+        <div class="overflow-x-auto">
+        <table class="w-full text-xs border-collapse">
+            <thead>
+                <tr class="bg-slate-100">
+                    {% for h in yoy_table.headers %}
+                    <th class="py-1 px-2 font-bold text-slate-600
+                        {% if loop.first %}text-left{% else %}text-right{% endif %}
+                        {% if loop.last %}w-[14%]{% endif %}">
+                        {{ h }}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in yoy_table.rows %}
+            <tr class="border-b border-slate-100
+                {% if 'Záväzky SP' in row.label or 'Daňové' in row.label %}bg-rose-50{% endif %}
+                {% if 'Čistý zisk' in row.label and row.delta_raw is defined and row.delta_raw is not none and row.delta_raw < -20 %}bg-rose-50{% endif %}">
+                <td class="py-0.5 px-2 font-semibold text-slate-700">{{ row.label }}</td>
+                {% for val in row.vals %}
+                <td class="py-0.5 px-2 text-right text-slate-700">{{ val }}</td>
+                {% endfor %}
+                <td class="py-0.5 px-2 text-right font-semibold
+                    {% if row.flag == '🔴' %}text-rose-600
+                    {% elif row.flag == '🟡' %}text-amber-600
+                    {% elif row.flag == '🟢' %}text-emerald-600
+                    {% else %}text-slate-500{% endif %}">
+                    {{ row.delta_pct }}{% if row.flag %} {{ row.flag }}{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% if rpe_alert and rpe_alert.revenue_per_employee %}
+        <p class="report-caption text-slate-400 mt-1">
+            Tržby / zamestnanec: <strong>{{ "{:,.0f}".format(rpe_alert.revenue_per_employee).replace(",", " ") }} €</strong>
+            {% if rpe_alert.source == 'estimated' %}(odhad z osobných nákladov){% endif %}
+            {% if rpe_alert.employee_count %} | Počet zamestnancov: {{ rpe_alert.employee_count }}{% if rpe_alert.source == 'estimated' %}*{% endif %}{% endif %}
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── GRAFY: Zamestnanci a Tržby/zamestnanec v čase ── #}
+    {% if employee_chart_base64 or rpe_chart_base64 %}
+    <div class="mb-4 grid grid-cols-2 gap-4">
+        {% if employee_chart_base64 %}
+        <div>
+            <img src="data:image/png;base64,{{ employee_chart_base64 }}" alt="Vývoj počtu zamestnancov" class="w-full h-auto">
+        </div>
+        {% endif %}
+        {% if rpe_chart_base64 %}
+        <div>
+            <img src="data:image/png;base64,{{ rpe_chart_base64 }}" alt="Tržby na zamestnanca" class="w-full h-auto">
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if not latest_stmt %}
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
         {{ i18n.no_financial_data }}
@@ -403,22 +541,22 @@
         </thead>
         <tbody>
             {% set asset_rows = [
-                (i18n.row_total_assets, 'totalAssets'),
-                (i18n.row_current_assets, 'currentAssets'),
-                (i18n.row_inventory, 'inventory'),
-                (i18n.row_cash, 'cashAndEquivalents'),
-                (i18n.row_trade_receivables, 'tradeReceivables'),
+                (i18n.row_total_assets, 'totalAssets', ''),
+                (i18n.row_current_assets, 'currentAssets', 'pl-4'),
+                (i18n.row_inventory, 'inventory', 'pl-8'),
+                (i18n.row_cash, 'cashAndEquivalents', 'pl-8'),
+                (i18n.row_trade_receivables, 'tradeReceivables', 'pl-8'),
             ] %}
             {% set liability_rows = [
-                (i18n.row_equity, 'equity'),
-                (i18n.row_short_term_liab, 'shortTermLiabilities'),
-                (i18n.row_long_term_liab, 'longTermLiabilities'),
-                (i18n.row_trade_payables, 'tradePayables'),
+                (i18n.row_equity, 'equity', ''),
+                (i18n.row_short_term_liab, 'shortTermLiabilities', 'pl-4'),
+                (i18n.row_long_term_liab, 'longTermLiabilities', 'pl-4'),
+                (i18n.row_trade_payables, 'tradePayables', 'pl-8'),
             ] %}
             <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1" style="color: #94a3b8;">{{ i18n.assets }}</td></tr>
-            {% for label, field in asset_rows %}
+            {% for label, field, padding_class in asset_rows %}
             <tr class="border-b border-slate-100">
-                <td class="py-0.5 px-2 font-semibold text-slate-700">{{ label }}</td>
+                <td class="py-0.5 px-2 font-semibold text-slate-700 {{ padding_class }}">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
                 {% set val = stmt[field] %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
@@ -428,9 +566,9 @@
             </tr>
             {% endfor %}
             <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1 pt-2" style="color: #94a3b8;">{{ i18n.capital_liabilities }}</td></tr>
-            {% for label, field in liability_rows %}
+            {% for label, field, padding_class in liability_rows %}
             <tr class="border-b border-slate-100">
-                <td class="py-0.5 px-2 font-semibold text-slate-700">{{ label }}</td>
+                <td class="py-0.5 px-2 font-semibold text-slate-700 {{ padding_class }}">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
                 {% set val = stmt[field] %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
@@ -772,8 +910,12 @@
                 <div class="p-3 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col justify-center">
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.working_cycle }}</p>
                     <div class="flex items-center w-full h-5 rounded-full overflow-hidden bg-slate-100">
-                        <div class="h-full bg-emerald-500 flex items-center justify-center text-[9px] text-white font-bold" style="width: {{ (dso / (dso + dpo) * 100) }}%;">DSO {{ dso|round|int }}d</div>
-                        <div class="h-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold" style="width: {{ (dpo / (dso + dpo) * 100) }}%;">DPO {{ dpo|round|int }}d</div>
+                        <div class="h-full bg-emerald-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dso / (dso + dpo) * 100) }}%;">
+                            {% if (dso / (dso + dpo) * 100) > 15 %}DSO {{ dso|round|int }}d{% endif %}
+                        </div>
+                        <div class="h-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dpo / (dso + dpo) * 100) }}%;">
+                            {% if (dpo / (dso + dpo) * 100) > 15 %}DPO {{ dpo|round|int }}d{% endif %}
+                        </div>
                     </div>
                     <p class="text-[9px] text-slate-500 mt-1.5 text-center">{% if dso < dpo %}{{ i18n.dso_dpo_note_customers_pay }} <span class="font-bold text-emerald-600">{{ (dpo - dso)|round|int }} {{ i18n.dso_dpo_note_earlier }}</span> {{ i18n.dso_dpo_note_than_suppliers }}{% elif dso > dpo %}{{ i18n.dso_dpo_note }} <span class="font-bold text-rose-600">{{ (dso - dpo)|round|int }} {{ i18n.dso_dpo_note_earlier }}</span> {{ i18n.dso_dpo_note_than }}{% else %}{{ i18n.dso_dpo_note_equal }}{% endif %}</p>
                 </div>
@@ -810,7 +952,7 @@
                     {% if piotroski_score is not none %}
                     <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
                         <p class="report-label text-slate-400 mb-1">Piotroski F</p>
-                        <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-700{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }}/8</p>
+                        <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-700{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }} <span class="text-slate-400 text-sm font-normal">z 8</span></p>
                         <div class="w-full bg-slate-100 rounded-full mt-1.5" style="height: 3px;">
                             <div class="rounded-full" style="height: 3px; width: {{ piotroski_score / 8 * 100 }}%; background: {% if piotroski_score >= 6 %}#047857{% elif piotroski_score >= 4 %}#d97706{% else %}#e11d48{% endif %};"></div>
                         </div>

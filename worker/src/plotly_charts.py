@@ -11,6 +11,23 @@ def _fmt_currency(x):
     if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
     return f'{x:.0f}'
 
+def _prepare_statements(statements):
+    from datetime import datetime
+    current_year = datetime.now().year
+    seen_years = set()
+    valid_stmts = []
+    for s in statements:
+        try:
+            y = int(s.year)
+            if y <= current_year + 1 and y not in seen_years:
+                s.year = y
+                valid_stmts.append(s)
+                seen_years.add(y)
+        except (ValueError, TypeError):
+            continue
+    valid_stmts.sort(key=lambda x: x.year)
+    return valid_stmts
+
 def get_base_layout(title):
     return dict(
         title=dict(text=title, font=dict(size=14, color='#0f172a', family='Inter, Arial, sans-serif')),
@@ -18,7 +35,7 @@ def get_base_layout(title):
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=40, r=40, t=50, b=45),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10, color='#475569')),
-        xaxis=dict(showgrid=False, showline=True, linecolor='#e2e8f0', tickfont=dict(color='#64748b', size=11), tickangle=-30, automargin=True),
+        xaxis=dict(type='category', categoryorder='category ascending', showgrid=False, showline=True, linecolor='#e2e8f0', tickfont=dict(color='#64748b', size=11, family='Inter, Arial, sans-serif'), tickangle=-30, automargin=True, tickformat=''),
         yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, zerolinecolor='#cbd5e1', tickfont=dict(color='#64748b'))
     )
 
@@ -36,7 +53,7 @@ def _to_base64(fig, width=1000, height=450):
 def generate_financial_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
     i = get_i18n_strings(lang)
-    statements = sorted(statements, key=lambda x: x.year)
+    statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
     revenues = [s.mainActivityRevenue or 0 for s in statements]
     profits = [s.netProfitLoss or 0 for s in statements]
@@ -61,7 +78,7 @@ def generate_financial_chart(statements, lang="sk") -> str:
 def generate_balance_sheet_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
     i = get_i18n_strings(lang)
-    statements = sorted(statements, key=lambda x: x.year)
+    statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
     assets = [s.totalAssets or 0 for s in statements]
     equity = [s.equity or 0 for s in statements]
@@ -90,7 +107,7 @@ def generate_balance_sheet_chart(statements, lang="sk") -> str:
 def generate_pnl_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
     i = get_i18n_strings(lang)
-    statements = sorted(statements, key=lambda x: x.year)
+    statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
     revenues = [s.mainActivityRevenue or 0 for s in statements]
     gross = [s.grossProfit or 0 for s in statements]
@@ -116,7 +133,7 @@ def generate_pnl_chart(statements, lang="sk") -> str:
 def generate_cashflow_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
     i = get_i18n_strings(lang)
-    statements = sorted(statements, key=lambda x: x.year)
+    statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
     ocf_raw = [s.operatingCashFlow for s in statements]
     if all(v is None or v == 0 for v in ocf_raw): return ""
@@ -143,7 +160,7 @@ def generate_cashflow_chart(statements, lang="sk") -> str:
 def generate_liquidity_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
     i = get_i18n_strings(lang)
-    statements = sorted(statements, key=lambda x: x.year)
+    statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
     wc = [(s.currentAssets or 0) - (s.shortTermLiabilities or 0) for s in statements]
     cr = [(s.currentAssets or 0) / (s.shortTermLiabilities or 1) for s in statements]
@@ -224,7 +241,10 @@ def generate_ratios_trend_chart(trend_ratios: list, lang="sk") -> str:
     return _to_base64(fig, 600, 300)
 
 def generate_radar_chart(pillars: list, lang="sk") -> str:
-    if not pillars or len(pillars) < 3: return ""
+    # Filter out penalty pillars (max_score == 0) — they have negative scores
+    # that don't make sense as percentages on a radar chart.
+    radar_pillars = [p for p in pillars if p.get("max_score", 0) > 0]
+    if not radar_pillars or len(radar_pillars) < 3: return ""
     i = get_i18n_strings(lang)
     _pillar_name_map = {
         "Platobná schopnosť & Exekúcie": "pillar_payment",
@@ -236,14 +256,20 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
         "Data Quality Multiplier": "pillar_dq",
     }
     labels = []
-    for p in pillars:
-        raw_name = p["name"].split("—")[0].strip()[:18]
+    for p in radar_pillars:
+        raw_name = p["name"].split("—")[0].strip()
         key = _pillar_name_map.get(p["name"])
         if key:
-            raw_name = i.get(key, raw_name).split("—")[0].strip()[:18]
+            raw_name = i.get(key, raw_name).split("—")[0].strip()
+        
+        # Add a soft break <br> if the label is too long (e.g. > 16 chars and contains space)
+        if len(raw_name) > 16 and " " in raw_name:
+            parts = raw_name.split(" ", 1)
+            raw_name = f"{parts[0]}<br>{parts[1]}"
+            
         labels.append(raw_name)
-    scores = [p["score"] for p in pillars]
-    max_scores = [p["max_score"] if p["max_score"] > 0 else 1 for p in pillars]
+    scores = [p["score"] for p in radar_pillars]
+    max_scores = [p["max_score"] for p in radar_pillars]
     pcts = [s / m * 100 for s, m in zip(scores, max_scores)]
 
     fig = go.Figure(data=go.Scatterpolar(
@@ -258,14 +284,14 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
     fig.update_layout(
         polar=dict(
             radialaxis=dict(visible=True, range=[0, 100], tickvals=[20,40,60,80,100], gridcolor='#e2e8f0', linecolor='#e2e8f0'),
-            angularaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0', tickfont=dict(size=14, color='#475569', family='Inter, sans-serif', weight='bold'))
+            angularaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0', tickfont=dict(size=11, color='#475569', family='Inter, sans-serif'))
         ),
         showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=40, r=40, t=40, b=40)
+        margin=dict(l=80, r=80, t=60, b=60)
     )
-    return _to_base64(fig, 500, 500)
+    return _to_base64(fig, 600, 600)
 
 def generate_debt_donut(stmt, lang="sk") -> str:
     if not stmt: return ""
@@ -298,3 +324,74 @@ def generate_debt_donut(stmt, lang="sk") -> str:
         margin=dict(l=20, r=20, t=20, b=20)
     )
     return _to_base64(fig, 600, 550)
+
+
+def generate_employee_chart(statements, lang="sk") -> str:
+    """Vývoj počtu zamestnancov v čase."""
+    statements = _prepare_statements(statements)
+    valid = [s for s in statements if getattr(s, 'employeeCount', None)]
+    if len(valid) < 2:
+        return ""
+    i = get_i18n_strings(lang)
+    years = [str(s.year) for s in valid]
+    counts = [s.employeeCount for s in valid]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=years, y=counts,
+        name=i.get('chart_employee_count', 'Počet zamestnancov'),
+        marker_color='rgba(59,130,246,0.7)',
+        marker_line_color='rgba(59,130,246,1)',
+        marker_line_width=1,
+        text=[f'{c:,}'.replace(',', ' ') for c in counts],
+        textposition='outside',
+        textfont=dict(size=10, color='#475569'),
+    ))
+
+    layout = get_base_layout(i.get('chart_employee_count', 'Vývoj počtu zamestnancov'))
+    layout['xaxis']['tickvals'] = years
+    layout['xaxis']['ticktext'] = years
+    layout['yaxis'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False, tickfont=dict(color='#64748b'), title=dict(text=i.get('chart_employees', 'zamestnancov'), font=dict(size=10, color='#64748b')))
+    layout['showlegend'] = False
+    fig.update_layout(**layout)
+    return _to_base64(fig, 600, 280)
+
+
+def generate_rpe_chart(statements, lang="sk") -> str:
+    """Vývoj tržieb na zamestnanca v čase."""
+    statements = _prepare_statements(statements)
+    valid = [s for s in statements if getattr(s, 'employeeCount', None) and getattr(s, 'mainActivityRevenue', None)]
+    if len(valid) < 2:
+        return ""
+    i = get_i18n_strings(lang)
+    years = [str(s.year) for s in valid]
+    rpe = [s.mainActivityRevenue / s.employeeCount for s in valid]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=years, y=rpe,
+        name=i.get('chart_rpe', 'Tržby / zamestnanec'),
+        mode='lines+markers+text',
+        line=dict(color='#10b981', width=2.5),
+        marker=dict(size=8, color='#10b981', line=dict(color='white', width=1.5)),
+        text=[f'{int(v):,} €'.replace(',', ' ') for v in rpe],
+        textposition='top center',
+        textfont=dict(size=9, color='#059669'),
+        fill='tozeroy',
+        fillcolor='rgba(16,185,129,0.08)',
+    ))
+
+    avg = sum(rpe) / len(rpe)
+    fig.add_hline(y=avg, line_dash="dash", line_color="rgba(148,163,184,0.6)",
+                  annotation_text=f'Ø {int(avg):,} €'.replace(',', ' '),
+                  annotation_position="top right",
+                  annotation_font=dict(size=9, color='#94a3b8'))
+
+    layout = get_base_layout(i.get('chart_rpe', 'Tržby na zamestnanca'))
+    layout['xaxis']['tickvals'] = years
+    layout['xaxis']['ticktext'] = years
+    layout['yaxis'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False, tickfont=dict(color='#64748b'),
+                           tickformat=',.0f', tickprefix='', hoverformat=',.0f €')
+    layout['showlegend'] = False
+    fig.update_layout(**layout)
+    return _to_base64(fig, 600, 280)

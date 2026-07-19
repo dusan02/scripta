@@ -278,6 +278,9 @@ model FinancialStatement {
   financingCashFlow                     Float?        // Čisté peňažné toky z finančnej činnosti
   interestExpense                       Float?        // Úroky (náklady na úroky)
   employeeCount                         Int?          // Odhadovaný počet zamestnancov
+  socialInsuranceLiabilities            Float?        // Záväzky zo sociálneho poistenia (336A)
+  taxLiabilities                        Float?        // Daňové záväzky a dotácie (341-347)
+  employeeLiabilities                   Float?        // Záväzky voči zamestnancom (331, 333)
   currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
   statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
@@ -340,6 +343,7 @@ model AuditVerdict {
   justification   String   @db.Text
   keyRisk         String   @db.Text
   scorecardBreakdown Json?
+  llmScoreAdjustment Int? @default(0)
   llmAnalysisStatus String @default("LLM_ANALYZED")
   createdAt       DateTime @default(now())
 

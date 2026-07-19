@@ -36,6 +36,7 @@ async def _fetch_nace_from_api(ico: str):
 
 async def save_company_events_to_db(ico: str, events: list) -> None:
     """Uloží CompanyEvent[] z PDF Reader Agent do databázy."""
+    import json as _json
     db = Prisma()
     await db.connect()
     try:
@@ -48,6 +49,7 @@ async def save_company_events_to_db(ico: str, events: list) -> None:
             'companyIco': ico,
             'NOT': {'eventType': 'FORENSIC_ANALYSIS'},
         })
+        inserted = 0
         for ev in events:
             event_date = None
             if ev.event_date:
@@ -56,28 +58,39 @@ async def save_company_events_to_db(ico: str, events: list) -> None:
                     event_date = datetime.strptime(ev.event_date, "%Y-%m-%d")
                 except (ValueError, TypeError):
                     pass
-            create_data = {
-                'companyIco': ico,
-                'source': ev.source,
-                'eventType': ev.event_type,
-                'severity': ev.severity,
-                'title': ev.title,
-                'description': ev.description,
-                'eventDate': event_date,
-            }
-            if ev.amount is not None:
-                create_data['amount'] = ev.amount
-            if ev.metadata is not None:
-                from prisma import Json
-                create_data['metadata'] = Json(ev.metadata)
-            await db.companyevent.create(data=create_data)
-        logger.info(f"CompanyEvent[] uložené pre IČO={ico}: {len(events)} udalostí")
+            metadata_json = _json.dumps(ev.metadata, ensure_ascii=False) if ev.metadata is not None else None
+            result = await db.execute_raw(
+                '''
+                INSERT INTO "CompanyEvent"
+                  (id, "companyIco", source, "eventType", severity, title, description,
+                   "eventDate", amount, metadata, "createdAt")
+                VALUES
+                  (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6,
+                   $7::timestamp, $8, $9::jsonb, NOW())
+                ON CONFLICT DO NOTHING
+                ''',
+                ico,
+                ev.source,
+                ev.event_type,
+                ev.severity,
+                ev.title,
+                ev.description,
+                event_date,
+                ev.amount,
+                metadata_json,
+            )
+            inserted += result
+        logger.info(f"CompanyEvent[] uložené pre IČO={ico}: {inserted}/{len(events)} udalostí (dedup)")
     finally:
         await db.disconnect()
 
 
 async def append_company_event_to_db(ico: str, event) -> None:
-    """Pridá jeden CompanyEvent bez vymazania existujúcich (pre paralelných agentov)."""
+    """Pridá jeden CompanyEvent bez vymazania existujúcich (pre paralelných agentov).
+    Používa ON CONFLICT DO NOTHING pre cross-agent deduplication podľa
+    (companyIco, source, eventType, eventDate, amount).
+    """
+    import json as _json
     db = Prisma()
     await db.connect()
     try:
@@ -92,22 +105,37 @@ async def append_company_event_to_db(ico: str, event) -> None:
                 event_date = datetime.strptime(event.event_date, "%Y-%m-%d")
             except (ValueError, TypeError):
                 pass
-        create_data = {
-            'companyIco': ico,
-            'source': event.source,
-            'eventType': event.event_type,
-            'severity': event.severity,
-            'title': event.title,
-            'description': event.description,
-            'eventDate': event_date,
-        }
-        if event.amount is not None:
-            create_data['amount'] = event.amount
+
+        metadata_json = None
         if event.metadata is not None:
-            from prisma import Json
-            create_data['metadata'] = Json(event.metadata)
-        await db.companyevent.create(data=create_data)
-        logger.info(f"CompanyEvent appended pre IČO={ico}: {event.event_type}")
+            metadata_json = _json.dumps(event.metadata, ensure_ascii=False)
+
+        # ON CONFLICT DO NOTHING: ak identický event (zdroj+typ+dátum+suma) už existuje,
+        # ticho preskočíme — chráni pred race condition dvoch agentov zapisujúcich súčasne
+        result = await db.execute_raw(
+            '''
+            INSERT INTO "CompanyEvent"
+              (id, "companyIco", source, "eventType", severity, title, description,
+               "eventDate", amount, metadata, "createdAt")
+            VALUES
+              (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6,
+               $7::timestamp, $8, $9::jsonb, NOW())
+            ON CONFLICT DO NOTHING
+            ''',
+            ico,
+            event.source,
+            event.event_type,
+            event.severity,
+            event.title,
+            event.description,
+            event_date,
+            event.amount,
+            metadata_json,
+        )
+        if result == 0:
+            logger.debug(f"CompanyEvent deduplicated (cross-agent) pre IČO={ico}: {event.source}/{event.event_type}")
+        else:
+            logger.info(f"CompanyEvent appended pre IČO={ico}: {event.source}/{event.event_type}")
     finally:
         await db.disconnect()
 
@@ -199,6 +227,9 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 'financingCashFlow': data.metriky.financny_cash_flow if data.metriky.financny_cash_flow != 0 else None,
                 'interestExpense': data.metriky.uroky,
                 'employeeCount': data.metriky.pocet_zamestnancov,
+                'socialInsuranceLiabilities': data.metriky.zavazky_sp,
+                'taxLiabilities': data.metriky.danove_zavazky,
+                'employeeLiabilities': data.metriky.zavazky_zamestnanci,
                 'currency': data.metriky.mena,
                 'statementType': data.metriky.typ_zavierky,
                 'monthsInPeriod': data.metriky.pocet_mesiacov_obdobia if data.metriky.pocet_mesiacov_obdobia is not None else 12,

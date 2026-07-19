@@ -3,10 +3,14 @@ FROM python:3.11-slim
 # Enable BuildKit apt cache
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
-# Inštalácia systémových závislostí pre Playwright a ďalšie knižnice
+# Inštalácia systémových závislostí pre Playwright, Prisma Python klienta (potrebuje Node) a ďalšie knižnice
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    nodejs \
+    npm \
     wget \
     gnupg \
     libnss3 \
@@ -30,8 +34,8 @@ WORKDIR /app
 # Kopírovanie requirements a inštalácia Python závislostí
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt && \
-    pip install prisma
+    pip install --default-timeout=120 --retries=5 -r requirements.txt && \
+    pip install --default-timeout=120 --retries=5 prisma
 
 # Inštalácia Playwright prehliadačov (ak sa scraper používa)
 # Note: Playwright browsers are installed in /root/.cache/ms-playwright

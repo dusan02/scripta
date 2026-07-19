@@ -210,11 +210,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
             except RuntimeError:
                 pass
 
-        ai_task = None
-        if task.target_type == "COMPANY" and task.ico:
-            _log.info(f"[{_rid}] Spúšťam AI analytickú pipeline paralelne pre IČO: {task.ico}")
-            ai_task = asyncio.create_task(process_company(task.ico, task.report_request_id, report_language=task.report_language or "sk"))
-
         _log.info(f"[{_rid}] Spúšťam {len(task.sources)} scraperov pre IČO: {task.ico}")
         try:
             sources = await asyncio.wait_for(
@@ -251,12 +246,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
             _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} neexistuje v ORSR — report zrušený.")
             await update_report_status(task.report_request_id, "FAILED")
             await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
-            if ai_task and not ai_task.done():
-                ai_task.cancel()
-                try:
-                    await ai_task
-                except asyncio.CancelledError:
-                    pass
             return
 
         # ── Retry failed scrapers (one pass) ──────────────────────────────
@@ -294,36 +283,61 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         company_name = _extract_company_name(sources, task.target_type)
 
-        # Počkáme na dokončenie paralelnej AI Forenznej Pipeline pred kompiláciou
-        # Súčasne spustíme PDF Reader Agent a ORSR Forensic Agent
+        # Spustíme AI pipeline, PDF Reader Agent a ORSR Forensic Agent paralelne
+        # process_company dostáva ruz_files a ov_events zo scraper fázy — bez duplikátneho stiahnutia
         t_ai_wait = time.perf_counter()
-        pdf_reader_task = None
-        orsr_forensic_task = None
-        if task.target_type == "COMPANY" and task.ico and sources:
+        parallel_tasks = []
+        if task.target_type == "COMPANY" and task.ico:
+            ruz_source = next((s for s in sources if s.source_type == "REGISTER_UZ" and s.status == "SUCCESS"), None)
+            ruz_files = (ruz_source.raw_data or []) if ruz_source else None
+
+            ov_source = next((s for s in sources if s.source_type == "OBCHODNY_VESTNIK" and s.status == "SUCCESS"), None)
+            ov_events: Optional[list] = None
+            if ov_source and ov_source.findings:
+                try:
+                    import json as _json
+                    ov_events = _json.loads(ov_source.findings)
+                except Exception:
+                    ov_events = None
+
+            parallel_tasks.append(asyncio.create_task(
+                process_company(
+                    task.ico, task.report_request_id,
+                    report_language=task.report_language or "sk",
+                    ruz_files=ruz_files,
+                    ov_events=ov_events,
+                )
+            ))
+        if sources:
             from src.pipeline import run_pdf_reader_agent, run_orsr_forensics_agent
-            pdf_reader_task = asyncio.create_task(run_pdf_reader_agent(task.ico, sources, report_language=task.report_language or "sk"))
-            orsr_forensic_task = asyncio.create_task(run_orsr_forensics_agent(task.ico, sources, report_language=task.report_language or "sk"))
-        if ai_task:
-            try:
-                await ai_task
-            except asyncio.CancelledError:
-                _log.info(f"[{_rid}] AI Pipeline bola zrušená pre {task.ico}")
-            except Exception as ai_err:
-                _log.error(f"[{_rid}] AI Pipeline zlyhala pre {task.ico}: {ai_err}", exc_info=True)
-        if pdf_reader_task:
-            try:
-                await pdf_reader_task
-            except asyncio.CancelledError:
-                _log.info(f"[{_rid}] PDF Reader Agent bol zrušený pre {task.ico}")
-            except Exception as pr_err:
-                _log.error(f"[{_rid}] PDF Reader Agent zlyhal pre {task.ico}: {pr_err}", exc_info=True)
-        if orsr_forensic_task:
-            try:
-                await orsr_forensic_task
-            except asyncio.CancelledError:
-                _log.info(f"[{_rid}] ORSR Forensic Agent bol zrušený pre {task.ico}")
-            except Exception as orsr_err:
-                _log.error(f"[{_rid}] ORSR Forensic Agent zlyhal pre {task.ico}: {orsr_err}", exc_info=True)
+            parallel_tasks.append(asyncio.create_task(
+                run_pdf_reader_agent(task.ico, sources, report_language=task.report_language or "sk")
+            ))
+            parallel_tasks.append(asyncio.create_task(
+                run_orsr_forensics_agent(task.ico, sources, report_language=task.report_language or "sk")
+            ))
+        _failed_agents: list[str] = []
+        _agent_names = []
+        if task.target_type == "COMPANY" and task.ico:
+            _agent_names.append("Financial Pipeline")
+        if sources:
+            _agent_names.append("PDF Reader")
+            _agent_names.append("ORSR Forensic")
+
+        if parallel_tasks:
+            results_ai = await asyncio.gather(*parallel_tasks, return_exceptions=True)
+            for name, res in zip(_agent_names, results_ai):
+                if isinstance(res, asyncio.CancelledError):
+                    _log.info(f"[{_rid}] AI task zrušený: {name}")
+                    _failed_agents.append(name)
+                elif isinstance(res, Exception):
+                    _log.error(f"[{_rid}] AI task zlyhal ({name}): {res}", exc_info=True)
+                    _failed_agents.append(name)
+                elif res is False:
+                    _log.warning(f"[{_rid}] Agent zlyhal (vrátil False): {name}")
+                    _failed_agents.append(name)
+            if _failed_agents:
+                _log.warning(f"[{_rid}] Zlyhané agenty: {_failed_agents} — Chief Auditor dostane varovanie")
         t_ai_done = time.perf_counter()
         _ai_ms = int((t_ai_done - t_ai_wait) * 1000)
         await save_phase_duration(task.report_request_id, "ai", _ai_ms)
@@ -380,7 +394,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             try:
                 await update_report_ai_status(task.report_request_id, "ai.cross_correlation", auditor_s)
                 with PhaseTimer("Chief Auditor"):
-                    await run_and_save_audit_verdict(task.ico, report_language=task.report_language or "sk")
+                    await run_and_save_audit_verdict(task.ico, report_language=task.report_language or "sk", failed_agents=_failed_agents or None, registry_sources=sources)
                 # —— Snapshot skóre: prečítame aktuálny AuditVerdict a fixujeme na tento report ——
                 verifa_score_snapshot = await get_verifa_score(task.ico)
                 if verifa_score_snapshot:
@@ -390,23 +404,6 @@ async def _execute_report_inner(task: ReportTask) -> None:
             finally:
                 t_auditor_end = time.perf_counter()
                 await save_phase_duration(task.report_request_id, "auditor", int((t_auditor_end - t_auditor_start) * 1000))
-
-        # Skip REGISTER_UZ PDF ak obsahuje "Údaje nie sú dostupné" (IFRS firmy)
-        # Dáta sú už v cover page (Finančný vývoj a štruktúra) z AI extrakcie
-        for s in sources:
-            if s.source_type == "REGISTER_UZ" and s.status == "SUCCESS" and s.file_path:
-                try:
-                    doc = fitz.open(s.file_path)
-                    text = "".join(page.get_text() for page in doc)
-                    doc.close()
-                    if "Údaje nie sú dostupné v štruktúrovanej podobe" in text:
-                        _log.info(f"[{_rid}] REGISTER_UZ: údaje nedostupné (IFRS) — dáta extrahované AI")
-                        s.status = "SUCCESS"
-                        s.status_message = "IFRS závierky analyzované AI — pozri Finančnú analýzu v reporte"
-                        s.file_path = None
-                        s.page_count = 0
-                except Exception as e:
-                    _log.warning(f"[{_rid}] REGISTER_UZ skip check zlyhal: {e}")
 
         # ETA pre kompiláciu: phase-aware z historických dát
         compile_eta = int(hist_compile) if hist_compile else (20 + int(source_count * 1.5))

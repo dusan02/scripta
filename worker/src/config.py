@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     model_narrative: str = "gemini-2.5-flash"   # Naratívna analýza (VS) — textová
     model_notes: str = "gemini-2.5-flash"       # Forenzný analytik (poznámky) — Flash stačí (štrukturálne dáta)
     model_vestnik: str = "gemini-2.5-flash"     # Vestník udalosti — štruktúrovaná extrakcia
-    model_verdict: str = "gemini-2.5-pro"        # Chief Auditor — audítorský posudok a skóre (Pro pre komplexnú syntézu)
+    model_verdict: str = "gemini-2.5-flash"      # Chief Auditor — DOČASNE Flash (Pro má 503 výpadky)
     model_cross_analysis: str = "gemini-2.5-flash"  # Cross-Analysis Agent — krížová analýza (Flash pre rýchlosť)
     model_fallback: str = "gemini-2.5-flash"      # Fallback pri 404/503 (Flash — odlišný model pool)
     model_fallback_2: str = "gemini-2.5-pro"       # Sekundárny fallback (Pro tier)

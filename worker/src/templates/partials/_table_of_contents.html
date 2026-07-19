@@ -28,8 +28,8 @@
             {% set dot_bg = "#fffbeb" %}
             {% set status_text = i18n.status_unavailable %}
         {% elif source.status != "SUCCESS" %}
-            {% set dot_color = "#ef4444" %}
-            {% set dot_bg = "#fef2f2" %}
+            {% set dot_color = "#64748b" %}
+            {% set dot_bg = "#f8fafc" %}
             {% set status_text = i18n.status_failed %}
         {% endif %}
         
@@ -45,11 +45,11 @@
                     {{ labels.get(source.source_type, source.source_type) }}
                     {% endif %}
                 </p>
-                <p class="text-[8px] text-slate-500 truncate">
+                <p class="text-[8px] text-slate-500 truncate" title="{{ source | format_findings | safe | striptags }}">
                     {% if source.source_type == "OBCHODNY_VESTNIK" and (not vestnik_events or vestnik_events|length == 0) %}
                     {{ i18n.no_vestnik_events }}
                     {% else %}
-                    {{ source | format_findings | safe | striptags | truncate(80) }}
+                    {{ source | format_findings | safe | striptags | truncate(120) }}
                     {% endif %}
                 </p>
             </div>

@@ -434,7 +434,7 @@ def compute_piotroski_f_score(statements: list) -> dict:
     p_at = p_rev / p_assets if p_assets > 0 else 0
     if c_at > p_at: score += 1
 
-    return {"score": score, "flags": [f"Piotroski F-score: {score}/8"]}
+    return {"score": score, "flags": [f"Piotroski F-score: {score} z 8"]}
 
 def get_nace_weights(nace_code: str) -> dict:
     prefix = nace_code[:2] if nace_code else ""
@@ -585,14 +585,16 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         p1_flags.append(f"Current ratio: {cr:.2f} — kritická likvidita (<0.5)")
 
     equity_to_debt = last_z.get("components", {}).get("x4_equity_to_debt", None)
+    debt_to_equity = last_ratios.get("debt_to_equity", None)
     if equity_to_debt is None:
         p1_raw += 6
         p1_flags.append("Vlastné imanie: N/A")
     elif equity_to_debt > 0:
         p1_raw += 12
-        p1_flags.append(f"Vlastné imanie: kladné (E/D = {equity_to_debt:.2f})")
+        de_str = f"{debt_to_equity:.2f}" if debt_to_equity is not None else "N/A"
+        p1_flags.append(f"Vlastné imanie: kladné (D/E = {de_str})")
     else:
-        p1_flags.append(f"Vlastné imanie: ZÁPORNÉ (E/D = {equity_to_debt:.2f}) — predĺženie")
+        p1_flags.append(f"Vlastné imanie: ZÁPORNÉ — predĺženie")
 
     # Exekúcie degradované
     crit_events_penalty = 0
@@ -802,8 +804,12 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         op = getattr(stmt, "auditorOpinion", None) or (stmt.get("auditorOpinion") if isinstance(stmt, dict) else {})
         op_type = getattr(op, "opinionType", "") or (op.get("opinionType", "") if isinstance(op, dict) else "")
         if op_type and str(op_type).lower() != "null":
-            if "bez výhrad" in op_type.lower(): p5_flags.append("Audítorský posudok: bez výhrad ✓")
-            else: p5_raw = max(0, p5_raw - 3); p5_flags.append(f"Audítorský posudok: {op_type} (−3b)")
+            op_lower = str(op_type).lower()
+            if "bez výhrad" in op_lower or "unqualified" in op_lower or "ohne vorbehalt" in op_lower:
+                p5_flags.append("Audítorský posudok: bez výhrad ✓")
+            else:
+                p5_raw = max(0, p5_raw - 3)
+                p5_flags.append(f"Audítorský posudok: {op_type} (−3b)")
             break
 
     p5_raw = max(0, min(10, p5_raw))
@@ -834,11 +840,18 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     orsr_events = company_dict.get("companyEvents", [])
     orsr_forensic_penalty = 0
     orsr_forensic_flags = []
-    for ev in orsr_events:
-        ev_source = ev.get("source", "") if isinstance(ev, dict) else getattr(ev, "source", "")
-        ev_type = ev.get("eventType", "") if isinstance(ev, dict) else getattr(ev, "eventType", "")
-        if ev_source != "ORSR" or ev_type != "FORENSIC_ANALYSIS":
-            continue
+    # Použi najnovší ORSR FORENSIC_ANALYSIS event — pri reprocessoch ich môže byť viac
+    def _orsr_event_ts(ev):
+        ts = ev.get("createdAt") if isinstance(ev, dict) else getattr(ev, "createdAt", None)
+        return ts or ""
+    forensic_events = [
+        ev for ev in orsr_events
+        if (ev.get("source", "") if isinstance(ev, dict) else getattr(ev, "source", "")) == "ORSR"
+        and (ev.get("eventType", "") if isinstance(ev, dict) else getattr(ev, "eventType", "")) == "FORENSIC_ANALYSIS"
+    ]
+    if forensic_events:
+        forensic_events.sort(key=_orsr_event_ts, reverse=True)
+        ev = forensic_events[0]
         ev_sev = ev.get("severity", "INFO") if isinstance(ev, dict) else getattr(ev, "severity", "INFO")
         ev_meta = ev.get("metadata", {}) if isinstance(ev, dict) else getattr(ev, "metadata", {})
         if isinstance(ev_meta, str):
@@ -851,6 +864,20 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         high_turnover = bool(ev_meta.get("high_turnover_risk", False))
         has_virtual = bool(ev_meta.get("has_virtual_seat", False))
         has_foreign = bool(ev_meta.get("has_foreign_statutory", False))
+
+        is_big_corp = False
+        if financial_statements:
+            try:
+                latest_stmt = max(financial_statements, key=lambda s: getattr(s, "year", 0) or (s.get("year", 0) if isinstance(s, dict) else 0))
+                rev = getattr(latest_stmt, "mainActivityRevenue", 0) or (latest_stmt.get("mainActivityRevenue", 0) if isinstance(latest_stmt, dict) else 0)
+                if rev and rev > 10_000_000:
+                    is_big_corp = True
+            except Exception:
+                pass
+                
+        if is_big_corp and stat_changes > 0:
+            if ev_sev in ["CRITICAL", "HIGH"]:
+                ev_sev = "INFO"
 
         if ev_sev == "CRITICAL":
             orsr_forensic_penalty += 3
@@ -1011,4 +1038,292 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     # (Skóre sa teraz počíta v pipeline.py volaním compute_forensic_scorecard)
         
     return trends
+
+
+# ── Štátne záväzky — rizikový alert ──────────────────────────────────────────
+
+def compute_state_liabilities_alert(statements: list, scraper_results: dict = None) -> dict:
+    """
+    Detekuje záväzky voči zamestnancom, SP a štátu z RÚZ dát.
+
+    Toto sú záväzky z riadkov 131-133 šablóny Úč POD (SK GAAP), ktoré LLM
+    extrahuje zo sekcie 'ZÁVÄZKY VOČI ŠTÁTU A SP (RIZIKOVÉ INDIKÁTORY)' v .txt.
+
+    Pozor: tieto sú bežné ročné accruals v súvahu — nepotvrdzujú automaticky
+    že firma je v registri dlžníkov. Cross-referencujeme s výsledkami scraperov
+    (SP_DLZNICI, FINANCNA_SPRAVA) — ak scraper nenašiel záznam, downgradneme
+    severity z CRITICAL na WARNING a zmeníme messaging.
+
+    Rizikové prahy:
+    - SP záväzky > 5 000 EUR → amber, > 20 000 EUR → red (ak v registri dlžníkov)
+    - Daňové záväzky > 10 000 EUR → amber, > 50 000 EUR → red (ak v registri dlžníkov)
+    - Záväzky voči zamestnancom > 10 000 EUR → amber (nevyplatené mzdy)
+
+    Vracia slovník s:
+      alerts: list[dict(field, value, severity, message)]
+      has_critical: bool
+    """
+    if not statements:
+        return {"alerts": [], "has_critical": False}
+
+    latest = statements[-1]
+    alerts = []
+    has_critical = False
+
+    sp = _get(latest, "stateLiabilitiesSP", None) or _get(latest, "socialInsuranceLiabilities", None)
+    dan = _get(latest, "stateLiabilitiesTax", None) or _get(latest, "taxLiabilities", None)
+    zam = _get(latest, "employeeLiabilities", None)
+    year = _get(latest, "year", "?")
+
+    def _fmt(v: float) -> str:
+        return f"{int(v):,} EUR".replace(",", " ")
+
+    # Cross-referencia s registrami dlžníkov
+    _sp_in_registry = False
+    _tax_in_registry = False
+    if scraper_results:
+        sp_src = scraper_results.get("SP_DLZNICI")
+        if sp_src and sp_src.get("has_record"):
+            _sp_in_registry = True
+        tax_src = scraper_results.get("FINANCNA_SPRAVA")
+        if tax_src and tax_src.get("has_record"):
+            _tax_in_registry = True
+
+    if sp is not None and sp > 0:
+        if sp > 20_000 and _sp_in_registry:
+            alerts.append({
+                "field": "socialInsuranceLiabilities",
+                "value": sp,
+                "severity": "CRITICAL",
+                "message": f"KRITICKÉ: Firma je v registri dlžníkov SP a súvaha ukazuje záväzky {_fmt(sp)} (rok {year}). "
+                           f"Môže zakladať trestnú zodpovednosť štatutára (§278 TZ SR).",
+            })
+            has_critical = True
+        elif sp > 20_000 and not _sp_in_registry:
+            alerts.append({
+                "field": "socialInsuranceLiabilities",
+                "value": sp,
+                "severity": "INFO",
+                "message": f"INFO: Súvaha ukazuje záväzky zo sociálneho poistenia {_fmt(sp)} (rok {year}). "
+                           f"Firma nie je v registri dlžníkov SP — ide o bežné ročné accruals.",
+            })
+        elif sp > 5_000 and _sp_in_registry:
+            alerts.append({
+                "field": "socialInsuranceLiabilities",
+                "value": sp,
+                "severity": "WARNING",
+                "message": f"Záväzky zo sociálneho poistenia {_fmt(sp)} (rok {year}) — firma je v registri dlžníkov SP, monitorovať.",
+            })
+        elif sp > 5_000:
+            alerts.append({
+                "field": "socialInsuranceLiabilities",
+                "value": sp,
+                "severity": "INFO",
+                "message": f"Záväzky zo sociálneho poistenia {_fmt(sp)} (rok {year}) — firma nie je v registri dlžníkov SP.",
+            })
+
+    if dan is not None and dan > 0:
+        if dan > 50_000 and _tax_in_registry:
+            alerts.append({
+                "field": "taxLiabilities",
+                "value": dan,
+                "severity": "CRITICAL",
+                "message": f"KRITICKÉ: Firma je v zozname daňových dlžníkov a súvaha ukazuje daňové záväzky {_fmt(dan)} (rok {year}). "
+                           f"Riziko daňovej exekúcie a záložného práva na majetok.",
+            })
+            has_critical = True
+        elif dan > 50_000 and not _tax_in_registry:
+            alerts.append({
+                "field": "taxLiabilities",
+                "value": dan,
+                "severity": "INFO",
+                "message": f"INFO: Súvaha ukazuje daňové záväzky {_fmt(dan)} (rok {year}). "
+                           f"Firma nie je v zozname daňových dlžníkov FS — ide o bežné ročné accruals.",
+            })
+        elif dan > 10_000 and _tax_in_registry:
+            alerts.append({
+                "field": "taxLiabilities",
+                "value": dan,
+                "severity": "WARNING",
+                "message": f"Daňové záväzky {_fmt(dan)} (rok {year}) — firma je v zozname daňových dlžníkov FS, preveriť stav.",
+            })
+        elif dan > 10_000:
+            alerts.append({
+                "field": "taxLiabilities",
+                "value": dan,
+                "severity": "INFO",
+                "message": f"Daňové záväzky {_fmt(dan)} (rok {year}) — firma nie je v zozname daňových dlžníkov FS.",
+            })
+
+    if zam is not None and zam > 10_000:
+        alerts.append({
+            "field": "employeeLiabilities",
+            "value": zam,
+            "severity": "WARNING",
+            "message": f"Záväzky voči zamestnancom {_fmt(zam)} (rok {year}).",
+        })
+
+    return {"alerts": alerts, "has_critical": has_critical}
+
+
+# ── Revenue per Employee — detekcia schránkovej štruktúry ────────────────────
+
+def compute_revenue_per_employee_alert(statements: list) -> dict:
+    """
+    Vypočíta tržby na zamestnanca z najnovšieho výkazu.
+    Ak nie je k dispozícii počet zamestnancov z titulnej strany, odhadne ho
+    z mzdových nákladov (staffCosts / priemerná mzda 18 000 EUR/rok).
+
+    Vracia slovník s:
+      revenue_per_employee: float | None
+      employee_count: int | None
+      source: 'reported' | 'estimated' | None
+      alert: dict | None  — ak je nepomer extrémny
+    """
+    if not statements:
+        return {"revenue_per_employee": None, "employee_count": None, "source": None, "alert": None}
+
+    latest = statements[-1]
+    revenue = _get(latest, "mainActivityRevenue", None) or 0
+    emp_count = _get(latest, "employeeCount", None)
+    source = None
+
+    if emp_count is not None and emp_count > 0:
+        source = "reported"
+    else:
+        # Odhad z mzdových nákladov: staffCosts / 18 000 EUR (priemerná hrubá mzda SK)
+        staff_costs = _get(latest, "staffCosts", None)
+        if staff_costs and staff_costs > 0:
+            emp_count = max(1, round(staff_costs / 18_000))
+            source = "estimated"
+
+    if emp_count is None or emp_count <= 0 or revenue <= 0:
+        return {"revenue_per_employee": None, "employee_count": emp_count, "source": source, "alert": None}
+
+    rpe = revenue / emp_count
+    year = _get(latest, "year", "?")
+    alert = None
+
+    # Extrémny nepomer: tržby > 500k EUR ale 0-1 zamestnancov (reálnych)
+    if emp_count <= 1 and revenue > 500_000:
+        alert = {
+            "severity": "CRITICAL",
+            "message": (
+                f"VYSOKÉ RIZIKO SCHRÁNKOVEJ ŠTRUKTÚRY: Tržby {int(revenue):,} EUR pri ≤1 zamestnancovi (rok {year}). "
+                f"Prepoj s detektorom Bieleho koňa.".replace(",", " ")
+            ),
+        }
+    elif rpe > 2_000_000:
+        alert = {
+            "severity": "WARNING",
+            "message": (
+                f"Extrémny nepomer: {int(rpe):,} EUR/zamestnanec (rok {year}). "
+                f"Priemer SK: 80 000–200 000 EUR. Prever skutočnú pracovnú silu.".replace(",", " ")
+            ),
+        }
+
+    return {
+        "revenue_per_employee": round(rpe, 0),
+        "employee_count": emp_count,
+        "source": source,
+        "alert": alert,
+    }
+
+
+# ── YoY súhrnná tabuľka ───────────────────────────────────────────────────────
+
+def compute_yoy_summary_table(statements: list) -> dict:
+    """
+    Zostaví kompaktnú YoY tabuľku kľúčových ukazovateľov pre posledné roky.
+
+    Vracia:
+      headers: list[str]  — napr. ['Ukazovateľ', '2022', '2023', '2024', 'Δ% (YoY)']
+      rows: list[dict]    — každý riadok: {label, values: list[str], delta_pct: str, flag: str}
+      years: list[int]
+    """
+    if not statements:
+        return {"headers": [], "rows": [], "years": []}
+
+    sorted_stmts = sorted(statements, key=lambda s: _get(s, "year", 0) or 0)
+    years = [_get(s, "year", "?") for s in sorted_stmts]
+
+    def _pct(curr, prev) -> Optional[float]:
+        if curr is None or prev is None or prev == 0:
+            return None
+        return round(((curr - prev) / abs(prev)) * 100, 1)
+
+    def _fmt_eur(v) -> str:
+        if v is None:
+            return "—"
+        try:
+            val = float(v)
+            return f"{val / 1_000_000:,.2f}".replace(",", "X").replace(".", ",").replace("X", " ")
+        except (ValueError, TypeError):
+            return "—"
+
+    def _fmt_pct(v) -> str:
+        if v is None:
+            return "—"
+        sign = "+" if v > 0 else ""
+        return f"{sign}{v:.1f} %"
+
+    def _flag(delta: Optional[float], field: str) -> str:
+        """Semafórová ikonka podľa smeru zmeny a kontextu."""
+        if delta is None:
+            return ""
+        # Záporný čistý zisk, tržby, aktíva, vlastné imanie = červená
+        negative_is_bad = field in ("revenue", "profit", "assets", "equity", "ebitda")
+        positive_is_bad = field in ("liab", "cost")
+        if negative_is_bad:
+            if delta <= -20:
+                return "🔴"
+            elif delta <= -5:
+                return "🟡"
+            elif delta >= 20:
+                return "🟢"
+        else:
+            # Záväzky a náklady: rast = červená
+            if delta >= 20:
+                return "🔴"
+            elif delta >= 5:
+                return "🟡"
+        return ""
+
+    _METRICS = [
+        ("Tržby", "mainActivityRevenue", "revenue"),
+        ("Čistý zisk", "netProfitLoss", "profit"),
+        ("Celkové aktíva", "totalAssets", "assets"),
+        ("Vlastné imanie", "equity", "equity"),
+        ("Krát. záväzky", "shortTermLiabilities", "liab"),
+        ("Záväzky SP", "socialInsuranceLiabilities", "liab"),
+        ("Daňové záväzky", "taxLiabilities", "liab"),
+        ("Osobné náklady", "staffCosts", "cost"),
+        ("Odpisy", "depreciation", "cost"),
+        ("Úrokové náklady", "interestExpense", "cost"),
+    ]
+
+    rows = []
+    for label, field, ftype in _METRICS:
+        values_raw = [_get(s, field, None) for s in sorted_stmts]
+
+        # Posledná YoY zmena
+        last = values_raw[-1] if values_raw else None
+        prev = values_raw[-2] if len(values_raw) >= 2 else None
+        delta = _pct(last, prev)
+
+        # Preskočiť riadok ak sú všetky hodnoty None
+        if all(v is None for v in values_raw):
+            continue
+
+        rows.append({
+            "label": label,
+            "field": field,
+            "vals": [_fmt_eur(v) for v in values_raw],
+            "delta_pct": _fmt_pct(delta),
+            "delta_raw": delta,
+            "flag": _flag(delta, ftype),
+        })
+
+    headers = ["Ukazovateľ"] + [str(y) for y in years] + ["Δ% (posl. rok)"]
+    return {"headers": headers, "rows": rows, "years": years}
 

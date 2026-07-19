@@ -26,7 +26,9 @@ from src.plotly_charts import (
     generate_altman_chart,
     generate_ratios_trend_chart,
     generate_radar_chart,
-    generate_debt_donut
+    generate_debt_donut,
+    generate_employee_chart,
+    generate_rpe_chart
 )
 from src.analytics import (
     compute_altman_z_score,
@@ -37,6 +39,9 @@ from src.analytics import (
     compute_forensic_scorecard,
     detect_startup_profile,
     compute_piotroski_f_score,
+    compute_state_liabilities_alert,
+    compute_revenue_per_employee_alert,
+    compute_yoy_summary_table,
 )
 
 logger = logging.getLogger(__name__)
@@ -141,6 +146,8 @@ def sanitize_llm_text(text: str) -> str:
     text = text.replace("Rezpečná", "Bezpečná")
     text = text.replace("Plotroski", "Piotroski")
     text = re.sub(r'F-score:\s*(\d)/B\b', r'F-score: \1/8', text)
+    # Force lowercase "ale" — LLM často ignoruje prompt inštrukciu
+    text = re.sub(r'\bALE\b', 'ale', text)
     return text
 
 def format_findings(source, i18n=None) -> str:
@@ -1474,6 +1481,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     bs_infographic_base64 = generate_balance_sheet_infographic(latest_stmt, lang=report_language) if latest_stmt else ""
     pl_infographic_base64 = generate_pl_infographic(latest_stmt, lang=report_language) if latest_stmt else ""
     liquidity_chart_base64 = generate_liquidity_chart(stmts_sorted, lang=report_language) if stmts_sorted else ""
+    employee_chart_base64 = generate_employee_chart(stmts_sorted, lang=report_language) if stmts_sorted else ""
+    rpe_chart_base64 = generate_rpe_chart(stmts_sorted, lang=report_language) if stmts_sorted else ""
 
     # QR code for cover page
     qr_base64 = ""
@@ -1562,6 +1571,28 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         verdict, stmts, vestnik_events, i18n_strings
     )
 
+    # ── Štátne záväzky, RPE alert a YoY tabuľka (nové právne rizikové indikátory) ──
+    _stmts_as_dicts = [
+        {f: getattr(s, f, None) for f in (
+            'year', 'mainActivityRevenue', 'netProfitLoss', 'totalAssets', 'equity',
+            'shortTermLiabilities', 'staffCosts', 'depreciation', 'interestExpense',
+            'socialInsuranceLiabilities', 'taxLiabilities', 'employeeLiabilities',
+            'employeeCount',
+        )}
+        for s in stmts_sorted
+    ]
+    _scraper_results = {}
+    if source_map:
+        for st_type in ("SP_DLZNICI", "FINANCNA_SPRAVA"):
+            src = source_map.get(st_type)
+            if src:
+                findings = (src.findings or "").upper()
+                has_record = "ŽIADNY ZÁZNAM" not in findings and "NENAŠLI SA ŽIADNE ZÁZNAMY" not in findings and "NENAŠLI ŽIADNE" not in findings
+                _scraper_results[st_type] = {"has_record": has_record}
+    _state_liabilities_alert = compute_state_liabilities_alert(_stmts_as_dicts, scraper_results=_scraper_results)
+    _rpe_alert = compute_revenue_per_employee_alert(_stmts_as_dicts)
+    _yoy_table = compute_yoy_summary_table(_stmts_as_dicts)
+
     return {
         "company": company,
         "verdict": verdict,
@@ -1616,6 +1647,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "bs_infographic_base64": bs_infographic_base64,
         "pl_infographic_base64": pl_infographic_base64,
         "liquidity_chart_base64": liquidity_chart_base64,
+        "employee_chart_base64": employee_chart_base64,
+        "rpe_chart_base64": rpe_chart_base64,
         "qr_base64": qr_base64,
         "valid_until": valid_until,
         "confidence_score": confidence_score,
@@ -1628,6 +1661,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "insolvency_score": _insolvency,
         "fraud_heatmap": _fraud_heatmap,
         "strengths_weaknesses": _strengths_weaknesses,
+        "state_liabilities_alert": _state_liabilities_alert,
+        "rpe_alert": _rpe_alert,
+        "yoy_table": _yoy_table,
     }
 
 def render_html_report(context: dict) -> str:

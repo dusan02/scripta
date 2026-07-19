@@ -2,6 +2,7 @@ import logging
 import httpx
 import re
 import json
+import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict
 from prisma import Prisma
@@ -13,6 +14,8 @@ from .base import BaseScraper, ScraperInputError
 logger = logging.getLogger(__name__)
 
 _API_BASE = "https://datahub.ekosystem.slovensko.digital/api/data/ov"
+_MAX_PAGES = 50
+_RATE_LIMIT_DELAY = 1.2  # sekundy medzi requestami (60 req/min limit)
 
 
 class ObchodnyVestnikXmlScraper(BaseScraper):
@@ -43,11 +46,13 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
         found_events = []
 
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
+            async with httpx.AsyncClient(timeout=60) as client:
                 # 1. Konkurz/reštrukturalizácia/likvidácia — najkritické
                 found_events.extend(
                     await self._fetch_and_filter(client, "konkurz_restrukturalizacia_issues", ico_int, ico_clean)
                 )
+
+                await asyncio.sleep(_RATE_LIMIT_DELAY)
 
                 # 2. Podania na obchodný register — zmeny v registri
                 found_events.extend(
@@ -121,63 +126,86 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
         self, client: httpx.AsyncClient, endpoint: str, ico_int: Optional[int], ico_clean: str
     ) -> List[Dict]:
         """
-        Fetch z ekosystem sync API a filtrácia podľa štruktúrneho poľa cin/debtor.cin.
+        Fetch z ekosystem sync API s plnou pagináciou cez Link header.
+        Filtruje podľa štruktúrneho poľa cin/debtor.cin.
         Používa 365-dňový lookback — pokrýva historické konkurzy/reštrukturalizácie.
         """
         from_date = (datetime.utcnow() - timedelta(days=365)).isoformat()
 
         results = []
         url = f"{_API_BASE}/{endpoint}/sync"
-        params = {"from": from_date}
+        params = {"since": from_date}
+        pages_fetched = 0
 
         try:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
-            data = resp.json()
+            while url and pages_fetched < _MAX_PAGES:
+                if pages_fetched > 0:
+                    await asyncio.sleep(_RATE_LIMIT_DELAY)
+                resp = await client.get(url, params=params if pages_fetched == 0 else None)
+                resp.raise_for_status()
+                pages_fetched += 1
 
-            items = data if isinstance(data, list) else data.get("items", data.get("data", []))
+                data = resp.json()
+                items = data if isinstance(data, list) else data.get("items", data.get("data", []))
 
-            for item in items:
-                # Filtrácia podľa štruktúrneho IČO poľa (nie textového matchingu)
-                # konkurz_restrukturalizacia_issues má debtor.cin
-                # or_podanie_issues má cin priamo
-                item_cin = item.get("cin")
-                if item_cin is None:
-                    debtor = item.get("debtor")
-                    if debtor and isinstance(debtor, dict):
-                        item_cin = debtor.get("cin")
+                page_matches = 0
+                for item in items:
+                    item_cin = item.get("cin")
+                    if item_cin is None:
+                        debtor = item.get("debtor")
+                        if debtor and isinstance(debtor, dict):
+                            item_cin = debtor.get("cin")
 
-                if item_cin is None:
-                    continue
-
-                # Porovnanie ako integer (najspoľahlivejšie)
-                try:
-                    if int(item_cin) != ico_int:
+                    if item_cin is None:
                         continue
-                except (ValueError, TypeError):
-                    continue
 
-                # Zostavíme text z dostupných polí
-                text_parts = []
-                for field in ("heading", "decision", "announcement", "advice", "text", "content"):
-                    val = item.get(field)
-                    if val and isinstance(val, str) and val.strip():
-                        text_parts.append(val.strip())
+                    try:
+                        if int(item_cin) != ico_int:
+                            continue
+                    except (ValueError, TypeError):
+                        continue
 
-                text = "\n".join(text_parts)
-                if not text:
-                    continue
+                    text_parts = []
+                    for field in ("heading", "decision", "announcement", "advice", "text", "content"):
+                        val = item.get(field)
+                        if val and isinstance(val, str) and val.strip():
+                            text_parts.append(val.strip())
 
-                results.append({
-                    "id": str(item.get("id", "UNKNOWN")),
-                    "text": text[:8000],
-                    "published_at": item.get("published_at", item.get("created_at", "UNKNOWN")),
-                    "kind_name": item.get("kind_name", item.get("kind", item.get("file_name", ""))),
-                })
+                    text = "\n".join(text_parts)
+                    if not text:
+                        continue
+
+                    results.append({
+                        "id": str(item.get("id", "UNKNOWN")),
+                        "text": text[:8000],
+                        "published_at": item.get("published_at", item.get("created_at", "UNKNOWN")),
+                        "kind_name": item.get("kind_name", item.get("kind", item.get("file_name", ""))),
+                    })
+                    page_matches += 1
+
+                logger.debug(f"[OV] {endpoint} page {pages_fetched}: {len(items)} items, {page_matches} matches")
+
+                # Nasleduj Link header pre ďalšiu stránku
+                link_header = resp.headers.get("link", "")
+                next_url = None
+                if link_header:
+                    for part in link_header.split(","):
+                        if "rel='next'" in part or 'rel="next"' in part:
+                            url_match = re.search(r"<(.+?)>", part)
+                            if url_match:
+                                next_url = url_match.group(1)
+                                break
+
+                url = next_url
+                params = None  # ďalšie stránky majú params už v URL z Link headeru
+
+            if pages_fetched >= _MAX_PAGES:
+                logger.warning(f"[OV] {endpoint}: dosiahnutý limit {_MAX_PAGES} strán")
 
         except Exception as e:
-            logger.warning(f"[OV] Sync API {endpoint} zlyhalo: {e}")
+            logger.warning(f"[OV] Sync API {endpoint} zlyhalo (page {pages_fetched}): {e}")
 
+        logger.info(f"[OV] {endpoint}: prehľadaných {pages_fetched} strán, nájdených {len(results)} záznamov pre IČO {ico_clean}")
         return results
 
 async def save_vestnik_events_to_db(ico: str, events: List[Dict]):

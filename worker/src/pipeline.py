@@ -24,7 +24,7 @@ from src.log_helpers import (
     PhaseTimer, log_pipeline_start, log_pipeline_end,
     log_llm_call, log_llm_retry, get_correlation_id,
 )
-from src.scrapers.ruz_scraper import download_ifrs_reports
+from src.ruz_api import download_ifrs_reports
 from src.llm_extractor import (
     CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, EvidenceItem,
     evaluate_audit_verdict, extract_financial_data,
@@ -226,10 +226,11 @@ def _build_fallback_verdict(company_dict: dict, scorecard, report_language: str 
     )
 
 
-async def run_pdf_reader_agent(ico: str, sources: list, report_language: str = "sk") -> None:
+async def run_pdf_reader_agent(ico: str, sources: list, report_language: str = "sk") -> bool:
     """
     PDF Reader Agent: prečíta všetky PDF z registrov (z scrapers) a uloží CompanyEvent[] do DB.
     Beží po scraperoch, paralelne s AI pipeline (IFRS/VS/Notes).
+    Vracia True ak prebehol úspešne, False ak zlyhal — pre audit verdict metadata.
     """
     from src.models import ScrapedSource
 
@@ -275,7 +276,7 @@ async def run_pdf_reader_agent(ico: str, sources: list, report_language: str = "
 
     if not pdf_texts:
         logger.info(f"[PDF Reader Agent] IČO={ico}: žiadne PDF texty na analýzu — preskakujem.")
-        return
+        return True
 
     logger.info(f"[PDF Reader Agent] IČO={ico}: analyzujem {len(pdf_texts)} PDF dokumentov")
     try:
@@ -290,21 +291,24 @@ async def run_pdf_reader_agent(ico: str, sources: list, report_language: str = "
             logger.info(f"[PDF Reader Agent] IČO={ico}: uložených {len(result.events)} udalostí do DB")
         else:
             logger.info(f"[PDF Reader Agent] IČO={ico}: žiadne udalosti nájdené")
+        return True
     except Exception as e:
         logger.error(f"[PDF Reader Agent] IČO={ico}: chyba pri analýze PDF: {e}", exc_info=True)
+        return False
 
 
-async def run_orsr_forensics_agent(ico: str, sources: list, report_language: str = "sk") -> None:
+async def run_orsr_forensics_agent(ico: str, sources: list, report_language: str = "sk") -> bool:
     """
     Agent pre forenznú analýzu Úplného výpisu ORSR (Biele kone, virtuálne sídla).
     Beží paralelne s PDF Reader Agentom.
+    Vracia True ak prebehol úspešne, False ak zlyhal — pre audit verdict metadata.
     """
     from src.agents.orsr_forensic import analyze_orsr_history
     from src.utils.orsr_heuristics import is_virtual_seat, is_foreign_statutory
     
     orsr_source = next((s for s in sources if s.source_type == "ORSR" and s.status == "SUCCESS"), None)
     if not orsr_source or not getattr(orsr_source, "full_extract_text", None):
-        return
+        return True
         
     logger.info(f"[ORSR Forensic Agent] IČO={ico}: analyzujem históriu ORSR")
     try:
@@ -407,15 +411,42 @@ async def run_orsr_forensics_agent(ico: str, sources: list, report_language: str
                     f"ale vestník už obsahuje relevantný event — preskakujem"
                 )
 
+        return True
     except Exception as e:
         logger.error(f"[ORSR Forensic Agent] IČO={ico}: chyba: {e}", exc_info=True)
+        return False
 
 
-async def run_and_save_audit_verdict(ico: str, force: bool = False, report_language: str = "sk"):
+def _sanitize_verdict_text(text: str) -> str:
+    """Sanitizuje LLM text pred uložením do DB.
+    Aplikuje sa pri ukladaní verdictu — druhá vrstva je template filter sanitize_llm."""
+    if not text:
+        return text
+    # "ALE" → "ale" — LLM ignoruje prompt inštrukciu aj napriek opakovaným pokusom
+    text = re.sub(r'\bALE\b', 'ale', text)
+    # LaTeX $...$ → plain text
+    text = re.sub(r'\$([^$]+)\$', r'\1', text)
+    text = re.sub(r'\^[\{]([^}]+)[\}]', r'\1', text)
+    text = re.sub(r'\^\{([^}]+)\}', r'\1', text)
+    text = re.sub(r"\\prime\\prime", "''", text)
+    text = re.sub(r"\\prime", "'", text)
+    return text
+
+
+async def run_and_save_audit_verdict(
+    ico: str,
+    force: bool = False,
+    report_language: str = "sk",
+    failed_agents: list | None = None,
+    registry_sources: list | None = None,
+):
     """
     1. Získa všetky dostupné dáta pre dané IČO z databázy (Finančné výkazy, Naratívne analýzy, Vestník).
     2. Spustí Chief Auditora.
     3. Uloží AuditVerdict do DB.
+
+    failed_agents: zoznam názvov agentov ktoré zlyhali (napr. ['PDF Reader', 'ORSR Forensic']) —
+    Chief Auditor dostane varovanie v kontexte a môže znížiť istotu skóre.
 
     Preskočí LLM ak verdict existuje a žiadne nové dáta neprišli od posledného výpočtu.
     Re-run ak: nové vestnik events, nové finančné výkazy, nové PDF z registrov, alebo verdict > 90 dní.
@@ -523,6 +554,20 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
             if notes:
                 notes_by_year.append({"rok": stmt.get("year"), "notesRisk": notes})
 
+        # Extrahuj findings z registry sources pre LLM kontext
+        registry_findings = []
+        for src in (registry_sources or []):
+            if not src or not getattr(src, 'findings', None):
+                continue
+            src_type = getattr(src, 'source_type', 'UNKNOWN')
+            src_status = getattr(src, 'status', 'UNKNOWN')
+            if src_status != "SUCCESS":
+                continue
+            registry_findings.append({
+                "source_type": src_type,
+                "findings": src.findings[:2000] if isinstance(src.findings, str) else str(src.findings)[:2000],
+            })
+
         cross_input_dict = {
             "ico": company_dict.get("ico"),
             "name": company_dict.get("name"),
@@ -532,6 +577,12 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
             "notesRisk_by_year": notes_by_year,
             "vestnikEvents": company_dict.get("vestnikEvents", []),
             "companyEvents": company_dict.get("companyEvents", []),
+            "registryFindings": registry_findings,
+            **({"_agent_warnings": [
+                f"POZOR: Agent '{a}' zlyhal počas analýzy — jeho výstupy môžu chýbať. "
+                f"Zváž zníženie istoty skóre."
+                for a in (failed_agents or [])
+            ]} if failed_agents else {}),
         }
         cross_input_json = json.dumps(cross_input_dict, default=str, ensure_ascii=False)
         logger.info(f"Cross-Analysis vstup: {len(cross_input_json)} chars (redukovaný z {len(company_data)} chars)")
@@ -652,14 +703,16 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
             f"Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}"
         )
 
+        final_score = max(0, min(100, deterministic_score + llm_adj))
+
         # Deterministická risk_category — Python lookup namiesto LLM
         # Fallback na LLM hodnotu len ak neexistujú finančné výkazy (INSUFFICIENT_DATA)
         if scorecard is not None:
-            if deterministic_score >= 90:
+            if final_score >= 90:
                 _risk_category = "AAA"
-            elif deterministic_score >= 70:
+            elif final_score >= 70:
                 _risk_category = "A"
-            elif deterministic_score >= 40:
+            elif final_score >= 40:
                 _risk_category = "B"
             else:
                 _risk_category = "C"
@@ -667,14 +720,15 @@ async def run_and_save_audit_verdict(ico: str, force: bool = False, report_langu
             _risk_category = verdict.risk_category
 
         verdict_payload = {
-            'verifaScore': deterministic_score,
+            'verifaScore': final_score,
             'riskCategory': _risk_category,
             'debtExposureRating': verdict.debt_exposure_rating,
-            'finalVerdict': verdict.final_verdict,
-            'executiveSummary': verdict.executive_summary,
+            'finalVerdict': _sanitize_verdict_text(verdict.final_verdict),
+            'executiveSummary': _sanitize_verdict_text(verdict.executive_summary),
             'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
-            'keyRisk': verdict.kľúčové_riziko,
+            'keyRisk': _sanitize_verdict_text(verdict.kľúčové_riziko),
             'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
+            'llmScoreAdjustment': llm_adj,
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
         await save_audit_verdict(ico, verdict_payload)
@@ -690,11 +744,20 @@ def _remaining_eta(t_start: float, baseline: float) -> int:
 
 
 
-async def process_company(ico: str, report_request_id: Optional[str] = None, report_language: str = "sk"):
+async def process_company(
+    ico: str,
+    report_request_id: Optional[str] = None,
+    report_language: str = "sk",
+    ruz_files: Optional[list] = None,
+    ov_events: Optional[list] = None,
+):
     """
     Hlavný orchestrátor pre dané IČO.
     1. Sťahuje finančné a výročné správy a spracuje ich cez LLM.
     2. Scrapuje záznamy z Obchodného vestníka (XML) a spracuje ich cez LLM.
+
+    ruz_files: ak je zadaný (zo ScrapedSource.raw_data REGISTER_UZ), preskočí download z RÚZ API.
+    ov_events: ak je zadaný (zo ScrapedSource.findings OBCHODNY_VESTNIK), preskočí run_xml.
     """
     log_pipeline_start(ico, report_request_id or "-")
     _t_start = time.perf_counter()
@@ -721,9 +784,13 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
     
     await update_ai_status(report_request_id, "ai.downloading", _remaining_eta(_t_start, pipeline_baseline))
         
-    # 1. Stiahnutie z RÚZ (IFRS a VS)
-    with PhaseTimer("RÚZ download"):
-        downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
+    # 1. Stiahnutie z RÚZ (IFRS a VS) — preskočí ak scraper už stiahol súbory
+    if ruz_files:
+        logger.info(f"[PIPELINE] RÚZ: použijem {len(ruz_files)} súborov zo scraper fázy (bez duplicitného downloadu)")
+        downloaded_files = [f for f in ruz_files if os.path.exists(f)]
+    else:
+        with PhaseTimer("RÚZ download"):
+            downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
     
     await update_ai_status(report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start, pipeline_baseline))
     # Krátko po začiatku analýzy aktualizujeme na konkrétnejší status
@@ -800,7 +867,8 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                     check_fields = [
                         "celkove_aktiva", "trzby_z_hlavnej_cinnosti", 
                         "zisk_alebo_strata_po_zdaneni", "vlastne_imanie_celkom", 
-                        "ciste_penazne_toky_z_prevadzkovej_cinnosti"
+                        "ciste_penazne_toky_z_prevadzkovej_cinnosti",
+                        "danove_zavazky",
                     ]
                     
                     for field in check_fields:
@@ -896,47 +964,66 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
     _notes_result: dict = {}
 
     async def _process_notes(sem: asyncio.Semaphore):
-        """Footnotes Analyst: extrahuje poznámky pre najnovší rok (fallback na staršie).
-        Beží paralelne s IFRS/VS extrakciou. DB save je odložený (viď _notes_result)."""
+        """Footnotes Analyst: extrahuje poznámky pre posledné 2 roky paralelne.
+        Beží paralelne s IFRS/VS extrakciou. DB save je odložený (viď _notes_result)"""
         try:
-            sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)
-            notes_attempts = 0
+            sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)[:2]
+            candidates = []
             for fp in sorted_ifrs:
-                if notes_attempts >= 2:
-                    break
+                sliced = slice_notes_pdf(fp)
+                if sliced:
+                    candidates.append((fp, sliced))
+
+            if not candidates:
+                return
+
+            async def _fetch_notes(fp: str, sliced_path: str):
                 year = _extract_year_from_fn(fp)
                 file_name = os.path.basename(fp)
-                sliced_notes_path = slice_notes_pdf(fp)
-                if sliced_notes_path:
-                    notes_attempts += 1
-                    logger.info(f"[NOTES] Spracovávam poznámky pre rok {year} z {file_name}")
+                logger.info(f"[NOTES] Spracovávam poznámky pre rok {year} z {file_name}")
+                try:
                     async with sem:
-                        notes_data = await safe_llm_call(
-                            extract_notes_risks, sliced_notes_path,
+                        return year, await safe_llm_call(
+                            extract_notes_risks, sliced_path,
                             model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}",
                             report_language=report_language,
                         )
+                finally:
                     try:
-                        os.remove(sliced_notes_path)
+                        os.remove(sliced_path)
                     except OSError:
                         pass
-                    if notes_data:
+
+            notes_results = await asyncio.gather(
+                *[_fetch_notes(fp, sliced) for fp, sliced in candidates],
+                return_exceptions=True,
+            )
+            # Vyber najnovší rok s dátami
+            for res in notes_results:
+                if isinstance(res, tuple):
+                    year, notes_data = res
+                    if notes_data and "year" not in _notes_result:
                         _notes_result["year"] = year
                         _notes_result["data"] = notes_data
-                        break  # Máme poznámky, preskoč staršie roky kvôli úspore tokenov
+                elif isinstance(res, Exception):
+                    logger.error(f"Chyba pri spracovaní poznámok: {res}", exc_info=True)
         except Exception as e:
             logger.error(f"Chyba pri spracovaní poznámok: {e}", exc_info=True)
 
-    # Vytvorenie asynchrónnej úlohy pre Vestník, aby bežala paralelne
+    # Vestník: použi už stiahnuté dáta zo scraper fázy, alebo spusti nový scrape
     async def _process_vestnik():
-        logger.info(f"Spracovávam Obchodný vestník pre IČO: {ico}")
-        ov_scraper = ObchodnyVestnikXmlScraper()
         try:
-            ov_result = await ov_scraper.run_xml(ico=ico)
+            if ov_events is not None:
+                logger.info(f"[Vestník] Používam {len(ov_events)} eventov zo scraper fázy (bez duplicitného scrapu)")
+                ov_result = {"status": "SUCCESS", "events": ov_events, "white_horse_risk": False, "cross_event_pattern": ""}
+            else:
+                logger.info(f"Spracovávam Obchodný vestník pre IČO: {ico}")
+                ov_scraper = ObchodnyVestnikXmlScraper()
+                ov_result = await ov_scraper.run_xml(ico=ico)
+
             if ov_result.get("status") == "SUCCESS" and ov_result.get("events"):
                 await save_vestnik_events_to_db(ico, ov_result["events"])
 
-            # Propagácia white_horse_risk do DB ako CompanyEvent
             if ov_result.get("white_horse_risk") and ov_result.get("cross_event_pattern"):
                 from src.agents.pdf_reader import CompanyEvent as PdfCompanyEvent
                 white_horse_event = PdfCompanyEvent(
@@ -952,7 +1039,7 @@ async def process_company(ico: str, report_request_id: Optional[str] = None, rep
                 await append_company_event_to_db(ico, white_horse_event)
                 logger.warning(f"[Vestník] IČO {ico}: White horse pattern uložený do DB ako CRITICAL CompanyEvent")
         except Exception as e:
-            logger.error(f"Chyba pri paralelnom spracovaní Vestníka: {e}", exc_info=True)
+            logger.error(f"Chyba pri spracovaní Vestníka: {e}", exc_info=True)
 
     vestnik_task = asyncio.create_task(_process_vestnik())
 

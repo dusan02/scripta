@@ -45,6 +45,12 @@ _FS_SOURCE_TYPES = {
     "FS_DAN_PRIJMOV_REG",
 }
 
+# API scrapery — nepotrebujú browser context, neblokujú global_semaphore
+_API_SOURCE_TYPES = {
+    "REGISTER_UZ",
+    "OBCHODNY_VESTNIK",
+}
+
 # Globálny limit súbežných scraperov — 8 contextov je bezpečné pre 8GB server
 # Semafóry sa vytvárajú lazy vnútri run_scrapers, aby sa naviazali na správny event loop.
 
@@ -127,10 +133,16 @@ async def run_scrapers(
         scraper_cls = get_scraper(source_type)
         scraper = scraper_cls(browser=browser)
         is_fs = source_type in _FS_SOURCE_TYPES
+        is_api = source_type in _API_SOURCE_TYPES
         _t_start = time.perf_counter()
         logger.debug(f"[TIMING] ▶ {source_type} START")
         try:
-            semaphores = [global_semaphore, fs_semaphore] if is_fs else [global_semaphore]
+            if is_api:
+                semaphores = []
+            elif is_fs:
+                semaphores = [global_semaphore, fs_semaphore]
+            else:
+                semaphores = [global_semaphore]
             for sem in semaphores:
                 await sem.acquire()
             try:
