@@ -422,6 +422,12 @@ def _sanitize_verdict_text(text: str) -> str:
     Aplikuje sa pri ukladaní verdictu — druhá vrstva je template filter sanitize_llm."""
     if not text:
         return text
+    # Garbled text detection — PDF extraction artefacts with mixed scripts
+    cyrillic = sum(1 for c in text if '\u0400' <= c <= '\u04FF')
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    arabic = sum(1 for c in text if '\u0600' <= c <= '\u06ff')
+    if (cyrillic + cjk + arabic) >= 3:
+        return ""
     # "ALE" → "ale" — LLM ignoruje prompt inštrukciu aj napriek opakovaným pokusom
     text = re.sub(r'\bALE\b', 'ale', text)
     # LaTeX $...$ → plain text

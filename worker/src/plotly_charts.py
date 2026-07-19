@@ -349,11 +349,10 @@ def generate_employee_chart(statements, lang="sk") -> str:
     ))
 
     layout = get_base_layout(i.get('chart_employee_count', 'Vývoj počtu zamestnancov'))
-    layout['xaxis']['tickvals'] = years
-    layout['xaxis']['ticktext'] = years
     layout['yaxis'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False, tickfont=dict(color='#64748b'), title=dict(text=i.get('chart_employees', 'zamestnancov'), font=dict(size=10, color='#64748b')))
     layout['showlegend'] = False
     fig.update_layout(**layout)
+    fig.update_xaxes(tickmode='array', tickvals=list(range(len(years))), ticktext=years, type='category')
     return _to_base64(fig, 600, 280)
 
 
@@ -388,10 +387,9 @@ def generate_rpe_chart(statements, lang="sk") -> str:
                   annotation_font=dict(size=9, color='#94a3b8'))
 
     layout = get_base_layout(i.get('chart_rpe', 'Tržby na zamestnanca'))
-    layout['xaxis']['tickvals'] = years
-    layout['xaxis']['ticktext'] = years
     layout['yaxis'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False, tickfont=dict(color='#64748b'),
                            tickformat=',.0f', tickprefix='', hoverformat=',.0f €')
     layout['showlegend'] = False
     fig.update_layout(**layout)
+    fig.update_xaxes(tickmode='array', tickvals=list(range(len(years))), ticktext=years, type='category')
     return _to_base64(fig, 600, 280)

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional, cast
 from prisma import Prisma
@@ -7,6 +8,33 @@ import httpx
 from src.llm_extractor import CompanyFinancialExtraction, NarrativeRiskAnalysis
 
 logger = logging.getLogger(__name__)
+
+
+def _is_garbled(text: str) -> bool:
+    """Detekuje garbled text z PDF extrakcie — zmes písmen z rôznych skriptov."""
+    if not text or len(text) < 10:
+        return False
+    cyrillic = sum(1 for c in text if '\u0400' <= c <= '\u04FF')
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    arabic = sum(1 for c in text if '\u0600' <= c <= '\u06ff')
+    if (cyrillic + cjk + arabic) >= 3:
+        return True
+    alpha = sum(1 for c in text if c.isalpha())
+    if len(text) > 20 and alpha / len(text) < 0.4:
+        return True
+    return False
+
+
+def _clean_text(text: str) -> str:
+    """Sanitizuje text pred uložením do DB."""
+    if not text:
+        return text
+    if _is_garbled(text):
+        return ""
+    text = re.sub(r'\bALE\b', 'ale', text)
+    text = re.sub(r'\$([^$]+)\$', r'\1', text)
+    text = re.sub(r'\^\{([^}]+)\}', r'\1', text)
+    return text
 
 # Lock pre serializáciu DB zápisov — paralelné save_to_db volania spôsobujú
 # race condition na company.upsert s rovnakým IČO
@@ -263,12 +291,12 @@ async def save_to_db(data: CompanyFinancialExtraction):
                         'financialStatementId': statement.id,
                         'opinionType': data.audit.nazor_auditora,
                         'goingConcernRisk': data.audit.going_concern_riziko,
-                        'reservationText': data.audit.auditor_vyhrady_text,
+                        'reservationText': _clean_text(data.audit.auditor_vyhrady_text),
                     },
                     'update': {
                         'opinionType': data.audit.nazor_auditora,
                         'goingConcernRisk': data.audit.going_concern_riziko,
-                        'reservationText': data.audit.auditor_vyhrady_text,
+                        'reservationText': _clean_text(data.audit.auditor_vyhrady_text),
                     }
                 }
             )

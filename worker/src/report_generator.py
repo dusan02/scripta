@@ -118,14 +118,38 @@ def format_cf_millions(value: float) -> str:
     Pre cash flow polia: 0 znamená chýbajúce dáta, nie nulový cash flow."""
     return format_number_millions(value, treat_zero_as_none=True)
 
+def _is_garbled(text: str) -> bool:
+    """Detekuje garbled/LLM-hallucinovaný text — zmes písmen z rôznych skriptov."""
+    if not text or len(text) < 10:
+        return False
+    # Cyrillic characters in Slovak text = garbled extraction
+    cyrillic = sum(1 for c in text if '\u0400' <= c <= '\u04FF')
+    # CJK characters
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    # Arabic
+    arabic = sum(1 for c in text if '\u0600' <= c <= '\u06ff')
+    non_latin = cyrillic + cjk + arabic
+    if non_latin >= 3:
+        return True
+    # High ratio of non-alpha, non-space chars (garbled encoding)
+    alpha = sum(1 for c in text if c.isalpha())
+    if len(text) > 20 and alpha / len(text) < 0.4:
+        return True
+    return False
+
+
 def sanitize_llm_text(text: str) -> str:
     """Sanitizuje LLM generovaný text pre PDF rendering.
     - Odstráni LaTeX $...$ syntax a nahradí ju plain textom
     - Opraví časté preklepy slovenských slov
+    - Detekuje a nahradzuje garbled text z PDF extrakcie
     - Konvertuje Unicode znaky, ktoré by sa mohli skomiť
     """
     if not text:
         return text
+    # Garbled text detection — PDF extraction artefacts with mixed scripts
+    if _is_garbled(text):
+        return ""
     # LaTeX $...$ → plain text (zachová vnútro)
     text = re.sub(r'\$([^$]+)\$', r'\1', text)
     # LaTeX ^{...} a _{...} → plain text
