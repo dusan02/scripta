@@ -456,8 +456,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
             await create_bug_report(task.report_request_id, error_details)
 
         # Credits are deducted on the frontend before enqueuing.
-        # No credit operation needed here — the old charge_credit() was removed.
-        if final_status != "COMPLETED":
+        # If the report FAILED, request a refund from the frontend Wallet system.
+        if final_status == "FAILED":
+            _log.info(f"[{_rid}] Status FAILED — requesting credit refund")
+        elif final_status != "COMPLETED":
             _log.info(f"[{_rid}] Status {final_status} — no credit operation (deducted on frontend)")
 
         await update_report_status(
@@ -467,6 +469,20 @@ async def _execute_report_inner(task: ReportTask) -> None:
             company_name=company_name,
             verifa_score=verifa_score_snapshot,
         )
+
+        # Request credit refund from frontend if report FAILED
+        if final_status == "FAILED":
+            try:
+                frontend_url = os.environ.get("NEXTAUTH_URL", "http://localhost:3000")
+                worker_secret = os.environ.get("WORKER_SECRET", "")
+                async with httpx.AsyncClient(timeout=10) as client:
+                    await client.post(
+                        f"{frontend_url}/api/reports/{task.report_request_id}/refund",
+                        headers={"x-worker-secret": worker_secret},
+                    )
+                _log.info(f"[{_rid}] Credit refund requested")
+            except Exception as refund_err:
+                _log.warning(f"[{_rid}] Credit refund request failed: {refund_err}")
 
         # Send email notification to user via frontend API
         try:
@@ -495,6 +511,18 @@ async def _execute_report_inner(task: ReportTask) -> None:
             task.report_request_id,
             f"Výnimka: {type(exc).__name__}: {exc}",
         )
+        # Request credit refund from frontend
+        try:
+            frontend_url = os.environ.get("NEXTAUTH_URL", "http://localhost:3000")
+            worker_secret = os.environ.get("WORKER_SECRET", "")
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.post(
+                    f"{frontend_url}/api/reports/{task.report_request_id}/refund",
+                    headers={"x-worker-secret": worker_secret},
+                )
+            _log.info(f"[{_rid}] Credit refund requested (exception path)")
+        except Exception as refund_err:
+            _log.warning(f"[{_rid}] Credit refund request failed (exception path): {refund_err}")
         raise
     finally:
         if browser:

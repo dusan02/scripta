@@ -130,3 +130,29 @@ export function rateLimitResponse(result: RateLimitResult) {
     }
   );
 }
+
+export async function rateLimitByKey(
+  key: string,
+  options: RateLimitOptions
+): Promise<RateLimitResult> {
+  const rateLimitKey = `${key}:${options.windowMs}:${options.maxRequests}`;
+
+  if (UPSTASH_URL && UPSTASH_TOKEN) {
+    try {
+      return await redisRateLimit(rateLimitKey, options);
+    } catch {
+      if (process.env.NODE_ENV === "production") {
+        console.error("[rateLimit] Upstash Redis failed in production — denying request");
+        return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+      }
+      return memRateLimit(rateLimitKey, options);
+    }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured in production — denying request");
+    return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+  }
+
+  return memRateLimit(rateLimitKey, options);
+}

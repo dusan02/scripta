@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addCreditBatch } from "@/lib/credits";
+import { rateLimitByKey } from "@/lib/rateLimit";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -102,9 +103,26 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           return null;
+        }
+
+        // ── Brute-force protection ──────────────────────────────────
+        const ipAddress =
+          (req as any)?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
+          (req as any)?.headers?.get?.("x-real-ip") ||
+          "unknown";
+        const emailKey = `login:${credentials.email.toLowerCase()}`;
+        const ipKey = `login:${ipAddress}`;
+
+        const [emailLimit, ipLimit] = await Promise.all([
+          rateLimitByKey(emailKey, { windowMs: 15 * 60 * 1000, maxRequests: 10 }),
+          rateLimitByKey(ipKey, { windowMs: 15 * 60 * 1000, maxRequests: 20 }),
+        ]);
+
+        if (!emailLimit.allowed || !ipLimit.allowed) {
+          throw new Error("RATE_LIMIT_EXCEEDED");
         }
 
         const user = await prisma.user.findUnique({

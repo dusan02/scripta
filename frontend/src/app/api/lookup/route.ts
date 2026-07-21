@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const ico = req.nextUrl.searchParams.get("ico");
   if (!ico || !/^\d{8}$/.test(ico)) {
     return NextResponse.json({ error: "Neplatné IČO" }, { status: 400 });

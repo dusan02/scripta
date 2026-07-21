@@ -53,6 +53,8 @@ export default function LoginPage() {
       if (res?.error) {
         if (res.error === "EMAIL_NOT_VERIFIED") {
           setError(t("login.emailNotVerified"));
+        } else if (res.error === "RATE_LIMIT_EXCEEDED") {
+          setError("Príliš veľa neúspešných pokusov. Skúste to znova o 15 minút.");
         } else {
           setError(t("login.nespravne"));
         }
