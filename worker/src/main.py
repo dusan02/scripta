@@ -30,7 +30,6 @@ from .db_repository import (
     upsert_single_report_source,
     update_source_page_counts,
     create_bug_report,
-    charge_credit as _charge_credit,
     get_verifa_score,
 )
 from .models import ReportTask
@@ -456,11 +455,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
             )
             await create_bug_report(task.report_request_id, error_details)
 
-        # ── Kreditná operácia: len ak COMPLETED ─────────────────────────
-        if final_status == "COMPLETED":
-            await _charge_credit(task.report_request_id)
-        else:
-            _log.info(f"[{_rid}] Status {final_status} — kredit neodpočítaný")
+        # Credits are deducted on the frontend before enqueuing.
+        # No credit operation needed here — the old charge_credit() was removed.
+        if final_status != "COMPLETED":
+            _log.info(f"[{_rid}] Status {final_status} — no credit operation (deducted on frontend)")
 
         await update_report_status(
             task.report_request_id,

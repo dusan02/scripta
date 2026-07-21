@@ -101,8 +101,17 @@ export async function rateLimit(
     try {
       return await redisRateLimit(key, options);
     } catch {
+      if (process.env.NODE_ENV === "production") {
+        console.error("[rateLimit] Upstash Redis failed in production — denying request");
+        return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+      }
       return memRateLimit(key, options);
     }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured in production — denying request");
+    return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
   }
 
   return memRateLimit(key, options);
