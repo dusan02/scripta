@@ -12,9 +12,9 @@ from typing import Optional
 from xml.sax.saxutils import escape as xml_escape
 
 from playwright.async_api import async_playwright
-from prisma import Prisma
 from jinja2 import Environment, FileSystemLoader
 from src.i18n import get_i18n_strings
+from src.db_client import get_db
 from src.infographics import generate_pl_infographic, generate_balance_sheet_infographic, generate_cashflow_waterfall
 
 from src.plotly_charts import (
@@ -1770,9 +1770,8 @@ async def generate_forensic_pdf_report(
     vestnik_date_from: Optional[str] = None,
 ):
     logger.info(f"Generujem HTML/PDF report pre IČO: {ico} (report_language={report_language})")
-    db = Prisma()
-    await db.connect()
-    
+    db = get_db()
+
     try:
         company = await db.company.find_unique(
             where={'ico': ico},
@@ -1797,14 +1796,13 @@ async def generate_forensic_pdf_report(
         return pdf_path
 
     finally:
-        await db.disconnect()
+        pass
 
 
 async def generate_financial_summary_pdf(ico: str, target_path: str) -> Optional[str]:
     """Vygeneruje 1-2 strany s finančným prehľadom z DB dát (FinancialStatement).
     Používa sa pre IFRS firmy, kde registeruz.sk nezobrazuje štruktúrované HTML."""
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         company = await db.company.find_unique(
             where={'ico': ico},
@@ -1928,4 +1926,4 @@ th {{ text-align: left; padding: 6px 10px; color: #64748b; font-size: 11px; }}
         logger.error(f"[FIN_SUMMARY] Chyba pre IČO {ico}: {e}", exc_info=True)
         return None
     finally:
-        await db.disconnect()
+        pass

@@ -5,9 +5,8 @@ import json
 import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict
-from prisma import Prisma
-
 from src.llm_extractor import extract_vestnik_event, extract_vestnik_events_batch, VestnikExtraction, VestnikBatchResult
+from src.db_client import get_db
 from ..models import ScrapedSource
 from .base import BaseScraper, ScraperInputError
 
@@ -213,9 +212,8 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
     Uloží nájdené eventy do tabuľky VestnikEvent.
     Túto funkciu zavoláme z pipeline po úspešnom scrapovaní.
     """
-    db = Prisma()
-    await db.connect()
-    
+    db = get_db()
+
     try:
         # Zabezpečiť existenciu firmy
         await db.company.upsert(
@@ -255,4 +253,4 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
             
         return saved
     finally:
-        await db.disconnect()
+        pass

@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("GET /api/plan error", error);
     return NextResponse.json(
-      { error: "Failed to fetch plan data", details: error instanceof Error ? error.message : String(error) },
+      { error: "Failed to fetch plan data" },
       { status: 500 }
     );
   }

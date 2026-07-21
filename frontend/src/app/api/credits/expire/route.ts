@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Credit expiration cron error:", error);
     return NextResponse.json(
-      { error: "Cron failed", details: error instanceof Error ? error.message : String(error) },
+      { error: "Cron failed" },
       { status: 500 }
     );
   }

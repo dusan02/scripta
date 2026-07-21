@@ -13,8 +13,8 @@ import shutil
 from datetime import datetime, timezone, timedelta
 from typing import List, Tuple
 
-from prisma import Prisma
 from .config import settings
+from .db_client import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,7 @@ async def cleanup_old_reports() -> Tuple[int, int]:
     removed = 0
     db_cleared = 0
 
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         # Vytiahneme ID starých reportov
         old_reports = await db.reportrequest.find_many(
@@ -62,7 +61,7 @@ async def cleanup_old_reports() -> Tuple[int, int]:
     except Exception as e:
         logger.error(f"[CLEANUP] Error deleting old reports from DB: {e}", exc_info=True)
     finally:
-        await db.disconnect()
+        pass
 
     return removed, db_cleared
 
@@ -75,8 +74,7 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
     removed = 0
     db_cleared = 0
 
-    db = Prisma()
-    await db.connect()
+    db = get_db()
 
     try:
         # Find users with more than max_reports completed/partial reports
@@ -121,7 +119,7 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
     except Exception as e:
         logger.error(f"[CLEANUP] Excess cleanup error: {e}", exc_info=True)
     finally:
-        await db.disconnect()
+        pass
 
     return removed, db_cleared
 
@@ -132,8 +130,7 @@ async def recover_stale_reports() -> int:
     This handles cases where the worker crashed mid-task.
     Returns count of recovered reports.
     """
-    db = Prisma()
-    await db.connect()
+    db = get_db()
 
     recovered = 0
     try:
@@ -155,7 +152,7 @@ async def recover_stale_reports() -> int:
     except Exception as e:
         logger.error(f"[CLEANUP] Stale recovery error: {e}", exc_info=True)
     finally:
-        await db.disconnect()
+        pass
 
     return recovered
 

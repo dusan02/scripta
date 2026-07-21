@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SourceType, ReportStatus } from "@prisma/client";
-import { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask, checkWorkerHealth } from "@/lib/worker";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { consumeCredits, refundCredits } from "@/lib/credits";
 import { reportRequestSchema } from "./schema";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
@@ -90,7 +88,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("GET /api/reports error", error);
     return NextResponse.json(
-      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -233,7 +231,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("POST /api/reports error", error);
     return NextResponse.json(
-      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -300,7 +298,7 @@ export async function DELETE(req: NextRequest) {
   } catch (error) {
     console.error("DELETE /api/reports error", error);
     return NextResponse.json(
-      { error: "Internal server error", details: error instanceof Error ? error.message : String(error) },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

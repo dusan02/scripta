@@ -4,8 +4,10 @@ import re
 from datetime import datetime, timezone
 from typing import Optional, cast
 from prisma import Prisma
+from prisma.errors import PrismaError
 import httpx
 from src.llm_extractor import CompanyFinancialExtraction, NarrativeRiskAnalysis
+from src.db_client import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +67,7 @@ async def _fetch_nace_from_api(ico: str):
 async def save_company_events_to_db(ico: str, events: list) -> None:
     """Uloží CompanyEvent[] z PDF Reader Agent do databázy."""
     import json as _json
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         await db.company.upsert(
             where={'ico': ico},
@@ -110,7 +111,7 @@ async def save_company_events_to_db(ico: str, events: list) -> None:
             inserted += result
         logger.info(f"CompanyEvent[] uložené pre IČO={ico}: {inserted}/{len(events)} udalostí (dedup)")
     finally:
-        await db.disconnect()
+        pass
 
 
 async def append_company_event_to_db(ico: str, event) -> None:
@@ -119,8 +120,7 @@ async def append_company_event_to_db(ico: str, event) -> None:
     (companyIco, source, eventType, eventDate, amount).
     """
     import json as _json
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         await db.company.upsert(
             where={'ico': ico},
@@ -165,20 +165,19 @@ async def append_company_event_to_db(ico: str, event) -> None:
         else:
             logger.info(f"CompanyEvent appended pre IČO={ico}: {event.source}/{event.event_type}")
     finally:
-        await db.disconnect()
+        pass
 
 
 async def get_company_events(ico: str) -> list:
     """Načíta CompanyEvent[] z DB pre dané IČO."""
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         return await db.companyevent.find_many(
             where={'companyIco': ico},
             order={'severity': 'asc'},
         )
     finally:
-        await db.disconnect()
+        pass
 
 
 def _is_unknown_auditor_opinion(audit) -> bool:
@@ -202,8 +201,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
     Uloží extrahované finančné dáta a názor audítora do databázy pomocou Prisma Clienta.
     """
     async with get_db_lock():
-        db = Prisma()
-        await db.connect()
+        db = get_db()
 
         try:
             # 1. Vytvoríme alebo updatneme záznam o firme
@@ -322,15 +320,14 @@ async def save_to_db(data: CompanyFinancialExtraction):
             else:
                 logger.debug(f"[DB] Preskakujem uloženie audítorského názoru pre {data.ico}/{data.metriky.rok_zavierky}: neznámy názor")
         finally:
-            await db.disconnect()
+            pass
 
 async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnalysis):
     """
     Uloží extrahovanú textovú analýzu (z Výročnej správy) k zodpovedajúcemu finančnému výkazu.
     Ak výkaz neexistuje, vytvorí prázdny.
     """
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         # Najprv sa uistíme, že máme vytvorenú Company a FinancialStatement
         await db.company.upsert(
@@ -384,11 +381,10 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
         )
         logger.info(f"Naratívna analýza uložená pre IČO={ico}, ROK={year}")
     finally:
-        await db.disconnect()
+        pass
 
 async def save_notes_to_db(ico: str, year: int, notes_risk):
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         # Uistíme sa, že výkaz existuje
         statement = await db.financialstatement.find_unique(
@@ -423,7 +419,7 @@ async def save_notes_to_db(ico: str, year: int, notes_risk):
         )
         logger.info(f"Analýza poznámok uložená pre IČO={ico}, ROK={year}")
     finally:
-        await db.disconnect()
+        pass
 
 _avg_cache: dict = {}  # {"value": float, "ts": float}
 _AVG_CACHE_TTL = 120  # 2 minúty
@@ -437,8 +433,7 @@ async def get_avg_completion_seconds(limit: int = 20) -> Optional[float]:
     if cached is not None and (now - _avg_cache.get("ts", 0)) < _AVG_CACHE_TTL:
         return cached
         
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         rows = await db.reportrequest.find_many(
             where={"status": {"in": ["COMPLETED", "PARTIAL"]}},
@@ -459,18 +454,20 @@ async def get_avg_completion_seconds(limit: int = 20) -> Optional[float]:
         _avg_cache["value"] = avg
         _avg_cache["ts"] = now
         return avg
+    except PrismaError as e:
+        logger.error(f"DB error getting avg completion seconds: {e}")
+        return None
     except Exception as e:
-        logger.warning(f"Nepodarilo sa získať priemerný čas dokončenia: {e}")
+        logger.error(f"Unexpected error getting avg completion seconds: {e}", exc_info=True)
         return None
     finally:
-        await db.disconnect()
+        pass
 
 async def update_ai_status(report_request_id: Optional[str], ai_status: Optional[str], eta: int):
     """Aktualizuje informačný status pre AI pipeline a odhadovaný čas cez Prisma."""
     if not report_request_id:
         return
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         data = {'eta': eta}
         if ai_status is not None:
@@ -479,23 +476,23 @@ async def update_ai_status(report_request_id: Optional[str], ai_status: Optional
             where={'id': report_request_id},
             data=data
         )
+    except PrismaError as e:
+        logger.error(f"DB error updating AI status for {report_request_id}: {e}")
     except Exception as e:
-        logger.warning(f"Nepodarilo sa aktualizovať AI status: {e}")
+        logger.error(f"Unexpected error updating AI status for {report_request_id}: {e}", exc_info=True)
     finally:
-        await db.disconnect()
+        pass
 
 async def get_report_request_company_name(report_request_id: str) -> Optional[str]:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         req = await db.reportrequest.find_unique(where={'id': report_request_id})
         return req.companyName if req else None
     finally:
-        await db.disconnect()
+        pass
 
 async def upsert_company_name(ico: str, company_name: str) -> None:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         existing = await db.company.find_unique(where={'ico': ico})
         _INVALID_NAMES = {"", "n/a", "n/a.", "none", "null", "-", "nezistené", "nezisten", "neuvedené", "neuveden", "not stated", "not provided", "unknown", "neznáma spoločnosť"}
@@ -510,24 +507,22 @@ async def upsert_company_name(ico: str, company_name: str) -> None:
             name_to_save = company_name if company_name and company_name.lower() not in _INVALID_NAMES else None
             await db.company.create(data={'ico': ico, 'name': name_to_save})
     finally:
-        await db.disconnect()
+        pass
 
 
 async def get_verifa_score(ico: str) -> Optional[int]:
     """Prečíta aktuálne verifaScore z AuditVerdict pre dané IČO."""
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         verdict = await db.auditverdict.find_unique(where={'companyIco': ico})
         return verdict.verifaScore if verdict else None
     finally:
-        await db.disconnect()
+        pass
 
 
 async def get_company_with_relations(ico: str):
     """Načíta spoločnosť so všetkými reláciami pre Chief Auditora."""
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         return await db.company.find_unique(
             where={'ico': ico},
@@ -545,13 +540,12 @@ async def get_company_with_relations(ico: str):
             }
         )
     finally:
-        await db.disconnect()
+        pass
 
 
 async def save_audit_verdict(ico: str, verdict_payload: dict):
     """Uloží konečný verdikt do databázy."""
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         await db.auditverdict.upsert(
             where={'companyIco': ico},
@@ -565,7 +559,7 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
         )
         logger.info(f"AuditVerdict pre {ico} bol uložený.")
     finally:
-        await db.disconnect()
+        pass
 
 
 async def update_report_status(
@@ -575,8 +569,7 @@ async def update_report_status(
     company_name: Optional[str] = None,
     verifa_score: Optional[int] = None,
 ) -> None:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         data = {"status": status}
         if result_file_path is not None:
@@ -592,15 +585,16 @@ async def update_report_status(
             where={"id": report_request_id},
             data=data
         )
+    except PrismaError as e:
+        logger.error(f"DB error updating report status for {report_request_id}: {e}")
+        raise
     except Exception as e:
-        logger.warning(f"Nepodarilo sa aktualizovať status reportu: {e}")
-    finally:
-        await db.disconnect()
+        logger.error(f"Unexpected error updating report status for {report_request_id}: {e}", exc_info=True)
+        raise
 
 
 async def get_avg_phase_durations(limit: int = 20) -> Optional[dict]:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         rows = await db.reportrequest.find_many(
             where={"status": {"in": ["COMPLETED", "PARTIAL"]}},
@@ -631,16 +625,18 @@ async def get_avg_phase_durations(limit: int = 20) -> Optional[dict]:
                     totals.append(dur)
         result["total"] = _median(totals)
         return result if any(v is not None for v in result.values()) else None
+    except PrismaError as e:
+        logger.error(f"DB error getting avg phase durations: {e}")
+        return None
     except Exception as e:
-        logger.warning(f"Nepodarilo sa získať avg phase durations: {e}")
+        logger.error(f"Unexpected error getting avg phase durations: {e}", exc_info=True)
         return None
     finally:
-        await db.disconnect()
+        pass
 
 
 async def save_phase_duration(report_request_id: str, phase: str, duration_ms: int) -> None:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         col_map = {"scrapers": "scrapersMs", "ai": "aiMs", "auditor": "auditorMs", "compile": "compileMs"}
         col = col_map.get(phase)
@@ -650,15 +646,16 @@ async def save_phase_duration(report_request_id: str, phase: str, duration_ms: i
             where={"id": report_request_id},
             data={col: duration_ms}
         )
+    except PrismaError as e:
+        logger.error(f"DB error saving phase duration for {report_request_id}: {e}")
     except Exception as e:
-        logger.warning(f"Nepodarilo sa uložiť phase duration: {e}")
+        logger.error(f"Unexpected error saving phase duration for {report_request_id}: {e}", exc_info=True)
     finally:
-        await db.disconnect()
+        pass
 
 
 async def upsert_report_sources(report_request_id: str, sources: list) -> None:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         for source in sources:
             await db.reportsource.upsert(
@@ -687,10 +684,12 @@ async def upsert_report_sources(report_request_id: str, sources: list) -> None:
                     }
                 }
             )
+    except PrismaError as e:
+        logger.error(f"DB error upserting report sources for {report_request_id}: {e}")
+        raise
     except Exception as e:
-        logger.warning(f"Nepodarilo sa uložiť report sources: {e}")
-    finally:
-        await db.disconnect()
+        logger.error(f"Unexpected error upserting report sources for {report_request_id}: {e}", exc_info=True)
+        raise
 
 
 async def upsert_single_report_source(report_request_id: str, source) -> None:
@@ -698,8 +697,7 @@ async def upsert_single_report_source(report_request_id: str, source) -> None:
 
 
 async def update_source_page_counts(report_request_id: str, sources: list) -> None:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         for source in sources:
             if source.status == "SUCCESS" and source.page_count and source.page_count > 0:
@@ -712,15 +710,16 @@ async def update_source_page_counts(report_request_id: str, sources: list) -> No
                     },
                     data={"pageCount": source.page_count}
                 )
+    except PrismaError as e:
+        logger.error(f"DB error updating page counts for {report_request_id}: {e}")
     except Exception as e:
-        logger.warning(f"Nepodarilo sa aktualizovať page counts: {e}")
+        logger.error(f"Unexpected error updating page counts for {report_request_id}: {e}", exc_info=True)
     finally:
-        await db.disconnect()
+        pass
 
 
 async def create_bug_report(report_request_id: str, error_details: str) -> None:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         req = await db.reportrequest.find_unique(where={"id": report_request_id})
         if not req:
@@ -752,15 +751,16 @@ async def create_bug_report(report_request_id: str, error_details: str) -> None:
                 "status": "OPEN",
             }
         )
+    except PrismaError as e:
+        logger.error(f"DB error creating bug report for {report_request_id}: {e}")
     except Exception as e:
-        logger.warning(f"Nepodarilo sa vytvoriť bug report pre {report_request_id}: {e}")
+        logger.error(f"Unexpected error creating bug report for {report_request_id}: {e}", exc_info=True)
     finally:
-        await db.disconnect()
+        pass
 
 
 async def charge_credit(report_request_id: str) -> None:
-    db = Prisma()
-    await db.connect()
+    db = get_db()
     try:
         req = await db.reportrequest.find_unique(where={"id": report_request_id})
         if not req or not req.userId:
@@ -790,7 +790,9 @@ async def charge_credit(report_request_id: str) -> None:
                     "reportId": report_request_id
                 }
             )
+    except PrismaError as e:
+        logger.error(f"DB error charging credit for {report_request_id}: {e}")
+        raise
     except Exception as e:
-        logger.error(f"Failed to charge credit: {e}")
-    finally:
-        await db.disconnect()
+        logger.error(f"Unexpected error charging credit for {report_request_id}: {e}", exc_info=True)
+        raise

@@ -18,6 +18,7 @@ from playwright.async_api import async_playwright
 
 from .config import settings
 from .logging_setup import setup_logging
+from .db_client import connect_db, disconnect_db
 from .db_repository import (
     upsert_company_name,
     update_report_status,
@@ -56,6 +57,8 @@ async def lifespan(app: FastAPI):
     global _report_semaphore
     _report_semaphore = asyncio.Semaphore(3)
 
+    await connect_db()
+
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     app.state.redis = await create_pool(RedisSettings.from_dsn(redis_url))
     
@@ -63,6 +66,7 @@ async def lifespan(app: FastAPI):
     yield
     cleanup_task.cancel()
     await app.state.redis.close()
+    await disconnect_db()
 
 
 app = FastAPI(title="Verifa.sk Worker", version="0.1.0", lifespan=lifespan)
@@ -363,25 +367,21 @@ async def _execute_report_inner(task: ReportTask) -> None:
             insolvency_result = next((s for s in sources if s.source_type == "INSOLVENCY"), None)
             if insolvency_result and insolvency_result.status == "SUCCESS" and insolvency_result.findings and "POZOR" in (insolvency_result.findings or ""):
                 try:
-                    from prisma import Prisma
-                    _db = Prisma()
-                    await _db.connect()
-                    try:
-                        existing = await _db.vestnikevent.find_first(
-                            where={"companyIco": task.ico, "eventType": "KONKURZ"}
-                        )
-                        if not existing:
-                            await _db.vestnikevent.create({
-                                "companyIco": task.ico,
-                                "eventType": "KONKURZ",
-                                "severityLevel": "CRITICAL",
-                                "summary": "Spoločnosť je v konkurze/reštrukturalizácii — nájdený záznam v registri úpadcov.",
-                                "publishedAt": datetime.now(timezone.utc).replace(tzinfo=None),
-                                "sourceId": f"INSOLVENCY_{task.ico}",
-                            })
-                            _log.info(f"[{_rid}] Insolvency finding saved as CRITICAL VestnikEvent for IČO {task.ico}")
-                    finally:
-                        await _db.disconnect()
+                    from src.db_client import get_db
+                    _db = get_db()
+                    existing = await _db.vestnikevent.find_first(
+                        where={"companyIco": task.ico, "eventType": "KONKURZ"}
+                    )
+                    if not existing:
+                        await _db.vestnikevent.create({
+                            "companyIco": task.ico,
+                            "eventType": "KONKURZ",
+                            "severityLevel": "CRITICAL",
+                            "summary": "Spoločnosť je v konkurze/reštrukturalizácii — nájdený záznam v registri úpadcov.",
+                            "publishedAt": datetime.now(timezone.utc).replace(tzinfo=None),
+                            "sourceId": f"INSOLVENCY_{task.ico}",
+                        })
+                        _log.info(f"[{_rid}] Insolvency finding saved as CRITICAL VestnikEvent for IČO {task.ico}")
                 except Exception as ins_err:
                     _log.warning(f"[{_rid}] Failed to save insolvency VestnikEvent: {ins_err}")
 
@@ -553,29 +553,25 @@ async def health():
 @app.post("/reprocess/{report_request_id}", dependencies=[Depends(verify_worker_secret)])
 async def reprocess_report(report_request_id: str):
     """Retrigger stuck report — načíte task z DB a spustí znova."""
-    from prisma import Prisma
-    db = Prisma()
-    await db.connect()
-    try:
-        row = await db.reportrequest.find_unique(
-            where={'id': report_request_id},
-            include={'user': True},
-        )
-        if not row:
-            raise HTTPException(status_code=404, detail="ReportRequest not found")
-        
-        task = ReportTask(
-            report_request_id=row.id,
-            ico=row.ico,
-            target_type=row.targetType,
-            orsr_extract_type="CURRENT",
-            crz_date_from=None,
-            vestnik_date_from=getattr(row.user, 'vestnikDateFrom', None).isoformat().split("T")[0] if getattr(row.user, 'vestnikDateFrom', None) else None,
-            sources=list(row.selectedSources) if row.selectedSources else [],
-            report_language=getattr(row.user, 'reportLanguage', None) or "sk",
-        )
-    finally:
-        await db.disconnect()
+    from src.db_client import get_db
+    db = get_db()
+    row = await db.reportrequest.find_unique(
+        where={'id': report_request_id},
+        include={'user': True},
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="ReportRequest not found")
+    
+    task = ReportTask(
+        report_request_id=row.id,
+        ico=row.ico,
+        target_type=row.targetType,
+        orsr_extract_type="CURRENT",
+        crz_date_from=None,
+        vestnik_date_from=getattr(row.user, 'vestnikDateFrom', None).isoformat().split("T")[0] if getattr(row.user, 'vestnikDateFrom', None) else None,
+        sources=list(row.selectedSources) if row.selectedSources else [],
+        report_language=getattr(row.user, 'reportLanguage', None) or "sk",
+    )
 
     await app.state.redis.enqueue_job('execute_report_task', task.dict())
     return {"taskId": report_request_id, "status": "reprocessing"}
