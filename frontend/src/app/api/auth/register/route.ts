@@ -60,6 +60,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Grant 1 trial credit (valid 90 days)
+    const creditExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+    await prisma.creditBatch.create({
+      data: {
+        userId: newUser.id,
+        amount: 1,
+        remaining: 1,
+        source: "trial",
+        expiresAt: creditExpiry,
+      },
+    });
+
     // Generate verification token
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
