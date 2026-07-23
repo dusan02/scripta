@@ -19,11 +19,9 @@ export default function PricingSection() {
           <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 32, textAlign: "center" }}>{t("pricing.coObsahuje")}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 report-includes-grid" style={{ gap: "28px 20px" }}>
             {REPORT_INCLUDES_KEYS.map((key) => (
-              <div key={key} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, marginTop: 2 }}>✓</span>
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.4, marginBottom: 2 }}>{t(key)}</span>
-                </div>
+              <div key={key} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, fontSize: 13 }}>✓</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.4 }}>{t(key)}</span>
               </div>
             ))}
           </div>
@@ -51,9 +49,9 @@ export default function PricingSection() {
               </Link>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {plan.featureKeys.map((featKey) => (
-                  <li key={featKey} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "var(--text-secondary)" }}>
-                    <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0 }}>✓</span>
-                    {t(featKey)}
+                  <li key={featKey} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+                    <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, fontSize: 12 }}>✓</span>
+                    <span>{t(featKey)}</span>
                   </li>
                 ))}
               </ul>

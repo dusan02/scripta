@@ -80,9 +80,9 @@ export default function RegistriesSection() {
               <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{group.category}</h3>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {group.items.map((r) => (
-                  <li key={r} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, marginTop: 1 }}>✓</span>
-                    {r}
+                  <li key={r} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0 }}>✓</span>
+                    <span>{r}</span>
                   </li>
                 ))}
               </ul>
