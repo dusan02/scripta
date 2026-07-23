@@ -60,13 +60,13 @@ export async function POST(
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
           <h2>Report ${statusLabel}</h2>
           <p>Dobrý deň ${user.name || ""},</p>
-          <p>Váš due diligence report pre <strong>${companyName}</strong> bol ${statusLabel.toLowerCase()}.</p>
+          <p>Váš Business Risk Report pre <strong>${companyName}</strong> bol ${statusLabel.toLowerCase()}.</p>
           <p>
             <a href="${reportUrl}" style="${emailButtonStyle()}">Zobraziť report</a>
           </p>
           ${report.status === "FAILED" ? '<p style="color: #dc2626; font-size: 14px;">Pri generovaní reportu nastala chyba. Skúste to prosím znova alebo nás kontaktujte na info@verifa.sk.</p>' : ""}
           <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-          <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Komplexný due diligence report zo štátnych registrov SR.</p>
+          <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
         </div>
       `,
     });

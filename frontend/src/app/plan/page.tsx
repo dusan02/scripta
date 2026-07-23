@@ -63,7 +63,7 @@ export default function PlanPage() {
   const handlePortal = useCallback(async () => {
     setPortalLoading(true);
     try {
-      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const res = await fetch("/api/billing/portal", { method: "POST" });
       const d = await res.json();
       if (res.ok && d.url) {
         window.location.href = d.url;

@@ -5,7 +5,7 @@ import { getGlossaryTermsByCategory, glossaryTerms } from "@/lib/glossary";
 export const metadata: Metadata = {
   title: "Slovník pojmov | Verifa.sk",
   description:
-    "Slovník kľúčových pojmov z oblasti due diligence, finančnej analýzy a štátnych registrov — Altman Z-Score, Piotroski F-Score, ORSR, RPVS, Register úpadcov a ďalšie.",
+    "Slovník kľúčových pojmov z oblasti risk assessmentu, finančnej analýzy a štátnych registrov — Altman Z-Score, Piotroski F-Score, ORSR, RPVS, Register úpadcov a ďalšie.",
   alternates: {
     canonical: "https://verifa.sk/slovnik",
   },
@@ -22,7 +22,7 @@ export default function GlossaryPage() {
           Slovník pojmov
         </h1>
         <p style={{ fontSize: 17, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 48, maxWidth: 700 }}>
-          Kľúčové pojmy z oblasti due diligence, finančnej analýzy a štátnych registrov. Vysvetlíme vám, čo znamenajú a prečo sú dôležité pri preverovaní firiem.
+          Kľúčové pojmy z oblasti risk assessmentu, finančnej analýzy a štátnych registrov. Vysvetlíme vám, čo znamenajú a prečo sú dôležité pri preverovaní firiem.
         </p>
 
         {categories.map((category) => (
@@ -59,7 +59,7 @@ export default function GlossaryPage() {
         <div style={{ marginTop: 60, padding: "32px 24px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, textAlign: "center" }}>
           <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Chcete tieto pojmy vidieť v praxi?</h3>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 500, margin: "0 auto 24px" }}>
-            Vygenerujte komplexný due diligence report z 20+ registrov s Verifa Score za 5 minút.
+            Vygenerujte Business Risk Report z 25+ registrov s Verifa Score za 5 minút.
           </p>
           <Link
             href="/register"

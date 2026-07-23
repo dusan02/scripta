@@ -29,6 +29,7 @@ const sk: Dict = {
   "nav.menu": "Menu",
   "nav.svetly": "Prepnúť na svetlý režim",
   "nav.tmavy": "Prepnúť na tmavý režim",
+  "nav.spat": "Späť",
 
   // ── Layout / Footer ──
   "footer.urcene": "Určené výhradne pre advokátov a právnikov",
@@ -167,10 +168,9 @@ const sk: Dict = {
   "pricing.kupit": "Kúpiť",
   "pricing.presmerovanie": "Presmerovanie…",
   "pricing.checkoutChyba": "Chyba pri platobnom procese.",
-  "pricing.start": "Štart",
   "pricing.payg1": "1× Report",
-  "pricing.payg5": "5× Report",
-  "pricing.payg20": "20× Report",
+  "pricing.payg10": "10× Report",
+  "pricing.payg50": "50× Report",
   "pricing.freelance": "Freelance",
   "pricing.firma": "Firma",
   "pricing.korporat": "Korporát",
@@ -178,25 +178,24 @@ const sk: Dict = {
   "pricing.potrebujeteViac": "Potrebujete viac reportov? Kontaktujte nás na",
   "pricing.coObsahuje": "Čo obsahuje každý report?",
   // ── Report includes ──
-  "pricing.inc30Registre": "Kontrola 25 verejných a privátnych registrov",
-  "pricing.incAiFinancna": "AI finančná analýza",
-  "pricing.incAltman": "Altman Z-Score",
-  "pricing.incRizika": "Hodnotenie rizík",
-  "pricing.incInsolvencie": "Insolvenčné konania",
-  "pricing.incExekucie": "Exekúcie",
-  "pricing.incDiskvalifikacie": "Diskvalifikácie",
-  "pricing.incZalozne": "Záložné práva",
-  "pricing.incDph": "DPH registre",
-  "pricing.incMajetok": "Majetkové ukazovatele",
-  "pricing.incAiOdporucania": "AI odporúčania",
+  "pricing.inc30Registre": "Kontrola 25+ verejných registrov (ORSR, RÚZ, RPVS, vestník)",
+  "pricing.incAiFinancna": "Finančná analýza — súvaha, VZS, cashflow, trendy",
+  "pricing.incAltman": "Altman Z-Score a Piotroski F-Score",
+  "pricing.incRizika": "Verifa Score (0–100) s kategóriou rizika",
+  "pricing.incInsolvencie": "Insolvenčné konania a konkurzy",
+  "pricing.incExekucie": "Exekúcie a platobné rozkazy",
+  "pricing.incDiskvalifikacie": "Diskvalifikácie konateľov",
+  "pricing.incZalozne": "Záložné práva a zálohy",
+  "pricing.incDph": "DPH registre a daňové nedoplatky",
+  "pricing.incMajetok": "Forenzné riziká a red flags",
+  "pricing.incAiOdporucania": "Odporúčania a návrh opatrení",
   "pricing.incPdfShare": "PDF report pripravený na zdieľanie",
   // ── Plan subtitles ──
-  "pricing.startSubtitle": "Jednorazové preverenie firmy",
   "pricing.payg1Subtitle": "Jednorazové preverenie firmy",
-  "pricing.payg5Subtitle": "5 reportov bez záväzku",
-  "pricing.payg20Subtitle": "20 reportov so zľavou",
+  "pricing.payg10Subtitle": "10 reportov so zľavou",
+  "pricing.payg50Subtitle": "Pre účtovné a audítorské firmy",
   "pricing.freelanceSubtitle": "Pre freelancerov a malé projekty",
-  "pricing.firmaSubtitle": "Pre firmy s pravidelným Due Diligence",
+  "pricing.firmaSubtitle": "Pre firmy s pravidelným risk reportom",
   "pricing.korporatSubtitle": "Pre profesionálov a väčšie tímy",
   // ── Feature keys ──
   "pricing.feat30Registre": "Pokrytie 25 verejných a privátnych registrov",
@@ -236,8 +235,8 @@ const sk: Dict = {
   // ── Add-on credits ──
   "addon.nadpis": "Vyčerpali ste kredity",
   "addon.popis": "5 reportov bez záväzku",
-  "addon.kupit": "Dokúpiť 5 reportov za 59 €",
-  "addon.cenaZaReport": "11,80 € / report",
+  "addon.kupit": "Dokúpiť 5 reportov za 49 €",
+  "addon.cenaZaReport": "9,80 € / report",
   "addon.presmerovanie": "Presmerovanie…",
   "addon.checkoutChyba": "Chyba pri platobnom procese.",
   "addon.upsell": "Chcete nižšiu cenu za report? Prejdite na vyšší balík {plan}.",
@@ -476,7 +475,7 @@ const sk: Dict = {
   "report.patienceBody": "Spracovávame rozsiahle finančné výkazy a výročné správy. Prosím, nezatvárajte túto stránku — report sa dokončí automaticky.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Komplexný due diligence do 5 minút",
+  "home.badge": "⚡ Business Risk Report do 5 minút",
   "home.heroTitle1": "Preverenie firmy",
   "home.heroTitle2": "jedným klikom",
   "home.heroSubtitle": "Zadajte IČO a dostanete kompletný PDF report s hlavným posudkom, finančnou analýzou a Verifa Score — za minúty, nie za hodiny.",
@@ -491,7 +490,7 @@ const sk: Dict = {
   "home.faq2q": "Sú dáta z registrov aktuálne?",
   "home.faq2a": "Áno, dáta sú získavané priamo z registrov v čase vygenerovania reportu.",
   "home.faq3q": "Aké platobné metódy akceptujete?",
-  "home.faq3a": "Prijímame platby kartou (Visa, Mastercard) cez Stripe.",
+  "home.faq3a": "Prijímame platby kartou (Visa, Mastercard, American Express), Apple Pay, Google Pay, PayPal a SEPA bankový prevod cez Paddle.",
   "home.faq5q": "Čo ak report zlyhá?",
   "home.faq5a": "Ak z dôvodu technického výpadku hlavných štátnych registrov nebude možné report vygenerovať, vrátime vám plnú sumu alebo pripíšeme kredit na nový report.",
   "home.navFeatures": "Funkcie",
@@ -532,11 +531,11 @@ const sk: Dict = {
   "home.registriesHide": "Skryť zoznam registrov",
 
   // ── Landing page: Target groups ──
-  "home.targetSubtitle": "Nástroj pre profesionálov, ktorí potrebujú rýchly a spoľahlivý due diligence.",
+  "home.targetSubtitle": "Nástroj pre profesionálov, ktorí potrebujú rýchly a spoľahlivý risk report firmy.",
   "home.target1Title": "Pre firmy a obchodníkov",
   "home.target1Desc": "Previerka obchodných partnerov, dodávateľov a protistrán pred uzavretím zmlúv, fúziou alebo nadobudnutím podielov.",
   "home.target2Title": "Pre právnikov a účtovníkov",
-  "home.target2Desc": "Komplexný due diligence report pre klientov — finančný a právny prehľad z 20+ registrov v jednom PDF.",
+  "home.target2Desc": "Business Risk Report pre klientov — finančné, právne a forenzné riziko z 25+ registrov v jednom PDF.",
   "home.target3Title": "Pre investorov a finančný sektor",
   "home.target3Desc": "Hĺbková analýza bonity, predikcia úpadku a rizikový profil pred investíciou, úverom alebo poistnou zmluvou.",
 
@@ -556,7 +555,7 @@ const sk: Dict = {
 
   // ── Landing page: CTA ──
   "home.ctaTitle": "Pripravený preveriť svojho partnera?",
-  "home.ctaDesc": "Zaregistrujte sa a začnite s komplexným due diligence reportom.",
+  "home.ctaDesc": "Zaregistrujte sa a začnite s Business Risk Reportom.",
 
   // ── Landing page: Footer ──
   "home.footerProduct": "Produkt",
@@ -582,7 +581,7 @@ const sk: Dict = {
 
   // ── Phase labels (weighted progress) ──
   "report.phaseScraping": "Preverovanie registrov",
-  "report.phaseAiPipeline": "AI analýza výkazov",
+  "report.phaseAiPipeline": "Analýza rizík a výkazov",
   "report.phaseVerdict": "Hlavný posudok",
   "report.phaseCompiling": "PDF kompilácia",
 
@@ -623,6 +622,7 @@ const en: Dict = {
   "nav.menu": "Menu",
   "nav.svetly": "Switch to light mode",
   "nav.tmavy": "Switch to dark mode",
+  "nav.spat": "Back",
 
   // ── Layout / Footer ──
   "footer.urcene": "Exclusively for lawyers and legal professionals",
@@ -761,10 +761,9 @@ const en: Dict = {
   "pricing.kupit": "Buy",
   "pricing.presmerovanie": "Redirecting…",
   "pricing.checkoutChyba": "Checkout error.",
-  "pricing.start": "Start",
   "pricing.payg1": "1× Report",
-  "pricing.payg5": "5× Report",
-  "pricing.payg20": "20× Report",
+  "pricing.payg10": "10× Report",
+  "pricing.payg50": "50× Report",
   "pricing.freelance": "Freelance",
   "pricing.firma": "Firma",
   "pricing.korporat": "Corporate",
@@ -772,25 +771,24 @@ const en: Dict = {
   "pricing.potrebujeteViac": "Need more reports? Contact us at",
   "pricing.coObsahuje": "What's included in each report?",
   // ── Report includes ──
-  "pricing.inc30Registre": "Check of 30+ public registries",
-  "pricing.incAiFinancna": "AI financial analysis",
-  "pricing.incAltman": "Altman Z-Score",
-  "pricing.incRizika": "Risk assessment",
-  "pricing.incInsolvencie": "Insolvency proceedings",
-  "pricing.incExekucie": "Executions",
-  "pricing.incDiskvalifikacie": "Disqualifications",
-  "pricing.incZalozne": "Lien rights",
-  "pricing.incDph": "VAT registries",
-  "pricing.incMajetok": "Asset indicators",
-  "pricing.incAiOdporucania": "AI recommendations",
+  "pricing.inc30Registre": "Check of 25+ public registries (ORSR, RÚZ, RPVS, bulletin)",
+  "pricing.incAiFinancna": "Financial analysis — balance sheet, P&L, cashflow, trends",
+  "pricing.incAltman": "Altman Z-Score and Piotroski F-Score",
+  "pricing.incRizika": "Verifa Score (0–100) with risk category",
+  "pricing.incInsolvencie": "Insolvency proceedings and bankruptcies",
+  "pricing.incExekucie": "Executions and payment orders",
+  "pricing.incDiskvalifikacie": "Director disqualifications",
+  "pricing.incZalozne": "Lien rights and encumbrances",
+  "pricing.incDph": "VAT registries and tax arrears",
+  "pricing.incMajetok": "Forensic risks and red flags",
+  "pricing.incAiOdporucania": "Recommendations and proposed actions",
   "pricing.incPdfShare": "PDF report ready for sharing",
   // ── Plan subtitles ──
-  "pricing.startSubtitle": "One-time company verification",
   "pricing.payg1Subtitle": "One-time company verification",
-  "pricing.payg5Subtitle": "5 reports, no commitment",
-  "pricing.payg20Subtitle": "20 reports with discount",
+  "pricing.payg10Subtitle": "10 reports with discount",
+  "pricing.payg50Subtitle": "For accounting and audit firms",
   "pricing.freelanceSubtitle": "For freelancers and small projects",
-  "pricing.firmaSubtitle": "For companies with regular Due Diligence",
+  "pricing.firmaSubtitle": "For companies with regular risk reporting",
   "pricing.korporatSubtitle": "For professionals and larger teams",
   // ── Feature keys ──
   "pricing.feat30Registre": "30+ public registries",
@@ -830,8 +828,8 @@ const en: Dict = {
   // ── Add-on credits ──
   "addon.nadpis": "You've run out of credits",
   "addon.popis": "5 reports, no commitment",
-  "addon.kupit": "Buy 5 reports for 59 €",
-  "addon.cenaZaReport": "11.80 € / report",
+  "addon.kupit": "Buy 5 reports for 49 €",
+  "addon.cenaZaReport": "9.80 € / report",
   "addon.presmerovanie": "Redirecting…",
   "addon.checkoutChyba": "Checkout error.",
   "addon.upsell": "Want a lower price per report? Upgrade to {plan}.",
@@ -1070,7 +1068,7 @@ const en: Dict = {
   "report.patienceBody": "We are processing extensive financial statements and annual reports. Please do not close this page — the report will complete automatically.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Comprehensive due diligence in 3 minutes",
+  "home.badge": "⚡ Business Risk Report in 5 minutes",
   "home.heroTitle1": "Company verification",
   "home.heroTitle2": "with one click",
   "home.heroSubtitle": "Enter a company ID and get a complete PDF report with forensic assessment, financial analysis and Verifa Score — in minutes, not hours.",
@@ -1085,7 +1083,7 @@ const en: Dict = {
   "home.faq2q": "Is the register data current?",
   "home.faq2a": "Yes, data is fetched directly from the registers at the time of report generation.",
   "home.faq3q": "What payment methods do you accept?",
-  "home.faq3a": "We accept card payments (Visa, Mastercard) via Stripe.",
+  "home.faq3a": "We accept card payments (Visa, Mastercard, American Express), Apple Pay, Google Pay, PayPal, and SEPA bank transfer via Paddle.",
   "home.faq5q": "What if the report fails?",
   "home.faq5a": "If the report cannot be generated due to a technical outage of the main state registries, we will refund the full amount or credit your account for a new report.",
   "home.navFeatures": "Features",
@@ -1126,11 +1124,11 @@ const en: Dict = {
   "home.registriesHide": "Hide registry list",
 
   // ── Landing page: Target groups ──
-  "home.targetSubtitle": "A tool for professionals who need fast and reliable due diligence.",
+  "home.targetSubtitle": "A tool for professionals who need a fast and reliable company risk report.",
   "home.target1Title": "For businesses and traders",
   "home.target1Desc": "Verification of business partners, suppliers and counterparties before signing contracts, mergers or acquiring shares.",
   "home.target2Title": "For lawyers and accountants",
-  "home.target2Desc": "Comprehensive due diligence report for clients — financial and legal overview from 20+ registries in one PDF.",
+  "home.target2Desc": "Business Risk Report for clients — financial, legal and forensic risk from 25+ registries in one PDF.",
   "home.target3Title": "For investors and the financial sector",
   "home.target3Desc": "In-depth credit analysis, bankruptcy prediction and risk profile before investment, lending or insurance contracts.",
 
@@ -1150,7 +1148,7 @@ const en: Dict = {
 
   // ── Landing page: CTA ──
   "home.ctaTitle": "Ready to verify your partner?",
-  "home.ctaDesc": "Register and start with a comprehensive due diligence report.",
+  "home.ctaDesc": "Register and start with a Business Risk Report.",
 
   // ── Landing page: Footer ──
   "home.footerProduct": "Product",
@@ -1176,7 +1174,7 @@ const en: Dict = {
 
   // ── Phase labels (weighted progress) ──
   "report.phaseScraping": "Register checks",
-  "report.phaseAiPipeline": "AI statement analysis",
+  "report.phaseAiPipeline": "Risk and statement analysis",
   "report.phaseVerdict": "Forensic assessment",
   "report.phaseCompiling": "PDF compilation",
 
@@ -1217,6 +1215,7 @@ const de: Dict = {
   "nav.menu": "Menü",
   "nav.svetly": "Zum hellen Modus wechseln",
   "nav.tmavy": "Zum dunklen Modus wechseln",
+  "nav.spat": "Zurück",
 
   // ── Layout / Footer ──
   "footer.urcene": "Ausschließlich für Anwälte und Juristen",
@@ -1355,10 +1354,9 @@ const de: Dict = {
   "pricing.kupit": "Kaufen",
   "pricing.presmerovanie": "Weiterleitung…",
   "pricing.checkoutChyba": "Fehler beim Checkout.",
-  "pricing.start": "Start",
   "pricing.payg1": "1× Report",
-  "pricing.payg5": "5× Report",
-  "pricing.payg20": "20× Report",
+  "pricing.payg10": "10× Report",
+  "pricing.payg50": "50× Report",
   "pricing.freelance": "Freelance",
   "pricing.firma": "Firma",
   "pricing.korporat": "Corporate",
@@ -1366,25 +1364,24 @@ const de: Dict = {
   "pricing.potrebujeteViac": "Brauchen Sie mehr Berichte? Kontaktieren Sie uns unter",
   "pricing.coObsahuje": "Was enthält jeder Bericht?",
   // ── Report includes ──
-  "pricing.inc30Registre": "Prüfung von 30+ öffentlichen Registern",
-  "pricing.incAiFinancna": "KI-Finanzanalyse",
-  "pricing.incAltman": "Altman Z-Score",
-  "pricing.incRizika": "Risikobewertung",
-  "pricing.incInsolvencie": "Insolvenzverfahren",
-  "pricing.incExekucie": "Zwangsvollstreckungen",
-  "pricing.incDiskvalifikacie": "Disqualifikationen",
-  "pricing.incZalozne": "Pfandrechte",
-  "pricing.incDph": "USt-Register",
-  "pricing.incMajetok": "Vermögenskennzahlen",
-  "pricing.incAiOdporucania": "KI-Empfehlungen",
+  "pricing.inc30Registre": "Prüfung von 25+ öffentlichen Registern (ORSR, RÚZ, RPVS, Handelsregister)",
+  "pricing.incAiFinancna": "Finanzanalyse — Bilanz, GuV, Cashflow, Trends",
+  "pricing.incAltman": "Altman Z-Score und Piotroski F-Score",
+  "pricing.incRizika": "Verifa Score (0–100) mit Risikokategorie",
+  "pricing.incInsolvencie": "Insolvenzverfahren und Konkurse",
+  "pricing.incExekucie": "Zwangsvollstreckungen und Zahlungsanordnungen",
+  "pricing.incDiskvalifikacie": "Disqualifikationen von Geschäftsführern",
+  "pricing.incZalozne": "Pfandrechte und Belastungen",
+  "pricing.incDph": "USt-Register und Steuerrückstände",
+  "pricing.incMajetok": "Forensische Risiken und Warnsignale",
+  "pricing.incAiOdporucania": "Empfehlungen und Maßnahmen",
   "pricing.incPdfShare": "PDF-Bericht zum Teilen bereit",
   // ── Plan subtitles ──
-  "pricing.startSubtitle": "Einmalige Unternehmensprüfung",
   "pricing.payg1Subtitle": "Einmalige Unternehmensprüfung",
-  "pricing.payg5Subtitle": "5 Berichte ohne Bindung",
-  "pricing.payg20Subtitle": "20 Berichte mit Rabatt",
+  "pricing.payg10Subtitle": "10 Berichte mit Rabatt",
+  "pricing.payg50Subtitle": "Für Buchhaltung und Wirtschaftsprüfung",
   "pricing.freelanceSubtitle": "Für Freelancer und kleine Projekte",
-  "pricing.firmaSubtitle": "Für Unternehmen mit regelmäßigem Due Diligence",
+  "pricing.firmaSubtitle": "Für Unternehmen mit regelmäßigem Risk Reporting",
   "pricing.korporatSubtitle": "Für Profis und größere Teams",
   // ── Feature keys ──
   "pricing.feat30Registre": "30+ öffentliche Register",
@@ -1424,8 +1421,8 @@ const de: Dict = {
   // ── Add-on credits ──
   "addon.nadpis": "Ihre Credits sind aufgebraucht",
   "addon.popis": "5 Berichte ohne Verpflichtung",
-  "addon.kupit": "5 Berichte für 59 € kaufen",
-  "addon.cenaZaReport": "11,80 € / Bericht",
+  "addon.kupit": "5 Berichte für 49 € kaufen",
+  "addon.cenaZaReport": "9,80 € / Bericht",
   "addon.presmerovanie": "Weiterleitung…",
   "addon.checkoutChyba": "Fehler beim Checkout.",
   "addon.upsell": "Wollen Sie einen niedrigeren Preis pro Bericht? Wechseln Sie zu {plan}.",
@@ -1664,7 +1661,7 @@ const de: Dict = {
   "report.patienceBody": "Wir verarbeiten umfangreiche Finanzberichte und Jahresabschlüsse. Bitte schließen Sie diese Seite nicht — der Bericht wird automatisch fertiggestellt.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Umfassende Due-Diligence in 3 Minuten",
+  "home.badge": "⚡ Business Risk Report in 5 Minuten",
   "home.heroTitle1": "Unternehmensprüfung",
   "home.heroTitle2": "mit einem Klick",
   "home.heroSubtitle": "Geben Sie eine Firmen-ID ein und erhalten Sie einen vollständigen PDF-Bericht mit forensischer Bewertung, Finanzanalyse und Verifa Score — in Minuten, nicht in Stunden.",
@@ -1679,7 +1676,7 @@ const de: Dict = {
   "home.faq2q": "Sind die Registerdaten aktuell?",
   "home.faq2a": "Ja, die Daten werden zum Zeitpunkt der Berichtserstellung direkt aus den Registern abgerufen.",
   "home.faq3q": "Welche Zahlungsmethoden akzeptieren Sie?",
-  "home.faq3a": "Wir akzeptieren Kartenzahlungen (Visa, Mastercard) über Stripe.",
+  "home.faq3a": "Wir akzeptieren Kartenzahlungen (Visa, Mastercard, American Express), Apple Pay, Google Pay, PayPal und SEPA-Banküberweisung über Paddle.",
   "home.faq5q": "Was passiert, wenn der Bericht fehlschlägt?",
   "home.faq5a": "Wenn der Bericht aufgrund eines technischen Ausfalls der wichtigsten Staatsregister nicht erstellt werden kann, erstatten wir den vollen Betrag oder schreiben Ihnen ein Guthaben für einen neuen Bericht gut.",
   "home.navFeatures": "Funktionen",
@@ -1720,11 +1717,11 @@ const de: Dict = {
   "home.registriesHide": "Registerliste ausblenden",
 
   // ── Landing page: Target groups ──
-  "home.targetSubtitle": "Ein Werkzeug für Profis, die schnelle und zuverlässige Due Diligence benötigen.",
+  "home.targetSubtitle": "Ein Werkzeug für Profis, die schnelle und zuverlässige Unternehmens-Risk-Reports benötigen.",
   "home.target1Title": "Für Unternehmen und Händler",
   "home.target1Desc": "Überprüfung von Geschäftspartnern, Lieferanten und Vertragsparteien vor Vertragsabschluss, Fusion oder Anteilsübernahme.",
   "home.target2Title": "Für Anwälte und Steuerberater",
-  "home.target2Desc": "Umfassender Due-Diligence-Bericht für Mandanten — finanzieller und rechtlicher Überblick aus 20+ Registern in einem PDF.",
+  "home.target2Desc": "Business Risk Report für Mandanten — finanzielle, rechtliche und forensische Risiken aus 25+ Registern in einem PDF.",
   "home.target3Title": "Für Investoren und den Finanzsektor",
   "home.target3Desc": "Tiefgehende Bonitätsanalyse, Konkursvorhersage und Risikoprofil vor Investition, Kredit oder Versicherungsvertrag.",
 
@@ -1744,7 +1741,7 @@ const de: Dict = {
 
   // ── Landing page: CTA ──
   "home.ctaTitle": "Bereit, Ihren Partner zu prüfen?",
-  "home.ctaDesc": "Registrieren Sie sich und starten Sie mit einem umfassenden Due-Diligence-Bericht.",
+  "home.ctaDesc": "Registrieren Sie sich und starten Sie mit einem Business Risk Report.",
 
   // ── Landing page: Footer ──
   "home.footerProduct": "Produkt",
@@ -1770,7 +1767,7 @@ const de: Dict = {
 
   // ── Phase labels (weighted progress) ──
   "report.phaseScraping": "Registerprüfung",
-  "report.phaseAiPipeline": "AI Abschlussanalyse",
+  "report.phaseAiPipeline": "Risiko- und Abschlussanalyse",
   "report.phaseVerdict": "Forensische Bewertung",
   "report.phaseCompiling": "PDF-Kompilierung",
 

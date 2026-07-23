@@ -3,7 +3,7 @@ export interface GlossaryTerm {
   title: string;
   shortDescription: string;
   fullDescription: string;
-  category: "Finančná analýza" | "Právne registre" | "Due Diligence";
+  category: "Finančná analýza" | "Právne registre" | "Risk Assessment";
 }
 
 export const glossaryTerms: GlossaryTerm[] = [
@@ -75,7 +75,7 @@ Piotroski F-Score dopĺňa Altman Z-Score tým, že sa zameriava na trend (zlep�
   {
     slug: "due-diligence",
     title: "Due Diligence",
-    shortDescription: "Proces dôkladnej preverenia firmy pred obchodnou transakciou.",
+    shortDescription: "Proces dôkladného preverenia firmy pred obchodnou transakciou.",
     fullDescription: `Due diligence je proces systematického skúmania a preverenia firmy pred uzavretím obchodnej transakcie — či už ide o akvizíciu, fúziu, poskytnutie úveru, alebo uzavretie dlhodobej zmluvy s obchodným partnerom. Cieľom je odhaliť riziká, ktoré nie sú viditeľné na prvý pohľad.
 
 ## Typy due diligence
@@ -96,8 +96,8 @@ V slovenskom prostredí je due diligence kritická najmä pri:
 
 ## Ako Verifa.sk pomáha
 
-Verifa.sk automatizuje proces due diligence tým, že z jedného zadania IČO zozbiera dáta z 20+ štátnych registrov, vykoná finančnú analýzu a vygeneruje komplexný PDF report s Verifa Score. To, čo by trvalo právnikovi alebo finančnému analytikovi hodiny, zvládne systém do 5 minút.`,
-    category: "Due Diligence",
+Verifa.sk automatizuje proces due diligence tým, že z jedného zadania IČO zozbiera dáta z 25+ štátnych registrov, vykoná finančnú analýzu a vygeneruje Business Risk Report s Verifa Score. To, čo by trvalo právnikovi alebo finančnému analytikovi hodiny, zvládne systém do 5 minút.`,
+    category: "Risk Assessment",
   },
   {
     slug: "orsr",
@@ -228,7 +228,7 @@ Verifa Score je **informatívny ukazovateľ**, nie právny ani finančný posudo
 ## Verifa Score v reporte
 
 Každý Verifa.sk report obsahuje Verifa Score na titulnej strane spolu s kategóriou rizika a krátkym slovným posudkom. Detailný rozpad skóre podľa jednotlivých dimenzií je dostupný v analytickej časti reportu.`,
-    category: "Due Diligence",
+    category: "Risk Assessment",
   },
 ];
 

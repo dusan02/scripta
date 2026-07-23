@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/components/LanguageProvider";
+import Link from "next/link";
 
 interface Stats {
   totalUsers: number;
@@ -23,7 +24,7 @@ interface RecentReport {
   ico: string | null;
   status: string;
   createdAt: string;
-  user: { email: string };
+  user: { id: string; email: string };
 }
 
 interface RecentUser {
@@ -142,7 +143,11 @@ export default function AdminOverviewPage() {
                   <tr key={r.id} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: "10px 16px" }}>{r.companyName || "—"}</td>
                     <td style={{ padding: "10px 16px", color: "var(--text-secondary)" }}>{r.ico || "—"}</td>
-                    <td style={{ padding: "10px 16px", color: "var(--text-secondary)" }}>{r.user.email}</td>
+                    <td style={{ padding: "10px 16px", color: "var(--text-secondary)" }}>
+                      <Link href={`/admin/users/${r.user.id}`} style={{ color: "var(--text-secondary)" }}>
+                        {r.user.email}
+                      </Link>
+                    </td>
                     <td style={{ padding: "10px 16px" }}>
                       <span style={{ color: STATUS_COLORS[r.status] || "var(--text)", fontWeight: 600, fontSize: 13 }}>
                         {r.status}
@@ -182,7 +187,11 @@ export default function AdminOverviewPage() {
               ) : (
                 users.map((u) => (
                   <tr key={u.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td style={{ padding: "10px 16px" }}>{u.email}</td>
+                    <td style={{ padding: "10px 16px" }}>
+                      <Link href={`/admin/users/${u.id}`} style={{ color: "var(--text)" }}>
+                        {u.email}
+                      </Link>
+                    </td>
                     <td style={{ padding: "10px 16px", color: "var(--text-secondary)" }}>{u.name || "—"}</td>
                     <td style={{ padding: "10px 16px" }}>
                       <span style={{ fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: u.role === "ADMIN" ? "var(--accent-light)" : "var(--bg-muted)", color: u.role === "ADMIN" ? "var(--accent)" : "var(--text-secondary)" }}>

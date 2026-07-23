@@ -9,7 +9,7 @@ const landingJsonLd = {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description:
-        "Automatizovaná príprava komplexných due diligence reportov — zlúčené PDF výpisy zo štátnych registrov SR s AI analýzou finančného zdravia a semaformi nálezov.",
+        "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy z štátnych registrov SR s AI analýzou finančného zdravia a semaformi nálezov.",
       url: "https://verifa.sk",
       offers: [
         {
@@ -60,10 +60,10 @@ const landingJsonLd = {
       mainEntity: [
         {
           "@type": "Question",
-          name: "Čo je Verifa.sk due diligence report?",
+          name: "Čo je Verifa.sk Business Risk Report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Verifa.sk report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z 20+ verejných a privátnych registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s AI analýzou finančného zdravia a záverečným skóre dôveryhodnosti.",
+            text: "Verifa.sk Business Risk Report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z 25+ verejných registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s AI analýzou finančného zdravia a záverečným skóre dôveryhodnosti.",
           },
         },
         {

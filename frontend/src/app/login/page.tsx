@@ -114,7 +114,29 @@ export default function LoginPage() {
       </div>
 
       <div style={{ width: "100%", maxWidth: "400px", position: "relative", zIndex: 10, padding: "20px" }}>
-        
+
+        {/* Back button */}
+        <div style={{ marginBottom: "16px" }}>
+          <Link
+            href="/"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "14px",
+              color: "var(--text-secondary)",
+              textDecoration: "none",
+              fontWeight: 500,
+              transition: "color 0.2s",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {t("nav.spat")}
+          </Link>
+        </div>
+
         {/* Card */}
         <div 
           className="scale-in" 

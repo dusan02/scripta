@@ -14,7 +14,7 @@ export default function LandingFooter() {
           <div style={{ marginBottom: 12 }}>
             <Logo size="md" />
           </div>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 300, marginBottom: 16 }}>Komplexný due diligence report zo štátnych registrov SR. Automatizované, rýchle, presné.</p>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 300, marginBottom: 16 }}>Business Risk Report zo štátnych registrov SR. Automatizované, rýchle, presné.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{t("home.footerOperator")}</span>
             {/* TODO: Pred launchom nahradiť reálnym IČO a názvom firmy */}

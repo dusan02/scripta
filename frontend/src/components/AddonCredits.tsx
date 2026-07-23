@@ -12,8 +12,8 @@ interface AddonCreditsProps {
 }
 
 const ADDON_CREDITS = 5;
-const ADDON_PRICE = process.env.NEXT_PUBLIC_ADDON_PRICE || "59";
-const ADDON_PRICE_PER_REPORT = "11,80";
+const ADDON_PRICE = process.env.NEXT_PUBLIC_ADDON_PRICE || "49";
+const ADDON_PRICE_PER_REPORT = "9,80";
 
 const UPSELL_MAP: Record<string, string> = {
   freelance: "firma",
@@ -29,7 +29,7 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
   const handleCheckout = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId: "addon5" }),
@@ -78,7 +78,7 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
             {t("addon.popis")}
           </p>
           <div className="flex items-baseline gap-2 mb-3">
-            <span className="text-lg font-bold" style={{ color: "var(--text)" }}>59 €</span>
+            <span className="text-lg font-bold" style={{ color: "var(--text)" }}>49 €</span>
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>{t("addon.cenaZaReport")}</span>
           </div>
 

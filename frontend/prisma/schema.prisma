@@ -407,6 +407,12 @@ enum TransactionStatus {
   FAILED
 }
 
+enum PaymentProvider {
+  STRIPE
+  PADDLE
+  MANUAL
+}
+
 model WalletTransaction {
   id                   String             @id @default(cuid())
   walletId             String
@@ -414,7 +420,8 @@ model WalletTransaction {
   type                 TransactionType
   status               TransactionStatus  @default(COMPLETED)
   reportRequestId      String?
-  stripePaymentIntentId String?            @unique
+  provider             PaymentProvider?
+  providerReference    String?            @unique
   description          String?
   createdAt            DateTime           @default(now())
 
@@ -422,5 +429,6 @@ model WalletTransaction {
 
   @@index([walletId])
   @@index([reportRequestId])
+  @@index([provider, providerReference])
 }
 

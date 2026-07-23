@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { PRICING_PLANS, REPORT_INCLUDES_KEYS } from "@/lib/pricing-plans";
 
 const FEATURE_TOOLTIPS: Record<string, { sk: string; en: string; de: string }> = {
   registre: {
@@ -48,95 +49,15 @@ const FEATURE_TOOLTIPS: Record<string, { sk: string; en: string; de: string }> =
   },
 };
 
-const REPORT_INCLUDES = [
-  "pricing.inc30Registre",
-  "pricing.incAiFinancna",
-  "pricing.incAltman",
-  "pricing.incRizika",
-  "pricing.incInsolvencie",
-  "pricing.incExekucie",
-  "pricing.incDiskvalifikacie",
-  "pricing.incZalozne",
-  "pricing.incDph",
-  "pricing.incMajetok",
-  "pricing.incAiOdporucania",
-  "pricing.incPdfShare",
-];
-
-const PACKAGES = [
-  {
-    id: "start",
-    nameKey: "pricing.payg1",
-    subtitleKey: "pricing.payg1Subtitle",
-    reports: 1,
-    price: "14",
-    pricePerReport: "14,00",
-    isSubscription: false,
-    featureKeys: ["pricing.feat30Registre", "pricing.featAnalyzaFinancnychVykazov", "pricing.featRizikoveUpozornenia", "pricing.featInsolvencne", "pricing.featDphPravne", "pricing.featZaverneSkore", "pricing.featPdfReport", "pricing.featExportReportu"],
-    featureTooltipKeys: ["registre", null, null, "insolventny", "financna", "skore", "pdf", null],
-    highlight: false,
-  },
-  {
-    id: "payg5",
-    nameKey: "pricing.payg5",
-    subtitleKey: "pricing.payg5Subtitle",
-    reports: 5,
-    price: "59",
-    pricePerReport: "11,80",
-    isSubscription: false,
-    featureKeys: ["pricing.featAllFromStart", "pricing.featZlavnenie", "pricing.featHistoria", "pricing.featPdfArchivacia"],
-    featureTooltipKeys: [null, null, null, null],
-    highlight: false,
-  },
-  {
-    id: "payg20",
-    nameKey: "pricing.payg20",
-    subtitleKey: "pricing.payg20Subtitle",
-    reports: 20,
-    price: "199",
-    pricePerReport: "9,95",
-    isSubscription: false,
-    featureKeys: ["pricing.featAllFromStart", "pricing.featZlavnenie", "pricing.featHistoria", "pricing.featPdfArchivacia", "pricing.featExportReportu"],
-    featureTooltipKeys: [null, null, null, null, null],
-    highlight: false,
-  },
-  {
-    id: "freelance",
-    nameKey: "pricing.freelance",
-    subtitleKey: "pricing.freelanceSubtitle",
-    reports: 5,
-    price: "49",
-    pricePerReport: "9,80",
-    isSubscription: true,
-    featureKeys: ["pricing.featAllFromStart", "pricing.feat15Kreditov", "pricing.featHistoria", "pricing.featPrioritneSpracovanie", "pricing.featPdfArchivacia", "pricing.featRollOver"],
-    featureTooltipKeys: [null, null, null, null, null, null],
-    highlight: false,
-  },
-  {
-    id: "firma",
-    nameKey: "pricing.firma",
-    subtitleKey: "pricing.firmaSubtitle",
-    reports: 20,
-    price: "159",
-    pricePerReport: "7,95",
-    isSubscription: true,
-    featureKeys: ["pricing.featAllFromFreelance", "pricing.feat40Kreditov", "pricing.featPrioritnaPodpora", "pricing.featRychlejsieSpracovanie", "pricing.featObchodneTimy", "pricing.featUctovneKancelarie", "pricing.featRollOver"],
-    featureTooltipKeys: [null, null, null, null, null, null, null],
-    highlight: true,
-  },
-  {
-    id: "korporat",
-    nameKey: "pricing.korporat",
-    subtitleKey: "pricing.korporatSubtitle",
-    reports: 40,
-    price: "289",
-    pricePerReport: "7,23",
-    isSubscription: true,
-    featureKeys: ["pricing.featAllFromFirma", "pricing.feat100Kreditov", "pricing.featPrioritnaPodpora", "pricing.featOsobnyAccount", "pricing.featNajnejsiaCena", "pricing.featBankyAdvokati", "pricing.featRollOver"],
-    featureTooltipKeys: [null, null, null, null, null, null, null],
-    highlight: false,
-  },
-];
+// Tooltip key mapping per plan (same as before but separated from data)
+const FEATURE_TOOLTIP_KEYS: Record<string, (string | null)[]> = {
+  payg1: ["registre", null, null, "insolventny", "financna", "skore", "pdf", null],
+  payg10: [null, null, null, null, null],
+  payg50: [null, null, null, null, null],
+  freelance: [null, null, null, null, null, null],
+  firma: [null, null, null, null, null, null, null],
+  korporat: [null, null, null, null, null, null, null],
+};
 
 export default function PricingPage() {
   const t = useT();
@@ -148,7 +69,7 @@ export default function PricingPage() {
   const handleCheckout = useCallback(async (planId: string) => {
     setCheckoutLoading(true);
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId }),
@@ -186,7 +107,7 @@ export default function PricingPage() {
           {t("pricing.coObsahuje")}
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {REPORT_INCLUDES.map((key) => (
+          {REPORT_INCLUDES_KEYS.map((key) => (
             <div key={key} className="flex items-center gap-2 text-xs" style={{ color: "var(--text-secondary)" }}>
               <svg width="14" height="14" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
                 <path d="M2 6l3 3 5-5" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -198,7 +119,7 @@ export default function PricingPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {PACKAGES.map((pkg) => {
+        {PRICING_PLANS.map((pkg) => {
           const isSelected = selectedPlan === pkg.id;
           return (
             <div
@@ -252,7 +173,7 @@ export default function PricingPage() {
 
               <ul className="flex-1 flex flex-col gap-2 mb-6">
                 {pkg.featureKeys.map((featureKey, i) => {
-                  const tooltipKey = pkg.featureTooltipKeys[i];
+                  const tooltipKey = (FEATURE_TOOLTIP_KEYS[pkg.id] || [])[i];
                   const tooltip = tooltipKey ? FEATURE_TOOLTIPS[tooltipKey] : null;
                   return (
                     <li

@@ -127,7 +127,7 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
         <div style={{ padding: "32px 24px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, textAlign: "center", marginBottom: 48 }}>
           <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Overte firmu v reporte</h3>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 500, margin: "0 auto 24px" }}>
-            Vygenerujte komplexný due diligence report a získajte {term.title} pre vašu cieľovú firmu.
+            Vygenerujte Business Risk Report a získajte {term.title} pre vašu cieľovú firmu.
           </p>
           <Link
             href="/register"

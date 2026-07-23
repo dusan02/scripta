@@ -27,7 +27,7 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>2. Popis služby</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk poskytuje automatizovaný due diligence report získavaním údajov z verejne dostupných štátnych registrov Slovenskej republiky. Služba je určená pre profesionálne použitie a slúži ako informačný nástroj, nie ako právne alebo daňové poradenstvo.
+            Verifa.sk poskytuje automatizovaný Business Risk Report získavaním údajov z verejne dostupných štátnych registrov Slovenskej republiky. Služba je určená pre profesionálne použitie a slúži ako informačný nástroj, nie ako právne alebo daňové poradenstvo.
           </p>
         </section>
 

@@ -886,7 +886,7 @@ export default function ReportDetailPage() {
                     <div className="mb-4 opacity-90 transform scale-75"><Logo size="md" /></div>
                     
                     <div className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">
-                      Due Diligence Report
+                      Business Risk Report
                     </div>
                     
                     <div className="text-[15px] font-black text-slate-800 leading-tight mb-4">

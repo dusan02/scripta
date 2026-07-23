@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
         ico: true,
         status: true,
         createdAt: true,
-        user: { select: { email: true } },
+        user: { select: { id: true, email: true } },
       },
     });
 

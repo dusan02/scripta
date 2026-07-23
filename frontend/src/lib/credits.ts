@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import type { PaymentProvider } from "@prisma/client";
 
-const CREDIT_EXPIRY_DAYS = 90;
+// Credits are permanent — no expiry. Set far-future date for schema compatibility.
+const CREDIT_EXPIRY_DAYS = 36500; // 100 years
 
 /**
  * Add a batch of credits to a user's wallet.
@@ -11,7 +14,8 @@ export async function addCreditBatch(
   amount: number,
   source: "trial" | "subscription" | "addon" | "rollover",
   planName?: string,
-  paymentIntentId?: string
+  providerReference?: string,
+  provider?: PaymentProvider
 ): Promise<void> {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + CREDIT_EXPIRY_DAYS);
@@ -25,10 +29,10 @@ export async function addCreditBatch(
       });
     }
 
-    // Idempotency: check if transaction already exists for this paymentIntent
-    if (paymentIntentId) {
+    // Idempotency: check if transaction already exists for this provider reference
+    if (providerReference) {
       const existing = await tx.walletTransaction.findUnique({
-        where: { stripePaymentIntentId: paymentIntentId },
+        where: { providerReference },
       });
       if (existing) return;
     }
@@ -61,7 +65,8 @@ export async function addCreditBatch(
         amount,
         type: "TOPUP",
         status: "COMPLETED",
-        stripePaymentIntentId: paymentIntentId || null,
+        provider: provider || null,
+        providerReference: providerReference || null,
         description: `Kredity — ${source}${planName ? ` (${planName})` : ""} (${amount} kreditov)`,
       },
     });
@@ -78,84 +83,64 @@ export async function consumeCredits(
   amount: number,
   reportRequestId?: string
 ): Promise<boolean> {
-  const MAX_RETRIES = 3;
-  let lastError: unknown;
+  return await prisma.$transaction(async (tx) => {
+    // Pessimistic lock on wallet row — prevents concurrent modifications
+    const walletRows = await tx.$queryRaw<any[]>`
+      SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
+    `;
+    const wallet = walletRows[0];
+    if (!wallet) return false;
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      return await prisma.$transaction(async (tx) => {
-        // Lock wallet row first to avoid race conditions and overdraft
-        const walletRows = await tx.$queryRaw<any[]>`
-          SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
-        `;
-        const wallet = walletRows[0];
-        if (!wallet) return false;
+    const walletBalance = Number(wallet.balance);
+    if (walletBalance < amount) return false;
 
-        const walletBalance = Number(wallet.balance);
-        if (walletBalance < amount) return false;
+    // Pessimistic lock on batches (FIFO — oldest first)
+    const batches = await tx.$queryRaw<any[]>`
+      SELECT * FROM "CreditBatch" 
+      WHERE "userId" = ${userId} AND remaining > 0 AND "expiresAt" > NOW() 
+      ORDER BY "createdAt" ASC 
+      FOR UPDATE
+    `;
 
-        // Lock batches and check availability
-        const batches = await tx.$queryRaw<any[]>`
-          SELECT * FROM "CreditBatch" 
-          WHERE "userId" = ${userId} AND remaining > 0 AND "expiresAt" > NOW() 
-          ORDER BY "createdAt" ASC 
-          FOR UPDATE
-        `;
+    const totalAvailable = batches.reduce((sum, b) => sum + b.remaining, 0);
+    if (totalAvailable < amount) return false;
 
-        const totalAvailable = batches.reduce((sum, b) => sum + b.remaining, 0);
-        if (totalAvailable < amount) return false;
+    let toConsume = amount;
 
-        let toConsume = amount;
+    for (const batch of batches) {
+      if (toConsume <= 0) break;
+      const deduct = Math.min(batch.remaining, toConsume);
 
-        for (const batch of batches) {
-          if (toConsume <= 0) break;
-          const deduct = Math.min(batch.remaining, toConsume);
-
-          await tx.creditBatch.update({
-            where: { id: batch.id },
-            data: { remaining: { decrement: deduct } },
-          });
-
-          toConsume -= deduct;
-        }
-
-        // Conditional update with optimistic locking; if version changed, throw conflict
-        const updated = await tx.wallet.updateMany({
-          where: { id: wallet.id, version: wallet.version },
-          data: {
-            balance: { decrement: amount },
-            version: { increment: 1 },
-          },
-        });
-
-        if (updated.count === 0) {
-          throw new Error("Wallet version conflict");
-        }
-
-        await tx.walletTransaction.create({
-          data: {
-            walletId: wallet.id,
-            amount,
-            type: "CHARGE",
-            status: "COMPLETED",
-            reportRequestId: reportRequestId || null,
-            description: `Spotreba kreditov — report${reportRequestId ? ` ${reportRequestId}` : ""}`,
-          },
-        });
-
-        return true;
+      await tx.creditBatch.update({
+        where: { id: batch.id },
+        data: { remaining: { decrement: deduct } },
       });
-    } catch (err) {
-      lastError = err;
-      if (err instanceof Error && err.message === "Wallet version conflict") {
-        await new Promise((resolve) => setTimeout(resolve, 10));
-        continue;
-      }
-      throw err;
-    }
-  }
 
-  throw lastError;
+      toConsume -= deduct;
+    }
+
+    // Simple update — FOR UPDATE guarantees exclusivity, no version check needed
+    await tx.wallet.update({
+      where: { id: wallet.id },
+      data: {
+        balance: { decrement: amount },
+        version: { increment: 1 },
+      },
+    });
+
+    await tx.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount,
+        type: "CHARGE",
+        status: "COMPLETED",
+        reportRequestId: reportRequestId || null,
+        description: `Spotreba kreditov — report${reportRequestId ? ` ${reportRequestId}` : ""}`,
+      },
+    });
+
+    return true;
+  });
 }
 
 /**
@@ -190,15 +175,13 @@ export async function refundCredits(
     });
     if (existingRefund) return;
 
-    // Find non-expired batches — include fully consumed ones (remaining=0)
-    // so they can receive credits back (they have the most space)
-    const batches = await tx.creditBatch.findMany({
-      where: {
-        userId,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Lock batches (LIFO — newest first) with pessimistic lock for consistency
+    const batches = await tx.$queryRaw<any[]>`
+      SELECT * FROM "CreditBatch" 
+      WHERE "userId" = ${userId} AND "expiresAt" > NOW() 
+      ORDER BY "createdAt" DESC 
+      FOR UPDATE
+    `;
 
     let toRefund = amount;
     for (const batch of batches) {
@@ -252,61 +235,6 @@ export async function refundCredits(
 }
 
 /**
- * Expire credits older than 90 days.
- * Returns the number of credits expired.
- */
-export async function expireOldCredits(): Promise<number> {
-  const now = new Date();
-  const expiredBatches = await prisma.creditBatch.findMany({
-    where: {
-      remaining: { gt: 0 },
-      expiresAt: { lte: now },
-    },
-  });
-
-  if (expiredBatches.length === 0) return 0;
-
-  let totalExpired = 0;
-  const expiredByUserId: Record<string, number> = {};
-
-  for (const batch of expiredBatches) {
-    totalExpired += batch.remaining;
-    expiredByUserId[batch.userId] = (expiredByUserId[batch.userId] || 0) + batch.remaining;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    // 1. Zero out all expired batches
-    await tx.creditBatch.updateMany({
-      where: { id: { in: expiredBatches.map(b => b.id) } },
-      data: { remaining: 0 },
-    });
-
-    // 2. Update wallets and create transactions
-    for (const [userId, expiredAmount] of Object.entries(expiredByUserId)) {
-      const wallet = await tx.wallet.update({
-        where: { userId },
-        data: {
-          balance: { decrement: expiredAmount },
-          version: { increment: 1 },
-        },
-      });
-
-      await tx.walletTransaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: expiredAmount,
-          type: "CHARGE",
-          status: "COMPLETED",
-          description: `Expirácia kreditov — ${expiredAmount} kreditov starších ako ${CREDIT_EXPIRY_DAYS} dní`,
-        },
-      });
-    }
-  });
-
-  return totalExpired;
-}
-
-/**
  * Handle subscription cancellation.
  */
 export async function cancelSubscription(userId: string, endsAt: Date): Promise<void> {
@@ -317,84 +245,6 @@ export async function cancelSubscription(userId: string, endsAt: Date): Promise<
       subscriptionEndsAt: endsAt,
     },
   });
-}
-
-/**
- * Zero out all credits for a user whose canceled subscription has ended.
- */
-export async function zeroOutExpiredSubscription(userId: string): Promise<number> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { subscriptionStatus: true, subscriptionEndsAt: true },
-  });
-
-  if (!user || user.subscriptionStatus !== "canceled" || !user.subscriptionEndsAt) {
-    return 0;
-  }
-
-  if (user.subscriptionEndsAt > new Date()) return 0;
-
-  const batches = await prisma.creditBatch.findMany({
-    where: { userId, remaining: { gt: 0 } },
-  });
-
-  if (batches.length === 0) {
-    // No credits to zero — just clear subscription state
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        planName: null,
-        planRenewalDate: null,
-        subscriptionStatus: null,
-        subscriptionEndsAt: null,
-      },
-    });
-    return 0;
-  }
-
-  const batchIds = batches.map((b) => b.id);
-  const totalZeroed = batches.reduce((sum, b) => sum + b.remaining, 0);
-
-  await prisma.$transaction(async (tx) => {
-    // 1. Zero out all remaining batches
-    await tx.creditBatch.updateMany({
-      where: { id: { in: batchIds } },
-      data: { remaining: 0 },
-    });
-
-    // 2. Decrement wallet balance
-    const wallet = await tx.wallet.update({
-      where: { userId },
-      data: {
-        balance: { decrement: totalZeroed },
-        version: { increment: 1 },
-      },
-    });
-
-    // 3. Record audit transaction
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        amount: totalZeroed,
-        type: "CHARGE",
-        status: "COMPLETED",
-        description: "Vynulovanie kreditov — ukončenie predplatného",
-      },
-    });
-
-    // 4. Clear subscription state
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        planName: null,
-        planRenewalDate: null,
-        subscriptionStatus: null,
-        subscriptionEndsAt: null,
-      },
-    });
-  });
-
-  return totalZeroed;
 }
 
 /**

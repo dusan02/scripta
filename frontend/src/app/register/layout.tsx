@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Registrácia",
-  description: "Vytvorte si účet na Verifa.sk — platforme pre automatizované due diligence reporty.",
+  description: "Vytvorte si účet na Verifa.sk — platforme pre automatizované Business Risk Reporty.",
 };
 
 export default function RegisterLayout({

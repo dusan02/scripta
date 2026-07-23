@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { rateLimit, rateLimitResponse, rateLimitByKey } from "@/lib/rateLimit";
 import { hashToken } from "@/lib/token";
 import { sendEmail, emailButtonStyle } from "@/lib/email";
 import bcrypt from "bcryptjs";
@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { name, email, password } = result.data;
+
+    // Email-based rate limit: 3 registrations per email per 24h
+    const emailRl = await rateLimitByKey(`register:${email}`, { windowMs: 24 * 60 * 60 * 1000, maxRequests: 3 });
+    if (!emailRl.allowed) return rateLimitResponse(emailRl);
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -85,7 +89,7 @@ export async function POST(req: NextRequest) {
           </p>
           <p style="color: #52525b; font-size: 14px;">Tento odkaz je platný 24 hodín. Ak ste sa neregistrovali, ignorujte tento e-mail.</p>
           <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-          <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Komplexný due diligence report zo štátnych registrov SR.</p>
+          <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
         </div>
       `,
     });

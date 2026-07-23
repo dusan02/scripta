@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const name = company.name || `IČO ${company.ico}`;
   const slug = slugify(company.name);
   const canonicalUrl = `https://verifa.sk/firma/${company.ico}-${slug}`;
-  const title = `${name} (${company.ico}) – Forenzný Due Diligence & Finančná Analýza | Verifa.sk`;
+  const title = `${name} (${company.ico}) – Business Risk Report & Finančná Analýza | Verifa.sk`;
   const description = `Automatizovaný forenzný report pre ${name} (IČO: ${company.ico}). Preverte si finančné zdravie, Altman Z-skóre a rizikové faktory pred podpisom zmluvy.`;
 
   return {
@@ -58,7 +58,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
           url: "/logo-verifa.png",
           width: 1200,
           height: 630,
-          alt: `${name} — Verifa.sk Due Diligence Report`,
+          alt: `${name} — Verifa.sk Business Risk Report`,
         },
       ],
     },
@@ -123,7 +123,7 @@ export default async function CompanyTeaserPage({ params }: Params) {
       },
       {
         "@type": "Dataset",
-        name: `Due Diligence Report — ${name}`,
+        name: `Business Risk Report — ${name}`,
         description: `Automatizovaný forenzný report pre ${name} (IČO: ${company.ico}).`,
         creator: {
           "@type": "Organization",
@@ -294,13 +294,13 @@ export default async function CompanyTeaserPage({ params }: Params) {
         {/* SEO content */}
         <div className="prose prose-sm max-w-none mb-8" style={{ color: "var(--text-secondary)" }}>
           <h2 className="text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-            Due Diligence {name} — {company.ico}
+            Business Risk Report — {name} ({company.ico})
           </h2>
           <p className="text-sm leading-relaxed mb-3">
             {name} (IČO: {company.ico}) je slovenská spoločnosť
             {company.naceText ? ` pôsobiaca v oblasti ${company.naceText.toLowerCase()}` : ""}
             {latestStmt ? `, s dostupnými finančnými výkazmi za rok ${latestStmt.year}` : ""}.
-            Verifa.sk ponúka automatizovaný forenzný due diligence report, ktorý zhromažďuje dáta z 25 verejných a privátnych registrov Slovenskej republiky.
+            Verifa.sk ponúka automatizovaný Business Risk Report, ktorý zhromažďuje dáta z 25+ verejných registrov Slovenskej republiky.
           </p>
           <p className="text-sm leading-relaxed mb-3">
             Náš report obsahuje analýzu súvahy, výkazu ziskov a strát a cash flow, kontrolu insolvenčných registrov,

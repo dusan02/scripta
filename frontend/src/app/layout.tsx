@@ -13,12 +13,12 @@ import AuthProvider from "@/components/AuthProvider";
 export const metadata: Metadata = {
   metadataBase: new URL("https://verifa.sk"),
   title: {
-    default: "Verifa.sk — Due Diligence reporty",
+    default: "Verifa.sk — Business Risk Report",
     template: "%s | Verifa.sk",
   },
   description:
-    "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s titulnou stranou a semaformi nálezov.",
-  keywords: ["due diligence", "report", "ORSR", "advokát", "právnik", "register", "previerka", "daňoví dlžníci", "exekúcie", "insolvencia"],
+    "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy v jednom PDF. Verifa Score (0–100), Altman Z-Score, kontrola 25+ registrov.",
+  keywords: ["business risk report", "riziko firmy", "overenie firmy", "report", "ORSR", "advokát", "právnik", "register", "previerka", "daňoví dlžníci", "exekúcie", "insolvencia"],
   robots: { index: true, follow: true },
   icons: {
     icon: "/icon.svg",
@@ -28,23 +28,23 @@ export const metadata: Metadata = {
     type: "website",
     locale: "sk_SK",
     siteName: "Verifa.sk",
-    title: "Verifa.sk — Due Diligence reporty",
+    title: "Verifa.sk — Business Risk Report",
     description:
-      "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s AI analýzou finančného zdravia a semaformi nálezov.",
+      "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy v jednom PDF s Verifa Score a semaformi nálezov.",
     images: [
       {
         url: "/logo-verifa.png",
         width: 1200,
         height: 630,
-        alt: "Verifa.sk — Due Diligence reporty",
+        alt: "Verifa.sk — Business Risk Report",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Verifa.sk — Due Diligence reporty",
+    title: "Verifa.sk — Business Risk Report",
     description:
-      "Automatizovaná príprava komplexných reportov — zlúčené PDF výpisy zo štátnych registrov SR s AI analýzou finančného zdravia.",
+      "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy v jednom PDF s AI analýzou finančného zdravia.",
     images: ["/logo-verifa.png"],
   },
   alternates: {
@@ -87,10 +87,10 @@ export default function RootLayout({
               name: "Verifa.sk",
               url: "https://verifa.sk",
               logo: "https://verifa.sk/logo-verifa.png",
-              description: "Automatizovaná príprava komplexných due diligence reportov zo štátnych registrov SR s AI analýzou finančného zdravia.",
+              description: "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy z štátnych registrov SR s AI analýzou finančného zdravia.",
               email: "info@verifa.sk",
               areaServed: "SK",
-              knowsAbout: ["due diligence", "finančná analýza", "forenzný audit", "registre SR", "Altman Z-score", "Piotroski model"],
+              knowsAbout: ["business risk report", "finančná analýza", "forenzný audit", "registre SR", "Altman Z-score", "Piotroski model"],
             }),
           }}
         />

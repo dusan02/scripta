@@ -53,7 +53,7 @@ export default function DpaPage() {
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>3. Druh a účel spracúvania</h2>
           <ul style={{ paddingLeft: 24, display: "flex", flexDirection: "column", gap: 6 }}>
             <li style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}><strong>Druh údajov:</strong> Meno, priezvisko, e-mail, IČO, názov firmy, údaje štatutárov a skutočných vlastníkov z verejných registrov</li>
-            <li style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}><strong>Účel:</strong> Generovanie due diligence reportov pre nariadateľa</li>
+            <li style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}><strong>Účel:</strong> Generovanie Business Risk Reportov pre nariadateľa</li>
             <li style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}><strong>Doba spracúvania:</strong> Po dobu trvania zmluvného vzťahu + 10 rokov (účtovné doklady)</li>
             <li style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}><strong>Kategórie subjektov údajov:</strong> Zamestnanci a zástupcovia nariadateľa, štatutári a skutoční vlastníci preverovaných firiem</li>
           </ul>
