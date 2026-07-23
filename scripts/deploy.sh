@@ -20,7 +20,7 @@ docker compose up -d --build
 
 # ─── 3. Run DB migration ───────────────────────────────────
 echo "[3/5] Running DB migration..."
-docker compose exec -T frontend npx prisma migrate deploy
+docker compose exec -T -e HOME=/tmp frontend npx prisma migrate deploy
 
 # ─── 4. Reload nginx ───────────────────────────────────────
 echo "[4/5] Reloading nginx..."
