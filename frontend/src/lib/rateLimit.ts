@@ -102,16 +102,14 @@ export async function rateLimit(
       return await redisRateLimit(key, options);
     } catch {
       if (process.env.NODE_ENV === "production") {
-        console.error("[rateLimit] Upstash Redis failed in production — denying request");
-        return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+        console.warn("[rateLimit] Upstash Redis failed — using in-memory fallback");
       }
       return memRateLimit(key, options);
     }
   }
 
   if (process.env.NODE_ENV === "production") {
-    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured in production — denying request");
-    return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback");
   }
 
   return memRateLimit(key, options);
@@ -142,16 +140,14 @@ export async function rateLimitByKey(
       return await redisRateLimit(rateLimitKey, options);
     } catch {
       if (process.env.NODE_ENV === "production") {
-        console.error("[rateLimit] Upstash Redis failed in production — denying request");
-        return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+        console.warn("[rateLimit] Upstash Redis failed — using in-memory fallback");
       }
       return memRateLimit(rateLimitKey, options);
     }
   }
 
   if (process.env.NODE_ENV === "production") {
-    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured in production — denying request");
-    return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback");
   }
 
   return memRateLimit(rateLimitKey, options);
