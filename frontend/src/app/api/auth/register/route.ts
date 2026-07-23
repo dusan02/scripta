@@ -9,7 +9,6 @@ import crypto from "crypto";
 import { z } from "zod";
 
 const registerSchema = z.object({
-  name: z.string().min(2, "Meno musí mať aspoň 2 znaky"),
   email: z.string().email("Neplatný formát e-mailu").toLowerCase(),
   password: z.string().min(8, "Heslo musí mať aspoň 8 znakov"),
 });
@@ -29,7 +28,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { name, email, password } = result.data;
+    const { email, password } = result.data;
 
     // Email-based rate limit: 3 registrations per email per 24h
     const emailRl = await rateLimitByKey(`register:${email}`, { windowMs: 24 * 60 * 60 * 1000, maxRequests: 3 });
@@ -54,7 +53,6 @@ export async function POST(req: NextRequest) {
     // Create user (emailVerified = null, requires verification)
     const newUser = await prisma.user.create({
       data: {
-        name,
         email,
         passwordHash,
       },
@@ -90,11 +88,11 @@ export async function POST(req: NextRequest) {
     await sendEmail({
       to: email,
       subject: "Potvrdenie registrácie - Verifa.sk",
-      text: `Dobrý deň ${name},\n\nĎakujeme za registráciu na Verifa.sk.\n\nPre aktiváciu vášho účtu kliknite na nasledujúci odkaz:\n${verifyLink}\n\nTento odkaz platí 24 hodín.\n\nAk ste sa neregistrovali, môžete tento e-mail ignorovať.\n\nS pozdravom,\nTím Verifa.sk`,
+      text: `Dobrý deň,\n\nĎakujeme za registráciu na Verifa.sk.\n\nPre aktiváciu vášho účtu kliknite na nasledujúci odkaz:\n${verifyLink}\n\nTento odkaz platí 24 hodín.\n\nAk ste sa neregistrovali, môžete tento e-mail ignorovať.\n\nS pozdravom,\nTím Verifa.sk`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
           <h2>Vitajte na Verifa.sk</h2>
-          <p>Dobrý deň ${name},</p>
+          <p>Dobrý deň,</p>
           <p>Ďakujeme za registráciu. Pre aktiváciu vášho účtu kliknite na tlačidlo nižšie:</p>
           <p>
             <a href="${verifyLink}" style="${emailButtonStyle()}">Aktivovať účet</a>

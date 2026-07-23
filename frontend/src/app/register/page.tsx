@@ -30,7 +30,6 @@ export default function RegisterPage() {
   const isDark = theme === "dark";
   const t = useT();
   const { lang, setLang } = useLang();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -62,7 +61,6 @@ export default function RegisterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
         }),
@@ -256,24 +254,6 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} noValidate autoComplete="on" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {/* Name */}
-            <div>
-              <label htmlFor="register-name" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("register.menoPriezvisko")}</label>
-              <input
-                id="register-name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                placeholder="Jozef Mrkvička"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={loading}
-                className="input"
-                style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}
-              />
-            </div>
-
             {/* Email */}
             <div>
               <label htmlFor="register-email" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("register.email")}</label>
