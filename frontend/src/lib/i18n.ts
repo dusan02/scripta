@@ -520,7 +520,7 @@ const sk: Dict = {
   "home.step1Desc": "Zadajte identifikačné číslo firmy, ktorú chcete preveriť.",
   "home.step2Title": "Overenie a posudok",
   "home.step2Desc": "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok so subjektívnym Verifa Score.",
-  "home.step3Title": "Stiahnete Správu",
+  "home.step3Title": "Stiahnite správu",
   "home.step3Desc": "Stiahnete si komplexnú Správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente.",
 
   // ── Landing page: Registries ──

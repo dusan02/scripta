@@ -197,10 +197,14 @@ export default function RegisterPage() {
               alignItems: "center",
               gap: "6px",
               fontSize: "14px",
-              color: "var(--text-secondary)",
+              color: "#fff",
               textDecoration: "none",
               fontWeight: 500,
               transition: "color 0.2s",
+              padding: "6px 12px",
+              borderRadius: "8px",
+              background: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(4px)",
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -461,11 +465,11 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "var(--text-muted)" }}>
+          <div style={{ textAlign: "center", marginTop: "24px", fontSize: "14px", color: "#fff", padding: "10px 16px", borderRadius: "8px", background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}>
             {t("register.uzMateUcet")}{" "}
             <Link
               href="/login"
-              style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
+              style={{ color: "#fff", textDecoration: "underline", fontWeight: 500 }}
             >
               {t("register.prihlasitSa")}
             </Link>
@@ -474,7 +478,7 @@ export default function RegisterPage() {
 
         {/* Footer */}
         <p
-          style={{ textAlign: "center", fontSize: "13px", marginTop: "24px", color: "var(--text-muted)" }}
+          style={{ textAlign: "center", fontSize: "13px", marginTop: "24px", color: "#fff", padding: "8px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
         >
           {t("register.urceneAdvokatom")}{" "}
           <a
