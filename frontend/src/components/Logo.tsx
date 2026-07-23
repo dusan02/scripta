@@ -26,7 +26,7 @@ export default function Logo({ size = "md", forceLight = false }: LogoProps) {
         lineHeight: 1
       }}
     >
-      <img src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"} alt="Verifa.sk" style={{ height, width: "auto", display: "block" }} />
+      <img src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"} alt="Verifa.sk" style={{ height, width: "auto", display: "block" }} loading="eager" />
     </div>
   );
 }

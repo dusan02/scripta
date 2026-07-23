@@ -483,9 +483,7 @@ export default function RegisterPage() {
           {t("register.urceneAdvokatom")}{" "}
           <a
             href="mailto:info@verifa.sk"
-            style={{ color: "var(--text-secondary)", textDecoration: "none", fontWeight: 500 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            style={{ color: "#10b981", textDecoration: "underline", fontWeight: 600 }}
           >
             {t("register.kontakt")}
           </a>
