@@ -11,6 +11,6 @@ export const config = {
     "/settings/:path*",
     "/messages/:path*",
     "/admin/:path*",
-    "/plan"
+    "/credits"
   ],
 };

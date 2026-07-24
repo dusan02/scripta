@@ -78,7 +78,7 @@ export default function PlanPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/plan")
+    fetch("/api/credits/plan")
       .then((r) => {
         if (!r.ok) {
           r.json().then(err => setError(err.error || err.details || `HTTP ${r.status}`));

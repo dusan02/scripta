@@ -183,8 +183,8 @@ export class StripeAdapter implements PaymentProviderAdapter {
     const checkoutParams: Stripe.Checkout.SessionCreateParams = {
       mode: plan.mode,
       line_items: [{ price: plan.priceId, quantity: 1 }],
-      success_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/plan?success=1`,
-      cancel_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/plan?canceled=1`,
+      success_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/credits?success=1`,
+      cancel_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/credits?canceled=1`,
       customer_email: userEmail,
       metadata: { userId, planId, credits: String(plan.credits), planName: plan.planName },
     };
@@ -209,7 +209,7 @@ export class StripeAdapter implements PaymentProviderAdapter {
       throw new Error("No active subscription found");
     }
 
-    const returnUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/plan`;
+    const returnUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/credits`;
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,

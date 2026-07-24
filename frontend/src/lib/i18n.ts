@@ -16,9 +16,10 @@ type Dict = Record<string, string>;
 
 const sk: Dict = {
   // ── NavBar ──
-  "nav.overenie": "Overenie subjektu",
-  "nav.historia": "História reportov",
+  "nav.overenie": "Overenie",
+  "nav.historia": "História",
   "nav.nastavenia": "Nastavenia",
+  "nav.kredity": "Kredity",
   "nav.pausal": "Paušál",
   "nav.cennik": "Cenník",
   "nav.spravy": "Správy",
@@ -432,7 +433,7 @@ const sk: Dict = {
 
   // ── Plan page ──
   "plan.prehlad": "Prehľad vašich reportov a spotreby",
-  "plan.celkovyPausal": "Celkový paušál",
+  "plan.celkovyPausal": "Celkové kredity",
   "plan.uspesne": "Úspešné reporty",
   "plan.neuspesne": "Neúspešné reporty",
   "plan.zostava": "Zostáva kreditov",
@@ -449,7 +450,7 @@ const sk: Dict = {
   "plan.potrebujeteViac": "Potrebujete viac reportov?",
   "plan.kontaktujte": "Kontaktujte nás",
   "plan.spravovatPredplatne": "Spravovať predplatné",
-  "plan.titul": "Paušál",
+  "plan.titul": "Kredity",
   "plan.chybaNacitania": "Nepodarilo sa načítať údaje o paušáli.",
   "plan.skusteObnovit": "Skúste obnoviť stránku alebo sa prihláste znova.",
 
@@ -612,9 +613,10 @@ const sk: Dict = {
 
 const en: Dict = {
   // ── NavBar ──
-  "nav.overenie": "Entity Verification",
-  "nav.historia": "Report History",
+  "nav.overenie": "Verification",
+  "nav.historia": "History",
   "nav.nastavenia": "Settings",
+  "nav.kredity": "Credits",
   "nav.pausal": "Plan",
   "nav.cennik": "Pricing",
   "nav.spravy": "Messages",
@@ -1045,8 +1047,8 @@ const en: Dict = {
   "plan.potrebujeteViac": "Need more reports?",
   "plan.kontaktujte": "Contact us",
   "plan.spravovatPredplatne": "Manage subscription",
-  "plan.titul": "Plan",
-  "plan.chybaNacitania": "Failed to load plan data.",
+  "plan.titul": "Credits",
+  "plan.chybaNacitania": "Failed to load credits data.",
   "plan.skusteObnovit": "Try refreshing the page or sign in again.",
 
   // ── AI status (worker → frontend) ──
@@ -1208,9 +1210,10 @@ const en: Dict = {
 
 const de: Dict = {
   // ── NavBar ──
-  "nav.overenie": "Unternehmensprüfung",
-  "nav.historia": "Berichtverlauf",
+  "nav.overenie": "Prüfung",
+  "nav.historia": "Verlauf",
   "nav.nastavenia": "Einstellungen",
+  "nav.kredity": "Credits",
   "nav.pausal": "Pauschale",
   "nav.cennik": "Preise",
   "nav.spravy": "Nachrichten",
@@ -1624,7 +1627,7 @@ const de: Dict = {
 
   // ── Plan page ──
   "plan.prehlad": "Übersicht Ihrer Berichte und Nutzung",
-  "plan.celkovyPausal": "Gesamtes Kontingent",
+  "plan.celkovyPausal": "Gesamte Credits",
   "plan.uspesne": "Erfolgreiche Berichte",
   "plan.neuspesne": "Fehlgeschlagene Berichte",
   "plan.zostava": "Verbleibende Credits",
@@ -1641,8 +1644,8 @@ const de: Dict = {
   "plan.potrebujeteViac": "Benötigen Sie mehr Berichte?",
   "plan.kontaktujte": "Kontaktieren Sie uns",
   "plan.spravovatPredplatne": "Abonnement verwalten",
-  "plan.titul": "Plan",
-  "plan.chybaNacitania": "Plandaten konnten nicht geladen werden.",
+  "plan.titul": "Credits",
+  "plan.chybaNacitania": "Credits-Daten konnten nicht geladen werden.",
   "plan.skusteObnovit": "Aktualisieren Sie die Seite oder melden Sie sich erneut an.",
 
   // ── AI status (worker → frontend) ──

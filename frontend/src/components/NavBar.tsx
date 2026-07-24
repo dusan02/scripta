@@ -85,7 +85,7 @@ function MailIcon() {
 const NAV_ITEMS = [
   { href: "/dashboard", key: "nav.overenie", icon: SearchIcon },
   { href: "/history", key: "nav.historia", icon: ClockIcon },
-  { href: "/plan", key: "nav.pausal", icon: CreditCardIcon },
+  { href: "/credits", key: "nav.kredity", icon: CreditCardIcon },
   { href: "/documents", key: "nav.dokumenty", icon: FileIcon },
   { href: "/settings", key: "nav.nastavenia", icon: SettingsIcon },
   { href: "/messages", key: "nav.spravy", icon: MailIcon },
@@ -166,16 +166,17 @@ export default function NavBar() {
                   key={item.href}
                   href={item.href}
                   title={t(item.key)}
-                  className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150 relative"
+                  className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg transition-all duration-150 relative"
                   style={{
                     color: active ? "var(--accent)" : "var(--text-secondary)",
                     background: active ? "var(--accent-light)" : "transparent",
                   }}
                 >
                   <item.icon />
+                  <span className="text-xs font-medium hidden lg:inline">{t(item.key)}</span>
                   {item.href === "/messages" && unreadCount > 0 && (
                     <span
-                      className="absolute top-1 right-1 w-2 h-2 rounded-full"
+                      className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full"
                       style={{ background: "#ef4444", border: "1.5px solid var(--surface)" }}
                     />
                   )}

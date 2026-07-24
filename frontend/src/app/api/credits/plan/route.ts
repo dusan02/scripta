@@ -64,9 +64,9 @@ export async function GET(req: NextRequest) {
       periodEnd: endOfMonth.toISOString(),
     });
   } catch (error) {
-    console.error("GET /api/plan error", error);
+    console.error("GET /api/credits/plan error", error);
     return NextResponse.json(
-      { error: "Failed to fetch plan data" },
+      { error: "Failed to fetch credits data" },
       { status: 500 }
     );
   }
