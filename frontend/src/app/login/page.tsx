@@ -14,7 +14,6 @@ function LoginForm() {
   const { t } = useLang();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
 
@@ -99,8 +98,6 @@ function LoginForm() {
           <PasswordInput
             id="login-password"
             label={t("login.heslo")}
-            value={password}
-            onChange={setPassword}
             autoComplete="current-password"
           />
 

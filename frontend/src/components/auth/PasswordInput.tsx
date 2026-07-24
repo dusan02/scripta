@@ -6,8 +6,9 @@ import { useLang } from "@/components/LanguageProvider";
 interface PasswordInputProps {
   id: string;
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  value?: string;
+  onChange?: (value: string) => void;
+  defaultValue?: string;
   autoComplete: "current-password" | "new-password";
   disabled?: boolean;
   placeholder?: string;
@@ -18,6 +19,7 @@ export default function PasswordInput({
   label,
   value,
   onChange,
+  defaultValue,
   autoComplete,
   disabled,
   placeholder = "••••••••",
@@ -38,8 +40,9 @@ export default function PasswordInput({
           autoComplete={autoComplete}
           required
           placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          {...(value !== undefined && onChange
+            ? { value, onChange: (e) => onChange(e.target.value) }
+            : { defaultValue: defaultValue ?? "" })}
           disabled={disabled}
           className="input"
           style={{ width: "100%", padding: "10px 36px 10px 12px", boxSizing: "border-box" }}
