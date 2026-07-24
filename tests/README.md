@@ -4,24 +4,31 @@
 
 Test suite pokrýva celú aplikáciu — od izolovaných finančných výpočtov cez API endpointy až po scraper integráciu na živých štátnych portáloch.
 
-**Celkom: ~185 testov v 9 súboroch across 4 kategórie.**
+**Celkom: ~346 testov v 14 súboroch across 5 kategórií.**
 
 ---
 
 ## Štruktúra
 
 ```
-tests/                              # Frontend & API tests (bash/curl)
-├── run_all.sh                      # Test runner — spustí všetky shell testy
+tests/                              # Frontend & API tests
+├── run_all.sh                      # Test runner — shell + TS + optional Python
 ├── README.md                       # Tento súbor
-└── integration/
-    ├── test_auth.sh                # Integration: auth flow (15 tests)
-    ├── test_api.sh                 # Integration: API endpoints (32 tests)
-    ├── test_functional.sh          # Functional: end-to-end flows (10 tests)
-    └── test_worker.sh              # Integration: worker connectivity (5 tests)
+├── unit/
+│   └── rateLimit_spec.ts           # Unit: rateLimit.ts (13 tests)
+├── integration/
+│   ├── test_auth.sh                # Integration: auth flow (15 tests)
+│   ├── test_api.sh                 # Integration: API endpoints (32 tests)
+│   └── test_worker.sh              # Integration: worker connectivity (5 tests)
+└── functional/
+    └── test_functional.sh          # Functional: end-to-end flows (10 tests)
 
 worker/tests/                       # Python tests (pytest)
+├── conftest.py                     # Shared fixtures (stmt, stmt_dict, make_tables)
 ├── test_analytics.py               # Unit: finančné metriky (57 tests)
+├── test_forensic_scorecard.py      # Unit: 5-pilier scorecard (81 tests)
+├── test_attachment_filter.py       # Unit: PDF attachment filter (31 tests)
+├── test_pdf_compiler.py            # Unit: PDF compiler helpers (35 tests)
 ├── test_ruz_parser.py              # Unit: RÚZ JSON parser (~30 tests)
 ├── test_pdf_ingestion.py           # Unit: PDF ingestion (1 test)
 ├── test_scrapers.py                # Integration: scraper tests (27 tests)
@@ -32,7 +39,7 @@ worker/tests/                       # Python tests (pytest)
 
 ## Kategórie
 
-### 1. Unit Tests
+### 1. Unit Tests — Python
 
 Testujú izolované funkcie bez externých závislostí (bez DB, bez siete, bez browsera).
 
@@ -54,6 +61,52 @@ Finančné výpočty z `worker/src/analytics.py`.
 | `TestNaceWeights` | 5 | `get_nace_weights` — výroba, stavebníctvo, IT, default, empty code (súčet váh = 100) |
 | `TestVestnikDegradation` | 5 | `compute_vestnik_degradation` — recent (1.0), 1yr (0.7), 3yr (0.4), 5yr (0.1), no date |
 
+#### `worker/tests/test_forensic_scorecard.py` — 81 testov
+
+5-pilierový scoring model z `worker/src/analytics.py` — `compute_forensic_scorecard` a súvisiace funkcie.
+
+| Test class | Počet | Čo testuje |
+|---|---|---|
+| `TestRiskCategory` | 8 | `_risk_category` — AAA/A/B/C hranice (90/70/40/0) |
+| `TestHardStop` | 4 | Konkurz / likvidácia / reštrukturalizácia → score 0, risk C, non-critical prejde |
+| `TestPillar1` | 3 | Platobná schopnosť — current ratio, equity, vestník events, N/A fallback |
+| `TestPillar2` | 3 | Finančné zdravie — Altman Z'', Piotroski, startup profil, data void |
+| `TestPillar3` | 5 | Ziskovosť & CF — profitable years, consecutive losses penalty, strong/negative CF, no stmts |
+| `TestPillar4` | 3 | Rast & trendy — CAGR growth, declining revenue, no CAGR data |
+| `TestPillar5` | 6 | Právna bezúhonnosť — clean company, critical/medium/low vestník, auditor opinion (bez výhrad / s výhradou) |
+| `TestDataQualityMultiplier` | 5 | DQ multiplier — 5+ stmts s/without audit, few stmts, no audit penalty |
+| `TestWhiteHorsePenalty` | 2 | Shell company penalized, normal company no penalty |
+| `TestOrsrForensicPenalty` | 7 | ORSR forensic — CRITICAL/HIGH severity, no events, >50 statutory changes, virtual seat + foreign statutory, big corp downgrade, penalty cap at 5 |
+| `TestScorecardResult` | 5 | Štruktúra — 5 core pilierov, score 0-100, version v2, scores ≤ max, risk category match |
+| `TestComputeFinancialTrends` | 9 | CAGR výpočet, consecutive losses, Altman Z per year, ratios per year, YoY revenue trend, bankruptcy risk indicators, short period anualization |
+| `TestStateLiabilitiesAlert` | 7 | SP/tax/employee liabilities — CRITICAL s registry, INFO bez registry, WARNING threshold, zero values |
+| `TestRevenuePerEmployee` | 7 | Reported vs estimated employee count, CRITICAL (≤1 emp + 500k rev), WARNING (>2M RPE), normal, zero revenue |
+| `TestYoySummaryTable` | 7 | Headers, rows with key metrics, all-None row skipped, revenue decline 🟡/🔴, liabilities growth 🔴 |
+
+#### `worker/tests/test_attachment_filter.py` — 31 testov
+
+Logika vylúčenia príloh z PDF reportu z `worker/src/attachment_filter.py`.
+
+| Test class | Počet | Čo testuje |
+|---|---|---|
+| `TestFromDict` | 4 | None config, empty dict → defaults, partial merge, full override |
+| `TestIsCategoryEnabled` | 4 | None → all enabled, enabled/disabled category, unknown → default True |
+| `TestShouldIncludeSource` | 6 | None → include all, disabled category excludes, enabled includes, uncategorized always included, REGISTER_UZ mapping |
+| `TestGetExcluded` | 5 | None → no exclusions, excluded categories, source types, multiple, empty category |
+| `TestHasRedFlagExcluded` | 5 | None → no red flags, non-excluded source, excluded source detected, not excluded, empty list |
+| `TestCategoryMap` | 7 | ORSR/ZRSR/REGISTER_UZ mapped, auditorska_sprava empty, RED_FLAG_SOURCE_TYPES, ORSR not red flag, default config |
+
+#### `worker/tests/test_pdf_compiler.py` — 35 testov
+
+PDF compiler helper funkcie z `worker/src/pdf/compiler.py`.
+
+| Test class | Počet | Čo testuje |
+|---|---|---|
+| `TestHasNoRecord` | 18 | SUCCESS with/without findings, FAILED/PENDING status, no/empty file_path, 13 "no record" markers, case insensitive, status_message fallback, real findings not flagged |
+| `TestSourceOrder` | 5 | ORSR/INSOLVENCY in order, numeric values, unknown → 999 |
+| `TestSourcesWithEmbeddedTitle` | 5 | ORSR has embedded, INSOLVENCY doesn't, all health insurers, FINANCNA_SPRAVA, frozenset type |
+| `TestNoRecordMarkers` | 3 | Tuple type, non-empty, all strings |
+
 #### `worker/tests/test_ruz_parser.py` — ~30 testov
 
 RÚZ JSON parser z `worker/src/ruz_parser.py`.
@@ -73,7 +126,31 @@ RÚZ JSON parser z `worker/src/ruz_parser.py`.
 
 ---
 
-### 2. Integration Tests
+### 2. Unit Tests — TypeScript
+
+#### `tests/unit/rateLimit_spec.ts` — 13 testov
+
+In-memory rate limiting z `frontend/src/lib/rateLimit.ts`.
+
+| Test | Čo overuje |
+|---|---|
+| First request allowed | `rateLimitByKey` — prvé volanie → allowed, remaining = max-1 |
+| Exhaust then blocked | 3 povolené, 4th blocked, remaining = 0 |
+| Different keys independent | Key1 exhausted, key2 unaffected |
+| Window reset | Po window expiry → opäť allowed |
+| Remaining decrements | 4 → 3 → 2 pre maxRequests=5 |
+| ResetTime in future | > now, ≤ now + window + buffer |
+| 429 status | `rateLimitResponse` → status 429, Retry-After header, X-RateLimit-Remaining=0 |
+| Error message | Body obsahuje `error` string |
+| Retry-After positive | > 0, ≤ window seconds |
+| IP from x-forwarded-for | Prvá IP z comma-separated listu |
+| IP from x-real-ip | Fallback na x-real-ip header |
+| IP unknown | Fallback na "unknown" |
+| Same IP shared counter | 2 requesty z rovnakého IP zdieľajú counter |
+
+---
+
+### 3. Integration Tests
 
 Testujú interakciu medzi komponentmi na reálnej bežiacej aplikácii (cez HTTP/curl).
 
@@ -125,11 +202,11 @@ Worker connectivity a health.
 
 ---
 
-### 3. Functional Tests
+### 4. Functional Tests
 
 End-to-end používateľské toky — testujú kompletné scenáre.
 
-#### `tests/integration/test_functional.sh` — 10 testov
+#### `tests/functional/test_functional.sh` — 10 testov
 
 | Flow | Testov | Čo overuje |
 |---|---|---|
@@ -141,7 +218,7 @@ End-to-end používateľské toky — testujú kompletné scenáre.
 
 ---
 
-### 4. Scraper Integration Tests
+### 5. Scraper Integration Tests
 
 Testujú scrapery na živých slovenských štátnych portáloch — vyžadujú Playwright (headless Chromium).
 
@@ -178,7 +255,7 @@ Smoke testy pre 8 Finančná správa scraperov — overia že linky a input poli
 
 ## Spustenie
 
-### Shell testy (frontend/API)
+### Shell + TS testy (frontend/API)
 ```bash
 # Na produkcii
 BASE_URL=https://verifa.sk \
@@ -192,34 +269,40 @@ BASE_URL=http://localhost:3000 bash tests/run_all.sh
 # Jednotlivo
 bash tests/integration/test_auth.sh
 bash tests/integration/test_api.sh
-bash tests/integration/test_functional.sh
+bash tests/functional/test_functional.sh
 bash tests/integration/test_worker.sh
+
+# TypeScript unit testy
+cd frontend && npx ts-node --transpile-only --compiler-options '{"module":"CommonJS"}' ../tests/unit/rateLimit_spec.ts
 ```
 
 ### Python unit testy
 ```bash
-# Lokálne
-cd worker && python -m pytest tests/test_analytics.py tests/test_ruz_parser.py tests/test_pdf_ingestion.py -v
+# V Dockeri (na serveri)
+docker exec verifa_worker bash -c 'cd /app && python -m pytest tests/test_analytics.py tests/test_forensic_scorecard.py tests/test_attachment_filter.py tests/test_pdf_compiler.py -v'
 
-# V Dockeri
-docker compose exec worker bash -c 'cd /app && python -m pytest tests/test_analytics.py tests/test_ruz_parser.py -v'
+# Všetko naraz (lokálne)
+cd worker && python -m pytest tests/ -v --tb=short
 
-# Len analytics
-docker compose exec worker bash -c 'cd /app && python -m pytest tests/test_analytics.py -v --tb=short'
+# Len forensic scorecard
+docker exec verifa_worker bash -c 'cd /app && python -m pytest tests/test_forensic_scorecard.py -v --tb=short'
 ```
 
 ### Scraper testy (vyžadujú Playwright + prístup na portály)
 ```bash
-docker compose exec worker bash -c 'cd /app && python -m pytest tests/test_scrapers.py tests/test_fs_links.py -v'
+docker exec verifa_worker bash -c 'cd /app && python -m pytest tests/test_scrapers.py tests/test_fs_links.py -v'
 ```
 
 ### Všetko naraz
 ```bash
-# 1. Shell testy (frontend + API + worker)
+# 1. Shell + TS testy (frontend + API + worker + rateLimit)
 bash tests/run_all.sh
 
-# 2. Python testy (unit + scrapers)
-cd worker && python -m pytest tests/ -v --tb=short
+# 2. Python testy (unit + scrapers) — cez SSH
+RUN_PYTHON=1 bash tests/run_all.sh
+
+# Alebo separátne
+ssh root@89.185.250.213 "docker exec verifa_worker bash -c 'cd /app && python -m pytest tests/ -v --tb=short'"
 ```
 
 ---
@@ -232,6 +315,8 @@ cd worker && python -m pytest tests/ -v --tb=short
 | `WORKER_URL` | `http://localhost:8000` | URL workera |
 | `TEST_EMAIL` | `test@verifa.sk` | Prihlasovací email |
 | `TEST_PASSWORD` | `heslo123` | Prihlasovacie heslo |
+| `RUN_PYTHON` | `0` | Ak `1`, spustí aj Python testy cez SSH |
+| `WORKER_SSH` | `root@89.185.250.213` | SSH adresa workera pre Python testy |
 
 ---
 
@@ -242,6 +327,8 @@ cd worker && python -m pytest tests/ -v --tb=short
 | ZRSR nonexistent IČO | `test_scrapers.py::test_zrsr_nonexistent_company` | ZRSR vracia "Aktívny záznam" pre neexistujúce IČO `99999999` namiesto "Žiadny záznam" |
 | VšZP clean company | `test_scrapers.py::test_vszp_clean_company` | VšZP scraper nedokáže nájsť čistú firmu — pravdepodobne zmena DOM na portáli |
 | PDF ingestion coverage | `test_pdf_ingestion.py` | Len 1 test — treba pridať edge cases (multi-column, OCR, encrypted PDF) |
+| Shell testy akceptujú 429 | `test_functional.sh`, `test_worker.sh` | Rate limit sa považuje za "validný" výsledok — maskuje reálne problémy |
+| Scraper testy flaky | `test_scrapers.py`, `test_fs_links.py` | Závisia na živých portáloch — môžu failnúť zmenou DOM |
 
 ---
 
@@ -251,8 +338,9 @@ cd worker && python -m pytest tests/ -v --tb=short
 |---|---|---|
 | `credits.ts` (consumeCredits, refundCredits) | ❌ Žiadne testy | Vysoká — peňažná logika |
 | `email.ts` (sendEmail) | ❌ Žiadne testy | Stredná |
-| `rateLimit.ts` | ❌ Žiadne testy | Stredná |
-| PDF compiler (merge, cover page) | ❌ Žiadne testy | Stredná |
+| `token.ts` (hashToken) | ❌ Žiadne testy | Nízka — 1 riadok, ale security |
+| `reports/schema.ts` (Zod validácia) | ❌ Žiadne testy | Stredná |
 | Stripe webhook | ❌ Žiadne testy | Nízka (deleguje na `/api/billing/webhook`) |
 | Frontend komponenty (React) | ❌ Žiadne testy | Nízka (nemáme jest/vitest) |
+| CI integrácia | ❌ Neexistuje | Vysoká — testy sa nespúšťajú automaticky |
 | Load/stress testy | ❌ Neexistujú | Budúce |
