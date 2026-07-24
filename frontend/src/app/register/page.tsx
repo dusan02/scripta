@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import Link from "next/link";
 import { useTheme } from "@/components/ThemeProvider";
@@ -27,7 +26,6 @@ function Spinner() {
 }
 
 export default function RegisterPage() {
-  const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const t = useT();
