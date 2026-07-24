@@ -98,6 +98,9 @@ export async function POST(req: NextRequest) {
       /^-----Original Message-----/m,
       /^From: .*/m,
       /^Dňa .* napísal/m,
+      /^Dňa .* napísala/m,
+      /^Dňa .* wrote:/m,
+      /^>/m,
     ];
     for (const marker of replyMarkers) {
       const matchIdx = body.search(marker);
