@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
         where: { userId: user.id },
       }),
       prisma.reportRequest.count({ where: { userId: user.id } }),
-      prisma.reportRequest.count({ where: { userId: user.id, status: { in: ["COMPLETED", "PARTIAL"] } } }),
-      prisma.reportRequest.count({ where: { userId: user.id, status: "FAILED" } }),
+      prisma.reportRequest.count({ where: { userId: user.id, status: { in: ["COMPLETED", "PARTIAL"] }, createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
+      prisma.reportRequest.count({ where: { userId: user.id, status: "FAILED", createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
       prisma.reportRequest.count({ where: { userId: user.id, createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
       prisma.reportRequest.findMany({
         where: { userId: user.id },
