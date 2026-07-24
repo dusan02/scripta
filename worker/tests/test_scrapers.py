@@ -26,6 +26,8 @@ from src.scrapers.vszp_dlznici import VszpDlzniciScraper
 from src.scrapers.union_dlznici import UnionDlzniciScraper
 from src.scrapers.orsr import OrsrScraper
 from src.scrapers.rpvs import RpvsScraper
+from src.scrapers.zrsr import ZrsrScraper
+from src.scrapers.insolvency import InsolvencyScraper
 
 # ── Test IČO ──────────────────────────────────────────────────────────────
 # Volkswagen Slovakia — veľká firma, určite nie je dlžník (negatívny test)
@@ -45,6 +47,14 @@ ICO_ORSR_NOT_EXISTS = "99999999"  # Neexistujúce IČO
 
 # RPVS — firma, ktorá môže byť v registri partnerov verejného sektora
 ICO_RPVS_EXISTS = "35757442"
+
+# ZRSR — živnostník, ktorý určite existuje v Živnostenskom registri
+# Milan Štefánik — známy živnostník (placeholder, overí sa pri spustení)
+ICO_ZRSR_EXISTS = "35757442"  # Volkswagen — môže mať aj živnosť
+ICO_ZRSR_NOT_EXISTS = "99999999"
+
+# INSOLVENCY — Volkswagen určite nie je v konkurze
+ICO_INSOLVENCY_CLEAN = "35757442"
 
 OUTPUT_DIR = Path("/tmp/scraper_test_output")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -398,5 +408,111 @@ async def test_rpvs_has_search_input(browser):
         inputs = page.locator("input[type='text'], input:not([type]), input[name*='ico'], input[name*='IČO']")
         cnt = await inputs.count()
         assert cnt > 0, "Nenašiel sa žiadny text input na RPVS stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ZRSR — Živnostenský register SR
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_zrsr_page_loads(browser):
+    """ZRSR: stránka načíta."""
+    scraper = ZrsrScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper._base_url_company, timeout=45000, wait_until='domcontentloaded')
+        text = await page.inner_text("body")
+        assert len(text) > 50, "ZRSR stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_zrsr_has_ico_input(browser):
+    """ZRSR: nájde sa input pole pre IČO (filter_ico)."""
+    scraper = ZrsrScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper._base_url_company, timeout=45000, wait_until='domcontentloaded')
+        ico_input = page.locator("input#filter_ico")
+        await ico_input.wait_for(timeout=10000)
+        assert await ico_input.count() > 0, "input#filter_ico sa nenašiel na ZRSR stránke"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_zrsr_has_submit_button(browser):
+    """ZRSR: nájde sa tlačidlo 'cmdPotvrdit'."""
+    scraper = ZrsrScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper._base_url_company, timeout=45000, wait_until='domcontentloaded')
+        btn = page.locator("input[name='cmdPotvrdit']")
+        await btn.wait_for(timeout=10000)
+        assert await btn.count() > 0, "Tlačidlo cmdPotvrdit sa nenašlo na ZRSR stránke"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_zrsr_nonexistent_company(browser):
+    """ZRSR: neexistujúce IČO (99999999) — negatívny test."""
+    scraper = ZrsrScraper(browser)
+    try:
+        result = await scraper.run(ico=ICO_ZRSR_NOT_EXISTS, output_dir=OUTPUT_DIR)
+        assert result.status in ("SUCCESS", "UNAVAILABLE"), f"Neočakávaný status: {result.status}"
+        if result.status == "SUCCESS":
+            assert "Žiadny záznam" in (result.findings or "") or "nenachádza" in (result.status_message or ""), \
+                f"Očakávaný 'Žiadny záznam' pre neexistujúce IČO: {result.findings}"
+        # UNAVAILABLE je OK — Altcha mohla zlyhať
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# INSOLVENCY — Register úpadcov (ru.justice.sk)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_insolvency_page_loads(browser):
+    """INSOLVENCY: stránka načíta."""
+    scraper = InsolvencyScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=15000, wait_until='domcontentloaded')
+        text = await page.inner_text("body")
+        assert len(text) > 50, "Insolvency stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_insolvency_has_search_input(browser):
+    """INSOLVENCY: nájde sa vyhľadávacie pole (searchQuery)."""
+    scraper = InsolvencyScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=15000, wait_until='domcontentloaded')
+        search_input = page.locator("input[id*='searchQuery']").first
+        await search_input.wait_for(timeout=5000)
+        assert await search_input.count() > 0, "input[id*='searchQuery'] sa nenašiel na Insolvency stránke"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_insolvency_clean_company(browser):
+    """INSOLVENCY: Volkswagen (35757442) nie je v konkurze — negatívny test."""
+    scraper = InsolvencyScraper(browser)
+    try:
+        result = await scraper.run(target_type="COMPANY", ico=ICO_INSOLVENCY_CLEAN, output_dir=OUTPUT_DIR)
+        assert result.status == "SUCCESS", f"Scraper zlyhal: {result.status_message}"
+        assert "POZOR" not in (result.findings or ""), \
+            f"Falošný POZOR pre čistú firmu: {result.findings}"
+        assert "nemá negatívne" in (result.findings or "") or "žiadne konania" in (result.findings or ""), \
+            f"Očakávaný 'nemá negatívne záznamy': {result.findings}"
     finally:
         await scraper._close()
