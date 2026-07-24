@@ -91,6 +91,16 @@ const NAV_ITEMS = [
   { href: "/messages", key: "nav.spravy", icon: MailIcon },
 ];
 
+function getUserInitials(name?: string | null, email?: string | null): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  if (email) return email.slice(0, 2).toUpperCase();
+  return "?";
+}
+
 export default function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -103,17 +113,7 @@ export default function NavBar() {
   const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const userInitials = (() => {
-    const email = session?.user?.email ?? "";
-    const name = session?.user?.name;
-    if (name) {
-      const parts = name.trim().split(/\s+/);
-      if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    if (email) return email.slice(0, 2).toUpperCase();
-    return "?";
-  })();
+  const userInitials = getUserInitials(session?.user?.name, session?.user?.email);
 
   useEffect(() => {
     if (!session?.user?.id) return;

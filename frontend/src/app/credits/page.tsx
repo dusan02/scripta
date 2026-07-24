@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
 import { LOCALE_MAP } from "@/lib/i18n";
-import { useLang } from "@/components/LanguageProvider";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
-interface PlanData {
+interface CreditsData {
   totalReports: number;
   usedThisMonth: number;
   successfulReports: number;
@@ -51,11 +50,11 @@ function formatDateTime(iso: string | null, locale: string): string {
   }).format(d);
 }
 
-export default function PlanPage() {
+export default function CreditsPage() {
   const t = useT();
   const { lang } = useLang();
   const locale = LOCALE_MAP[lang];
-  const [data, setData] = useState<PlanData | null>(null);
+  const [data, setData] = useState<CreditsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
