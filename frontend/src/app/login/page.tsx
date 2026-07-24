@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useLang } from "@/components/LanguageProvider";
@@ -10,12 +10,11 @@ import ErrorAlert from "@/components/auth/ErrorAlert";
 import PasswordInput from "@/components/auth/PasswordInput";
 import OAuthButtons from "@/components/auth/OAuthButtons";
 
-export default function LoginPage() {
+function LoginForm() {
   const { t } = useLang();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
 
@@ -42,17 +41,19 @@ export default function LoginPage() {
   }, []);
 
   function handleSubmit(e: React.FormEvent) {
+    if (!csrfToken) {
+      e.preventDefault();
+      return;
+    }
     if (rememberMe) {
       localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
     } else {
       localStorage.removeItem("verifa-remembered-email");
     }
-    setLoading(true);
   }
 
   return (
     <AuthPageShell maxWidth={400} variant="center">
-      {/* Card */}
       <div
         className="scale-in"
         style={{
@@ -64,7 +65,6 @@ export default function LoginPage() {
           boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
         }}
       >
-        {/* Logo */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px", width: "100%" }}>
           <Logo size="lg" />
         </div>
@@ -78,7 +78,6 @@ export default function LoginPage() {
           <input type="hidden" name="csrfToken" value={csrfToken} />
           <input type="hidden" name="callbackUrl" value="/dashboard" />
 
-          {/* Email */}
           <div>
             <label htmlFor="login-email" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("login.email")}</label>
             <input
@@ -90,20 +89,17 @@ export default function LoginPage() {
               placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
               className="input"
               style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}
             />
           </div>
 
-          {/* Password */}
           <PasswordInput
             id="login-password"
             label={t("login.heslo")}
             value={password}
             onChange={setPassword}
             autoComplete="current-password"
-            disabled={loading}
           />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -126,7 +122,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={!csrfToken}
             className="btn-primary"
             style={{
               width: "100%",
@@ -137,13 +133,13 @@ export default function LoginPage() {
               justifyContent: "center",
               gap: "8px",
               boxSizing: "border-box",
+              opacity: !csrfToken ? 0.6 : 1,
             }}
           >
-            {loading ? t("login.overujem") : t("login.prihlasitSa")}
+            {!csrfToken ? t("login.overujem") : t("login.prihlasitSa")}
           </button>
         </form>
 
-        {/* Divider + Social Logins — only if OAuth providers are configured */}
         <OAuthButtons callbackUrl="/dashboard" />
       </div>
 
@@ -157,5 +153,13 @@ export default function LoginPage() {
         </Link>
       </div>
     </AuthPageShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

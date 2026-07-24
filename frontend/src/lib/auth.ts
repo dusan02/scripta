@@ -108,12 +108,14 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const email = credentials.email.trim().toLowerCase();
+
         // ── Brute-force protection ──────────────────────────────────
         const ipAddress =
           (req as any)?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
           (req as any)?.headers?.get?.("x-real-ip") ||
           "unknown";
-        const emailKey = `login:${credentials.email.toLowerCase()}`;
+        const emailKey = `login:${email}`;
         const ipKey = `login:${ipAddress}`;
 
         const [emailLimit, ipLimit] = await Promise.all([
@@ -126,7 +128,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
         });
 
         if (!user || !user.passwordHash) {

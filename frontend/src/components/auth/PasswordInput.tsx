@@ -1,11 +1,7 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { useState } from "react";
 import { useLang } from "@/components/LanguageProvider";
-
-export interface PasswordInputHandle {
-  hide: () => void;
-}
 
 interface PasswordInputProps {
   id: string;
@@ -17,7 +13,7 @@ interface PasswordInputProps {
   placeholder?: string;
 }
 
-const PasswordInput = forwardRef<PasswordInputHandle, PasswordInputProps>(function PasswordInput({
+export default function PasswordInput({
   id,
   label,
   value,
@@ -25,13 +21,9 @@ const PasswordInput = forwardRef<PasswordInputHandle, PasswordInputProps>(functi
   autoComplete,
   disabled,
   placeholder = "••••••••",
-}, ref) {
+}: PasswordInputProps) {
   const { t } = useLang();
   const [showPassword, setShowPassword] = useState(false);
-
-  useImperativeHandle(ref, () => ({
-    hide: () => setShowPassword(false),
-  }));
 
   return (
     <div>
@@ -89,6 +81,4 @@ const PasswordInput = forwardRef<PasswordInputHandle, PasswordInputProps>(functi
       </div>
     </div>
   );
-});
-
-export default PasswordInput;
+}
