@@ -4,7 +4,7 @@
 
 Test suite pokrýva celú aplikáciu — od izolovaných finančných výpočtov cez API endpointy až po scraper integráciu na živých štátnych portáloch.
 
-**Celkom: ~346 testov v 14 súboroch across 5 kategórií.**
+**Celkom: ~369 testov v 15 súboroch across 5 kategórií.**
 
 ---
 
@@ -15,7 +15,8 @@ tests/                              # Frontend & API tests
 ├── run_all.sh                      # Test runner — shell + TS + optional Python
 ├── README.md                       # Tento súbor
 ├── unit/
-│   └── rateLimit_spec.ts           # Unit: rateLimit.ts (13 tests)
+│   ├── rateLimit_spec.ts           # Unit: rateLimit.ts (13 tests)
+│   └── i18n_spec.ts                # Unit: i18n key parity (23 tests)
 ├── integration/
 │   ├── test_auth.sh                # Integration: auth flow (15 tests)
 │   ├── test_api.sh                 # Integration: API endpoints (32 tests)
@@ -147,6 +148,24 @@ In-memory rate limiting z `frontend/src/lib/rateLimit.ts`.
 | IP from x-real-ip | Fallback na x-real-ip header |
 | IP unknown | Fallback na "unknown" |
 | Same IP shared counter | 2 requesty z rovnakého IP zdieľajú counter |
+
+#### `tests/unit/i18n_spec.ts` — 23 testov
+
+Parita kľúčov a funkčnosť i18n z `frontend/src/lib/i18n.ts`.
+
+| Test | Čo overuje |
+|---|---|
+| SK has 100+ keys | SK slovník má 515 kľúčov |
+| EN same keys as SK | Všetky SK kľúče existujú v EN |
+| DE same keys as SK | Všetky SK kľúče existujú v DE |
+| EN/DE no extra keys | Žiadne extra kľúče v EN/DE mimo SK |
+| No empty values | Žiadne prázdne hodnoty v žiadnom jazyku |
+| No duplicate keys | Žiadne duplicitné kľúče v rámci jazyka |
+| translate() SK/EN/DE | Vráti správnu hodnotu pre každý jazyk |
+| translate() fallback | Chýbajúci kľúč → vráti key string |
+| translate() interpolation | Parametre `{n}` sa nahradia v SK/EN/DE |
+| LANGUAGES | 3 jazyky (sk, en, de) s flagmi a labelmi |
+| LOCALE_MAP | sk→sk-SK, en→en-GB, de→de-DE |
 
 ---
 
