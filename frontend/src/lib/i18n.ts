@@ -508,12 +508,12 @@ const sk: Dict = {
   // ── Landing page: Features ──
   "home.featuresTitle": "Čo správa obsahuje",
   "home.featuresSubtitle": "Konkrétne overenia a výstupy v jednom dokumente.",
-  "home.feature1Title": "Zlúčené dáta z 20+ registrov",
-  "home.feature1Desc": "ORSR, RPVS, RÚZ, insolvenčné registre, DPH, exekúcie, záložné práva a ďalšie — všetko v jednom PDF.",
+  "home.feature1Title": "Dáta z 26 registrov v jednom PDF",
+  "home.feature1Desc": "ORSR, Register ÚZ, Obchodný vestník, insolvenčný register, RPVS, Finančná správa, Sociálna poisťovňa, zdravotné poisťovne, CRZ, ÚVO a ďalšie — všetko na jednom mieste.",
   "home.feature2Title": "Automatizovaná finančná analýza",
-  "home.feature2Desc": "5-ročná história, Altman Z-Score, Piotroski F-Score, predikcia úpadku a forenzná detekcia rizík.",
-  "home.feature3Title": "Predikcia rizika a Verifa Score",
-  "home.feature3Desc": "Záverečný posudok s Verifa Score (0-100), kategóriou rizika a odporúčaniami pre ďalšie kroky.",
+  "home.feature2Desc": "5-ročná história z účtovných závierok, Altman Z-Score, Piotroski F-Score, ukazovatele likvidity a zadlženosti, identifikácia rizikových vzorcov a schránkových firiem.",
+  "home.feature3Title": "Verifa Score a záverečný posudok",
+  "home.feature3Desc": "5-pilierové hodnotenie s Verifa Score (0–100), kategóriou rizika (AAA/A/B/C) a konkrétnymi odporúčaniami naďalej.",
 
   // ── Landing page: How it works ──
   "home.stepLabel": "Krok",
@@ -1102,12 +1102,12 @@ const en: Dict = {
   // ── Landing page: Features ──
   "home.featuresTitle": "What the report includes",
   "home.featuresSubtitle": "Specific checks and outputs in a single document.",
-  "home.feature1Title": "Merged data from 20+ registries",
-  "home.feature1Desc": "ORSR, RPVS, RÚZ, insolvency registries, VAT, executions, lien rights and more — all in one PDF.",
+  "home.feature1Title": "Data from 26 registries in one PDF",
+  "home.feature1Desc": "ORSR, Register ÚZ, Commercial Bulletin, insolvency registry, RPVS, Financial Administration, Social Insurance, health insurers, CRZ, UVO and more — all in one place.",
   "home.feature2Title": "Automated financial analysis",
-  "home.feature2Desc": "5-year history, Altman Z-Score, Piotroski F-Score, bankruptcy prediction and forensic risk detection.",
-  "home.feature3Title": "Risk prediction and Verifa Score",
-  "home.feature3Desc": "Final assessment with Verifa Score (0-100), risk category and recommendations for next steps.",
+  "home.feature2Desc": "5-year history from financial statements, Altman Z-Score, Piotroski F-Score, liquidity and leverage ratios, detection of risk patterns and shell companies.",
+  "home.feature3Title": "Verifa Score and final assessment",
+  "home.feature3Desc": "5-pillar scoring with Verifa Score (0–100), risk category (AAA/A/B/C) and specific recommendations for next steps.",
 
   // ── Landing page: How it works ──
   "home.stepLabel": "Step",
@@ -1696,12 +1696,12 @@ const de: Dict = {
   // ── Landing page: Features ──
   "home.featuresTitle": "Was der Bericht enthält",
   "home.featuresSubtitle": "Konkrete Prüfungen und Ergebnisse in einem Dokument.",
-  "home.feature1Title": "Zusammengeführte Daten aus 20+ Registern",
-  "home.feature1Desc": "ORSR, RPVS, RÚZ, Insolvenzregister, USt, Zwangsvollstreckungen, Pfandrechte und mehr — alles in einem PDF.",
+  "home.feature1Title": "Daten aus 26 Registern in einem PDF",
+  "home.feature1Desc": "ORSR, Register ÚZ, Handelsregister, Insolvenzregister, RPVS, Finanzverwaltung, Sozialversicherung, Krankenkassen, CRZ, UVO und mehr — alles an einem Ort.",
   "home.feature2Title": "Automatisierte Finanzanalyse",
-  "home.feature2Desc": "5-jährige Historie, Altman Z-Score, Piotroski F-Score, Konkursvorhersage und forensische Risikoaufdeckung.",
-  "home.feature3Title": "Risikovorhersage und Verifa Score",
-  "home.feature3Desc": "Abschließendes Gutachten mit Verifa Score (0-100), Risikokategorie und Empfehlungen für weitere Schritte.",
+  "home.feature2Desc": "5-jährige Historie aus Jahresabschlüssen, Altman Z-Score, Piotroski F-Score, Liquiditäts- und Verschuldungskennzahlen, Erkennung von Risikomustern und Briefkastenfirmen.",
+  "home.feature3Title": "Verifa Score und abschließendes Gutachten",
+  "home.feature3Desc": "5-Säulen-Bewertung mit Verifa Score (0–100), Risikokategorie (AAA/A/B/C) und konkreten Empfehlungen für weitere Schritte.",
 
   // ── Landing page: How it works ──
   "home.stepLabel": "Schritt",
