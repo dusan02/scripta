@@ -22,6 +22,9 @@ export default function LoginPage() {
   const passwordRef = useRef<PasswordInputHandle>(null);
 
   useEffect(() => {
+    // Prefetch CSRF token — ensures cookie is set before first signIn attempt
+    fetch("/api/auth/csrf").catch(() => {});
+
     const savedEmail = localStorage.getItem("verifa-remembered-email");
     if (savedEmail) {
       setEmail(savedEmail);
@@ -50,7 +53,7 @@ export default function LoginPage() {
         } else {
           setError(t("login.nespravne"));
         }
-      } else {
+      } else if (res?.ok) {
         if (rememberMe) {
           localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
         } else {
@@ -58,6 +61,8 @@ export default function LoginPage() {
         }
         router.push("/dashboard");
         router.refresh();
+      } else {
+        setError(t("login.neocakavana"));
       }
     } catch {
       setError(t("login.neocakavana"));
