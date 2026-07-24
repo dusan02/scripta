@@ -54,9 +54,14 @@ export default async function DashboardPage() {
     });
     userBalance = wallet ? Number(wallet.balance) : 0;
 
-    // Only redirect to pricing if user has NO plan AND trial expired or no credits
-    // Users WITH an active plan see the AddonCredits component instead
-    if (!hasPlan && (trialExpired || userBalance <= 0)) {
+    // Also check CreditBatch for remaining credits
+    const creditBatch = await prisma.creditBatch.findFirst({
+      where: { userId: session.user.id, remaining: { gt: 0 }, expiresAt: { gt: now } },
+    });
+    const hasCredits = userBalance > 0 || !!creditBatch;
+
+    // Only redirect to pricing if user has NO plan AND no credits
+    if (!hasPlan && !hasCredits) {
       redirect("/pricing");
     }
   }
