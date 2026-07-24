@@ -40,9 +40,45 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingUser) {
+      if (existingUser.emailVerified) {
+        // Already verified — cannot re-register
+        return NextResponse.json(
+          { message: "Používateľ s týmto e-mailom už existuje." },
+          { status: 400 }
+        );
+      }
+
+      // Not verified yet — update password, delete old token, send new verification email
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+      await prisma.user.update({ where: { email }, data: { passwordHash } });
+      await prisma.verificationToken.deleteMany({ where: { email } });
+
+      const token = crypto.randomBytes(32).toString("hex");
+      const expires = new Date(Date.now() + 1000 * 60 * 60 * 24);
+      await prisma.verificationToken.create({ data: { email, token: hashToken(token), expires } });
+
+      const verifyLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/verify-email?token=${token}`;
+      await sendEmail({
+        to: email,
+        subject: "Potvrdenie registrácie - Verifa.sk",
+        text: `Dobrý deň,\n\nPoslali sme vám nový verifikačný odkaz.\n\n${verifyLink}\n\nTento odkaz platí 24 hodín.`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
+            <h2>Verifa.sk — nový verifikačný odkaz</h2>
+            <p>Dobrý deň,</p>
+            <p>Poslali sme vám nový odkaz na aktiváciu účtu:</p>
+            <p><a href="${verifyLink}" style="${emailButtonStyle()}">Aktivovať účet</a></p>
+            <p style="color: #52525b; font-size: 14px;">Tento odkaz je platný 24 hodín.</p>
+            <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
+            <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
+          </div>
+        `,
+      });
+
       return NextResponse.json(
-        { message: "Používateľ s týmto e-mailom už existuje." },
-        { status: 400 }
+        { message: "Poslali sme nový verifikačný e-mail. Skontrolujte svoju schránku." },
+        { status: 200 }
       );
     }
 
