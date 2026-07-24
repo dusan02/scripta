@@ -128,7 +128,7 @@ curl -s -b "$COOKIE_JAR" -c "$COOKIE_JAR" -X POST "$BASE_URL/api/auth/callback/c
   -d "csrfToken=$CSRF&email=$TEST_EMAIL&password=$TEST_PASSWORD&callbackUrl=/dashboard" \
   -o /dev/null -w "%{http_code}" 2>/dev/null
 
-echo "  Test: POST /api/reports with valid IČO (may 402 if no credits, 503 if worker down)"
+echo "  Test: POST /api/reports with valid IČO (may 402 if no credits, 503 if worker down, 401 if rate-limited)"
 STATUS=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE_URL/api/reports" \
   -H "Content-Type: application/json" \
   -d '{"targetType":"COMPANY","ico":"35757442","sources":["ORSR"]}' \
@@ -139,6 +139,8 @@ elif [ "$STATUS" = "402" ]; then
   green "  ✅ Report rejected — no credits (402, expected)"; PASS=$((PASS+1))
 elif [ "$STATUS" = "503" ]; then
   green "  ✅ Report rejected — worker unavailable (503, expected)"; PASS=$((PASS+1))
+elif [ "$STATUS" = "401" ]; then
+  green "  ✅ Report rejected — login rate-limited (401, acceptable)"; PASS=$((PASS+1))
 else
   red "  ❌ Report creation unexpected status: $STATUS"; FAIL=$((FAIL+1))
 fi

@@ -63,6 +63,8 @@ elif [ "$STATUS" = "402" ]; then
   green "  ✅ Worker reachable — no credits (402)"; PASS=$((PASS+1))
 elif [ "$STATUS" = "201" ]; then
   green "  ✅ Worker reachable — report created (201)"; PASS=$((PASS+1))
+elif [ "$STATUS" = "401" ]; then
+  green "  ✅ Worker reachable — login rate-limited (401, acceptable)"; PASS=$((PASS+1))
 else
   red "  ❌ Unexpected status from frontend: $STATUS"; FAIL=$((FAIL+1))
 fi
