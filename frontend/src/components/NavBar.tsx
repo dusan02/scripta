@@ -7,7 +7,6 @@ import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useT } from "@/components/LanguageProvider";
 import Logo from "@/components/Logo";
-import FeedbackModal from "@/components/FeedbackModal";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function SunIcon() {
@@ -31,14 +30,6 @@ function LogOutIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-    </svg>
-  );
-}
-
-function FeedbackIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
   );
 }
@@ -109,7 +100,6 @@ export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -230,20 +220,6 @@ export default function NavBar() {
               {isDark ? <SunIcon /> : <MoonIcon />}
             </button>
 
-            {/* Feedback icon */}
-            <button
-              onClick={() => setFeedbackOpen(true)}
-              title={t("nav.reportovatTitle")}
-              className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg transition-all duration-150"
-              style={{
-                background: "var(--bg-muted)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
-              }}
-            >
-              <FeedbackIcon />
-            </button>
-
             {/* Avatar with dropdown */}
             <div className="relative">
               <button
@@ -271,14 +247,6 @@ export default function NavBar() {
                     <div className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
                       {session?.user?.email ?? ""}
                     </div>
-                    <button
-                      onClick={() => { setFeedbackOpen(true); setAvatarOpen(false); }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <FeedbackIcon />
-                      {t("nav.reportovat")}
-                    </button>
                     <button
                       onClick={handleLogout}
                       disabled={loggingOut}
@@ -351,7 +319,6 @@ export default function NavBar() {
       </div>
       </header>
 
-      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
   );
 }

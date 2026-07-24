@@ -42,6 +42,18 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [sentOk, setSentOk] = useState(false);
   const [replyContext, setReplyContext] = useState<Message | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackCategory, setFeedbackCategory] = useState("");
+  const [feedbackRequestId, setFeedbackRequestId] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+
+  const FEEDBACK_CATEGORIES = [
+    { value: "BUG", key: "feedback.chyba" },
+    { value: "IMPROVEMENT", key: "feedback.napad" },
+    { value: "QUESTION", key: "feedback.otazka" },
+    { value: "OTHER", key: "feedback.ine" },
+  ];
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -116,6 +128,35 @@ export default function MessagesPage() {
       console.error("Failed to send message", error);
     } finally {
       setSending(false);
+    }
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackCategory || !feedbackMessage.trim()) return;
+    setFeedbackSending(true);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: feedbackCategory,
+          requestId: feedbackRequestId || null,
+          message: feedbackMessage.trim(),
+        }),
+      });
+      if (res.ok) {
+        setFeedbackCategory("");
+        setFeedbackRequestId("");
+        setFeedbackMessage("");
+        setShowFeedback(false);
+        setSentOk(true);
+        setTimeout(() => setSentOk(false), 3000);
+        refreshSent();
+      }
+    } catch (error) {
+      console.error("Failed to submit feedback", error);
+    } finally {
+      setFeedbackSending(false);
     }
   };
 
@@ -210,6 +251,82 @@ export default function MessagesPage() {
           )}
         </div>
 
+      ) : showFeedback ? (
+        /* Feedback / Report Form */
+        <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>
+              {t("feedback.titulok")}
+            </h2>
+            <button
+              onClick={() => { setShowFeedback(false); setFeedbackCategory(""); setFeedbackRequestId(""); setFeedbackMessage(""); }}
+              className="text-sm"
+              style={{ color: "var(--text-muted)", cursor: "pointer", background: "none", border: "none" }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                {t("feedback.predmet")} <span style={{ color: "var(--danger)" }}>*</span>
+              </label>
+              <select
+                value={feedbackCategory}
+                onChange={(e) => setFeedbackCategory(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+              >
+                <option value="">{t("feedback.vyberteKategoriu")}</option>
+                {FEEDBACK_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>{t(cat.key)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                {t("feedback.idRequestu")} <span style={{ color: "var(--text-muted)" }}>(nepovinné)</span>
+              </label>
+              <input
+                type="text"
+                value={feedbackRequestId}
+                onChange={(e) => setFeedbackRequestId(e.target.value)}
+                placeholder="napr. clxxxxx"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
+              />
+            </div>
+            <div>
+              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
+                {t("feedback.text")} <span style={{ color: "var(--danger)" }}>*</span>
+              </label>
+              <textarea
+                value={feedbackMessage}
+                onChange={(e) => setFeedbackMessage(e.target.value)}
+                rows={5}
+                placeholder={t("feedback.popiste")}
+                className="w-full px-3 py-2 rounded-lg text-sm border resize-none"
+                style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+              />
+            </div>
+            <button
+              onClick={submitFeedback}
+              disabled={feedbackSending || !feedbackCategory || !feedbackMessage.trim()}
+              className="px-4 py-2 rounded-lg text-sm font-semibold self-start"
+              style={{
+                background: feedbackSending ? "var(--bg-muted)" : "var(--accent)",
+                color: feedbackSending ? "var(--text-muted)" : "var(--accent-button-text)",
+                border: "none",
+                cursor: feedbackSending ? "not-allowed" : "pointer",
+                opacity: !feedbackCategory || !feedbackMessage.trim() ? 0.6 : 1,
+              }}
+            >
+              {feedbackSending ? t("feedback.odosielam") : t("feedback.odoslat")}
+            </button>
+          </div>
+        </div>
+
       ) : showCompose ? (
         /* Compose / Reply Form */
         <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
@@ -290,8 +407,8 @@ export default function MessagesPage() {
       ) : (
         /* List View */
         <>
-          {/* Compose button */}
-          <div className="flex items-center justify-between mb-4">
+          {/* Compose + Report buttons */}
+          <div className="flex items-center gap-2 mb-4">
             <button
               onClick={() => { setComposeTitle(""); setComposeBody(""); setReplyContext(null); setShowCompose(true); }}
               className="px-4 py-2 rounded-lg text-sm font-semibold"
@@ -303,6 +420,18 @@ export default function MessagesPage() {
               }}
             >
               {t("messages.napisatSpravu")}
+            </button>
+            <button
+              onClick={() => setShowFeedback(true)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold"
+              style={{
+                background: "var(--surface)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                cursor: "pointer",
+              }}
+            >
+              {t("feedback.titulok")}
             </button>
           </div>
 
