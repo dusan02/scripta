@@ -154,9 +154,12 @@ export default function LoginPage() {
           }}
         >
           {/* Logo */}
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px", width: "100%" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px", width: "100%" }}>
             <Logo size="lg" />
           </div>
+          <h1 style={{ textAlign: "center", fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "0 0 28px" }}>
+            {t("login.prihlasenie")}
+          </h1>
 
           {error && (
             <div
