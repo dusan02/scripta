@@ -14,7 +14,6 @@ function LoginForm() {
   const { t } = useLang();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
 
   const error = searchParams.get("error");
@@ -36,7 +35,6 @@ function LoginForm() {
     const savedEmail = localStorage.getItem("verifa-remembered-email");
     if (savedEmail) {
       setEmail(savedEmail);
-      setRememberMe(true);
     }
   }, []);
 
@@ -45,11 +43,7 @@ function LoginForm() {
       e.preventDefault();
       return;
     }
-    if (rememberMe) {
-      localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
-    } else {
-      localStorage.removeItem("verifa-remembered-email");
-    }
+    localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
   }
 
   return (
@@ -77,7 +71,6 @@ function LoginForm() {
         <form action="/api/auth/callback/credentials" method="POST" onSubmit={handleSubmit} autoComplete="on" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <input type="hidden" name="csrfToken" value={csrfToken} />
           <input type="hidden" name="callbackUrl" value={callbackUrl} />
-          <input type="hidden" name="rememberMe" value={rememberMe ? "true" : "false"} />
 
           <div>
             <label htmlFor="login-email" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("login.email")}</label>
@@ -101,16 +94,7 @@ function LoginForm() {
             autoComplete="current-password"
           />
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "var(--text-secondary)", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ accentColor: "var(--accent)", width: "16px", height: "16px", cursor: "pointer" }}
-              />
-              {t("login.zapamatatSiMa")}
-            </label>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Link
               href="/forgot-password"
               style={{ fontSize: "14px", color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}

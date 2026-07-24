@@ -102,7 +102,6 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        rememberMe: { label: "Remember me", type: "text" },
       },
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
@@ -110,7 +109,6 @@ export const authOptions: NextAuthOptions = {
         }
 
         const email = credentials.email.trim().toLowerCase();
-        const rememberMe = credentials.rememberMe === "true";
 
         // ── Brute-force protection ──────────────────────────────────
         const ipAddress =
@@ -150,8 +148,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          rememberMe,
-        } as any;
+        };
       },
     }),
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -174,7 +171,6 @@ export const authOptions: NextAuthOptions = {
       // `user` is only available on sign-in; persist id and tokenVersion into token.
       if (user) {
         token.id = user.id;
-        token.rememberMe = (user as any).rememberMe ?? true;
         // Fetch tokenVersion from DB at sign-in
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
