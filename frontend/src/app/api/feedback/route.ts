@@ -61,10 +61,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Poslať e-mail na info@verifa.sk
+    // Poslať e-mail na info@verifa.sk s reply-to obsahujúcim userId používateľa
     try {
+      const inboundDomain = process.env.INBOUND_EMAIL_DOMAIN || "inbound.resend.app";
+      const replyTo = `reply+${user.id}@${inboundDomain}`;
       await sendEmail({
         to: "info@verifa.sk",
+        replyTo,
         subject: `[Verifa.sk] ${title}`,
         text: `Od: ${user.email}\nKategória: ${categoryLabel}\n${requestId ? `Request ID: ${requestId}\n` : ""}\n${message.trim()}`,
         html: `<p><strong>Od:</strong> ${user.email}</p><p><strong>Kategória:</strong> ${categoryLabel}</p>${requestId ? `<p><strong>Request ID:</strong> ${requestId}</p>` : ""}<hr><p style="white-space: pre-wrap;">${message.trim()}</p>`,

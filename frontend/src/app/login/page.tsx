@@ -1,29 +1,38 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useLang } from "@/components/LanguageProvider";
-import { signIn } from "next-auth/react";
 import Logo from "@/components/Logo";
 import AuthPageShell from "@/components/auth/AuthPageShell";
 import ErrorAlert from "@/components/auth/ErrorAlert";
-import PasswordInput, { PasswordInputHandle } from "@/components/auth/PasswordInput";
+import PasswordInput from "@/components/auth/PasswordInput";
 import OAuthButtons from "@/components/auth/OAuthButtons";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { t } = useLang();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const passwordRef = useRef<PasswordInputHandle>(null);
+  const [csrfToken, setCsrfToken] = useState("");
+
+  const error = searchParams.get("error");
+
+  const errorMap: Record<string, string> = {
+    CredentialsSignin: t("login.nespravne"),
+    EMAIL_NOT_VERIFIED: t("login.emailNotVerified"),
+    RATE_LIMIT_EXCEEDED: "Príliš veľa neúspešných pokusov. Skúste to znova o 15 minút.",
+  };
+  const errorMessage = error ? (errorMap[error] || t("login.neocakavana")) : "";
 
   useEffect(() => {
-    // Prefetch CSRF token — ensures cookie is set before first signIn attempt
-    fetch("/api/auth/csrf").catch(() => {});
+    fetch("/api/auth/csrf")
+      .then((r) => r.json())
+      .then((data) => setCsrfToken(data.csrfToken))
+      .catch(() => {});
 
     const savedEmail = localStorage.getItem("verifa-remembered-email");
     if (savedEmail) {
@@ -32,43 +41,13 @@ export default function LoginPage() {
     }
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    passwordRef.current?.hide(); // ensure field is type="password" so browser recognizes it for save prompt
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await signIn("credentials", {
-        email: email.trim().toLowerCase(),
-        password,
-        redirect: false,
-      });
-
-      if (res?.error) {
-        if (res.error === "EMAIL_NOT_VERIFIED") {
-          setError(t("login.emailNotVerified"));
-        } else if (res.error === "RATE_LIMIT_EXCEEDED") {
-          setError("Príliš veľa neúspešných pokusov. Skúste to znova o 15 minút.");
-        } else {
-          setError(t("login.nespravne"));
-        }
-      } else if (res?.ok) {
-        if (rememberMe) {
-          localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
-        } else {
-          localStorage.removeItem("verifa-remembered-email");
-        }
-        router.push("/dashboard");
-        router.refresh();
-      } else {
-        setError(t("login.neocakavana"));
-      }
-    } catch {
-      setError(t("login.neocakavana"));
-    } finally {
-      setLoading(false);
+  function handleSubmit(e: React.FormEvent) {
+    if (rememberMe) {
+      localStorage.setItem("verifa-remembered-email", email.trim().toLowerCase());
+    } else {
+      localStorage.removeItem("verifa-remembered-email");
     }
+    setLoading(true);
   }
 
   return (
@@ -93,9 +72,12 @@ export default function LoginPage() {
           {t("login.prihlasenie")}
         </h1>
 
-        {error && <ErrorAlert message={error} />}
+        {errorMessage && <ErrorAlert message={errorMessage} />}
 
-        <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <form action="/api/auth/callback/credentials" method="POST" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <input type="hidden" name="csrfToken" value={csrfToken} />
+          <input type="hidden" name="callbackUrl" value="/dashboard" />
+
           {/* Email */}
           <div>
             <label htmlFor="login-email" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("login.email")}</label>
@@ -116,7 +98,6 @@ export default function LoginPage() {
 
           {/* Password */}
           <PasswordInput
-            ref={passwordRef}
             id="login-password"
             label={t("login.heslo")}
             value={password}
