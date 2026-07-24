@@ -13,6 +13,13 @@ const registerSchema = z.object({
   password: z.string().min(8, "Heslo musí mať aspoň 8 znakov"),
 });
 
+// Appends invisible zero-width characters to the subject so email clients
+// (e.g. Gmail) don't collapse/thread multiple verification emails together.
+function uniqueSubjectSuffix(): string {
+  const count = 1 + Math.floor(Math.random() * 20);
+  return "\u200B".repeat(count);
+}
+
 export async function POST(req: NextRequest) {
   const rl = await rateLimit(req, { windowMs: 60 * 60 * 1000, maxRequests: 5 });
   if (!rl.allowed) return rateLimitResponse(rl);
@@ -61,10 +68,11 @@ export async function POST(req: NextRequest) {
       const verifyLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/verify-email?token=${token}`;
       await sendEmail({
         to: email,
-        subject: `Nový verifikačný odkaz - Verifa.sk (${new Date().toLocaleTimeString("sk-SK")})`,
+        subject: `Nový verifikačný odkaz - Verifa.sk${uniqueSubjectSuffix()}`,
         text: `Dobrý deň,\n\nPoslali sme vám nový verifikačný odkaz.\n\n${verifyLink}\n\nTento odkaz platí 24 hodín.`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
+            <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Kliknite na odkaz pre aktiváciu vášho účtu na Verifa.sk</div>
             <h2>Verifa.sk — nový verifikačný odkaz</h2>
             <p>Dobrý deň,</p>
             <p>Poslali sme vám nový odkaz na aktiváciu účtu:</p>
@@ -123,10 +131,11 @@ export async function POST(req: NextRequest) {
 
     await sendEmail({
       to: email,
-      subject: "Potvrdenie registrácie - Verifa.sk",
+      subject: `Potvrdenie registrácie - Verifa.sk${uniqueSubjectSuffix()}`,
       text: `Dobrý deň,\n\nĎakujeme za registráciu na Verifa.sk.\n\nPre aktiváciu vášho účtu kliknite na nasledujúci odkaz:\n${verifyLink}\n\nTento odkaz platí 24 hodín.\n\nAk ste sa neregistrovali, môžete tento e-mail ignorovať.\n\nS pozdravom,\nTím Verifa.sk`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
+          <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Kliknite na odkaz pre aktiváciu vášho účtu na Verifa.sk</div>
           <h2>Vitajte na Verifa.sk</h2>
           <p>Dobrý deň,</p>
           <p>Ďakujeme za registráciu. Pre aktiváciu vášho účtu kliknite na tlačidlo nižšie:</p>
