@@ -67,6 +67,7 @@ export default async function DashboardPage() {
   }
 
   const reports = await getRecentReports(session.user.id);
+  const isNewUser = reports.length === 0;
 
   const serializedReports = reports.map((r) => ({
     id:         r.id,
@@ -81,6 +82,29 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-[1200px] mx-auto px-4 sm:px-6" style={{ minHeight: "calc(100vh - 56px)" }}>
       <AddonCredits balance={userBalance} planName={userPlanName} />
+
+      {isNewUser && (
+        <div style={{
+          margin: "24px 0 8px",
+          padding: "16px 20px",
+          background: "var(--accent-subtle, #f0fdf4)",
+          border: "1px solid var(--accent, #16a34a)",
+          borderRadius: "12px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+        }}>
+          <span style={{ fontSize: 22, flexShrink: 0 }}>🎉</span>
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 15, color: "var(--text)", marginBottom: 4 }}>
+              Vitajte vo Verifa! Máte 1 kredit na overenie firmy.
+            </p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              Zadajte IČO spoločnosti do vyhľadávacieho poľa — skontrolujeme ju v 25+ registroch a pripravíme Business Risk Report.
+            </p>
+          </div>
+        </div>
+      )}
 
       <SearchSection />
       <ReportsTable reports={serializedReports} />
