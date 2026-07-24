@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useLang } from "@/components/LanguageProvider";
 import Logo from "@/components/Logo";
@@ -12,13 +13,22 @@ import OAuthButtons from "@/components/auth/OAuthButtons";
 
 function LoginForm() {
   const { t } = useLang();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
 
   const error = searchParams.get("error");
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+  useEffect(() => {
+    if (status === "authenticated" && !error) {
+      router.replace(callbackUrl);
+    }
+  }, [status, error, callbackUrl, router]);
 
   const errorMap: Record<string, string> = {
     CredentialsSignin: t("login.nespravne"),
@@ -76,7 +86,8 @@ function LoginForm() {
 
         <form action="/api/auth/callback/credentials" method="POST" onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <input type="hidden" name="csrfToken" value={csrfToken} />
-          <input type="hidden" name="callbackUrl" value="/dashboard" />
+          <input type="hidden" name="callbackUrl" value={callbackUrl} />
+          <input type="hidden" name="rememberMe" value={rememberMe ? "true" : "false"} />
 
           <div>
             <label htmlFor="login-email" className="label" style={{ display: "block", marginBottom: "8px" }}>{t("login.email")}</label>
