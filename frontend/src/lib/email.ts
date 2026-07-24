@@ -1,5 +1,3 @@
-import nodemailer from "nodemailer";
-
 type SendEmailParams = {
   to: string;
   subject: string;
@@ -8,9 +6,11 @@ type SendEmailParams = {
 };
 
 export async function sendEmail({ to, subject, text, html }: SendEmailParams): Promise<void> {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+
+  if (!resendApiKey) {
     console.log("============================================");
-    console.log("MOCK EMAIL SENDING (Missing SMTP variables):");
+    console.log("MOCK EMAIL SENDING (Missing RESEND_API_KEY):");
     console.log("To:", to);
     console.log("Subject:", subject);
     console.log("Text:", text.substring(0, 200));
@@ -18,23 +18,21 @@ export async function sendEmail({ to, subject, text, html }: SendEmailParams): P
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: Number(process.env.SMTP_PORT) === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+  const from = process.env.EMAIL_FROM || "Verifa.sk <noreply@verifa.sk>";
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
     },
+    body: JSON.stringify({ from, to, subject, text, html }),
   });
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || '"Verifa.sk" <noreply@verifa.sk>',
-    to,
-    subject,
-    text,
-    html,
-  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Resend error ${res.status}: ${err}`);
+  }
 }
 
 export function emailButtonStyle(): string {
