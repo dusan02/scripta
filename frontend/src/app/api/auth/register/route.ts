@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       const verifyLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/verify-email?token=${token}`;
       await sendEmail({
         to: email,
-        subject: "Potvrdenie registrácie - Verifa.sk",
+        subject: `Nový verifikačný odkaz - Verifa.sk (${new Date().toLocaleTimeString("sk-SK")})`,
         text: `Dobrý deň,\n\nPoslali sme vám nový verifikačný odkaz.\n\n${verifyLink}\n\nTento odkaz platí 24 hodín.`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
