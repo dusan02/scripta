@@ -590,7 +590,7 @@ const sk: Dict = {
   "report.phaseCompiling": "PDF kompilácia",
 
   // ── Documents page ──
-  "nav.dokumenty": "Ukážka reportu",
+  "nav.dokumenty": "Dokumenty",
   "docs.title": "Dokumenty",
   "docs.subtitle": "Príručky, vzory a právne dokumenty",
   "docs.manualTitle": "Používateľská príručka",
@@ -1187,7 +1187,7 @@ const en: Dict = {
   "report.phaseCompiling": "PDF compilation",
 
   // ── Documents page ──
-  "nav.dokumenty": "Sample Report",
+  "nav.dokumenty": "Documents",
   "docs.title": "Documents",
   "docs.subtitle": "Manuals, samples and legal documents",
   "docs.manualTitle": "User Manual",
@@ -1784,7 +1784,7 @@ const de: Dict = {
   "report.phaseCompiling": "PDF-Kompilierung",
 
   // ── Documents page ──
-  "nav.dokumenty": "Berichtmuster",
+  "nav.dokumenty": "Dokumente",
   "docs.title": "Dokumente",
   "docs.subtitle": "Handbücher, Muster und Rechtsdokumente",
   "docs.manualTitle": "Benutzerhandbuch",
