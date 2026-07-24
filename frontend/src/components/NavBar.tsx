@@ -111,6 +111,7 @@ export default function NavBar() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const userInitials = (() => {
     const email = session?.user?.email ?? "";
@@ -131,6 +132,19 @@ export default function NavBar() {
       .then(data => { if (data) setCreditsUsed(data.usedThisMonth); })
       .catch(() => {});
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const fetchUnread = () => {
+      fetch("/api/messages/unread")
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setUnreadCount(data.count); })
+        .catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [session?.user?.id, pathname]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -162,13 +176,19 @@ export default function NavBar() {
                   key={item.href}
                   href={item.href}
                   title={t(item.key)}
-                  className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150"
+                  className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150 relative"
                   style={{
                     color: active ? "var(--accent)" : "var(--text-secondary)",
                     background: active ? "var(--accent-light)" : "transparent",
                   }}
                 >
                   <item.icon />
+                  {item.href === "/messages" && unreadCount > 0 && (
+                    <span
+                      className="absolute top-1 right-1 w-2 h-2 rounded-full"
+                      style={{ background: "#ef4444", border: "1.5px solid var(--surface)" }}
+                    />
+                  )}
                 </Link>
               );
             })}
@@ -308,13 +328,19 @@ export default function NavBar() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className="flex flex-col items-center gap-1 py-3 rounded-lg transition-all duration-150"
+                    className="flex flex-col items-center gap-1 py-3 rounded-lg transition-all duration-150 relative"
                     style={{
                       color: active ? "var(--accent)" : "var(--text-secondary)",
                       background: active ? "var(--accent-light)" : "var(--bg-muted)",
                     }}
                   >
                     <item.icon />
+                    {item.href === "/messages" && unreadCount > 0 && (
+                      <span
+                        className="absolute top-2 right-3 w-2.5 h-2.5 rounded-full"
+                        style={{ background: "#ef4444", border: "1.5px solid var(--surface)" }}
+                      />
+                    )}
                     <span className="text-[10px] font-medium">{t(item.key)}</span>
                   </Link>
                 );

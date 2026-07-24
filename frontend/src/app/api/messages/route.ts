@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser(req);
@@ -22,7 +24,10 @@ export async function GET(req: NextRequest) {
       take: 50,
     });
 
-    return NextResponse.json({ messages });
+    return NextResponse.json(
+      { messages },
+      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+    );
   } catch (error) {
     console.error("GET /api/messages error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
