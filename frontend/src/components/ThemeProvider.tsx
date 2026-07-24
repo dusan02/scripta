@@ -14,9 +14,15 @@ export function useTheme() {
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof document !== "undefined") {
+      const attr = document.documentElement.getAttribute("data-theme");
+      if (attr === "dark" || attr === "light") return attr;
+    }
+    return "light";
+  });
 
-  // On mount — read from localStorage or system preference
+  // Sync with localStorage on mount (in case DOM attr wasn't set)
   useEffect(() => {
     const stored = localStorage.getItem("verifa-theme") as Theme | null;
     if (stored === "dark" || stored === "light") {
