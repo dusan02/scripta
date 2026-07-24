@@ -19,16 +19,18 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         width: "100%",
         display: "flex",
-        flexDirection: variant === "bottom" ? "column" : "row",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: variant === "bottom" ? "flex-end" : "center",
-        paddingBottom: variant === "bottom" ? "6vh" : undefined,
+        paddingBottom: variant === "bottom" ? "env(safe-area-inset-bottom, 16px)" : undefined,
+        paddingTop: "env(safe-area-inset-top, 0px)",
         background: "url('/landing-bg-v2.jpg') no-repeat center center",
         backgroundSize: "cover",
         position: "relative",
+        overflowY: "auto",
       }}
     >
       <div style={{ position: "absolute", inset: 0, background: isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.15)" }} />
