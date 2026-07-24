@@ -70,19 +70,16 @@ export default function OAuthButtons({ callbackUrl = "/dashboard" }: { callbackU
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        {hasGoogle && (
-          <button
-            type="button"
-            onClick={() => signIn("google", { callbackUrl })}
-            style={buttonStyle}
-            onMouseEnter={onHoverIn}
-            onMouseLeave={onHoverOut}
-          >
-            <GoogleIcon />
-            {t("login.pokracovatGoogle")}
-          </button>
-        )}
-
+        <button
+          type="button"
+          onClick={() => signIn("google", { callbackUrl })}
+          style={buttonStyle}
+          onMouseEnter={onHoverIn}
+          onMouseLeave={onHoverOut}
+        >
+          <GoogleIcon />
+          {t("login.pokracovatGoogle")}
+        </button>
       </div>
     </>
   );

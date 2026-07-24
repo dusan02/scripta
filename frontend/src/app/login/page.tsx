@@ -22,7 +22,7 @@ function LoginForm() {
   const errorMap: Record<string, string> = {
     CredentialsSignin: t("login.nespravne"),
     EMAIL_NOT_VERIFIED: t("login.emailNotVerified"),
-    RATE_LIMIT_EXCEEDED: "Príliš veľa neúspešných pokusov. Skúste to znova o 15 minút.",
+    RATE_LIMIT_EXCEEDED: t("login.rateLimit"),
   };
   const errorMessage = error ? (errorMap[error] || t("login.neocakavana")) : "";
 
