@@ -40,6 +40,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setShowPassword(false); // ensure field is type="password" so browser recognizes it for save prompt
     setLoading(true);
     setError("");
 
