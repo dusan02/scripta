@@ -42,17 +42,6 @@ function GoogleIcon() {
   );
 }
 
-function MicrosoftIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 0H0v10h10V0z" fill="#F25022" />
-      <path d="M21 0H11v10h10V0z" fill="#7FBA00" />
-      <path d="M10 11H0v10h10V11z" fill="#00A4EF" />
-      <path d="M21 11H11v10h10V11z" fill="#FFB900" />
-    </svg>
-  );
-}
-
 export default function OAuthButtons({ callbackUrl = "/dashboard" }: { callbackUrl?: string }) {
   const { t } = useLang();
   const [providers, setProviders] = useState<string[]>([]);
@@ -67,9 +56,8 @@ export default function OAuthButtons({ callbackUrl = "/dashboard" }: { callbackU
   }, []);
 
   const hasGoogle = providers.includes("google");
-  const hasAzure = providers.includes("azure-ad");
 
-  if (!hasGoogle && !hasAzure) return null;
+  if (!hasGoogle) return null;
 
   return (
     <>
@@ -95,18 +83,6 @@ export default function OAuthButtons({ callbackUrl = "/dashboard" }: { callbackU
           </button>
         )}
 
-        {hasAzure && (
-          <button
-            type="button"
-            onClick={() => signIn("azure-ad", { callbackUrl })}
-            style={buttonStyle}
-            onMouseEnter={onHoverIn}
-            onMouseLeave={onHoverOut}
-          >
-            <MicrosoftIcon />
-            {t("login.pokracovatMicrosoft")}
-          </button>
-        )}
       </div>
     </>
   );
