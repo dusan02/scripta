@@ -330,6 +330,7 @@ const sk: Dict = {
   "messages.uspech": "Správa odoslaná",
   "messages.prijate": "Prijaté",
   "messages.odoslane": "Odoslané",
+  "messages.odpovedat": "Odpovedať",
 
   // ── Cookie banner ──
   "cookie.text": "Táto stránka používa nevyhnutné cookies pre správne fungovanie. Používaním stránky súhlasíte s ich ukladaním.",
@@ -924,6 +925,7 @@ const en: Dict = {
   "messages.uspech": "Message sent",
   "messages.prijate": "Inbox",
   "messages.odoslane": "Sent",
+  "messages.odpovedat": "Reply",
 
   // ── Cookie banner ──
   "cookie.text": "This site uses necessary cookies for proper functionality. By using the site, you agree to their storage.",
@@ -1518,6 +1520,7 @@ const de: Dict = {
   "messages.uspech": "Nachricht gesendet",
   "messages.prijate": "Posteingang",
   "messages.odoslane": "Gesendet",
+  "messages.odpovedat": "Antworten",
 
   // ── Cookie banner ──
   "cookie.text": "Diese Seite verwendet notwendige Cookies für die ordnungsgemäße Funktion. Durch die Nutzung stimmen Sie der Speicherung zu.",

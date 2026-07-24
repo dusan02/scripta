@@ -40,6 +40,7 @@ export default function MessagesPage() {
   const [composeBody, setComposeBody] = useState("");
   const [sending, setSending] = useState(false);
   const [sentOk, setSentOk] = useState(false);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/messages")
@@ -86,6 +87,7 @@ export default function MessagesPage() {
     if (!composeTitle.trim() || !composeBody.trim()) return;
     setSending(true);
     setSentOk(false);
+    const isReply = !!replyTo;
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
@@ -96,6 +98,7 @@ export default function MessagesPage() {
         setComposeTitle("");
         setComposeBody("");
         setShowCompose(false);
+        setReplyTo(null);
         setSentOk(true);
         setTimeout(() => setSentOk(false), 3000);
         // Refresh sent messages list
@@ -109,6 +112,14 @@ export default function MessagesPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const startReply = (msg: Message) => {
+    const replyTitle = msg.title.startsWith("Re:") ? msg.title : `Re: ${msg.title}`;
+    setComposeTitle(replyTitle);
+    setComposeBody("");
+    setReplyTo(msg.id);
+    setShowCompose(true);
   };
 
   return (
@@ -283,6 +294,20 @@ export default function MessagesPage() {
               >
                 {msg.body}
               </p>
+              {tab === "inbox" && msg.type !== "USER" && (
+                <button
+                  onClick={() => startReply(msg)}
+                  className="mt-3 text-xs font-medium px-3 py-1.5 rounded-lg"
+                  style={{
+                    background: "var(--surface-hover)",
+                    color: "var(--accent)",
+                    border: "1px solid var(--border)",
+                    cursor: "pointer",
+                  }}
+                >
+                  ↩ {t("messages.odpovedat")}
+                </button>
+              )}
             </div>
           ))}
         </div>
