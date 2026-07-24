@@ -82,18 +82,38 @@ export default function LandingNav() {
         </div>
 
         {/* Mobile nav controls */}
-        <div className="mobile-nav" style={{ alignItems: "center", gap: 8 }}>
-          <button
-            onClick={toggle}
-            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 16 }}
-            aria-label="Toggle theme"
+        <div className="mobile-nav" style={{ alignItems: "center", gap: 6 }}>
+          <Link
+            href="/register"
+            style={{
+              color: "var(--text-secondary)",
+              textDecoration: "none",
+              fontSize: 13,
+              fontWeight: 500,
+              padding: "7px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+            }}
           >
-            {darkMode ? "☀️" : "🌙"}
-          </button>
-          <LanguageSwitcher />
+            {t("home.navRegister")}
+          </Link>
+          <Link
+            href="/login"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-button-text)",
+              textDecoration: "none",
+              fontWeight: 600,
+              fontSize: 13,
+              padding: "8px 14px",
+              borderRadius: 8,
+            }}
+          >
+            {t("home.navLogin")}
+          </Link>
           <button
             onClick={() => setMobileMenuOpen((v) => !v)}
-            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 18, color: "var(--text)" }}
+            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 18, color: "var(--text)" }}
             aria-label="Menu"
           >
             {mobileMenuOpen ? "✕" : "☰"}
@@ -116,8 +136,16 @@ export default function LandingNav() {
           <a href="#ukazka" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("nav.dokumenty")}</a>
           <a href="#pricing" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navPricing")}</a>
           <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-          <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8, border: "1px solid var(--border)" }}>{t("home.navRegister")}</Link>
-          <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ display: "block", textAlign: "center", background: "var(--accent)", color: "var(--accent-button-text)", textDecoration: "none", fontSize: 15, fontWeight: 600, padding: "10px", borderRadius: 8 }}>{t("home.navLogin")}</Link>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              onClick={toggle}
+              style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 16 }}
+              aria-label="Toggle theme"
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+            <LanguageSwitcher />
+          </div>
         </div>
       )}
     </nav>
