@@ -1240,7 +1240,7 @@ const de: Dict = {
   "form.zadajteIco": "USt-IdNr. eingeben...",
   "form.overit": "Prüfen",
   "form.neplatneIco": "Ungültige USt-IdNr. — falsche Prüfziffer.",
-  "form.zvoliteRegister": "Sie müssen mindestens ein Register zur Prüfung auswählen.",
+  "form.zvolteRegister": "Sie müssen mindestens ein Register zur Prüfung auswählen.",
   "form.ico8cislic": "USt-IdNr. muss genau 8 Ziffern enthalten.",
   "form.chyba": "Ein Fehler ist aufgetreten.",
   "form.sietovaChyba": "Netzwerkfehler. Versuchen Sie es erneut.",
