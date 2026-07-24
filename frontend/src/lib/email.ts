@@ -3,9 +3,10 @@ type SendEmailParams = {
   subject: string;
   text: string;
   html: string;
+  replyTo?: string;
 };
 
-export async function sendEmail({ to, subject, text, html }: SendEmailParams): Promise<void> {
+export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailParams): Promise<void> {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
@@ -26,7 +27,7 @@ export async function sendEmail({ to, subject, text, html }: SendEmailParams): P
       "Authorization": `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to, subject, text, html }),
+    body: JSON.stringify({ from, to, subject, text, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
 
   if (!res.ok) {
