@@ -4,7 +4,7 @@
 
 Test suite pokrýva celú aplikáciu — od izolovaných finančných výpočtov cez API endpointy až po scraper integráciu na živých štátnych portáloch.
 
-**Celkom: ~387 testov v 16 súboroch across 5 kategórií.**
+**Celkom: ~391 testov v 16 súboroch across 5 kategórií.**
 
 ---
 
@@ -34,7 +34,7 @@ worker/tests/                       # Python tests (pytest)
 ├── test_pdf_ingestion.py           # Unit: PDF ingestion (1 test)
 ├── test_scrapers.py                # Integration: scraper tests (27 tests)
 ├── test_fs_links.py                # Smoke: FS scraper link existence (~8 tests)
-└── test_orchestration.py            # Unit: orchestration retry/timeout/RÚZ (18 tests)
+└── test_orchestration.py            # Unit: orchestration retry/timeout/RÚZ (22 tests)
 ```
 
 ---
@@ -126,7 +126,7 @@ RÚZ JSON parser z `worker/src/ruz_parser.py`.
 |---|---|
 | `test_extract_core_financials` | `extract_core_financials` — vytvorí dummy PDF (10 strán), overí že core statements sa extrahujú a Notes sekcia sa odstráni |
 
-#### `worker/tests/test_orchestration.py` — 18 testov
+#### `worker/tests/test_orchestration.py` — 22 testov
 
 Orchestrácia generovania reportu — retry, timeout, error handling.
 
@@ -139,6 +139,8 @@ Orchestrácia generovania reportu — retry, timeout, error handling.
 | `TestExponentialBackoff` | 2 | Retry delays [3, 10, 30] — 3 passy, exponenciálny rast (≥2x) |
 | `TestMaxYearsConsistency` | 3 | Scraper používa `_cfg.ruz_max_years` (nie hardcoded 3), config definuje hodnotu, pipeline používa config |
 | `TestTimeoutPreservesPartial` | 2 | Timeout vytvorí FAILED záznamy (nie prázdny zoznam), source_types zodpovedajú task.sources |
+| `TestPerScraperTimeout` | 2 | `_SCRAPER_TIMEOUT` existuje (≤120s), pomalý scraper vráti FAILED namiesto zaseknutia |
+| `TestCancelledPreservesPartial` | 2 | `run_scrapers` handlinguje `CancelledError`, čiastočné výsledky sa zachovajú pri zrušení |
 
 ---
 
