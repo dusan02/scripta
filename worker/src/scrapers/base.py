@@ -116,10 +116,10 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
                 except PlaywrightTimeout:
                     logger.debug(f"[{self.source_type}] DOM load timeout, continuing anyway")
                 return
-            except (PlaywrightTimeout, PlaywrightError) as e:
+            except Exception as e:
                 last_error = e
                 delay = settings.scraper_retry_delay * (attempt + 1) * 2
-                logger.warning(f"[{self.source_type}] goto attempt {attempt + 1}/{retries + 1} failed: {e} — retrying in {delay}s")
+                logger.warning(f"[{self.source_type}] goto attempt {attempt + 1}/{retries + 1} failed: {type(e).__name__}: {e} — retrying in {delay}s")
                 await asyncio.sleep(delay)
         raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
 

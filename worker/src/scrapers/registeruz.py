@@ -25,7 +25,7 @@ class RegisterUzScraper(BaseScraper):
             os.makedirs(ruz_dir, exist_ok=True)
 
             logger.info(f"[{self.source_type}] Sťahujem závierky cez RÚZ API pre IČO {ico} do {ruz_dir}")
-            files = await download_ifrs_reports(ico, max_years=3, output_dir=ruz_dir)
+            files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=ruz_dir)
 
             if not files:
                 logger.info(f"[{self.source_type}] Žiadne závierky pre IČO {ico}")

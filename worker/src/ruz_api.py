@@ -98,18 +98,31 @@ def _dedup_by_period(items: list[dict], max_count: int) -> list[dict]:
 
 # ── API calls ────────────────────────────────────────────────────────────────
 
+_API_RETRIES = 2
+_API_RETRY_DELAY = 2.0
+
+
 async def _api_get(client: httpx.AsyncClient, endpoint: str, params: Optional[dict] = None) -> Optional[dict]:
-    """Vykonná GET na RÚZ API s error handling."""
+    """Vykonná GET na RÚZ API s error handling a retry."""
     url = f"{_RUZ_API}/{endpoint}"
-    try:
-        resp = await client.get(url, params=params, timeout=_TIMEOUT)
-        if resp.status_code == 200:
-            return resp.json()
-        logger.warning(f"[RUZ_API] {endpoint} HTTP {resp.status_code}")
-        return None
-    except Exception as e:
-        logger.warning(f"[RUZ_API] {endpoint} exception: {e}")
-        return None
+    last_error: Optional[Exception] = None
+    for attempt in range(_API_RETRIES + 1):
+        try:
+            resp = await client.get(url, params=params, timeout=_TIMEOUT)
+            if resp.status_code == 200:
+                return resp.json()
+            logger.warning(f"[RUZ_API] {endpoint} HTTP {resp.status_code} (attempt {attempt + 1}/{_API_RETRIES + 1})")
+            if resp.status_code >= 500 and attempt < _API_RETRIES:
+                await asyncio.sleep(_API_RETRY_DELAY)
+                continue
+            return None
+        except Exception as e:
+            last_error = e
+            logger.warning(f"[RUZ_API] {endpoint} exception (attempt {attempt + 1}/{_API_RETRIES + 1}): {e}")
+            if attempt < _API_RETRIES:
+                await asyncio.sleep(_API_RETRY_DELAY)
+                continue
+    return None
 
 
 async def _fetch_details(
@@ -295,11 +308,20 @@ async def _process_zavierka(
     saved_files: list[str] = []
 
     all_vykazy = []
-    for vid in vykaz_ids:
-        vykaz = await _api_get(client, "uctovny-vykaz", {"id": vid})
-        if not vykaz:
-            continue
+    vykaz_sem = asyncio.Semaphore(_FETCH_CONCURRENCY)
 
+    async def _fetch_vykaz(vid: int) -> Optional[dict]:
+        async with vykaz_sem:
+            return await _api_get(client, "uctovny-vykaz", {"id": vid})
+
+    vykaz_results = await asyncio.gather(
+        *[_fetch_vykaz(vid) for vid in vykaz_ids],
+        return_exceptions=True,
+    )
+
+    for vykaz in vykaz_results:
+        if not isinstance(vykaz, dict):
+            continue
         all_vykazy.append(vykaz)
         obsah = vykaz.get("obsah", {})
         tabs = obsah.get("tabulky", [])
