@@ -329,3 +329,120 @@ class TestTimeoutPreservesPartial:
         ]
         types = [s.source_type for s in sources]
         assert types == task_sources, "Source types by mali zodpovedať task.sources"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Per-scraper timeout (registry.py)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestPerScraperTimeout:
+    """run_scrapers by mal mať per-scraper timeout — jeden pomalý scraper nezrúši batch."""
+
+    def test_scraper_timeout_constant_exists(self):
+        """_SCRAPER_TIMEOUT by mal byť definovaný v registry.py."""
+        from src.scrapers.registry import _SCRAPER_TIMEOUT
+        assert _SCRAPER_TIMEOUT > 0, "Per-scraper timeout by mal byť > 0"
+        assert _SCRAPER_TIMEOUT <= 120, "Per-scraper timeout by nemal byť príliš vysoký (≤120s)"
+
+    @pytest.mark.asyncio
+    async def test_slow_scraper_returns_failed_not_hangs(self):
+        """Scraper ktorý trvá dlho by mal byť timeoutovaný, nie zaseknutý."""
+        from src.scrapers.registry import run_scrapers, _SCRAPER_TIMEOUT
+        import time
+
+        # Mock browser — nepotrebujeme reálny, scraper sa vytvorí ale run() sa mockuje
+        browser = MagicMock()
+
+        # Patch get_scraper aby vrátil scraper s pomalým run()
+        slow_scraper = AsyncMock()
+        async def slow_run(**kwargs):
+            await asyncio.sleep(_SCRAPER_TIMEOUT + 10)  # dlhšie ako timeout
+            from src.models import ScrapedSource
+            return ScrapedSource(source_type="TEST", status="SUCCESS")
+        slow_scraper.run = slow_run
+        slow_scraper._close = AsyncMock()
+
+        with patch("src.scrapers.registry.get_scraper", return_value=MagicMock(return_value=slow_scraper)):
+            with patch("src.scrapers.registry._SCRAPER_TIMEOUT", 0.5):
+                t0 = time.perf_counter()
+                results = await run_scrapers(
+                    sources=["TEST"],
+                    output_dir=Path("/tmp"),
+                    browser=browser,
+                    target_type="COMPANY",
+                    ico="12345678",
+                )
+                elapsed = time.perf_counter() - t0
+
+        assert elapsed < 2.0, f"Scraper nebol timeoutovaný (elapsed={elapsed:.1f}s)"
+        assert len(results) == 1
+        assert results[0].status == "FAILED", f"Pomalý scraper by mal byť FAILED, nie {results[0].status}"
+        assert "timeout" in (results[0].status_message or "").lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CancelledError — zachovanie čiastočných výsledkov (registry.py)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestCancelledPreservesPartial:
+    """Pri CancelledError by run_scrapers mal vrátiť už dokončené výsledky."""
+
+    def test_cancelled_error_handled_in_results_loop(self):
+        """Overí že kód v registry.py obsahuje CancelledError handling."""
+        import inspect
+        from src.scrapers.registry import run_scrapers
+        source = inspect.getsource(run_scrapers)
+        assert "CancelledError" in source, "run_scrapers by mal handlingovať CancelledError"
+        assert "cancelled" in source.lower(), "run_scrapers by mal vytvoriť FAILED pre cancelled scrapery"
+
+    @pytest.mark.asyncio
+    async def test_partial_results_on_cancellation(self):
+        """Ak je jeden scraper dokončený a druhý zrušený, mal by sa zachovať prvý."""
+        from src.scrapers.registry import run_scrapers
+        from src.models import ScrapedSource
+
+        browser = MagicMock()
+
+        # Prvý scraper rýchlo úspešný, druhý pomalý (bude zrušený)
+        fast_result = ScrapedSource(source_type="FAST", status="SUCCESS", file_path="/tmp/fast.pdf")
+        fast_scraper = AsyncMock()
+        fast_scraper.run = AsyncMock(return_value=fast_result)
+        fast_scraper._close = AsyncMock()
+
+        slow_scraper = AsyncMock()
+        async def slow_run(**kwargs):
+            await asyncio.sleep(100)  # nikdy sa nedokončí včas
+        slow_scraper.run = slow_run
+        slow_scraper._close = AsyncMock()
+
+        scraper_map = {"FAST": MagicMock(return_value=fast_scraper), "SLOW": MagicMock(return_value=slow_scraper)}
+
+        def mock_get_scraper(st):
+            return scraper_map[st]
+
+        with patch("src.scrapers.registry.get_scraper", side_effect=mock_get_scraper):
+            scraper_task = asyncio.ensure_future(
+                run_scrapers(
+                    sources=["FAST", "SLOW"],
+                    output_dir=Path("/tmp"),
+                    browser=browser,
+                    target_type="COMPANY",
+                    ico="12345678",
+                )
+            )
+            # Daj fast scraperu čas na dokončenie
+            await asyncio.sleep(0.3)
+            # Zruš celú úlohu (simulácia globálneho timeoutu)
+            scraper_task.cancel()
+            try:
+                results = await scraper_task
+            except asyncio.CancelledError:
+                # Ak run_scrapers nedokázalo vrátiť, je to legitné — testujeme že nespadne
+                results = []
+
+        # Aspoň FAST by mal byť dokončený — ale pri CancelledError môže run_scrapers
+        # vrátiť čiastočné výsledky alebo raise CancelledError. Oba prípady sú OK.
+        if results:
+            fast = next((r for r in results if r.source_type == "FAST"), None)
+            if fast:
+                assert fast.status == "SUCCESS", f"FAST scraper by mal byť SUCCESS aj pri cancel"

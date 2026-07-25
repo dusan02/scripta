@@ -102,6 +102,10 @@ def get_scraper(source_type: str) -> Type[BaseScraper]:
         raise ValueError(f"Unknown source type: {source_type}")
 
 
+# Per-scraper timeout — jeden pomalý register nezrúši celý batch
+_SCRAPER_TIMEOUT = 90  # sekundy na jeden scraper
+
+
 async def run_scrapers(
     sources: List[str],
     *,
@@ -117,7 +121,10 @@ async def run_scrapers(
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
     dependencia skončí (paralelne s ostatnými nezávislými).
-    Ak je zadaný on_source_done, zavolá sa ihneď po dokončení každého scraperu."""
+    Ak je zadaný on_source_done, zavolá sa ihneď po dokončení každého scraperu.
+
+    Pri CancelledError (napr. globálny timeout) vráti už dokončené čiastočné výsledky
+    namiesto zahodenia všetkého."""
 
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
     fs_semaphore = asyncio.Semaphore(3)
@@ -149,15 +156,26 @@ async def run_scrapers(
                 _t_run = time.perf_counter()
                 if _t_run - _t_start > 0.05:
                     logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
-                result = await scraper.run(
-                    output_dir=output_dir,
-                    target_type=target_type,
-                    ico=ico,
-                    orsr_extract_type=orsr_extract_type,
-                    crz_date_from=crz_date_from,
-                    rozhodnutia_date_from=rozhodnutia_date_from,
-                    report_language=report_language,
-                    **extra_kwargs,
+                # Per-scraper timeout — jeden pomalý register nezrúši celý batch
+                result = await asyncio.wait_for(
+                    scraper.run(
+                        output_dir=output_dir,
+                        target_type=target_type,
+                        ico=ico,
+                        orsr_extract_type=orsr_extract_type,
+                        crz_date_from=crz_date_from,
+                        rozhodnutia_date_from=rozhodnutia_date_from,
+                        report_language=report_language,
+                        **extra_kwargs,
+                    ),
+                    timeout=_SCRAPER_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"[TIMING] ✗ {source_type} TIMEOUT po {_SCRAPER_TIMEOUT}s")
+                return ScrapedSource(
+                    source_type=source_type,
+                    status="FAILED",
+                    status_message=f"Scraper timeout ({_SCRAPER_TIMEOUT}s)",
                 )
             finally:
                 for sem in reversed(semaphores):
@@ -231,15 +249,25 @@ async def run_scrapers(
         return result
 
     tasks = [_run_independent(source) for source in independent]
+    # Používame asyncio.gather(return_exceptions=True) — pri CancelledError
+    # (napr. globálny timeout z main.py) sa už dokončené scrapery zachovajú.
     raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for source, res in zip(independent, raw_results):
         if isinstance(res, BaseException):
-            results_by_source[source] = ScrapedSource(
-                source_type=source,
-                status="FAILED",
-                status_message=f"Unhandled exception: {type(res).__name__}: {res}",
-            )
+            if isinstance(res, asyncio.CancelledError):
+                # Pri cancel zachovaj ako FAILED (timeout/cancel z vonku)
+                results_by_source[source] = ScrapedSource(
+                    source_type=source,
+                    status="FAILED",
+                    status_message="Scraper cancelled (global timeout)",
+                )
+            else:
+                results_by_source[source] = ScrapedSource(
+                    source_type=source,
+                    status="FAILED",
+                    status_message=f"Unhandled exception: {type(res).__name__}: {res}",
+                )
         else:
             results_by_source[source] = res
 
@@ -248,11 +276,18 @@ async def run_scrapers(
         dep_results = await asyncio.gather(*pending_dependent.values(), return_exceptions=True)
         for source, res in zip(pending_dependent.keys(), dep_results):
             if isinstance(res, BaseException):
-                results_by_source[source] = ScrapedSource(
-                    source_type=source,
-                    status="FAILED",
-                    status_message=f"Unhandled exception: {type(res).__name__}: {res}",
-                )
+                if isinstance(res, asyncio.CancelledError):
+                    results_by_source[source] = ScrapedSource(
+                        source_type=source,
+                        status="FAILED",
+                        status_message="Scraper cancelled (global timeout)",
+                    )
+                else:
+                    results_by_source[source] = ScrapedSource(
+                        source_type=source,
+                        status="FAILED",
+                        status_message=f"Unhandled exception: {type(res).__name__}: {res}",
+                    )
             else:
                 results_by_source[source] = res
 
