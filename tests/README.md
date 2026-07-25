@@ -4,7 +4,7 @@
 
 Test suite pokrýva celú aplikáciu — od izolovaných finančných výpočtov cez API endpointy až po scraper integráciu na živých štátnych portáloch.
 
-**Celkom: ~369 testov v 15 súboroch across 5 kategórií.**
+**Celkom: ~387 testov v 16 súboroch across 5 kategórií.**
 
 ---
 
@@ -33,7 +33,8 @@ worker/tests/                       # Python tests (pytest)
 ├── test_ruz_parser.py              # Unit: RÚZ JSON parser (~30 tests)
 ├── test_pdf_ingestion.py           # Unit: PDF ingestion (1 test)
 ├── test_scrapers.py                # Integration: scraper tests (27 tests)
-└── test_fs_links.py                # Smoke: FS scraper link existence (~8 tests)
+├── test_fs_links.py                # Smoke: FS scraper link existence (~8 tests)
+└── test_orchestration.py            # Unit: orchestration retry/timeout/RÚZ (18 tests)
 ```
 
 ---
@@ -124,6 +125,20 @@ RÚZ JSON parser z `worker/src/ruz_parser.py`.
 | Test | Čo testuje |
 |---|---|
 | `test_extract_core_financials` | `extract_core_financials` — vytvorí dummy PDF (10 strán), overí že core statements sa extrahujú a Notes sekcia sa odstráni |
+
+#### `worker/tests/test_orchestration.py` — 18 testov
+
+Orchestrácia generovania reportu — retry, timeout, error handling.
+
+| Test class | Počet | Čo testuje |
+|---|---|---|
+| `TestSafeGotoBroadened` | 3 | `_safe_goto` — network error retry, generic exception after retries, success on first try |
+| `TestRuzApiRetry` | 5 | `_api_get` — retry on HTTP 500, retry on network error, no retry on 404, all retries exhausted, success first try |
+| `TestRuzParallelVykazy` | 1 | `_process_zavierka` — výkazy stiahnuté paralelne (čas < sekvenčný) |
+| `TestRetryFilter` | 2 | Retry filter zachytí UNAVAILABLE (nielen FAILED), starý filter by vynechal UNAVAILABLE |
+| `TestExponentialBackoff` | 2 | Retry delays [3, 10, 30] — 3 passy, exponenciálny rast (≥2x) |
+| `TestMaxYearsConsistency` | 3 | Scraper používa `_cfg.ruz_max_years` (nie hardcoded 3), config definuje hodnotu, pipeline používa config |
+| `TestTimeoutPreservesPartial` | 2 | Timeout vytvorí FAILED záznamy (nie prázdny zoznam), source_types zodpovedajú task.sources |
 
 ---
 
@@ -348,6 +363,7 @@ ssh root@89.185.250.213 "docker exec verifa_worker bash -c 'cd /app && python -m
 | PDF ingestion coverage | `test_pdf_ingestion.py` | Len 1 test — treba pridať edge cases (multi-column, OCR, encrypted PDF) |
 | Shell testy akceptujú 429 | `test_functional.sh`, `test_worker.sh` | Rate limit sa považuje za "validný" výsledok — maskuje reálne problémy |
 | Scraper testy flaky | `test_scrapers.py`, `test_fs_links.py` | Závisia na živých portáloch — môžu failnúť zmenou DOM |
+| Orchestration testy mockované | `test_orchestration.py` | Testy používajú mocks — nepokrývajú reálny beh `main.py` (treba e2e test) |
 
 ---
 
