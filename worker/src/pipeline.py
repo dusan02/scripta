@@ -547,11 +547,11 @@ async def run_and_save_audit_verdict(
         logger.info(f"Spúšťam Cross-Analysis + Chief Auditor pre IČO: {ico}. CompanyEvents z DB: {event_count}")
 
         # ── Cross-Analysis Agent (Flash) — krížová analýza, executive_summary + key_risk ──
-        # ZREDUKOVANÝ VSTUP: Cross-Analysis nepotrebuje raw IFRS/VS čísla (~25k chars).
-        # Trendy, pomery a Altman Z sú už agregované v analyza_trendov. Z výkazov berieme
-        # len narrativeRisk (going concern, red flags, synthesis) — to je pre krížovú analýzu kľúčové.
+        # Cross-Analysis dostáva analyza_trendov (pomery, trendy, Altman Z) + kľúčové
+        # finančné metriky z výkazov, aby mohla skutočne krížovo analyzovať.
         narrative_by_year = []
         notes_by_year = []
+        key_metrics_by_year = []
         for stmt in company_dict.get("financialStatements", []):
             nr = stmt.get("narrativeRisk")
             if nr:
@@ -559,6 +559,23 @@ async def run_and_save_audit_verdict(
             notes = stmt.get("notesRisk")
             if notes:
                 notes_by_year.append({"rok": stmt.get("year"), "notesRisk": notes})
+            # Kľúčové metriky pre krížovú analýzu (nie plné výkazy, len pomery a absolúty)
+            key_metrics_by_year.append({
+                "rok": stmt.get("year"),
+                "totalAssets": stmt.get("totalAssets"),
+                "currentAssets": stmt.get("currentAssets"),
+                "equity": stmt.get("equity"),
+                "shortTermLiabilities": stmt.get("shortTermLiabilities"),
+                "mainActivityRevenue": stmt.get("mainActivityRevenue"),
+                "netProfitLoss": stmt.get("netProfitLoss"),
+                "operatingCashFlow": stmt.get("operatingCashFlow"),
+                "cashAndEquivalents": stmt.get("cashAndEquivalents"),
+                "staffCosts": stmt.get("staffCosts"),
+                "tradeReceivables": stmt.get("tradeReceivables"),
+                "tradePayables": stmt.get("tradePayables"),
+                "employeeCount": stmt.get("employeeCount"),
+                "auditorOpinion": stmt.get("auditorOpinion"),
+            })
 
         # Extrahuj findings z registry sources pre LLM kontext
         registry_findings = []
@@ -579,6 +596,7 @@ async def run_and_save_audit_verdict(
             "name": company_dict.get("name"),
             "naceText": company_dict.get("naceText"),
             "analyza_trendov": company_dict.get("analyza_trendov", {}),
+            "key_metrics_by_year": key_metrics_by_year,
             "narrativeRisk_by_year": narrative_by_year,
             "notesRisk_by_year": notes_by_year,
             "vestnikEvents": company_dict.get("vestnikEvents", []),
@@ -650,7 +668,7 @@ async def run_and_save_audit_verdict(
         try:
             logger.info(f"Chief Auditor vstup: {len(auditor_input_json)} chars (redukovaný z {len(company_data)} chars)")
             verdict = await safe_llm_call(
-                evaluate_audit_verdict, auditor_input_json, [],
+                evaluate_audit_verdict, auditor_input_json,
                 model=_cfg.model_verdict,
                 label="Chief Auditor",
                 report_language=report_language,
@@ -687,7 +705,7 @@ async def run_and_save_audit_verdict(
                 qa_discrepancies_json = json.dumps([d.model_dump() for d in qa_discrepancies], ensure_ascii=False)
                 logger.warning(f"[QA RE-RUN] IČO {ico}: re-running Chief Auditor with {len(qa_discrepancies)} discrepancies")
                 verdict = await safe_llm_call(
-                    evaluate_audit_verdict, auditor_input_json, [],
+                    evaluate_audit_verdict, auditor_input_json,
                     model=_cfg.model_verdict,
                     label="Chief Auditor (QA re-run)",
                     report_language=report_language,

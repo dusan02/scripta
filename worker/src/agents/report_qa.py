@@ -34,6 +34,9 @@ Kontroluj:
 3. EVIDENCE SOURCES: Pre každý EvidenceItem v zdovodnenie skontroluj, či source pole odkazuje na zdroj, ktorý skutočne existuje v zdrojových dátach.
 4. FABRICATED FACTS: Ak verdikt obsahuje konkrétne tvrdenie ("firma má exekúciu 50 000 EUR"), ktoré nie je podložené zdrojovými dátami, označ ako CRITICAL.
 5. DEBT EXPOSURE: Ak debt_exposure_rating > 0, skontroluj či v companyEvents alebo vestnikEvents skutočne existujú dlhy/exekúcie.
+6. PILLAR COVERAGE: Skontroluj, či zdovodnenie obsahuje aspoň jeden EvidenceItem pre každý z 5 pilierov (Platobná schopnosť, Finančné zdravie, Ziskovosť, Rast, Právna bezúhonnosť). Ak chýba pilier, označ ako WARNING.
+7. CROSS-ANALYSIS DEPTH: Skontroluj, či executive_summary obsahuje krížovú analýzu (prepojenie rôznych dátových zdrojov), nielen sumarizáciu faktov. Ak je executive_summary len zoznam faktov bez vzťahov medzi nimi, označ ako WARNING.
+8. KEY RISK VALIDITY: Skontroluj, či key_risk skutočne reflektuje najväčšiu hrozbu firmy na základe zdrojových dát. Ak key_risk spomína riziko, ktoré nie je podložené dátami, alebo ignoruje zjavné väčšie riziko, označ ako WARNING.
 
 Pravidlá:
 - Si konzervatívny. Ak si nie si istý, či číslo súhlasí, označ ako WARNING (nie CRITICAL).
@@ -55,6 +58,9 @@ Check:
 3. EVIDENCE SOURCES: For each EvidenceItem in zdovodnenie, check if the source field refers to a source that actually exists in the source data.
 4. FABRICATED FACTS: If verdict contains a specific claim ("company has 50,000 EUR enforcement") not supported by source data, flag as CRITICAL.
 5. DEBT EXPOSURE: If debt_exposure_rating > 0, verify that companyEvents or vestnikEvents actually contain debts/enforcements.
+6. PILLAR COVERAGE: Check that zdovodnenie contains at least one EvidenceItem for each of the 5 pillars (Solvency, Financial Health, Profitability, Growth, Legal Integrity). If a pillar is missing, flag as WARNING.
+7. CROSS-ANALYSIS DEPTH: Check that executive_summary contains cross-analysis (connecting different data sources), not just a summary of facts. If executive_summary is just a list of facts without relationships between them, flag as WARNING.
+8. KEY RISK VALIDITY: Check that key_risk actually reflects the biggest threat to the company based on source data. If key_risk mentions a risk not supported by data, or ignores an obvious larger risk, flag as WARNING.
 
 Rules:
 - Be conservative. If unsure whether a number matches, flag as WARNING (not CRITICAL).
@@ -76,6 +82,9 @@ Prüfen Sie:
 3. EVIDENCE SOURCES: Für jedes EvidenceItem in zdovodnenie prüfen Sie, ob das source-Feld auf eine Quelle verweist, die tatsächlich in den Quelldaten existiert.
 4. FABRICATED FACTS: Wenn das Gutachten eine konkrete Behauptung enthält ("Unternehmen hat 50.000 EUR Zwangsvollstreckung"), die nicht durch Quelldaten belegt ist, als CRITICAL markieren.
 5. DEBT EXPOSURE: Wenn debt_exposure_rating > 0, verifizieren Sie, dass companyEvents oder vestnikEvents tatsächlich Schulden/Zwangsvollstreckungen enthalten.
+6. SÄULEN-ABDECKUNG: Prüfen Sie, dass zdovodnenie mindestens ein EvidenceItem für jede der 5 Säulen enthält (Zahlungsfähigkeit, Finanzielle Gesundheit, Rentabilität, Wachstum, Rechtliche Unbescholtenheit). Wenn eine Säule fehlt, als WARNING markieren.
+7. KREUZANALYSE-TIEFE: Prüfen Sie, dass executive_summary eine Kreuzanalyse enthält (Verbindung verschiedener Datenquellen), nicht nur eine Zusammenfassung von Fakten. Wenn executive_summary nur eine Faktenliste ohne Beziehungen ist, als WARNING markieren.
+8. HAUPTRISIKO-VALIDITÄT: Prüfen Sie, dass key_risk tatsächlich die größte Bedrohung des Unternehmens basierend auf Quelldaten widerspiegelt. Wenn key_risk ein nicht belegtes Risiko erwähnt oder ein offensichtliches größeres Risiko ignoriert, als WARNING markieren.
 
 Regeln:
 - Seien Sie konservativ. Bei Unsicherheit, ob eine Zahl übereinstimmt, als WARNING markieren (nicht CRITICAL).

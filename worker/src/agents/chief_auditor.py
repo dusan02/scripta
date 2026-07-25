@@ -58,10 +58,9 @@ PROCES HODNOTENIA A SYNTÉZY:
    - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti.
    - Súdne spory: Z companyEvents s eventType=SUDNE_ROZHODNUTIE zhodnoť ich dopad. Ak firma čelí významným sankciám, platobným rozkazom alebo prehrala závažný spor, zohľadni to ako finančné a právne riziko.
    - Urči `debt_exposure_rating` (0-10), kde 0 = žiadne dlhy, 10 = katastrofálna dlhová pasca.
-3. VÝPOČET FORENŽNÉHO ADJUSTMENTU (informácia pre užívateľa):
+3. VÝPOČET FORENŽNÉHO ADJUSTMENTU:
    - V poli `verifa_score` vrátiš PRESNE hodnotu `algorithmic_prescore` — bez akejkoľvek zmeny.
-   - V poli `llm_score_adjustment` vyráziš forenzný adjustment v rozsahu -10 až +10 bodov, ktorý by si typicky aplikoval (napr. -5 za aktívne exekúcie v PDF, +3 za silné pozitívne naratívne signály).
-   - `llm_score_adjustment` je len transparenté informatívne pole — zobrazí sa v posudku, ale nemenmí `verifaScore` v databáze.
+   - V poli `llm_score_adjustment` uvedieš forenzný adjustment v rozsahu -10 až +10 bodov. Tento adjustment sa pripočíta k `algorithmic_prescore` pre finálne `verifaScore` v databáze. Preto buď konzervatívny — používaj ho len pri jasných forenzných zisteniach, ktoré algoritmus nezachytil (napr. -5 za aktívne exekúcie v PDF, +3 za silné pozitívne naratívne signály). Nenulový adjustment musí byť zdôvodnený v `zdovodnenie`.
    - Priraď kategóriu rizika podľa `algorithmic_prescore` + tvoj adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
 PRAVIDLÁ VÝSTUPU:
@@ -110,10 +109,9 @@ EVALUATION AND SYNTHESIS PROCESS:
    - Liability history: If enforcement actions are older but still ongoing, it is a sign of chronic insolvency.
    - Lawsuits: From companyEvents with eventType=SUDNE_ROZHODNUTIE, assess their impact. If the company faces significant fines, payment orders or lost a major lawsuit, consider it as financial and legal risk.
    - Determine `debt_exposure_rating` (0-10), where 0 = no debts, 10 = catastrophic debt trap.
-3. FORENSIC ADJUSTMENT CALCULATION (information for user):
+3. FORENSIC ADJUSTMENT CALCULATION:
    - In the `verifa_score` field, return EXACTLY the value of `algorithmic_prescore` — without any change.
-   - In the `llm_score_adjustment` field, state the forensic adjustment in the range -10 to +10 points that you would typically apply (e.g. -5 for active enforcement actions in PDF, +3 for strong positive narrative signals).
-   - `llm_score_adjustment` is a transparent informational field only — it will be shown in the assessment, but does not change the stored `verifaScore` in the database.
+   - In the `llm_score_adjustment` field, state the forensic adjustment in the range -10 to +10 points. This adjustment is added to `algorithmic_prescore` for the final `verifaScore` in the database. Therefore be conservative — only use it for clear forensic findings that the algorithm did not capture (e.g. -5 for active enforcement actions in PDF, +3 for strong positive narrative signals). Non-zero adjustment must be justified in `zdovodnenie`.
    - Assign risk category based on `algorithmic_prescore` + your adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
 OUTPUT RULES:
@@ -152,25 +150,35 @@ BEWERTUNGS- UND SYNTHESPROZESS:
 1. KREUZPRÜFUNG UND SYNTHES (Executive Summary):
    - Verbinden Sie isolierte Daten zu kohärentem Kontext im Feld `executive_summary`.
    - Erklären Sie Anomalien, listen Sie nicht nur Fakten auf.
+   - Beispiel: "Obwohl das Unternehmen Hunderte Millionen an Umsatz zeigt und öffentliche Aufträge gewinnt, zeigen die Jahresabschlüsse null Mitarbeiter (0 € Personalkosten) und der gesamte Gewinn fließt als Darlehen an verbundene Unternehmen."
+   - Wenn Sie Transaktionen mit nahestenden Personen in den Notizen finden, verbinden Sie diese sofort mit Schuldenwachstum oder Cash-Rückgang.
    {COMMON_BUT_PATTERNS['de']}
-
-2. ANALYSE ÖFFENTLICHER VERBINDLICHKEITEN (aus companyEvents):
-   - Bestimmen Sie `debt_exposure_rating` (0-10).
+2. ANALYSE ÖFFENTLICHER VERBINDLICHKEITEN, ZWANGSVOLLSTRECKUNGEN UND GERICHTSENTSCHEIDUNGEN (aus companyEvents):
+   - Schulden-zu-Liquidität-Verhältnis: Vergleichen Sie Gesamtschulden gegenüber Versicherung/Staat (aus companyEvents mit eventType=POISTOVNA_DLUH, DAN_NEDOPLATOK) mit aktueller Barliquidität.
+   - Schuldenhistorie: Wenn Zwangsvollstreckungen älter sind aber noch andauern, ist das ein Zeichen chronischer Zahlungsunfähigkeit.
+   - Gerichtsverfahren: Aus companyEvents mit eventType=SUDNE_ROZHODNUTIE, bewerten Sie deren Auswirkung. Erhebliche Strafen, Zahlungsanordnungen oder verlorene Klagen sind finanzielle und rechtliche Risiken.
+   - Bestimmen Sie `debt_exposure_rating` (0-10), wobei 0 = keine Schulden, 10 = katastrophale Schuldenfalle.
 3. FORENSISCHE ANPASSUNGSBERECHNUNG:
    - `verifa_score` = `algorithmic_prescore` (ohne Änderung).
-   - `llm_score_adjustment` im Bereich -10 bis +10.
+   - `llm_score_adjustment` im Bereich -10 bis +10. Diese Anpassung wird zu `algorithmic_prescore` für den endgültigen `verifaScore` in der Datenbank addiert. Seien Sie konservativ — verwenden Sie sie nur für klare forensische Erkenntnisse, die der Algorithmus nicht erfasst hat (z.B. -5 für aktive Zwangsvollstreckungen im PDF, +3 für starke positive narrative Signale). Eine Nicht-Null-Anpassung muss in `zdovodnenie` begründet werden.
+   - Risikokategorie basierend auf `algorithmic_prescore` + Ihrer Anpassung: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
 AUSGABEREGELN:
 - Füllen Sie das Pydantic-Schema `AuditVerdict` aus.
+- `verifa_score` = `algorithmic_prescore` (ohne Änderung — Verstoß verursacht Fehler).
+- KEINE HALLUZINATIONEN: NIE Zahlen im Gutachten erwähnen (z.B. Anzahl der Geschäftsführerwechsel, Umsatzhöhen), die nicht EXPLIZIT in den bereitgestellten Quelldaten angegeben sind.
+- Im Feld 'zdovodnenie' geben Sie eine Liste von `EvidenceItem`-Objekten zurück.
+- Für jedes `EvidenceItem` MÜSSEN Sie den richtigen `impact` zuweisen (POSITIVE für gute Nachrichten, WARNING für Warnungen, CRITICAL für Zwangsvollstreckungen, Tunneling und ernsthafte finanzielle Belastung, NEUTRAL für neutrale Infos).
 - Für jede der 5 Säulen finden Sie mindestens ein starkes Beweisstück.
 - EVIDENCE ITEMS = NUR HISTORISCHE FAKTEN: Jedes EvidenceItem in `zdovodnenie` darf nur überprüfbare historische Fakten aus den bereitgestellten Daten enthalten (Zahlen aus dem Jahresabschluss, Registerereignisse, PDF-Zitate). NIE Prognosen, Vorhersagen oder Schätzungen der zukünftigen Entwicklung (z.B. "vorhergesagter Gewinnrückgang") als EvidenceItem aufnehmen. Zukünftige Trends können in `executive_summary` erwähnt werden, aber nicht als eigenständiger Beweis in der Tabelle.
+- Im Feld `zdovodnenie` erklären Sie `llm_score_adjustment`: wenn ungleich null, fügen Sie ein EvidenceItem hinzu, das beschreibt, warum Sie das Score anpassen würden (z.B. "PDF-Schulden enthalten keine aktiven Zwangsvollstreckungen, llm_score_adjustment = 0").
+- Wenn Ihnen ausreichende Daten fehlen (fehlende PDFs für das angegebene IČO), wählen Sie 'INSUFFICIENT_DATA' in risk_category.
 
 {COMMON_TEXT_QUALITY_RULES['de']}"""
 
 
 async def evaluate_audit_verdict(
     data_json: str,
-    debt_pdfs: list[str],
     model: str = settings.model_verdict,
     report_language: str = "sk",
     cross_analysis_summary: str = "",
@@ -179,7 +187,6 @@ async def evaluate_audit_verdict(
     """
     Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami.
     CompanyEvents z PDF Reader Agent sú už v data_json (z DB).
-    debt_pdfs parameter sa už nepoužíva (zostáva pre backward compatibility).
     cross_analysis_summary: voliteľný vstup od Cross-Analysis Agent (executive_summary + key_risk).
     qa_discrepancies_json: voliteľný vstup od Report QA Agent — zoznam nezrovnalostí, ktoré musíš opraviť.
     """
@@ -196,7 +203,7 @@ async def evaluate_audit_verdict(
     # Príprava obsahu — JSON dáta + voliteľný cross-analysis vstup + voliteľné QA spätné väzby
     parts = []
     if cross_analysis_summary:
-        parts.append(f"[CROSS-ANALYSIS AGENT OUTPUT — použi tento executive_summary a key_risk ako východiskový bod. Môžeš ho doplniť, ale zachovaj korelačnú hĺbku.]\n{cross_analysis_summary}")
+        parts.append(f"[CROSS-ANALYSIS AGENT OUTPUT — tento executive_summary a key_risk pripravil Cross-Analysis Agent z rovnakých dát. NEkopíruj ho doslovne. Použi ho ako inšpiráciu a doplň o ďalšie korelácie z financialStatements a companyEvents, ktoré Cross-Analysis Agent nemal k dispozícii. Tvoj executive_summary má byť hlbší a komplexnejší.]\n{cross_analysis_summary}")
     if qa_discrepancies_json:
         parts.append(f"[QA DISCREPANCIES — tieto nezrovnalosti boli nájdené pri kontrole proti zdrojovým dátam. Oprav ich v novom verdikte.]\n{qa_discrepancies_json}")
     parts.append(f"[COMPANY DATA JSON]\n{data_json}")
