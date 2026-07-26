@@ -436,6 +436,19 @@ def _sanitize_verdict_text(text: str) -> str:
     text = re.sub(r'\^\{([^}]+)\}', r'\1', text)
     text = re.sub(r"\\prime\\prime", "''", text)
     text = re.sub(r"\\prime", "'", text)
+    # Bežné preklepy z LLM — rovnaké ako sanitize_llm_text v report_generator.py
+    text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov").replace("dižníci", "dlžníci")
+    text = text.replace("Dövera", "Dôvera")
+    text = text.replace("südov", "súdov")
+    text = text.replace("Fimra", "Firma")
+    text = text.replace("Registier", "Register")
+    # Compound forms — health insurance dlžníci
+    text = text.replace("Dôveradižníci", "Dôvera — dlžníci").replace("Dôvera-dižníci", "Dôvera — dlžníci")
+    text = text.replace("Dôveradlžníci", "Dôvera — dlžníci").replace("Dôvera-dlžníci", "Dôvera — dlžníci")
+    text = text.replace("VšZP-dižníci", "VšZP — dlžníci").replace("VšZPdižníci", "VšZP — dlžníci")
+    text = text.replace("VšZP-dlžníci", "VšZP — dlžníci")
+    text = text.replace("Union-dižníci", "Union — dlžníci").replace("Uniondižníci", "Union — dlžníci")
+    text = text.replace("Union-dlžníci", "Union — dlžníci")
     return text
 
 
@@ -523,6 +536,21 @@ async def run_and_save_audit_verdict(
         # Cesta B: Deterministická agregácia a výpočet 5-ročného trendu
         scorecard = None
         if company.financialStatements:
+            # Zoradiť a skrátiť na posledných 5 rokov — konzistentné s report_generator.py
+            sorted_stmts = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
+            company.financialStatements = sorted_stmts
+            company_dict["financialStatements"] = [
+                {f: getattr(s, f, None) for f in (
+                    'year', 'mainActivityRevenue', 'netProfitLoss', 'totalAssets', 'equity',
+                    'shortTermLiabilities', 'longTermLiabilities', 'staffCosts', 'depreciation',
+                    'interestExpense', 'operatingCashFlow', 'investingCashFlow', 'financingCashFlow',
+                    'cashAndEquivalents', 'grossProfit', 'currentAssets', 'inventory',
+                    'tradeReceivables', 'tradePayables', 'socialInsuranceLiabilities',
+                    'taxLiabilities', 'employeeLiabilities', 'employeeCount', 'monthsInPeriod',
+                    'statementType', 'auditorOpinion', 'narrativeRisk', 'notesRisk',
+                )}
+                for s in sorted_stmts
+            ]
             trends = compute_financial_trends(company.financialStatements)
             scorecard = compute_forensic_scorecard(company_dict, trends)
             trends["algorithmic_prescore"] = scorecard.total_score

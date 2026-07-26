@@ -164,13 +164,23 @@ def sanitize_llm_text(text: str) -> str:
     text = re.sub(r"\\neq", "!=", text)
     text = re.sub(r"\\approx", "~", text)
     # Bežné preklepy z LLM
-    text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov")
+    text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov").replace("dižníci", "dlžníci")
     text = text.replace("dihoch", "dlhoch").replace("dihodobo", "dlhodobo")
     text = text.replace("poiožiek", "položiek").replace("poiožka", "položka")
     text = text.replace("bezúhonnost", "bezúhonnosť")
     text = text.replace("Interpretica", "Interpretácia")
     text = text.replace("Rezpečná", "Bezpečná")
     text = text.replace("Plotroski", "Piotroski")
+    text = text.replace("Dövera", "Dôvera")
+    text = text.replace("südov", "súdov")
+    text = text.replace("Fimra", "Firma")
+    # Compound forms from scraper findings — health insurance dlžníci
+    text = text.replace("Dôveradižníci", "Dôvera — dlžníci").replace("Dôvera-dižníci", "Dôvera — dlžníci")
+    text = text.replace("Dôveradlžníci", "Dôvera — dlžníci").replace("Dôvera-dlžníci", "Dôvera — dlžníci")
+    text = text.replace("VšZP-dižníci", "VšZP — dlžníci").replace("VšZPdižníci", "VšZP — dlžníci")
+    text = text.replace("VšZP-dlžníci", "VšZP — dlžníci")
+    text = text.replace("Union-dižníci", "Union — dlžníci").replace("Uniondižníci", "Union — dlžníci")
+    text = text.replace("Union-dlžníci", "Union — dlžníci")
     text = re.sub(r'\bdat\b(?=\s*\))', 'dát', text)  # "dat)" → "dát)"
     text = re.sub(r'F-score:\s*(\d)/B\b', r'F-score: \1/8', text)
     # Restore diacritics lost in PDF extraction — common Slovak words
@@ -320,8 +330,8 @@ _FINDINGS_TRANSLATIONS = [
     (r"Právna forma: (.+)", "scr_legal_form", {}),
     (r"Dátum vzniku: (.+)", "scr_founded_date", {}),
     # CRZ / UVO with counts
-    (r"INFO:\s*Pre IČO (\d+) sa našli (\d+) zmluvy v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found", {}),
-    (r"POZOR:\s*Pre IČO (\d+) sa našli (\d+) zmluvy v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found_warn", {}),
+    (r"INFO:\s*Pre IČO (\d+) sa (našla|našli|našlo) (\d+) (zmluvu|zmluvy|zmlúv) v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found", {}),
+    (r"POZOR:\s*Pre IČO (\d+) sa (našla|našli|našlo) (\d+) (zmluvu|zmluvy|zmlúv) v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found_warn", {}),
     (r"INFO:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found", {}),
     (r"POZOR:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found_warn", {}),
     # Register účtovných závierok

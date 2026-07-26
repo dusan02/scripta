@@ -411,8 +411,46 @@ def _to_base64(fig, width, height):
         logger.warning(f"Plotly fallback chart failed: {e}")
         return ""
 
+def _waterfall_to_bars(steps):
+    """Convert waterfall steps to go.Bar with computed bases (Kaleido workaround).
+
+    Kaleido 0.2.x does not render go.Waterfall correctly — bars start from zero
+    instead of cascading. This function manually computes running totals and
+    returns bar y-values, bases, colors, and text labels.
+    """
+    running = 0
+    bar_y = []
+    bar_base = []
+    bar_colors = []
+    bar_text = []
+    for s in steps:
+        measure = s['measure']
+        val = s.get('y', 0)
+        if measure == 'absolute':
+            bar_base.append(0)
+            bar_y.append(val)
+            bar_colors.append('#1e40af')
+            running = val
+        elif measure == 'relative':
+            if val < 0:
+                bar_base.append(running + val)
+                bar_y.append(abs(val))
+                bar_colors.append('#ef4444')
+            else:
+                bar_base.append(running)
+                bar_y.append(val)
+                bar_colors.append('#10b981')
+            running += val
+        elif measure == 'total':
+            bar_base.append(0)
+            bar_y.append(running)
+            bar_colors.append('#1e40af' if running >= 0 else '#ef4444')
+        bar_text.append(f"{val / 1e6:.1f} M €" if measure != 'total' else f"{running / 1e6:.1f} M €")
+    return bar_y, bar_base, bar_colors, bar_text
+
+
 def _generate_pl_waterfall(stmt, lang="sk") -> str:
-    """Proper bridge/waterfall P&L chart using Plotly."""
+    """Proper bridge/waterfall P&L chart using Plotly go.Bar (Kaleido-safe)."""
     if not stmt: return ""
     i = get_i18n_strings(lang)
     revenue = getattr(stmt, 'mainActivityRevenue', None)
@@ -443,18 +481,16 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
 
     if len(steps) < 3: return ""
 
-    fig = go.Figure(go.Waterfall(
-        orientation="v",
-        measure=[s['measure'] for s in steps],
+    bar_y, bar_base, bar_colors, bar_text = _waterfall_to_bars(steps)
+
+    fig = go.Figure(go.Bar(
         x=[s['name'] for s in steps],
-        y=[s.get('y', 0) for s in steps],
-        connector={"line": {"color": "rgba(226,232,240,1)", "width": 1}},
-        decreasing={"marker": {"color": "#ef4444"}},
-        increasing={"marker": {"color": "#10b981"}},
-        totals={"marker": {"color": "#1e40af"}},
-        text=[f"{s.get('y', 0) / 1e6:.1f} M €" if s['measure'] != 'total' else "" for s in steps],
+        y=bar_y,
+        base=bar_base,
+        marker_color=bar_colors,
+        text=bar_text,
         textposition="outside",
-        textfont=dict(size=12, color='#475569')
+        textfont=dict(size=12, color='#475569'),
     ))
 
     fig.update_layout(
@@ -463,13 +499,15 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=40, r=20, t=50, b=30),
         xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
-        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b'))
+        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
+        showlegend=False,
+        barmode='overlay',
     )
     return _to_base64(fig, 800, 350)
 
 
 def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
-    """Proper bridge/waterfall Cash Flow chart using Plotly."""
+    """Proper bridge/waterfall Cash Flow chart using Plotly go.Bar (Kaleido-safe)."""
     if not stmt: return ""
     i = get_i18n_strings(lang)
     net_profit = getattr(stmt, 'netProfitLoss', None)
@@ -491,18 +529,16 @@ def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
 
     if len(steps) < 2: return ""
 
-    fig = go.Figure(go.Waterfall(
-        orientation="v",
-        measure=[s['measure'] for s in steps],
+    bar_y, bar_base, bar_colors, bar_text = _waterfall_to_bars(steps)
+
+    fig = go.Figure(go.Bar(
         x=[s['name'] for s in steps],
-        y=[s.get('y', 0) for s in steps],
-        connector={"line": {"color": "rgba(226,232,240,1)", "width": 1}},
-        decreasing={"marker": {"color": "#ef4444"}},
-        increasing={"marker": {"color": "#10b981"}},
-        totals={"marker": {"color": "#10b981" if ocf and ocf >= 0 else "#ef4444"}},
-        text=[f"{s.get('y', 0) / 1e6:.1f} M €" if s['measure'] != 'total' else "" for s in steps],
+        y=bar_y,
+        base=bar_base,
+        marker_color=bar_colors,
+        text=bar_text,
         textposition="outside",
-        textfont=dict(size=12, color='#475569')
+        textfont=dict(size=12, color='#475569'),
     ))
 
     fig.update_layout(
@@ -511,7 +547,9 @@ def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=40, r=20, t=50, b=30),
         xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
-        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b'))
+        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
+        showlegend=False,
+        barmode='overlay',
     )
     return _to_base64(fig, 800, 350)
 

@@ -277,8 +277,15 @@ class CrzScraper(BaseScraper):
             total_records = int(match.group(1)) if match else row_count
 
             if total_records > 0:
+                # Slovenské skloňovanie podľa počtu
+                if total_records == 1:
+                    verb, noun = "našla", "zmluvu"
+                elif 2 <= total_records <= 4:
+                    verb, noun = "našli", "zmluvy"
+                else:
+                    verb, noun = "našlo", "zmlúv"
                 return (
-                    f"POZOR: Pre IČO {ico} sa našli {total_records} zmluvy v CRZ "
+                    f"POZOR: Pre IČO {ico} sa {verb} {total_records} {noun} v CRZ "
                     f"(zobrazených na {pages} stranách). "
                     f"Odporúčame skontrolovať zmluvy vo vygenerovanom PDF."
                 )
