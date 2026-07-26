@@ -13,8 +13,7 @@ export default function Logo({ size = "md", forceLight = false }: LogoProps) {
   // We use height based on size. The image has a wide aspect ratio.
   const height = size === "lg" ? "72px" : "56px";
   
-  // Auth cards (which often use size="lg" or pass forceLight) are always white, so we need the dark text version.
-  const isDark = theme === "dark" && !forceLight && size !== "lg";
+  const isDark = theme === "dark" && !forceLight;
 
   return (
     <div 
@@ -26,7 +25,7 @@ export default function Logo({ size = "md", forceLight = false }: LogoProps) {
         lineHeight: 1
       }}
     >
-      <img src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"} alt="Verifa.sk" style={{ height, width: "auto", display: "block" }} loading="eager" />
+      <img src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"} alt="Verifa.sk" style={{ height, width: "auto", maxWidth: "100%", display: "block" }} loading="eager" />
     </div>
   );
 }
