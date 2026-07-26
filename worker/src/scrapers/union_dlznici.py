@@ -26,7 +26,12 @@ class UnionDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=10000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=15000, wait_until='domcontentloaded')
+                # UNION je Vue.js SPA — potrebujeme networkidle aby sa input renderoval
+                try:
+                    await page.wait_for_load_state('networkidle', timeout=10000)
+                except PlaywrightTimeoutError:
+                    logger.warning(f"[{self.source_type}] networkidle timeout, pokračujem.")
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] UNION nedostupná ({e}) — generujem fallback PDF.")
                 pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
