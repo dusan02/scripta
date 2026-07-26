@@ -150,7 +150,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
             disabled={loading || !ico}
             style={{
               background: ico && !loading ? "var(--accent)" : "var(--bg-muted)",
-              color: ico && !loading ? "#000000" : "var(--text-muted)",
+              color: ico && !loading ? "var(--accent-button-text, #000000)" : "var(--text-muted)",
             }}
             className="flex items-center justify-center gap-1.5 px-4 font-semibold text-sm transition-all duration-150 flex-shrink-0 hover:brightness-110 disabled:cursor-not-allowed cursor-pointer outline-none h-full rounded-r-[11px] border-l border-border"
           >

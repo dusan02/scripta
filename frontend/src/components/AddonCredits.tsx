@@ -78,7 +78,7 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
             {t("addon.popis")}
           </p>
           <div className="flex items-baseline gap-2 mb-3">
-            <span className="text-lg font-bold" style={{ color: "var(--text)" }}>49 €</span>
+            <span className="text-lg font-bold" style={{ color: "var(--text)" }}>{ADDON_PRICE} €</span>
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>{t("addon.cenaZaReport")}</span>
           </div>
 

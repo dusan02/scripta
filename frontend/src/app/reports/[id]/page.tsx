@@ -115,7 +115,7 @@ function ProgressTimeline({ status, sources }: { status: string; sources: Report
                   ) : isFailed ? "✗" : isPartial ? "~" : i + 1}
                 </div>
                 <span
-                  className="text-[10px] mt-1.5 font-medium absolute translate-y-9 whitespace-nowrap"
+                  className="text-[10px] mt-1.5 font-medium whitespace-nowrap"
                   style={{ color: isFailed || isPartial || done || active ? "var(--text)" : "var(--text-muted)" }}
                 >
                   {isFailed ? t("report.zlyhalo") : isPartial ? t("report.ciastocne") : step.label}
@@ -354,7 +354,7 @@ function PhaseProgress({
             </div>
             {isScraping && sourcesTotal > 0 && (
               <div className="mt-1 text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
-                {sourcesCompleted}/{sourcesTotal} zdrojov
+                {sourcesCompleted}/{sourcesTotal} {t("report.zdrojov")}
               </div>
             )}
           </div>
@@ -412,6 +412,7 @@ export default function ReportDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelCountdown, setCancelCountdown] = useState(8);
@@ -540,14 +541,14 @@ export default function ReportDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      toast.error("Sťahovanie CSV zlyhalo.");
+      toast.error(t("report.csvChyba"));
     } finally {
       setDownloadingCsv(false);
     }
   };
 
   const handleShareEmail = async () => {
-    setDownloading(true);
+    setSharing(true);
     try {
       const res = await fetch(`/api/reports/${params.id}/download`);
       if (!res.ok) throw new Error();
@@ -559,19 +560,19 @@ export default function ReportDetailPage() {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: `Verifa Report - ${namePart}`,
-          text: `Dobrý deň,\\n\\nv prílohe posielam preverený report pre subjekt ${namePart}.`,
+          text: t("report.zdielanieText", { name: namePart ?? "" }),
           files: [file]
         });
       } else {
-        toast.error("Tento prehliadač nepodporuje priame zdieľanie súborov. Dokument sa klasicky stiahne.");
+        toast.error(t("report.zdielanieNepodporovane"));
         handleDownload();
       }
     } catch (e: any) {
       if (e.name !== "AbortError") {
-        toast.error("Zdieľanie zlyhalo.");
+        toast.error(t("report.zdielanieChyba"));
       }
     } finally {
-      setDownloading(false);
+      setSharing(false);
     }
   };
 
@@ -789,7 +790,7 @@ export default function ReportDetailPage() {
             )}
             {canRetryFailed && (
               <div className="text-[10px] text-purple-400 mt-1">
-                Kredit neodpočítal
+                {t("report.kreditNeodpocital")}
               </div>
             )}
             {canDownload && !isFinished && (
@@ -877,7 +878,7 @@ export default function ReportDetailPage() {
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
                         <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                       </svg>
-                      <span className="font-bold text-[14px]" style={{ color: "var(--success)" }}>Sťahujem report…</span>
+                      <span className="font-bold text-[14px]" style={{ color: "var(--success)" }}>{t("report.stahujemReport")}</span>
                     </div>
                   )}
 
@@ -935,14 +936,14 @@ export default function ReportDetailPage() {
                       </svg>
                     </div>
                     <div className="font-bold text-emerald-700 bg-white px-5 py-2 rounded-full text-[13px] shadow-md transform translate-y-3 group-hover:translate-y-0 transition-all duration-300 delay-75">
-                      Stiahnuť PDF report
+                      {t("report.stiahnutPdf")}
                     </div>
                   </div>
                 </button>
 
                 {/* Download label */}
                 <p className="text-[15px] font-bold text-center mb-3" style={{ color: "var(--text)" }}>
-                  Stiahnuť report
+                  {t("report.stiahnutReport")}
                 </p>
 
                 {/* Download buttons row */}
@@ -1000,14 +1001,15 @@ export default function ReportDetailPage() {
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                     <polyline points="22 4 12 14.01 9 11.01"></polyline>
                   </svg>
-                  Analýza úspešne dokončená
+                  {t("report.analyzaUspesna")}
                 </h2>
                 <p className="text-[13.5px] text-center max-w-[280px]" style={{ color: "var(--text-muted)" }}>
-                  Všetky štátne registre boli preverené a hlavný posudok je pripravený.
+                  {t("report.analyzaUspesnaPopis")}
                 </p>
 
                 <button
                   onClick={handleShareEmail}
+                  disabled={sharing}
                   className="mt-5 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
                   style={{ color: "var(--text-secondary)" }}
                 >
@@ -1015,7 +1017,7 @@ export default function ReportDetailPage() {
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                     <polyline points="22,6 12,13 2,6"></polyline>
                   </svg>
-                  Poslať e-mailom (s PDF v prílohe)
+                  {t("report.poslatEmailom")}
                 </button>
               </div>
             ) : (
@@ -1031,10 +1033,10 @@ export default function ReportDetailPage() {
                   <span className="text-3xl">⚠️</span>
                 </div>
                 <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text)" }}>
-                  Analýza zlyhala
+                  {t("report.analyzaZlyhala")}
                 </h2>
                 <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
-                  Report nebolo možné vygenerovať.
+                  {t("report.analyzaZlyhalaPopis")}
                 </p>
               </>
             )}
@@ -1044,19 +1046,19 @@ export default function ReportDetailPage() {
               {[
                 {
                   value: report.sources.filter(s => s.status === "SUCCESS").length,
-                  label: "Zdrojov overených",
+                  label: t("report.zdrojovOverenych"),
                   color: "var(--success)",
                   bg: "var(--success-bg)",
                 },
                 {
                   value: report.sources.filter(s => s.status === "FAILED" || s.status === "UNAVAILABLE").length,
-                  label: "Nedostupných zdrojov",
+                  label: t("report.nedostupnychZdrojov"),
                   color: "var(--warning)",
                   bg: "var(--warning-bg)",
                 },
                 {
                   value: report.sources.reduce((acc, s) => acc + (s.pageCount ?? 0), 0),
-                  label: "Strán dokumentácie",
+                  label: t("report.stranDokumentacie"),
                   color: "var(--info)",
                   bg: "var(--info-bg)",
                 },
@@ -1082,7 +1084,7 @@ export default function ReportDetailPage() {
                 className="mt-3 text-xs underline underline-offset-2 transition-opacity hover:opacity-70"
                 style={{ color: "var(--text-muted)" }}
               >
-                {retrying ? "Odosielam…" : "Zopakovať overenie"}
+                {retrying ? t("report.odosielam") : t("report.zopakovatOverenie")}
               </button>
             )}
 
