@@ -142,8 +142,13 @@ class NotarBaseScraper(BaseScraper):
                 findings=findings or f"Subjekt bol nájdený v {self._title}.",
             )
 
-        except ScraperUnavailableError:
-            raise
+        except ScraperUnavailableError as e:
+            logger.error(f"[{self.source_type}] Nedostupný: {e}")
+            return self._make_result(
+                status="UNAVAILABLE",
+                status_message=f"{self.source_type}: register nedostupný — skúste vygenerovať report znovu.",
+                findings=f"{self._title} je dočasne nedostupný — skúste vygenerovať report znovu.",
+            )
         except Exception as e:
             logger.exception(f"[{self.source_type}] Nečakaná chyba pri IČO {ico}: {e}")
             return self._make_result(

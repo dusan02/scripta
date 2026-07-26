@@ -886,8 +886,30 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             orsr_forensic_penalty += 2
             orsr_forensic_flags.append(f"ORSR HIGH: zvýšené riziko z ORSR histórie (−2b)")
 
-        # Mierna penalizácia za extrémny počet zmien (>50)
-        if stat_changes > 50:
+        # Mierna penalizácia za vysoký počet zmien — threshold závisí od veľkosti firmy
+        # Malá firma (<2M tržieb): >10 zmien je podozrivé
+        # Stredná firma (2-10M): >25 zmien
+        # Veľká firma (>10M): >50 zmien (už bežná)
+        is_small_corp = False
+        is_medium_corp = False
+        if financial_statements:
+            try:
+                latest_stmt = max(financial_statements, key=lambda s: getattr(s, "year", 0) or (s.get("year", 0) if isinstance(s, dict) else 0))
+                rev = getattr(latest_stmt, "mainActivityRevenue", 0) or (latest_stmt.get("mainActivityRevenue", 0) if isinstance(latest_stmt, dict) else 0)
+                if rev and rev <= 2_000_000:
+                    is_small_corp = True
+                elif rev and rev <= 10_000_000:
+                    is_medium_corp = True
+            except Exception:
+                pass
+
+        if is_small_corp and stat_changes > 10:
+            orsr_forensic_penalty += 2
+            orsr_forensic_flags.append(f"Vysoký počet zmien štatutárov ({stat_changes}) pre malú firmu: −2b")
+        elif is_medium_corp and stat_changes > 25:
+            orsr_forensic_penalty += 2
+            orsr_forensic_flags.append(f"Vysoký počet zmien štatutárov ({stat_changes}) pre strednú firmu: −2b")
+        elif stat_changes > 50:
             orsr_forensic_penalty += 2
             orsr_forensic_flags.append(f"Vysoký počet zmien štatutárov ({stat_changes}): −2b")
 

@@ -173,6 +173,11 @@ def sanitize_llm_text(text: str) -> str:
     text = text.replace("Plotroski", "Piotroski")
     text = re.sub(r'\bdat\b(?=\s*\))', 'dát', text)  # "dat)" → "dát)"
     text = re.sub(r'F-score:\s*(\d)/B\b', r'F-score: \1/8', text)
+    # Restore diacritics lost in PDF extraction — common Slovak words
+    text = text.replace("nema negativne", "nemá negatívne")
+    text = text.replace("negativne zaznamy", "negatívne záznamy")
+    text = text.replace("registri upadcov", "registri úpadcov")
+    text = text.replace("zaznamy v registri", "záznamy v registri")
     # Force lowercase "ale" — LLM často ignoruje prompt inštrukciu
     text = re.sub(r'\bALE\b', 'ale', text)
     return text
@@ -180,6 +185,16 @@ def sanitize_llm_text(text: str) -> str:
 def format_findings(source, i18n=None) -> str:
     fallback = (i18n or {}).get("no_records", "Bez záznamu.")
     raw = source.findings or source.message or fallback
+    # Sanitize raw exception text that leaked from scraper errors
+    raw = re.sub(r'Unhandled exception:\s*\w*Error:\s*', '', raw)
+    raw = re.sub(r'\bScraperUnavailableError:\s*', '', raw)
+    raw = re.sub(r'\bPlaywrightTimeoutError:\s*', '', raw)
+    raw = re.sub(r'\bPlaywrightError:\s*', '', raw)
+    # Strip "TypeName: message" patterns from FAILED status messages
+    raw = re.sub(r'^Interná chyba scrapera:\s*\w*Error:\s*', 'Interná chyba scrapera: ', raw)
+    raw = re.sub(r'^Interná chyba:\s*\w*Error:\s*', 'Interná chyba: ', raw)
+    raw = re.sub(r'^Neznáma chyba[^:]*:\s*\w*Error:\s*', 'Neznáma chyba: ', raw)
+    raw = re.sub(r'^Chyba pri spracovaní[^:]*:\s*\w*Error:\s*', 'Chyba pri spracovaní: ', raw)
     raw = sanitize_llm_text(raw)
 
     # ── Comprehensive scraper findings translation ──
@@ -754,9 +769,9 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
         elif isinstance(raw, list):
             forensic_flags = raw
     if len(forensic_flags) >= 3:
-        _add("fraud_cat_forensic", "critical", len(forensic_flags), [(str(f)[:397] + '…') if len(str(f)) > 400 else str(f) for f in forensic_flags[:3]])
+        _add("fraud_cat_forensic", "critical", len(forensic_flags), [(str(f)[:397] + '…') if len(str(f)) > 400 else str(f) for f in forensic_flags[:3] if not isinstance(f, bool)])
     elif len(forensic_flags) >= 1:
-        _add("fraud_cat_forensic", "high", len(forensic_flags), [(str(f)[:397] + '…') if len(str(f)) > 400 else str(f) for f in forensic_flags[:3]])
+        _add("fraud_cat_forensic", "high", len(forensic_flags), [(str(f)[:397] + '…') if len(str(f)) > 400 else str(f) for f in forensic_flags[:3] if not isinstance(f, bool)])
     else:
         _add("fraud_cat_forensic", "none", 0)
 
@@ -786,7 +801,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
         if nr:
             for field in ['redFlags', 'accountingAnomalies', 'hiddenRisks']:
                 val = getattr(nr, field, None)
-                if val and str(val).strip():
+                if val and not isinstance(val, bool) and str(val).strip():
                     text = str(val)
                     notes_flags.append(text[:397] + '…' if len(text) > 400 else text)
     if len(notes_flags) >= 2:
@@ -1105,6 +1120,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 # Sanity check: fallback nesmie byť záporný ani > 100% tržieb
                 if 0 < estimated <= revenue:
                     stmt.grossProfit = estimated
+                    stmt._gross_profit_estimated = True
                     estimated_gp_years.add(stmt.year)
                     gross_profit_estimated = True
     # Ak sú VŠETKY hodnoty grossProfit odhadnuté (žiadny rok nemá reálnu hrubú maržu),
@@ -1569,15 +1585,19 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         success_ratio = (total_sources - failed_sources) / total_sources
         if success_ratio >= 0.9 and unavailable_critical == 0:
             confidence_factors.append({"label": i18n_strings.get("conf_registries_all"), "ok": True, "weight": 25})
-        elif success_ratio >= 0.6:
+        elif success_ratio >= 0.6 and unavailable_critical == 0:
             confidence_factors.append({"label": i18n_strings.get("conf_registries_partial", "").format(pct=int(success_ratio*100)), "ok": True, "weight": 15})
             confidence_score -= 10
+        elif unavailable_critical > 0:
+            # Critical debt registries unavailable — blind spot in risk assessment
+            confidence_factors.append({"label": i18n_strings.get("conf_registries_partial", "").format(pct=int(success_ratio*100)), "ok": False, "weight": 25})
+            confidence_score -= 25
         else:
             confidence_factors.append({"label": i18n_strings.get("conf_registries_limited", "").format(pct=int(success_ratio*100)), "ok": False, "weight": 25})
             confidence_score -= 25
         # Extra penalty for unavailable critical debt registries
         if unavailable_critical > 0:
-            confidence_score -= unavailable_critical * 5  # -5 per unavailable critical source
+            confidence_score -= unavailable_critical * 8  # -8 per unavailable critical source
     else:
         confidence_factors.append({"label": i18n_strings.get("conf_registries_none"), "ok": False, "weight": 25})
         confidence_score -= 25

@@ -225,12 +225,15 @@ async def download_ifrs_reports(
         # 2. Detail entity → zoznam závierok a výročných správ
         entity = await _api_get(client, "uctovna-jednotka", {"id": entity_id})
         if not entity:
-            logger.warning(f"[RUZ_API] Nepodarilo sa získať detail entity {entity_id}")
+            logger.error(f"[RUZ_API] CRITICAL: Entity {entity_id} existuje ale API zlyhalo pri získavaní detailu pre IČO {ico} — možný výpadok RÚZ API")
             return downloaded_files
 
         zavierka_ids: list[int] = entity.get("idUctovnychZavierok", [])
         vs_ids: list[int] = entity.get("idVyrocnychSprav", [])
         logger.info(f"[RUZ_API] {entity.get('nazovUJ', ico)}: {len(zavierka_ids)} závierok, {len(vs_ids)} výročných správ")
+
+        if not zavierka_ids and not vs_ids:
+            logger.warning(f"[RUZ_API] Entita {entity_id} ({entity.get('nazovUJ', ico)}) existuje ale nemá žiadne závierky ani výročné správy")
 
         # 3. Stiahni detaily paralelne
         zavierky = await _fetch_details(client, "uctovna-zavierka", zavierka_ids)

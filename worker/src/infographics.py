@@ -12,9 +12,31 @@ try:
 except ImportError:
     HAS_PLOTLY = False
 
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
 from src.i18n import get_i18n_strings
 
 logger = logging.getLogger(__name__)
+
+
+def _strip_kaleido_watermark(img_bytes: bytes) -> bytes:
+    """Remove Kaleido 0.2.x 'Humanity ex' watermark from bottom of image."""
+    if not HAS_PIL:
+        return img_bytes
+    try:
+        img = Image.open(io.BytesIO(img_bytes))
+        w, h = img.size
+        # Crop bottom 3% of image where watermark appears
+        cropped = img.crop((0, 0, w, int(h * 0.97)))
+        buf = io.BytesIO()
+        cropped.save(buf, format='PNG')
+        return buf.getvalue()
+    except Exception:
+        return img_bytes
 
 
 def generate_pl_infographic(stmt, lang="sk") -> str:
@@ -38,6 +60,10 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     if any(val is None for val in [gross, net, staff, depreciation, interest]):
         return _generate_pl_waterfall(stmt, lang=lang)
     if gross <= 0 or net < 0:
+        return _generate_pl_waterfall(stmt, lang=lang)
+    # Ak je grossProfit odhadnutý (v skutočnosti prevádzkový zisk, nie hrubá marža),
+    # Sankey by zobrazil nesprávne COGS → použi waterfall
+    if getattr(stmt, '_gross_profit_estimated', False):
         return _generate_pl_waterfall(stmt, lang=lang)
 
     if not HAS_PLOTLY:
@@ -143,6 +169,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
             warnings.simplefilter("ignore")
             # Increased height for more vertical space in P&L Sankey
             img_bytes = fig.to_image(format="png", width=860, height=400, scale=2, engine="kaleido")
+        img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"PL Sankey chart failed: {e}")
@@ -223,6 +250,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
             warnings.simplefilter("ignore")
             # Increased height for more vertical space in Cash Flow Sankey
             img_bytes = fig.to_image(format="png", width=860, height=400, scale=2, engine="kaleido")
+        img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"CF Sankey chart failed: {e}")
@@ -362,6 +390,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             img_bytes = fig.to_image(format="png", width=860, height=450, scale=2, engine="kaleido")
+        img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"BS Sankey chart failed: {e}")
@@ -376,6 +405,7 @@ def _to_base64(fig, width, height):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             img_bytes = fig.to_image(format="png", width=width, height=height, scale=2, engine="kaleido")
+        img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         logger.warning(f"Plotly fallback chart failed: {e}")

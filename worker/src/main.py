@@ -355,6 +355,15 @@ async def _execute_report_inner(task: ReportTask) -> None:
             ruz_source = next((s for s in sources if s.source_type == "REGISTER_UZ" and s.status == "SUCCESS"), None)
             ruz_files = (ruz_source.raw_data or []) if ruz_source else None
 
+            # CRITICAL: Ak RÚZ scraper zlyhal (UNAVAILABLE/FAILED po retryoch), pipeline sa pokúsi o vlastný download,
+            # ale ak aj ten zlyhá, report bude bez finančných údajov — toto je slepá škvrna.
+            if not ruz_source:
+                ruz_failed = next((s for s in sources if s.source_type == "REGISTER_UZ"), None)
+                if ruz_failed and ruz_failed.status in ("UNAVAILABLE", "FAILED"):
+                    _log.error(f"[{_rid}] CRITICAL: RÚZ scraper {ruz_failed.status} po retryoch — finančné údaje môžu chýbať! IČO={task.ico}")
+                else:
+                    _log.warning(f"[{_rid}] RÚZ scraper nevrátil žiadne súbory pre IČO {task.ico} — pipeline skúsi vlastný download")
+
             ov_source = next((s for s in sources if s.source_type == "OBCHODNY_VESTNIK" and s.status == "SUCCESS"), None)
             ov_events: Optional[list] = None
             if ov_source and ov_source.findings:

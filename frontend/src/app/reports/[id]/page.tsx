@@ -257,6 +257,12 @@ function getPhaseLabel(aiStatus: string | null | undefined, t: (k: string) => st
   return t("report.phaseScraping");
 }
 
+interface LogEntry {
+  status: string;
+  text: string;
+  timestamp: number;
+}
+
 function PhaseProgress({
   sourcesCompleted,
   sourcesTotal,
@@ -279,6 +285,22 @@ function PhaseProgress({
   const statusText = aiStatus ? t(aiStatus) : t("report.processing");
   const isScraping = !aiStatus || aiStatus === "ai.queued" || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
   const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
+
+  // Track AI status history as a log
+  const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
+  const lastStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentStatus = aiStatus || "report.processing";
+    if (currentStatus !== lastStatusRef.current) {
+      lastStatusRef.current = currentStatus;
+      const entry: LogEntry = {
+        status: currentStatus,
+        text: t(currentStatus),
+        timestamp: Date.now(),
+      };
+      setStatusLog(prev => [...prev, entry]);
+    }
+  }, [aiStatus, t]);
 
   // Track elapsed time to show patience warning
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -382,6 +404,24 @@ function PhaseProgress({
       {!isTerminal && (
         <div className="text-center mt-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
           {String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:{String(elapsedSec % 60).padStart(2, "0")}
+        </div>
+      )}
+
+      {/* Status history log */}
+      {statusLog.length > 1 && (
+        <div className="w-full mt-3 max-h-32 overflow-y-auto rounded-lg p-2 text-xs font-mono" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
+          {statusLog.map((entry, i) => {
+            const isLast = i === statusLog.length - 1;
+            const time = new Date(entry.timestamp).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+            return (
+              <div key={i} className="flex items-start gap-2 py-0.5" style={{ opacity: isLast ? 1 : 0.6 }}>
+                <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>[{time}]</span>
+                <span style={{ color: isLast ? "var(--success)" : "var(--text-muted)", fontWeight: isLast ? 500 : 400 }}>
+                  {entry.text}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 

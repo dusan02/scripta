@@ -815,6 +815,9 @@ async def process_company(
     else:
         with PhaseTimer("RÚZ download"):
             downloaded_files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=f"assets/{ico}")
+
+    if not downloaded_files:
+        logger.error(f"[PIPELINE] CRITICAL: Žiadne finančné výkazy z RÚZ pre IČO {ico} — report bude bez finančnej analýzy!")
     
     await update_ai_status(report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start, pipeline_baseline))
     # Krátko po začiatku analýzy aktualizujeme na konkrétnejší status
@@ -1106,6 +1109,21 @@ async def process_company(
     # LLM môže duplikovať hodnotu z jedného roku do iného (najmä pri IFRS by-function výkazoch)
     if len(_ifrs_results) >= 2:
         _check_cross_year_duplicates(_ifrs_results)
+
+    # CRITICAL CHECK: ak neboli extrahované žiadne finančné údaje, ulož varovanie
+    if not _ifrs_results:
+        logger.error(f"[PIPELINE] CRITICAL: Žiadne finančné údaje extrahované pre IČO {ico} — report bude bez finančnej analýzy! (ifrs_files={len(ifrs_files)}, vs_files={len(vs_files)})")
+        try:
+            from src.db_repository import append_company_event_to_db
+            await append_company_event_to_db(ico, {
+                "source": "PIPELINE",
+                "eventType": "FINANCIAL_DATA_MISSING",
+                "severity": "CRITICAL",
+                "description": "Nepodarilo sa získať finančné údaje z RÚZ — report je bez finančnej analýzy.",
+                "metadata": {"ifrs_files": len(ifrs_files), "vs_files": len(vs_files)},
+            })
+        except Exception as e:
+            logger.warning(f"[PIPELINE] Nepodarilo sa uložiť FINANCIAL_DATA_MISSING event: {e}")
 
     # Uloženie do DB po duplicate checku
     for data in _ifrs_results:

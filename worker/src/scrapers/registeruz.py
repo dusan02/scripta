@@ -28,12 +28,15 @@ class RegisterUzScraper(BaseScraper):
             files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=ruz_dir)
 
             if not files:
-                logger.info(f"[{self.source_type}] Žiadne závierky pre IČO {ico}")
+                # Distinguish between "firm not in RÚZ" and "API failure"
+                # Check if entity exists by looking at cache dir — if API found entity ID but no files,
+                # it's likely an API failure or entity has no statements
+                logger.warning(f"[{self.source_type}] Žiadne súbory stiahnuté pre IČO {ico} — možný výpadok RÚZ API alebo firma nemá závierky")
                 return self._make_result(
-                    status="SUCCESS",
+                    status="UNAVAILABLE",
                     file_path=None,
-                    status_message=f"IČO {ico} nebolo nájdené v Registri účtovných závierok.",
-                    findings=self._no_results_msg,
+                    status_message=f"RÚZ API: nepodarilo sa stiahnuť závierky pre IČO {ico} — skúste vygenerovať report znovu.",
+                    findings=f"Účtovné závierky sa nepodarilo stiahnuť — register môže byť dočasne nedostupný.",
                 )
 
             pdf_files = [f for f in files if f.endswith(".pdf")]
