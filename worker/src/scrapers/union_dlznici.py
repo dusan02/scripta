@@ -64,16 +64,17 @@ class UnionDlzniciScraper(BaseScraper):
             # Kliknúť "Vyhľadať v zozname dlžníkov" pre zobrazenie vyhľadávacieho formulára
             try:
                 open_search_btn = page.get_by_role("button", name="Vyhľadať v zozname dlžníkov")
-                await open_search_btn.wait_for(timeout=5000)
+                await open_search_btn.wait_for(timeout=10000)
                 await open_search_btn.click()
                 logger.info(f"[{self.source_type}] Vyhľadávací formulár otvorený.")
+                await page.wait_for_timeout(2000)
             except PlaywrightTimeoutError:
                 logger.info(f"[{self.source_type}] Tlačidlo 'Vyhľadať v zozname dlžníkov' sa nenašlo — formulár môže byť už otvorený.")
 
             # Vyplniť IČO do textového poľa
             try:
                 textbox = page.get_by_role("textbox", name="Zadajte priezvisko, IČO,")
-                await textbox.wait_for(timeout=5000)
+                await textbox.wait_for(timeout=10000)
                 await textbox.click()
                 await textbox.fill(ico)
                 logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
