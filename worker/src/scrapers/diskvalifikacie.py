@@ -131,14 +131,14 @@ class DiskvalifikacieScraper(BaseScraper):
             # Navigácia na search stránku
             await self._safe_goto(page, _SEARCH_URL)
 
-            # Vyčistenie a vyplnenie search boxu
-            search_input = page.get_by_role("textbox", name="Vyhľadajte podľa mena alebo")
+            # Vyčistenie a vyplnenie search boxu — presný CSS selector #nazov_name
+            search_input = page.locator("#nazov_name")
             try:
-                await search_input.wait_for(state="visible", timeout=5000)
+                await search_input.wait_for(state="visible", timeout=10000)
                 await search_input.click()
                 await search_input.fill(clean_name)
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Search box nenájdený, skúšam CSS selector.")
+                logger.warning(f"[{self.source_type}] Search box (#nazov_name) nenájdený, skúšam fallback.")
                 search_input = page.locator("input[type='text'], input[placeholder*='mena']").first
                 await search_input.fill(clean_name)
 
