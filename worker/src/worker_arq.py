@@ -44,11 +44,15 @@ async def stop_healthcheck_server(ctx):
 # Startup a Shutdown hooky
 async def startup(ctx):
     logger.info("Spúšťam ARQ Workera...")
+    from src.db_client import connect_db
+    await connect_db()
     await start_healthcheck_server(ctx)
 
 async def shutdown(ctx):
     logger.info("Vypínam ARQ Workera (Graceful Shutdown)...")
     await stop_healthcheck_server(ctx)
+    from src.db_client import disconnect_db
+    await disconnect_db()
 
 # Hlavná funkcia na spracovanie
 async def execute_report_task(ctx, task_dict: dict):
