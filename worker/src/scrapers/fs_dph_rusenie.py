@@ -17,6 +17,8 @@ class FsDphRusenieScraper(FinancnaSpravaBase):
 
     source_type = "FS_DPH_RUSENIE"
     zoznam_link_name = "Zoznam platiteľov dane z pridanej hodnoty, u ktorých nastali dôvody na zrušenie registrácie pre DPH"
+    zoznam_link_selector = "a[title='Zoznam platiteľov dane z pridanej hodnoty, u ktorých nastali dôvody na zrušenie registrácie']"
+    ico_input_selector = "#M4_rptFilter_ctl04_txtText"
     file_prefix = "fs_dph_rusenie"
     pdf_title = "Zoznam platiteľov DPH — dôvody na zrušenie registrácie"
     search_by = "ico"

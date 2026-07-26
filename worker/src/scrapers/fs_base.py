@@ -54,6 +54,8 @@ class FinancnaSpravaBase(BaseScraper):
 
     base_url = "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy"
     zoznam_link_name: str = ""
+    zoznam_link_selector: str = ""  # presný CSS selector pre link na zoznam (napr. a[title='...'])
+    ico_input_selector: str = ""  # presný CSS selector pre IČO input (napr. #M4_rptFilter_ctl01_txtText)
     file_prefix: str = "financna_sprava"
     pdf_title: str = ""
     # 'ico' = vyhľadávanie podľa IČO (nie je potrebný ORSR)
@@ -239,14 +241,31 @@ class FinancnaSpravaBase(BaseScraper):
 
             # Navigácia na konkrétny zoznam
             logger.info(f"[{self.source_type}] Hľadám link '{self.zoznam_link_name}'...")
-            try:
-                link = page.get_by_role("link", name=self.zoznam_link_name).first
-                await link.wait_for(timeout=10000)
-                await link.click(force=True)
-                await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                logger.info(f"[{self.source_type}] Na stránke zoznamu, URL: {page.url}")
-            except PlaywrightTimeoutError:
-                # Skúsime partial match — get_by_role robí exact match
+            link_clicked = False
+            # 1. Presný CSS selector (ak je definovaný)
+            if self.zoznam_link_selector:
+                try:
+                    link = page.locator(self.zoznam_link_selector).first
+                    await link.wait_for(timeout=10000)
+                    await link.click(force=True)
+                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    logger.info(f"[{self.source_type}] Na stránke zoznamu (CSS selector), URL: {page.url}")
+                    link_clicked = True
+                except PlaywrightTimeoutError:
+                    logger.info(f"[{self.source_type}] CSS selector link zlyhal, skúšam role-based...")
+            # 2. Role-based exact match
+            if not link_clicked:
+                try:
+                    link = page.get_by_role("link", name=self.zoznam_link_name).first
+                    await link.wait_for(timeout=10000)
+                    await link.click(force=True)
+                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    logger.info(f"[{self.source_type}] Na stránke zoznamu, URL: {page.url}")
+                    link_clicked = True
+                except PlaywrightTimeoutError:
+                    pass
+            # 3. Role-based partial match
+            if not link_clicked:
                 logger.info(f"[{self.source_type}] Exact link match zlyhal, skúšam partial...")
                 try:
                     partial_link = page.get_by_role("link", name=self.zoznam_link_name, exact=False).first
@@ -254,14 +273,17 @@ class FinancnaSpravaBase(BaseScraper):
                     await partial_link.click(force=True)
                     await page.wait_for_load_state("domcontentloaded", timeout=15000)
                     logger.info(f"[{self.source_type}] Na stránke zoznamu (partial match), URL: {page.url}")
+                    link_clicked = True
                 except PlaywrightTimeoutError:
-                    logger.info(f"[{self.source_type}] ⏱ link_click (FAILED): {time.perf_counter() - _t:.2f}s")
-                    logger.error(f"[{self.source_type}] Link '{self.zoznam_link_name}' sa nenašiel!")
-                    await self._debug_screenshot(page, output_dir, ico, "no_link")
-                    return self._make_result(
-                        status="UNAVAILABLE",
-                        status_message=f"Register {self.source_type} nedostupný — štátny portál zmenil layout.",
-                    )
+                    pass
+            if not link_clicked:
+                logger.info(f"[{self.source_type}] ⏱ link_click (FAILED): {time.perf_counter() - _t:.2f}s")
+                logger.error(f"[{self.source_type}] Link '{self.zoznam_link_name}' sa nenašiel!")
+                await self._debug_screenshot(page, output_dir, ico, "no_link")
+                return self._make_result(
+                    status="UNAVAILABLE",
+                    status_message=f"Register {self.source_type} nedostupný — štátny portál zmenil layout.",
+                )
 
             logger.debug(f"[{self.source_type}] ⏱ link_click: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
@@ -468,7 +490,11 @@ class FinancnaSpravaBase(BaseScraper):
     async def _find_search_input(self, page: Page, search_by: str = "name"):
         """Nájde input pre vyhľadávanie — podľa search_by (ico/name). Skúša aj iframes."""
         if search_by == "ico":
-            selectors = [
+            selectors = []
+            # Presný CSS selector (ak je definovaný v subclassi)
+            if self.ico_input_selector:
+                selectors.append(('css-exact', page.locator(self.ico_input_selector)))
+            selectors.extend([
                 ('role-ico', page.get_by_role("textbox", name="IČO")),
                 ('placeholder-ico', page.locator('input[placeholder*="IČO"]')),
                 ('placeholder-ico-lower', page.locator('input[placeholder*="ičo"]')),
@@ -477,15 +503,18 @@ class FinancnaSpravaBase(BaseScraper):
                 ('label-ico', page.locator('input[aria-label*="IČO" i]')),
                 ('label-ico2', page.locator('input[title*="IČO" i]')),
                 ('any-text-first', page.locator('input[type="text"]').first),
-            ]
+            ])
         else:
-            selectors = [
+            selectors = []
+            if self.ico_input_selector:
+                selectors.append(('css-exact', page.locator(self.ico_input_selector)))
+            selectors.extend([
                 ('role', page.get_by_role("textbox", name="Názov subjektu")),
                 ('placeholder', page.locator('input[placeholder*="Názov subjektu"]')),
                 ('placeholder-lower', page.locator('input[placeholder*="názov"]')),
                 ('id', page.locator('#txtNazovSubjektu')),
                 ('css', page.locator('input[type="text"]').first),
-            ]
+            ])
 
         # Skúsime najprv na hlavnej stránke
         for name, locator in selectors:
@@ -524,11 +553,11 @@ class FinancnaSpravaBase(BaseScraper):
     async def _click_search(self, page: Page) -> bool:
         """Klikne na tlačidlo Vyhľadať — skúša viacero selectorov."""
         selectors = [
+            ('css-input-id', page.locator('#btnFilterSubmit')),
             ('role', page.get_by_role("button", name="Vyhľadať")),
             ('text', page.get_by_text("Vyhľadať", exact=True)),
             ('css-btn', page.locator('button:has-text("Vyhľadať")')),
             ('css-input', page.locator('input[value="Vyhľadať"]')),
-            ('css-input-id', page.locator('#btnFilterSubmit')),
             ('css-input-name', page.locator('input[name*="btnFilterSubmit" i]')),
             ('css-a', page.locator('a:has-text("Vyhľadať")')),
         ]

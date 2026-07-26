@@ -19,6 +19,8 @@ class FsDphRegistrovaniScraper(FinancnaSpravaBase):
 
     source_type = "FS_DPH_REGISTROVANI"
     zoznam_link_name = "Zoznam daňových subjektov registrovaných pre DPH"
+    zoznam_link_selector = "a[title='Zoznam daňových subjektov registrovaných pre DPH']"
+    ico_input_selector = "#M4_rptFilter_ctl01_txtText"
     file_prefix = "fs_dph_registrovani"
     pdf_title = "Zoznam daňových subjektov registrovaných pre DPH"
     search_by = "ico"

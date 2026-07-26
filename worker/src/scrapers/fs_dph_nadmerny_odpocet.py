@@ -17,6 +17,7 @@ class FsDphNadmernyOdpocetScraper(FinancnaSpravaBase):
 
     source_type = "FS_DPH_NADMERNY_ODPOCET"
     zoznam_link_name = "Zoznam daňových subjektov (DPH) s výškou nadmerného odpočtu a výškou vlastnej daňovej povinnosti"
+    zoznam_link_selector = "a[title='Zoznam daňových subjektov (DPH) s výškou nadmerného odpočtu a výškou vlastnej daňovej povinnosti']"
     file_prefix = "fs_dph_nadmerny_odpocet"
     pdf_title = "Zoznam DPH subjektov — nadmerný odpočet"
     search_by = "ico"
