@@ -440,7 +440,7 @@ def _sanitize_verdict_text(text: str) -> str:
     text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov").replace("dižníci", "dlžníci")
     text = text.replace("Dövera", "Dôvera")
     text = text.replace("südov", "súdov")
-    text = text.replace("Fimra", "Firma")
+    text = text.replace("Fimra", "Firma").replace("Fimia", "Firma")
     text = text.replace("Registier", "Register")
     # Compound forms — health insurance dlžníci
     text = text.replace("Dôveradižníci", "Dôvera — dlžníci").replace("Dôvera-dižníci", "Dôvera — dlžníci")

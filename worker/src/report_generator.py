@@ -173,7 +173,7 @@ def sanitize_llm_text(text: str) -> str:
     text = text.replace("Plotroski", "Piotroski")
     text = text.replace("Dövera", "Dôvera")
     text = text.replace("südov", "súdov")
-    text = text.replace("Fimra", "Firma")
+    text = text.replace("Fimra", "Firma").replace("Fimia", "Firma")
     # Compound forms from scraper findings — health insurance dlžníci
     text = text.replace("Dôveradižníci", "Dôvera — dlžníci").replace("Dôvera-dižníci", "Dôvera — dlžníci")
     text = text.replace("Dôveradlžníci", "Dôvera — dlžníci").replace("Dôvera-dlžníci", "Dôvera — dlžníci")
