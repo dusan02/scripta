@@ -142,19 +142,18 @@ class DiskvalifikacieScraper(BaseScraper):
                 search_input = page.locator("input[type='text'], input[placeholder*='mena']").first
                 await search_input.fill(clean_name)
 
-            # Kliknúť Search tlačidlo
-            search_btn = page.get_by_role("button", name="Search")
+            # Kliknúť Search tlačidlo — presný CSS selector .idsk-button.idsk-button-large.idsk-button-primary
+            search_btn = page.locator(".idsk-button.idsk-button-large.idsk-button-primary")
             try:
-                await search_btn.wait_for(state="visible", timeout=5000)
+                await search_btn.wait_for(state="visible", timeout=10000)
                 await search_btn.click()
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Search tlačidlo nenájdené, skúšam CSS.")
+                logger.warning(f"[{self.source_type}] Search tlačidlo nenájdené, skúšam fallback.")
                 await page.locator("button:has-text('Search'), button[type='submit']").first.click()
 
-            # Čakať na výsledky
-            # Počkáme kým sa objaví zoznam výsledkov alebo text o žiadnych výsledkoch
+            # Čakať na výsledky — selector pre výsledky: .isu-list-item-title-link
             no_results_loc = page.locator("text=žiadne výsledky, text=neboli nájdené žiadne, text=zadaným kritériám nezodpovedajú, text=nenašli sa žiadne záznamy")
-            results_loc = page.locator("table tbody tr, .result-table tr, .search-results tr")
+            results_loc = page.locator(".isu-list-item-title-link, table tbody tr, .result-table tr, .search-results tr")
             try:
                 await no_results_loc.or_(results_loc).first.wait_for(timeout=5000)
             except PlaywrightTimeoutError:

@@ -119,7 +119,8 @@ class CrzScraper(BaseScraper):
 
     async def _fill_ico(self, page: Page, ico: str) -> None:
         try:
-            ico_input = page.get_by_role("textbox", name="IČO dodávateľa:")
+            # Presný CSS selector: #search-input (fulltextové vyhľadávanie)
+            ico_input = page.locator("#search-input")
             await ico_input.wait_for(timeout=10000)
             await ico_input.click()
             await ico_input.fill(ico)
@@ -160,7 +161,8 @@ class CrzScraper(BaseScraper):
 
     async def _click_search(self, page: Page) -> None:
         try:
-            search_btn = page.get_by_role("button", name="Vyhľadať")
+            # Presný CSS selector: button[name='fulltext_search'] (lupa ikona)
+            search_btn = page.locator("button[name='fulltext_search']")
             await search_btn.wait_for(timeout=10000)
             await search_btn.click()
             logger.info(f"[{self.source_type}] Vyhľadávanie odoslané.")

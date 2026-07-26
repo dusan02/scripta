@@ -214,21 +214,24 @@ class PovereniaScraper(BaseScraper):
 
     async def _search(self, page: Page, ico: str) -> None:
         try:
-            radio = page.get_by_role("radio", name="podľa IČO, resp. názvu povinn")
+            # Presný CSS selector pre radio: #search-by-ico
+            radio = page.locator("#search-by-ico")
             await radio.wait_for(timeout=5000)
             await radio.check()
-            # Počkáme kým sa objaví IČO input po zmene radio (event-driven)
+            # Počkáme kým sa objaví IČO input po zmene radio
             try:
-                await page.get_by_role("textbox", name="IČO").wait_for(timeout=3000)
+                await page.locator("#ico").wait_for(timeout=3000)
             except PlaywrightTimeoutError:
                 pass
 
-            ico_input = page.get_by_role("textbox", name="IČO")
+            # Presný CSS selector pre IČO input: #ico
+            ico_input = page.locator("#ico")
             await ico_input.wait_for(timeout=5000)
             await ico_input.click()
             await ico_input.fill(ico)
 
-            search_btn = page.get_by_role("button", name="Hľadať poverenie")
+            # Presný CSS selector pre button: button[type='submit']
+            search_btn = page.locator("button[type='submit']")
             await search_btn.wait_for(timeout=5000)
             await search_btn.click()
             logger.info(f"[{self.source_type}] Vyhľadávanie odoslané pre IČO: {ico}")

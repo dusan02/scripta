@@ -143,8 +143,9 @@ class DoveraDlzniciScraper(BaseScraper):
             return False
 
     async def _fill_ico_field(self, page: Page, ico: str) -> bool:
+        # Presné CSS selektory: input[class='input'] (name='q')
         for selector in [
-            "input.input[name='q']",
+            "input[name='q'].input",
             "input[class='input']",
             "input[placeholder*='IČO']", "input[placeholder*='ico']", "input[placeholder*='Obchodné']",
             "input[type='text']", "input[type='search']", "#ico", "input.search-input",
@@ -180,7 +181,9 @@ class DoveraDlzniciScraper(BaseScraper):
         except (PlaywrightTimeoutError, PlaywrightError):
             pass
 
+        # Presný CSS selector: div[class='btn-layout btn-layout--vertical no-mrg-bottom'] button[type='submit']
         for selector in [
+            "div.btn-layout.btn-layout--vertical.no-mrg-bottom button[type='submit']",
             "div.btn-layout--vertical button[type='submit']",
             "button:has-text('Hľadať')",
             "input[value='Hľadať']", "button[type='submit']",
