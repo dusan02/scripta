@@ -17,6 +17,8 @@ class FsDanoveSubjektyScraper(FinancnaSpravaBase):
 
     source_type = "FS_DANOVE_SUBJEKTY"
     zoznam_link_name = "Zoznam daňových subjektov, ktorým bol určený index daňovej spoľahlivosti"
+    zoznam_link_selector = "a[title='Zoznam daňových subjektov, ktorým bol určený index daňovej spoľahlivosti']"
+    ico_input_selector = "#M4_rptFilter_ctl01_txtText"
     file_prefix = "fs_danove_subjekty"
     pdf_title = "Zoznam daňových subjektov — index daňovej spoľahlivosti"
     search_by = "ico"

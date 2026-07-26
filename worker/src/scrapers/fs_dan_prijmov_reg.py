@@ -17,6 +17,8 @@ class FsDanPrijmovRegistrovaniScraper(FinancnaSpravaBase):
 
     source_type = "FS_DAN_PRIJMOV_REG"
     zoznam_link_name = "Zoznam daňových subjektov registrovaných na daň z príjmov"
+    zoznam_link_selector = "a[title='Zoznam daňových subjektov registrovaných na daň z príjmov']"
+    ico_input_selector = "#M4_rptFilter_ctl01_txtText"
     file_prefix = "fs_dan_prijmov_reg"
     pdf_title = "Zoznam daňových subjektov registrovaných na daň z príjmov"
     search_by = "ico"

@@ -17,6 +17,8 @@ class FsDanZPrijmovScraper(FinancnaSpravaBase):
 
     source_type = "FS_DAN_Z_PRIJMOV"
     zoznam_link_name = "Zoznam subjektov s výškou dane z príjmov právnickej osoby"
+    zoznam_link_selector = "a[title='Zoznam subjektov s výškou dane z príjmov právnickej osoby']"
+    ico_input_selector = "#M4_rptFilter_ctl00_txtText"
     file_prefix = "fs_dan_z_prijmov"
     pdf_title = "Zoznam subjektov s výškou dane z príjmov"
     search_by = "ico"
