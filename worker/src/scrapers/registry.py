@@ -275,10 +275,12 @@ async def run_scrapers(
                     status_message="Scraper cancelled (global timeout)",
                 )
             else:
+                err_msg = str(res)[:200] if str(res) else type(res).__name__
+                logger.error(f"[{source}] Nečakaná chyba v gather: {err_msg}", exc_info=res)
                 results_by_source[source] = ScrapedSource(
                     source_type=source,
                     status="FAILED",
-                    status_message="Interná chyba scrapera — skúste vygenerovať report znovu.",
+                    status_message=f"Interná chyba scrapera — skúste vygenerovať report znovu.",
                 )
         else:
             results_by_source[source] = res
@@ -295,6 +297,8 @@ async def run_scrapers(
                         status_message="Scraper cancelled (global timeout)",
                     )
                 else:
+                    err_msg = str(res)[:200] if str(res) else type(res).__name__
+                    logger.error(f"[{source}] Nečakaná chyba v dependent gather: {err_msg}", exc_info=res)
                     results_by_source[source] = ScrapedSource(
                         source_type=source,
                         status="FAILED",
