@@ -570,6 +570,7 @@ const sk: Dict = {
   "home.ctaDesc": "Zaregistrujte sa a začnite s Business Risk Reportom.",
 
   // ── Landing page: Footer ──
+  "home.footerContact": "Kontakt",
   "home.footerProduct": "Produkt",
   "home.footerLegal": "Právne",
   "home.footerOperator": "Prevádzkovateľ:",
@@ -1175,6 +1176,7 @@ const en: Dict = {
   "home.ctaDesc": "Register and start with a Business Risk Report.",
 
   // ── Landing page: Footer ──
+  "home.footerContact": "Contact",
   "home.footerProduct": "Product",
   "home.footerLegal": "Legal",
   "home.footerOperator": "Operator:",
@@ -1780,6 +1782,7 @@ const de: Dict = {
   "home.ctaDesc": "Registrieren Sie sich und starten Sie mit einem Business Risk Report.",
 
   // ── Landing page: Footer ──
+  "home.footerContact": "Kontakt",
   "home.footerProduct": "Produkt",
   "home.footerLegal": "Rechtliches",
   "home.footerOperator": "Betreiber:",
