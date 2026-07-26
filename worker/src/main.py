@@ -271,11 +271,11 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         # ── Retry failed/unavailable scrapers (exponential backoff with jitter) ──
         # 3c: Retry aj UNAVAILABLE (register bol nedostupný — presne to čo retry rieši)
-        # 3a: Exponential backoff: ~2s, ~5s, ~15s (with ±30% jitter) — max 3 pokusy
+        # 3a: Exponential backoff: ~2s, ~5s, ~15s, ~30s (with ±30% jitter) — max 4 pokusy
         # 3b: Total retry budget 300s — skip ďalšie passy ak sme nad limit
         # 3d: Retry len UNAVAILABLE a TIMEOUT (network issues) — nie FAILED z interných chýb
         # 3h: Browser health check pred každým retry passom
-        _RETRY_DELAYS = [2, 5, 15]
+        _RETRY_DELAYS = [2, 5, 15, 30]
         _RETRY_TOTAL_BUDGET = 300  # sekundy — max čas na všetky retry passy
         _retry_elapsed = 0.0
         retry_pass = 0
