@@ -224,6 +224,9 @@ export async function POST(req: NextRequest) {
       data: { status: "PROCESSING" },
     });
 
+    revalidatePath("/dashboard");
+    revalidatePath("/history");
+
     return NextResponse.json({ reportRequestId: reportRequest.id }, { status: 201 });
   } catch (error) {
     console.error("POST /api/reports error", error);

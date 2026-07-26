@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, emailButtonStyle } from "@/lib/email";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,10 @@ export async function POST(
 
     const companyName = report.companyName || report.ico || "Neznámy subjekt";
     const reportUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reports/${report.id}`;
+
+    revalidatePath("/dashboard");
+    revalidatePath("/history");
+    revalidatePath(`/reports/${report.id}`);
 
     await sendEmail({
       to: user.email,

@@ -241,7 +241,7 @@ export default function NavBar() {
                   <div
                     className="absolute right-0 top-11 z-50 w-48 rounded-lg shadow-lg overflow-hidden"
                     style={{
-                      background: "var(--bg-card)",
+                      background: "var(--surface)",
                       border: "1px solid var(--border)",
                     }}
                   >
