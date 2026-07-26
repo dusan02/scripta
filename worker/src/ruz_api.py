@@ -355,10 +355,12 @@ async def _process_zavierka(
         txt_path = _save_text(extracted_tables, ftype, year, ico, period, index, out_path)
         saved_files.append(txt_path)
 
-        # Save metrics sidecar if parsing succeeded
-        if parsed_metrics is not None:
+        # Save metrics sidecar only if parser extracted real values
+        if parsed_metrics is not None and parsed_metrics.celkove_aktiva is not None:
             from src.ruz_parser import save_metrics_sidecar
             save_metrics_sidecar(parsed_metrics, txt_path)
+        elif parsed_metrics is not None:
+            logger.warning(f"[RUZ_API] JSON parser vrátil prázdne metrics pre IČO {ico} rok {year} — sidecar sa neukladá, LLM extrakcia sa použije")
 
     if downloaded_pdfs:
         suffix = "notes" if extracted_tables else ""
