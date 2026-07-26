@@ -408,7 +408,7 @@ function MessageList({ t, loading, messages, tab, setTab, formatDate, onOpen, on
 }) {
   return (
     <>
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <button onClick={onCompose} className="px-4 py-2 rounded-lg text-sm font-semibold"
           style={styles.primaryBtn(false)}>
           {t("messages.napisatSpravu")}

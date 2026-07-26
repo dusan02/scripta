@@ -226,41 +226,46 @@ export default function HistoryPage() {
   return (
     <div className="page pt-8 pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5 relative">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80"
-            style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </Link>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight absolute left-1/2 -translate-x-1/2" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
-          {t("history.historiaReportov")}
-        </h1>
-        <div className="flex items-center gap-3">
-          {selectedIds.size > 0 && (
+      <div className="mb-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80"
+              style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={() => setModal({ type: "bulk" })}
+                disabled={deletingAll}
+                className="text-xs font-medium transition-colors hover:text-red-500"
+                style={{ color: "var(--danger-text)" }}
+              >
+                {t("history.vymazatVybrane")} ({selectedIds.size})
+              </button>
+            )}
             <button
-              onClick={() => setModal({ type: "bulk" })}
+              onClick={() => setModal({ type: "all" })}
               disabled={deletingAll}
               className="text-xs font-medium transition-colors hover:text-red-500"
               style={{ color: "var(--danger-text)" }}
             >
-              {t("history.vymazatVybrane")} ({selectedIds.size})
+              {deletingAll ? t("history.mazem") : t("history.vymazatVsetko")}
             </button>
-          )}
-          <button
-            onClick={() => setModal({ type: "all" })}
-            disabled={deletingAll}
-            className="text-xs font-medium transition-colors hover:text-red-500"
-            style={{ color: "var(--danger-text)" }}
-          >
-            {deletingAll ? t("history.mazem") : t("history.vymazatVsetko")}
-          </button>
+          </div>
         </div>
+        <h1 className="text-2xl font-bold tracking-tight text-center mt-3 hidden md:block" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
+          {t("history.historiaReportov")}
+        </h1>
+        <h1 className="text-xl font-bold tracking-tight mt-3 md:hidden" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
+          {t("history.historiaReportov")}
+        </h1>
       </div>
 
       {/* Filters */}
@@ -287,7 +292,7 @@ export default function HistoryPage() {
             }}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             type="date"
             value={dateFrom}

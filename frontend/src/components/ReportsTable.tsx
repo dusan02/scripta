@@ -149,7 +149,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
 
   return (
     <section className="page pt-8 pb-16">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-4">
           <h2
             className="text-sm font-semibold"

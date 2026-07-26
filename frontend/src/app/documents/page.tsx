@@ -119,11 +119,11 @@ export default function DocumentsPage() {
   const t = useT();
 
   return (
-    <div className="max-w-[900px] mx-auto px-6 py-12">
+    <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8 sm:py-12">
       {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: "var(--text)" }}>{t("docs.title")}</h1>
-        <p className="text-base" style={{ color: "var(--text-secondary)" }}>{t("docs.subtitle")}</p>
+      <div className="mb-8 sm:mb-10">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: "var(--text)" }}>{t("docs.title")}</h1>
+        <p className="text-sm sm:text-base" style={{ color: "var(--text-secondary)" }}>{t("docs.subtitle")}</p>
       </div>
 
       {/* User Manual */}
