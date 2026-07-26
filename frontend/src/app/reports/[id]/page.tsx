@@ -508,7 +508,8 @@ export default function ReportDetailPage() {
     try {
       const namePart = report?.companyName || report?.ico || report?.id.slice(0, 8);
       const a = document.createElement("a");
-      a.href = `/api/reports/${params.id}/download?filename=Verifa - ${namePart}.pdf`;
+      // Serve large PDFs directly via nginx /results/ alias (bypass Next.js)
+      a.href = `/results/${params.id}/evidence_binder.pdf`;
       a.download = `Verifa - ${namePart}.pdf`;
       document.body.appendChild(a);
       a.click();
