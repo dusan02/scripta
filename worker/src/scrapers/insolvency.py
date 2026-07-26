@@ -80,6 +80,21 @@ class InsolvencyScraper(BaseScraper):
                     await page.wait_for_load_state("domcontentloaded", timeout=15000)
                 except PlaywrightTimeoutError:
                     pass
+
+                # Fallback: ak Enter neodoslal, klikni na lupa ikonu (.glyphicon.glyphicon-search)
+                try:
+                    body_changed = await page.evaluate("() => document.querySelector('.col-xs-9.searchResults.divPadding') === null")
+                    if body_changed:
+                        lupa = page.locator(".glyphicon.glyphicon-search")
+                        if await lupa.count() > 0:
+                            logger.info(f"[{self.source_type}] Enter nezmenil obsah, klikám na lupa ikonu.")
+                            await lupa.click(timeout=5000)
+                            try:
+                                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                            except PlaywrightTimeoutError:
+                                pass
+                except Exception:
+                    pass
                     
             except PlaywrightTimeoutError:
                 raise ScraperUnavailableError("Timeout pri vyhľadávaní v Registri úpadcov.")

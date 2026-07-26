@@ -24,7 +24,7 @@ class UvoScraper(BaseScraper):
     """
 
     source_type = "UVO"
-    base_url = "https://www.uvo.gov.sk/"
+    base_url = "https://www.uvo.gov.sk/vyhladavanie/vyhladavanie-zakaziek"
 
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
         page: Optional[Page] = None
@@ -108,10 +108,14 @@ class UvoScraper(BaseScraper):
 
     async def _search(self, page: Page, ico: str) -> None:
         try:
-            search_input = page.get_by_role("textbox", name="Hľadaný výraz")
+            # Presný CSS selector #input-nazovZakazky pre vyhľadávacie pole
+            search_input = page.locator("#input-nazovZakazky")
             await search_input.wait_for(timeout=10000)
             await search_input.fill(ico)
-            await page.get_by_role("button", name="Hľadať").click()
+            # Presný selector div[class='btn-group-space'] button[type='submit'] pre Hľadať
+            search_btn = page.locator("div[class='btn-group-space'] button[type='submit']")
+            await search_btn.wait_for(timeout=5000)
+            await search_btn.click()
             logger.info(f"[{self.source_type}] Vyhľadávanie odoslané pre IČO: {ico}")
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError("Nepodarilo sa vyplniť vyhľadávanie na UVO.")
