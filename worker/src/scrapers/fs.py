@@ -32,6 +32,8 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
 
     source_type = "FINANCNA_SPRAVA"
     zoznam_link_name = "Zoznam daňových dlžníkov"
+    zoznam_link_selector = "a[title='Zoznam daňových dlžníkov']"
+    ico_input_selector = "#M4_rptFilter_ctl00_txtText"
     file_prefix = "financna_sprava_dlznici"
     pdf_title = "Zoznam daňových dlžníkov — Finančná správa SR"
 
