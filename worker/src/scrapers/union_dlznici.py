@@ -26,7 +26,11 @@ class UnionDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=15000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=30000, wait_until='domcontentloaded')
+                try:
+                    await page.wait_for_load_state('networkidle', timeout=10000)
+                except PlaywrightTimeoutError:
+                    pass
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] UNION nedostupná ({e}) — generujem fallback PDF.")
                 pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
@@ -51,7 +55,7 @@ class UnionDlzniciScraper(BaseScraper):
             # Cookie banner
             try:
                 cookie_btn = page.get_by_role("button", name="Akceptovať všetky cookies")
-                await cookie_btn.wait_for(timeout=5000)
+                await cookie_btn.wait_for(timeout=10000)
                 await cookie_btn.click()
                 logger.info(f"[{self.source_type}] Cookie banner prijatý.")
             except PlaywrightTimeoutError:
