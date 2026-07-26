@@ -127,8 +127,8 @@ async def run_scrapers(
     namiesto zahodenia všetkého."""
 
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
-    # FS semaphore 2 — 8 FS scraperov zdieľa rovnaký server, 3 súbežné spôsobovali rate-limiting
-    fs_semaphore = asyncio.Semaphore(2)
+    # FS semaphore 3 — 8 FS scraperov zdieľa rovnaký server, 3 súbežné je bezpečné
+    fs_semaphore = asyncio.Semaphore(3)
     global_semaphore = asyncio.Semaphore(12)
 
     # Rozdelíme na nezávislé a závislé scrapery
@@ -153,7 +153,7 @@ async def run_scrapers(
                 semaphores = [global_semaphore]
             # Queue timeout — ak scraper čaká na semafor príliš dlho, vráť UNAVAILABLE
             # namiesto čakania až do per-scraper timeoutu (90s)
-            _SEMAPHORE_QUEUE_TIMEOUT = 30  # sekundy max na čakanie semaforu
+            _SEMAPHORE_QUEUE_TIMEOUT = 60  # sekundy max na čakanie semaforu
             for sem in semaphores:
                 try:
                     await asyncio.wait_for(sem.acquire(), timeout=_SEMAPHORE_QUEUE_TIMEOUT)
