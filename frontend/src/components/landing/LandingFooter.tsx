@@ -16,10 +16,7 @@ export default function LandingFooter() {
           </div>
           <p style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 300, marginBottom: 16 }}>Business Risk Report zo štátnych registrov SR. Automatizované, rýchle, presné.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{t("home.footerOperator")}</span>
-            {/* TODO: Pred launchom nahradiť reálnym IČO a názvom firmy */}
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Verifa s.r.o.</span>
-            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>IČO: 12345678</span>
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 600 }}>{t("home.footerContact")}</span>
             <a href="mailto:info@verifa.sk" style={{ fontSize: 13, color: "var(--text-secondary)", textDecoration: "none", marginTop: 4 }}>info@verifa.sk</a>
           </div>
         </div>

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { LOCALE_MAP } from "@/lib/i18n";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { PRICING_PLANS } from "@/lib/pricing-plans";
 import toast from "react-hot-toast";
 
 interface CreditsData {
@@ -15,13 +16,6 @@ interface CreditsData {
   totalCredits: number;
   planName: string | null;
   daysRemaining: number | null;
-  recentReports: {
-    id: string;
-    ico: string | null;
-    companyName: string | null;
-    status: string;
-    createdAt: string;
-  }[];
   periodStart: string | null;
   periodEnd: string | null;
 }
@@ -37,27 +31,37 @@ function formatDate(iso: string | null, locale: string): string {
   }).format(d);
 }
 
-function formatDateTime(iso: string | null, locale: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
-}
-
 export default function CreditsPage() {
   const t = useT();
   const { lang } = useLang();
   const locale = LOCALE_MAP[lang];
+  const router = useRouter();
   const [data, setData] = useState<CreditsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const handleCheckout = useCallback(async (planId: string) => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+      const d = await res.json();
+      if (res.ok && d.url) {
+        router.push(d.url);
+      } else {
+        toast.error(t("pricing.checkoutChyba"));
+      }
+    } catch {
+      toast.error(t("pricing.checkoutChyba"));
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }, [router, t]);
 
   const handlePortal = useCallback(async () => {
     setPortalLoading(true);
@@ -241,77 +245,38 @@ export default function CreditsPage() {
         {t("plan.obdobie")}: {periodStart} — {periodEnd}
       </div>
 
-      {/* Recent reports */}
+      {/* Credit expiry info */}
       <div className="card p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-            {t("plan.posledne")}
-          </h2>
-          <Link
-            href="/history"
-            className="text-xs font-medium transition-colors hover:opacity-80"
-            style={{ color: "var(--accent)" }}
-          >
-            {t("plan.zobrazitVsetky")}
-          </Link>
-        </div>
-
-        {data.recentReports.length === 0 ? (
-          <p className="text-xs text-center py-6" style={{ color: "var(--text-muted)" }}>
-            {t("plan.ziadneReporty")}
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {data.recentReports.map((r) => (
-              <Link
-                key={r.id}
-                href={`/reports/${r.id}`}
-                className="flex items-center justify-between p-3 rounded-lg transition-all hover:bg-opacity-50"
-                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
-                    {r.companyName || r.ico || t("plan.neznamySubjekt")}
-                  </span>
-                  {r.ico && (
-                    <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-                      {r.ico}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {formatDateTime(r.createdAt, locale)}
-                  </span>
-                  <span
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{
-                      background: r.status === "COMPLETED" ? "var(--success-bg)" : r.status === "FAILED" ? "var(--danger-bg)" : "var(--warning-bg)",
-                      color: r.status === "COMPLETED" ? "var(--success)" : r.status === "FAILED" ? "var(--danger)" : "var(--warning)",
-                    }}
-                  >
-                    {r.status === "COMPLETED" ? t("plan.dokonceny") : r.status === "FAILED" ? t("plan.zlyhany") : r.status === "PARTIAL" ? t("plan.ciastocny") : t("plan.prebieha")}
-                  </span>
-                </div>
-              </Link>
-            ))}
+        <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--text)" }}>
+          {t("plan.expiraciaTitul")}
+        </h2>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--info-bg)", color: "var(--info)" }}>trial</span>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaTrial")}</p>
           </div>
-        )}
+          <div className="flex items-start gap-3">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--accent-bg, var(--bg-muted))", color: "var(--accent)" }}>paušál</span>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaSubscription")}</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--success-bg)", color: "var(--success)" }}>jednorazové</span>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaAddon")}</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>prenos</span>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaRollover")}</p>
+          </div>
+        </div>
       </div>
 
-      {/* Upgrade CTA + Manage Subscription */}
-      <div
-        className="rounded-xl p-6 text-center"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-        }}
-      >
-        {data.planName && data.planName !== "start" && (
+      {/* Manage subscription button */}
+      {data.planName && data.planName !== "start" && (
+        <div className="text-center mb-6">
           <button
             onClick={handlePortal}
             disabled={portalLoading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:brightness-110 mb-4"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:brightness-110"
             style={{
               background: "transparent",
               color: "var(--text)",
@@ -328,24 +293,50 @@ export default function CreditsPage() {
             ) : null}
             {t("plan.spravovatPredplatne")}
           </button>
-        )}
+        </div>
+      )}
 
-        <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-          {t("plan.potrebujeteViac")}
-        </p>
-        <a
-          href="mailto:info@verifa.sk"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:brightness-110"
-          style={{
-            background: "var(--accent)",
-            color: "var(--accent-button-text)",
-          }}
-        >
-          {t("plan.kontaktujte")}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </a>
+      {/* One-time packages */}
+      <div className="card p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <h2 className="text-sm font-semibold text-center mb-5" style={{ color: "var(--text)" }}>
+          {t("plan.jednorazoveBaliky")}
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {PRICING_PLANS.filter((p) => !p.isSubscription).map((pkg) => (
+            <div
+              key={pkg.id}
+              className="rounded-xl p-5 flex flex-col items-center text-center"
+              style={{
+                border: pkg.highlight ? "2px solid var(--accent)" : "1px solid var(--border)",
+                background: "var(--bg-subtle, var(--bg))",
+              }}
+            >
+              <h3 className="text-base font-bold mb-1" style={{ color: "var(--text)" }}>{t(pkg.nameKey)}</h3>
+              <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>{t(pkg.subtitleKey)}</p>
+              <div className="flex items-baseline justify-center gap-1 mb-1">
+                <span className="text-2xl font-bold" style={{ color: "var(--text)" }}>{pkg.price}</span>
+                <span className="text-sm" style={{ color: "var(--text-muted)" }}>€</span>
+              </div>
+              <p className="text-[11px] mb-4" style={{ color: "var(--text-muted)" }}>
+                {t("pricing.reportovZaReport", { n: pkg.reports, price: pkg.pricePerReport })}
+              </p>
+              <button
+                onClick={() => handleCheckout(pkg.id)}
+                disabled={checkoutLoading}
+                className="w-full py-2 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: pkg.highlight ? "var(--accent)" : "transparent",
+                  color: pkg.highlight ? "var(--accent-button-text)" : "var(--text)",
+                  border: pkg.highlight ? "none" : "1px solid var(--border)",
+                  cursor: checkoutLoading ? "not-allowed" : "pointer",
+                  opacity: checkoutLoading ? 0.6 : 1,
+                }}
+              >
+                {checkoutLoading ? t("pricing.presmerovanie") : t("plan.kupitKredity")}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

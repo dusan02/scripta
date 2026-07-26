@@ -454,6 +454,13 @@ const sk: Dict = {
   "plan.titul": "Kredity",
   "plan.chybaNacitania": "Nepodarilo sa načítať údaje o paušáli.",
   "plan.skusteObnovit": "Skúste obnoviť stránku alebo sa prihláste znova.",
+  "plan.expiraciaTitul": "Platnosť kreditov",
+  "plan.expiraciaTrial": "Skúšobné kredity expirujú 30 dní od pridelenia.",
+  "plan.expiraciaSubscription": "Kredity z paušálu expirujú 60 dní od pridelenia. Nevyužité kredity sa prenášajú do ďalšieho mesiaca.",
+  "plan.expiraciaAddon": "Jednorazové kredity sú trvalé (bez expirácie).",
+  "plan.expiraciaRollover": "Prenesené kredity expirujú 60 dní od prenesenia.",
+  "plan.jednorazoveBaliky": "Jednorazové balíky",
+  "plan.kupitKredity": "Kúpiť kredity",
 
   // ── AI status (worker → frontend) ──
   "ai.queued": "Zaraďujem report do fronty na spracovanie",
@@ -1052,6 +1059,13 @@ const en: Dict = {
   "plan.titul": "Credits",
   "plan.chybaNacitania": "Failed to load credits data.",
   "plan.skusteObnovit": "Try refreshing the page or sign in again.",
+  "plan.expiraciaTitul": "Credit validity",
+  "plan.expiraciaTrial": "Trial credits expire 30 days from allocation.",
+  "plan.expiraciaSubscription": "Subscription credits expire 60 days from allocation. Unused credits roll over to the next month.",
+  "plan.expiraciaAddon": "One-time credits are permanent (no expiry).",
+  "plan.expiraciaRollover": "Rolled-over credits expire 60 days from rollover.",
+  "plan.jednorazoveBaliky": "One-time packages",
+  "plan.kupitKredity": "Buy credits",
 
   // ── AI status (worker → frontend) ──
   "ai.queued": "Queuing report for processing",
@@ -1650,6 +1664,13 @@ const de: Dict = {
   "plan.titul": "Credits",
   "plan.chybaNacitania": "Credits-Daten konnten nicht geladen werden.",
   "plan.skusteObnovit": "Aktualisieren Sie die Seite oder melden Sie sich erneut an.",
+  "plan.expiraciaTitul": "Gültigkeit der Credits",
+  "plan.expiraciaTrial": "Test-Credits verfallen 30 Tage nach Zuweisung.",
+  "plan.expiraciaSubscription": "Abonnement-Credits verfallen 60 Tage nach Zuweisung. Nicht genutzte Credits werden in den nächsten Monat übertragen.",
+  "plan.expiraciaAddon": "Einmalige Credits sind dauerhaft (kein Ablauf).",
+  "plan.expiraciaRollover": "Übertragene Credits verfallen 60 Tage nach Übertragung.",
+  "plan.jednorazoveBaliky": "Einmalige Pakete",
+  "plan.kupitKredity": "Credits kaufen",
 
   // ── AI status (worker → frontend) ──
   "ai.queued": "Bericht wird zur Verarbeitung eingereiht",
