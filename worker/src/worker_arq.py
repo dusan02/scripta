@@ -92,6 +92,6 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     max_jobs = 2  # Concurrency limit vo workerovi
-    job_timeout = 600  # 10 min
+    job_timeout = 1200  # 20 min — 26 sources with retry passes can exceed 10 min
     keep_result = 3600
     allow_abort_jobs = True
