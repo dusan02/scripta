@@ -500,14 +500,14 @@ async def test_insolvency_page_loads(browser):
 
 @pytest.mark.asyncio
 async def test_insolvency_has_search_input(browser):
-    """INSOLVENCY: nájde sa vyhľadávacie pole (searchQuery)."""
+    """INSOLVENCY: nájde sa vyhľadávacie pole."""
     scraper = InsolvencyScraper(browser)
     page = await scraper._get_page()
     try:
         await page.goto(scraper.base_url, timeout=15000, wait_until='domcontentloaded')
-        search_input = page.locator("input[id*='searchQuery']").first
+        search_input = page.get_by_role("textbox", name="Vyhľadávací reťazec")
         await search_input.wait_for(timeout=5000)
-        assert await search_input.count() > 0, "input[id*='searchQuery'] sa nenašiel na Insolvency stránke"
+        assert await search_input.count() > 0, "Vyhľadávací reťazec sa nenašiel na Insolvency stránke"
     finally:
         await scraper._close()
 

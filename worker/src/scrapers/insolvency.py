@@ -21,8 +21,8 @@ class InsolvencyScraper(BaseScraper):
     """
 
     source_type = "INSOLVENCY"
-    # Nový portál spustený v októbri 2025
-    base_url = "https://ru.justice.sk/ru-verejnost-web/pages/home.xhtml"
+    # ru.justice.sk presmerováva na replik.justice.sk (2025/2026)
+    base_url = "https://replik.justice.sk/ru-verejnost-web/"
 
     async def run(
         self,
@@ -67,11 +67,11 @@ class InsolvencyScraper(BaseScraper):
 
             try:
                 logger.info(f"[{self.source_type}] Vypĺňam hľadaný reťazec: {search_query}")
-                search_input = page.locator("input[id*='searchQuery']").first
+                search_input = page.get_by_role("textbox", name="Vyhľadávací reťazec")
                 await search_input.fill(search_query, timeout=5000)
                 
                 logger.info(f"[{self.source_type}] Odosielam vyhľadávanie.")
-                search_btn = page.locator("a[id*='searchBoxForm:search'], button[id*='search']").first
+                search_btn = page.get_by_role("link", name="Spustiť vyhľadávanie")
                 
                 async with page.expect_navigation(timeout=15000):
                     await search_btn.click(timeout=5000)
