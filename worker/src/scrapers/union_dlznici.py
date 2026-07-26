@@ -18,7 +18,7 @@ class UnionDlzniciScraper(BaseScraper):
     """
 
     source_type = "UNION_DLZNICI"
-    base_url = "https://portal.unionzp.sk/pub/dlznici"
+    base_url = "https://www.union.sk/zoznam-dlznikov/"
 
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
         async def _scrape(page: Page) -> ScrapedSource:
@@ -27,11 +27,6 @@ class UnionDlzniciScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
                 await page.goto(self.base_url, timeout=15000, wait_until='domcontentloaded')
-                # UNION je Vue.js SPA — potrebujeme networkidle aby sa input renderoval
-                try:
-                    await page.wait_for_load_state('networkidle', timeout=10000)
-                except PlaywrightTimeoutError:
-                    logger.warning(f"[{self.source_type}] networkidle timeout, pokračujem.")
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] UNION nedostupná ({e}) — generujem fallback PDF.")
                 pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
@@ -53,10 +48,27 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Vyplniť IČO do textového poľa — UNION je Vue.js/Vuetify SPA
-            # Input nemá name/placeholder/aria-label, používame Vuetify class
+            # Cookie banner
             try:
-                textbox = page.locator(".v-field__input").first
+                cookie_btn = page.get_by_role("button", name="Akceptovať všetky cookies")
+                await cookie_btn.wait_for(timeout=5000)
+                await cookie_btn.click()
+                logger.info(f"[{self.source_type}] Cookie banner prijatý.")
+            except PlaywrightTimeoutError:
+                logger.info(f"[{self.source_type}] Cookie banner sa nezobrazil.")
+
+            # Kliknúť "Vyhľadať v zozname dlžníkov" pre zobrazenie vyhľadávacieho formulára
+            try:
+                open_search_btn = page.get_by_role("button", name="Vyhľadať v zozname dlžníkov")
+                await open_search_btn.wait_for(timeout=5000)
+                await open_search_btn.click()
+                logger.info(f"[{self.source_type}] Vyhľadávací formulár otvorený.")
+            except PlaywrightTimeoutError:
+                logger.info(f"[{self.source_type}] Tlačidlo 'Vyhľadať v zozname dlžníkov' sa nenašlo — formulár môže byť už otvorený.")
+
+            # Vyplniť IČO do textového poľa
+            try:
+                textbox = page.get_by_role("textbox", name="Zadajte priezvisko, IČO,")
                 await textbox.wait_for(timeout=5000)
                 await textbox.click()
                 await textbox.fill(ico)
@@ -82,22 +94,16 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Kliknúť "HĽADAŤ" — UNION má tlačidlo s veľkými písmenami
+            # Kliknúť "Hľadať"
             search_clicked = False
-            for btn_selector in [
-                page.get_by_role("button", name="HĽADAŤ"),
-                page.locator("button:has-text('HĽADAŤ')"),
-                page.locator("button:has-text('Hľadať')"),
-                page.locator("button[type='submit']"),
-            ]:
-                try:
-                    await btn_selector.first.wait_for(timeout=5000)
-                    await btn_selector.first.click()
-                    search_clicked = True
-                    logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté.")
-                    break
-                except (PlaywrightTimeoutError, PlaywrightError):
-                    continue
+            try:
+                search_btn = page.get_by_role("button", name="Hľadať")
+                await search_btn.wait_for(timeout=5000)
+                await search_btn.click()
+                search_clicked = True
+                logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté.")
+            except (PlaywrightTimeoutError, PlaywrightError):
+                pass
             if not search_clicked:
                 logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo — generujem PDF z aktuálneho stavu.")
                 pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
