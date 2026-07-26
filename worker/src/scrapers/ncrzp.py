@@ -14,5 +14,6 @@ class NcrzpScraper(NotarBaseScraper):
     base_url = "https://www.notar.sk/zalozne-prava/"
     _title = "Notársky centrálny register záložných práv (NCRZP)"
     _field_label = "IČO záložcu"
-    _field_selector = "input[name='pledgorIdentifier']"
+    _field_selector = "#pledgorIdentifier"
+    _search_selector = "#lien-search"
     _no_results_msg = "Subjekt nie je evidovaný v Notárskom centrálnom registri záložných práv."

@@ -27,6 +27,7 @@ class NotarBaseScraper(BaseScraper):
     _title: str = ""
     _field_label: str = ""
     _field_selector: str = ""  # CSS selector for the IČO input field
+    _search_selector: str = ""  # CSS selector for the Hľadať button
     _no_results_msg: str = ""
 
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
@@ -68,13 +69,26 @@ class NotarBaseScraper(BaseScraper):
                 except PlaywrightTimeoutError:
                     raise ScraperUnavailableError(f"{self.source_type}: Nenájdené pole '{self._field_label}'.")
 
-            search_btn = page.get_by_role("button", name="Hľadať")
-            try:
-                await search_btn.wait_for(state="visible", timeout=5000)
-                await search_btn.click()
-            except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] 'Hľadať' tlačidlo nenájdené cez get_by_role, skúšam CSS.")
-                await page.locator("button:has-text('Hľadať'), input[value*='Hľadať']").first.click()
+            # Hľadať — presný CSS selector (ak je definovaný), potom fallback
+            search_clicked = False
+            if self._search_selector:
+                try:
+                    search_btn = page.locator(self._search_selector).first
+                    await search_btn.wait_for(state="visible", timeout=5000)
+                    await search_btn.click()
+                    search_clicked = True
+                    logger.info(f"[{self.source_type}] Hľadať kliknuté (selector: {self._search_selector}).")
+                except PlaywrightTimeoutError:
+                    logger.warning(f"[{self.source_type}] Hľadať selector zlyhal, skúšam fallback.")
+            if not search_clicked:
+                try:
+                    search_btn = page.get_by_role("button", name="Hľadať")
+                    await search_btn.wait_for(state="visible", timeout=5000)
+                    await search_btn.click()
+                    search_clicked = True
+                except PlaywrightTimeoutError:
+                    logger.warning(f"[{self.source_type}] 'Hľadať' tlačidlo nenájdené cez get_by_role, skúšam CSS.")
+                    await page.locator("button:has-text('Hľadať'), input[value*='Hľadať']").first.click()
 
             try:
                 await page.wait_for_load_state("domcontentloaded", timeout=5000)
