@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
     // PREFILTRUJ zdroje podľa user settings (defaultSources z DB)
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { defaultSources: true },
+      select: { defaultSources: true, orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, vestnikDateFrom: true, reportLanguage: true, attachmentsConfig: true },
     });
     if (dbUser?.defaultSources && Array.isArray(dbUser.defaultSources) && dbUser.defaultSources.length > 0) {
       const userSources = dbUser.defaultSources as string[];
@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
         companyName,
         selectedSources: sources as SourceType[],
         status: "PENDING",
+        attachmentsConfig: dbUser?.attachmentsConfig as any ?? undefined,
         sources: {
           create: (sources as SourceType[]).map((source) => ({
             sourceType: source,
@@ -189,10 +190,6 @@ export async function POST(req: NextRequest) {
 
     // Odošleme úlohu workerovi.
     try {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { orsrExtractType: true, crzDateFrom: true, rozhodnutiaDateFrom: true, vestnikDateFrom: true, reportLanguage: true, attachmentsConfig: true },
-      });
       await enqueueReportTask({
         reportRequestId: reportRequest.id,
         targetType: "COMPANY",
