@@ -528,6 +528,8 @@ class FinancnaSpravaBase(BaseScraper):
             ('text', page.get_by_text("Vyhľadať", exact=True)),
             ('css-btn', page.locator('button:has-text("Vyhľadať")')),
             ('css-input', page.locator('input[value="Vyhľadať"]')),
+            ('css-input-id', page.locator('#btnFilterSubmit')),
+            ('css-input-name', page.locator('input[name*="btnFilterSubmit" i]')),
             ('css-a', page.locator('a:has-text("Vyhľadať")')),
         ]
         for name, locator in selectors:
