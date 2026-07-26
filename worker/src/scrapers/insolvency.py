@@ -45,8 +45,8 @@ class InsolvencyScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             try:
-                await page.goto(self.base_url, timeout=15000, wait_until="domcontentloaded")
-            except PlaywrightTimeoutError:
+                await self._safe_goto(page, self.base_url)
+            except ScraperUnavailableError:
                 raise ScraperUnavailableError("Timeout pri načítaní stránky Registra úpadcov.")
             logger.debug(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
@@ -72,9 +72,12 @@ class InsolvencyScraper(BaseScraper):
                 
                 logger.info(f"[{self.source_type}] Odosielam vyhľadávanie.")
                 search_btn = page.get_by_role("link", name="Spustiť vyhľadávanie")
-                
-                async with page.expect_navigation(timeout=15000):
-                    await search_btn.click(timeout=5000)
+                await search_btn.click(timeout=10000)
+                # PrimeFaces robí AJAX navigáciu, nie full page reload — čakáme na DOM update
+                try:
+                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except PlaywrightTimeoutError:
+                    pass
                     
             except PlaywrightTimeoutError:
                 raise ScraperUnavailableError("Timeout pri vyhľadávaní v Registri úpadcov.")
