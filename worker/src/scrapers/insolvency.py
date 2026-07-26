@@ -67,12 +67,14 @@ class InsolvencyScraper(BaseScraper):
 
             try:
                 logger.info(f"[{self.source_type}] Vypĺňam hľadaný reťazec: {search_query}")
-                search_input = page.get_by_role("textbox", name="Vyhľadávací reťazec")
+                # CSS selektor z portálu: input[id='searchBoxForm:searchQuery_input']
+                search_input = page.locator("input[id='searchBoxForm:searchQuery_input']")
+                await search_input.wait_for(timeout=10000)
                 await search_input.fill(search_query, timeout=5000)
                 
-                logger.info(f"[{self.source_type}] Odosielam vyhľadávanie.")
-                search_btn = page.get_by_role("link", name="Spustiť vyhľadávanie")
-                await search_btn.click(timeout=10000)
+                logger.info(f"[{self.source_type}] Odosielam vyhľadávanie (Enter).")
+                # Odoslanie cez Enter — spoľahlivejšie ako klik na lupa link
+                await search_input.press("Enter")
                 # PrimeFaces robí AJAX navigáciu, nie full page reload — čakáme na DOM update
                 try:
                     await page.wait_for_load_state("domcontentloaded", timeout=15000)
@@ -214,13 +216,14 @@ class InsolvencyScraper(BaseScraper):
                 pass
             text_content = await page.inner_text("body")
             
-            # Nový portál zobrazuje toto, ak nič nenájde
+            # Nový portál zobrazuje: "Nenašli sa žiadne konania pre hľadaný reťazec - {ico}"
             if "Nenašli sa žiadne konania" in text_content or "žiadne konania pre hľadaný reťazec" in text_content:
-                # Vnútorná kontrola: overíme že IČO v texte sa zhoduje s hľadaným IČO
+                # Striktná verifikácia: IČO musí byť v texte výsledku
                 if search_query and search_query in text_content:
                     logger.info(f"[{self.source_type}] Potvrdené: stránka hlási 'Nenašli sa žiadne konania' pre IČO {search_query}.")
                 elif search_query:
                     logger.warning(f"[{self.source_type}] UPOZORNENIE: 'Nenašli sa' text neobsahuje hľadané IČO {search_query}! Text: {text_content[:300]}")
+                    # Napriek varovaniu považujeme za negatívny výsledok — IČO sa nepodarilo nájsť v texte
                 return False, f"Nenašli sa žiadne konania pre hľadaný reťazec — {search_query}. Subjekt nemá negatívne záznamy v registri úpadcov."
 
             # Kontrola odkazov na detaily konaní (nový portál s kartami z 2025+)
