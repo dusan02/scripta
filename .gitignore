@@ -45,4 +45,3 @@ worker/search_*.png
 worker/omv_*.png
 worker/debug_*.png
 worker/test_results/
-worker/src/browser_manager.py
