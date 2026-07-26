@@ -65,12 +65,10 @@ class RegisterUzScraper(BaseScraper):
 
 **Key decision point**: If `download_ifrs_reports()` returns an empty list, the scraper returns `UNAVAILABLE` (not `SUCCESS`), which triggers the retry mechanism in main.py. This distinguishes "API failure" from "firm legitimately has no statements in RÚZ".
 
-**Known issue**: The current code cannot distinguish between:
-- Entity not found in RÚZ (legitimate — firm has no accounting statements)
-- API returned entity but no statements (legitimate — firm exists but hasn't filed)
-- API call failed (transient — should retry)
-
-All three cases return an empty list, and the scraper returns `UNAVAILABLE` for all of them.
+**FIXED**: The code now distinguishes between:
+- **Entity not found in RÚZ** → `download_ifrs_reports()` returns `['__ENTITY_NOT_FOUND__']` sentinel → scraper returns `SUCCESS` (legitimate, no retry needed)
+- **API call failed** (entity exists but detail fetch failed) → `download_ifrs_reports()` returns empty list `[]` → scraper returns `UNAVAILABLE` (triggers retry)
+- **Entity has no statements** (entity exists, has no závierky/VS) → logs warning, returns empty list → scraper returns `UNAVAILABLE`
 
 ---
 
@@ -98,7 +96,7 @@ OUTPUT: list[str] — file paths to downloaded .txt and .pdf files
 
 **Step-by-step flow:**
 
-1. **Cache check**: If `output_dir` already contains files with this IČO (size > 100 bytes), return them immediately — skip all HTTP calls
+1. **Cache check**: If `output_dir` already contains files with this IČO (size > 100 bytes, age < 24h), return them immediately — skip all HTTP calls. Files older than 24h are ignored and re-downloaded.
 
 2. **Find entity** (API call 1): `GET /api/uctovne-jednotky?ico=XXX`
    - If no entity IDs returned → log warning, return empty list
@@ -137,9 +135,10 @@ OUTPUT: list[str] — file paths to downloaded .txt and .pdf files
 ### Retry mechanism in API client:
 
 `_api_get()` has its own retry logic:
-- 2 retries with 2s delay
-- Retries on HTTP 5xx errors and exceptions
-- Does NOT retry on HTTP 4xx (client errors)
+- 2 retries with 2s delay (default)
+- Retries on HTTP 5xx errors, HTTP 429 (Too Many Requests), and exceptions
+- HTTP 429 uses 3× longer delay (6s) to respect rate limiting
+- Does NOT retry on HTTP 4xx (client errors, except 429)
 
 ### Text formatting (`_format_vykaz_tables()`):
 
@@ -310,13 +309,13 @@ Heuristic: If `celkove_aktiva < 1000` AND `pocet_zamestnancov > 10`, assumes val
 
 **Fix**: Make JSON parser work (so LLM is never used for SK GAAP), OR accept LLM variance.
 
-### 3. Cache Prevents Re-download
+### 3. Cache Invalidation (FIXED)
 
-**Symptom**: If `output_dir` already contains files for an IČO, `download_ifrs_reports()` returns cached files without hitting the API.
+**Previous issue**: If `output_dir` already contained files for an IČO, `download_ifrs_reports()` returned cached files indefinitely without hitting the API.
 
-**Impact**: If cached `.txt` files have no sidecar (because parser failed), and the RÚZ API has since been fixed, the pipeline will still use the old cached files.
+**Fix applied**: Cache now has a **24-hour max age** (`_CACHE_MAX_AGE = 86400` seconds). Files older than 24h are ignored and re-downloaded from the RÚZ API. This ensures that if the parser previously failed (no sidecar saved), a re-run within 24h will still use cached files, but after 24h the API is hit again.
 
-**Workaround**: Clear the `assets/{ico}` directory before re-running.
+**Impact**: Stale cache from failed parser runs no longer persists indefinitely.
 
 ### 4. Sidecar Truthiness Bug (FIXED)
 
@@ -401,4 +400,4 @@ PIPELINE (pipeline.py)
 
 4. **Should LLM adjustment (`llm_score_adjustment`) be disabled for determinism?** Currently -10 to +10 points are added by Gemini, making the final score non-deterministic even when the algorithmic score is stable.
 
-5. **Should the cache in `download_ifrs_reports()` be invalidated after a certain time?** Currently cached files are used indefinitely if they exist in the output directory.
+5. **~~Should the cache in `download_ifrs_reports()` be invalidated after a certain time?~~** **FIXED**: Cache now expires after 24 hours (`_CACHE_MAX_AGE = 86400`).

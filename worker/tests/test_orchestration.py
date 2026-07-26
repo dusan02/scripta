@@ -5,9 +5,11 @@ Testuje:
   - Retry logiku (exponential backoff, UNAVAILABLE zahrnutý)
   - Timeout handling (zachovanie čiastočných výsledkov)
   - _safe_goto broadened exception handling
-  - RÚZ API retry mechanizmus
+  - RÚZ API retry mechanizmus (5xx, 429, network errors)
   - RÚZ paralelizácia výkazov
   - max_years konzistencia medzi scraper a pipeline
+  - UNAVAILABLE distinction: entity-not-found vs API failure
+  - Cache invalidation: 24h max age
 """
 import asyncio
 import httpx
@@ -446,3 +448,151 @@ class TestCancelledPreservesPartial:
             fast = next((r for r in results if r.source_type == "FAST"), None)
             if fast:
                 assert fast.status == "SUCCESS", f"FAST scraper by mal byť SUCCESS aj pri cancel"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RÚZ API 429 Rate Limiting retry
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRuzApi429Retry:
+    """_api_get by mal retryovať pri HTTP 429 (Too Many Requests)."""
+
+    @pytest.mark.asyncio
+    async def test_retry_on_429(self):
+        """HTTP 429 by mal spustiť retry s dlhšou pauzou."""
+        from src.ruz_api import _api_get
+        client = AsyncMock()
+        resp_429 = MagicMock()
+        resp_429.status_code = 429
+        resp_200 = MagicMock()
+        resp_200.status_code = 200
+        resp_200.json.return_value = {"id": [42]}
+        client.get.side_effect = [resp_429, resp_200]
+        with patch("src.ruz_api._API_RETRY_DELAY", 0.01):
+            result = await _api_get(client, "uctovne-jednotky", {"ico": "123"})
+        assert result == {"id": [42]}
+        assert client.get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_429_uses_longer_delay(self):
+        """429 by mal použiť 3x dlhšiu pauzu ako bežný 5xx error."""
+        from src.ruz_api import _api_get
+        client = AsyncMock()
+        resp_429 = MagicMock()
+        resp_429.status_code = 429
+        resp_200 = MagicMock()
+        resp_200.status_code = 200
+        resp_200.json.return_value = {"ok": True}
+        client.get.side_effect = [resp_429, resp_200]
+
+        call_times = []
+        original_sleep = asyncio.sleep
+
+        async def mock_sleep(duration):
+            call_times.append(duration)
+            await original_sleep(0)
+
+        with patch("src.ruz_api._API_RETRY_DELAY", 2.0), \
+             patch("src.ruz_api.asyncio.sleep", side_effect=mock_sleep):
+            result = await _api_get(client, "test-endpoint")
+
+        assert result == {"ok": True}
+        assert len(call_times) == 1
+        assert call_times[0] == 6.0, f"429 retry should use 3x delay (6.0s), got {call_times[0]}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UNAVAILABLE distinction: entity-not-found vs API failure
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRuzEntityNotFoundDistinction:
+    """download_ifrs_reports by mal rozlíšiť entity-not-found od API failure."""
+
+    @pytest.mark.asyncio
+    async def test_entity_not_found_returns_sentinel(self):
+        """Ak IČO nie je v RÚZ, vráti ['__ENTITY_NOT_FOUND__'] sentinel."""
+        from src.ruz_api import download_ifrs_reports
+        import tempfile, os
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("src.ruz_api._api_get", return_value=None):
+                result = await download_ifrs_reports("99999999", max_years=3, output_dir=tmpdir)
+
+        assert result == ["__ENTITY_NOT_FOUND__"], \
+            f"Entity not found should return sentinel, got {result}"
+
+    @pytest.mark.asyncio
+    async def test_registeruz_scraper_handles_entity_not_found(self):
+        """RegisterUzScraper by mal vrátiť SUCCESS pre entity-not-found."""
+        scraper = RegisterUzScraper(browser=MagicMock())
+
+        with patch("src.ruz_api.download_ifrs_reports", return_value=["__ENTITY_NOT_FOUND__"]), \
+             patch("src.config.settings") as mock_cfg:
+            mock_cfg.results_dir = "/tmp"
+            mock_cfg.ruz_max_years = 3
+            result = await scraper.run(ico="99999999", output_dir=Path("/tmp"))
+
+        assert result.status == "SUCCESS", \
+            f"Entity not found should be SUCCESS (legitimate), got {result.status}"
+
+    @pytest.mark.asyncio
+    async def test_api_failure_returns_unavailable(self):
+        """Ak API zlyhá (entity exists but detail fetch fails), scraper returns UNAVAILABLE."""
+        scraper = RegisterUzScraper(browser=MagicMock())
+
+        with patch("src.ruz_api.download_ifrs_reports", return_value=[]), \
+             patch("src.config.settings") as mock_cfg:
+            mock_cfg.results_dir = "/tmp"
+            mock_cfg.ruz_max_years = 3
+            result = await scraper.run(ico="00684881", output_dir=Path("/tmp"))
+
+        assert result.status == "UNAVAILABLE", \
+            f"API failure should be UNAVAILABLE (retry), got {result.status}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Cache invalidation: 24h max age
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRuzCacheInvalidation:
+    """download_ifrs_reports by mal ignorovať cache staršiu ako 24h."""
+
+    @pytest.mark.asyncio
+    async def test_fresh_cache_is_used(self):
+        """Súbory mladšie ako 24h by mali byť použité z cache."""
+        from src.ruz_api import download_ifrs_reports
+        import tempfile, os, time
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a fake cached file
+            fake_file = Path(tmpdir) / "IFRS_12345678_2024_0.txt"
+            fake_file.write_text("fake content " * 20)
+            os.utime(fake_file, (time.time(), time.time()))  # Fresh
+
+            with patch("src.ruz_api._api_get") as mock_api:
+                result = await download_ifrs_reports("12345678", max_years=3, output_dir=tmpdir)
+
+            assert len(result) == 1
+            assert str(fake_file) in result
+            assert not mock_api.called, "API should not be called when cache is fresh"
+
+    @pytest.mark.asyncio
+    async def test_expired_cache_is_re_downloaded(self):
+        """Súbory staršie ako 24h by mali byť re-downloadované."""
+        from src.ruz_api import download_ifrs_reports
+        import tempfile, os, time
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create an expired cached file (48h old)
+            fake_file = Path(tmpdir) / "IFRS_12345678_2024_0.txt"
+            fake_file.write_text("expired content " * 20)
+            old_time = time.time() - 48 * 3600  # 48 hours ago
+            os.utime(fake_file, (old_time, old_time))
+
+            # Mock API to return entity not found (so we know API was called)
+            with patch("src.ruz_api._api_get", return_value=None):
+                result = await download_ifrs_reports("12345678", max_years=3, output_dir=tmpdir)
+
+            # API was called (cache was expired), entity not found
+            assert result == ["__ENTITY_NOT_FOUND__"], \
+                "Expired cache should trigger re-download"
