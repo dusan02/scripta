@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 import logging
@@ -30,8 +31,24 @@ class BrowserManager:
         try:
             # Skúšame pripojenie na Browserless
             # stealth=1 zapne stealth plugin proti anti-bot detekcii
-            browserless_url = "ws://browserless:3000?stealth=1&blockAds=true"
+            # blockAds=false — ad-blocker môže zablokovať funkčné requesty (captcha, API calls)
+            browserless_url = "ws://browserless:3000?stealth=1"
             browser = await playwright.chromium.connect_over_cdp(browserless_url, timeout=15000)
+            
+            # Pre-flight health check — over že browser je skutočne funkčný
+            # (pripojenie môže uspieť aj keď Browserless je nestabilný)
+            try:
+                test_ctx = await browser.new_context()
+                test_page = await test_ctx.new_page()
+                await test_page.set_content("<html><body>ok</body></html>")
+                await test_ctx.close()
+            except Exception as health_err:
+                logger.warning(f"[BrowserManager] Health check zlyhal napriek úspešnému pripojeniu: {health_err}")
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
+                raise RuntimeError(f"Browserless health check failed: {health_err}")
             
             if self.state == "HALF_OPEN":
                 logger.info("[BrowserManager] Browserless funguje. Circuit Breaker CLOSED.")
