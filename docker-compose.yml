@@ -103,6 +103,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-verifa_redis_dev}@redis:6379/0
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - ./worker/results:/app/results  # Evidence Binder PDF súbory
 
@@ -132,6 +133,7 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8011/health')"]
       interval: 10s
