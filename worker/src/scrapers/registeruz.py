@@ -27,6 +27,16 @@ class RegisterUzScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Sťahujem závierky cez RÚZ API pre IČO {ico} do {ruz_dir}")
             files = await download_ifrs_reports(ico, max_years=_cfg.ruz_max_years, output_dir=ruz_dir)
 
+            # Check for entity-not-found sentinel (legitimate: firm not in RÚZ)
+            if files == ["__ENTITY_NOT_FOUND__"]:
+                logger.info(f"[{self.source_type}] IČO {ico} nie je v Registri účtovných závierok (legitimate)")
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=None,
+                    status_message=f"Subjekt nie je evidovaný v Registri účtovných závierok.",
+                    findings=self._no_results_msg,
+                )
+
             if not files:
                 # Distinguish between "firm not in RÚZ" and "API failure"
                 # Check if entity exists by looking at cache dir — if API found entity ID but no files,

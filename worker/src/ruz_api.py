@@ -112,8 +112,9 @@ async def _api_get(client: httpx.AsyncClient, endpoint: str, params: Optional[di
             if resp.status_code == 200:
                 return resp.json()
             logger.warning(f"[RUZ_API] {endpoint} HTTP {resp.status_code} (attempt {attempt + 1}/{_API_RETRIES + 1})")
-            if resp.status_code >= 500 and attempt < _API_RETRIES:
-                await asyncio.sleep(_API_RETRY_DELAY)
+            if (resp.status_code >= 500 or resp.status_code == 429) and attempt < _API_RETRIES:
+                retry_delay = _API_RETRY_DELAY * 3 if resp.status_code == 429 else _API_RETRY_DELAY
+                await asyncio.sleep(retry_delay)
                 continue
             return None
         except Exception as e:
@@ -199,11 +200,17 @@ async def download_ifrs_reports(
     downloaded_files: list[str] = []
 
     # Cache check: ak adresár už obsahuje súbory pre toto IČO (napr. zo scraper fázy),
-    # vrátime ich priamo bez nového HTTP downloadu
-    existing = [
-        str(f) for f in out_path.iterdir()
-        if f.is_file() and ico in f.name and f.suffix in (".pdf", ".txt") and f.stat().st_size > 100
-    ]
+    # vrátime ich priamo bez nového HTTP downloadu — ale len ak nie sú staršie ako 24h
+    import time as _time
+    _CACHE_MAX_AGE = 86400  # 24 hours
+    existing = []
+    for f in out_path.iterdir():
+        if f.is_file() and ico in f.name and f.suffix in (".pdf", ".txt") and f.stat().st_size > 100:
+            file_age = _time.time() - f.stat().st_mtime
+            if file_age < _CACHE_MAX_AGE:
+                existing.append(str(f))
+            else:
+                logger.info(f"[RUZ_API] Cache expired ({file_age/3600:.1f}h) pre {f.name}, re-download")
     if existing:
         logger.info(f"[RUZ_API] Cache hit pre IČO {ico}: {len(existing)} súborov v {out_path}, preskakujem download")
         return existing
@@ -216,8 +223,8 @@ async def download_ifrs_reports(
             "max-zaznamov": 10,
         })
         if not entity_ids or not entity_ids.get("id"):
-            logger.warning(f"[RUZ_API] Žiadna účtovná jednotka pre IČO {ico}")
-            return downloaded_files
+            logger.info(f"[RUZ_API] IČO {ico} nie je v Registri účtovných závierok (žiadna účtovná jednotka)")
+            return ["__ENTITY_NOT_FOUND__"]  # Sentinel: entity not found (legitimate, no retry needed)
 
         entity_id = entity_ids["id"][0]
         logger.info(f"[RUZ_API] Entity ID pre IČO {ico}: {entity_id}")
@@ -226,7 +233,7 @@ async def download_ifrs_reports(
         entity = await _api_get(client, "uctovna-jednotka", {"id": entity_id})
         if not entity:
             logger.error(f"[RUZ_API] CRITICAL: Entity {entity_id} existuje ale API zlyhalo pri získavaní detailu pre IČO {ico} — možný výpadok RÚZ API")
-            return downloaded_files
+            return downloaded_files  # Empty list = API failure (should retry)
 
         zavierka_ids: list[int] = entity.get("idUctovnychZavierok", [])
         vs_ids: list[int] = entity.get("idVyrocnychSprav", [])

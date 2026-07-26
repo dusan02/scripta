@@ -84,6 +84,9 @@ COMMON_FORENSIC_RULES = {
 
 COMMON_TEXT_QUALITY_RULES = {
     'sk': '''- VŽDY používaj správnu slovenčinu: "dlžník" (nie "dižnik"), "dlžníkov" (nie "dižnikov").
+- SPRÁVNE NÁZVY INŠTITÚCIÍ: "Dôvera" (nie "Dövera"), "VšZP" (nie "VSZP"), "Dôvera — zdravotná poisťovňa" (nie "Dövera"). NIKDY nepoužívaj prehlásku "ö" v slovenských názvoch — na Slovensku sa píše "Dôvera", nie "Dövera".
+- SPRÁVNE DĹŽNE V PRÁVNYCH TERMÍNOCH: "súdov" (nie "südov"), "rozhodnutia súdov" (nie "rozhodnutia südov"), "Register" (nie "Registier"), "Register dane z príjmov" (nie "Registier daň z príjmov").
+- ŽIADNE ANGLICKÉ FRAGMENTY: V slovenskom texte NIKDY nepoužívaj anglické slová alebo fragmenty ako "Human ex", "Human resources", "Employee costs". Vždy použi slovenský ekvivalent: "Osobné náklady", "Personálne náklady", "Mzdové náklady". Ak píšeš nadpis sekcie, musí byť celý po slovensky.
 - SPRÁVNE DĹŽNE: "existencie" (nie "existence"), "operatívnej" (nie "operativnej"), "administratívnej" (nie "administrativnej"), "disciplíne" (nie "discipline"), "finančné" (nie "financné"), "sú" (nie "su").
 - POMLČKY: Namiesto spojovníka "-" s medzerami používaj dlhú pomlčku (en-dash "–"), napr. "354A, 355A – /391A/" nie "354A, 355A - /391A/".
 - V texte NIKDY neuvádzaj historické názvy spoločností z registrov (CRZ, UVO). Vždy použi aktuálny oficiálny názov spoločnosti. Rôzne historické formy názvu (napr. "KIA Motors Slovakia" vs "Kia Slovakia") pri rovnakom IČO sú tá istá spoločnosť — neupozorňuj na ne ako na nezrovnalosť.

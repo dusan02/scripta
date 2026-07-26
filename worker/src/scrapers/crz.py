@@ -278,9 +278,9 @@ class CrzScraper(BaseScraper):
 
             if total_records > 0:
                 return (
-                    f"POZOR: Pre IČO {ico} sa našlo {total_records} zmlúv v CRZ "
+                    f"POZOR: Pre IČO {ico} sa našli {total_records} zmluvy v CRZ "
                     f"(zobrazených na {pages} stranách). "
-                    f"Odporúčame skontrolovať zmluvy v vygenerovanom PDF."
+                    f"Odporúčame skontrolovať zmluvy vo vygenerovanom PDF."
                 )
             else:
                 return f"Žiadny záznam v Centrálnom registri zmlúv pre IČO {ico}."

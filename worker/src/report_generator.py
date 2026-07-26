@@ -320,8 +320,8 @@ _FINDINGS_TRANSLATIONS = [
     (r"Právna forma: (.+)", "scr_legal_form", {}),
     (r"Dátum vzniku: (.+)", "scr_founded_date", {}),
     # CRZ / UVO with counts
-    (r"INFO:\s*Pre IČO (\d+) sa našlo (\d+) zmlúv v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy v vygenerovanom PDF\.", "scr_crz_contracts_found", {}),
-    (r"POZOR:\s*Pre IČO (\d+) sa našlo (\d+) zmlúv v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy v vygenerovanom PDF\.", "scr_crz_contracts_found_warn", {}),
+    (r"INFO:\s*Pre IČO (\d+) sa našli (\d+) zmluvy v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found", {}),
+    (r"POZOR:\s*Pre IČO (\d+) sa našli (\d+) zmluvy v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found_warn", {}),
     (r"INFO:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found", {}),
     (r"POZOR:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found_warn", {}),
     # Register účtovných závierok
