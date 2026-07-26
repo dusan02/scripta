@@ -368,10 +368,10 @@ _FINDINGS_TRANSLATIONS = [
     (r"Právna forma: (.+)", "scr_legal_form", {}),
     (r"Dátum vzniku: (.+)", "scr_founded_date", {}),
     # CRZ / UVO with counts
-    (r"INFO:\s*Pre IČO (\d+) sa (našla|našli|našlo) (\d+) (zmluvu|zmluvy|zmlúv) v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found", {}),
-    (r"POZOR:\s*Pre IČO (\d+) sa (našla|našli|našlo) (\d+) (zmluvu|zmluvy|zmlúv) v CRZ \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found_warn", {}),
-    (r"INFO:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found", {}),
-    (r"POZOR:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) stranách\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found_warn", {}),
+    (r"INFO:\s*Pre IČO (\d+) sa (našla|našli|našlo) (\d+) (zmluvu|zmluvy|zmlúv) v CRZ \(zobrazených na (\d+) (strane|stranách)\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found", {}),
+    (r"POZOR:\s*Pre IČO (\d+) sa (našla|našli|našlo) (\d+) (zmluvu|zmluvy|zmlúv) v CRZ \(zobrazených na (\d+) (strane|stranách)\)\.\s*Odporúčame skontrolovať zmluvy vo vygenerovanom PDF\.", "scr_crz_contracts_found_warn", {}),
+    (r"INFO:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) (strane|stranách)\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found", {}),
+    (r"POZOR:\s*Pre IČO (\d+) sa našlo (\d+) záznamov v UVO \(zobrazených na (\d+) (strane|stranách)\)\.\s*Odporúčame skontrolovať záznamy vo vygenerovanom PDF\.", "scr_uvo_records_found_warn", {}),
     # Register účtovných závierok
     (r"Účtovná závierka nájdená pre IČO (\d+) v Registri účtovných závierok\.", "scr_registeruz_found", {}),
     # Tax reliability rating (with IČO and company name)
@@ -396,15 +396,17 @@ def _translate_scraper_findings(raw: str, i18n: dict) -> str:
                 kwargs["ico"] = groups[0]
             elif i18n_key in ("scr_found_court_decisions", "scr_court_decisions_found") and groups:
                 kwargs["parts"] = groups[0]
-            elif i18n_key in ("scr_crz_contracts_found", "scr_crz_contracts_found_warn") and len(groups) >= 5:
-                # Regex groups: 0=ico, 1=verb, 2=count, 3=noun, 4=pages
+            elif i18n_key in ("scr_crz_contracts_found", "scr_crz_contracts_found_warn") and len(groups) >= 6:
+                # Regex groups: 0=ico, 1=verb, 2=count, 3=noun, 4=pages, 5=strana_str
                 kwargs["ico"] = groups[0]
                 kwargs["count"] = groups[2]
                 kwargs["pages"] = groups[4]
-            elif i18n_key in ("scr_uvo_records_found", "scr_uvo_records_found_warn") and len(groups) >= 3:
+                kwargs["strana_str"] = groups[5]
+            elif i18n_key in ("scr_uvo_records_found", "scr_uvo_records_found_warn") and len(groups) >= 4:
                 kwargs["ico"] = groups[0]
                 kwargs["count"] = groups[1]
                 kwargs["pages"] = groups[2]
+                kwargs["strana_str"] = groups[3]
             elif i18n_key == "scr_legal_form" and groups:
                 kwargs["val"] = groups[0]
             elif i18n_key == "scr_founded_date" and groups:
@@ -1808,7 +1810,6 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=[
             "--disable-gpu", "--no-sandbox",
-            "--font-render-hinting=none",
         ])
         page = await browser.new_page()
         await page.goto(f"file://{html_path}", wait_until="networkidle", timeout=30000)

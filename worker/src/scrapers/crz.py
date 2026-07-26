@@ -286,9 +286,10 @@ class CrzScraper(BaseScraper):
                     verb, noun = "našli", "zmluvy"
                 else:
                     verb, noun = "našlo", "zmlúv"
+                strana_str = "strane" if pages == 1 else "stranách"
                 return (
                     f"POZOR: Pre IČO {ico} sa {verb} {total_records} {noun} v CRZ "
-                    f"(zobrazených na {pages} stranách). "
+                    f"(zobrazených na {pages} {strana_str}). "
                     f"Odporúčame skontrolovať zmluvy vo vygenerovanom PDF."
                 )
             else:

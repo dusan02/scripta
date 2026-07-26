@@ -252,18 +252,39 @@
     </div>
     {% endif %}
 
+    {# ── VNÚTROSKUPINOVÉ TRANSAKCIE A RIZIKO TUNELOVANIA ── #}
+    {% set intragroup_items = [] %}
+    {% for stmt in stmts_sorted %}
+    {% if stmt.notesRisk and stmt.notesRisk.relatedPartyTransactions %}
+    {% set intragroup_items = intragroup_items + [{ 'year': stmt.year, 'text': stmt.notesRisk.relatedPartyTransactions }] %}
+    {% endif %}
+    {% endfor %}
+    {% if intragroup_items|length > 0 %}
+    <div class="mb-3" style="page-break-inside: avoid; break-inside: avoid;">
+        <div class="rounded-lg border-2 border-rose-300 bg-rose-50 overflow-hidden">
+            <div class="px-3 py-2 bg-rose-100 border-b border-rose-200 flex items-center gap-2">
+                <span style="color: #dc2626; font-size: 16px;">⚠</span>
+                <h3 class="subsection-title-sm text-rose-800">{{ i18n.intragroup_risk_title }}</h3>
+            </div>
+            <div class="p-3">
+                <p class="report-caption text-rose-600 mb-2">{{ i18n.intragroup_risk_desc }}</p>
+                {% for item in intragroup_items %}
+                <div class="mb-1.5 last:mb-0 p-2 bg-white rounded border border-rose-100">
+                    <p class="report-label text-rose-500 mb-0.5">{{ item.year }}</p>
+                    <p class="report-body-sm text-slate-700">{{ item.text | sanitize_llm }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {# ── KĽÚČOVÉ POZNÁMKY POD ČIAROU ── #}
     {% if latest_stmt and latest_stmt.notesRisk %}
-    {% if latest_stmt.notesRisk.relatedPartyTransactions or latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
+    {% if latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
     <div class="mb-2">
         <h3 class="subsection-title-sm mb-1">{{ i18n.key_footnotes }}</h3>
         <div class="grid grid-cols-1 gap-1.5">
-            {% if latest_stmt.notesRisk.relatedPartyTransactions %}
-            <div class="p-2 bg-slate-50 rounded border border-slate-200">
-                <p class="report-label text-slate-500">{{ i18n.related_party }}</p>
-                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.relatedPartyTransactions }}</p>
-            </div>
-            {% endif %}
             {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
             <div class="p-2 bg-slate-50 rounded border border-slate-200">
                 <p class="report-label text-slate-500">{{ i18n.off_balance }}</p>
@@ -388,7 +409,7 @@
                 {% if 'Čistý zisk' in row.label and row.delta_raw is defined and row.delta_raw is not none and row.delta_raw < -20 %}bg-rose-50{% endif %}">
                 <td class="py-0.5 px-2 font-semibold text-slate-700">{{ row.label }}</td>
                 {% for val in row.vals %}
-                <td class="py-0.5 px-2 text-right text-slate-700">{{ val }}</td>
+                <td class="py-0.5 px-2 text-right {% if val == '—' %}text-slate-300{% else %}text-slate-700{% endif %}">{{ val | default('—') }}</td>
                 {% endfor %}
                 <td class="py-0.5 px-2 text-right font-semibold
                     {% if row.flag == '🔴' %}text-rose-600
@@ -1028,4 +1049,6 @@
                 </div>
             </div>
         </div>
+    {% else %}
+    </div><!-- Close CF wrapper when no financial ratios -->
     {% endif %} {# closes main section 6 wrapper if latest_ratios and latest_stmt #}

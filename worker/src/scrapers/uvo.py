@@ -216,9 +216,10 @@ class UvoScraper(BaseScraper):
     @staticmethod
     def _build_findings(ico: str, pages: int, record_count: int) -> str:
         if record_count > 0:
+            strana_str = "strane" if pages == 1 else "stranách"
             return (
                 f"POZOR: Pre IČO {ico} sa našlo {record_count} záznamov v UVO "
-                f"(zobrazených na {pages} stranách). "
+                f"(zobrazených na {pages} {strana_str}). "
                 f"Odporúčame skontrolovať záznamy vo vygenerovanom PDF."
             )
         return f"Žiadny záznam v registri Úradu pre verejné obstarávanie pre IČO {ico}."
