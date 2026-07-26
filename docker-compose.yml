@@ -3,17 +3,24 @@ version: "3.9"
 services:
   # ─── PostgreSQL ───────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     container_name: verifa_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: verifa
-      POSTGRES_PASSWORD: verifa_dev_password
-      POSTGRES_DB: verifa
+      POSTGRES_USER: ${POSTGRES_USER:-verifa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-verifa}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    command: >
+      postgres
+      -c shared_preload_libraries=pgaudit
+      -c pgaudit.log=write,ddl
+      -c pgaudit.log_catalog=off
+      -c pgaudit.log_relation=on
+      -c log_line_prefix="%m [%p] %u@%d "
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U verifa"]
       interval: 5s
@@ -31,9 +38,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
-      DATABASE_URL_UNPOOLED: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
-      NEXTAUTH_URL: http://localhost:3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
+      DATABASE_URL_UNPOOLED: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change_me_in_production_please}
       WORKER_URL: http://worker:8000
       WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
@@ -87,7 +94,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
       APP_ENV: development
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
@@ -117,7 +124,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://verifa:verifa_dev_password@postgres:5432/verifa
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
       APP_ENV: development
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
@@ -152,7 +159,7 @@ services:
       BACKUP_DIR: /backups
       RETENTION_DAYS: "30"
       S3_BUCKET: ${S3_BACKUP_BUCKET:-}
-      PGPASSWORD: verifa_dev_password
+      PGPASSWORD: ${POSTGRES_PASSWORD}
       TZ: Europe/Bratislava
     volumes:
       - db_backups:/backups
