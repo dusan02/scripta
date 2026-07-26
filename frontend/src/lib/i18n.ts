@@ -33,7 +33,7 @@ const sk: Dict = {
   "nav.spat": "Späť",
 
   // ── Layout / Footer ──
-  "footer.urcene": "Určené výhradne pre advokátov a právnikov",
+  "footer.urcene": "Business risk report",
   "global.offline": "Ste offline — skontrolujte internetové pripojenie",
 
   // ── Home / SearchSection ──
@@ -657,7 +657,7 @@ const en: Dict = {
   "nav.spat": "Back",
 
   // ── Layout / Footer ──
-  "footer.urcene": "Exclusively for lawyers and legal professionals",
+  "footer.urcene": "Business risk report",
   "global.offline": "You are offline — check your internet connection",
 
   // ── Home / SearchSection ──
@@ -1281,7 +1281,7 @@ const de: Dict = {
   "nav.spat": "Zurück",
 
   // ── Layout / Footer ──
-  "footer.urcene": "Ausschließlich für Anwälte und Juristen",
+  "footer.urcene": "Business risk report",
   "global.offline": "Sie sind offline — überprüfen Sie Ihre Internetverbindung",
 
   // ── Home / SearchSection ──
