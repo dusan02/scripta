@@ -93,11 +93,14 @@ export async function GET(
     // Convert Node.js ReadStream to Web ReadableStream.
     const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
 
+    const filename = req.nextUrl.searchParams.get("filename") || `evidence-binder-${params.id}.pdf`;
+    const disposition = req.nextUrl.searchParams.get("filename") ? "attachment" : "inline";
+
     return new NextResponse(webStream, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="evidence-binder-${params.id}.pdf"`,
+        "Content-Disposition": `${disposition}; filename="${filename}"`,
         "Content-Length": String(stat.size),
         "Cache-Control": "no-store",
       },

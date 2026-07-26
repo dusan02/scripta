@@ -506,18 +506,13 @@ export default function ReportDetailPage() {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const res = await fetch(`/api/reports/${params.id}/download`);
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
       const namePart = report?.companyName || report?.ico || report?.id.slice(0, 8);
+      const a = document.createElement("a");
+      a.href = `/api/reports/${params.id}/download?filename=Verifa - ${namePart}.pdf`;
       a.download = `Verifa - ${namePart}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch {
       toast.error(t("report.stiahnutDokument"));
     } finally {
@@ -550,7 +545,10 @@ export default function ReportDetailPage() {
   const handleShareEmail = async () => {
     setSharing(true);
     try {
-      const res = await fetch(`/api/reports/${params.id}/download`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+      const res = await fetch(`/api/reports/${params.id}/download`, { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const namePart = report?.companyName || report?.ico || report?.id.slice(0, 8);
