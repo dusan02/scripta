@@ -192,6 +192,35 @@ def sanitize_llm_text(text: str) -> str:
     text = re.sub(r'\bALE\b', 'ale', text)
     return text
 
+_MANUAL_LOOKUP_URLS: dict[str, str] = {
+    "ORSR": "https://www.orsr.sk/default.asp?lan=sk",
+    "ZRSR": "https://www.zrsr.sk/default.aspx?lan=sk",
+    "INSOLVENCY": "https://www.justice.gov.sk/Stranky/Registre/Registru-upadcov.aspx",
+    "CRE": "https://www.crz.sk/",
+    "RPVS": "https://rpvs.gov.sk/rpvs/",
+    "RPO": "https://www.rpo.sk/",
+    "OBCHODNY_VESTNIK": "https://www.slov-lex.sk/obchodny-vestnik/",
+    "CRZ": "https://www.crz.gov.sk/index.php/main/zmluvy/",
+    "UVO": "https://www.uvo.gov.sk/evestnik",
+    "REGISTER_UZ": "https://www.registeruz.sk/",
+    "ROZHODNUTIA": "https://www.slov-lex.sk/pravne-predpisy/sudy/",
+    "DISKVALIFIKACIE": "https://www.justice.gov.sk/Stranky/Registre/Registrovane-osoby.aspx",
+    "NCRZP": "https://www.ncz.sk/",
+    "NCRD": "https://www.ncrd.sk/",
+    "OCHRANNE_ZNAMKY": "https://www.upv.gov.sk/sk/registre/",
+    "SP_DLZNICI": "https://www.socpoist.sk/obchodna-informacia/",
+    "VszP_DLZNICI": "https://www.vszp.sk/prehliadky-a-pojistne/pritomnost-na-trhu-pojistneho/zoznamy-dlznikov/",
+    "UNION_DLZNICI": "https://www.unionzp.sk/zoznam-dlznikov/",
+    "DOVERA_DLZNICI": "https://www.dovera.sk/zoznam-dlznikov/",
+    "FS_DANOVE_SUBJEKTY": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "FS_DPH_REGISTROVANI": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "FS_DPH_RUSENIE": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "FS_DPH_VYMAZANI": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "FS_DPH_NADMERNY_ODPOCET": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "FS_DAN_Z_PRIJMOV": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "FS_DAN_PRIJMOV_REG": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+}
+
 def format_findings(source, i18n=None) -> str:
     fallback = (i18n or {}).get("no_records", "Bez záznamu.")
     raw = source.findings or source.message or fallback
@@ -212,6 +241,13 @@ def format_findings(source, i18n=None) -> str:
     # ── Comprehensive scraper findings translation ──
     if i18n:
         raw = _translate_scraper_findings(raw, i18n)
+
+    # ── Append manual lookup URL for failed/unavailable sources ──
+    if source.status in ("FAILED", "UNAVAILABLE"):
+        url = _MANUAL_LOOKUP_URLS.get(source.source_type)
+        if url:
+            label = (i18n or {}).get("findings_manual_lookup", "Informáciu dohľadáte na")
+            raw = f"{raw}\n{label}: {url}"
 
     max_chars = 350
     if len(raw) > max_chars:
