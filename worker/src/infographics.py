@@ -411,12 +411,11 @@ def _to_base64(fig, width, height):
         logger.warning(f"Plotly fallback chart failed: {e}")
         return ""
 
-def _waterfall_to_bars(steps):
-    """Convert waterfall steps to go.Bar with computed bases (Kaleido workaround).
 
-    Kaleido 0.2.x does not render go.Waterfall correctly — bars start from zero
-    instead of cascading. This function manually computes running totals and
-    returns bar y-values, bases, colors, and text labels.
+def _waterfall_to_bars(steps):
+    """Convert waterfall steps to bar data with computed bases.
+
+    Returns bar y-values, bases, colors, and text labels for waterfall rendering.
     """
     running = 0
     bar_y = []
@@ -449,8 +448,67 @@ def _waterfall_to_bars(steps):
     return bar_y, bar_base, bar_colors, bar_text
 
 
+def _matplotlib_waterfall(steps, title, lang="sk"):
+    """Render a waterfall chart using matplotlib (Kaleido-safe).
+
+    Kaleido 0.2.1 completely ignores the `base` parameter for go.Bar,
+    so all bars start from zero. Matplotlib's `bottom` parameter works
+    correctly for true waterfall/cascade charts.
+    """
+    bar_y, bar_base, bar_colors, bar_text = _waterfall_to_bars(steps)
+    x_labels = [s['name'].replace('<br>', '\n') for s in steps]
+    n = len(steps)
+
+    fig, ax = plt.subplots(figsize=(8, 3.5), dpi=150)
+    fig.patch.set_alpha(0)
+    ax.set_facecolor('none')
+
+    x_pos = range(n)
+    bars = ax.bar(x_pos, bar_y, bottom=bar_base, color=bar_colors, width=0.6, edgecolor='white', linewidth=0.5)
+
+    # Add value labels on top/bottom of each bar
+    for idx, bar in enumerate(bars):
+        base = bar_base[idx]
+        height = bar_y[idx]
+        top = base + height
+        label = bar_text[idx]
+        if bar_base[idx] > 0 or (bar_base[idx] == 0 and height >= 0):
+            ax.text(idx, top + max(bar_y) * 0.02, label, ha='center', va='bottom',
+                    fontsize=9, color='#475569', fontweight='medium')
+        else:
+            ax.text(idx, base - max(bar_y) * 0.02, label, ha='center', va='top',
+                    fontsize=9, color='#475569', fontweight='medium')
+
+    # Connector lines between bars
+    for idx in range(n - 1):
+        if steps[idx]['measure'] == 'absolute' or steps[idx]['measure'] == 'relative':
+            left_top = bar_base[idx] + bar_y[idx] if steps[idx].get('y', 0) >= 0 else bar_base[idx]
+            right_base = bar_base[idx + 1]
+            ax.plot([idx + 0.3, idx + 0.7], [left_top, left_top],
+                    color='#94a3b8', linewidth=0.8, linestyle='--')
+
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(x_labels, fontsize=9, color='#64748b')
+    ax.set_title(title, fontsize=13, color='#0f172a', fontweight='bold', pad=10)
+    ax.tick_params(axis='y', labelsize=9, colors='#64748b')
+    from matplotlib.ticker import FuncFormatter
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e6:.0f}M'))
+    ax.grid(axis='y', color='#e2e8f0', linewidth=0.5, alpha=0.7)
+    ax.set_axisbelow(True)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#e2e8f0')
+    ax.spines['bottom'].set_color('#e2e8f0')
+
+    plt.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+
 def _generate_pl_waterfall(stmt, lang="sk") -> str:
-    """Proper bridge/waterfall P&L chart using Plotly go.Bar (Kaleido-safe)."""
+    """Waterfall P&L chart using matplotlib (Kaleido cannot render base parameter)."""
     if not stmt: return ""
     i = get_i18n_strings(lang)
     revenue = getattr(stmt, 'mainActivityRevenue', None)
@@ -468,50 +526,28 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
         cogs = revenue - gross
         if cogs > 0:
             steps.append({'name': 'COGS', 'measure': 'relative', 'y': -cogs})
-        steps.append({'name': i.get('sankey_gross_margin_short', 'Hrubá<br>marža'), 'measure': 'total'})
+        steps.append({'name': i.get('sankey_gross_margin_short', 'Hrubá marža'), 'measure': 'total'})
 
     if staff is not None and staff != 0:
-        steps.append({'name': i.get('sankey_staff_short', 'Osobné<br>náklady'), 'measure': 'relative', 'y': -abs(staff)})
+        steps.append({'name': i.get('sankey_staff_short', 'Osobné náklady'), 'measure': 'relative', 'y': -abs(staff)})
     if depreciation is not None and depreciation != 0:
         steps.append({'name': i.get('sankey_depreciation', 'Odpisy'), 'measure': 'relative', 'y': -abs(depreciation)})
     if interest is not None and interest != 0:
         steps.append({'name': i.get('sankey_interest', 'Úroky'), 'measure': 'relative', 'y': -abs(interest)})
     if net is not None:
-        steps.append({'name': i.get('sankey_net_profit_short', 'Čistý<br>zisk'), 'measure': 'total'})
+        steps.append({'name': i.get('sankey_net_profit_short', 'Čistý zisk'), 'measure': 'total'})
 
     if len(steps) < 3: return ""
 
-    bar_y, bar_base, bar_colors, bar_text = _waterfall_to_bars(steps)
-    x_labels = [s['name'] for s in steps]
-
-    fig = go.Figure()
-    for idx in range(len(steps)):
-        fig.add_trace(go.Bar(
-            x=[x_labels[idx]],
-            y=[bar_y[idx]],
-            base=[bar_base[idx]],
-            marker_color=[bar_colors[idx]],
-            text=[bar_text[idx]],
-            textposition="outside",
-            textfont=dict(size=12, color='#475569'),
-            showlegend=False,
-        ))
-
-    fig.update_layout(
-        title=dict(text=i.get('chart_pnl', 'Výkaz ziskov a strát'), font=dict(size=14, color='#0f172a')),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=40, r=20, t=50, b=30),
-        xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
-        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
-        showlegend=False,
-        bargap=0.3,
-    )
-    return _to_base64(fig, 800, 350)
+    try:
+        return _matplotlib_waterfall(steps, i.get('chart_pnl', 'Výkaz ziskov a strát'), lang=lang)
+    except Exception as e:
+        logger.warning(f"PL waterfall matplotlib chart failed: {e}")
+        return ""
 
 
 def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
-    """Proper bridge/waterfall Cash Flow chart using Plotly go.Bar (Kaleido-safe)."""
+    """Waterfall Cash Flow chart using matplotlib (Kaleido cannot render base parameter)."""
     if not stmt: return ""
     i = get_i18n_strings(lang)
     net_profit = getattr(stmt, 'netProfitLoss', None)
@@ -521,45 +557,23 @@ def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
 
     steps = []
     if net_profit is not None:
-        steps.append({'name': i.get('sankey_net_profit_short', 'Čistý<br>zisk'), 'measure': 'absolute', 'y': net_profit})
+        steps.append({'name': i.get('sankey_net_profit_short', 'Čistý zisk'), 'measure': 'absolute', 'y': net_profit})
     if depreciation is not None and depreciation != 0:
         steps.append({'name': i.get('sankey_depreciation', 'Odpisy'), 'measure': 'relative', 'y': abs(depreciation)})
     if net_profit is not None and depreciation is not None and ocf is not None:
         wc_change = ocf - (net_profit + abs(depreciation))
         if wc_change != 0:
-            steps.append({'name': i.get('sankey_wc_short', 'Zmeny<br>v PK'), 'measure': 'relative', 'y': wc_change})
+            steps.append({'name': i.get('sankey_wc_short', 'Zmeny v PK'), 'measure': 'relative', 'y': wc_change})
     if ocf is not None:
-        steps.append({'name': i.get('sankey_operating_cf_short', 'Prevádz.<br>CF'), 'measure': 'total'})
+        steps.append({'name': i.get('sankey_operating_cf_short', 'Prevádz. CF'), 'measure': 'total'})
 
     if len(steps) < 2: return ""
 
-    bar_y, bar_base, bar_colors, bar_text = _waterfall_to_bars(steps)
-    x_labels = [s['name'] for s in steps]
-
-    fig = go.Figure()
-    for idx in range(len(steps)):
-        fig.add_trace(go.Bar(
-            x=[x_labels[idx]],
-            y=[bar_y[idx]],
-            base=[bar_base[idx]],
-            marker_color=[bar_colors[idx]],
-            text=[bar_text[idx]],
-            textposition="outside",
-            textfont=dict(size=12, color='#475569'),
-            showlegend=False,
-        ))
-
-    fig.update_layout(
-        title=dict(text=i.get('sankey_operating_cf_title', 'Prevádzkový Cash Flow'), font=dict(size=14, color='#0f172a')),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=40, r=20, t=50, b=30),
-        xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
-        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
-        showlegend=False,
-        bargap=0.3,
-    )
-    return _to_base64(fig, 800, 350)
+    try:
+        return _matplotlib_waterfall(steps, i.get('sankey_operating_cf_title', 'Prevádzkový Cash Flow'), lang=lang)
+    except Exception as e:
+        logger.warning(f"CF waterfall matplotlib chart failed: {e}")
+        return ""
 
 
 def _generate_balance_sheet_waterfall(stmt, lang="sk") -> str:

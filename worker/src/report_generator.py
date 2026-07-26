@@ -104,14 +104,14 @@ def format_number_millions(value: float, treat_zero_as_none: bool = False) -> st
     Zabraňuje zmiešavaniu miliónov a tisícov v jednej tabuľke.
     Ak treat_zero_as_none=True, nula sa zobrazí ako '—' (pre cash flow polia, kde 0 = chýbajúce dáta)."""
     if value is None:
-        return "N/A"
+        return "—"
     if treat_zero_as_none and value == 0:
-        return "N/A"
+        return "—"
     try:
         val = float(value)
         return f"{val / 1_000_000:,.2f}".replace(",", "X").replace(".", ",").replace("X", " ")
     except (ValueError, TypeError):
-        return "N/A"
+        return "—"
 
 def format_cf_millions(value: float) -> str:
     """Wrapper pre format_number_millions s treat_zero_as_none=True.
@@ -172,7 +172,9 @@ def sanitize_llm_text(text: str) -> str:
     text = text.replace("Rezpečná", "Bezpečná")
     text = text.replace("Plotroski", "Piotroski")
     text = text.replace("Dövera", "Dôvera")
-    text = text.replace("südov", "súdov")
+    text = re.sub(r'\bDöver', 'Dôver', text)  # all declensions: Dôvery, Dôverou, etc.
+    text = re.sub(r'\bsüd', 'súd', text)      # all declensions: súdov, súdom, súdy, etc.
+    text = re.sub(r'\bSüd', 'Súd', text)      # capitalized forms
     text = text.replace("Fimra", "Firma").replace("Fimia", "Firma")
     # Compound forms from scraper findings — health insurance dlžníci
     text = text.replace("Dôveradižníci", "Dôvera — dlžníci").replace("Dôvera-dižníci", "Dôvera — dlžníci")

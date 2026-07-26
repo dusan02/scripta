@@ -439,7 +439,9 @@ def _sanitize_verdict_text(text: str) -> str:
     # Bežné preklepy z LLM — rovnaké ako sanitize_llm_text v report_generator.py
     text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov").replace("dižníci", "dlžníci")
     text = text.replace("Dövera", "Dôvera")
-    text = text.replace("südov", "súdov")
+    text = re.sub(r'\bDöver', 'Dôver', text)
+    text = re.sub(r'\bsüd', 'súd', text)
+    text = re.sub(r'\bSüd', 'Súd', text)
     text = text.replace("Fimra", "Firma").replace("Fimia", "Firma")
     text = text.replace("Registier", "Register")
     # Compound forms — health insurance dlžníci

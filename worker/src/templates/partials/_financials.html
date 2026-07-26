@@ -307,7 +307,7 @@
     <div class="mb-2">
         <h3 class="subsection-title-sm mb-1">{{ i18n.strategic_context }}</h3>
         {% if latest_stmt.narrativeRisk.synthesis %}
-        <p class="report-body-sm text-slate-700 mb-2">{{ latest_stmt.narrativeRisk.synthesis }}</p>
+        <p class="report-body-sm text-slate-700 mb-2">{{ latest_stmt.narrativeRisk.synthesis | sanitize_llm }}</p>
         {% endif %}
         {% if latest_stmt.narrativeRisk.goingConcernDoubts %}
         <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
@@ -319,23 +319,23 @@
             <p class="subsection-title-sm text-rose-500 mb-0.5">{{ i18n.forensic_red_flags }}</p>
             <ul class="space-y-1">
                 {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
-                <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag }}</span></li>
+                <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag | sanitize_llm }}</span></li>
                 {% endfor %}
             </ul>
         </div>
         {% endif %}
         <div class="grid grid-cols-2 gap-2">
             {% if latest_stmt.narrativeRisk.managementChanges %}
-            <div><p class="report-label text-slate-500">{{ i18n.management_changes }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges }}</p></div>
+            <div><p class="report-label text-slate-500">{{ i18n.management_changes }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges | sanitize_llm }}</p></div>
             {% endif %}
             {% if latest_stmt.narrativeRisk.plannedInvestments %}
-            <div><p class="report-label text-slate-500">{{ i18n.planned_investments }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments }}</p></div>
+            <div><p class="report-label text-slate-500">{{ i18n.planned_investments }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments | sanitize_llm }}</p></div>
             {% endif %}
             {% if latest_stmt.narrativeRisk.profitabilityExplanation %}
-            <div class="col-span-2"><p class="report-label text-slate-500">{{ i18n.profitability_explanation }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation }}</p></div>
+            <div class="col-span-2"><p class="report-label text-slate-500">{{ i18n.profitability_explanation }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation | sanitize_llm }}</p></div>
             {% endif %}
             {% if latest_stmt.narrativeRisk.litigationRisks %}
-            <div class="col-span-2"><p class="report-label text-rose-500">{{ i18n.litigation_risks }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks }}</p></div>
+            <div class="col-span-2"><p class="report-label text-rose-500">{{ i18n.litigation_risks }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks | sanitize_llm }}</p></div>
             {% endif %}
         </div>
     </div>
@@ -409,7 +409,7 @@
                 {% if 'Čistý zisk' in row.label and row.delta_raw is defined and row.delta_raw is not none and row.delta_raw < -20 %}bg-rose-50{% endif %}">
                 <td class="py-0.5 px-2 font-semibold text-slate-700">{{ row.label }}</td>
                 {% for val in row.vals %}
-                <td class="py-0.5 px-2 text-right {% if val == '—' %}text-slate-300{% else %}text-slate-700{% endif %}">{{ val | default('—') }}</td>
+                <td class="py-0.5 px-2 text-right {% if val == '—' %}text-slate-500{% else %}text-slate-700{% endif %}">{{ val | default('—') }}</td>
                 {% endfor %}
                 <td class="py-0.5 px-2 text-right font-semibold
                     {% if row.flag == '🔴' %}text-rose-600
@@ -581,7 +581,7 @@
                 {% for stmt in stmts_sorted %}
                 {% set val = stmt[field] if stmt[field] is defined else none %}
                 {% if val is none %}
-                <td class="py-0.5 px-2 text-slate-400"><div class="flex justify-end items-center"><span>—</span></div></td>
+                <td class="py-0.5 px-2 text-slate-500"><div class="flex justify-end items-center"><span>—</span></div></td>
                 {% else %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
                 {% set prev_val = prev_stmt and prev_stmt[field] or none %}
@@ -597,7 +597,7 @@
                 {% for stmt in stmts_sorted %}
                 {% set val = stmt[field] if stmt[field] is defined else none %}
                 {% if val is none %}
-                <td class="py-0.5 px-2 text-slate-400"><div class="flex justify-end items-center"><span>—</span></div></td>
+                <td class="py-0.5 px-2 text-slate-500"><div class="flex justify-end items-center"><span>—</span></div></td>
                 {% else %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
                 {% set prev_val = prev_stmt and prev_stmt[field] or none %}
@@ -669,7 +669,7 @@
                 {% for stmt in stmts_sorted %}
                 {% set val = stmt[field] if stmt[field] is defined else none %}
                 {% if val is none %}
-                <td class="py-2 px-2 text-slate-400"><div class="flex justify-end items-center"><span>—</span></div></td>
+                <td class="py-2 px-2 text-slate-500"><div class="flex justify-end items-center"><span>—</span></div></td>
                 {% else %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
                 {% set prev_val = prev_stmt and prev_stmt[field] or none %}
@@ -745,10 +745,14 @@
             <tr class="border-b border-slate-100">
                 <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
                 {% for stmt in stmts_sorted %}
-                {% set val = stmt[field] %}
+                {% set val = stmt[field] if stmt[field] is defined else none %}
+                {% if val is none %}
+                <td class="py-2 px-2 text-slate-500"><div class="flex justify-end items-center"><span>—</span></div></td>
+                {% else %}
                 {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
                 {% set prev_val = prev_stmt and prev_stmt[field] or none %}
                 <td class="py-2 px-2 {% if val is not none and val != 0 and val < 0 %}text-rose-600{% else %}text-slate-700{% endif %}"><div class="flex justify-end items-center"><span>{{ val | format_cf_millions }}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
+                {% endif %}
                 {% endfor %}
             </tr>
             {% endfor %}
