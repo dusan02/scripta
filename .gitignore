@@ -46,4 +46,3 @@ worker/omv_*.png
 worker/debug_*.png
 worker/test_results/
 worker/src/browser_manager.py
-worker/src/worker_arq.py
