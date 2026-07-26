@@ -110,9 +110,10 @@ class VszpDlzniciScraper(BaseScraper):
             if not checkbox_clicked:
                 logger.warning(f"[{self.source_type}] Checkbox súhlasu sa nenašiel — pokračujem bez neho.")
 
-            # Vyplniť IČO do poľa "Nazov" — skúšame viacero selektorov
+            # Vyplniť IČO do poľa "Nazov" — presný CSS selector #nazov
             nazov_filled = False
             for selector in [
+                "#nazov",
                 "input[name='nazov']",
                 "input[placeholder*='Názov']",
                 "input[placeholder*='Nazov']",
@@ -162,11 +163,11 @@ class VszpDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Kliknúť "Vyhľadať" — skúšame viacero selektorov
+            # Kliknúť "Vyhľadať" — presný CSS selector input[value='Vyhľadať']
             search_clicked = False
             for selector in [
-                "button:has-text('Vyhľadať')",
                 "input[value='Vyhľadať']",
+                "button:has-text('Vyhľadať')",
                 "button[type='submit']",
                 ".search-button",
             ]:

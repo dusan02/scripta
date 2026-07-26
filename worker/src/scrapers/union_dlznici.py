@@ -71,12 +71,12 @@ class UnionDlzniciScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 logger.info(f"[{self.source_type}] Tlačidlo 'Vyhľadať v zozname dlžníkov' sa nenašlo — formulár môže byť už otvorený.")
 
-            # Vyplniť IČO do textového poľa — skúšame get_by_role, potom CSS fallback
+            # Vyplniť IČO — presný CSS selector #input-v-5 (Vuetify), fallback na .v-field__input
             ico_filled = False
             for tb_selector in [
-                page.get_by_role("textbox", name="Zadajte priezvisko, IČO,"),
+                page.locator("#input-v-5"),
+                page.locator("input.v-field__input"),
                 page.locator("input[type='text']:visible").first,
-                page.locator("input:visible").first,
             ]:
                 try:
                     await tb_selector.first.wait_for(timeout=8000)
@@ -108,10 +108,10 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Kliknúť "Hľadať" — skúšame get_by_role, potom CSS fallback
+            # Kliknúť "Hľadať" — Vuetify button selector
             search_clicked = False
             for btn_sel in [
-                page.get_by_role("button", name="Hľadať"),
+                page.locator("button.v-btn--variant-elevated.bg-primary"),
                 page.locator("button:has-text('Hľadať')"),
                 page.locator("button[type='submit']:visible"),
             ]:

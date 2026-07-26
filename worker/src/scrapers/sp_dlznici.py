@@ -61,11 +61,11 @@ class SpDlzniciScraper(BaseScraper):
                     )
                 break
 
-            # Vyplniť IČO — selektor podľa Drupal form: input[name="ico"]
-            ico_input = page.locator('input[name="ico"]')
+            # Vyplniť IČO — presný CSS selector #edit-ico--2 (Drupal form)
+            ico_input = page.locator('#edit-ico--2, input[name="ico"]')
             try:
-                await ico_input.wait_for(timeout=15000)
-                await ico_input.fill(ico)
+                await ico_input.first.wait_for(timeout=15000)
+                await ico_input.first.fill(ico)
                 logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
             except PlaywrightTimeoutError:
                 logger.error(f"[{self.source_type}] Pole IČO sa nenašlo.")
@@ -74,11 +74,11 @@ class SpDlzniciScraper(BaseScraper):
                     status_message="Nepodarilo sa nájsť pole IČO na stránke Sociálnej poisťovne.",
                 )
 
-            # Kliknúť na Potvrdiť
-            submit_btn = page.get_by_role("button", name="Potvrdiť")
+            # Kliknúť na Potvrdiť — presný CSS selector #edit-submit-debitors--2 (input[type=submit])
+            submit_btn = page.locator('#edit-submit-debitors--2, input[value="Potvrdiť"]')
             try:
-                await submit_btn.wait_for(timeout=15000)
-                await submit_btn.click()
+                await submit_btn.first.wait_for(timeout=15000)
+                await submit_btn.first.click()
                 logger.info(f"[{self.source_type}] Tlačidlo Potvrdiť kliknuté.")
             except PlaywrightTimeoutError:
                 logger.error(f"[{self.source_type}] Tlačidlo Potvrdiť sa nenašlo.")
