@@ -303,7 +303,7 @@ I18N_STRINGS = {
         "source_fs_dph_vymazani": "DPH — vymazaní",
         "source_fs_danove_subjekty": "Daňové subjekty",
         "source_fs_dan_z_prijmov": "Daň z príjmov",
-        "source_fs_dan_prijmov_reg": "Registier daň z príjmov",
+        "source_fs_dan_prijmov_reg": "Register dane z príjmov",
         "source_fs_dph_nadmerny_odpocet": "DPH — nadmerný odpočet",
         "source_diskvalifikacie": "Diskvalifikácie",
         "source_poverenia": "Poverenia",

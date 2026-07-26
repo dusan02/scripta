@@ -452,7 +452,7 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
         decreasing={"marker": {"color": "#ef4444"}},
         increasing={"marker": {"color": "#10b981"}},
         totals={"marker": {"color": "#1e40af"}},
-        text=[f"{s.get('y', 0):.0f}" if s['measure'] != 'total' else "" for s in steps],
+        text=[f"{s.get('y', 0) / 1e6:.1f} M €" if s['measure'] != 'total' else "" for s in steps],
         textposition="outside",
         textfont=dict(size=12, color='#475569')
     ))
@@ -500,7 +500,7 @@ def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
         decreasing={"marker": {"color": "#ef4444"}},
         increasing={"marker": {"color": "#10b981"}},
         totals={"marker": {"color": "#10b981" if ocf and ocf >= 0 else "#ef4444"}},
-        text=[f"{s.get('y', 0):.0f}" if s['measure'] != 'total' else "" for s in steps],
+        text=[f"{s.get('y', 0) / 1e6:.1f} M €" if s['measure'] != 'total' else "" for s in steps],
         textposition="outside",
         textfont=dict(size=12, color='#475569')
     ))

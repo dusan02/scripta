@@ -1178,7 +1178,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     if not employee_count and latest_stmt:
         staff_costs = getattr(latest_stmt, 'staffCosts', 0) or 0
         if staff_costs > 0:
-            employee_count = max(1, round(staff_costs / 12000))  # odhad: priemerná ročná mzda ~12k €
+            employee_count = max(1, round(staff_costs / 18000))  # odhad: priemerná ročná mzda ~18k € (konzistentné s analytics.py)
             employee_count_estimated = True
     
     # Tržby na zamestnanca

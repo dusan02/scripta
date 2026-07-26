@@ -39,12 +39,27 @@ def get_base_layout(title):
         yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, zerolinecolor='#cbd5e1', tickfont=dict(color='#64748b'))
     )
 
+def _strip_kaleido_watermark(img_bytes: bytes) -> bytes:
+    """Remove Kaleido 0.2.x 'Humanity ex' watermark from bottom of image."""
+    try:
+        from PIL import Image
+        import io as _io
+        img = Image.open(_io.BytesIO(img_bytes))
+        w, h = img.size
+        cropped = img.crop((0, 0, w, int(h * 0.97)))
+        buf = _io.BytesIO()
+        cropped.save(buf, format='PNG')
+        return buf.getvalue()
+    except Exception:
+        return img_bytes
+
 def _to_base64(fig, width=1000, height=450):
     try:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             img_bytes = fig.to_image(format="png", width=width, height=height, scale=2)
+        img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
         print(f"Plotly render error: {e}")
@@ -237,6 +252,12 @@ def generate_ratios_trend_chart(trend_ratios: list, lang="sk") -> str:
     fig.add_hline(y=0, line_dash="dash", line_color="#cbd5e1")
     layout = get_base_layout(i.get('chart_ratios_trend', 'Trend rentability'))
     layout['yaxis']['title'] = i.get('chart_percent', 'Percentá (%)')
+    all_vals = [v for v in roa + roe + margin if v is not None]
+    if all_vals:
+        min_y = min(all_vals)
+        max_y = max(all_vals)
+        padding = max((max_y - min_y) * 0.1, 2)
+        layout['yaxis']['range'] = [min_y - padding, max_y + padding]
     fig.update_layout(**layout)
     return _to_base64(fig, 600, 300)
 
