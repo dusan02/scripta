@@ -218,12 +218,21 @@ async def test_sp_clean_company(browser):
 
 @pytest.mark.asyncio
 async def test_vszp_page_loads(browser):
-    """VšZP: stránka načíta."""
+    """VšZP: stránka načíta a zavrie sa modálne okno ak sa zobrazí."""
     scraper = VszpDlzniciScraper(browser)
     page = await scraper._get_page()
     try:
         await page.goto(scraper.base_url, timeout=15000, wait_until='commit')
         await page.wait_for_load_state('domcontentloaded', timeout=5000)
+        # Zavrieť prípadné modálne okno
+        for modal_selector in [".modal-close", "button[aria-label='Close'], button[aria-label='Zavrieť']", ".modal .close"]:
+            try:
+                modal_close = page.locator(modal_selector).first
+                await modal_close.wait_for(timeout=3000)
+                await modal_close.click()
+                break
+            except Exception:
+                continue
         text = await page.inner_text("body")
         assert len(text) > 50, "VšZP stránka je prázdna"
     finally:

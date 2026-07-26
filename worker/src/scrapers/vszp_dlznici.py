@@ -65,6 +65,17 @@ class VszpDlzniciScraper(BaseScraper):
             except PlaywrightTimeoutError:
                 pass
 
+            # Zavrieť prípadné modálne okno
+            for modal_selector in [".modal-close", "button[aria-label='Close'], button[aria-label='Zavrieť']", ".modal .close"]:
+                try:
+                    modal_close = page.locator(modal_selector).first
+                    await modal_close.wait_for(timeout=3000)
+                    await modal_close.click()
+                    logger.info(f"[{self.source_type}] Modálne okno zatvorené (selector: {modal_selector}).")
+                    break
+                except PlaywrightTimeoutError:
+                    continue
+
             # Zaškrtnuť checkbox "súhlasím" (súhlas so spracovaním)
             # Skúšame viacero selektorov — stránka sa môže zmeniť.
             checkbox_clicked = False
