@@ -38,14 +38,14 @@ export default function LandingNav() {
         </Link>
 
         {/* Desktop nav */}
-        <div className="desktop-nav" style={{ alignItems: "center", gap: 24 }}>
-          <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navFeatures")}</a>
-          <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navRegistries")}</a>
-          <a href="#ukazka" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("nav.dokumenty")}</a>
-          <a href="#pricing" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{t("home.navPricing")}</a>
+        <div className="desktop-nav" style={{ alignItems: "center", gap: 20 }}>
+          <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500, lineHeight: "36px" }}>{t("home.navFeatures")}</a>
+          <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500, lineHeight: "36px" }}>{t("home.navRegistries")}</a>
+          <a href="#ukazka" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500, lineHeight: "36px" }}>{t("nav.dokumenty")}</a>
+          <a href="#pricing" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500, lineHeight: "36px" }}>{t("home.navPricing")}</a>
           <button
             onClick={toggle}
-            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 16 }}
+            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, height: 36, width: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
             aria-label="Toggle theme"
           >
             {darkMode ? "☀️" : "🌙"}
@@ -58,9 +58,12 @@ export default function LandingNav() {
               textDecoration: "none",
               fontSize: 14,
               fontWeight: 500,
-              padding: "8px 16px",
+              height: 36,
+              padding: "0 16px",
               borderRadius: 8,
               border: "1px solid var(--border)",
+              display: "inline-flex",
+              alignItems: "center",
             }}
           >
             {t("home.navRegister")}
@@ -70,11 +73,14 @@ export default function LandingNav() {
             style={{
               background: "var(--accent)",
               color: "var(--accent-button-text)",
-              padding: "10px 20px",
+              height: 36,
+              padding: "0 20px",
               borderRadius: 8,
               textDecoration: "none",
               fontWeight: 600,
               fontSize: 14,
+              display: "inline-flex",
+              alignItems: "center",
             }}
           >
             {t("home.navLogin")}
@@ -82,38 +88,10 @@ export default function LandingNav() {
         </div>
 
         {/* Mobile nav controls */}
-        <div className="mobile-nav" style={{ alignItems: "center", gap: 6 }}>
-          <Link
-            href="/register"
-            style={{
-              color: "var(--text-secondary)",
-              textDecoration: "none",
-              fontSize: 13,
-              fontWeight: 500,
-              padding: "7px 12px",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-            }}
-          >
-            {t("home.navRegister")}
-          </Link>
-          <Link
-            href="/login"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-button-text)",
-              textDecoration: "none",
-              fontWeight: 600,
-              fontSize: 13,
-              padding: "8px 14px",
-              borderRadius: 8,
-            }}
-          >
-            {t("home.navLogin")}
-          </Link>
+        <div className="mobile-nav" style={{ alignItems: "center", gap: 8 }}>
           <button
             onClick={() => setMobileMenuOpen((v) => !v)}
-            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", cursor: "pointer", fontSize: 18, color: "var(--text)" }}
+            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, height: 36, width: 36, cursor: "pointer", fontSize: 18, color: "var(--text)", display: "flex", alignItems: "center", justifyContent: "center" }}
             aria-label="Menu"
           >
             {mobileMenuOpen ? "✕" : "☰"}
@@ -129,22 +107,60 @@ export default function LandingNav() {
           padding: "16px 24px",
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: 4,
         }}>
-          <a href="#funkcie" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navFeatures")}</a>
-          <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navRegistries")}</a>
-          <a href="#ukazka" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("nav.dokumenty")}</a>
-          <a href="#pricing" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "8px 0" }}>{t("home.navPricing")}</a>
-          <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <a href="#funkcie" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>{t("home.navFeatures")}</a>
+          <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>{t("home.navRegistries")}</a>
+          <a href="#ukazka" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>{t("nav.dokumenty")}</a>
+          <a href="#pricing" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0" }}>{t("home.navPricing")}</a>
+          <div style={{ height: 1, background: "var(--border)", margin: "8px 0" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
             <button
               onClick={toggle}
-              style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", cursor: "pointer", fontSize: 16 }}
+              style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, height: 36, width: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
               aria-label="Toggle theme"
             >
               {darkMode ? "☀️" : "🌙"}
             </button>
             <LanguageSwitcher />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link
+              href="/register"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                color: "var(--text-secondary)",
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: 600,
+                height: 40,
+                lineHeight: "40px",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+              }}
+            >
+              {t("home.navRegister")}
+            </Link>
+            <Link
+              href="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                background: "var(--accent)",
+                color: "var(--accent-button-text)",
+                textDecoration: "none",
+                fontWeight: 600,
+                fontSize: 14,
+                height: 40,
+                lineHeight: "40px",
+                borderRadius: 8,
+              }}
+            >
+              {t("home.navLogin")}
+            </Link>
           </div>
         </div>
       )}

@@ -288,8 +288,25 @@ export default function NavBar() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="md:hidden pb-4 pt-2 fade-in" style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="grid grid-cols-3 gap-2">
+          <div className="md:hidden pb-4 pt-3 fade-in" style={{ borderTop: "1px solid var(--border)" }}>
+            {/* Credits + user info */}
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div
+                className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium"
+                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                </svg>
+                {creditsUsed !== null ? creditsUsed : "—"}
+              </div>
+              <span className="text-xs truncate ml-2" style={{ color: "var(--text-muted)" }}>
+                {session?.user?.email ?? ""}
+              </span>
+            </div>
+
+            {/* Nav grid */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
               {NAV_ITEMS.map((item) => {
                 const active = pathname === item.href;
                 return (
@@ -297,7 +314,7 @@ export default function NavBar() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className="flex flex-col items-center gap-1 py-3 rounded-lg transition-all duration-150 relative"
+                    className="flex flex-col items-center gap-1.5 py-3 rounded-lg transition-all duration-150 relative"
                     style={{
                       color: active ? "var(--accent)" : "var(--text-secondary)",
                       background: active ? "var(--accent-light)" : "var(--bg-muted)",
@@ -314,6 +331,37 @@ export default function NavBar() {
                   </Link>
                 );
               })}
+            </div>
+
+            {/* Bottom controls: theme, language, logout */}
+            <div className="flex items-center justify-between gap-2 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={toggle}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
+                  style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                  aria-label="Toggle theme"
+                >
+                  {isDark ? <SunIcon /> : <MoonIcon />}
+                </button>
+                <LanguageSwitcher />
+              </div>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-medium transition-all duration-150"
+                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+              >
+                {loggingOut ? (
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                    <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  <LogOutIcon />
+                )}
+                {t("nav.odhlasit")}
+              </button>
             </div>
           </div>
         )}
