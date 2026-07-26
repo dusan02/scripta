@@ -165,6 +165,7 @@ class UnionDlzniciScraper(BaseScraper):
                 "žiadne dáta",
                 "bez výsledkov",
                 "neboli nájdené žiadne",
+                "žiadne záznamy",
             ]
             is_empty = any(marker in body_text.lower() for marker in empty_markers)
             has_ico_on_page = ico in re.findall(r"\d+", body_text)
