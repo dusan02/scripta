@@ -131,7 +131,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=14, family='Inter, sans-serif', color='#0f172a'),
+        font=dict(size=14, family='DejaVu Sans', color='#0f172a'),
         margin=dict(l=20, r=20, t=20, b=20),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -211,7 +211,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=14, family='Inter, sans-serif', color='#0f172a'),
+        font=dict(size=14, family='DejaVu Sans', color='#0f172a'),
         margin=dict(l=20, r=20, t=20, b=20),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -351,7 +351,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=14, family='Inter, sans-serif', color='#0f172a'),
+        font=dict(size=14, family='DejaVu Sans', color='#0f172a'),
         margin=dict(l=15, r=15, t=20, b=45),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',

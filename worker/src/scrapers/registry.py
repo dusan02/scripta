@@ -266,7 +266,7 @@ async def run_scrapers(
                 results_by_source[source] = ScrapedSource(
                     source_type=source,
                     status="FAILED",
-                    status_message=f"Unhandled exception: {type(res).__name__}: {res}",
+                    status_message="Interná chyba scrapera — skúste vygenerovať report znovu.",
                 )
         else:
             results_by_source[source] = res
@@ -286,7 +286,7 @@ async def run_scrapers(
                     results_by_source[source] = ScrapedSource(
                         source_type=source,
                         status="FAILED",
-                        status_message=f"Unhandled exception: {type(res).__name__}: {res}",
+                        status_message="Interná chyba scrapera — skúste vygenerovať report znovu.",
                     )
             else:
                 results_by_source[source] = res

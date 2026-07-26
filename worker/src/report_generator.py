@@ -165,10 +165,13 @@ def sanitize_llm_text(text: str) -> str:
     text = re.sub(r"\\approx", "~", text)
     # Bežné preklepy z LLM
     text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov")
+    text = text.replace("dihoch", "dlhoch").replace("dihodobo", "dlhodobo")
+    text = text.replace("poiožiek", "položiek").replace("poiožka", "položka")
     text = text.replace("bezúhonnost", "bezúhonnosť")
     text = text.replace("Interpretica", "Interpretácia")
     text = text.replace("Rezpečná", "Bezpečná")
     text = text.replace("Plotroski", "Piotroski")
+    text = re.sub(r'\bdat\b(?=\s*\))', 'dát', text)  # "dat)" → "dát)"
     text = re.sub(r'F-score:\s*(\d)/B\b', r'F-score: \1/8', text)
     # Force lowercase "ale" — LLM často ignoruje prompt inštrukciu
     text = re.sub(r'\bALE\b', 'ale', text)
@@ -763,9 +766,9 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     for stmt in (stmts or []):
         nr = getattr(stmt, 'narrativeRisk', None)
         if nr:
-            for field in ['goingConcernDoubts', 'goingConcernRisk', 'keyRiskFactors', 'managementChanges']:
+            for field in ['goingConcernRisk', 'keyRiskFactors', 'managementChanges']:
                 val = getattr(nr, field, None)
-                if val and str(val).strip():
+                if val and not isinstance(val, bool) and str(val).strip():
                     text = str(val)
                     narrative_flags.append(text[:397] + '…' if len(text) > 400 else text)
     if len(narrative_flags) >= 3:
@@ -1084,9 +1087,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
     for stmt in (stmts or []):
         sanitize_cash_flow_fields(stmt)
-    # Fallback: ak grossProfit chýba (extrakcia zlyhala), vypočítaj ako prevádzkový zisk
+    # Fallback: ak grossProfit chýba (extrakcia zlyhala), dopočítaj hrubú maržu
     # Používa sa pre IFRS/SK GAAP by-function výkazy kde gross profit nie je explicitne uvedený
-    # Výpočet: revenue - (staffCosts + depreciation + interestExpense) ≈ approx operating profit
+    # Výpočet: revenue - (staffCosts + depreciation + interestExpense) ≈ approx gross margin
     # Vyžaduje všetky 3 nákladové položky — ak niektorá chýba, fallback sa nevykoná
     gross_profit_estimated = False
     estimated_gp_years = set()
@@ -1559,9 +1562,12 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # 4. Pokrytie registrov (±25 bodov)
     total_sources = sum(counts.values()) if counts else 0
     failed_sources = counts.get("FAILED", 0) + counts.get("UNAVAILABLE", 0)
+    # Kritické registre dlžníkov — ich nedostupnosť je slepá škvrna pre risk assessment
+    _critical_debt_sources = {"VSZP_DLZNICI", "UNION_DLZNICI", "DOVERA_DLZNICI", "SP_DLZNICI", "INSOLVENCY"}
+    unavailable_critical = sum(1 for s in (sources or []) if s.source_type in _critical_debt_sources and s.status in ("UNAVAILABLE", "FAILED"))
     if total_sources > 0:
         success_ratio = (total_sources - failed_sources) / total_sources
-        if success_ratio >= 0.9:
+        if success_ratio >= 0.9 and unavailable_critical == 0:
             confidence_factors.append({"label": i18n_strings.get("conf_registries_all"), "ok": True, "weight": 25})
         elif success_ratio >= 0.6:
             confidence_factors.append({"label": i18n_strings.get("conf_registries_partial", "").format(pct=int(success_ratio*100)), "ok": True, "weight": 15})
@@ -1569,6 +1575,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         else:
             confidence_factors.append({"label": i18n_strings.get("conf_registries_limited", "").format(pct=int(success_ratio*100)), "ok": False, "weight": 25})
             confidence_score -= 25
+        # Extra penalty for unavailable critical debt registries
+        if unavailable_critical > 0:
+            confidence_score -= unavailable_critical * 5  # -5 per unavailable critical source
     else:
         confidence_factors.append({"label": i18n_strings.get("conf_registries_none"), "ok": False, "weight": 25})
         confidence_score -= 25

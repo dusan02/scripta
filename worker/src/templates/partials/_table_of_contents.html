@@ -45,7 +45,7 @@
                     {{ labels.get(source.source_type, source.source_type) }}
                     {% endif %}
                 </p>
-                <p class="text-[8px] text-slate-500 truncate" title="{{ source | format_findings | safe | striptags }}">
+                <p class="text-[8px] text-slate-500 leading-tight" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="{{ source | format_findings | safe | striptags }}">
                     {% if source.source_type == "OBCHODNY_VESTNIK" and (not vestnik_events or vestnik_events|length == 0) %}
                     {{ i18n.no_vestnik_events }}
                     {% else %}
