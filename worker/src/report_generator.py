@@ -70,9 +70,9 @@ SOURCE_LABEL_I18N_KEYS = {
 }
 
 def format_currency(value: float) -> str:
-    """Naformátuje číslo ako menu (napr. 1 234 567 €). Ak je None, vráti '—'."""
+    """Naformátuje číslo ako menu (napr. 1 234 567 €). Ak je None, vráti 'N/A'."""
     if value is None:
-        return "—"
+        return "N/A"
     try:
         val = float(value)
         abs_val = abs(val)
@@ -82,12 +82,12 @@ def format_currency(value: float) -> str:
             return f"{val / 1_000:,.1f} tis. €".replace(",", "X").replace(".", ",").replace("X", " ")
         return f"{val:,.0f} €".replace(",", " ")
     except (ValueError, TypeError):
-        return "—"
+        return "N/A"
 
 def format_number(value: float) -> str:
     """Vráti číslo bez menovej prípony — pre tabuľky kde je jednotka uvedená v hlavičke."""
     if value is None:
-        return "—"
+        return "N/A"
     try:
         val = float(value)
         abs_val = abs(val)
@@ -97,21 +97,21 @@ def format_number(value: float) -> str:
             return f"{val / 1_000:,.0f}".replace(",", "X").replace(".", ",").replace("X", " ")
         return f"{val:,.0f}".replace(",", " ")
     except (ValueError, TypeError):
-        return "—"
+        return "N/A"
 
 def format_number_millions(value: float, treat_zero_as_none: bool = False) -> str:
     """Vráti číslo v miliónoch s 2 desatinnými miestami — pre tabuľky s mixom veľkých a malých hodnôt.
     Zabraňuje zmiešavaniu miliónov a tisícov v jednej tabuľke.
     Ak treat_zero_as_none=True, nula sa zobrazí ako '—' (pre cash flow polia, kde 0 = chýbajúce dáta)."""
     if value is None:
-        return "—"
+        return "N/A"
     if treat_zero_as_none and value == 0:
-        return "—"
+        return "N/A"
     try:
         val = float(value)
         return f"{val / 1_000_000:,.2f}".replace(",", "X").replace(".", ",").replace("X", " ")
     except (ValueError, TypeError):
-        return "—"
+        return "N/A"
 
 def format_cf_millions(value: float) -> str:
     """Wrapper pre format_number_millions s treat_zero_as_none=True.
@@ -205,6 +205,8 @@ def format_findings(source, i18n=None) -> str:
     raw = re.sub(r'^Interná chyba:\s*\w*Error:\s*', 'Interná chyba: ', raw)
     raw = re.sub(r'^Neznáma chyba[^:]*:\s*\w*Error:\s*', 'Neznáma chyba: ', raw)
     raw = re.sub(r'^Chyba pri spracovaní[^:]*:\s*\w*Error:\s*', 'Chyba pri spracovaní: ', raw)
+    # FS scraper — link not found means the state portal changed its layout
+    raw = re.sub(r'^Nepodarilo sa nájsť link\s*["„].*["„]\.', 'Register nedostupný — štátny portál zmenil layout.', raw)
     raw = sanitize_llm_text(raw)
 
     # ── Comprehensive scraper findings translation ──
@@ -358,10 +360,11 @@ def _translate_scraper_findings(raw: str, i18n: dict) -> str:
                 kwargs["ico"] = groups[0]
             elif i18n_key in ("scr_found_court_decisions", "scr_court_decisions_found") and groups:
                 kwargs["parts"] = groups[0]
-            elif i18n_key in ("scr_crz_contracts_found", "scr_crz_contracts_found_warn") and len(groups) >= 3:
+            elif i18n_key in ("scr_crz_contracts_found", "scr_crz_contracts_found_warn") and len(groups) >= 5:
+                # Regex groups: 0=ico, 1=verb, 2=count, 3=noun, 4=pages
                 kwargs["ico"] = groups[0]
-                kwargs["count"] = groups[1]
-                kwargs["pages"] = groups[2]
+                kwargs["count"] = groups[2]
+                kwargs["pages"] = groups[4]
             elif i18n_key in ("scr_uvo_records_found", "scr_uvo_records_found_warn") and len(groups) >= 3:
                 kwargs["ico"] = groups[0]
                 kwargs["count"] = groups[1]

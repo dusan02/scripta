@@ -259,8 +259,8 @@ class FinancnaSpravaBase(BaseScraper):
                     logger.error(f"[{self.source_type}] Link '{self.zoznam_link_name}' sa nenašiel!")
                     await self._debug_screenshot(page, output_dir, ico, "no_link")
                     return self._make_result(
-                        status="FAILED",
-                        status_message=f"Nepodarilo sa nájsť link '{self.zoznam_link_name}'.",
+                        status="UNAVAILABLE",
+                        status_message=f"Register {self.source_type} nedostupný — štátny portál zmenil layout.",
                     )
 
             logger.debug(f"[{self.source_type}] ⏱ link_click: {time.perf_counter() - _t:.2f}s")
@@ -278,8 +278,8 @@ class FinancnaSpravaBase(BaseScraper):
                 html_snippet = await page.inner_text("body")
                 logger.error(f"[{self.source_type}] Page text (prvých 500 znakov): {html_snippet[:500]}")
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť vyhľadávacie pole na stránke Finančnej správy.",
+                    status="UNAVAILABLE",
+                    status_message=f"Register {self.source_type} nedostupný — štátny portál zmenil layout.",
                 )
 
             logger.info(f"[{self.source_type}] Vyplňujem: {search_query}")
@@ -292,8 +292,8 @@ class FinancnaSpravaBase(BaseScraper):
                 logger.error(f"[{self.source_type}] Tlačidlo Vyhľadať sa nenašlo!")
                 await self._debug_screenshot(page, output_dir, ico, "no_search", full_page=True)
                 return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť tlačidlo Vyhľadať na stránke Finančnej správy.",
+                    status="UNAVAILABLE",
+                    status_message=f"Register {self.source_type} nedostupný — štátny portál zmenil layout.",
                 )
 
             logger.debug(f"[{self.source_type}] ⏱ fill + click_search: {time.perf_counter() - _t:.2f}s")

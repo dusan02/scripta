@@ -482,15 +482,26 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
     if len(steps) < 3: return ""
 
     bar_y, bar_base, bar_colors, bar_text = _waterfall_to_bars(steps)
+    x_labels = [s['name'] for s in steps]
 
-    fig = go.Figure(go.Bar(
-        x=[s['name'] for s in steps],
+    # Kaleido-safe waterfall: invisible spacer bars + visible bars with barmode='stack'
+    # (Kaleido ignores go.Bar 'base' parameter — this workaround is the standard fix)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=x_labels,
+        y=bar_base,
+        marker_color='rgba(0,0,0,0)',
+        showlegend=False,
+        hoverinfo='skip',
+    ))
+    fig.add_trace(go.Bar(
+        x=x_labels,
         y=bar_y,
-        base=bar_base,
         marker_color=bar_colors,
         text=bar_text,
         textposition="outside",
         textfont=dict(size=12, color='#475569'),
+        showlegend=False,
     ))
 
     fig.update_layout(
@@ -501,7 +512,7 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
         xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
         yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
         showlegend=False,
-        barmode='overlay',
+        barmode='stack',
     )
     return _to_base64(fig, 800, 350)
 
@@ -530,15 +541,25 @@ def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
     if len(steps) < 2: return ""
 
     bar_y, bar_base, bar_colors, bar_text = _waterfall_to_bars(steps)
+    x_labels = [s['name'] for s in steps]
 
-    fig = go.Figure(go.Bar(
-        x=[s['name'] for s in steps],
+    # Kaleido-safe waterfall: invisible spacer bars + visible bars with barmode='stack'
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=x_labels,
+        y=bar_base,
+        marker_color='rgba(0,0,0,0)',
+        showlegend=False,
+        hoverinfo='skip',
+    ))
+    fig.add_trace(go.Bar(
+        x=x_labels,
         y=bar_y,
-        base=bar_base,
         marker_color=bar_colors,
         text=bar_text,
         textposition="outside",
         textfont=dict(size=12, color='#475569'),
+        showlegend=False,
     ))
 
     fig.update_layout(
@@ -549,7 +570,7 @@ def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
         xaxis=dict(showgrid=False, tickfont=dict(color='#64748b')),
         yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
         showlegend=False,
-        barmode='overlay',
+        barmode='stack',
     )
     return _to_base64(fig, 800, 350)
 
