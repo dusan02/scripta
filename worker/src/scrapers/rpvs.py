@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import logging
 import time
 from pathlib import Path
@@ -29,13 +30,30 @@ class RpvsScraper(BaseScraper):
             logger.debug(f"[{self.source_type}] ⏱ get_page: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
-            # 1. Načítaj úvodnú stránku
+            # 1. Načítaj úvodnú stránku (RPVS je pomalý — retry s dlhším timeoutom)
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
-            try:
-                await page.goto(self.base_url, timeout=15000, wait_until="domcontentloaded")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Timeout pri načítaní úvodnej stránky RPVS.")
-                raise ScraperUnavailableError("Timeout pri načítaní stránky RPVS.")
+            rpvs_loaded = False
+            for attempt in range(3):
+                try:
+                    await page.goto(self.base_url, timeout=30000, wait_until="commit")
+                    try:
+                        await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    except PlaywrightTimeoutError:
+                        pass
+                    rpvs_loaded = True
+                    break
+                except PlaywrightTimeoutError:
+                    logger.warning(f"[{self.source_type}] RPVS goto attempt {attempt + 1}/3 timeout, retry...")
+                    if attempt < 2:
+                        try:
+                            await page.close()
+                        except Exception:
+                            pass
+                        await asyncio.sleep(3)
+                        page = await self._get_page(block_images=False)
+            if not rpvs_loaded:
+                logger.error(f"[{self.source_type}] Timeout pri načítaní úvodnej stránky RPVS po 3 pokusoch.")
+                raise ScraperUnavailableError("RPVS nedostupný — timeout po 3 pokusoch.")
 
             # 2. Klikni na "Rozšírené vyhľadávanie"
             advanced_link = page.get_by_role("link", name="Rozšírené vyhľadávanie")
