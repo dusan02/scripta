@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    // 1. Expire credits older than 90 days
+    // 1. Expire credits past their source-based expiry date (trial=30d, subscription=60d, rollover=60d, addon=permanent)
     const expiredCredits = await expireOldCredits();
 
     // 2. Zero out credits for canceled subscriptions that have ended
