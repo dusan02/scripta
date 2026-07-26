@@ -60,10 +60,9 @@ services:
     image: redis:7-alpine
     container_name: verifa_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-verifa_redis_dev}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-verifa_redis_dev}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -74,11 +73,10 @@ services:
     container_name: verifa_browserless
     restart: unless-stopped
     shm_size: 1g
-    ports:
-      - "3010:3000"
     environment:
       - CONNECTION_TIMEOUT=300000
       - MAX_CONCURRENT_SESSIONS=3
+      - TOKEN=${BROWSERLESS_TOKEN:-}
 
   # ─── Python FastAPI Worker ────────────────────────────────
   worker:
@@ -101,11 +99,9 @@ services:
       PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-verifa_redis_dev}@redis:6379/0
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
-    ports:
-      - "8000:8000"
     volumes:
       - ./worker/results:/app/results  # Evidence Binder PDF súbory
 
@@ -131,7 +127,7 @@ services:
       PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-verifa_redis_dev}@redis:6379/0
       SENTRY_DSN: ${SENTRY_DSN:-}
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
