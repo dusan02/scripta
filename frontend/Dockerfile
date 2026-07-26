@@ -1,9 +1,11 @@
+# syntax=docker/dockerfile:1.6
 # ─── Stage 1: Dependencies ─────────────────────────────────
 FROM node:18-slim AS deps
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV PRISMA_CLI_QUERY_ENGINE_TYPE=library
 ENV PRISMA_CLIENT_ENGINE_TYPE=library
@@ -13,7 +15,7 @@ ENV DATABASE_URL_UNPOOLED=postgresql://dummy:dummy@localhost:5432/dummy
 COPY package*.json ./
 COPY prisma ./prisma
 
-RUN npm ci --ignore-scripts
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 RUN cp prisma/schema.prisma prisma/schema.prisma.bak && \
     sed '/generator client_py/,/^}/d' prisma/schema.prisma > prisma/schema_js.prisma && \
     mv prisma/schema_js.prisma prisma/schema.prisma && \
@@ -25,7 +27,8 @@ FROM node:18-slim AS builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -38,6 +41,7 @@ ENV NEXTAUTH_URL=http://localhost:3000
 ENV NEXTAUTH_SECRET=change_me_in_production_please
 ENV WORKER_URL=http://localhost:8000
 ENV WORKER_SECRET=change_me_worker_secret
+ENV SENTRY_AUTH_TOKEN=
 
 RUN npm run build
 
@@ -46,7 +50,8 @@ FROM node:18-slim AS runner
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
