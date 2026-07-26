@@ -5,6 +5,7 @@ from typing import Optional
 import asyncio
 import logging
 import time
+import random
 import shutil
 
 import fitz
@@ -268,19 +269,39 @@ async def _execute_report_inner(task: ReportTask) -> None:
             await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
             return
 
-        # ── Retry failed/unavailable scrapers (exponential backoff, 3 passes) ──
+        # ── Retry failed/unavailable scrapers (exponential backoff with jitter) ──
         # 3c: Retry aj UNAVAILABLE (register bol nedostupný — presne to čo retry rieši)
-        # 3a: Exponential backoff: 3s, 10s, 30s — max 3 pokusy
+        # 3a: Exponential backoff: ~2s, ~5s, ~15s (with ±30% jitter) — max 3 pokusy
+        # 3b: Total retry budget 300s — skip ďalšie passy ak sme nad limit
+        # 3d: Retry len UNAVAILABLE a TIMEOUT (network issues) — nie FAILED z interných chýb
         # 3h: Browser health check pred každým retry passom
-        _RETRY_DELAYS = [3, 10, 30]
-        for retry_pass, delay in enumerate(_RETRY_DELAYS):
-            retryable_sources = [s for s in sources if s.status in ("FAILED", "UNAVAILABLE")]
+        _RETRY_DELAYS = [2, 5, 15]
+        _RETRY_TOTAL_BUDGET = 300  # sekundy — max čas na všetky retry passy
+        _retry_elapsed = 0.0
+        retry_pass = 0
+        for retry_pass, base_delay in enumerate(_RETRY_DELAYS):
+            # 3d: Retry len network-related stavy, nie interné chyby (bugy sa nepotvrdia znova)
+            retryable_sources = [
+                s for s in sources
+                if s.status == "UNAVAILABLE"
+                or (s.status == "FAILED" and ("timeout" in (s.status_message or "").lower() or "unreachable" in (s.status_message or "").lower()))
+            ]
             if not retryable_sources:
                 break
+
+            # 3b: Total budget check — skip ďalšie passy
+            if _retry_elapsed >= _RETRY_TOTAL_BUDGET:
+                _log.info(f"[{_rid}] Retry budget exhausted ({_retry_elapsed:.0f}s) — skipping pass {retry_pass + 1}")
+                break
+
+            # 3a: Jitter ±30% na base delay (anti-thundering-herd)
+            delay = base_delay * random.uniform(0.7, 1.3)
             retryable_types = [s.source_type for s in retryable_sources]
-            _log.info(f"[{_rid}] Retry pass {retry_pass + 1}/{len(_RETRY_DELAYS)}: {len(retryable_types)} scrapers: {retryable_types} (delay {delay}s)")
+            _log.info(f"[{_rid}] Retry pass {retry_pass + 1}/{len(_RETRY_DELAYS)}: {len(retryable_types)} scrapers: {retryable_types} (delay {delay:.1f}s, elapsed {_retry_elapsed:.0f}s)")
             await update_report_ai_status(task.report_request_id, "ai.retrying", 60)
+            _retry_delay_start = time.perf_counter()
             await asyncio.sleep(delay)
+            _retry_elapsed += time.perf_counter() - _retry_delay_start
 
             # 3h: Browser health check pred retry — ak browser spadol, re-launch
             if browser:
@@ -324,7 +345,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # Log final retry outcome
         still_failed = [s.source_type for s in sources if s.status in ("FAILED", "UNAVAILABLE")]
         if still_failed:
-            _log.warning(f"[{_rid}] Scrapery stále zlyhané po {len(_RETRY_DELAYS)} retry passoch: {still_failed}")
+            _log.warning(f"[{_rid}] Scrapery stále zlyhané po {retry_pass + 1} retry passoch ({_retry_elapsed:.0f}s): {still_failed}")
 
         await upsert_report_sources(task.report_request_id, sources)
 
