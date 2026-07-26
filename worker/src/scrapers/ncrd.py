@@ -14,4 +14,5 @@ class NcrdScraper(NotarBaseScraper):
     base_url = "https://www.notar.sk/drazby/"
     _title = "Notársky centrálny register dražieb (NCRD)"
     _field_label = "IČO dražobníka"
+    _field_selector = "input[name='auctioneerIdentifier']"
     _no_results_msg = "Subjekt nie je evidovaný v Notárskom centrálnom registri dražieb."

@@ -26,6 +26,7 @@ class NotarBaseScraper(BaseScraper):
     base_url: str = ""
     _title: str = ""
     _field_label: str = ""
+    _field_selector: str = ""  # CSS selector for the IČO input field
     _no_results_msg: str = ""
 
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
@@ -39,12 +40,33 @@ class NotarBaseScraper(BaseScraper):
             await self._safe_goto(page, self.base_url)
             logger.info(f"[{self.source_type}] Stránka načítaná: {self.base_url}")
 
-            ico_input = page.get_by_role("textbox", name=self._field_label)
-            try:
-                await ico_input.wait_for(state="visible", timeout=5000)
-                await ico_input.fill(ico)
-            except PlaywrightTimeoutError:
-                raise ScraperUnavailableError(f"{self.source_type}: Nenájdené pole '{self._field_label}'.")
+            # Vyplniť IČO — skúšame CSS selektor (spoľahlivý), potom placeholder, potom get_by_role
+            ico_filled = False
+            for selector in [
+                self._field_selector,
+                f"input[placeholder='{self._field_label}']",
+                f"input[placeholder*='{self._field_label}']",
+            ]:
+                if not selector:
+                    continue
+                try:
+                    ico_input = page.locator(selector).first
+                    await ico_input.wait_for(state="visible", timeout=5000)
+                    await ico_input.fill(ico)
+                    logger.info(f"[{self.source_type}] IČO vyplnené (selector: {selector}).")
+                    ico_filled = True
+                    break
+                except PlaywrightTimeoutError:
+                    continue
+            if not ico_filled:
+                try:
+                    ico_input = page.get_by_role("textbox", name=self._field_label)
+                    await ico_input.wait_for(state="visible", timeout=5000)
+                    await ico_input.fill(ico)
+                    logger.info(f"[{self.source_type}] IČO vyplnené cez get_by_role.")
+                    ico_filled = True
+                except PlaywrightTimeoutError:
+                    raise ScraperUnavailableError(f"{self.source_type}: Nenájdené pole '{self._field_label}'.")
 
             search_btn = page.get_by_role("button", name="Hľadať")
             try:

@@ -76,6 +76,18 @@ class VszpDlzniciScraper(BaseScraper):
                 except PlaywrightTimeoutError:
                     continue
 
+            # VSZP popup banner modal (md-modal-overlay) — nemá close button, skryjeme cez JS
+            try:
+                modal_overlay = page.locator(".md-modal-overlay.modal-visible")
+                if await modal_overlay.is_visible():
+                    await page.evaluate("""() => {
+                        const overlay = document.querySelector('.md-modal-overlay.modal-visible');
+                        if (overlay) overlay.style.display = 'none';
+                    }""")
+                    logger.info(f"[{self.source_type}] VSZP popup banner skrytý cez JS.")
+            except Exception:
+                pass
+
             # Zaškrtnuť checkbox "súhlasím" (súhlas so spracovaním)
             # Skúšame viacero selektorov — stránka sa môže zmeniť.
             checkbox_clicked = False
@@ -101,10 +113,10 @@ class VszpDlzniciScraper(BaseScraper):
             # Vyplniť IČO do poľa "Nazov" — skúšame viacero selektorov
             nazov_filled = False
             for selector in [
-                "input[name='Nazov']",
+                "input[name='nazov']",
                 "input[placeholder*='Názov']",
                 "input[placeholder*='Nazov']",
-                "input[type='text']",
+                "input[type='text']:visible",
             ]:
                 try:
                     nazov_input = page.locator(selector).first
@@ -120,7 +132,7 @@ class VszpDlzniciScraper(BaseScraper):
             if not nazov_filled:
                 # Fallback: skús get_by_role
                 try:
-                    nazov_input = page.get_by_role("textbox", name="Nazov")
+                    nazov_input = page.get_by_role("textbox", name="nazov")
                     await nazov_input.wait_for(timeout=3000)
                     await nazov_input.click()
                     await nazov_input.fill(ico)

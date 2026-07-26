@@ -48,14 +48,15 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Vyplniť IČO do textového poľa
+            # Vyplniť IČO do textového poľa — UNION je Vue.js/Vuetify SPA
+            # Input nemá name/placeholder/aria-label, používame Vuetify class
             try:
-                textbox = page.get_by_role("textbox", name="Zadajte priezvisko, IČO,")
+                textbox = page.locator(".v-field__input").first
                 await textbox.wait_for(timeout=5000)
                 await textbox.click()
                 await textbox.fill(ico)
                 logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
-            except PlaywrightTimeoutError:
+            except (PlaywrightTimeoutError, PlaywrightError):
                 logger.error(f"[{self.source_type}] Textové pole sa nenašlo — generujem PDF z aktuálneho stavu.")
                 pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
                 try:
@@ -76,13 +77,23 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Kliknúť "Hľadať"
-            try:
-                search_btn = page.get_by_role("button", name="Hľadať")
-                await search_btn.wait_for(timeout=5000)
-                await search_btn.click()
-                logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté.")
-            except PlaywrightTimeoutError:
+            # Kliknúť "HĽADAŤ" — UNION má tlačidlo s veľkými písmenami
+            search_clicked = False
+            for btn_selector in [
+                page.get_by_role("button", name="HĽADAŤ"),
+                page.locator("button:has-text('HĽADAŤ')"),
+                page.locator("button:has-text('Hľadať')"),
+                page.locator("button[type='submit']"),
+            ]:
+                try:
+                    await btn_selector.first.wait_for(timeout=5000)
+                    await btn_selector.first.click()
+                    search_clicked = True
+                    logger.info(f"[{self.source_type}] Tlačidlo Hľadať kliknuté.")
+                    break
+                except (PlaywrightTimeoutError, PlaywrightError):
+                    continue
+            if not search_clicked:
                 logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo — generujem PDF z aktuálneho stavu.")
                 pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
                 try:
