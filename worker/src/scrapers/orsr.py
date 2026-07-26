@@ -128,6 +128,23 @@ class OrsrScraper(BaseScraper):
         except PlaywrightTimeoutError:
             raise ScraperUnavailableError("Timeout pri načítaní stránky ORSR.")
 
+    async def _fill_search_form(self, page: Page, ico: str) -> None:
+        """Fallback: vyplní IČO do search formulára a klikne Hľadať.
+        Používa presné CSS selektory:
+        - input[name='ICO'] pre pole IČO
+        - input[title='Vyhľadávanie podľa zadaných kritérií'] pre tlačidlo Hľadať
+        """
+        try:
+            ico_input = page.locator("input[name='ICO']")
+            await ico_input.wait_for(state="visible", timeout=10000)
+            await ico_input.fill(ico)
+            search_btn = page.locator("input[title='Vyhľadávanie podľa zadaných kritérií']")
+            await search_btn.wait_for(state="visible", timeout=5000)
+            await search_btn.click()
+            await page.wait_for_load_state("domcontentloaded", timeout=30000)
+        except PlaywrightTimeoutError:
+            raise ScraperUnavailableError("ORSR: Nepodarilo sa vyplniť search formulár.")
+
     async def _is_empty_results(self, page: Page) -> bool:
         text = await page.inner_text("body")
         return any(marker in text for marker in _EMPTY_MARKERS)

@@ -72,24 +72,24 @@ class RpvsScraper(BaseScraper):
             logger.debug(f"[{self.source_type}] ⏱ goto + rozš. vyhľadávanie: {time.perf_counter() - _t:.2f}s")
             _t = time.perf_counter()
 
-            # 3. Zadaj IČO do políčka "IČO"
-            ico_input = page.get_by_role("textbox", name="IČO")
+            # 3. Zadaj IČO do políčka "IČO" — presný CSS selector #Filter_Ico
+            ico_input = page.locator("#Filter_Ico")
             try:
-                await ico_input.wait_for(state="visible", timeout=5000)
+                await ico_input.wait_for(state="visible", timeout=10000)
                 await ico_input.fill(ico)
             except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Nenájdené pole IČO.")
+                logger.error(f"[{self.source_type}] Nenájdené pole IČO (#Filter_Ico).")
                 raise ScraperUnavailableError("RPVS: Nenájdené pole IČO.")
 
-            # 4. Klikni "Hľadať"
-            search_btn = page.get_by_role("button", name="Hľadať")
+            # 4. Klikni "Hľadať" — presný selector form[id='filter'] button[type='submit']
+            search_btn = page.locator("form[id='filter'] button[type='submit']")
             try:
-                await search_btn.wait_for(state="visible", timeout=5000)
+                await search_btn.wait_for(state="visible", timeout=10000)
                 await search_btn.click()
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] 'Hľadať' tlačidlo nenájdené cez get_by_role, skúšam CSS.")
-                search_btn_css = page.locator("button:has-text('Hľadať'), input[value*='Hľadať'], .btn-primary:has-text('Hľadať')").first
-                await search_btn_css.click()
+                logger.warning(f"[{self.source_type}] 'Hľadať' tlačidlo nenájdené, skúšam fallback.")
+                search_btn = page.get_by_role("button", name="Hľadať")
+                await search_btn.click()
 
             # Počkáme, kým sa zmení obsah tabuľky na hľadané IČO alebo text, že sa nič nenašlo
             try:
@@ -124,6 +124,16 @@ class RpvsScraper(BaseScraper):
                 await company_link.click()
             except PlaywrightTimeoutError:
                 # Kontrola, či neboli nájdené žiadne výsledky
+                # Presný selector pre prázdne výsledky: .dataTables_empty
+                empty_cell = page.locator(".dataTables_empty")
+                if await empty_cell.count() > 0:
+                    logger.info(f"[{self.source_type}] IČO {ico} nebolo nájdené v RPVS.")
+                    return self._make_result(
+                        status="SUCCESS",
+                        file_path=None,
+                        status_message=f"IČO {ico} nebolo nájdené v RPVS.",
+                        findings="Subjekt nie je evidovaný ako partner verejného sektora.",
+                    )
                 text = await page.inner_text("body")
                 if "Nenašli sa žiadne" in text or "0 až 0" in text or "0 celkom 0" in text:
                     logger.info(f"[{self.source_type}] IČO {ico} nebolo nájdené v RPVS.")

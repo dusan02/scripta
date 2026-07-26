@@ -64,9 +64,9 @@ class RpoScraper(BaseScraper):
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"RPO nedostupné: {e}")
 
-            # 2. Vyplniť IČO do poľa "Identifikátor"
+            # 2. Vyplniť IČO do poľa "Identifikátor" — selector input[name='organizationIdentifier']
             try:
-                textbox = page.get_by_role("textbox", name="Identifikátor")
+                textbox = page.locator("input[name='organizationIdentifier']")
                 await textbox.wait_for(timeout=10000)
                 await textbox.click()
                 await textbox.fill(ico)
@@ -78,9 +78,9 @@ class RpoScraper(BaseScraper):
                     status_message="Nepodarilo sa nájsť pole 'Identifikátor' na stránke RPO.",
                 )
 
-            # 3. Kliknúť "Vyhľadať"
+            # 3. Kliknúť "Vyhľadať" — selector button[type='submit']
             try:
-                search_btn = page.get_by_role("button", name="Vyhľadať")
+                search_btn = page.locator("button[type='submit']")
                 await search_btn.wait_for(timeout=10000)
                 await search_btn.click()
                 logger.info(f"[{self.source_type}] Tlačidlo Vyhľadať kliknuté.")
