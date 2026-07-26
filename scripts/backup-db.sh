@@ -7,8 +7,9 @@
 # Env vars:
 #   DB_HOST (default: localhost)
 #   DB_PORT (default: 5432)
-#   DB_USER (default: scripta)
-#   DB_NAME (default: scripta)
+#   DB_USER (default: verifa)
+#   DB_NAME (default: verifa)
+#   DOCKER_CONTAINER (default: verifa_postgres) — pg_dump runs inside container
 #   BACKUP_DIR (default: ./backups)
 #   S3_BUCKET (optional — if set, uploads to S3)
 #   RETENTION_DAYS (default: 30)
@@ -17,10 +18,11 @@ set -euo pipefail
 
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-scripta}"
-DB_NAME="${DB_NAME:-scripta}"
-BACKUP_DIR="${BACKUP_DIR:-./backups}"
+DB_USER="${DB_USER:-verifa}"
+DB_NAME="${DB_NAME:-verifa}"
+BACKUP_DIR="${BACKUP_DIR:-/var/www/verifa/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
+DOCKER_CONTAINER="${DOCKER_CONTAINER:-verifa_postgres}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/${DB_NAME}_${TIMESTAMP}.sql.gz"
 
@@ -28,7 +30,7 @@ mkdir -p "${BACKUP_DIR}"
 
 echo "[$(date)] Starting backup of ${DB_NAME}..."
 
-pg_dump \
+docker exec "${DOCKER_CONTAINER}" pg_dump \
   --host="${DB_HOST}" \
   --port="${DB_PORT}" \
   --username="${DB_USER}" \
