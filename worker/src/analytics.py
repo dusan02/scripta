@@ -525,8 +525,12 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     sorted_stmts_raw = sorted(stmts_raw, key=lambda x: x.year if hasattr(x, "year") else x.get("year", 0))
     startup_info = detect_startup_profile(sorted_stmts_raw)
 
-    last_ratios = (trends.get("ratios_by_year") or [{}])[-1]
-    last_z = (trends.get("altman_z_scores") or [{}])[-1]
+    # Use the most recent year with valid data, not blindly [-1]
+    # (the newest year may have partial data — e.g. shortTermLiabilities missing)
+    all_ratios = trends.get("ratios_by_year") or [{}]
+    all_z = trends.get("altman_z_scores") or [{}]
+    last_ratios = next((r for r in reversed(all_ratios) if r.get("current_ratio") is not None), all_ratios[-1] if all_ratios else {})
+    last_z = next((z for z in reversed(all_z) if z.get("z_score") is not None and z.get("components")), all_z[-1] if all_z else {})
     consecutive_losses = trends.get("consecutive_losses", 0)
 
     _KEY_METRICS = ["totalAssets", "equity", "netProfitLoss", "shortTermLiabilities", "mainActivityRevenue"]

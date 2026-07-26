@@ -1427,7 +1427,17 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Uprednostni uložený scorecardBreakdown z verdiktu — bol počítaný z raw dát
     # a zodpovedá uloženému verifaScore. Prepočet len ako fallback keď chýba.
     stored_breakdown = getattr(verdict, "scorecardBreakdown", None) if verdict else None
+    # Check if stored breakdown has N/A flags (computed when data was missing)
+    stored_has_na = False
     if stored_breakdown:
+        for p in stored_breakdown:
+            for f in (p.get("flags") or []):
+                if "N/A" in str(f):
+                    stored_has_na = True
+                    break
+            if stored_has_na:
+                break
+    if stored_breakdown and not (stored_has_na and stmts):
         scorecard_breakdown = stored_breakdown
         algorithmic_total = sum(p.get("score", 0) for p in stored_breakdown)
     elif stmts:
