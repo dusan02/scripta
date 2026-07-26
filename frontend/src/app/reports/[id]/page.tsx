@@ -289,7 +289,7 @@ function PhaseProgress({
     }, 1000);
     return () => clearInterval(interval);
   }, [startedAt, isTerminal]);
-  const showPatienceWarning = elapsedSec > 240 && !isTerminal;
+  const showPatienceWarning = elapsedSec > 300 && !isTerminal;
 
   // Track when the current AI status first appeared (for time-based interpolation)
   const aiStatusRef = useRef<string | null>(null);
@@ -385,7 +385,7 @@ function PhaseProgress({
         </div>
       )}
 
-      {/* Patience warning after 90s */}
+      {/* Patience warning after 5 min */}
       {showPatienceWarning && (
         <div className="text-center mt-3 px-4 py-2.5 rounded-lg text-xs fade-in" style={{
           background: "var(--warning-bg)",
@@ -393,7 +393,7 @@ function PhaseProgress({
           border: "1px solid var(--warning)",
         }}>
           <span className="font-semibold">⏳ {t("report.patienceTitle")}</span>
-          <span className="block mt-0.5 opacity-80">{t("report.patienceBody")}</span>
+          <span className="block mt-0.5 opacity-80 whitespace-pre-line">{t("report.patienceBody")}</span>
         </div>
       )}
     </div>
