@@ -729,13 +729,13 @@ async def run_and_save_audit_verdict(
             logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)
             verdict = _build_fallback_verdict(company_dict, scorecard, report_language=report_language)
 
-        # ── Report QA Agent (Pro) — verifikácia verdiktu proti zdrojovým dátam ──
+        # ── Report QA Agent (Flash) — verifikácia verdiktu proti zdrojovým dátam ──
         qa_discrepancies = []
         try:
             verdict_json = json.dumps(verdict.model_dump(), default=str, ensure_ascii=False)
             qa_result = await safe_llm_call(
                 verify_report_quality, verdict_json, company_data,
-                model=_cfg.model_verdict, label="Report QA Agent",
+                model=_cfg.model_fallback, label="Report QA Agent",
                 report_language=report_language,
             )
             if qa_result and not qa_result.overall_ok:
@@ -746,7 +746,8 @@ async def run_and_save_audit_verdict(
                     else:
                         logger.info(f"[QA {d.severity}] IČO {ico}: {d.field} — verdict={d.verdict_value} vs source={d.source_value}")
             else:
-                logger.info(f"[QA OK] IČO {ico}: Report QA Agent nenašiel nezrovnalosti")
+                qa_score = getattr(qa_result, "quality_score", None)
+                logger.info(f"[QA OK] IČO {ico}: Report QA Agent nenašiel nezrovnalosti (quality_score={qa_score})")
         except Exception as qa_err:
             logger.warning(f"Report QA Agent zlyhal pre IČO {ico}: {qa_err} — preskakujem QA kontrolu.")
 

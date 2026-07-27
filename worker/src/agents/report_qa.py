@@ -19,6 +19,7 @@ class QADiscrepancy(BaseModel):
 class QAResult(BaseModel):
     discrepancies: List[QADiscrepancy] = Field(default_factory=list)
     overall_ok: bool = Field(..., description="True ak neboli nájdené žiadne kritické nezrovnalosti.")
+    quality_score: int = Field(..., ge=0, le=100, description="Kvantitatívne hodnotenie kvality verdiktu (0-100). 100 = bezchybný, 85+ = veľmi dobrý, 70-85 = priemerný, <70 = slabý. Pričítaj za: správne čísla (+30), správnu risk_category (+15), pokrytie všetkých pilierov (+20), cross-analýzu depth (+15), valid key_risk (+10), správne debt_exposure (+10). Odčítaj za každú CRITICAL discrepancy (-15) a WARNING (-5).")
 
 
 _QA_PROMPT_SK = """Si Report QA Agent @ Verifa.sk — Quality Assurance Auditor.
@@ -43,6 +44,14 @@ Pravidlá:
 - Neporovnávaj presné formátovanie (medzery, čiarky). Porovnávaj hodnoty.
 - Ak verdikt spomína "bez záznamu" a v zdrojoch naozaj nie sú dáta, je to OK.
 - Slovenčina vo všetkých textoch.
+
+QUALITY_SCORE výpočet (0-100):
+- Začni od 100.
+- -15 za každú CRITICAL discrepancy.
+- -5 za každú WARNING discrepancy.
+- -10 ak chýba cross-analýza depth (executive_summary je len zoznam faktov).
+- -10 ak key_risk nie je podložený dátami.
+- Minimum 0, maximum 100.
 """
 
 _QA_PROMPT_EN = """You are Report QA Agent @ Verifa.sk — Quality Assurance Auditor.
@@ -67,6 +76,14 @@ Rules:
 - Don't compare exact formatting (spaces, commas). Compare values.
 - If verdict mentions "no records" and source data indeed has none, that's OK.
 - English in all texts.
+
+QUALITY_SCORE calculation (0-100):
+- Start from 100.
+- -15 for each CRITICAL discrepancy.
+- -5 for each WARNING discrepancy.
+- -10 if cross-analysis depth is missing (executive_summary is just a list of facts).
+- -10 if key_risk is not supported by data.
+- Minimum 0, maximum 100.
 """
 
 _QA_PROMPT_DE = """Sie sind Report QA Agent @ Verifa.sk — Quality Assurance Auditor.
@@ -91,6 +108,14 @@ Regeln:
 - Keinen exakten Formatvergleich (Leerzeichen, Kommas). Werte vergleichen.
 - Wenn das Gutachten "keine Einträge" erwähnt und die Quelldaten tatsächlich keine haben, ist das OK.
 - Deutsch in allen Texten.
+
+QUALITY_SCORE Berechnung (0-100):
+- Starten Sie bei 100.
+- -15 für jede CRITICAL Abweichung.
+- -5 für jede WARNING Abweichung.
+- -10 wenn Kreuzanalyse-Tiefe fehlt (executive_summary ist nur eine Faktenliste).
+- -10 wenn key_risk nicht durch Daten belegt ist.
+- Minimum 0, Maximum 100.
 """
 
 
