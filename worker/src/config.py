@@ -74,7 +74,7 @@ class Settings(BaseSettings):
             "gemini-2.5-flash":       (0.075, 0.30),
             "gemini-2.5-pro":         (1.25, 10.00),
             "gemini-3.5-flash":       (1.50,  9.00),
-            "gemini-3.5-flash-lite":  (0.75,  4.50),
+            "gemini-3.5-flash-lite":  (0.30,  2.50),
             "gemini-3.5-pro":         (2.50, 15.00),
             "gemini-3.1-pro-preview": (2.00, 12.00),
             "gemini-3.1-pro":         (2.00, 12.00),
