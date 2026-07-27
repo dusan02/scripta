@@ -1,23 +1,61 @@
-# Report: Ako sa parsujú RÚZ dáta — kód a logika pre iné LLM
+# Report: Ako funguje RÚZ scraper a parser — kód a logika pre iné LLM
 
 ## 1. Cieľ a kontext
 
-Tento report opisuje **deterministický parser** pre slovenské účtovné závierky zo systému **RÚZ (Register účtovných závierok)**.
+Tento report opisuje **kompletný flow** sťahovania a parsovania účtovných závierok zo systému **RÚZ (Register účtovných závierok)** — od scraper fázy cez RÚZ Open API až po deterministický JSON parser.
 
-- **Vstup:** JSON odpoveď z RÚZ API (`/api/uctovny-vykaz`, `/api/zaverky`), konkrétne `obsah.tabulky` a `obsah.titulnaStrana`.
-- **Výstup:** `FinancialMetrics` Pydantic model, ktorý sa uloží ako `.metrics.json` sidecar a/alebo rovno do DB.
+- **Vstup:** IČO firmy → RÚZ Open API (`/api/uctovne-jednotky`, `/api/uctovna-zavierka`, `/api/uctovny-vykaz`), konkrétne `obsah.tabulky` a `obsah.titulnaStrana`.
+- **Výstup:** `FinancialMetrics` Pydantic model → `.metrics.json` sidecar → DB tabuľka `FinancialStatement`.
 - **Prečo:** Nahradzuje LLM extrakciu pre SK GAAP, kde sú dáta štruktúrované. IFRS/konsolidované závierky zostávajú na LLM (tie prichádzajú ako PDF).
 
-## 2. Súbory a zodpovednosti
+## 2. Architektúra a scraper flow
+
+```
+Report Request (IČO)
+  │
+  ├─ 1. Scraper fáza (main.py → scrapers/registeruz.py)
+  │    └─ RegisterUzScraper.run()
+  │         └─ ruz_api.download_ifrs_reports(ico, max_years=5)
+  │              ├─ Cache check (24h TTL v assets/{ico}/)
+  │              ├─ API: uctovne-jednotky?ico=… → entity_id
+  │              ├─ API: uctovna-jednotka?id=… → zavierka_ids + vs_ids
+  │              ├─ Sort by period (newest first) + dedup → top max_years
+  │              ├─ Parallel: _process_zavierka() per závierka
+  │              │    ├─ Fetch uctovny-vykaz pre každý výkaz
+  │              │    ├─ If tabs exist & have data → _format_vykaz_tables() → .txt
+  │              │    ├─ If tabs exist but EMPTY (0 rows) → fallback: _download_prilohy() → PDF
+  │              │    ├─ If no tabs → _download_prilohy() → PDF
+  │              │    ├─ SK GAAP: parse_zavierka_to_metrics() → .metrics.json sidecar
+  │              │    └─ IFRS/konsolidované: len PDF (LLM extrakcia neskôr)
+  │              └─ Parallel: _process_vs() per výročná správa → PDF
+  │
+  ├─ 2. Pipeline fáza (pipeline.py → process_company)
+  │    └─ _process_ifrs() per súbor:
+  │         ├─ .txt s .metrics.json → fast path (preskočí LLM)
+  │         ├─ .txt bez sidecar → LLM extrakcia (fallback)
+  │         ├─ _notes.pdf → preskočí (auditor/poznámky)
+  │         └─ IFRS .pdf → LLM extrakcia + verifikácia
+  │
+  └─ 3. Uloženie do DB (db_repository.py)
+       └─ FinancialMetrics → FinancialStatement (upsert by ico+year)
+```
+
+### Kľúčové súbory
 
 | Súbor | Úloha |
 |-------|-------|
-| `src/ruz_parser.py` | Hlavný parser: `parse_tables_to_metrics`, `_to_float`, `_extract_row_value`, sanity checks, sidecar save/load. |
-| `src/ruz_api.py` | Stiahne výkazy, zavolá parser, uloží `.metrics.json` vedľa `.txt`. |
-| `src/pipeline.py` | `_process_ifrs` najskôr skúsi `.metrics.json` sidecar a preskočí LLM. |
-| `src/db_repository.py` | Mapuje `FinancialMetrics` → DB tabuľka `FinancialStatement`; chráni `AuditorOpinion` pred placeholderom. |
+| `src/scrapers/registeruz.py` | `RegisterUzScraper` — volá `ruz_api.download_ifrs_reports()`, merge PDFs, vracia `ScrapedSource`. |
+| `src/ruz_api.py` | RÚZ Open API klient: entity lookup, paralelný download závierok a VS, JSON → .txt, PDF prílohy, cache (24h). |
+| `src/ruz_parser.py` | Deterministický parser: `parse_tables_to_metrics`, `_to_float`, `_get_row`, sanity checks, sidecar save/load. |
+| `src/pipeline.py` | `_process_ifrs` — fast path cez `.metrics.json` sidecar alebo LLM extrakcia pre IFRS. |
+| `src/db_repository.py` | Mapuje `FinancialMetrics` → DB `FinancialStatement`; chráni `AuditorOpinion` pred placeholderom. |
+| `src/config.py` | `ruz_max_years = 5` — koľko rokov závierok stiahnuť. |
 
-## 3. Predpokladaná štruktúra RÚZ JSON (šablóna 699)
+## 3. Dátové formáty RÚZ JSON (šablóna 699)
+
+RÚZ API vracia `obsah.tabulky` v **dvoch formátoch** v závislosti od roku závierky:
+
+### Formát A: List-of-lists (staršie závierky, do 2024)
 
 ```json
 {
@@ -58,6 +96,28 @@ Tento report opisuje **deterministický parser** pre slovenské účtovné závi
 - **Strana aktív** (`cisloRiadku` 1–78): každý riadok má 7 stĺpcov: `[Označenie, Text, Číslo, Brutto, Korekcia, Netto2 (bežné), Netto3 (predchádzajúce)]`.
 - **Strana pasív** (`cisloRiadku` 79–145): 5 stĺpcov: `[Označenie, Text, Číslo, Bežné, Predchádzajúce]`.
 - **Výkaz ziskov a strát** (`cisloRiadku` 1–61): 5 stĺpcov ako pasíva.
+
+### Formát B: Flat array (2025+)
+
+Od roku 2025 RÚZ API vracia `data` ako **ploché pole skalárov** namiesto list-of-lists. Tabuľky majú `rows: 0` ale `data` obsahuje všetky hodnoty za sebou:
+
+```json
+{
+  "nazov": {"sk": "Strana aktív"},
+  "rows": 0,
+  "data": [52184858, 26149900, 26034958, 11000000, ...]
+}
+```
+
+- **Strana aktív**: 312 skalárov = 78 riadkov × 4 dátové stĺpce (Brutto, Korekcia, Netto2, Netto3).
+- **Strana pasív**: 134 skaláry = 67 riadkov × 2 dátové stĺpce (Bežné, Predchádzajúce).
+- **Výkaz ziskov a strát**: 122 skalárov = 61 riadkov × 2 dátové stĺpce.
+
+Parser deteguje formát podľa `isinstance(data[0], list)` a automaticky prerába flat array na riadky.
+
+### Prázdne tabuľky (0 rows, 0 data)
+
+Niektoré závierky (najmä novšie) majú `tabulky` s 0 riadkami aj 0 dát. V tomto prípade scraper stiahne **PDF prílohy** ako fallback — pozri `ruz_api._process_zavierka`.
 
 ## 4. Mapovanie riadkov → FinancialMetrics
 
@@ -213,39 +273,54 @@ Logika:
 - Ak má viac, posledných `data_cols` prvkov sú dáta — predošlé sú `Označenie`, `Text`, `Číslo riadku`.
 - Skalár podporuje jednoduché single-column výkazy.
 
-### `_get_row`, `_get_activ_value`, `_get_pasiv_value`, `_get_income_value`
+### `_get_row` — detekcia flat vs list-of-lists formátu
 
 ```python
-def _get_row(tables: list, table_idx: int, cislo_riadku: int, offset: int) -> Optional[list]:
+def _get_row(tables: list, table_idx: int, cislo_riadku: int, offset: int, data_cols: int = 0) -> Optional[list]:
     if table_idx >= len(tables):
         return None
     data = tables[table_idx].get("data", [])
     idx = cislo_riadku - offset
-    if 0 <= idx < len(data):
+    if not data or idx < 0:
+        return None
+
+    # Detekcia flat formátu (skaláre namiesto listov — RÚZ 2025+)
+    first = data[0]
+    if not isinstance(first, list) and data_cols > 0:
+        # Flat array — každý riadok má data_cols hodnôt
+        start = idx * data_cols
+        if start + data_cols <= len(data):
+            return data[start : start + data_cols]
+        return None
+
+    # Štandardný list-of-lists formát
+    if idx < len(data):
         return data[idx]
     return None
 
 # Strana aktív: data_cols=4, dátové stĺpce [Brutto, Korekcia, Netto2, Netto3]
 def _get_activ_value(tables, cislo_riadku, current=True):
-    row = _get_row(tables, 0, cislo_riadku, _ACTIV_OFFSET)
+    row = _get_row(tables, 0, cislo_riadku, _ACTIV_OFFSET, data_cols=4)
     if row is None: return None
     target = 2 if current else 3  # Netto2 / Netto3
     return _extract_row_value(row, 4, target)
 
 # Strana pasív: data_cols=2, dátové stĺpce [Bežné, Predchádzajúce]
 def _get_pasiv_value(tables, cislo_riadku, current=True):
-    row = _get_row(tables, 1, cislo_riadku, _PASIV_OFFSET)
+    row = _get_row(tables, 1, cislo_riadku, _PASIV_OFFSET, data_cols=2)
     if row is None: return None
     target = 0 if current else 1
     return _extract_row_value(row, 2, target)
 
 # Výkaz ziskov a strát: data_cols=2, dátové stĺpce [Bežné, Predchádzajúce]
 def _get_income_value(tables, cislo_riadku, current=True):
-    row = _get_row(tables, 2, cislo_riadku, _INCOME_OFFSET)
+    row = _get_row(tables, 2, cislo_riadku, _INCOME_OFFSET, data_cols=2)
     if row is None: return None
     target = 0 if current else 1
     return _extract_row_value(row, 2, target)
 ```
+
+**Dôležité:** `data_cols` parameter je povinný pre správnu detekciu flat formátu. Bez neho parser nemôže vedieť, koľko stĺpcov má každý riadok v flat array.
 
 **Dôležité:** `data[cisloRiadku - offset]` predpokladá, že pole `data[]` je **zhustené** — bez prázdnych riadkov medzi `cisloRiadku`. Ak RÚZ vracia pole vrátane `None`/prázdnych medzier, mapovanie sa posunie.
 
@@ -455,6 +530,23 @@ def load_metrics_sidecar(txt_path: str) -> Optional[FinancialMetrics]:
 ### Integrácia v `ruz_api._process_zavierka`
 
 ```python
+for vykaz in vykaz_results:
+    obsah = vykaz.get("obsah", {})
+    tabs = obsah.get("tabulky", [])
+
+    if tabs:
+        text = _format_vykaz_tables(vykaz)
+        if text:
+            extracted_tables.append(text)
+        else:
+            # Tabuľky existujú ale sú prázdne (0 rows) — fallback na PDF prílohy
+            pdfs = await _download_prilohy(vykaz.get("prilohy", []))
+            downloaded_pdfs.extend(pdfs)
+    else:
+        pdfs = await _download_prilohy(vykaz.get("prilohy", []))
+        downloaded_pdfs.extend(pdfs)
+
+# SK GAAP: deterministický parser (preskočí LLM)
 parsed_metrics = None
 if not konsolidovana and all_vykazy:
     try:
@@ -469,9 +561,22 @@ if extracted_tables:
     txt_path = _save_text(extracted_tables, ftype, year, ico, period, index, out_path)
     saved_files.append(txt_path)
 
-    if parsed_metrics is not None:
+    if parsed_metrics is not None and parsed_metrics.celkove_aktiva is not None:
         save_metrics_sidecar(parsed_metrics, txt_path)
+    elif parsed_metrics is not None:
+        logger.warning(f"[RUZ_API] JSON parser vrátil prázdne metrics — sidecar sa neukladá, LLM extrakcia sa použije")
+
+if downloaded_pdfs:
+    suffix = "notes" if extracted_tables else ""
+    pdf_path = _merge_pdfs(downloaded_pdfs, ftype, year, ico, index, out_path, suffix=suffix)
+    saved_files.append(pdf_path)
 ```
+
+**Fallback logika:**
+- Tabuľky s dátami → `.txt` (štruktúrované) + `.metrics.json` sidecar (parsované metriky).
+- Tabuľky existujú ale prázdne (0 rows, 0 data) → stiahnu sa PDF prílohy ako fallback.
+- Žiadne tabuľky → stiahnu sa PDF prílohy.
+- PDF prílohy sa uložia ako `_notes.pdf` (ak existujú aj .txt) alebo ako hlavný PDF (ak .txt chýba).
 
 ### Integrácia v `pipeline._process_ifrs`
 
@@ -567,17 +672,21 @@ await db.financialstatement.upsert(
 )
 ```
 
-## 11. Známe obmedzenia a riziká (pre kontrolu)
+## 11. Známe obmedenia a riziká (pre kontrolu)
 
 1. **Predpoklad zhusteného `data[]` poľa.** Parser používa `cisloRiadku - offset`. Ak RÚZ JSON vracia pole s `None`/prázdnych riadkami alebo inak poradím, mapovanie sa posunie. **Treba overiť s reálnym API výstupom.**
-2. **Len šablóna 699 (Úč POD).** ROPO, FNM, mikro jednotky a iné šablóny nie sú mapované.
-3. **Cash flow chýba.** `ciste_penazne_toky_z_prevadzkovej_cinnosti`, `investicny_cash_flow`, `financny_cash_flow` sú `None`, lebo šablóna 699 neobsahuje výkaz peňažných tokov. Používa sa následný `estimate_missing_cash_flow`.
-4. **Konsolidované závierky.** Parser beží len ak `konsolidovana == False`. Konsolidované SK GAAP/IFRS idú cez LLM.
-5. **Audítorský názor.** Parser neextrahuje audítorskú správu. `auditoropinion` ostáva prázdny, kým sa nepridá samostatná extrakcia z notes PDF.
-6. **Jednotky — RIEŠENÉ.** `_to_float` a `parse_tables_to_metrics` obsahujú detekciu tisícov EUR: ak `celkové aktíva < 1000` a `počet zamestnancov > 10`, všetky hodnoty sa násobia ×1000. Zaloguje sa varovanie.
-7. **Negatívne čísla v zátvorkách — RIEŠENÉ.** `_to_float` konvertuje `(1234)` na `-1234` podľa slovenského účtovného štandardu.
-8. **Hrubá marža — RIEŠENÉ.** `hruba_marza` sa primárne počíta ako `Tržby (riadok 1) - COGS (riadok 10)`. Fallback na Pridanú hodnotu (riadok 28) ak COGS chýba.
-9. **IFRS závierky.** Stále spracovávané cez LLM (prichádzajú ako PDF, nie JSON). Pre veľké firmy (Mondi, Foxconn) je možné v budúcnosti vytvoriť layout parser z PDF.
+2. **Flat data formát (2025+) — RIEŠENÉ.** RÚZ API od roku 2025 vracia `data` ako ploché pole skalárov namiesto list-of-lists. Parser deteguje formát podľa `isinstance(data[0], list)` a prerába flat array na riadky pomocou `data_cols` parametra (4 pre aktíva, 2 pre pasíva a P&L).
+3. **Prázdne tabuľky — RIEŠENÉ.** Ak závierka má `tabulky` s 0 riadkami a 0 dát, scraper stiahne PDF prílohy ako fallback. Toto sa stáva pre novšie závierky, kde RÚZ API ešte nemá štruktúrované dáta ale PDF už existuje.
+4. **Len šablóna 699 (Úč POD).** ROPO, FNM, mikro jednotky a iné šablóny nie sú mapované.
+5. **Cash flow chýba.** `ciste_penazne_toky_z_prevadzkovej_cinnosti`, `investicny_cash_flow`, `financny_cash_flow` sú `None`, lebo šablóna 699 neobsahuje výkaz peňažných tokov. Používa sa následný `estimate_missing_cash_flow`.
+6. **Konsolidované závierky.** Parser beží len ak `konsolidovana == False`. Konsolidované SK GAAP/IFRS idú cez LLM.
+7. **Audítorský názor.** Parser neextrahuje audítorskú správu. `auditoropinion` ostáva prázdny, kým sa nepridá samostatná extrakcia z notes PDF.
+8. **Jednotky — RIEŠENÉ.** `_to_float` a `parse_tables_to_metrics` obsahujú detekciu tisícov EUR: ak `celkové aktíva < 1000` a `počet zamestnancov > 10`, všetky hodnoty sa násobia ×1000. Zaloguje sa varovanie.
+9. **Negatívne čísla v zátvorkách — RIEŠENÉ.** `_to_float` konvertuje `(1234)` na `-1234` podľa slovenského účtovného štandardu.
+10. **Hrubá marža — RIEŠENÉ.** `hruba_marza` sa primárne počíta ako `Tržby (riadok 1) - COGS (riadok 10)`. Fallback na Pridanú hodnotu (riadok 28) ak COGS chýba.
+11. **IFRS závierky.** Stále spracovávané cez LLM (prichádzajú ako PDF, nie JSON). Pre veľké firmy (Mondi, Foxconn) je možné v budúcnosti vytvoriť layout parser z PDF.
+12. **Cache (24h).** Súbory stiahnuté z RÚZ API sa cachujú v `assets/{ico}/` s TTL 24h. Pri re-generácii reportu sa použije cache bez nového downloadu. Cache sa invaliduje automaticky po 24h.
+13. **RÚZ API výpadky.** Ak RÚZ API nedostupné, scraper vracia `UNAVAILABLE` status. Pipeline sa potom pokúsi o vlastný download, ale ak aj ten zlyhá, report bude bez finančných údajov.
 
 ## 12. Čo overiť pri teste
 
@@ -592,3 +701,6 @@ await db.financialstatement.upsert(
 - Over zátvorkovú notáciu: ak závierka obsahuje stratu v zátvorke `(1234)`, skontroluj že `zisk_alebo_strata_po_zdaneni` je `-1234`.
 - Over jednotky: ak sa v logu objaví `detekované tisíce EUR`, skontroluj že hodnoty sú ×1000 väčšie ako v JSON.
 - Over `hruba_marza`: ak je COGS (riadok 10) k dispozícii, `hruba_marza` by mala byť `Tržby - COGS`, nie Pridaná hodnota.
+- **Over flat data formát (2025+):** porovnaj hodnoty z parsera s RÚZ webom pre závierku z roku 2025. Skontroluj, že `data` je flat array a parser ho správne prerobil na riadky.
+- **Over prázdne tabuľky fallback:** ak závierka má `tabulky` s 0 dát, skontroluj že sa stiahli PDF prílohy a vytvoril sa PDF súbor.
+- **Over cache:** pri re-generácii reportu do 24h skontroluj, že sa použil cache (`[RUZ_API] Cache hit` log) bez nového downloadu.
