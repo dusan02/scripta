@@ -866,7 +866,7 @@ async def process_company(
     vs_files = []
     for fp in downloaded_files:
         fn = os.path.basename(fp)
-        if fn.startswith("IFRS_"):
+        if fn.startswith("IFRS_") or fn.startswith("SKGAAP_"):
             ifrs_files.append(fp)
         elif fn.startswith("VS_"):
             vs_files.append(fp)

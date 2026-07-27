@@ -13,3 +13,6 @@ uvicorn.log
 results/
 *.pdf
 *.bak
+# Ignore assets/ subdirs (scraped files) but keep logo
+assets/*
+!assets/logo-verifa.png

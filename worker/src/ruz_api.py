@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -201,7 +202,9 @@ async def download_ifrs_reports(
 
     # Cache check: ak adresár už obsahuje súbory pre toto IČO (napr. zo scraper fázy),
     # vrátime ich priamo bez nového HTTP downloadu — ale len ak nie sú staršie ako 24h
+    # a len ak cache obsahuje aj najnovší rok z API (inak re-download).
     import time as _time
+    import re as _re
     _CACHE_MAX_AGE = 86400  # 24 hours
     existing = []
     for f in out_path.iterdir():
@@ -211,6 +214,43 @@ async def download_ifrs_reports(
                 existing.append(str(f))
             else:
                 logger.info(f"[RUZ_API] Cache expired ({file_age/3600:.1f}h) pre {f.name}, re-download")
+
+    if existing:
+        # Extract years from cached filenames (e.g. SKGAAP_36168301_2025_0.txt → 2025)
+        cached_years = set()
+        for fp in existing:
+            m = _re.search(r'_(20\d{2})_', os.path.basename(fp))
+            if m:
+                cached_years.add(int(m.group(1)))
+        max_cached_year = max(cached_years) if cached_years else 0
+
+        # Quick API check: what's the newest zavierka year?
+        try:
+            async with httpx.AsyncClient(headers={"User-Agent": _UA}) as _check_client:
+                _entity_ids = await _api_get(_check_client, "uctovne-jednotky", {
+                    "zmenene-od": "2000-01-01", "ico": ico, "max-zaznamov": 1,
+                })
+                if _entity_ids and _entity_ids.get("id"):
+                    _eid = _entity_ids["id"][0]
+                    _entity = await _api_get(_check_client, "uctovna-jednotka", {"id": _eid})
+                    if _entity:
+                        _zavierka_ids = _entity.get("idUctovnychZavierok", [])
+                        if _zavierka_ids:
+                            _latest = await _api_get(_check_client, "uctovna-zavierka", {"id": _zavierka_ids[0]})
+                            if _latest:
+                                _latest_period = _period_from_dict(_latest)
+                                _latest_year = _year_from_period(_latest_period)
+                                if _latest_year and _latest_year.isdigit():
+                                    api_year = int(_latest_year)
+                                    if api_year > max_cached_year:
+                                        logger.info(
+                                            f"[RUZ_API] Cache stale: API má rok {api_year}, "
+                                            f"cache má max rok {max_cached_year} — re-download"
+                                        )
+                                        existing = []  # Invalidate cache
+        except Exception as e:
+            logger.warning(f"[RUZ_API] Cache validation failed ({e}), pokračujem s cache")
+
     if existing:
         logger.info(f"[RUZ_API] Cache hit pre IČO {ico}: {len(existing)} súborov v {out_path}, preskakujem download")
         return existing
@@ -287,10 +327,172 @@ async def download_ifrs_reports(
                 logger.error(f"[RUZ_API] Chyba pri spracovaní VS: {r}")
 
     logger.info(f"[RUZ_API] Stiahnutých {len(downloaded_files)} súborov pre IČO {ico}")
+
+    # ── Playwright fallback: ak chýba najnovší rok, skús doplniť z webu ──
+    if top_zavierky:
+        _api_years = set()
+        for fp in downloaded_files:
+            m = re.search(r'_(20\d{2})_', os.path.basename(fp))
+            if m:
+                _api_years.add(int(m.group(1)))
+        _newest_period = _period_from_dict(top_zavierky[0])
+        _newest_year_str = _year_from_period(_newest_period)
+        if _newest_year_str and _newest_year_str.isdigit():
+            _newest_year = int(_newest_year_str)
+            if _newest_year not in _api_years:
+                logger.info(
+                    f"[RUZ_API] Najnovší rok {_newest_year} chýba v stiahnutých súboroch "
+                    f"(máme: {sorted(_api_years)}) — skúšam Playwright fallback"
+                )
+                try:
+                    _pw_files = await _playwright_fallback(
+                        ico, top_zavierky[0], _newest_year, out_path, len(downloaded_files)
+                    )
+                    if _pw_files:
+                        downloaded_files.extend(_pw_files)
+                        logger.info(f"[RUZ_API] Playwright fallback: pridaných {len(_pw_files)} súborov pre rok {_newest_year}")
+                except Exception as e:
+                    logger.warning(f"[RUZ_API] Playwright fallback zlyhal: {e}")
+
     return downloaded_files
 
 
 # ── Processing ───────────────────────────────────────────────────────────────
+
+async def _playwright_fallback(
+    ico: str,
+    zavierka: dict,
+    year: int,
+    out_path: Path,
+    index: int,
+) -> list[str]:
+    """Playwright fallback: scrape financial reports from RUZ website.
+
+    Keď API download zlyhá pre najnovší rok, otvorí RUZ web stránku entity,
+    klikne na taby (Strana aktív, Strana pasív, Výkaz ziskov a strát) a
+    stiahne ich ako PDF cez print-to-PDF. Tiež skúsi stiahnuť prílohy
+    (Správa auditora) cez "Stiahnuť" link.
+
+    Selektory z RUZ webu:
+    - Tab links: .js-tabs.switch-tab[href*='/cruz-public/domain/financialreport/show/']
+    - Download links: div[class='b-content...'] span[class='d-inline-block...'] a
+    """
+    from playwright.async_api import async_playwright, TimeoutError as PWTimeout
+
+    vykaz_ids = zavierka.get("idUctovnychVykazov", [])
+    if not vykaz_ids:
+        logger.warning(f"[RUZ_PW] Závierka {year} nemá žiadne idUctovnychVykazov — preskakujem")
+        return []
+
+    # RUZ web URL pre entity detail
+    # Najprv získaj entity_id z API (máme ho v zavierka dict? nie, potrebujeme ho z API)
+    # Použijeme prímo URL financialreport/show/{vykaz_id}/{tab_id}
+    # Tab IDs: 550 = Strana aktív, 551 = Strana pasív, 552 = Výkaz ziskov a strát
+    # Tieto ID sa môžu líšiť, tak ich získame z web stránky
+
+    saved_files: list[str] = []
+    _pw = None
+    try:
+        _pw = await async_playwright().start()
+        from src.browser_manager import browser_manager
+        browser = await browser_manager.get_browser(_pw)
+
+        context = await browser.new_context(
+            user_agent=_UA,
+            viewport={"width": 1280, "height": 900},
+            locale="sk-SK",
+        )
+        page = await context.new_page()
+
+        # Naviguj na prvý výkaz — RUZ web stránka s taby
+        # URL formát: https://www.registeruz.sk/cruz-public/domain/financialreport/show/{vykaz_id}
+        first_vykaz_id = vykaz_ids[0]
+        web_url = f"{_RUZ_BASE}/domain/financialreport/show/{first_vykaz_id}"
+        logger.info(f"[RUZ_PW] Navigujem na {web_url}")
+        await page.goto(web_url, wait_until="networkidle", timeout=30000)
+
+        # Prijať cookies ak existujú
+        try:
+            cookie_btn = page.locator("button:has-text('Prijať'), button:has-text('Súhlasím'), #cookies-accept")
+            if await cookie_btn.count() > 0:
+                await cookie_btn.first.click()
+                await page.wait_for_timeout(500)
+        except Exception:
+            pass
+
+        # Nájdi všetky taby (.js-tabs.switch-tab)
+        tab_links = page.locator(".js-tabs.switch-tab")
+        tab_count = await tab_links.count()
+        logger.info(f"[RUZ_PW] Nájdených {tab_count} tabov")
+
+        # Zoznam tabov: (názov, href) — preskakujeme "Titulná strana" (active)
+        tabs_to_scrape = []
+        for i in range(tab_count):
+            href = await tab_links.nth(i).get_attribute("href")
+            text = (await tab_links.nth(i).inner_text()).strip()
+            if href and "financialreport/show" in href and "Tituln" not in text:
+                tabs_to_scrape.append((text, href))
+
+        logger.info(f"[RUZ_PW] Taby na scraping: {[t[0] for t in tabs_to_scrape]}")
+
+        # Pre každý tab: naviguj, počkaj, print-to-PDF
+        for tab_name, tab_href in tabs_to_scrape:
+            try:
+                tab_url = f"https://www.registeruz.sk{tab_href}"
+                logger.info(f"[RUZ_PW] Otváram tab '{tab_name}': {tab_url}")
+                await page.goto(tab_url, wait_until="networkidle", timeout=30000)
+                await page.wait_for_timeout(1000)
+
+                # Print-to-PDF
+                safe_name = tab_name.replace(" ", "_").replace("á", "a").replace("í", "i").lower()
+                pdf_file = out_path / f"SKGAAP_{ico}_{year}_{index}_{safe_name}.pdf"
+                await page.pdf(path=str(pdf_file), format="A4")
+                if pdf_file.exists() and pdf_file.stat().st_size > 1000:
+                    saved_files.append(str(pdf_file))
+                    logger.info(f"[RUZ_PW] Uložené: {pdf_file.name} ({pdf_file.stat().st_size} bytes)")
+                else:
+                    logger.warning(f"[RUZ_PW] PDF príliš malé alebo prázdne pre {tab_name}")
+            except PWTimeout:
+                logger.warning(f"[RUZ_PW] Timeout pri tab '{tab_name}'")
+            except Exception as e:
+                logger.warning(f"[RUZ_PW] Chyba pri tab '{tab_name}': {e}")
+
+        # Skús stiahnuť "Stiahnuť" linky (Správa auditora, prílohy)
+        try:
+            download_links = page.locator(
+                "div[class*='b-content'] span[class*='d-inline-block'] a:has-text('Stiahnuť')"
+            )
+            dl_count = await download_links.count()
+            logger.info(f"[RUZ_PW] Nájdených {dl_count} 'Stiahnuť' linkov")
+            for i in range(dl_count):
+                try:
+                    link = download_links.nth(i)
+                    href = await link.get_attribute("href")
+                    if href:
+                        dl_url = f"https://www.registeruz.sk{href}" if href.startswith("/") else href
+                        # Stiahni PDF cez httpx
+                        async with httpx.AsyncClient(headers={"User-Agent": _UA}) as dl_client:
+                            r = await dl_client.get(dl_url, timeout=30)
+                            if r.status_code == 200 and len(r.content) > 1000:
+                                notes_file = out_path / f"SKGAAP_{ico}_{year}_{index}_notes_{i}.pdf"
+                                notes_file.write_bytes(r.content)
+                                saved_files.append(str(notes_file))
+                                logger.info(f"[RUZ_PW] Stiahnutý notes PDF: {notes_file.name}")
+                except Exception as e:
+                    logger.warning(f"[RUZ_PW] Chyba pri sťahovaní prílohy {i}: {e}")
+        except Exception as e:
+            logger.warning(f"[RUZ_PW] Chyba pri hľadaní 'Stiahnuť' linkov: {e}")
+
+        await context.close()
+
+    except Exception as e:
+        logger.error(f"[RUZ_PW] Playwright fallback chyba: {e}", exc_info=True)
+    finally:
+        if _pw:
+            await _pw.stop()
+
+    return saved_files
+
 
 async def _process_zavierka(
     client: httpx.AsyncClient,

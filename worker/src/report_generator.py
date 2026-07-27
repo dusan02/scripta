@@ -1282,13 +1282,22 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         pnl_chart_base64 = ""
         cashflow_chart_base64 = ""
     
-    # Načítanie Verifa loga
+    # Načítanie Verifa loga — skús viacero ciest (lokálne vs Docker)
     current_dir = Path(__file__).parent
-    logo_path = current_dir.parent / "assets" / "logo-verifa.png"
+    logo_candidates = [
+        current_dir.parent / "assets" / "logo-verifa.png",   # worker/assets/ (lokálne)
+        Path("/app/assets/logo-verifa.png"),                   # Docker WORKDIR=/app
+        Path.cwd() / "assets" / "logo-verifa.png",            # CWD-based fallback
+    ]
     logo_base64 = ""
-    if logo_path.exists():
-        with open(logo_path, "rb") as lf:
-            logo_base64 = base64.b64encode(lf.read()).decode('utf-8')
+    for lp in logo_candidates:
+        if lp.exists():
+            with open(lp, "rb") as lf:
+                logo_base64 = base64.b64encode(lf.read()).decode('utf-8')
+            logger.info(f"[LOGO] Načítané z {lp}")
+            break
+    if not logo_base64:
+        logger.warning(f"[LOGO] logo-verifa.png nenájdené v žiadnej z ciest: {[str(p) for p in logo_candidates]}")
             
     counts = {"SUCCESS": 0, "WARNING": 0, "INFO": 0, "FAILED": 0, "UNAVAILABLE": 0}
     if sources:
