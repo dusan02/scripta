@@ -353,40 +353,38 @@ function PhaseProgress({
   return (
     <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
       {/* Loader card */}
-      <div className="w-full rounded-2xl p-5 shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        <div className="flex items-center gap-4">
-          {/* Animated Icon */}
-          <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center relative" style={{ background: "var(--success-bg)" }}>
-            <svg className="w-5 h-5 animate-spin relative z-10" style={{ color: "var(--success)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--success)" }}></div>
-          </div>
-
-          {/* Current Status — fully readable */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-2">
-              <span className="shrink-0 tabular-nums text-sm font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
-                [{new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}]
-              </span>
-              <span className="text-[15px] font-medium leading-snug break-words" style={{ color: "var(--success)" }}>
-                {statusText}
-              </span>
+      <div className="w-full rounded-2xl p-4 shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {/* Top row: icon + % — never overlaps text */}
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-3">
+            {/* Animated Icon */}
+            <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center relative" style={{ background: "var(--success-bg)" }}>
+              <svg className="w-4 h-4 animate-spin relative z-10" style={{ color: "var(--success)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--success)" }}></div>
             </div>
             {isScraping && sourcesTotal > 0 && (
-              <div className="mt-1 text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
                 {sourcesCompleted}/{sourcesTotal} {t("report.zdrojov")}
-              </div>
+              </span>
             )}
           </div>
+          {/* Percentage badge — always top-right, never wraps into text */}
+          <span className="shrink-0 text-2xl font-bold tabular-nums leading-none" style={{ color: "var(--success)" }}>
+            {Math.round(displayProgress)}<span className="text-sm font-semibold">%</span>
+          </span>
+        </div>
 
-          {/* Percentage badge */}
-          <div className="shrink-0 text-right">
-            <span className="text-2xl font-bold tabular-nums" style={{ color: "var(--success)" }}>
-              {Math.round(displayProgress)}<span className="text-sm">%</span>
-            </span>
-          </div>
+        {/* Status text — full width, no competition with % */}
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className="shrink-0 tabular-nums text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+            [{new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}]
+          </span>
+          <span className="text-[14px] font-medium leading-snug" style={{ color: "var(--success)" }}>
+            {statusText}
+          </span>
         </div>
       </div>
 
