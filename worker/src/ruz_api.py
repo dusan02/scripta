@@ -435,7 +435,9 @@ async def _playwright_fallback(
 
         logger.info(f"[RUZ_PW] Taby na scraping: {[t[0] for t in tabs_to_scrape]}")
 
-        # Pre každý tab: naviguj, počkaj, print-to-PDF
+        # Pre každý tab: naviguj, počkaj, print-to-PDF + extrahuj HTML tabuľky
+        pw_tables: list[dict] = []  # Zbierame tabuľky pre JSON parser
+        pw_table_names: list[str] = []
         for tab_name, tab_href in tabs_to_scrape:
             try:
                 tab_url = f"https://www.registeruz.sk{tab_href}"
@@ -452,10 +454,73 @@ async def _playwright_fallback(
                     logger.info(f"[RUZ_PW] Uložené: {pdf_file.name} ({pdf_file.stat().st_size} bytes)")
                 else:
                     logger.warning(f"[RUZ_PW] PDF príliš malé alebo prázdne pre {tab_name}")
+
+                # Extrahuj HTML tabuľku z DOM pre JSON parser
+                try:
+                    table_data = await page.evaluate("""() => {
+                        const tables = document.querySelectorAll('table');
+                        const result = [];
+                        for (const tbl of tables) {
+                            const rows = tbl.querySelectorAll('tr');
+                            const tableRows = [];
+                            for (const row of rows) {
+                                const cells = row.querySelectorAll('td, th');
+                                const rowData = [];
+                                for (const cell of cells) {
+                                    rowData.push(cell.textContent.trim());
+                                }
+                                if (rowData.length > 0) tableRows.push(rowData);
+                            }
+                            if (tableRows.length > 0) result.push(tableRows);
+                        }
+                        return result;
+                    }""")
+                    if table_data:
+                        for td in table_data:
+                            pw_tables.append({"nazov": {"sk": tab_name}, "data": td, "_html": True})
+                            pw_table_names.append(tab_name)
+                        logger.info(f"[RUZ_PW] Extrahovaná HTML tabuľka z '{tab_name}': {len(table_data)} tabuliek")
+                except Exception as e:
+                    logger.warning(f"[RUZ_PW] HTML extrakcia zlyhala pre '{tab_name}': {e}")
+
             except PWTimeout:
                 logger.warning(f"[RUZ_PW] Timeout pri tab '{tab_name}'")
             except Exception as e:
                 logger.warning(f"[RUZ_PW] Chyba pri tab '{tab_name}': {e}")
+
+        # Skús parsovať extrahované HTML tabuľky do metrics
+        if pw_tables:
+            try:
+                from src.ruz_parser import parse_tables_to_metrics, save_metrics_sidecar
+                # Titulná strana — skús získať z API alebo konštruuj minimálnu
+                titulna = {"ico": ico, "obdobieDo": str(year)}
+                # Skús získať titulnú stranu z API
+                try:
+                    async with httpx.AsyncClient(headers={"User-Agent": _UA}) as _tc:
+                        _tv = await _api_get(_tc, "uctovny-vykaz", {"id": vykaz_ids[0]})
+                        if _tv:
+                            titulna = _tv.get("obsah", {}).get("titulnaStrana", titulna)
+                except Exception:
+                    pass
+
+                pw_metrics = parse_tables_to_metrics(pw_tables, titulna, ico)
+                if pw_metrics is not None and pw_metrics.celkove_aktiva is not None:
+                    # Ulož .txt s textovou reprezentáciou
+                    txt_lines = []
+                    for tn, td in zip(pw_table_names, pw_tables):
+                        txt_lines.append(f"=== {tn} ===")
+                        for row in td.get("data", []):
+                            txt_lines.append("\t".join(str(c) for c in row))
+                        txt_lines.append("")
+                    txt_file = out_path / f"SKGAAP_{ico}_{year}_{index}_pw.txt"
+                    txt_file.write_text("\n".join(txt_lines), encoding="utf-8")
+                    saved_files.append(str(txt_file))
+                    save_metrics_sidecar(pw_metrics, str(txt_file))
+                    logger.info(f"[RUZ_PW] JSON parser: IČO {ico} rok {year} — metrics z HTML (assets={pw_metrics.celkove_aktiva})")
+                else:
+                    logger.warning(f"[RUZ_PW] JSON parser nedokázal extrahovať metrics z HTML tabuliek")
+            except Exception as e:
+                logger.warning(f"[RUZ_PW] HTML table parsing zlyhal: {e}")
 
         # Skús stiahnuť "Stiahnuť" linky (Správa auditora, prílohy)
         try:

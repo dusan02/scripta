@@ -51,6 +51,7 @@ ROW_LT_LIABILITIES = 102
 ROW_LT_BANK_LOANS = 121
 ROW_ST_LIABILITIES = 122
 ROW_TRADE_PAYABLES = 123
+ROW_RESERVES = 141  # Rezervy a iné záväzky (mimo LT/ST)
 ROW_EMPLOYEE_LIAB = 131
 ROW_SOCIAL_INS_LIAB = 132
 ROW_TAX_LIAB = 133
@@ -274,17 +275,19 @@ def _compute_months(obdobie_od: str, obdobie_do: str) -> Optional[int]:
 
 # ── Sanity checks ─────────────────────────────────────────────────────────────
 
-def _sanity_check(metrics: FinancialMetrics) -> list[str]:
+def _sanity_check(metrics: FinancialMetrics, total_liabilities_exact: Optional[float] = None) -> list[str]:
     """Validate financial consistency. Returns list of warning messages."""
     warnings = []
 
     # Check 1: assets ≈ equity + total liabilities
-    # Note: 'total liabilities' here is ST + LT only. Other liabilities (e.g. accruals,
-    # rows 140-145) are NOT captured by the parser, so we use a generous 15% tolerance
-    # before raising an error. A soft warning fires at 5%.
+    # Prefer exact total liabilities (row 101) which includes reserves and other liabilities.
+    # Fall back to LT + ST if row 101 is not available.
     assets = metrics.celkove_aktiva
     equity = metrics.vlastne_imanie_celkom
-    total_liab = (metrics.dlhodobe_zavazky or 0) + (metrics.kratkodobe_zavazky or 0)
+    if total_liabilities_exact is not None:
+        total_liab = total_liabilities_exact
+    else:
+        total_liab = (metrics.dlhodobe_zavazky or 0) + (metrics.kratkodobe_zavazky or 0)
 
     if assets is not None and equity is not None and abs(assets) > 0:
         expected_assets = equity + total_liab
@@ -443,6 +446,7 @@ def parse_tables_to_metrics(
 
     # Balance sheet — pasív
     vlastne_imanie = _get_pasiv_value(ordered, ROW_TOTAL_EQUITY)
+    celkove_cudzie_zdroje = _get_pasiv_value(ordered, ROW_TOTAL_LIABILITIES)
     dlhodobe_zavazky = _get_pasiv_value(ordered, ROW_LT_LIABILITIES)
     kratkodobe_zavazky = _get_pasiv_value(ordered, ROW_ST_LIABILITIES)
     zavazky_obchod = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES)
@@ -551,7 +555,7 @@ def parse_tables_to_metrics(
     )
 
     # Sanity checks
-    warnings = _sanity_check(metrics)
+    warnings = _sanity_check(metrics, total_liabilities_exact=celkove_cudzie_zdroje)
     if warnings:
         for w in warnings:
             logger.warning(f"[RUZ_PARSER] IČO {ico} rok {year}: {w}")
