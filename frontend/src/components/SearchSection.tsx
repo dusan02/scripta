@@ -31,10 +31,7 @@ export default function SearchSection() {
   return (
     <section
       className="flex flex-col items-center justify-center px-2 pt-6 pb-5"
-      style={{
-        borderBottom: "1px solid var(--border)",
-        minHeight: "180px",
-      }}
+      style={{ borderBottom: "1px solid var(--border)" }}
     >
       <div className="text-center mb-4 fade-in">
         <h1

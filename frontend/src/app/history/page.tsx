@@ -269,8 +269,9 @@ export default function HistoryPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="flex-1 relative">
+      <div className="flex flex-col gap-3 mb-4">
+        {/* Search input — full width */}
+        <div className="relative">
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -292,25 +293,27 @@ export default function HistoryPage() {
             }}
           />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Date range — side by side, full width on mobile */}
+        <div className="flex items-center gap-2">
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-            className="rounded-lg px-3 py-2 text-xs outline-none transition-colors"
+            className="flex-1 min-w-0 rounded-lg px-3 py-2 text-xs outline-none transition-colors"
             style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", fontFamily: "inherit" }}
             title={t("history.odDátumu")}
           />
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>
+          <span className="text-xs flex-shrink-0" style={{ color: "var(--text-muted)" }}>—</span>
           <input
             type="date"
             value={dateTo}
             onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-            className="rounded-lg px-3 py-2 text-xs outline-none transition-colors"
+            className="flex-1 min-w-0 rounded-lg px-3 py-2 text-xs outline-none transition-colors"
             style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)", fontFamily: "inherit" }}
             title={t("history.doDátumu")}
           />
         </div>
+        {/* Status filter chips — wrap on new line, full width */}
         <div className="flex gap-1.5 flex-wrap">
           {STATUS_FILTERS.map((f) => (
             <button
@@ -580,44 +583,46 @@ export default function HistoryPage() {
 
                   {/* Mobile card */}
                   <div className="md:hidden px-4 py-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-                      <span className="text-base flex-shrink-0">
-                        {report.targetType === "COMPANY" ? "🏢" : "👤"}
-                      </span>
-                      <div className="min-w-0 w-full text-center">
-                        {report.targetType === "COMPANY" && report.companyName ? (
-                          <>
+                    <div className="flex items-start justify-between gap-3">
+                      {/* Left: icon + name */}
+                      <div className="flex items-start gap-2 min-w-0 flex-1">
+                        <span className="text-base flex-shrink-0 mt-0.5">
+                          {report.targetType === "COMPANY" ? "🏢" : "👤"}
+                        </span>
+                        <div className="min-w-0">
+                          {report.targetType === "COMPANY" && report.companyName ? (
+                            <>
+                              <span
+                                className="text-sm font-semibold block leading-snug"
+                                style={{ color: "var(--text)", letterSpacing: "-0.01em", wordBreak: "break-word" }}
+                              >
+                                {formatCompanyName(report.companyName).map((line, i) => (
+                                  <span key={i} className="block">{line}</span>
+                                ))}
+                              </span>
+                              {report.ico && (
+                                <span className="text-[11px] block mt-0.5" style={{ color: "var(--text-muted)" }}>
+                                  <CopyableText text={report.ico} label={t("common.ico")} />
+                                </span>
+                              )}
+                            </>
+                          ) : (
                             <span
                               className="text-sm font-semibold block"
-                              style={{ color: "var(--text)", letterSpacing: "-0.01em", wordBreak: "break-word" }}
+                              style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
                             >
-                              {formatCompanyName(report.companyName).map((line, i) => (
-                                <span key={i} className="block">{line}</span>
-                              ))}
+                              {identifier}
                             </span>
-                            {report.ico && (
-                              <span className="text-[11px] truncate block" style={{ color: "var(--text-muted)" }}>
-                                <CopyableText text={report.ico} label={t("common.ico")} />
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span
-                            className="text-sm font-semibold truncate block"
-                            style={{ color: "var(--text)", letterSpacing: "-0.01em" }}
-                          >
-                            {identifier}
-                          </span>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <StatusBadge status={report.status} size="sm" />
-                      <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                        {formatDate(report.createdAt, locale)}
-                      </span>
-                    </div>
+                      {/* Right: status + date */}
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <StatusBadge status={report.status} size="sm" />
+                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                          {formatDate(report.createdAt, locale)}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-2">
                       <div className="flex items-center gap-2 flex-wrap">

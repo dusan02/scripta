@@ -290,17 +290,17 @@ export default function NavBar() {
         {mobileOpen && (
           <div className="md:hidden pb-4 pt-3 fade-in" style={{ borderTop: "1px solid var(--border)" }}>
             {/* Credits + user info */}
-            <div className="flex items-center justify-between mb-3 px-1">
+            <div className="flex items-center justify-between mb-3 px-1 gap-2">
               <div
-                className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-medium"
-                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium flex-shrink-0"
+                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)", minHeight: "44px" }}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
                 </svg>
                 {creditsUsed !== null ? creditsUsed : "—"}
               </div>
-              <span className="text-xs truncate ml-2" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs truncate min-w-0" style={{ color: "var(--text-muted)", maxWidth: "calc(100% - 80px)" }}>
                 {session?.user?.email ?? ""}
               </span>
             </div>
