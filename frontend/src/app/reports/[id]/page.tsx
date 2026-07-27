@@ -218,10 +218,10 @@ const AI_STATUS_RANGES: Record<string, { start: number; end: number; estSeconds:
   "ai.risk_analysis":         { start: 72, end: 78, estSeconds: 20 },
   "ai.final_verdict":         { start: 78, end: 82, estSeconds: 10 },
   "ai.cross_validation":      { start: 82, end: 86, estSeconds: 15 },
-  "ai.forensic_analysis":     { start: 86, end: 90, estSeconds: 10 },
-  "ai.cross_correlation":     { start: 90, end: 93, estSeconds: 20 },
-  "ai.risk_synthesis":        { start: 93, end: 96, estSeconds: 8 },
-  "ai.compiling":             { start: 96, end: 99, estSeconds: 20 },
+  "ai.forensic_analysis":     { start: 86, end: 90, estSeconds: 15 },
+  "ai.cross_correlation":     { start: 90, end: 95, estSeconds: 90 },  // Chief Auditor: reálne 80-130s
+  "ai.risk_synthesis":        { start: 95, end: 97, estSeconds: 15 },
+  "ai.compiling":             { start: 97, end: 99, estSeconds: 30 },
 };
 
 function computeWeightedProgress(
@@ -242,10 +242,18 @@ function computeWeightedProgress(
     const range = AI_STATUS_RANGES[aiStatus];
     if (aiStatusStartedAt !== null) {
       const elapsed = (Date.now() - aiStatusStartedAt) / 1000;
-      const fraction = Math.min(1, elapsed / range.estSeconds);
-      // Ease-out curve: fast initial progress, slows near the end
-      const eased = 1 - Math.pow(1 - fraction, 2);
-      aiProgress = range.start + (range.end - range.start) * eased;
+      const fraction = elapsed / range.estSeconds;
+      if (fraction <= 1) {
+        // Ease-out curve: fast initial progress, slows near the end
+        const eased = 1 - Math.pow(1 - fraction, 2);
+        aiProgress = range.start + (range.end - range.start) * eased;
+      } else {
+        // Past estimated duration: creep asymptotically toward end,
+        // never freezing at exactly end% — keeps bar moving slowly
+        const overshoot = fraction - 1;
+        const creep = 1 - Math.exp(-overshoot * 0.15);
+        aiProgress = range.start + (range.end - range.start) * (1 - 0.5 * (1 - creep));
+      }
     } else {
       aiProgress = range.start;
     }
@@ -328,8 +336,15 @@ function PhaseProgress({
   // Track when the current AI status first appeared (for time-based interpolation)
   const aiStatusRef = useRef<string | null>(null);
   const aiStatusStartedRef = useRef<number | null>(null);
-  const [displayProgress, setDisplayProgress] = useState(0);
-  const displayRef = useRef(0);
+  // Initialize progress from current AI status range start (avoids 0% on remount/refresh)
+  const _initialProgress = (() => {
+    if (isTerminal) return 100;
+    if (aiStatus && aiStatus in AI_STATUS_RANGES) return AI_STATUS_RANGES[aiStatus].start;
+    if (sourcesTotal > 0) return (sourcesCompleted / sourcesTotal) * PHASE_WEIGHTS.scraping;
+    return 0;
+  })();
+  const [displayProgress, setDisplayProgress] = useState(_initialProgress);
+  const displayRef = useRef(_initialProgress);
   useEffect(() => { displayRef.current = displayProgress; }, [displayProgress]);
 
   // Reset timer when AI status changes
