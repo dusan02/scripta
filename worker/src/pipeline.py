@@ -729,13 +729,13 @@ async def run_and_save_audit_verdict(
             logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)
             verdict = _build_fallback_verdict(company_dict, scorecard, report_language=report_language)
 
-        # ── Report QA Agent (Flash) — verifikácia verdiktu proti zdrojovým dátam ──
+        # ── Report QA Agent (Pro) — verifikácia verdiktu proti zdrojovým dátam ──
         qa_discrepancies = []
         try:
             verdict_json = json.dumps(verdict.model_dump(), default=str, ensure_ascii=False)
             qa_result = await safe_llm_call(
                 verify_report_quality, verdict_json, company_data,
-                model=_cfg.model_fallback, label="Report QA Agent",
+                model=_cfg.model_verdict, label="Report QA Agent",
                 report_language=report_language,
             )
             if qa_result and not qa_result.overall_ok:

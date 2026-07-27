@@ -563,9 +563,7 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
     steps.append({'name': i.get('chart_revenue', 'Tržby'), 'measure': 'absolute', 'y': revenue})
     if gross is not None and gross != 0:
         cogs = revenue - gross
-        # Skip COGS bar when it nearly equals revenue (gross margin < 5%)
-        # — otherwise the COGS bar visually overlaps the revenue bar completely
-        if cogs > 0 and abs(cogs) < 0.95 * abs(revenue):
+        if cogs > 0:
             steps.append({'name': 'COGS', 'measure': 'relative', 'y': -cogs})
         steps.append({'name': i.get('sankey_gross_margin_short', 'Hrubá marža'), 'measure': 'total'})
     else:
@@ -579,6 +577,19 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
         steps.append({'name': i.get('sankey_depreciation', 'Odpisy'), 'measure': 'relative', 'y': -abs(depreciation)})
     if interest is not None and interest != 0:
         steps.append({'name': i.get('sankey_interest', 'Úroky'), 'measure': 'relative', 'y': -abs(interest)})
+
+    # Bridge step: "Other operating income/expenses" — rozdiel medzi
+    # gross - staff - dep - interest a net profit. Môže byť kladný (náklady)
+    # alebo záporný (výnosy). Bez tohto kroku waterfall matematika nesedí.
+    if gross is not None and net is not None:
+        known_costs = abs(staff or 0) + abs(depreciation or 0) + abs(interest or 0)
+        other_opex = gross - net - known_costs
+        if abs(other_opex) > max(abs(revenue) * 0.001, 100):
+            if other_opex > 0:
+                steps.append({'name': i.get('sankey_other_opex', 'Ostatné náklady'), 'measure': 'relative', 'y': -other_opex})
+            else:
+                steps.append({'name': i.get('sankey_other_income', 'Ostatné výnosy'), 'measure': 'relative', 'y': abs(other_opex)})
+
     if net is not None:
         steps.append({'name': i.get('sankey_net_profit_short', 'Čistý zisk'), 'measure': 'total'})
 
