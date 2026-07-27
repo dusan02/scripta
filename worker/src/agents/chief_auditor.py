@@ -24,6 +24,7 @@ class AuditVerdict(BaseModel):
     zdovodnenie: list[EvidenceItem] = Field(..., description="Analytické zdôvodnenie skóre. Zoznam tvrdení, dôkazov a zdrojov.")
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
     llm_analysis_status: Literal["LLM_ANALYZED", "FALLBACK_ALGORITHMIC"] = Field(default="LLM_ANALYZED", description="Status analýzy: LLM_ANALYZED = Chief Auditor vygeneroval posudok, FALLBACK_ALGORITHMIC = LLM zlyhal, použité deterministické skóre.")
+    white_horse_risk_dismissed: bool = Field(default=False, description="Nastav na true ak firma má vysoký počet zmien štatutárov ale tieto sú bežná korporátna rotácia (veľká firma s tržbami >10M, zisková, žiadne iné schránkové znaky). Ak true, algoritmus zruší ORSR penalizáciu.")
 
 CHIEF_AUDITOR_PROMPT_SK = f"""Si Chief Risk Officer & Head of Forensics @ Verifa.sk. Tvojou úlohou je prijať extrahované dáta (od Extraction Engine) a zistenia (od Forensic, Risk a Legal agentov) a syntetizovať ich do definitívneho verdiktu. Nevyťahuješ hrubé dáta, ale vykonávaš definitívne vyhodnotenie integrity a celkového rizika úpadku či podvodov spoločnosti na základe podkladov od svojho tímu a na základe štruktúrovaných CompanyEvents z PDF Reader Agent (súdne rozhodnutia, insolvencie, exekúcie, daňové nedoplatky, poisťovne, verejné zmluvy).
 
@@ -62,6 +63,14 @@ PROCES HODNOTENIA A SYNTÉZY:
    - V poli `verifa_score` vrátiš PRESNE hodnotu `algorithmic_prescore` — bez akejkoľvek zmeny.
    - V poli `llm_score_adjustment` uvedieš forenzný adjustment v rozsahu -10 až +10 bodov. Tento adjustment sa pripočíta k `algorithmic_prescore` pre finálne `verifaScore` v databáze. Preto buď konzervatívny — používaj ho len pri jasných forenzných zisteniach, ktoré algoritmus nezachytil (napr. -5 za aktívne exekúcie v PDF, +3 za silné pozitívne naratívne signály). Nenulový adjustment musí byť zdôvodnený v `zdovodnenie`.
    - Priraď kategóriu rizika podľa `algorithmic_prescore` + tvoj adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
+
+PRAVIDLÁ PRE ORSR / BIELY KÔŇ:
+- Ak firma má vysoký počet zmien štatutárov (napr. 50+) ALE sú splnené ALL tieto podmienky:
+  * tržby > 10 mil. € (veľká firma)
+  * firma je dlhodobo zisková
+  * žiadne iné schránkové znaky (virtuálne sídlo, zahraničný štatutár, nulový počet zamestnancov)
+  potom nastav `white_horse_risk_dismissed = true`. Tým povieš algoritmu, aby zrušil ORSR penalizáciu, keďže zmeny sú bežná korporátna rotácia.
+- V opačnom prípade nechaj `white_horse_risk_dismissed = false`.
 
 PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
@@ -116,6 +125,14 @@ EVALUATION AND SYNTHESIS PROCESS:
    - In the `llm_score_adjustment` field, state the forensic adjustment in the range -10 to +10 points. This adjustment is added to `algorithmic_prescore` for the final `verifaScore` in the database. Therefore be conservative — only use it for clear forensic findings that the algorithm did not capture (e.g. -5 for active enforcement actions in PDF, +3 for strong positive narrative signals). Non-zero adjustment must be justified in `zdovodnenie`.
    - Assign risk category based on `algorithmic_prescore` + your adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
+ORSR / WHITE HORSE RULES:
+- If the company has a high number of statutory changes (e.g. 50+) BUT ALL of these conditions are met:
+  * revenue > 10M EUR (large company)
+  * company is consistently profitable
+  * no other shell company indicators (virtual seat, foreign statutory, zero employees)
+  then set `white_horse_risk_dismissed = true`. This tells the algorithm to remove the ORSR penalty since changes are normal corporate rotation.
+- Otherwise leave `white_horse_risk_dismissed = false`.
+
 OUTPUT RULES:
 - You must fill the Pydantic schema `AuditVerdict`.
 - `verifa_score` = `algorithmic_prescore` (without change — violating this rule causes an error).
@@ -166,6 +183,14 @@ BEWERTUNGS- UND SYNTHESPROZESS:
    - `verifa_score` = `algorithmic_prescore` (ohne Änderung).
    - `llm_score_adjustment` im Bereich -10 bis +10. Diese Anpassung wird zu `algorithmic_prescore` für den endgültigen `verifaScore` in der Datenbank addiert. Seien Sie konservativ — verwenden Sie sie nur für klare forensische Erkenntnisse, die der Algorithmus nicht erfasst hat (z.B. -5 für aktive Zwangsvollstreckungen im PDF, +3 für starke positive narrative Signale). Eine Nicht-Null-Anpassung muss in `zdovodnenie` begründet werden.
    - Risikokategorie basierend auf `algorithmic_prescore` + Ihrer Anpassung: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
+
+ORSR / WEIßES PFERD REGELN:
+- Wenn das Unternehmen eine hohe Anzahl von Statutaränderungen hat (z.B. 50+) ABER ALLE diese Bedingungen erfüllt sind:
+  * Umsatz > 10 Mio. EUR (großes Unternehmen)
+  * Unternehmen ist konsistent profitabel
+  * keine anderen Briefkastenfirmen-Indikatoren (virtueller Sitz, ausländischer Statutar, null Mitarbeiter)
+  dann setzen Sie `white_horse_risk_dismissed = true`. Dies teilt dem Algorithmus mit, die ORSR-Strafe zu entfernen, da die Änderungen normale Unternehmensrotation sind.
+- Andernfalls lassen Sie `white_horse_risk_dismissed = false`.
 
 AUSGABEREGELN:
 - Füllen Sie das Pydantic-Schema `AuditVerdict` aus.

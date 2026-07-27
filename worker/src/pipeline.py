@@ -772,9 +772,24 @@ async def run_and_save_audit_verdict(
         # Fallback na verdict.verifa_score len ak neexistujú finančné výkazy (firma bez dát).
         deterministic_score = scorecard.total_score if scorecard is not None else verdict.verifa_score
         llm_adj = getattr(verdict, "llm_score_adjustment", 0) or 0
+
+        # ── ORSR White Horse override ──────────────────────────────────────────
+        # Ak LLM (Chief Auditor) nastaví white_horse_risk_dismissed=True,
+        # zrušíme ORSR forenznú penalizáciu z deterministic_score.
+        wh_dismissed = getattr(verdict, "white_horse_risk_dismissed", False)
+        wh_refund = 0
+        if wh_dismissed and scorecard is not None:
+            for p in scorecard.pillars:
+                if "ORSR" in p.name and p.score < 0:
+                    wh_refund += abs(p.score)
+                    logger.info(f"[WHITE HORSE OVERRIDE] IČO {ico}: LLM dismissed white horse risk — refunding {abs(p.score)}b ORSR penalty")
+            if wh_refund > 0:
+                deterministic_score = min(100, deterministic_score + wh_refund)
+
         logger.info(
             f"Ukladám AuditVerdict pre IČO {ico}: "
-            f"Score={deterministic_score} (algo), LLM_adj={llm_adj:+d}, "
+            f"Score={deterministic_score} (algo{f'+{wh_refund}b WH override' if wh_refund else ''}), "
+            f"LLM_adj={llm_adj:+d}, "
             f"Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}"
         )
 

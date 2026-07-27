@@ -882,6 +882,9 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         if is_big_corp and stat_changes > 0:
             if ev_sev in ["CRITICAL", "HIGH"]:
                 ev_sev = "INFO"
+            # Big corp (>10M revenue) with many statutory changes is normal
+            # corporate rotation — skip threshold-based penalty entirely
+            stat_changes = 0
 
         if ev_sev == "CRITICAL":
             orsr_forensic_penalty += 3
