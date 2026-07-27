@@ -199,7 +199,7 @@ async def extract_company_events(
 
     Args:
         pdf_texts: zoznam (label, text) dvojíc — label je názov súboru, text je extrahovaný obsah
-        model: LLM model (default: gemini-2.5-flash)
+        model: LLM model (default: gemini-3.5-flash-lite)
     """
     prompts = {
         "sk": PDF_READER_PROMPT_SK,
