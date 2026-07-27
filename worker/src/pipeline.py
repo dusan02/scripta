@@ -617,17 +617,29 @@ async def run_and_save_audit_verdict(
 
         # Extrahuj findings z registry sources pre LLM kontext
         registry_findings = []
+        registry_status_summary = []
         for src in (registry_sources or []):
-            if not src or not getattr(src, 'findings', None):
+            if not src:
                 continue
             src_type = getattr(src, 'source_type', 'UNKNOWN')
             src_status = getattr(src, 'status', 'UNKNOWN')
+            src_findings = getattr(src, 'findings', None) or ""
             if src_status != "SUCCESS":
                 continue
             registry_findings.append({
                 "source_type": src_type,
-                "findings": src.findings[:2000] if isinstance(src.findings, str) else str(src.findings)[:2000],
+                "findings": src_findings[:2000] if isinstance(src_findings, str) else str(src_findings)[:2000],
             })
+            # Build explicit status summary for anti-hallucination grounding
+            is_clean = any(kw in src_findings.lower() for kw in [
+                "žiadny záznam", "bez záznamu", "nie je v zozname", "nebolo nájdené",
+                "no record", "not in the list", "žiadne poverenie",
+                "nemá negatívne", "nie je evidovaný",
+            ])
+            if is_clean:
+                registry_status_summary.append(f"{src_type}: CLEAN (žiadny záznam o dlhu/exekúcii)")
+            else:
+                registry_status_summary.append(f"{src_type}: RECORD_FOUND")
 
         cross_input_dict = {
             "ico": company_dict.get("ico"),
@@ -640,6 +652,7 @@ async def run_and_save_audit_verdict(
             "vestnikEvents": company_dict.get("vestnikEvents", []),
             "companyEvents": company_dict.get("companyEvents", []),
             "registryFindings": registry_findings,
+            "registryStatusSummary": registry_status_summary,
             **({"_agent_warnings": [
                 f"POZOR: Agent '{a}' zlyhal počas analýzy — jeho výstupy môžu chýbať. "
                 f"Zváž zníženie istoty skóre."
@@ -793,10 +806,132 @@ async def run_and_save_audit_verdict(
             'llmScoreAdjustment': llm_adj,
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
+
+        # ── Deterministická anti-halucinácia: odstráň fiktívne dlhy z verdict textu ──
+        # Ak LLM spomenie konkrétne sumy dlhov voči registrom, ktoré sú CLEAN,
+        # tieto pasáže nahradíme varovaním o halucinácii.
+        verdict_payload = _strip_hallucinated_debts(verdict_payload, registry_status_summary, ico)
         await save_audit_verdict(ico, verdict_payload)
 
     except Exception as e:
         logger.error(f"Chyba pri generovaní AuditVerdict pre IČO {ico}: {e}", exc_info=True)
+
+
+def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str], ico: str) -> dict:
+    """
+    Deterministická anti-halucinácia: skenuje verdict text pre konkrétne EUR sumy
+    spomenuté v kontexte dlhov voči registrom, ktoré sú CLEAN.
+    Ak nájde pasáž kde LLM tvrdí konkrétny dlh voči CLEAN registru, nahradí ju.
+    """
+    clean_registries = set()
+    for s in (registry_status_summary or []):
+        if "CLEAN" in s:
+            # Extract registry name before colon
+            reg_name = s.split(":")[0].strip()
+            clean_registries.add(reg_name)
+
+    if not clean_registries:
+        return payload
+
+    # Map registry names to keywords that would appear in verdict text
+    # if LLM hallucinated a debt for that registry
+    registry_keywords = {
+        "SP_DLZNICI": ["sociálna poisťovňa", "sociálne poistenie", "záväzky sp", "dlžoba sp", "sp dlh"],
+        "DOVERA_DLZNICI": ["dôvera", "dovera"],
+        "VSZP_DLZNICI": ["všzp", "všeslovenská"],
+        "UNION_DLZNICI": ["union", "union poisťovňa"],
+        "FINANCNA_SPRAVA": ["finančná správa", "daňové nedoplatky", "daňový dlh", "finančná správe"],
+        "POVERENIA": ["exekúcia", "exekúcie", "poverenie na vykonanie exekúcie"],
+    }
+
+    # Pattern to find EUR amounts: "578 397,78 EUR" or "578397.78 €" or "160 000 €" etc.
+    eur_pattern = re.compile(r'(\d[\d\s]*[.,]?\d*\s*(?:EUR|€|Eur))', re.IGNORECASE)
+
+    text_fields = ['finalVerdict', 'executiveSummary', 'keyRisk']
+    modified = False
+
+    for field in text_fields:
+        text = payload.get(field, "")
+        if not text or not isinstance(text, str):
+            continue
+
+        original_text = text
+        for reg_name in clean_registries:
+            keywords = registry_keywords.get(reg_name, [])
+            if not keywords:
+                continue
+
+            # Check if any keyword appears near an EUR amount in the text
+            for kw in keywords:
+                kw_lower = kw.lower()
+                text_lower = text.lower()
+                kw_pos = text_lower.find(kw_lower)
+                while kw_pos != -1:
+                    # Look for EUR amount within 200 chars of the keyword
+                    window_start = max(0, kw_pos - 200)
+                    window_end = min(len(text), kw_pos + len(kw) + 200)
+                    window = text[window_start:window_end]
+                    matches = eur_pattern.findall(window)
+                    if matches:
+                        # Found EUR amount near keyword for a CLEAN registry — hallucination
+                        logger.warning(
+                            f"[ANTI-HALLUCINATION] IČO {ico}: Found EUR amount {matches} near "
+                            f"'{kw}' (registry {reg_name} is CLEAN) — stripping from {field}"
+                        )
+                        # Replace the entire sentence containing the keyword
+                        # Find sentence boundaries
+                        sent_start = text.rfind('.', 0, kw_pos)
+                        sent_start = sent_start + 1 if sent_start != -1 else max(0, kw_pos - 100)
+                        sent_end = text.find('.', kw_pos + len(kw))
+                        sent_end = sent_end + 1 if sent_end != -1 else min(len(text), kw_pos + 200)
+                        sentence = text[sent_start:sent_end].strip()
+                        replacement = (
+                            f" [Pozn.: Verejné registre ({reg_name}) neobsahujú záznam o dlhu — "
+                            f"údaj o sume bol automaticky odstránený ako halucinácia LLM.]"
+                        )
+                        text = text[:sent_start] + replacement + text[sent_end:]
+                        modified = True
+                        break  # Don't search for more occurrences of this keyword
+                    kw_pos = text_lower.find(kw_lower, kw_pos + 1)
+
+        if text != original_text:
+            payload[field] = text
+
+    # Also check justification (JSON array of EvidenceItem)
+    just = payload.get('justification', '')
+    if just and isinstance(just, str):
+        try:
+            items = json.loads(just)
+            for item in items:
+                evidence = item.get('evidence', '')
+                claim = item.get('claim', '')
+                combined = f"{claim} {evidence}"
+                for reg_name in clean_registries:
+                    keywords = registry_keywords.get(reg_name, [])
+                    for kw in keywords:
+                        if kw.lower() in combined.lower():
+                            matches = eur_pattern.findall(combined)
+                            if matches:
+                                logger.warning(
+                                    f"[ANTI-HALLUCINATION] IČO {ico}: Found EUR amount {matches} in "
+                                    f"justification near '{kw}' (registry {reg_name} is CLEAN) — sanitizing"
+                                )
+                                item['evidence'] = (
+                                    f"[Pozn.: Register {reg_name} je CLEAN — pôvodný text obsahoval "
+                                    f"halucinovaný údaj o dlhu, ktorý bol automaticky odstránený.]"
+                                )
+                                item['impact'] = 'NEUTRAL'
+                                modified = True
+                                break
+            if modified:
+                payload['justification'] = json.dumps(items, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    if modified:
+        logger.warning(f"[ANTI-HALLUCINATION] IČO {ico}: Verdict text bol upravený — odstránené halucinované dlhy z CLEAN registrov")
+
+    return payload
 
 
 def _remaining_eta(t_start: float, baseline: float) -> int:

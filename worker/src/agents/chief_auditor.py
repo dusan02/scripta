@@ -67,6 +67,8 @@ PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
 - `verifa_score` = `algorithmic_prescore` (bez zmeny — porušenie tohto pravidla spôsobí chybu).
 - ZÁKAZ HALUCINOVANIA: NIKDY neuvádzaj vo verdikte čísla (napr. počet zmien štatutárov, výšky tržieb), ktoré nie sú EXPLICITNE uvedené v poskytnutých zdrojových dátach. Ak vstupné dáta hovoria o 37 zmenách štatutárov, nepoužívaj svoje externé znalosti na úpravu tohto čísla (napr. na 107). Použi výlučne poskytnuté údaje.
+
+KRITICKÉ PRAVIDLO PRE REGISTRE DLŽNÍKOV: V `registryStatusSummary` nájdeš explicitný zoznam stavu každého registra. Ak je pre register (napr. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) uvedené 'CLEAN', znamená to že firma NEMÁ žiadny záznam v tom registri. NIKDY neuvádzaj v texte konkrétne sumy dlhov voči týmto inštitúciám, ak je register označený ako CLEAN. Neuvádzaj ani exekúcie, ak POVERENIA je CLEAN. Tieto registre sú autoritatívne — ak nehovoria o dlhu, dlh neexistuje.
 - V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
 - Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelenie a vážný finančný stres, NEUTRAL pre neutrálne info).
 - Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
@@ -118,6 +120,8 @@ OUTPUT RULES:
 - You must fill the Pydantic schema `AuditVerdict`.
 - `verifa_score` = `algorithmic_prescore` (without change — violating this rule causes an error).
 - NO HALLUCINATION: NEVER mention numbers in the verdict (e.g. number of director changes, revenue amounts) that are not EXPLICITLY stated in the provided source data. If input data says 37 director changes, do not use your external knowledge to change this number (e.g. to 107). Use exclusively the provided data.
+
+CRITICAL RULE FOR DEBT REGISTERS: In `registryStatusSummary` you will find an explicit list of each registry's status. If a registry (e.g. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) is marked as 'CLEAN', it means the company has NO record in that registry. NEVER mention specific debt amounts to these institutions if the registry is marked CLEAN. Never mention enforcement actions if POVERENIA is CLEAN. These registries are authoritative — if they report no debt, no debt exists.
 - In the 'zdovodnenie' field, return a list of `EvidenceItem` objects.
 - For each `EvidenceItem` you MUST assign the correct `impact` (POSITIVE for good news, WARNING for warnings, CRITICAL for enforcement actions, tunneling and serious financial stress, NEUTRAL for neutral info).
 - For each of the 5 pillars, find at least one strong piece of evidence.
@@ -167,6 +171,8 @@ AUSGABEREGELN:
 - Füllen Sie das Pydantic-Schema `AuditVerdict` aus.
 - `verifa_score` = `algorithmic_prescore` (ohne Änderung — Verstoß verursacht Fehler).
 - KEINE HALLUZINATIONEN: NIE Zahlen im Gutachten erwähnen (z.B. Anzahl der Geschäftsführerwechsel, Umsatzhöhen), die nicht EXPLIZIT in den bereitgestellten Quelldaten angegeben sind.
+
+KRITISCHE REGEL FÜR SCHULDNERREGISTER: In `registryStatusSummary` finden Sie eine explizite Liste des Status jedes Registers. Wenn ein Register (z.B. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) als 'CLEAN' markiert ist, bedeutet dies, dass das Unternehmen KEINEN Eintrag in diesem Register hat. ERWÄHNEN SIE NIEMALS spezifische Schuldbeträge gegenüber diesen Institutionen, wenn das Register als CLEAN markiert ist. Erwähnen Sie keine Zwangsvollstreckungen, wenn POVERENIA CLEAN ist. Diese Register sind autoritativ — wenn sie keine Schulden melden, existieren keine Schulden.
 - Im Feld 'zdovodnenie' geben Sie eine Liste von `EvidenceItem`-Objekten zurück.
 - Für jedes `EvidenceItem` MÜSSEN Sie den richtigen `impact` zuweisen (POSITIVE für gute Nachrichten, WARNING für Warnungen, CRITICAL für Zwangsvollstreckungen, Tunneling und ernsthafte finanzielle Belastung, NEUTRAL für neutrale Infos).
 - Für jede der 5 Säulen finden Sie mindestens ein starkes Beweisstück.
