@@ -502,13 +502,21 @@ def _matplotlib_waterfall(steps, title, lang="sk"):
             ax.text(idx, base - max(bar_y) * 0.02, label, ha='center', va='top',
                     fontsize=9, color='#475569', fontweight='medium')
 
-    # Connector lines between bars
+    # Connector lines between bars (dashed line from top of current bar
+    # to the base of the next bar, showing the cascade flow)
     for idx in range(n - 1):
-        if steps[idx]['measure'] == 'absolute' or steps[idx]['measure'] == 'relative':
-            left_top = bar_base[idx] + bar_y[idx] if steps[idx].get('y', 0) >= 0 else bar_base[idx]
-            right_base = bar_base[idx + 1]
-            ax.plot([idx + 0.3, idx + 0.7], [left_top, left_top],
-                    color='#94a3b8', linewidth=0.8, linestyle='--')
+        cur = steps[idx]
+        cur_val = cur.get('y', 0)
+        if cur['measure'] == 'absolute':
+            connector_y = cur_val
+        elif cur['measure'] == 'relative':
+            connector_y = bar_base[idx] if cur_val < 0 else bar_base[idx] + bar_y[idx]
+        elif cur['measure'] == 'total':
+            connector_y = bar_base[idx] + bar_y[idx] if bar_y[idx] >= 0 else bar_base[idx]
+        else:
+            continue
+        ax.plot([idx + 0.3, idx + 0.7], [connector_y, connector_y],
+                color='#94a3b8', linewidth=0.8, linestyle='--')
 
     ax.set_xticks(x_pos)
     ax.set_xticklabels(x_labels, fontsize=9, color='#64748b')
@@ -517,11 +525,13 @@ def _matplotlib_waterfall(steps, title, lang="sk"):
     from matplotlib.ticker import FuncFormatter
     _max_abs = max(abs(v) for v in bar_y) if bar_y else 0
     if _max_abs >= 1_000_000:
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e6:.0f}M'))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e6:.1f}M'))
     elif _max_abs >= 10_000:
         ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e3:.0f}k'))
-    else:
+    elif _max_abs >= 1_000:
         ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e3:.1f}k'))
+    else:
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x:.0f}'))
     ax.grid(axis='y', color='#e2e8f0', linewidth=0.5, alpha=0.7)
     ax.set_axisbelow(True)
     ax.spines['top'].set_visible(False)
@@ -555,6 +565,10 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
         cogs = revenue - gross
         if cogs > 0:
             steps.append({'name': 'COGS', 'measure': 'relative', 'y': -cogs})
+        steps.append({'name': i.get('sankey_gross_margin_short', 'Hrubá marža'), 'measure': 'total'})
+    else:
+        # No gross profit data — add a total step as anchor so subsequent
+        # costs cascade properly instead of hanging in the air
         steps.append({'name': i.get('sankey_gross_margin_short', 'Hrubá marža'), 'measure': 'total'})
 
     if staff is not None and staff != 0:
