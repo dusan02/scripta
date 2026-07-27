@@ -561,9 +561,11 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
 
     steps = []
     steps.append({'name': i.get('chart_revenue', 'Tržby'), 'measure': 'absolute', 'y': revenue})
-    if gross is not None:
+    if gross is not None and gross != 0:
         cogs = revenue - gross
-        if cogs > 0:
+        # Skip COGS bar when it nearly equals revenue (gross margin < 5%)
+        # — otherwise the COGS bar visually overlaps the revenue bar completely
+        if cogs > 0 and abs(cogs) < 0.95 * abs(revenue):
             steps.append({'name': 'COGS', 'measure': 'relative', 'y': -cogs})
         steps.append({'name': i.get('sankey_gross_margin_short', 'Hrubá marža'), 'measure': 'total'})
     else:

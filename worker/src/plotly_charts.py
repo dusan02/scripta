@@ -106,12 +106,10 @@ def generate_balance_sheet_chart(statements, lang="sk") -> str:
     ))
     fig.add_trace(go.Scatter(
         x=years, y=debt, name=i.get('chart_total_debt', 'Celkový Dlh'), mode='lines+markers',
-        fill='tozeroy', fillcolor='rgba(225,29,72,0.05)',
         line=dict(color='#e11d48', width=3, shape='spline'), marker=dict(size=8, symbol='triangle-up')
     ))
     fig.add_trace(go.Scatter(
         x=years, y=equity, name=i.get('chart_equity', 'Vlastné Imanie'), mode='lines+markers',
-        fill='tozeroy', fillcolor='rgba(16,185,129,0.05)',
         line=dict(color='#10b981', width=3, shape='spline'), marker=dict(size=8, symbol='square')
     ))
 
