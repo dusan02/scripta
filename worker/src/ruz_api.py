@@ -308,7 +308,7 @@ async def _process_zavierka(
     period = _period_from_dict(z)
     year = _year_from_period(period) or str(z.get("obdobieDo", "")[:4] or "")
     konsolidovana = z.get("konsolidovana", False)
-    ftype = "IFRS"
+    ftype = "IFRS" if konsolidovana else "SKGAAP"
 
     vykaz_ids: list[int] = z.get("idUctovnychVykazov", [])
     logger.info(f"[RUZ_API] Závierka {year} (kons={konsolidovana}): {len(vykaz_ids)} výkazov")
@@ -460,59 +460,6 @@ def _format_vykaz_tables(vykaz: dict) -> str:
                     parts.append(" | ".join(cleaned))
                 elif isinstance(row, str):
                     parts.append(row)
-
-    # ── Extrakcia štátnych záväzkov zo šablóny Úč POD (699 a kompatibilné) ──
-    # Šablóna 699 "Strana pasív" Tab 1: pozičné indexy sú deterministické:
-    #   index 52 = riadok 131 — Záväzky voči zamestnancom (331, 333, 33X, 479A)
-    #   index 53 = riadok 132 — Záväzky zo sociálneho poistenia (336A)
-    #   index 54 = riadok 133 — Daňové záväzky a dotácie (341-347, 34X)
-    # Toto sú kľúčové rizikové indikátory (trestná zodpovednosť štatutára).
-    _PASIV_TAB_INDEX = 1  # "Strana pasív" je vždy druhá tabuľka
-    _IDX_ZAMESTNANCI = 52
-    _IDX_SP = 53
-    _IDX_DAN = 54
-
-    if len(tabs) > _PASIV_TAB_INDEX:
-        pasiv_data = tabs[_PASIV_TAB_INDEX].get("data", [])
-        state_parts = []
-
-        # Detect flat data format (scalars instead of lists)
-        _is_flat = pasiv_data and not isinstance(pasiv_data[0], list)
-        _pasiv_cols = 2 if _is_flat else 1
-
-        def _get_val(idx: int) -> Optional[float]:
-            if _is_flat:
-                flat_idx = idx * _pasiv_cols
-                if flat_idx < len(pasiv_data):
-                    raw = pasiv_data[flat_idx]
-                    try:
-                        return float(raw) if raw not in (None, "", " ") else None
-                    except (ValueError, TypeError):
-                        return None
-            elif idx < len(pasiv_data):
-                raw = pasiv_data[idx]
-                try:
-                    if isinstance(raw, list):
-                        raw = raw[0] if raw else None
-                    return float(raw) if raw not in (None, "", " ") else None
-                except (ValueError, TypeError):
-                    return None
-            return None
-
-        zam = _get_val(_IDX_ZAMESTNANCI)
-        sp = _get_val(_IDX_SP)
-        dan = _get_val(_IDX_DAN)
-
-        if zam is not None and zam > 0:
-            state_parts.append(f"Záväzky voči zamestnancom: {int(zam):,} EUR".replace(",", " "))
-        if sp is not None and sp > 0:
-            state_parts.append(f"Záväzky zo sociálneho poistenia: {int(sp):,} EUR".replace(",", " "))
-        if dan is not None and dan > 0:
-            state_parts.append(f"Daňové záväzky a dotácie: {int(dan):,} EUR".replace(",", " "))
-
-        if state_parts:
-            parts.append("\n--- ZÁVÄZKY VOČI ŠTÁTU A SP (RIZIKOVÉ INDIKÁTORY) ---")
-            parts.extend(state_parts)
 
     return "\n".join(parts) if len(parts) > 2 else ""
 

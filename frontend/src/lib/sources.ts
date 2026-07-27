@@ -70,6 +70,36 @@ export const SOURCE_MAP: Record<string, SourceInfo> = Object.fromEntries(
 
 export const DEFAULT_SELECTED_SOURCES = ENABLED_SOURCES.map(s => s.id);
 
+export const MANUAL_LOOKUP_URLS: Record<string, string> = {
+  ORSR: "https://www.orsr.sk/default.asp?lan=sk",
+  ZRSR: "https://www.zrsr.sk/default.aspx?lan=sk",
+  RPO: "https://www.rpo.sk/",
+  RPVS: "https://rpvs.gov.sk/rpvs/",
+  INSOLVENCY: "https://www.justice.gov.sk/Stranky/Registre/Registru-upadcov.aspx",
+  POVERENIA: "https://www.justice.gov.sk/Stranky/Registre/Exekucie.aspx",
+  FINANCNA_SPRAVA: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+  SP_DLZNICI: "https://www.socpoist.sk/obchodna-informacia/",
+  VSZP_DLZNICI: "https://www.vszp.sk/prehliadky-a-pojistne/pritomnost-na-trhu-pojistneho/zoznamy-dlznikov/",
+  DOVERA_DLZNICI: "https://www.dovera.sk/zoznam-dlznikov/",
+  UNION_DLZNICI: "https://www.unionzp.sk/zoznam-dlznikov/",
+  DISKVALIFIKACIE: "https://www.justice.gov.sk/Stranky/Registre/Registrovane-osoby.aspx",
+  ROZHODNUTIA: "https://www.slov-lex.sk/pravne-predpisy/sudy/",
+  OBCHODNY_VESTNIK: "https://www.slov-lex.sk/obchodny-vestnik/",
+  NCRZP: "https://www.ncz.sk/",
+  NCRD: "https://www.ncrd.sk/",
+  OCHRANNE_ZNAMKY: "https://www.upv.gov.sk/sk/registre/",
+  REGISTER_UZ: "https://www.registeruz.sk/",
+  CRZ: "https://www.crz.gov.sk/index.php/main/zmluvy/",
+  UVO: "https://www.uvo.gov.sk/evestnik",
+  FS_DANOVE_SUBJEKTY: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+  FS_DPH_REGISTROVANI: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+  FS_DPH_RUSENIE: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+  FS_DPH_VYMAZANI: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+  FS_DPH_NADMERNY_ODPOCET: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+  FS_DAN_Z_PRIJMOV: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+  FS_DAN_PRIJMOV_REG: "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+};
+
 export const SOURCE_DOT_COLOR: Record<string, string> = {
   SUCCESS:     "var(--success)",
   UNAVAILABLE: "var(--warning)",

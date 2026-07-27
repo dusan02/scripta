@@ -9,6 +9,7 @@ import CopyableText from "@/components/CopyableText";
 import Logo from "@/components/Logo";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { LOCALE_MAP } from "@/lib/i18n";
+import { MANUAL_LOOKUP_URLS } from "@/lib/sources";
 import toast from "react-hot-toast";
 
 interface ReportSource {
@@ -168,14 +169,25 @@ function ErrorDetails({ sources }: { sources: ReportSource[] }) {
       </button>
       {expanded && (
         <div className="px-4 py-3 space-y-2 fade-in">
-          {failedSources.map(s => (
-            <div key={s.sourceType} className="flex flex-col gap-0.5 py-1.5" style={{ borderBottom: "1px solid var(--border)" }}>
-              <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{s.sourceType}</span>
-              {s.statusMessage && (
-                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{s.statusMessage}</span>
-              )}
-            </div>
-          ))}
+          {failedSources.map(s => {
+            const url = MANUAL_LOOKUP_URLS[s.sourceType];
+            return (
+              <div key={s.sourceType} className="flex flex-col gap-0.5 py-1.5" style={{ borderBottom: "1px solid var(--border)" }}>
+                <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{s.sourceType}</span>
+                {s.statusMessage && (
+                  <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{s.statusMessage}</span>
+                )}
+                {url && (
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 hover:underline" style={{ color: "var(--info)" }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {t("report.manualLookup")}: {url.replace(/^https?:\/\//, "")}
+                  </a>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -311,7 +323,7 @@ function PhaseProgress({
     }, 1000);
     return () => clearInterval(interval);
   }, [startedAt, isTerminal]);
-  const showPatienceWarning = elapsedSec > 300 && !isTerminal;
+  const showPatienceWarning = elapsedSec > 600 && !isTerminal;
 
   // Track when the current AI status first appeared (for time-based interpolation)
   const aiStatusRef = useRef<string | null>(null);
@@ -423,7 +435,7 @@ function PhaseProgress({
         </div>
       )}
 
-      {/* Patience warning after 5 min */}
+      {/* Patience warning after 10 min */}
       {showPatienceWarning && (
         <div className="text-center mt-3 px-4 py-2.5 rounded-lg text-xs fade-in" style={{
           background: "var(--warning-bg)",

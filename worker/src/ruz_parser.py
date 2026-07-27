@@ -239,16 +239,25 @@ def _identify_tables(tables: list) -> dict[str, int]:
     """Identify table indices by their Slovak names.
 
     Returns a dict mapping 'aktiv', 'pasiv', 'income' to table indices.
+    Logs available table names if mandatory tables (aktiv/pasiv) are not found.
     """
     result = {}
     for i, tab in enumerate(tables):
         nazov = tab.get("nazov", {}).get("sk", "").lower()
-        if "strana akt" in nazov or "aktív" in nazov:
+        if "strana akt" in nazov or "aktív" in nazov or ("akt" in nazov and "pas" not in nazov):
             result["aktiv"] = i
-        elif "strana pas" in nazov or "pasív" in nazov:
+        elif "strana pas" in nazov or "pasív" in nazov or "pas" in nazov:
             result["pasiv"] = i
-        elif "ziskov a str" in nazov or "profit and loss" in nazov.lower():
+        elif "ziskov a str" in nazov or "profit and loss" in nazov or "výsledovka" in nazov:
             result["income"] = i
+
+    if "aktiv" not in result or "pasiv" not in result:
+        available = [t.get("nazov", {}).get("sk", "?") for t in tables]
+        logger.warning(
+            f"[RUZ_PARSER] Required tables not found (found: {list(result.keys())}). "
+            f"Available table names: {available}"
+        )
+
     return result
 
 
@@ -269,19 +278,27 @@ def _sanity_check(metrics: FinancialMetrics) -> list[str]:
     """Validate financial consistency. Returns list of warning messages."""
     warnings = []
 
-    # Check 1: assets == equity + total liabilities (short + long term)
+    # Check 1: assets ≈ equity + total liabilities
+    # Note: 'total liabilities' here is ST + LT only. Other liabilities (e.g. accruals,
+    # rows 140-145) are NOT captured by the parser, so we use a generous 15% tolerance
+    # before raising an error. A soft warning fires at 5%.
     assets = metrics.celkove_aktiva
     equity = metrics.vlastne_imanie_celkom
     total_liab = (metrics.dlhodobe_zavazky or 0) + (metrics.kratkodobe_zavazky or 0)
 
-    if assets is not None and equity is not None:
+    if assets is not None and equity is not None and abs(assets) > 0:
         expected_assets = equity + total_liab
         diff = abs(assets - expected_assets)
-        tolerance = max(abs(assets) * 0.01, 1.0)  # 1% or 1 EUR
-        if diff > tolerance:
+        rel = diff / abs(assets)
+        if rel > 0.15:
             warnings.append(
-                f"Balance sheet mismatch: assets={assets} vs equity+liabilities={expected_assets} "
-                f"(diff={diff:.2f})"
+                f"Balance sheet large mismatch: assets={assets:.0f} vs equity+liabilities={expected_assets:.0f} "
+                f"(diff={diff:.0f}, {rel*100:.1f}%) — possible parsing error or other liabilities"
+            )
+        elif rel > 0.05:
+            warnings.append(
+                f"Balance sheet minor gap: assets={assets:.0f} vs equity+liabilities={expected_assets:.0f} "
+                f"(diff={diff:.0f}, {rel*100:.1f}%) — likely accruals/other items not captured"
             )
 
     # Check 2: revenue should be non-negative
@@ -293,6 +310,34 @@ def _sanity_check(metrics: FinancialMetrics) -> list[str]:
         warnings.append(f"Personnel costs are negative: {metrics.osobne_naklady}")
 
     return warnings
+
+
+def _estimate_cf(
+    net_profit: Optional[float],
+    depreciation: Optional[float],
+    inventory_curr: Optional[float],
+    inventory_prev: Optional[float],
+    receivables_curr: Optional[float],
+    receivables_prev: Optional[float],
+    payables_curr: Optional[float],
+    payables_prev: Optional[float],
+) -> Optional[float]:
+    """Indirect-method operating cash flow estimate.
+
+    CF ≈ Net Profit + Depreciation - ΔInventory - ΔReceivables + ΔPayables
+    Returns None if required inputs are missing.
+    """
+    if net_profit is None or depreciation is None:
+        return None
+    cf = net_profit + depreciation
+    # Apply working capital adjustments only when both periods are available
+    if inventory_curr is not None and inventory_prev is not None:
+        cf -= (inventory_curr - inventory_prev)
+    if receivables_curr is not None and receivables_prev is not None:
+        cf -= (receivables_curr - receivables_prev)
+    if payables_curr is not None and payables_prev is not None:
+        cf += (payables_curr - payables_prev)
+    return round(cf, 2)
 
 
 # ── Main parser ───────────────────────────────────────────────────────────────
@@ -345,7 +390,11 @@ def parse_tables_to_metrics(
     if _preliminary_assets is not None and _preliminary_zam is not None:
         try:
             zam_int = int(float(_preliminary_zam))
-            if abs(_preliminary_assets) < 1000 and zam_int > 10:
+            # Heuristic: if assets < 5000 and employees > 5,
+            # the values are likely in thousands of EUR rather than EUR.
+            # Additional guard: assets per employee should be > 1 EUR if unit=EUR,
+            # so assets < 5000 with many employees strongly implies thousands.
+            if abs(_preliminary_assets) < 5000 and zam_int > 5:
                 unit_multiplier = 1000.0
                 logger.warning(
                     f"[RUZ_PARSER] IČO {ico}: detekované tisíce EUR "
@@ -361,6 +410,9 @@ def parse_tables_to_metrics(
         if m:
             try:
                 year = int(m.group(1))
+                if year > datetime.now().year + 1:
+                    logger.warning(f"[RUZ_PARSER] IČO {ico}: suspicious future year {year} from obdobieDo='{obdobie_do}' — skipping")
+                    return None
             except (ValueError, TypeError):
                 pass
     if year is None:
@@ -441,6 +493,32 @@ def parse_tables_to_metrics(
         zisk_po_zdaneni = zisk_po_zdaneni * unit_multiplier if zisk_po_zdaneni is not None else None
         hruba_marza = hruba_marza * unit_multiplier if hruba_marza is not None else None
 
+    # ── Estimate operating CF (indirect method) using current + previous period ──
+    # Previous period values are available in the same závierka JSON (Netto3 / Predchádzajúce columns)
+    peniaze_prev = _get_activ_value(ordered, ROW_CASH, current=False)
+    zasoby_prev = _get_activ_value(ordered, ROW_INVENTORY, current=False)
+    pohladavky_prev = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES, current=False)
+    zavazky_obchod_prev = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES, current=False)
+
+    # Apply unit multiplier to prev-period values too
+    if unit_multiplier != 1.0:
+        zasoby_prev = zasoby_prev * unit_multiplier if zasoby_prev is not None else None
+        pohladavky_prev = pohladavky_prev * unit_multiplier if pohladavky_prev is not None else None
+        zavazky_obchod_prev = zavazky_obchod_prev * unit_multiplier if zavazky_obchod_prev is not None else None
+
+    estimated_ocf = _estimate_cf(
+        net_profit=zisk_po_zdaneni,
+        depreciation=odpisy,
+        inventory_curr=zasoby,
+        inventory_prev=zasoby_prev,
+        receivables_curr=pohladavky,
+        receivables_prev=pohladavky_prev,
+        payables_curr=zavazky_obchod,
+        payables_prev=zavazky_obchod_prev,
+    )
+    if estimated_ocf is not None:
+        logger.debug(f"[RUZ_PARSER] IČO {ico} rok {year}: estimated OCF = {estimated_ocf:.0f} (indirect method)")
+
     # Build FinancialMetrics
     metrics = FinancialMetrics(
         rok_zavierky=year,
@@ -453,7 +531,7 @@ def parse_tables_to_metrics(
         hruba_marza=hruba_marza,
         zisk_alebo_strata_po_zdaneni=zisk_po_zdaneni,
         peniaze_a_penazne_ekvivalenty_k_31_12=peniaze,
-        ciste_penazne_toky_z_prevadzkovej_cinnosti=None,  # Not in Súvaha/Výkaz — needs cash flow statement
+        ciste_penazne_toky_z_prevadzkovej_cinnosti=estimated_ocf,  # Indirect-method estimate
         osobne_naklady=osobne_naklady,
         pohladavky_z_obchodneho_styku=pohladavky,
         zavazky_z_obchodneho_styku=zavazky_obchod,
@@ -483,8 +561,8 @@ def parse_tables_to_metrics(
     return metrics
 
 
-def parse_vykaz_to_metrics(vykaz: dict, ico: str) -> Optional[FinancialMetrics]:
-    """Parse a single výkaz JSON into FinancialMetrics.
+def _parse_single_vykaz(vykaz: dict, ico: str) -> Optional[FinancialMetrics]:
+    """Internal helper: parse a single výkaz JSON into FinancialMetrics.
 
     Args:
         vykaz: Full výkaz dict from RÚZ API (uctovny-vykaz)

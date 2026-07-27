@@ -229,6 +229,8 @@ _MANUAL_LOOKUP_URLS: dict[str, str] = {
     "FS_DPH_NADMERNY_ODPOCET": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
     "FS_DAN_Z_PRIJMOV": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
     "FS_DAN_PRIJMOV_REG": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "FINANCNA_SPRAVA": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
+    "POVERENIA": "https://www.justice.gov.sk/Stranky/Registre/Exekucie.aspx",
 }
 
 def format_findings(source, i18n=None) -> str:
