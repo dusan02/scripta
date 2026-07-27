@@ -371,7 +371,7 @@ class FinancnaSpravaBase(BaseScraper):
 
             # Ak sú výsledky, skúsime PDF export
             pdf_output = output_dir / f"{self.file_prefix}_{ico}.pdf"
-            downloaded = await self._download_pdf(page, pdf_output)
+            downloaded = await self._download_pdf(page, pdf_output, findings=findings)
             logger.debug(f"[{self.source_type}] ⏱ download_pdf: {time.perf_counter() - _t:.2f}s | CELKOM: {time.perf_counter() - _t0:.2f}s")
 
             if downloaded:
@@ -571,7 +571,7 @@ class FinancnaSpravaBase(BaseScraper):
                 continue
         return False
 
-    async def _download_pdf(self, page: Page, output_path: Path) -> bool:
+    async def _download_pdf(self, page: Page, output_path: Path, findings: Optional[str] = None) -> bool:
         """Klikne na 'Export do PDF' a uloží stiahnutý súbor. Podporuje popup + download + PDF print fallback."""
         try:
             export_locators = [

@@ -419,6 +419,22 @@ def _to_base64(fig, width, height):
         return ""
 
 
+def _adaptive_fmt(val: float) -> str:
+    """Format value adaptively based on magnitude.
+
+    Millions for >= 1M EUR, thousands for >= 1k EUR, raw EUR otherwise.
+    """
+    abs_val = abs(val)
+    if abs_val >= 1_000_000:
+        return f"{val / 1e6:.1f} M €"
+    elif abs_val >= 10_000:
+        return f"{val / 1e3:.0f}k €"
+    elif abs_val >= 1_000:
+        return f"{val / 1e3:.1f}k €"
+    else:
+        return f"{val:.0f} €"
+
+
 def _waterfall_to_bars(steps):
     """Convert waterfall steps to bar data with computed bases.
 
@@ -451,7 +467,7 @@ def _waterfall_to_bars(steps):
             bar_base.append(0)
             bar_y.append(running)
             bar_colors.append('#1e40af' if running >= 0 else '#ef4444')
-        bar_text.append(f"{val / 1e6:.1f} M €" if measure != 'total' else f"{running / 1e6:.1f} M €")
+        bar_text.append(_adaptive_fmt(val) if measure != 'total' else _adaptive_fmt(running))
     return bar_y, bar_base, bar_colors, bar_text
 
 
@@ -499,7 +515,13 @@ def _matplotlib_waterfall(steps, title, lang="sk"):
     ax.set_title(title, fontsize=13, color='#0f172a', fontweight='bold', pad=10)
     ax.tick_params(axis='y', labelsize=9, colors='#64748b')
     from matplotlib.ticker import FuncFormatter
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e6:.0f}M'))
+    _max_abs = max(abs(v) for v in bar_y) if bar_y else 0
+    if _max_abs >= 1_000_000:
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e6:.0f}M'))
+    elif _max_abs >= 10_000:
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e3:.0f}k'))
+    else:
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x/1e3:.1f}k'))
     ax.grid(axis='y', color='#e2e8f0', linewidth=0.5, alpha=0.7)
     ax.set_axisbelow(True)
     ax.spines['top'].set_visible(False)

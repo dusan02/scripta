@@ -31,7 +31,8 @@ job_log.txt
 results/
 test-results/
 worker/scratch/
-worker/assets/
+worker/assets/*
+!worker/assets/logo-verifa.png
 
 # Debug / one-off scripts
 progress.txt

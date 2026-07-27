@@ -88,7 +88,7 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
     def _empty_findings(self) -> str:
         return "Žiadny záznam v zozname daňových dlžníkov — subjekt nemá daňové nedoplatky."
 
-    async def _download_pdf(self, page: Page, output_path: Path) -> bool:
+    async def _download_pdf(self, page: Page, output_path: Path, findings: str = None) -> bool:
         """Generuje PDF z výsledkovej stránky pomocou print-to-PDF namiesto Export do PDF.
 
         Finančná správa otvára popup s PDF viewerom, ktorý page.pdf() nedokáže
@@ -96,9 +96,13 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
         _generate_clean_pdf (rovnaký prístup ako ostatné debtor scrapery).
         """
         try:
+            disclaimer_html = None
+            if findings and "POZOR" in findings:
+                disclaimer_html = findings.replace("\n", "<br/>")
             await self._generate_clean_pdf(
                 page, output_path,
                 title=self.pdf_title,
+                disclaimer_html=disclaimer_html,
                 content_selector="table, .table, .datagrid",
                 format="A4",
                 scale=0.9,
@@ -107,4 +111,4 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
             return True
         except Exception as e:
             logger.warning(f"[{self.source_type}] _generate_clean_pdf zlyhal, skúšam fallback _download_pdf: {e}")
-            return await super()._download_pdf(page, output_path)
+            return await super()._download_pdf(page, output_path, findings=findings)

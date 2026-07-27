@@ -340,6 +340,10 @@ async def _process_zavierka(
             text = _format_vykaz_tables(vykaz)
             if text:
                 extracted_tables.append(text)
+            else:
+                # Tables exist but are empty (0 rows) — fallback to PDF prílohy
+                pdfs = await _download_prilohy(vykaz.get("prilohy", []))
+                downloaded_pdfs.extend(pdfs)
         else:
             pdfs = await _download_prilohy(vykaz.get("prilohy", []))
             downloaded_pdfs.extend(pdfs)

@@ -111,7 +111,7 @@ def generate_balance_sheet_chart(statements, lang="sk") -> str:
     ))
     fig.add_trace(go.Scatter(
         x=years, y=equity, name=i.get('chart_equity', 'Vlastné Imanie'), mode='lines+markers',
-        fill='tonexty', fillcolor='rgba(16,185,129,0.05)',
+        fill='tozeroy', fillcolor='rgba(16,185,129,0.05)',
         line=dict(color='#10b981', width=3, shape='spline'), marker=dict(size=8, symbol='square')
     ))
 
