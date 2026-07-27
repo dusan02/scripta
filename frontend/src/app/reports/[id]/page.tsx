@@ -286,7 +286,7 @@ function PhaseProgress({
   const isScraping = !aiStatus || aiStatus === "ai.queued" || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
   const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
 
-  // Track AI status history as a log
+  // Track AI status history as a log (cap at 10 entries, show last 3)
   const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
   const lastStatusRef = useRef<string | null>(null);
   useEffect(() => {
@@ -298,7 +298,7 @@ function PhaseProgress({
         text: t(currentStatus),
         timestamp: Date.now(),
       };
-      setStatusLog(prev => [...prev, entry]);
+      setStatusLog(prev => [...prev, entry].slice(-10));
     }
   }, [aiStatus, t]);
 
@@ -405,14 +405,14 @@ function PhaseProgress({
         </div>
       )}
 
-      {/* Status history log */}
+      {/* Status history log — last 3 entries, no inner scroll */}
       {statusLog.length > 1 && (
-        <div className="w-full mt-3 max-h-32 overflow-y-auto rounded-lg p-2 text-xs font-mono" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
-          {statusLog.map((entry, i) => {
-            const isLast = i === statusLog.length - 1;
+        <div className="w-full mt-3 rounded-lg p-2 text-xs font-mono" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
+          {statusLog.slice(-3).map((entry, i, arr) => {
+            const isLast = i === arr.length - 1;
             const time = new Date(entry.timestamp).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
             return (
-              <div key={i} className="flex items-start gap-2 py-0.5" style={{ opacity: isLast ? 1 : 0.6 }}>
+              <div key={entry.timestamp} className="flex items-start gap-2 py-0.5" style={{ opacity: isLast ? 1 : 0.5 }}>
                 <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>[{time}]</span>
                 <span style={{ color: isLast ? "var(--success)" : "var(--text-muted)", fontWeight: isLast ? 500 : 400 }}>
                   {entry.text}
@@ -682,30 +682,16 @@ export default function ReportDetailPage() {
   const canCancel = !isFinished && cancelCountdown > 0 && report.status !== "CANCELLED";
 
   const score = report.verifaScore ?? 100;
-  let scoreColorText = "text-emerald-600";
-  let scoreColorBorder = "border-emerald-500";
-  let scoreBg = "bg-emerald-500";
-  
-  if (score < 50) {
-    scoreColorText = "text-red-600";
-    scoreColorBorder = "border-red-500";
-    scoreBg = "bg-red-500";
-  } else if (score < 80) {
-    scoreColorText = "text-amber-500";
-    scoreColorBorder = "border-amber-500";
-    scoreBg = "bg-amber-500";
-  }
+  const scoreColor = score < 50 ? "var(--danger)" : score < 80 ? "var(--warning)" : "var(--success)";
+  const scoreBgColor = score < 50 ? "var(--danger-bg)" : score < 80 ? "var(--warning-bg)" : "var(--success-bg)";
 
   return (
     <div className="max-w-[1000px] mx-auto px-4 sm:px-6 animate-fade-in" style={{ minHeight: "calc(100vh - 56px)" }}>
 
-      {/* ── TOP SECTION: Report header (fixed height, same as home page) ── */}
+      {/* ── TOP SECTION: Report header ── */}
       <section
         className="flex flex-col items-center justify-center px-2 pt-6 pb-5"
-        style={{
-          borderBottom: "1px solid var(--border)",
-          minHeight: "180px",
-        }}
+        style={{ borderBottom: "1px solid var(--border)" }}
       >
         {/* Breadcrumb */}
         <div className="flex items-center justify-between w-full mb-3">
@@ -714,7 +700,7 @@ export default function ReportDetailPage() {
               {t("report.overenieSubjektu")}
             </Link>
             <span style={{ color: "var(--border-strong)" }}>/</span>
-            <span className="font-mono" style={{ color: "var(--text-secondary)" }}>{params.id.slice(0, 8)}…</span>
+            <span className="font-mono hidden sm:inline" style={{ color: "var(--text-secondary)" }}>{params.id.slice(0, 8)}…</span>
           </div>
         </div>
 
@@ -752,7 +738,7 @@ export default function ReportDetailPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
             <div className="flex items-center gap-2">
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>{t("report.stav")}</span>
               <StatusBadge status={report.status} />
@@ -932,17 +918,17 @@ export default function ReportDetailPage() {
                     </div>
                     
                     {/* Mock Stamp */}
-                    <div className="mt-auto mb-auto relative w-24 h-24 shrink-0 flex items-center justify-center transform rotate-[-8deg] opacity-80">
-                      <div className={`absolute inset-0 rounded-full border-[2.5px] ${scoreColorBorder} border-dashed opacity-60`} />
-                      <div className={`absolute inset-[4px] rounded-full border-[1.5px] ${scoreColorBorder} opacity-90`} />
-                      <div className={`absolute inset-[12px] rounded-full border ${scoreColorBorder} border-dashed opacity-40`} />
+                    <div className="mt-auto mb-auto relative w-24 h-24 shrink-0 flex items-center justify-center transform rotate-[-8deg] opacity-90">
+                      <div className="absolute inset-0 rounded-full border-[2.5px] border-dashed opacity-60" style={{ borderColor: scoreColor }} />
+                      <div className="absolute inset-[4px] rounded-full border-[1.5px] opacity-90" style={{ borderColor: scoreColor, background: scoreBgColor }} />
+                      <div className="absolute inset-[12px] rounded-full border border-dashed opacity-40" style={{ borderColor: scoreColor }} />
                       
-                      <div className={`${scoreColorText} font-black text-[8px] tracking-widest absolute top-[18px]`}>★ VERIFA ★</div>
-                      <div className={`${scoreColorText} font-black text-2xl mt-1`}>
+                      <div className="font-black text-[8px] tracking-widest absolute top-[18px]" style={{ color: scoreColor }}>★ VERIFA ★</div>
+                      <div className="font-black text-2xl mt-1" style={{ color: scoreColor }}>
                         {score}
                       </div>
-                      <div className={`w-8 h-[2px] ${scoreBg} absolute bottom-7 opacity-50`} />
-                      <div className={`${scoreColorText} font-bold text-[7px] tracking-widest absolute bottom-[16px]`}>SKÓRE</div>
+                      <div className="w-8 h-[2px] absolute bottom-7 opacity-50" style={{ background: scoreColor }} />
+                      <div className="font-bold text-[7px] tracking-widest absolute bottom-[16px]" style={{ color: scoreColor }}>SKÓRE</div>
                     </div>
 
                     {/* Mock Footer Area */}
@@ -965,14 +951,14 @@ export default function ReportDetailPage() {
                     </div>
                   </div>
 
-                  {/* Overlay Success message and Download Icon on Hover */}
-                  <div className="absolute inset-0 bg-emerald-900/5 flex flex-col items-center justify-center backdrop-blur-[1.5px] opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
-                    <div className="bg-emerald-500 text-white p-4 rounded-full mb-3 shadow-xl transform translate-y-3 group-hover:translate-y-0 transition-all duration-300">
+                  {/* Download overlay — always visible on mobile (touch), hover on desktop */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-[1.5px] transition-all duration-300 z-10 sm:opacity-0 sm:group-hover:opacity-100" style={{ background: "color-mix(in srgb, var(--success) 8%, transparent)" }}>
+                    <div className="p-4 rounded-full mb-3 shadow-xl sm:transform sm:translate-y-3 sm:group-hover:translate-y-0 transition-all duration-300" style={{ background: "var(--success)", color: "#fff" }}>
                       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <div className="font-bold text-emerald-700 bg-white px-5 py-2 rounded-full text-[13px] shadow-md transform translate-y-3 group-hover:translate-y-0 transition-all duration-300 delay-75">
+                    <div className="font-bold px-5 py-2 rounded-full text-[13px] shadow-md sm:transform sm:translate-y-3 sm:group-hover:translate-y-0 transition-all duration-300 sm:delay-75" style={{ background: "var(--surface)", color: "var(--success)" }}>
                       {t("report.stiahnutPdf")}
                     </div>
                   </div>
