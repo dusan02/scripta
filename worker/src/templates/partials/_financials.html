@@ -409,7 +409,8 @@
                 {% if 'Čistý zisk' in row.label and row.delta_raw is defined and row.delta_raw is not none and row.delta_raw < -20 %}bg-rose-50{% endif %}">
                 <td class="py-0.5 px-2 font-semibold text-slate-700">{{ row.label }}</td>
                 {% for val in row.vals %}
-                <td class="py-0.5 px-2 text-right {% if val == '—' %}text-slate-500{% else %}text-slate-700{% endif %}">{{ val | default('—') }}</td>
+                {% set display = val if (val is not none and val != '') else '—' %}
+                <td class="py-0.5 px-2 text-right {% if display == '—' %}text-slate-500{% else %}text-slate-700{% endif %}">{{ display }}</td>
                 {% endfor %}
                 <td class="py-0.5 px-2 text-right font-semibold
                     {% if row.flag == '🔴' %}text-rose-600

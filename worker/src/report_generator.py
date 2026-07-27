@@ -183,6 +183,14 @@ def sanitize_llm_text(text: str) -> str:
     text = text.replace("VšZP-dlžníci", "VšZP — dlžníci")
     text = text.replace("Union-dižníci", "Union — dlžníci").replace("Uniondižníci", "Union — dlžníci")
     text = text.replace("Union-dlžníci", "Union — dlžníci")
+    text = text.replace("SP-dižníci", "SP — dlžníci").replace("SPdižníci", "SP — dlžníci")
+    text = text.replace("SP-dlžníci", "SP — dlžníci")
+    # Generic regex fallback — catches any remaining dižn* OCR artefacts not caught above
+    text = re.sub(r'\bdižník\b', 'dlžník', text)
+    text = re.sub(r'\bdižníkov\b', 'dlžníkov', text)
+    text = re.sub(r'\bdižníci\b', 'dlžníci', text)
+    text = re.sub(r'\bdižníkmi\b', 'dlžníkmi', text)
+    text = re.sub(r'\bdižníkovi\b', 'dlžníkovi', text)
     text = re.sub(r'\bdat\b(?=\s*\))', 'dát', text)  # "dat)" → "dát)"
     text = re.sub(r'F-score:\s*(\d)/B\b', r'F-score: \1/8', text)
     # Restore diacritics lost in PDF extraction — common Slovak words
@@ -243,6 +251,9 @@ def format_findings(source, i18n=None) -> str:
     # ── Comprehensive scraper findings translation ──
     if i18n:
         raw = _translate_scraper_findings(raw, i18n)
+
+    # ── Fix double-dots from sentence concatenation artefacts ──
+    raw = re.sub(r'\.\s*\.', '. ', raw).strip()
 
     # ── Append manual lookup URL for failed/unavailable sources ──
     if source.status in ("FAILED", "UNAVAILABLE"):

@@ -451,6 +451,14 @@ def _sanitize_verdict_text(text: str) -> str:
     text = text.replace("VšZP-dlžníci", "VšZP — dlžníci")
     text = text.replace("Union-dižníci", "Union — dlžníci").replace("Uniondižníci", "Union — dlžníci")
     text = text.replace("Union-dlžníci", "Union — dlžníci")
+    text = text.replace("SP-dižníci", "SP — dlžníci").replace("SPdižníci", "SP — dlžníci")
+    text = text.replace("SP-dlžníci", "SP — dlžníci")
+    # Generic regex fallback — catches any remaining dižn* OCR artefacts not caught above
+    text = re.sub(r'\bdižník\b', 'dlžník', text)
+    text = re.sub(r'\bdižníkov\b', 'dlžníkov', text)
+    text = re.sub(r'\bdižníci\b', 'dlžníci', text)
+    text = re.sub(r'\bdižníkmi\b', 'dlžníkmi', text)
+    text = re.sub(r'\bdižníkovi\b', 'dlžníkovi', text)
     return text
 
 
