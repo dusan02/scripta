@@ -360,16 +360,17 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     if long_liab > 0:  source.append(7); target.append(10); value.append(long_liab);  link_color.append("#fca5a5")
     if ostatne_pasiva > 0: source.append(7); target.append(11); value.append(ostatne_pasiva); link_color.append("#fca5a5")
 
-    # Pridáme explicitné fixné súradnice, aby sme predišli prekríženiu
+    # Explicitné fixné súradnice — pravé uzly posunuté z 0.99 na 0.85
+    # aby popisky nepretiekali za pravý okraj
     # x=0 je vľavo, x=1 vpravo
-    node_x = [0.01, 0.01, 0.01, 0.01, 0.25, 0.25, 0.5, 0.75, 0.99, 0.99, 0.99, 0.99]
-    node_y = [0.1, 0.3, 0.5, 0.8, 0.25, 0.75, 0.5, 0.7, 0.2, 0.5, 0.7, 0.9]
+    node_x = [0.01, 0.01, 0.01, 0.01, 0.22, 0.22, 0.5, 0.72, 0.85, 0.85, 0.85, 0.85]
+    node_y = [0.1, 0.3, 0.5, 0.8, 0.25, 0.75, 0.5, 0.7, 0.15, 0.45, 0.68, 0.88]
 
     fig = go.Figure(data=[go.Sankey(
         arrangement="snap",
         node=dict(
-            pad=20,
-            thickness=22,
+            pad=14,
+            thickness=18,
             line=dict(color="white", width=1),
             label=labels,
             color=colors,
@@ -379,8 +380,8 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=14, family='DejaVu Sans', color='#0f172a'),
-        margin=dict(l=15, r=15, t=20, b=45),
+        font=dict(size=11, family='DejaVu Sans', color='#0f172a'),
+        margin=dict(l=10, r=140, t=20, b=40),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -389,7 +390,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            img_bytes = fig.to_image(format="png", width=860, height=450, scale=2, engine="kaleido")
+            img_bytes = fig.to_image(format="png", width=920, height=460, scale=2, engine="kaleido")
         img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
