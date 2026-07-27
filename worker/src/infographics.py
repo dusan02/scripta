@@ -59,7 +59,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     # Ak chýbajú kľúčové položky alebo sú hodnoty neštandardné pre Sankey → waterfall
     if any(val is None for val in [gross, net, staff, depreciation, interest]):
         return _generate_pl_waterfall(stmt, lang=lang)
-    if gross <= 0 or net < 0:
+    if gross <= 0 or net < 0 or net == 0:
         return _generate_pl_waterfall(stmt, lang=lang)
     # Ak je grossProfit odhadnutý (v skutočnosti prevádzkový zisk, nie hrubá marža),
     # Sankey by zobrazil nesprávne COGS → použi waterfall
@@ -140,8 +140,9 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     # Explicitne definované orientačné súradnice pre uzly.
     # COGS a Hrubá marža sú umelo umiestnené do stredného stĺpca (x=0.5),
     # aby sa obrovské vlákno COGS netiahlo až na koniec a neprekrývalo ostatné.
-    node_x = [0.01, 0.5, 0.5, 0.99, 0.99, 0.99, 0.99, 0.99]
-    node_y = [0.5, 0.2, 0.8, 0.1, 0.3, 0.5, 0.7, 0.9]
+    # Pravé uzly posunuté z 0.99 na 0.82 aby popisky nepretiekali za okraj.
+    node_x = [0.01, 0.45, 0.45, 0.82, 0.82, 0.82, 0.82, 0.82]
+    node_y = [0.5, 0.15, 0.75, 0.08, 0.30, 0.50, 0.72, 0.92]
 
     fig = go.Figure(data=[go.Sankey(
         arrangement="snap",
@@ -157,8 +158,8 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=14, family='DejaVu Sans', color='#0f172a'),
-        margin=dict(l=20, r=20, t=20, b=20),
+        font=dict(size=11, family='DejaVu Sans', color='#0f172a'),
+        margin=dict(l=10, r=130, t=20, b=30),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -167,8 +168,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # Increased height for more vertical space in P&L Sankey
-            img_bytes = fig.to_image(format="png", width=860, height=400, scale=2, engine="kaleido")
+            img_bytes = fig.to_image(format="png", width=920, height=420, scale=2, engine="kaleido")
         img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
@@ -209,6 +209,8 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         target = [3, 3]
         value = [net_profit, dep_val]
         link_color = ["rgba(16,185,129,0.4)", "rgba(59,130,246,0.4)"]
+        node_x = [0.01, 0.01, 0.01, 0.82]
+        node_y = [0.25, 0.60, 0.90, 0.50]
         if working_capital_effect > 0:
             source.append(2); target.append(3); value.append(working_capital_effect)
             link_color.append("rgba(34,197,94,0.4)")
@@ -226,20 +228,25 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
             "rgba(16,185,129,0.4)", "rgba(59,130,246,0.4)",
             "rgba(16,185,129,0.4)", "rgba(239,68,68,0.4)"
         ]
+        node_x = [0.01, 0.01, 0.45, 0.82, 0.82]
+        node_y = [0.25, 0.70, 0.50, 0.25, 0.75]
 
     fig = go.Figure(data=[go.Sankey(
+        arrangement="snap",
         node=dict(
-            pad=25,
-            thickness=30,
+            pad=20,
+            thickness=25,
             line=dict(color="white", width=1),
             label=labels,
             color=colors,
+            x=node_x,
+            y=node_y,
         ),
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=14, family='DejaVu Sans', color='#0f172a'),
-        margin=dict(l=20, r=20, t=20, b=20),
+        font=dict(size=11, family='DejaVu Sans', color='#0f172a'),
+        margin=dict(l=10, r=130, t=20, b=30),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -248,8 +255,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            # Increased height for more vertical space in Cash Flow Sankey
-            img_bytes = fig.to_image(format="png", width=860, height=400, scale=2, engine="kaleido")
+            img_bytes = fig.to_image(format="png", width=920, height=400, scale=2, engine="kaleido")
         img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:

@@ -291,7 +291,7 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
         labels.append(raw_name)
     scores = [p["score"] for p in radar_pillars]
     max_scores = [p["max_score"] for p in radar_pillars]
-    pcts = [s / m * 100 for s, m in zip(scores, max_scores)]
+    pcts = [s / m * 100 if m and m > 0 else 0 for s, m in zip(scores, max_scores)]
 
     fig = go.Figure(data=go.Scatterpolar(
         r=pcts + [pcts[0]],
