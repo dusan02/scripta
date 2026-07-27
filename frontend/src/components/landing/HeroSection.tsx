@@ -36,7 +36,7 @@ export default function HeroSection() {
         <div style={{ marginTop: 48, display: "flex", gap: 32, justifyContent: "center", flexWrap: "wrap" }} className="hero-stats">
           {[
             { num: "20+", label: t("home.statRegisters") },
-            { num: "~5 min", label: t("home.statAvgTime") },
+            { num: "~8 min", label: t("home.statAvgTime") },
             { num: "0-100", label: t("home.statScoreRange") },
             { num: "1 PDF", label: t("home.statReport") },
           ].map((s) => (

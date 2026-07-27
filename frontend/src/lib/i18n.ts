@@ -506,7 +506,7 @@ const sk: Dict = {
   "report.patienceBody": "Spracovávame rozsiahle finančné výkazy a výročné správy.\nProsím, nezatvárajte túto stránku — report sa dokončí automaticky.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Business Risk Report do 5 minút",
+  "home.badge": "⚡ Business Risk Report do 8 minút",
   "home.heroTitle1": "Preverenie firmy",
   "home.heroTitle2": "jedným klikom",
   "home.heroSubtitle": "Zadajte IČO a dostanete kompletný PDF report s hlavným posudkom, finančnou analýzou a Verifa Score — za minúty, nie za hodiny.",
@@ -517,7 +517,7 @@ const sk: Dict = {
   "home.statReport": "Komplexný report",
   "home.faqTitle": "Časté otázky",
   "home.faq1q": "Ako dlho trvá spracovanie reportu?",
-  "home.faq1a": "Väčšina reportov je hotových do 5 minút od zadania IČO, v závislosti od veľkosti spoločnosti.",
+  "home.faq1a": "Väčšina reportov je hotových do 8 minút od zadania IČO, v závislosti od veľkosti spoločnosti.",
   "home.faq2q": "Sú dáta z registrov aktuálne?",
   "home.faq2a": "Áno, dáta sú získavané priamo z registrov v čase vygenerovania reportu.",
   "home.faq3q": "Aké platobné metódy akceptujete?",
@@ -1131,7 +1131,7 @@ const en: Dict = {
   "report.patienceBody": "We are processing extensive financial statements and annual reports.\nPlease do not close this page — the report will complete automatically.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Business Risk Report in 5 minutes",
+  "home.badge": "⚡ Business Risk Report in 8 minutes",
   "home.heroTitle1": "Company verification",
   "home.heroTitle2": "with one click",
   "home.heroSubtitle": "Enter a company ID and get a complete PDF report with forensic assessment, financial analysis and Verifa Score — in minutes, not hours.",
@@ -1142,7 +1142,7 @@ const en: Dict = {
   "home.statReport": "Comprehensive report",
   "home.faqTitle": "Frequently asked questions",
   "home.faq1q": "How long does report processing take?",
-  "home.faq1a": "Most reports are ready within 5 minutes of entering the IČO, depending on company size.",
+  "home.faq1a": "Most reports are ready within 8 minutes of entering the IČO, depending on company size.",
   "home.faq2q": "Is the register data current?",
   "home.faq2a": "Yes, data is fetched directly from the registers at the time of report generation.",
   "home.faq3q": "What payment methods do you accept?",
@@ -1756,7 +1756,7 @@ const de: Dict = {
   "report.patienceBody": "Wir verarbeiten umfangreiche Finanzberichte und Jahresabschlüsse.\nBitte schließen Sie diese Seite nicht — der Bericht wird automatisch fertiggestellt.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Business Risk Report in 5 Minuten",
+  "home.badge": "⚡ Business Risk Report in 8 Minuten",
   "home.heroTitle1": "Unternehmensprüfung",
   "home.heroTitle2": "mit einem Klick",
   "home.heroSubtitle": "Geben Sie eine Firmen-ID ein und erhalten Sie einen vollständigen PDF-Bericht mit forensischer Bewertung, Finanzanalyse und Verifa Score — in Minuten, nicht in Stunden.",
@@ -1767,7 +1767,7 @@ const de: Dict = {
   "home.statReport": "Umfassender Bericht",
   "home.faqTitle": "Häufig gestellte Fragen",
   "home.faq1q": "Wie lange dauert die Berichtserstellung?",
-  "home.faq1a": "Die meisten Berichte sind innerhalb von 5 Minuten nach Eingabe der IČO fertig, abhängig von der Unternehmensgröße.",
+  "home.faq1a": "Die meisten Berichte sind innerhalb von 8 Minuten nach Eingabe der IČO fertig, abhängig von der Unternehmensgröße.",
   "home.faq2q": "Sind die Registerdaten aktuell?",
   "home.faq2a": "Ja, die Daten werden zum Zeitpunkt der Berichtserstellung direkt aus den Registern abgerufen.",
   "home.faq3q": "Welche Zahlungsmethoden akzeptieren Sie?",
