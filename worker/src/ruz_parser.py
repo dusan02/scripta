@@ -174,13 +174,32 @@ def _extract_row_value(row, data_cols: int, target_col: int) -> Optional[float]:
     return None
 
 
-def _get_row(tables: list, table_idx: int, cislo_riadku: int, offset: int) -> Optional[list]:
-    """Get a data row by cisloRiadku from a specific table."""
+def _get_row(tables: list, table_idx: int, cislo_riadku: int, offset: int, data_cols: int = 0) -> Optional[list]:
+    """Get a data row by cisloRiadku from a specific table.
+
+    Handles two data formats from RUZ API:
+    - List-of-lists: data[idx] = [val1, val2, ...] (older format)
+    - Flat array: data is [val1, val2, val3, val4, val5, val6, ...] where each
+      group of data_cols values represents one row (2025+ format)
+    """
     if table_idx >= len(tables):
         return None
     data = tables[table_idx].get("data", [])
     idx = cislo_riadku - offset
-    if 0 <= idx < len(data):
+    if not data or idx < 0:
+        return None
+
+    # Detect flat data format (scalars instead of lists)
+    first = data[0]
+    if not isinstance(first, list) and data_cols > 0:
+        # Flat array — reshape: each row has data_cols values
+        start = idx * data_cols
+        if start + data_cols <= len(data):
+            return data[start : start + data_cols]
+        return None
+
+    # Standard list-of-lists format
+    if idx < len(data):
         return data[idx]
     return None
 
@@ -191,7 +210,7 @@ def _get_activ_value(tables: list, cislo_riadku: int, current: bool = True) -> O
     Aktív has 4 data columns: [Brutto, Korekcia, Netto2 (current), Netto3 (preceding)].
     We use Netto (column index 2) for current period.
     """
-    row = _get_row(tables, 0, cislo_riadku, _ACTIV_OFFSET)
+    row = _get_row(tables, 0, cislo_riadku, _ACTIV_OFFSET, data_cols=4)
     if row is None:
         return None
     target = 2 if current else 3  # Netto2 / Netto3
@@ -200,7 +219,7 @@ def _get_activ_value(tables: list, cislo_riadku: int, current: bool = True) -> O
 
 def _get_pasiv_value(tables: list, cislo_riadku: int, current: bool = True) -> Optional[float]:
     """Extract current or preceding period value from Strana pasív."""
-    row = _get_row(tables, 1, cislo_riadku, _PASIV_OFFSET)
+    row = _get_row(tables, 1, cislo_riadku, _PASIV_OFFSET, data_cols=2)
     if row is None:
         return None
     target = 0 if current else 1
@@ -209,7 +228,7 @@ def _get_pasiv_value(tables: list, cislo_riadku: int, current: bool = True) -> O
 
 def _get_income_value(tables: list, cislo_riadku: int, current: bool = True) -> Optional[float]:
     """Extract current or preceding period value from Výkaz ziskov a strát."""
-    row = _get_row(tables, 2, cislo_riadku, _INCOME_OFFSET)
+    row = _get_row(tables, 2, cislo_riadku, _INCOME_OFFSET, data_cols=2)
     if row is None:
         return None
     target = 0 if current else 1

@@ -439,12 +439,27 @@ def _format_vykaz_tables(vykaz: dict) -> str:
         if not data:
             continue
         parts.append(f"\n--- {nazov.upper()} ---")
-        for row in data:
-            if isinstance(row, list):
+
+        # Detect flat data format (scalars instead of lists)
+        if data and not isinstance(data[0], list):
+            # Determine column count from table name
+            nazov_lower = nazov.lower()
+            if "akt" in nazov_lower:
+                cols = 4
+            else:
+                cols = 2
+            # Reshape flat array into rows
+            for i in range(0, len(data), cols):
+                row = data[i : i + cols]
                 cleaned = [re.sub(r'(?<=\d)[\s\xa0](?=\d{3}\b)', '', str(c)) for c in row]
                 parts.append(" | ".join(cleaned))
-            elif isinstance(row, str):
-                parts.append(row)
+        else:
+            for row in data:
+                if isinstance(row, list):
+                    cleaned = [re.sub(r'(?<=\d)[\s\xa0](?=\d{3}\b)', '', str(c)) for c in row]
+                    parts.append(" | ".join(cleaned))
+                elif isinstance(row, str):
+                    parts.append(row)
 
     # ── Extrakcia štátnych záväzkov zo šablóny Úč POD (699 a kompatibilné) ──
     # Šablóna 699 "Strana pasív" Tab 1: pozičné indexy sú deterministické:
@@ -461,10 +476,24 @@ def _format_vykaz_tables(vykaz: dict) -> str:
         pasiv_data = tabs[_PASIV_TAB_INDEX].get("data", [])
         state_parts = []
 
+        # Detect flat data format (scalars instead of lists)
+        _is_flat = pasiv_data and not isinstance(pasiv_data[0], list)
+        _pasiv_cols = 2 if _is_flat else 1
+
         def _get_val(idx: int) -> Optional[float]:
-            if idx < len(pasiv_data):
+            if _is_flat:
+                flat_idx = idx * _pasiv_cols
+                if flat_idx < len(pasiv_data):
+                    raw = pasiv_data[flat_idx]
+                    try:
+                        return float(raw) if raw not in (None, "", " ") else None
+                    except (ValueError, TypeError):
+                        return None
+            elif idx < len(pasiv_data):
                 raw = pasiv_data[idx]
                 try:
+                    if isinstance(raw, list):
+                        raw = raw[0] if raw else None
                     return float(raw) if raw not in (None, "", " ") else None
                 except (ValueError, TypeError):
                     return None
