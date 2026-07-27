@@ -67,6 +67,85 @@ def _extract_year_from_fn(file_path: str) -> int:
     return 0
 
 
+def _check_cross_year_unit_consistency(results: list[CompanyFinancialExtraction]) -> None:
+    """
+    Detekuje a opravuje nekonzistentné jednotky (EUR vs tisíce EUR) naprieč rokmi.
+
+    LLM extrakcia z IFRS PDF môže pre niektoré roky vrátiť hodnoty v tisícoch EUR
+    namiesto EUR (napr. ak PDF hlavička uvádza "v tisícoch EUR" ale LLM to prehliadne).
+    Prejav: jeden rok má assets ~1.2M, susedné roky ~1.2B — rozdiel ~1000x.
+
+    Logika:
+    - Pre každý rok porovná celkové aktíva a tržby s najbližším susedným rokom.
+    - Ak je hodnota ~1000x menšia ako sused (ratio 800-1200), predpokladá tisíce EUR.
+    - Násobí všetky peňažné polia ×1000 a zaloguje warning.
+    - Vyžaduje aspoň 2 roky s dátami na porovnanie.
+    """
+    if len(results) < 2:
+        return
+
+    # Zbierame (year, assets, revenue) pre roky s dátami
+    year_data = {}
+    for data in results:
+        y = data.metriky.rok_zavierky
+        a = data.metriky.celkove_aktiva
+        if y and a is not None and a > 0:
+            year_data[y] = (a, data.metriky.trzby_z_hlavnej_cinnosti)
+
+    if len(year_data) < 2:
+        return
+
+    sorted_years = sorted(year_data.keys())
+    years_to_fix = set()
+
+    for i, yr in enumerate(sorted_years):
+        assets_yr = year_data[yr][0]
+        # Porovnaj s najbližším susedom (predchádzajúci alebo nasledujúci rok)
+        neighbor_assets = None
+        if i > 0:
+            prev_yr = sorted_years[i - 1]
+            if abs(prev_yr - yr) <= 2:  # susedný alebo preskočený rok
+                neighbor_assets = year_data[prev_yr][0]
+        if neighbor_assets is None and i < len(sorted_years) - 1:
+            next_yr = sorted_years[i + 1]
+            if abs(next_yr - yr) <= 2:
+                neighbor_assets = year_data[next_yr][0]
+
+        if neighbor_assets is not None and neighbor_assets > 0:
+            ratio = neighbor_assets / assets_yr
+            if 800 <= ratio <= 1200:
+                years_to_fix.add(yr)
+                logger.warning(
+                    f"[UNIT FIX] Rok {yr}: assets={assets_yr:,.0f} vs sused={neighbor_assets:,.0f} "
+                    f"(ratio={ratio:.0f}x) — pravdepodobne tisíce EUR, násobím ×1000"
+                )
+
+    if not years_to_fix:
+        return
+
+    # Polia, ktoré treba násobiť ×1000 (všetky peňažné)
+    money_fields = [
+        "celkove_aktiva", "obezny_majetok", "vlastne_imanie_celkom",
+        "kratkodobe_zavazky", "dlhodobe_zavazky", "trzby_z_hlavnej_cinnosti",
+        "hruba_marza", "zisk_alebo_strata_po_zdaneni",
+        "peniaze_a_penazne_ekvivalenty_k_31_12",
+        "ciste_penazne_toky_z_prevadzkovej_cinnosti",
+        "osobne_naklady", "pohladavky_z_obchodneho_styku",
+        "zavazky_z_obchodneho_styku", "zasoby", "odpisy",
+        "investicny_cash_flow", "financny_cash_flow", "uroky",
+        "zavazky_sp", "danove_zavazky", "zavazky_zamestnanci",
+    ]
+
+    for data in results:
+        y = data.metriky.rok_zavierky
+        if y in years_to_fix:
+            for field in money_fields:
+                val = getattr(data.metriky, field, None)
+                if val is not None and val != 0:
+                    setattr(data.metriky, field, val * 1000)
+            logger.info(f"[UNIT FIX] Rok {y}: všetky peňažné polia vynásobené ×1000")
+
+
 def _check_cross_year_duplicates(results: list[CompanyFinancialExtraction]) -> None:
     """
     Detekuje a opravuje duplicitné hodnoty osobných nákladov naprieč rokmi.
@@ -1294,6 +1373,11 @@ async def process_company(
         await update_ai_status(report_request_id, "ai.semantic_narrative", _remaining_eta(_t_start, pipeline_baseline))
         with PhaseTimer(f"LLM extrakcia ({len(pdf_tasks)} tasks)"):
             await asyncio.gather(*pdf_tasks, return_exceptions=True)
+
+    # Cross-year unit consistency check (EUR vs tisíce EUR)
+    # LLM môže pre niektoré roky vrátiť tisíce EUR namiesto EUR
+    if len(_ifrs_results) >= 2:
+        _check_cross_year_unit_consistency(_ifrs_results)
 
     # Cross-year duplicate detection pre osobné náklady
     # LLM môže duplikovať hodnotu z jedného roku do iného (najmä pri IFRS by-function výkazoch)
