@@ -794,7 +794,7 @@ async def run_and_save_audit_verdict(
         except Exception as cross_err:
             logger.warning(f"Cross-Analysis Agent zlyhal pre IČO {ico}: {cross_err} — Chief Auditor pokračuje bez neho.")
 
-        # ── Chief Auditor (Pro) — finálny verdikt + scorecard + evidence ──
+        # ── Chief Auditor — finálny verdikt + scorecard + evidence ──
         try:
             logger.info(f"Chief Auditor vstup: {len(auditor_input_json)} chars (redukovaný z {len(company_data)} chars)")
             verdict = await safe_llm_call(
@@ -804,6 +804,31 @@ async def run_and_save_audit_verdict(
                 report_language=report_language,
                 cross_analysis_summary=cross_summary,
             )
+
+            # ── Expert Mode: 2-pass (draft → refine) ──
+            if _cfg.chief_auditor_two_pass and verdict:
+                try:
+                    draft_json = json.dumps(verdict.model_dump(), default=str, ensure_ascii=False)
+                    refine_input = json.dumps({
+                        "company_data": json.loads(auditor_input_json),
+                        "draft_verdict": json.loads(draft_json),
+                        "cross_analysis_summary": cross_summary,
+                        "instruction": "Refine the draft verdict. Improve logical flow, remove repetitions, deepen analysis of hidden connections, and make recommendations more specific and actionable. Keep all factual numbers unchanged.",
+                    }, ensure_ascii=False, default=str)
+                    logger.info(f"Chief Auditor 2-pass (refine): {len(refine_input)} chars")
+                    refined = await safe_llm_call(
+                        evaluate_audit_verdict, refine_input,
+                        model=_cfg.model_verdict,
+                        label="Chief Auditor (refine pass)",
+                        report_language=report_language,
+                        cross_analysis_summary=cross_summary,
+                    )
+                    if refined:
+                        verdict = refined
+                        logger.info(f"Chief Auditor 2-pass (refine) dokončený pre IČO {ico}")
+                except Exception as refine_err:
+                    logger.warning(f"Chief Auditor 2-pass (refine) zlyhal pre IČO {ico}: {refine_err} — používam draft z 1. pass.")
+
         except Exception as llm_err:
             logger.error(f"Chief Auditor LLM zlyhal pre IČO {ico}: {type(llm_err).__name__}: {llm_err} — používam algoritmický fallback.", exc_info=True)
             verdict = _build_fallback_verdict(company_dict, scorecard, report_language=report_language)
@@ -814,7 +839,7 @@ async def run_and_save_audit_verdict(
             verdict_json = json.dumps(verdict.model_dump(), default=str, ensure_ascii=False)
             qa_result = await safe_llm_call(
                 verify_report_quality, verdict_json, company_data,
-                model=_cfg.model_fallback, label="Report QA Agent",
+                model=_cfg.model_qa, label="Report QA Agent",
                 report_language=report_language,
             )
             if qa_result and not qa_result.overall_ok:

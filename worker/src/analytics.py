@@ -436,6 +436,122 @@ def compute_piotroski_f_score(statements: list) -> dict:
 
     return {"score": score, "flags": [f"Piotroski F-score: {score} z 8"]}
 
+
+def compute_beneish_m_score(statements: list) -> dict:
+    """
+    Vypočíta Beneish M-score — detekcia manipulácie s výkazníctvom (earnings manipulation).
+    M > -1.78 = pravdepodobný manipulátor.
+    Očakáva chronologicky zoradené statements (min. 2 roky).
+    """
+    if not statements or len(statements) < 2:
+        return {"m_score": None, "flags": ["Nedostatok dát pre Beneish M-score (min. 2 roky)"]}
+
+    curr = statements[-1]
+    prev = statements[-2]
+
+    c_rev = _get(curr, 'mainActivityRevenue', 0) or 0
+    p_rev = _get(prev, 'mainActivityRevenue', 0) or 0
+    c_recv = _get(curr, 'tradeReceivables', 0) or 0
+    p_recv = _get(prev, 'tradeReceivables', 0) or 0
+    c_gross = _get(curr, 'grossProfit', 0) or 0
+    p_gross = _get(prev, 'grossProfit', 0) or 0
+    c_assets = _get(curr, 'totalAssets', 0) or 0
+    p_assets = _get(prev, 'totalAssets', 0) or 0
+    c_curr_assets = _get(curr, 'currentAssets', 0) or 0
+    p_curr_assets = _get(prev, 'currentAssets', 0) or 0
+    c_pp_e = _get(curr, 'totalAssets', 0) or 0  # approx: no separate PP&E field
+    p_pp_e = _get(prev, 'totalAssets', 0) or 0
+    c_dep = _get(curr, 'depreciation', 0) or 0
+    p_dep = _get(prev, 'depreciation', 0) or 0
+    c_sga = _get(curr, 'staffCosts', 0) or 0  # approx: staff costs as SG&A proxy
+    p_sga = _get(prev, 'staffCosts', 0) or 0
+    c_short_liab = _get(curr, 'shortTermLiabilities', 0) or 0
+    p_short_liab = _get(prev, 'shortTermLiabilities', 0) or 0
+    c_long_liab = _get(curr, 'longTermLiabilities', 0) or 0
+    p_long_liab = _get(prev, 'longTermLiabilities', 0) or 0
+    c_net_profit = _get(curr, 'netProfitLoss', 0) or 0
+    c_op_cf = _get(curr, 'operatingCashFlow', None)
+    c_op_cf = c_op_cf if c_op_cf is not None else 0
+
+    flags = []
+
+    # Guard: need positive revenue and assets for meaningful calculation
+    if c_rev <= 0 or p_rev <= 0 or c_assets <= 0 or p_assets <= 0:
+        return {"m_score": None, "flags": ["Nedostatok dát pre Beneish M-score (nulové tržby/aktíva)"]}
+
+    # DSRI = Days Sales in Receivables Index
+    c_dsr = (c_recv / c_rev) if c_rev > 0 else 0
+    p_dsr = (p_recv / p_rev) if p_rev > 0 else 0
+    dsri = (c_dsr / p_dsr) if p_dsr > 0 else 1.0
+
+    # GMI = Gross Margin Index
+    c_gm = (c_gross / c_rev) if c_rev > 0 else 0
+    p_gm = (p_gross / p_rev) if p_rev > 0 else 0
+    gmi = (p_gm / c_gm) if c_gm > 0 else 1.0
+
+    # AQI = Asset Quality Index
+    c_aq = ((c_curr_assets - c_recv) / c_assets) if c_assets > 0 else 0
+    p_aq = ((p_curr_assets - p_recv) / p_assets) if p_assets > 0 else 0
+    aqi = (c_aq / p_aq) if p_aq > 0 else 1.0
+
+    # SGI = Sales Growth Index
+    sgi = (c_rev / p_rev) if p_rev > 0 else 1.0
+
+    # DEPI = Depreciation Index
+    c_dep_rate = (c_dep / (c_dep + c_pp_e)) if (c_dep + c_pp_e) > 0 else 0
+    p_dep_rate = (p_dep / (p_dep + p_pp_e)) if (p_dep + p_pp_e) > 0 else 0
+    depi = (p_dep_rate / c_dep_rate) if c_dep_rate > 0 else 1.0
+
+    # SGAI = SG&A Index
+    c_sga_ratio = (c_sga / c_rev) if c_rev > 0 else 0
+    p_sga_ratio = (p_sga / p_rev) if p_rev > 0 else 0
+    sgai = (c_sga_ratio / p_sga_ratio) if p_sga_ratio > 0 else 1.0
+
+    # TATA = Total Accruals to Total Assets
+    total_accruals = c_net_profit - c_op_cf
+    tata = (total_accruals / c_assets) if c_assets > 0 else 0
+
+    # LVGI = Leverage Index
+    c_lev = ((c_short_liab + c_long_liab) / c_assets) if c_assets > 0 else 0
+    p_lev = ((p_short_liab + p_long_liab) / p_assets) if p_assets > 0 else 0
+    lvgi = (c_lev / p_lev) if p_lev > 0 else 1.0
+
+    m = (-4.84
+         + 0.92 * dsri
+         + 0.528 * gmi
+         + 0.404 * aqi
+         + 0.892 * sgi
+         + 0.115 * depi
+         - 0.172 * sgai
+         + 4.679 * tata
+         - 0.327 * lvgi)
+
+    m = round(m, 3)
+    is_manipulator = m > -1.78
+
+    if is_manipulator:
+        flags.append(f"Beneish M-score = {m:.3f} — PRAVDEPODOBNÝ manipulátor (M > -1.78)")
+    else:
+        flags.append(f"Beneish M-score = {m:.3f} — Bez znám manipulácie (M ≤ -1.78)")
+
+    return {
+        "m_score": m,
+        "is_manipulator": is_manipulator,
+        "threshold": -1.78,
+        "components": {
+            "dsri": round(dsri, 4),
+            "gmi": round(gmi, 4),
+            "aqi": round(aqi, 4),
+            "sgi": round(sgi, 4),
+            "depi": round(depi, 4),
+            "sgai": round(sgai, 4),
+            "tata": round(tata, 4),
+            "lvgi": round(lvgi, 4),
+        },
+        "flags": flags,
+    }
+
+
 def get_nace_weights(nace_code: str) -> dict:
     prefix = nace_code[:2] if nace_code else ""
     # Výroba
@@ -1045,6 +1161,12 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
             trends["bankruptcy_risk_indicators"].append(
                 f"Altman Z-score {yr}: {z['z_score']} — {z['zone_label']}"
             )
+
+    # Beneish M-score (earnings manipulation detection)
+    beneish = compute_beneish_m_score(sorted_stmts)
+    trends["beneish_m_score"] = beneish
+    if beneish.get("is_manipulator"):
+        trends["bankruptcy_risk_indicators"].append(beneish["flags"][0])
         
     # Medziročné zmeny (YoY)
     for i in range(1, len(sorted_stmts)):

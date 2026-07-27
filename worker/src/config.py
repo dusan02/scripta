@@ -29,22 +29,50 @@ class Settings(BaseSettings):
     # Viacero proxy oddelených čiarkou — round-robin medzi scrapermi
     proxy_list: Optional[str] = None
 
+    # ── Expert Mode ────────────────────────────────────────────────────────────
+    # EXPERT_MODE=1 → Chief Auditor na Pro 3.1 (2-pass: draft→refine), QA na Flash 3.5, viac strán PDF
+    expert_mode: bool = False
+
     # ── LLM Model Configuration ──────────────────────────────────────────────
-    # All GA 3.5 generation — Chief Auditor on 3.5 Flash (frontier-level), extractors on 3.5 Flash-Lite (cost-efficient)
+    # Standard: extractors on Flash-Lite, Chief Auditor on Flash (cost-efficient)
+    # Expert: Chief Auditor on Pro 3.1 (2-pass), QA on Flash 3.5 (higher quality)
     model_ifrs: str = "gemini-3.5-flash-lite"   # IFRS tabuľky — extrakcia, fallbacky pokrývajú medzery
     model_narrative: str = "gemini-3.5-flash-lite"  # Naratívna analýza (VS) — textová
     model_notes: str = "gemini-3.5-flash-lite"  # Forenzný analytik (poznámky) — Flash-Lite stačí (štrukturálne dáta)
     model_vestnik: str = "gemini-3.5-flash-lite"    # Vestník udalosti — štruktúrovaná extrakcia
-    model_verdict: str = "gemini-3.5-flash"     # Chief Auditor — 3.5 Flash (frontier inteligencia, GA stabilný)
     model_cross_analysis: str = "gemini-3.5-flash-lite"  # Cross-Analysis Agent — krížová analýza
     model_fallback: str = "gemini-3.5-flash-lite"   # Fallback pri 404/503 (Flash-Lite — odlišný model pool)
     model_fallback_2: str = "gemini-3.5-flash"       # Sekundárny fallback (Flash tier)
     llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)
 
+    @property
+    def model_verdict(self) -> str:
+        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.5 in Standard."""
+        return "gemini-3.1-pro" if self.expert_mode else "gemini-3.5-flash"
+
+    @property
+    def model_qa(self) -> str:
+        """QA Agent model — Flash 3.5 in Expert Mode, Flash-Lite in Standard."""
+        return "gemini-3.5-flash" if self.expert_mode else "gemini-3.5-flash-lite"
+
+    @property
+    def chief_auditor_two_pass(self) -> bool:
+        """2-pass Chief Auditor (draft→refine) enabled in Expert Mode."""
+        return self.expert_mode
+
     # ── PDF Ingestion ─────────────────────────────────────────────────────────
     pdf_max_pages_sk_gaap: int = 20    # Úč POD, Úč MUJ — štandardné slovenské závierky
-    pdf_max_pages_ifrs: int = 80       # IFRS — veľké firmy môžu mať súvahu aj za ESG správou (strany 50-70+)
-    pdf_max_pages_absolute: int = 100  # Absolútny hard limit
+    pdf_max_pages_absolute: int = 100  # Absolútny hard limit (120 v Expert Mode)
+
+    @property
+    def pdf_max_pages_ifrs(self) -> int:
+        """IFRS page limit — 120 in Expert Mode, 80 in Standard."""
+        return 120 if self.expert_mode else 80
+
+    @property
+    def pdf_max_pages_absolute_limit(self) -> int:
+        """Absolute hard limit — 150 in Expert Mode, 100 in Standard."""
+        return 150 if self.expert_mode else 100
     pdf_ifrs_min_notes_page: int = 25  # Pre IFRS začneme hľadať poznámky až od tejto strany (ESG spravy môžu byť dlhé)
     pdf_sk_gaap_min_notes_page: int = 5  # Pre SK GAAP od strany 5
     pdf_scanned_min_pages: int = 30    # Ak má PDF tento počet strán a 0 textu → IFRS mode

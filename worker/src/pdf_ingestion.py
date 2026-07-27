@@ -32,9 +32,16 @@ _NOTES_START_SIGNALS = [
 _NOTES_COMPILED = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in _NOTES_START_SIGNALS]
 
 # Maximálny počet strán pre rôzne typy závierok (centralized in config.py)
+# Read dynamically — pdf_max_pages_ifrs and pdf_max_pages_absolute_limit are @property (Expert Mode aware)
 _MAX_PAGES_SK_GAAP = settings.pdf_max_pages_sk_gaap
-_MAX_PAGES_IFRS = settings.pdf_max_pages_ifrs
-_MAX_PAGES_ABSOLUTE = settings.pdf_max_pages_absolute
+
+
+def _get_max_pages_ifrs() -> int:
+    return settings.pdf_max_pages_ifrs
+
+
+def _get_max_pages_absolute() -> int:
+    return settings.pdf_max_pages_absolute_limit
 
 
 def _detect_ifrs_from_text(text: str) -> bool:
@@ -121,7 +128,7 @@ def extract_core_financials(pdf_path: str) -> str:
             )
             return None  # None = nepoužiť sliced verziu, pošli celý PDF
 
-    max_pages = _MAX_PAGES_IFRS if is_ifrs else _MAX_PAGES_SK_GAAP
+    max_pages = _get_max_pages_ifrs() if is_ifrs else _MAX_PAGES_SK_GAAP
 
     pages_to_extract = []
     found_notes = False
