@@ -929,6 +929,28 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         ))
         total_score = max(0, total_score - orsr_forensic_penalty)
 
+    # ── Cash Flow / DSO Stress penalizácia ──────────────────────────────────
+    # Záporný prevádzkový cash flow + vysoké DSO (>150 dní) = papierový zisk,
+    # firma reálne stráca hotovosť. Táto kombinácia si vyžaduje tvrdší postih.
+    cf_dso_penalty = 0
+    cf_dso_flags = []
+    if sorted_stmts_raw:
+        _latest = sorted_stmts_raw[-1]
+        _op_cf = _get(_latest, "operatingCashFlow", None)
+        _dso = last_ratios.get("dso_days")
+        if _op_cf is not None and _op_cf < 0 and _dso is not None and _dso > 150:
+            cf_dso_penalty = 5
+            cf_dso_flags.append(
+                f"Záporný CF ({_op_cf:,.0f} €) + DSO {_dso:.0f} dní = papierový zisk (−5b)"
+            )
+    if cf_dso_penalty > 0:
+        pillars.append(ScorecardPillar(
+            name="Cash Flow / DOS Stress", score=-cf_dso_penalty, max_score=0,
+            detail="Firma vykazuje zisk, ale reálne stráca hotovosť pri extrémnej dobe splatnosti.",
+            flags=cf_dso_flags
+        ))
+        total_score = max(0, total_score - cf_dso_penalty)
+
     if dq_mult < 1.0:
         pillars.append(ScorecardPillar(
             name="Data Quality Multiplier",
