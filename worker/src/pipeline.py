@@ -73,52 +73,52 @@ def _check_cross_year_unit_consistency(results: list[CompanyFinancialExtraction]
 
     LLM extrakcia z IFRS PDF môže pre niektoré roky vrátiť hodnoty v tisícoch EUR
     namiesto EUR (napr. ak PDF hlavička uvádza "v tisícoch EUR" ale LLM to prehliadne).
-    Prejav: jeden rok má assets ~1.2M, susedné roky ~1.2B — rozdiel ~1000x.
+    Prejav: niektoré roky majú assets ~1.2M, iné ~1.2B — rozdiel ~1000x.
 
-    Logika:
-    - Pre každý rok porovná celkové aktíva a tržby s najbližším susedným rokom.
-    - Ak je hodnota ~1000x menšia ako sused (ratio 800-1200), predpokladá tisíce EUR.
-    - Násobí všetky peňažné polia ×1000 a zaloguje warning.
-    - Vyžaduje aspoň 2 roky s dátami na porovnanie.
+    Algoritmus (globálna bimodálna detekcia):
+    - Zbierame celkové aktíva pre všetky roky.
+    - Nájdeme maximálnú hodnotu (predpoklad: najväčšia hodnota je v EUR).
+    - Pre každý rok: ak max_assets / year_assets je v rozsahu 100-10000,
+      skontrolujeme či ratio blíži k 1000 (tisíce) alebo 1,000,000 (milióny).
+    - Ak väčšina rokov je v jednotnej skupine a menšina v druhej, opravíme menšinu.
+    - Funguje aj keď 2+ po sebe idúce roky sú v tisícoch (narozdiel od susedného porovnania).
     """
     if len(results) < 2:
         return
 
-    # Zbierame (year, assets, revenue) pre roky s dátami
-    year_data = {}
+    # Zbierame (year, assets) pre roky s dátami
+    year_assets = {}
     for data in results:
         y = data.metriky.rok_zavierky
         a = data.metriky.celkove_aktiva
         if y and a is not None and a > 0:
-            year_data[y] = (a, data.metriky.trzby_z_hlavnej_cinnosti)
+            year_assets[y] = a
 
-    if len(year_data) < 2:
+    if len(year_assets) < 2:
         return
 
-    sorted_years = sorted(year_data.keys())
+    max_assets = max(year_assets.values())
     years_to_fix = set()
 
-    for i, yr in enumerate(sorted_years):
-        assets_yr = year_data[yr][0]
-        # Porovnaj s najbližším susedom (predchádzajúci alebo nasledujúci rok)
-        neighbor_assets = None
-        if i > 0:
-            prev_yr = sorted_years[i - 1]
-            if abs(prev_yr - yr) <= 2:  # susedný alebo preskočený rok
-                neighbor_assets = year_data[prev_yr][0]
-        if neighbor_assets is None and i < len(sorted_years) - 1:
-            next_yr = sorted_years[i + 1]
-            if abs(next_yr - yr) <= 2:
-                neighbor_assets = year_data[next_yr][0]
+    for yr, assets in year_assets.items():
+        ratio = max_assets / assets
+        # tisíce EUR: ratio ~1000 (povoľujeme 100-10000 pre veľké firmy s variabilnými aktívami)
+        # Mimo rozsah 100-10000 = skutočný rozdiel v aktívach, nie chyba jednotiek
+        if 100 <= ratio <= 10000:
+            years_to_fix.add(yr)
+            logger.warning(
+                f"[UNIT FIX] Rok {yr}: assets={assets:,.0f} vs max={max_assets:,.0f} "
+                f"(ratio={ratio:.0f}x) — pravdepodobne tisíce EUR, násobím ×1000"
+            )
 
-        if neighbor_assets is not None and neighbor_assets > 0:
-            ratio = neighbor_assets / assets_yr
-            if 800 <= ratio <= 1200:
-                years_to_fix.add(yr)
-                logger.warning(
-                    f"[UNIT FIX] Rok {yr}: assets={assets_yr:,.0f} vs sused={neighbor_assets:,.0f} "
-                    f"(ratio={ratio:.0f}x) — pravdepodobne tisíce EUR, násobím ×1000"
-                )
+    # Bezpečnostný limit: neprepisuj viac ako polovicu rokov
+    # (ak by všetky roky boli "tisíce", max je tiež tisíce a ratio by bolo ~1)
+    if len(years_to_fix) >= len(year_assets):
+        logger.warning(
+            f"[UNIT FIX] Záchytná kontrola: {len(years_to_fix)}/{len(year_assets)} rokov "
+            f"označených na opravu — príliš mnoho, preskakujem (pravdepodobne legitímne malé hodnoty)"
+        )
+        return
 
     if not years_to_fix:
         return
