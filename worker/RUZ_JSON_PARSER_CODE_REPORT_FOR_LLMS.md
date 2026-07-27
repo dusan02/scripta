@@ -15,7 +15,8 @@ Report Request (IČO)
   │
   ├─ 1. Scraper fáza (main.py → scrapers/registeruz.py)
   │    └─ RegisterUzScraper.run()
-  │         └─ ruz_api.download_ifrs_reports(ico, max_years=5)
+  │         └─ ruz_api.download_ifrs_reports(ico, max_years=_cfg.ruz_max_years)
+  │              (default v download_ifrs_reports=10, config.py override=5)
   │              ├─ Cache check (24h TTL v assets/{ico}/)
   │              ├─ API: uctovne-jednotky?ico=… → entity_id
   │              ├─ API: uctovna-jednotka?id=… → zavierka_ids + vs_ids
@@ -215,8 +216,15 @@ def _to_float(val) -> Optional[float]:
         # Medzery / nbsp ako tisícové oddeľovače
         cleaned = re.sub(r'[\s\xa0]', '', cleaned)
         if ',' in cleaned and '.' in cleaned:
-            # Mix: bodka = tisíc, čiarka = desatinná
-            cleaned = cleaned.replace('.', '').replace(',', '.')
+            # Mix: posledný separator je desatinný
+            last_comma = cleaned.rfind(',')
+            last_dot = cleaned.rfind('.')
+            if last_comma > last_dot:
+                # Čiarka = desatinná, bodka = tisíc
+                cleaned = cleaned.replace('.', '').replace(',', '.')
+            else:
+                # Bodka = desatinná, čiarka = tisíc
+                cleaned = cleaned.replace(',', '')
         elif ',' in cleaned:
             # Iba čiarka → desatinná
             cleaned = cleaned.replace(',', '.')
@@ -237,9 +245,13 @@ def _to_float(val) -> Optional[float]:
 Podporuje:
 - `"1 234 567,89"` → `1234567.89`
 - `"1,234,567.89"` → `1234567.89`
+- `"1.234.567,89"` → `1234567.89` (európsky formát — bodky tisíc, čiarka desatinná)
+- `"1,234.56"` → `1234.56` (anglický formát — čiarka tisíc, bodka desatinná)
 - `"(1 234)"` → `-1234.0` (slovenská zátvorková notácia pre záporné čísla)
 - `1234567` → `1234567.0`
 - prázdne, `None`, medzery → `None`
+
+**Poznámka:** Logika `rfind` pre mixed separator edge cases (`"1,234.56"` vs `"1.234,56"`) — posledný separator je desatinný.
 
 ### `_extract_row_value` — extrakcia z riadkov rôznych formátov
 
@@ -323,6 +335,48 @@ def _get_income_value(tables, cislo_riadku, current=True):
 **Dôležité:** `data_cols` parameter je povinný pre správnu detekciu flat formátu. Bez neho parser nemôže vedieť, koľko stĺpcov má každý riadok v flat array.
 
 **Dôležité:** `data[cisloRiadku - offset]` predpokladá, že pole `data[]` je **zhustené** — bez prázdnych riadkov medzi `cisloRiadku`. Ak RÚZ vracia pole vrátane `None`/prázdnych medzier, mapovanie sa posunie.
+
+## 5b. `parse_vykaz_to_metrics` a `parse_zavierka_to_metrics` — entry pointy
+
+### `parse_vykaz_to_metrics` — jeden výkaz
+
+```python
+def parse_vykaz_to_metrics(vykaz: dict, ico: str) -> Optional[FinancialMetrics]:
+    obsah = vykaz.get("obsah", {})
+    tables = obsah.get("tabulky", [])
+    titulna = obsah.get("titulnaStrana", {})
+    if not tables:
+        return None
+    return parse_tables_to_metrics(tables, titulna, ico)
+```
+
+Jeden výkaz = jedna tabuľka (napr. len Súvaha alebo len Výkaz ziskov a strát). Zriedkavo použité — väčšina závierok má všetky výkazy v jednom zväzku.
+
+### `parse_zavierka_to_metrics` — všetky výkazy z jednej závierky
+
+```python
+def parse_zavierka_to_metrics(
+    vykazy: list[dict],
+    ico: str,
+    titulna_strana: Optional[dict] = None,
+) -> Optional[FinancialMetrics]:
+    all_tables = []
+    ts = titulna_strana or {}
+
+    for vykaz in vykazy:
+        obsah = vykaz.get("obsah", {})
+        tables = obsah.get("tabulky", [])
+        if tables:
+            all_tables.extend(tables)
+        if not ts:
+            ts = obsah.get("titulnaStrana", {})
+
+    if not all_tables:
+        return None
+    return parse_tables_to_metrics(all_tables, ts, ico)
+```
+
+**Kľúčové:** Zbiera tabuľky zo **všetkých výkazov** v závierke a spája ich do jedného zoznamu. `titulnaStrana` sa berie z prvého výkazu, ktorý ju obsahuje (ak nie je explicitne zadaná). Toto je hlavný entry point, ktorý volá `ruz_api._process_zavierka`.
 
 ## 6. Hlavný parser `parse_tables_to_metrics`
 
@@ -687,6 +741,8 @@ await db.financialstatement.upsert(
 11. **IFRS závierky.** Stále spracovávané cez LLM (prichádzajú ako PDF, nie JSON). Pre veľké firmy (Mondi, Foxconn) je možné v budúcnosti vytvoriť layout parser z PDF.
 12. **Cache (24h).** Súbory stiahnuté z RÚZ API sa cachujú v `assets/{ico}/` s TTL 24h. Pri re-generácii reportu sa použije cache bez nového downloadu. Cache sa invaliduje automaticky po 24h.
 13. **RÚZ API výpadky.** Ak RÚZ API nedostupné, scraper vracia `UNAVAILABLE` status. Pipeline sa potom pokúsi o vlastný download, ale ak aj ten zlyhá, report bude bez finančných údajov.
+14. **Dve nezávislé implementácie flat-array detekcie pre štátne záväzky.** `ruz_api._format_vykaz_tables` má vlastnú logiku pre extrakciu záväzkov voči štátu (riadky 131-133) z flat array, nezávisle od `ruz_parser._get_pasiv_value`. Dnes dávajú rovnaký výsledok, ale ak RÚZ začne vracať sparse arrays (s `None` medzerami), tieto implementácie sa môžu rozísť. **Odporúčanie:** Zlúčiť do jednej zdieľanej funkcie.
+15. **`max_years` default v `download_ifrs_reports` je 10**, ale `config.py` override je 5. Scraper vždy volá s `max_years=_cfg.ruz_max_years` (5), takže default 10 sa nepoužíva v produkcii.
 
 ## 12. Čo overiť pri teste
 
