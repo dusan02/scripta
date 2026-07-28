@@ -226,6 +226,13 @@ model UserMessage {
 model Company {
   ico                 String               @id
   name                String?
+  legalForm           String?
+  city                String?
+  street              String?
+  zipCode             String?
+  country             String?
+  establishedAt       DateTime?
+  status              String?
   naceCode            String?
   naceText            String?
   financialStatements FinancialStatement[]

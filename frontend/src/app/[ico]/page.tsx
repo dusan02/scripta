@@ -30,7 +30,7 @@ export default async function IcoRedirectPage({ params }: Params) {
   const company = await prisma.company.findUnique({ where: { ico } });
 
   if (!company) {
-    redirect(`/dashboard?ico=${ico}`);
+    redirect(`/firma/${ico}`);
   }
 
   const slug = slugify(company.name);
