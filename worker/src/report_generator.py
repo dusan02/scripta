@@ -1523,9 +1523,23 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             key=lambda z: z["year"]
         )
 
-    # Piotroski F-score
+    # Piotroski F-score — prefer score from scorecard (single source of truth)
     sorted_stmts_raw = sorted(stmts or [], key=lambda s: s.year)
-    piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
+    piotroski_score_from_sc = None
+    if scorecard_breakdown:
+        import re as _re
+        for pillar in scorecard_breakdown:
+            for flag in (pillar.get("flags") or []):
+                m = _re.match(r'Piotroski F-score:\s*(\d+)\s*z\s*8', flag)
+                if m:
+                    piotroski_score_from_sc = int(m.group(1))
+                    break
+            if piotroski_score_from_sc is not None:
+                break
+    if piotroski_score_from_sc is not None:
+        piotroski_result = {"score": piotroski_score_from_sc, "flags": [f"Piotroski F-score: {piotroski_score_from_sc} z 8"]}
+    else:
+        piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
 
     # YoY rast tržieb a zisku
     yoy_revenue_growth = None

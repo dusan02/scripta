@@ -346,7 +346,7 @@
     {# ── ZÁVÄZKY VOČI ŠTÁTU A SP — PRÁVNE RIZIKOVÉ ALERTY ── #}
     {% if state_liabilities_alert and state_liabilities_alert.alerts|length > 0 %}
     <div class="mb-3">
-        <h3 class="subsection-title-sm mb-1.5">⚖ Záväzky voči štátu a SP</h3>
+        <h3 class="subsection-title-sm mb-1.5">⚖ {{ i18n.state_liabilities_heading }}</h3>
         {% for alert in state_liabilities_alert.alerts %}
         <div class="mb-1.5 p-2.5 rounded-lg border-l-4 flex items-start gap-2
             {% if alert.severity == 'CRITICAL' %}border-rose-500 bg-rose-50
@@ -439,12 +439,12 @@
     <div class="mb-4 grid grid-cols-2 gap-4">
         {% if employee_chart_base64 %}
         <div>
-            <img src="data:image/png;base64,{{ employee_chart_base64 }}" alt="Vývoj počtu zamestnancov" class="w-full h-auto">
+            <img src="data:image/png;base64,{{ employee_chart_base64 }}" alt="{{ i18n.chart_employee_count }}" class="w-full h-auto">
         </div>
         {% endif %}
         {% if rpe_chart_base64 %}
         <div>
-            <img src="data:image/png;base64,{{ rpe_chart_base64 }}" alt="Tržby na zamestnanca" class="w-full h-auto">
+            <img src="data:image/png;base64,{{ rpe_chart_base64 }}" alt="{{ i18n.chart_rpe }}" class="w-full h-auto">
         </div>
         {% endif %}
     </div>
