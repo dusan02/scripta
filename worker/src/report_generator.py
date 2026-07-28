@@ -489,6 +489,10 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     # Piotroski
     if flag == "Piotroski F-score: N/A":
         return i18n_strings.get("flag_piotroski_na", flag)
+    m = _re.match(r"Piotroski F-score: (\d+) z 8", flag)
+    if m: return i18n_strings.get("flag_piotroski_score", flag).format(val=m.group(1))
+    if flag == "Nedostatok dát pre Piotroski F-score (min. 2 roky)":
+        return i18n_strings.get("flag_piotroski_no_data", flag)
     # Startup
     m = _re.match(r"STARTUP profil: .* imaním ([\d,.]+) €\)", flag)
     if m: return i18n_strings.get("flag_startup_profile", flag).format(val=m.group(1))

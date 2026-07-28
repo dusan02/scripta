@@ -57,7 +57,7 @@
                 </td>
                 <td class="py-2.5 px-3">
                     {% if is_penalty %}
-                    <span class="report-caption text-violet-500 text-center block">penalizácia</span>
+                    <span class="report-caption text-violet-500 text-center block">{{ i18n.penalty_label }}</span>
                     {% else %}
                     <div class="w-full bg-slate-200 rounded-full" style="height:6px;">
                         <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
@@ -80,12 +80,12 @@
             {% endfor %}
             {% if penalty_total.val != 0 %}
             <tr class="bg-slate-50 border-t border-slate-200 text-slate-400">
-                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_pillars | default("Súčet pilierov") }}</td>
+                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_pillars }}</td>
                 <td class="py-1 px-3 text-center report-caption">{{ positive_total.val }}b</td>
                 <td></td>
             </tr>
             <tr class="bg-slate-50 text-slate-400">
-                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_penalties | default("Penalizácie") }}</td>
+                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_penalties }}</td>
                 <td class="py-1 px-3 text-center report-caption">{{ penalty_total.val }}b</td>
                 <td></td>
             </tr>
@@ -139,7 +139,7 @@
                         </div>
                         {% if radar_chart_base64 %}
                         <div class="w-52 flex-shrink-0 flex flex-col items-center">
-                            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="Radar chart pilierov" class="w-full h-auto">
+                            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" class="w-full h-auto">
                             <p class="report-caption text-slate-400 text-center mt-1">{{ i18n.pillar_profile }}</p>
                         </div>
                         {% endif %}
@@ -426,9 +426,9 @@
         </div>
         {% if rpe_alert and rpe_alert.revenue_per_employee %}
         <p class="report-caption text-slate-400 mt-1">
-            Tržby / zamestnanec: <strong>{{ "{:,.0f}".format(rpe_alert.revenue_per_employee).replace(",", " ") }} €</strong>
-            {% if rpe_alert.source == 'estimated' %}(odhad z osobných nákladov){% endif %}
-            {% if rpe_alert.employee_count %} | Počet zamestnancov: {{ rpe_alert.employee_count }}{% if rpe_alert.source == 'estimated' %}*{% endif %}{% endif %}
+            {{ i18n.rpe_label }}: <strong>{{ "{:,.0f}".format(rpe_alert.revenue_per_employee).replace(",", " ") }} €</strong>
+            {% if rpe_alert.source == 'estimated' %}{{ i18n.rpe_estimated }}{% endif %}
+            {% if rpe_alert.employee_count %} | {{ i18n.employee_count_label }}: {{ rpe_alert.employee_count }}{% if rpe_alert.source == 'estimated' %}*{% endif %}{% endif %}
         </p>
         {% endif %}
     </div>
@@ -537,7 +537,7 @@
     {% endif %}
     {% if balance_chart_base64 %}
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3 mt-2">
-        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="Štruktúra majetku" class="max-w-full h-auto" style="height: 160px;">
+        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="{{ i18n.balance_chart_alt }}" class="max-w-full h-auto" style="height: 160px;">
     </div>
     {% elif has_short_history %}
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-3 mt-2 report-body-sm text-slate-500 text-center">
@@ -632,7 +632,7 @@
     <h2 id="vykaz_ziskov" class="section-title mb-4 flex-shrink-0">{{ i18n.pnl_statement }}</h2>
     {% if pnl_chart_base64 %}
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-4 mt-3">
-        <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="Výkaz ziskov a strát" class="max-w-full h-auto" style="height: 220px;">
+        <img src="data:image/png;base64,{{ pnl_chart_base64 }}" alt="{{ i18n.pnl_chart_alt }}" class="max-w-full h-auto" style="height: 220px;">
     </div>
     {% elif has_short_history %}
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 mt-3 report-body-sm text-slate-500 text-center">
@@ -712,7 +712,7 @@
 
     {% if cashflow_chart_base64 %}
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3">
-        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="Peňažné toky" class="max-w-full h-auto" style="height: 200px;">
+        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="{{ i18n.cashflow_chart_alt }}" class="max-w-full h-auto" style="height: 200px;">
     </div>
     {% elif not has_cashflow_data %}
     <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 report-body-sm text-amber-800">
@@ -898,14 +898,14 @@
                 {# Graf Likvidity #}
                 {% if liquidity_chart_base64 %}
                 <div class="w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex items-center justify-center">
-                    <img src="data:image/png;base64,{{ liquidity_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 180px;" alt="Vývoj likvidity">
+                    <img src="data:image/png;base64,{{ liquidity_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 180px;" alt="{{ i18n.liquidity_chart_alt }}">
                 </div>
                 {% endif %}
                 
                 {# Graf Rentability #}
                 {% if ratios_chart_base64 %}
                 <div class="w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex items-center justify-center">
-                    <img src="data:image/png;base64,{{ ratios_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 180px;" alt="Trend rentability">
+                    <img src="data:image/png;base64,{{ ratios_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 180px;" alt="{{ i18n.ratios_chart_alt }}">
                 </div>
                 {% endif %}
 
@@ -931,7 +931,7 @@
                 {% elif altman_scores and altman_scores|length > 0 %}
                 {% if altman_chart_base64 %}
                 <div class="w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex flex-col items-center justify-center" style="page-break-inside: avoid;">
-                    <img src="data:image/png;base64,{{ altman_chart_base64 }}" alt="Altman Z″-Score trend" class="w-full h-auto object-contain" style="max-height: 180px;">
+                    <img src="data:image/png;base64,{{ altman_chart_base64 }}" alt="{{ i18n.altman_chart_alt }}" class="w-full h-auto object-contain" style="max-height: 180px;">
                     <p class="report-caption mt-2 text-center w-full">{{ i18n.altman_interpretation }}</p>
                 </div>
                 {% endif %}
@@ -990,7 +990,7 @@
                     {% if piotroski_score is not none %}
                     <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
                         <p class="report-label text-slate-400 mb-1">Piotroski F</p>
-                        <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-700{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }} <span class="text-slate-400 text-sm font-normal">z 8</span></p>
+                        <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-700{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }} <span class="text-slate-400 text-sm font-normal">{{ i18n.out_of_8 }}</span></p>
                         <div class="w-full bg-slate-100 rounded-full mt-1.5" style="height: 3px;">
                             <div class="rounded-full" style="height: 3px; width: {{ piotroski_score / 8 * 100 }}%; background: {% if piotroski_score >= 6 %}#047857{% elif piotroski_score >= 4 %}#d97706{% else %}#e11d48{% endif %};"></div>
                         </div>

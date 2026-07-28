@@ -228,7 +228,7 @@ def generate_altman_chart(altman_scores, lang="sk") -> str:
         marker=dict(size=12, color=colors, line=dict(color='#ffffff', width=2))
     ))
 
-    layout = get_base_layout(get_i18n_strings(lang).get('chart_altman_trend', 'Altman Z″-Score trend'))
+    layout = get_base_layout(get_i18n_strings(lang).get('chart_altman_trend', 'Altman Z\'\'-Score trend'))
     layout['yaxis'].update(range=[min_y, max_y])
     layout['showlegend'] = False
     fig.update_layout(**layout)
