@@ -494,6 +494,8 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     if m: return i18n_strings.get("flag_piotroski_score", flag).format(val=m.group(1))
     if flag == "Nedostatok dát pre Piotroski F-score (min. 2 roky)":
         return i18n_strings.get("flag_piotroski_no_data", flag)
+    m = _re.match(r"Neutralizované kritériá \(chýbajúce dáta\): (.+)", flag)
+    if m: return i18n_strings.get("flag_piotroski_neutral", flag).format(criteria=m.group(1))
     # Beneish M-score
     m = _re.match(r"Beneish M-score = (-?[\d.]+) — PRAVDEPODOBNÝ manipulátor", flag)
     if m: return i18n_strings.get("flag_beneish_manipulator", flag).format(val=m.group(1))
@@ -677,12 +679,13 @@ def compute_insolvency_score(stmts, i18n_strings):
             break
     profit_trend, profit_consecutive = _trend([p for p in profits if p is not None]) if len([p for p in profits if p is not None]) >= 2 else ("stable", 0)
 
-    # 5. Altman Z'' trend (if available)
+    # 5. Altman Z'' trend (computed on-the-fly since altmanZScore is not stored in DB)
     altman_values = []
     for s in stmts_sorted:
-        z = _safe_attr(s, 'altmanZScore')
+        z_result = compute_altman_z_score(s)
+        z = z_result.get('z_score')
         if z is not None:
-            altman_values.append(z)
+            altman_values.append(float(z))
     altman_trend, altman_decline = _trend(altman_values) if len(altman_values) >= 2 else ("stable", 0)
 
     # --- Scoring ---
@@ -746,7 +749,7 @@ def compute_insolvency_score(stmts, i18n_strings):
         trends.append({
             "label": i18n_strings.get("insolvency_debt_trend"),
             "direction": trend_label_map.get(debt_trend, debt_trend),
-            "detail": i18n_strings.get("insolvency_years_decline", "").format(n=debt_grow_years) if debt_grow_years > 0 else "",
+            "detail": i18n_strings.get("insolvency_years_growing", "").format(n=debt_grow_years) if debt_grow_years > 0 else "",
             "is_negative": debt_trend == "growing",
         })
     if any(p is not None for p in profits):
@@ -909,13 +912,13 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             if getattr(ao, 'goingConcernRisk', None):
                 if auditor_sev == "none":
                     auditor_sev = "medium"
-                auditor_details.append(f"{stmt.year}: Going Concern (auditor)")
+                auditor_details.append(i18n_strings.get("heatmap_going_concern_auditor", "{year}: Going Concern (auditor)").format(year=stmt.year))
             # Also check NarrativeRisk goingConcernDoubts for this statement
             nr = getattr(stmt, 'narrativeRisk', None)
             if nr and getattr(nr, 'goingConcernDoubts', None):
                 if auditor_sev == "none":
                     auditor_sev = "medium"
-                auditor_details.append(f"{stmt.year}: Going Concern (narrative)")
+                auditor_details.append(i18n_strings.get("heatmap_going_concern_narrative", "{year}: Going Concern (narrative)").format(year=stmt.year))
     _add("fraud_cat_auditor", auditor_sev, len(auditor_details), auditor_details[:3])
 
     # 6. Legal registries (from verdict evidence)
@@ -945,23 +948,24 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     fin_details = []
     if stmts and len(stmts) >= 2:
         latest = max(stmts, key=lambda s: s.year)
-        altman = getattr(latest, 'altmanZScore', None)
+        altman_result = compute_altman_z_score(latest)
+        altman = altman_result.get('z_score')
         if altman is not None and float(altman) < 1.1:
             fin_sev = "critical"
-            fin_details.append(f"Altman Z'' = {altman:.2f} (Krizóna)")
+            fin_details.append(i18n_strings.get("heatmap_altman_distress", "Altman Z'' = {val} (Krizóna)").format(val=f"{altman:.2f}"))
         elif altman is not None and float(altman) < 2.6:
             if fin_sev == "none":
                 fin_sev = "medium"
-            fin_details.append(f"Altman Z'' = {altman:.2f} (Šedá zóna)")
+            fin_details.append(i18n_strings.get("heatmap_altman_grey", "Altman Z'' = {val} (Šedá zóna)").format(val=f"{altman:.2f}"))
         equity = getattr(latest, 'equity', None)
         if equity is not None and float(equity) < 0:
             fin_sev = "critical"
-            fin_details.append("Záporné vlastné imanie")
+            fin_details.append(i18n_strings.get("heatmap_negative_equity", "Záporné vlastné imanie"))
         net_profit = getattr(latest, 'netProfitLoss', None)
         if net_profit is not None and float(net_profit) < 0:
             if fin_sev == "none":
                 fin_sev = "medium"
-            fin_details.append("Čistá strata")
+            fin_details.append(i18n_strings.get("heatmap_net_loss", "Čistá strata"))
     _add("fraud_cat_financial", fin_sev, len(fin_details), fin_details[:3])
 
     # Overall risk level
@@ -1043,7 +1047,8 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
     # 5. From financial statements
     if stmts and len(stmts) >= 2:
         latest = max(stmts, key=lambda s: s.year)
-        altman = getattr(latest, 'altmanZScore', None)
+        altman_result = compute_altman_z_score(latest)
+        altman = altman_result.get('z_score')
         if altman is not None:
             try:
                 altman_val = float(altman)
@@ -1099,7 +1104,7 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
                     )
                     if 'bez výhrad' in op_lower or 'unqualified' in op_lower:
                         if has_going_concern:
-                            _weakness(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year}) — Going Concern pochybnosti",
+                            _weakness(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year}) — {i18n_strings.get('sw_going_concern_doubt', 'Going Concern pochybnosti')}",
                                       i18n_strings.get("sw_source_auditor", ""))
                         else:
                             _strength(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year})",
@@ -1479,7 +1484,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 break
     if stored_breakdown and not (stored_has_na and stmts):
         scorecard_breakdown = stored_breakdown
-        algorithmic_total = sum(p.get("score", 0) for p in stored_breakdown)
+        algorithmic_total = max(0, sum(p.get("score", 0) for p in stored_breakdown))
     elif stmts:
         company_dict_for_scoring = {
             "vestnikEvents": [
@@ -1499,6 +1504,20 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             {"name": p.name, "score": p.score, "max_score": p.max_score, "detail": p.detail, "flags": p.flags}
             for p in sc_result.pillars
         ]
+
+    # Extract Piotroski score BEFORE translation (flags are in Slovak at this point)
+    sorted_stmts_raw = sorted(stmts or [], key=lambda s: s.year)
+    piotroski_score_from_sc = None
+    if scorecard_breakdown:
+        import re as _re
+        for pillar in scorecard_breakdown:
+            for flag in (pillar.get("flags") or []):
+                m = _re.match(r'Piotroski F-score:\s*(\d+)\s*z\s*8', flag)
+                if m:
+                    piotroski_score_from_sc = int(m.group(1))
+                    break
+            if piotroski_score_from_sc is not None:
+                break
 
     # i18n: Translate scorecard pillar names, details, and flags at display time
     if scorecard_breakdown:
@@ -1537,19 +1556,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             key=lambda z: z["year"]
         )
 
-    # Piotroski F-score — prefer score from scorecard (single source of truth)
-    sorted_stmts_raw = sorted(stmts or [], key=lambda s: s.year)
-    piotroski_score_from_sc = None
-    if scorecard_breakdown:
-        import re as _re
-        for pillar in scorecard_breakdown:
-            for flag in (pillar.get("flags") or []):
-                m = _re.match(r'Piotroski F-score:\s*(\d+)\s*z\s*8', flag)
-                if m:
-                    piotroski_score_from_sc = int(m.group(1))
-                    break
-            if piotroski_score_from_sc is not None:
-                break
+    # Piotroski F-score — use score extracted from scorecard before translation
     if piotroski_score_from_sc is not None:
         piotroski_result = {"score": piotroski_score_from_sc, "flags": [f"Piotroski F-score: {piotroski_score_from_sc} z 8"]}
     else:

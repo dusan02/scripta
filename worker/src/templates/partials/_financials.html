@@ -234,7 +234,7 @@
                 <p class="subsection-title-sm">{{ i18n.auditor_opinion_label }} ({{ latest_stmt.year }})</p>
                 <p class="text-xs font-bold text-slate-800">{{ auditor_opinion.opinion_type }}</p>
                 {% if latest_stmt.auditorOpinion.goingConcernRisk %}
-                <p class="report-body-sm text-rose-600 font-medium">⚠ Going Concern</p>
+                <p class="report-body-sm text-rose-600 font-medium">⚠ {{ i18n.sw_going_concern_doubt }}</p>
                 {% endif %}
                 {% if latest_stmt.auditorOpinion.reservationText and latest_stmt.auditorOpinion.reservationText is not none and latest_stmt.auditorOpinion.reservationText != 'null' and latest_stmt.auditorOpinion.reservationText|trim|length > 0 %}
                 <p class="report-body-sm text-slate-600 leading-normal">{{ latest_stmt.auditorOpinion.reservationText }}</p>
