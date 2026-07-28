@@ -96,7 +96,7 @@ class RpvsScraper(BaseScraper):
                 await page.wait_for_function(
                     """(ico) => {
                         const text = document.body.innerText;
-                        const tdElements = Array.from(document.querySelectorAll('tbody tr td:nth-child(3)'));
+                        const tdElements = Array.from(document.querySelectorAll('tbody tr td:nth-child(5)'));
                         const cleanTarget = ico.replace(/\\D/g, '');
                         const hasIco = tdElements.some(td => td.innerText.replace(/\\D/g, '').includes(cleanTarget));
                         const hasNoResults = text.includes('Nenašli sa žiadne') || text.includes('0 celkom 0') || text.includes('0 až 0');
@@ -112,11 +112,18 @@ class RpvsScraper(BaseScraper):
             _t = time.perf_counter()
 
             # 5. Počkaj na výsledky a klikni na názov partnera
-            # Kliká sa na Meno partnera verejného sektora, ktoré je v 2. stĺpci prvého riadku (td:nth-child(2))
-            company_link = page.locator("tbody tr td:nth-child(2) a").first
+            # Kliká sa na Meno partnera verejného sektora (4. stĺpec: td:nth-child(4) a).
+            # Ak je viac záznamov, preferujeme riadok so stavom "Platný" (7. stĺpec).
+            company_link = page.locator("tbody tr:has(td:nth-child(7):text('Platný')) td:nth-child(4) a").first
             company_name = None
             try:
                 await company_link.wait_for(state="visible", timeout=8000)
+            except PlaywrightTimeoutError:
+                # Fallback: ak nie je žiadny "Platný" riadok, skús prvý odkaz v 4. stĺpci
+                logger.warning(f"[{self.source_type}] Žiadny riadok so stavom 'Platný', skúšam prvý odkaz v 4. stĺpci.")
+                company_link = page.locator("tbody tr td:nth-child(4) a").first
+                await company_link.wait_for(state="visible", timeout=5000)
+            try:
                 company_name = await company_link.inner_text()
                 if company_name:
                     company_name = company_name.strip()
