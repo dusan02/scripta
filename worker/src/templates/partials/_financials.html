@@ -1011,9 +1011,9 @@
                         <p class="report-label text-slate-400 mb-1.5">{{ i18n.liquidity }}</p>
                         <div class="space-y-1 w-full">
                             {% set lik_ratios = [
-                                ('Current Ratio', latest_ratios.current_ratio),
-                                ('Quick Ratio', latest_ratios.quick_ratio),
-                                ('Cash Ratio', latest_ratios.cash_ratio)
+                                (i18n.liq_current, latest_ratios.current_ratio),
+                                (i18n.liq_quick, latest_ratios.quick_ratio),
+                                (i18n.liq_cash, latest_ratios.cash_ratio)
                             ] %}
                             {% for l_label, l_val in lik_ratios %}
                             <div class="flex justify-between items-center text-[10px]">
@@ -1052,7 +1052,7 @@
                             <div class="flex justify-between items-center text-[10px]">
                                 <span class="text-slate-500 font-medium uppercase tracking-wider">{{ label }}</span>
                                 {% if value is not none %}
-                                <span class="font-bold {% if value < 0 and label != 'CF/Zisk' %}text-rose-600{% elif value > 0 and label != 'CF/Zisk' %}text-emerald-700{% elif label == 'CF/Zisk' and value >= 1.0 %}text-emerald-700{% elif label == 'CF/Zisk' and value < 0.5 %}text-rose-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix == '×' %}{{ "%.1f"|format(value) }}×{% else %}{{ value }}{% endif %}</span>
+                                <span class="font-bold {% if value < 0 and suffix != '×' %}text-rose-600{% elif value > 0 and suffix != '×' %}text-emerald-700{% elif suffix == '×' and value >= 1.0 %}text-emerald-700{% elif suffix == '×' and value < 0.5 %}text-rose-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix == '×' %}{{ "%.1f"|format(value) }}×{% else %}{{ value }}{% endif %}</span>
                                 {% else %}
                                 <span class="font-bold text-slate-400">—</span>
                                 {% endif %}

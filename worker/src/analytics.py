@@ -1482,7 +1482,6 @@ def compute_yoy_summary_table(statements: list, i18n_strings: dict = None) -> di
             return ""
         # Záporný čistý zisk, tržby, aktíva, vlastné imanie = červená
         negative_is_bad = field in ("revenue", "profit", "assets", "equity", "ebitda")
-        positive_is_bad = field in ("liab", "cost")
         if negative_is_bad:
             if delta <= -20:
                 return "🔴"
@@ -1491,11 +1490,13 @@ def compute_yoy_summary_table(statements: list, i18n_strings: dict = None) -> di
             elif delta >= 20:
                 return "🟢"
         else:
-            # Záväzky a náklady: rast = červená
+            # Záväzky a náklady: rast = červená, pokles = zelená
             if delta >= 20:
                 return "🔴"
             elif delta >= 5:
                 return "🟡"
+            elif delta <= -20:
+                return "🟢"
         return ""
 
     _METRICS = [

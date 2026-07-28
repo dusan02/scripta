@@ -619,7 +619,6 @@ def compute_insolvency_score(stmts, i18n_strings):
         return {"score": None, "risk_level": "no_data", "risk_label": i18n_strings.get("insolvency_no_data"), "trends": [], "has_data": False}
 
     stmts_sorted = sorted(stmts, key=lambda s: s.year)
-    years = [s.year for s in stmts_sorted]
 
     def _trend(values):
         """Return (direction, consecutive_count). direction = 'declining'|'stable'|'growing'"""
@@ -633,17 +632,20 @@ def compute_insolvency_score(stmts, i18n_strings):
         den = sum((i - x_mean) ** 2 for i in range(n))
         slope = num / den if den else 0
 
+        # Sensitivity threshold: 1% of mean magnitude, or 0 if mean is zero
+        threshold = 0.01 * abs(y_mean) if y_mean else 0
+
         # Count consecutive declining/growing years from the end
         consecutive = 0
         direction = "stable"
-        if slope < -0.01 * abs(y_mean) if y_mean else slope < 0:
+        if slope < -threshold:
             direction = "declining"
             for i in range(len(values) - 1, 0, -1):
                 if values[i] < values[i - 1]:
                     consecutive += 1
                 else:
                     break
-        elif slope > 0.01 * abs(y_mean) if y_mean else slope > 0:
+        elif slope > threshold:
             direction = "growing"
             for i in range(len(values) - 1, 0, -1):
                 if values[i] > values[i - 1]:

@@ -183,8 +183,8 @@ def generate_liquidity_chart(statements, lang="sk") -> str:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     fig.add_trace(go.Bar(x=years, y=wc, name=i.get('chart_working_capital', 'Pracovný kapitál'), marker_color='rgba(148,163,184,0.6)'), secondary_y=False)
-    fig.add_trace(go.Scatter(x=years, y=cr, name='Current Ratio', mode='lines+markers+text', line=dict(color='#3b82f6', width=2), marker=dict(size=7), text=[f'{v:.2f}' for v in cr], textposition='top center', textfont=dict(size=9, color='#3b82f6')), secondary_y=True)
-    fig.add_trace(go.Scatter(x=years, y=qr, name='Quick Ratio', mode='lines+markers', line=dict(color='#10b981', width=2), marker=dict(size=7, symbol='diamond')), secondary_y=True)
+    fig.add_trace(go.Scatter(x=years, y=cr, name=i.get('liq_current', 'Current Ratio'), mode='lines+markers+text', line=dict(color='#3b82f6', width=2), marker=dict(size=7), text=[f'{v:.2f}' for v in cr], textposition='top center', textfont=dict(size=9, color='#3b82f6')), secondary_y=True)
+    fig.add_trace(go.Scatter(x=years, y=qr, name=i.get('liq_quick', 'Quick Ratio'), mode='lines+markers', line=dict(color='#10b981', width=2), marker=dict(size=7, symbol='diamond')), secondary_y=True)
     
     # 1.0 threshold line
     fig.add_hline(y=1.0, line_dash="dash", line_color="rgba(239,68,68,0.5)", secondary_y=True)
@@ -403,7 +403,7 @@ def generate_rpe_chart(statements, lang="sk") -> str:
 
     avg = sum(rpe) / len(rpe)
     fig.add_hline(y=avg, line_dash="dash", line_color="rgba(148,163,184,0.6)",
-                  annotation_text=f'Priemer {int(avg):,} €'.replace(',', ' '),
+                  annotation_text=f"{i.get('chart_average', 'Priemer')} {int(avg):,} €".replace(',', ' '),
                   annotation_position="top right",
                   annotation_font=dict(size=9, color='#94a3b8'))
 
