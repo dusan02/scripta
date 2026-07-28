@@ -446,6 +446,8 @@ _PILLAR_NAME_MAP = {
     "Právna bezúhonnosť": "pillar_legal",
     "Forenzný indikátor: Biely Kôň": "pillar_forensic",
     "Data Quality Multiplier": "pillar_dq",
+    "Cash Flow / DSO Stress": "pillar_cf_dso",
+    "ORSR Forenzná penalizácia": "pillar_orsr_forensic",
 }
 
 # ── Flag/detail translation patterns ──
@@ -523,6 +525,8 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     # Data void
     if flag == "DATA VOID: Kľúčové finančné metriky nedostupné":
         return i18n_strings.get("flag_data_void", flag)
+    if flag == "DATA VOID":
+        return i18n_strings.get("flag_data_void_short", flag)
     # Profitability
     m = _re.match(r"Ziskovosť: (\d+)/(\d+) rokov v zisku", flag)
     if m: return i18n_strings.get("flag_profitability", flag).format(p=m.group(1), n=m.group(2))
@@ -540,6 +544,8 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     # CAGR
     if flag == "CAGR tržieb: N/A":
         return i18n_strings.get("flag_cagr_na", flag)
+    m = _re.match(r"CAGR: \+([\d.]+)%", flag)
+    if m: return i18n_strings.get("flag_cagr_growth", flag).format(val=m.group(1))
     if flag == "CAGR: stagnácia":
         return i18n_strings.get("flag_cagr_stagnation", flag)
     if flag == "CAGR: pokles":
@@ -575,6 +581,25 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     # HARD STOP detail
     if "HARD STOP" in flag:
         return i18n_strings.get("detail_hard_stop", flag)
+    # Konkurz / Likvidácia flag
+    if flag == "Konkurz / Likvidácia / Reštrukturalizácia":
+        return i18n_strings.get("flag_hard_stop_konkurz", flag)
+    # ORSR forensic flags
+    m = _re.match(r"ORSR CRITICAL: (\d+) zmien štatutárov", flag)
+    if m: return i18n_strings.get("flag_orsr_critical", flag).format(val=m.group(1))
+    if flag == "ORSR HIGH: zvýšené riziko z ORSR histórie (−2b)":
+        return i18n_strings.get("flag_orsr_high", flag)
+    m = _re.match(r"Vysoký počet zmien štatutárov \((\d+)\) pre malú firmu", flag)
+    if m: return i18n_strings.get("flag_orsr_small_corp", flag).format(val=m.group(1))
+    m = _re.match(r"Vysoký počet zmien štatutárov \((\d+)\) pre strednú firmu", flag)
+    if m: return i18n_strings.get("flag_orsr_medium_corp", flag).format(val=m.group(1))
+    m = _re.match(r"Vysoký počet zmien štatutárov \((\d+)\):", flag)
+    if m: return i18n_strings.get("flag_orsr_big_corp", flag).format(val=m.group(1))
+    if flag == "Virtuálne sídlo + zahraničný štatutár (−1b)":
+        return i18n_strings.get("flag_orsr_virtual_foreign", flag)
+    # CF/DSO stress flag
+    if "papierový zisk" in flag:
+        return i18n_strings.get("flag_cf_dso_stress", flag)
     return flag
 
 

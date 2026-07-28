@@ -1,3 +1,5 @@
+import json as _json
+import unicodedata
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Union
 
@@ -642,6 +644,18 @@ def compute_vestnik_degradation(event, current_date=None) -> float:
     else:
         return 0.1
 
+def _get_latest_revenue(financial_statements: list) -> Optional[float]:
+    """Extract latest year's revenue from financial statements."""
+    if not financial_statements:
+        return None
+    try:
+        latest = max(financial_statements, key=lambda s: getattr(s, "year", 0) or (s.get("year", 0) if isinstance(s, dict) else 0))
+        rev = getattr(latest, "mainActivityRevenue", 0) or (latest.get("mainActivityRevenue", 0) if isinstance(latest, dict) else 0)
+        return rev or None
+    except Exception:
+        return None
+
+
 def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardResult":
 
     """
@@ -660,7 +674,6 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             if isinstance(event, dict)
             else getattr(event, "eventType", "").lower()
         )
-        import unicodedata
         event_type_norm = unicodedata.normalize("NFC", event_type)
         if any(kw in event_type_norm for kw in ("konkurz", "likvidáci", "reštrukturalizáci")):
             pillars.append(ScorecardPillar(
@@ -803,7 +816,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             p2_raw += min(14, int(7 + (z_score_val - 1.1) / (2.6 - 1.1) * 7))
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Šedá zóna ⚠")
         else:
-            p2_raw += max(0, min(4, int((z_score_val / 1.1) * 4))) if z_score_val is not None else 0
+            p2_raw += max(0, min(4, int((z_score_val / 1.1) * 4)))
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna ✗")
 
         # Piotroski F-score (max 10 raw)
@@ -830,8 +843,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     n_years = len(sorted_stmts_raw)
     
     if n_years == 0:
-        p3_raw = 0 if data_void else 15
-        p3_flags.append("DATA VOID" if data_void else "Nová firma / chýbajúce výkazy")
+        p3_raw = 0
+        p3_flags.append("DATA VOID")
     else:
         # Ziskovosť (max 10)
         profitable_years = sum(
@@ -1010,26 +1023,19 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         ev_sev = ev.get("severity", "INFO") if isinstance(ev, dict) else getattr(ev, "severity", "INFO")
         ev_meta = ev.get("metadata", {}) if isinstance(ev, dict) else getattr(ev, "metadata", {})
         if isinstance(ev_meta, str):
-            import json as _json
             try:
                 ev_meta = _json.loads(ev_meta)
             except Exception:
                 ev_meta = {}
         stat_changes = int(ev_meta.get("statutory_changes_count", 0) or 0)
-        high_turnover = bool(ev_meta.get("high_turnover_risk", False))
         has_virtual = bool(ev_meta.get("has_virtual_seat", False))
         has_foreign = bool(ev_meta.get("has_foreign_statutory", False))
 
         is_big_corp = False
-        if financial_statements:
-            try:
-                latest_stmt = max(financial_statements, key=lambda s: getattr(s, "year", 0) or (s.get("year", 0) if isinstance(s, dict) else 0))
-                rev = getattr(latest_stmt, "mainActivityRevenue", 0) or (latest_stmt.get("mainActivityRevenue", 0) if isinstance(latest_stmt, dict) else 0)
-                if rev and rev > 10_000_000:
-                    is_big_corp = True
-            except Exception:
-                pass
-                
+        latest_rev = _get_latest_revenue(financial_statements)
+        if latest_rev and latest_rev > 10_000_000:
+            is_big_corp = True
+
         if is_big_corp and stat_changes > 0:
             if ev_sev in ["CRITICAL", "HIGH"]:
                 ev_sev = "INFO"
@@ -1050,16 +1056,10 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         # Veľká firma (>10M): >50 zmien (už bežná)
         is_small_corp = False
         is_medium_corp = False
-        if financial_statements:
-            try:
-                latest_stmt = max(financial_statements, key=lambda s: getattr(s, "year", 0) or (s.get("year", 0) if isinstance(s, dict) else 0))
-                rev = getattr(latest_stmt, "mainActivityRevenue", 0) or (latest_stmt.get("mainActivityRevenue", 0) if isinstance(latest_stmt, dict) else 0)
-                if rev and rev <= 2_000_000:
-                    is_small_corp = True
-                elif rev and rev <= 10_000_000:
-                    is_medium_corp = True
-            except Exception:
-                pass
+        if latest_rev and latest_rev <= 2_000_000:
+            is_small_corp = True
+        elif latest_rev and latest_rev <= 10_000_000:
+            is_medium_corp = True
 
         if is_small_corp and stat_changes > 10:
             orsr_forensic_penalty += 2
@@ -1099,7 +1099,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             )
     if cf_dso_penalty > 0:
         pillars.append(ScorecardPillar(
-            name="Cash Flow / DOS Stress", score=-cf_dso_penalty, max_score=0,
+            name="Cash Flow / DSO Stress", score=-cf_dso_penalty, max_score=0,
             detail="Firma vykazuje zisk, ale reálne stráca hotovosť pri extrémnej dobe splatnosti.",
             flags=cf_dso_flags
         ))
@@ -1185,7 +1185,7 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     
     # Altman Z-score a finančné ukazovatele pre každý rok
     for s in sorted_stmts:
-        yr = getattr(s, 'year', 0)
+        yr = _get(s, 'year', 0)
         z = compute_altman_z_score(s)
         ratios = compute_financial_ratios(s)
         trends["altman_z_scores"].append({"year": yr, **z})
@@ -1207,22 +1207,22 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     for i in range(1, len(sorted_stmts)):
         prev = sorted_stmts[i-1]
         curr = sorted_stmts[i]
-        curr_year = getattr(curr, 'year', 0)
+        curr_year = _get(curr, 'year', 0)
         
-        prev_rev = getattr(prev, 'mainActivityRevenue', 0) or 0
-        curr_rev = getattr(curr, 'mainActivityRevenue', 0) or 0
+        prev_rev = _get(prev, 'mainActivityRevenue', 0) or 0
+        curr_rev = _get(curr, 'mainActivityRevenue', 0) or 0
         
         # Anualizácia tržieb pre korektný YoY výpočet pri posunutých hospodárskych rokoch
-        prev_months = getattr(prev, 'monthsInPeriod', 12) or 12
-        curr_months = getattr(curr, 'monthsInPeriod', 12) or 12
+        prev_months = _get(prev, 'monthsInPeriod', 12) or 12
+        curr_months = _get(curr, 'monthsInPeriod', 12) or 12
         
         ann_prev_rev = prev_rev * (12 / prev_months) if prev_months > 0 else prev_rev
         ann_curr_rev = curr_rev * (12 / curr_months) if curr_months > 0 else curr_rev
         
-        prev_profit = getattr(prev, 'netProfitLoss', 0) or 0
-        curr_profit = getattr(curr, 'netProfitLoss', 0) or 0
-        prev_equity = getattr(prev, 'equity', 0) or 0
-        curr_equity = getattr(curr, 'equity', 0) or 0
+        prev_profit = _get(prev, 'netProfitLoss', 0) or 0
+        curr_profit = _get(curr, 'netProfitLoss', 0) or 0
+        prev_equity = _get(prev, 'equity', 0) or 0
+        curr_equity = _get(curr, 'equity', 0) or 0
         
         rev_growth = ((ann_curr_rev - ann_prev_rev) / ann_prev_rev * 100) if ann_prev_rev != 0 else (100.0 if ann_curr_rev > 0 else 0.0)
         profit_delta_pct = ((curr_profit - prev_profit) / abs(prev_profit) * 100) if prev_profit != 0 else None
