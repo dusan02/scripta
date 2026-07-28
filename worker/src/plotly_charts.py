@@ -6,6 +6,26 @@ import numpy as np
 
 from src.i18n import get_i18n_strings
 
+# ─── Unified color palette ───────────────────────────────────────────────────
+COLORS = {
+    'green':       '#10b981',
+    'green_light': '#34d399',
+    'red':         '#ef4444',
+    'red_light':   '#fca5a5',
+    'amber':       '#f59e0b',
+    'blue':        '#3b82f6',
+    'blue_dark':   '#1e40af',
+    'blue_light':  '#60a5fa',
+    'slate':       '#1e293b',
+    'slate_light': '#94a3b8',
+    'grid':        '#e2e8f0',
+    'zero_line':   '#cbd5e1',
+    'text':        '#0f172a',
+    'text_muted':  '#64748b',
+    'text_light':  '#475569',
+    'font_family': 'Inter, Arial, sans-serif',
+}
+
 def _fmt_currency(x):
     if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
     if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
@@ -19,7 +39,7 @@ def _prepare_statements(statements):
     for s in statements:
         try:
             y = int(s.year)
-            if y <= current_year + 1 and y not in seen_years:
+            if y <= current_year and y not in seen_years:
                 s.year = y
                 valid_stmts.append(s)
                 seen_years.add(y)
@@ -30,13 +50,13 @@ def _prepare_statements(statements):
 
 def get_base_layout(title):
     return dict(
-        title=dict(text=title, font=dict(size=14, color='#0f172a', family='Inter, Arial, sans-serif')),
+        title=dict(text=title, font=dict(size=14, color=COLORS['text'], family=COLORS['font_family'])),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=40, r=40, t=50, b=45),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10, color='#475569')),
-        xaxis=dict(type='category', categoryorder='category ascending', showgrid=False, showline=True, linecolor='#e2e8f0', tickfont=dict(color='#64748b', size=11, family='Inter, Arial, sans-serif'), tickangle=-30, automargin=True, tickformat=''),
-        yaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, zerolinecolor='#cbd5e1', tickfont=dict(color='#64748b'))
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10, color=COLORS['text_light'])),
+        xaxis=dict(type='category', categoryorder='category ascending', showgrid=False, showline=True, linecolor=COLORS['grid'], tickfont=dict(color=COLORS['text_muted'], size=11, family=COLORS['font_family']), tickangle=-30, automargin=True, tickformat=''),
+        yaxis=dict(showgrid=True, gridcolor=COLORS['grid'], zeroline=True, zerolinecolor=COLORS['zero_line'], tickfont=dict(color=COLORS['text_muted']))
     )
 
 def _strip_kaleido_watermark(img_bytes: bytes) -> bytes:
@@ -100,18 +120,31 @@ def generate_balance_sheet_chart(statements, lang="sk") -> str:
     debt = [((s.shortTermLiabilities or 0) + (s.longTermLiabilities or 0)) for s in statements]
 
     fig = go.Figure()
+    other_pasiva = []
+    for s in statements:
+        ta = s.totalAssets or 0
+        eq = max(0, s.equity or 0)
+        sl = s.shortTermLiabilities or 0
+        ll = s.longTermLiabilities or 0
+        other_pasiva.append(max(0, ta - eq - sl - ll))
+
     fig.add_trace(go.Scatter(
         x=years, y=assets, name=i.get('chart_total_assets', 'Celkové Aktíva'), mode='lines+markers',
-        line=dict(color='#94a3b8', width=2, dash='dash'), marker=dict(size=7)
+        line=dict(color=COLORS['slate_light'], width=2, dash='dash'), marker=dict(size=7)
     ))
     fig.add_trace(go.Scatter(
         x=years, y=debt, name=i.get('chart_total_debt', 'Celkový Dlh'), mode='lines+markers',
-        line=dict(color='#e11d48', width=3, shape='spline'), marker=dict(size=8, symbol='triangle-up')
+        line=dict(color=COLORS['red'], width=3, shape='spline'), marker=dict(size=8, symbol='triangle-up')
     ))
     fig.add_trace(go.Scatter(
         x=years, y=equity, name=i.get('chart_equity', 'Vlastné Imanie'), mode='lines+markers',
-        line=dict(color='#10b981', width=3, shape='spline'), marker=dict(size=8, symbol='square')
+        line=dict(color=COLORS['green'], width=3, shape='spline'), marker=dict(size=8, symbol='square')
     ))
+    if any(v > 0 for v in other_pasiva):
+        fig.add_trace(go.Scatter(
+            x=years, y=other_pasiva, name=i.get('sankey_other_pasiva', 'Ostatné pasíva'), mode='lines+markers',
+            line=dict(color=COLORS['amber'], width=2, dash='dot'), marker=dict(size=6, symbol='cross')
+        ))
 
     layout = get_base_layout(i.get('chart_balance_structure', 'Štruktúra majetku a zdrojov'))
     fig.update_layout(**layout)
@@ -128,10 +161,11 @@ def generate_pnl_chart(statements, lang="sk") -> str:
     net = [s.netProfitLoss or 0 for s in statements]
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=years, y=revenues, name=i.get('chart_revenue', 'Tržby'), marker_color='#1e293b'))
-    fig.add_trace(go.Bar(x=years, y=gross, name=i.get('chart_gross_margin', 'Hrubá marža'), marker_color='#3b82f6'))
-    fig.add_trace(go.Bar(x=years, y=ebitda, name='EBITDA', marker_color='#f59e0b'))
-    net_colors = ['#10b981' if v >= 0 else '#ef4444' for v in net]
+    fig.add_trace(go.Bar(x=years, y=revenues, name=i.get('chart_revenue', 'Tržby'), marker_color=COLORS['slate']))
+    fig.add_trace(go.Bar(x=years, y=gross, name=i.get('chart_gross_margin', 'Hrubá marža'), marker_color=COLORS['blue']))
+    ebitda_colors = [COLORS['amber'] if v >= 0 else COLORS['red'] for v in ebitda]
+    fig.add_trace(go.Bar(x=years, y=ebitda, name='EBITDA', marker_color=ebitda_colors))
+    net_colors = [COLORS['green'] if v >= 0 else COLORS['red'] for v in net]
     fig.add_trace(go.Bar(x=years, y=net, name=i.get('chart_net_profit', 'Čistý zisk'), marker_color=net_colors))
 
     layout = get_base_layout(i.get('chart_pnl', 'Výkaz ziskov a strát'))
@@ -156,13 +190,13 @@ def generate_cashflow_chart(statements, lang="sk") -> str:
     cash = [s.cashAndEquivalents or 0 for s in statements]
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color='#10b981'))
-    fig.add_trace(go.Bar(x=years, y=icf, name=i.get('chart_investing_cf', 'Investičný CF'), marker_color='#ef4444'))
-    fig.add_trace(go.Bar(x=years, y=fcf, name=i.get('chart_financing_cf', 'Finančný CF'), marker_color='#6366f1'))
+    fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color=COLORS['green']))
+    fig.add_trace(go.Bar(x=years, y=icf, name=i.get('chart_investing_cf', 'Investičný CF'), marker_color=COLORS['red']))
+    fig.add_trace(go.Bar(x=years, y=fcf, name=i.get('chart_financing_cf', 'Finančný CF'), marker_color=COLORS['blue']))
     
     fig.add_trace(go.Scatter(
         x=years, y=cash, name=i.get('chart_cash_equivalents', 'Cash & ekvivalenty'), mode='lines+markers',
-        line=dict(color='#1e293b', width=2, dash='dash'), marker=dict(size=8, symbol='diamond')
+        line=dict(color=COLORS['slate'], width=2, dash='dash'), marker=dict(size=8, symbol='diamond')
     ))
 
     layout = get_base_layout(i.get('chart_cashflow_liquidity', 'Peňažné toky a likvidita'))
@@ -176,22 +210,33 @@ def generate_liquidity_chart(statements, lang="sk") -> str:
     statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
     wc = [(s.currentAssets or 0) - (s.shortTermLiabilities or 0) for s in statements]
-    cr = [(s.currentAssets or 0) / (s.shortTermLiabilities or 1) for s in statements]
-    qr = [((s.currentAssets or 0) - (s.inventory or 0)) / (s.shortTermLiabilities or 1) for s in statements]
+    cr = []
+    qr = []
+    for s in statements:
+        stl = s.shortTermLiabilities or 0
+        ca = s.currentAssets or 0
+        inv = s.inventory or 0
+        if stl > 0:
+            cr.append(ca / stl)
+            qr.append((ca - inv) / stl)
+        else:
+            cr.append(None)
+            qr.append(None)
 
     from plotly.subplots import make_subplots
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     fig.add_trace(go.Bar(x=years, y=wc, name=i.get('chart_working_capital', 'Pracovný kapitál'), marker_color='rgba(148,163,184,0.6)'), secondary_y=False)
-    fig.add_trace(go.Scatter(x=years, y=cr, name=i.get('liq_current', 'Current Ratio'), mode='lines+markers+text', line=dict(color='#3b82f6', width=2), marker=dict(size=7), text=[f'{v:.2f}' for v in cr], textposition='top center', textfont=dict(size=9, color='#3b82f6')), secondary_y=True)
-    fig.add_trace(go.Scatter(x=years, y=qr, name=i.get('liq_quick', 'Quick Ratio'), mode='lines+markers', line=dict(color='#10b981', width=2), marker=dict(size=7, symbol='diamond')), secondary_y=True)
+    cr_text = [f'{v:.2f}' if v is not None else 'N/A' for v in cr]
+    fig.add_trace(go.Scatter(x=years, y=cr, name=i.get('liq_current', 'Current Ratio'), mode='lines+markers+text', line=dict(color=COLORS['blue'], width=2), marker=dict(size=7), text=cr_text, textposition='top center', textfont=dict(size=9, color=COLORS['blue']), connectgaps=True), secondary_y=True)
+    fig.add_trace(go.Scatter(x=years, y=qr, name=i.get('liq_quick', 'Quick Ratio'), mode='lines+markers', line=dict(color=COLORS['green'], width=2), marker=dict(size=7, symbol='diamond'), connectgaps=True), secondary_y=True)
     
     # 1.0 threshold line
     fig.add_hline(y=1.0, line_dash="dash", line_color="rgba(239,68,68,0.5)", secondary_y=True)
 
     layout = get_base_layout(i.get('chart_liquidity_wc', 'Likvidita a Pracovný kapitál'))
-    layout['yaxis'] = dict(showgrid=False, zeroline=True, zerolinecolor='#cbd5e1')
-    layout['yaxis2'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False)
+    layout['yaxis'] = dict(showgrid=False, zeroline=True, zerolinecolor=COLORS['zero_line'])
+    layout['yaxis2'] = dict(showgrid=True, gridcolor=COLORS['grid'], zeroline=False)
     fig.update_layout(**layout)
     return _to_base64(fig, 600, 300)
 
@@ -217,14 +262,14 @@ def generate_altman_chart(altman_scores, lang="sk") -> str:
     fig.add_hline(y=1.1, line_dash="dash", line_color="rgba(239,68,68,0.5)")
     fig.add_hline(y=2.6, line_dash="dash", line_color="rgba(16,185,129,0.5)")
 
-    colors = ['#10b981' if s > 2.6 else '#f59e0b' if s >= 1.1 else '#ef4444' for s in scores]
+    colors = [COLORS['green'] if s > 2.6 else COLORS['amber'] if s >= 1.1 else COLORS['red'] for s in scores]
     
     fig.add_trace(go.Scatter(
         x=years, y=scores, name='Z-Score', mode='lines+markers+text',
         text=[f"{s:.2f}" for s in scores],
         textposition="top center",
-        textfont=dict(color=colors, size=14, family='Inter, sans-serif', weight='bold'),
-        line=dict(color='#1e293b', width=2),
+        textfont=dict(color=colors, size=14, family=COLORS['font_family'], weight='bold'),
+        line=dict(color=COLORS['slate'], width=2),
         marker=dict(size=12, color=colors, line=dict(color='#ffffff', width=2))
     ))
 
@@ -243,11 +288,11 @@ def generate_ratios_trend_chart(trend_ratios: list, lang="sk") -> str:
     margin = [t.get("net_profit_margin_pct") for t in trend_ratios]
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=years, y=roa, name='ROA', mode='lines+markers', line=dict(color='#10b981', width=3), marker=dict(size=8)))
-    fig.add_trace(go.Scatter(x=years, y=roe, name='ROE', mode='lines+markers', line=dict(color='#3b82f6', width=3), marker=dict(size=8)))
-    fig.add_trace(go.Scatter(x=years, y=margin, name=i.get('chart_net_margin', 'Čistá marža'), mode='lines+markers', line=dict(color='#f59e0b', width=3), marker=dict(size=8)))
+    fig.add_trace(go.Scatter(x=years, y=roa, name='ROA', mode='lines+markers', line=dict(color=COLORS['green'], width=3), marker=dict(size=8)))
+    fig.add_trace(go.Scatter(x=years, y=roe, name='ROE', mode='lines+markers', line=dict(color=COLORS['blue'], width=3), marker=dict(size=8)))
+    fig.add_trace(go.Scatter(x=years, y=margin, name=i.get('chart_net_margin', 'Čistá marža'), mode='lines+markers', line=dict(color=COLORS['amber'], width=3), marker=dict(size=8)))
 
-    fig.add_hline(y=0, line_dash="dash", line_color="#cbd5e1")
+    fig.add_hline(y=0, line_dash="dash", line_color=COLORS['zero_line'])
     layout = get_base_layout(i.get('chart_ratios_trend', 'Trend rentability'))
     layout['yaxis']['title'] = i.get('chart_percent', 'Percentá (%)')
     all_vals = [v for v in roa + roe + margin if v is not None]
@@ -296,19 +341,40 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
         theta=labels + [labels[0]],
         fill='toself',
         fillcolor='rgba(16,185,129,0.2)',
-        line=dict(color='#10b981', width=2),
-        marker=dict(size=8, color='#10b981')
+        line=dict(color=COLORS['green'], width=2),
+        marker=dict(size=8, color=COLORS['green'])
     ))
+
+    annotations = []
+    penalty_pillars = [p for p in pillars if p.get("max_score", 0) == 0 and p.get("score", 0) != 0]
+    if penalty_pillars:
+        penalty_texts = []
+        for p in penalty_pillars:
+            raw_name = p["name"].split("—")[0].strip()
+            key = _pillar_name_map.get(p["name"])
+            if key:
+                raw_name = i.get(key, raw_name).split("—")[0].strip()
+            penalty_texts.append(f"⚠ {raw_name}: {p['score']}")
+        annotations.append(dict(
+            text="<br>".join(penalty_texts),
+            xref="paper", yref="paper", x=0.5, y=-0.08,
+            xanchor="center", yanchor="top",
+            font=dict(size=10, color=COLORS['red'], family=COLORS['font_family']),
+            bgcolor="rgba(239,68,68,0.08)",
+            bordercolor="rgba(239,68,68,0.2)",
+            borderwidth=1, borderpad=4,
+        ))
 
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100], tickvals=[20,40,60,80,100], gridcolor='#e2e8f0', linecolor='#e2e8f0'),
-            angularaxis=dict(gridcolor='#e2e8f0', linecolor='#e2e8f0', tickfont=dict(size=11, color='#475569', family='Inter, sans-serif'))
+            radialaxis=dict(visible=True, range=[0, 100], tickvals=[20,40,60,80,100], gridcolor=COLORS['grid'], linecolor=COLORS['grid']),
+            angularaxis=dict(gridcolor=COLORS['grid'], linecolor=COLORS['grid'], tickfont=dict(size=11, color=COLORS['text_light'], family=COLORS['font_family']))
         ),
         showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=80, r=80, t=60, b=60)
+        margin=dict(l=80, r=80, t=60, b=80 if annotations else 60),
+        annotations=annotations,
     )
     return _to_base64(fig, 600, 600)
 
@@ -318,11 +384,14 @@ def generate_debt_donut(stmt, lang="sk") -> str:
     equity = getattr(stmt, 'equity', None) or 0
     short_liab = getattr(stmt, 'shortTermLiabilities', None) or 0
     long_liab = getattr(stmt, 'longTermLiabilities', None) or 0
+    total_assets = getattr(stmt, 'totalAssets', None) or 0
     if equity == 0 and short_liab == 0 and long_liab == 0: return ""
 
-    labels_all = [i.get('donut_equity', 'Vlastné imanie'), i.get('donut_short_liab', 'Krátkodobé záväzky'), i.get('donut_long_liab', 'Dlhodobé záväzky')]
-    values_all = [equity, short_liab, long_liab]
-    colors_all = ['#10b981', '#f59e0b', '#ef4444']
+    other_pasiva = max(0, total_assets - max(0, equity) - short_liab - long_liab)
+
+    labels_all = [i.get('donut_equity', 'Vlastné imanie'), i.get('donut_short_liab', 'Krátkodobé záväzky'), i.get('donut_long_liab', 'Dlhodobé záväzky'), i.get('sankey_other_pasiva', 'Ostatné pasíva')]
+    values_all = [equity, short_liab, long_liab, other_pasiva]
+    colors_all = [COLORS['green'], COLORS['amber'], COLORS['red'], COLORS['slate_light']]
     
     filtered = [(l, v, c) for l, v, c in zip(labels_all, values_all, colors_all) if v > 0]
     if len(filtered) < 2: return ""
@@ -331,13 +400,13 @@ def generate_debt_donut(stmt, lang="sk") -> str:
     fig = go.Figure(data=[go.Pie(
         labels=labels, values=values, hole=.5,
         marker=dict(colors=colors, line=dict(color='#ffffff', width=2)),
-        textinfo='percent', textfont=dict(size=24, color='#ffffff', family='Inter, sans-serif', weight='bold'),
+        textinfo='percent', textfont=dict(size=24, color='#ffffff', family=COLORS['font_family'], weight='bold'),
         insidetextorientation='horizontal'
     )])
 
     fig.update_layout(
         showlegend=True,
-        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=14, color='#475569')),
+        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=14, color=COLORS['text_light'])),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=20, r=20, t=20, b=20)
@@ -359,12 +428,12 @@ def generate_employee_chart(statements, lang="sk") -> str:
     fig.add_trace(go.Bar(
         x=years, y=counts,
         name=i.get('chart_employee_count', 'Počet zamestnancov'),
-        marker_color='rgba(59,130,246,0.7)',
-        marker_line_color='rgba(59,130,246,1)',
+        marker_color=f'rgba(59,130,246,0.7)',
+        marker_line_color=COLORS['blue'],
         marker_line_width=1,
         text=[f'{c:,}'.replace(',', ' ') for c in counts],
         textposition='outside',
-        textfont=dict(size=10, color='#475569'),
+        textfont=dict(size=10, color=COLORS['text_light']),
     ))
 
     layout = get_base_layout(i.get('chart_employee_count', 'Vývoj počtu zamestnancov'))
@@ -392,8 +461,8 @@ def generate_rpe_chart(statements, lang="sk") -> str:
         x=years, y=rpe,
         name=i.get('chart_rpe', 'Tržby / zamestnanec'),
         mode='lines+markers+text',
-        line=dict(color='#10b981', width=2.5),
-        marker=dict(size=8, color='#10b981', line=dict(color='white', width=1.5)),
+        line=dict(color=COLORS['green'], width=2.5),
+        marker=dict(size=8, color=COLORS['green'], line=dict(color='white', width=1.5)),
         text=[f'{int(v):,} €'.replace(',', ' ') for v in rpe],
         textposition='top center',
         textfont=dict(size=9, color='#059669'),
@@ -402,10 +471,10 @@ def generate_rpe_chart(statements, lang="sk") -> str:
     ))
 
     avg = sum(rpe) / len(rpe)
-    fig.add_hline(y=avg, line_dash="dash", line_color="rgba(148,163,184,0.6)",
+    fig.add_hline(y=avg, line_dash="dash", line_color=f'rgba(148,163,184,0.6)',
                   annotation_text=f"{i.get('chart_average', 'Priemer')} {int(avg):,} €".replace(',', ' '),
                   annotation_position="top right",
-                  annotation_font=dict(size=9, color='#94a3b8'))
+                  annotation_font=dict(size=9, color=COLORS['slate_light']))
 
     layout = get_base_layout(i.get('chart_rpe', 'Tržby na zamestnanca'))
     layout['yaxis'] = dict(showgrid=True, gridcolor='#e2e8f0', zeroline=False, tickfont=dict(color='#64748b'),

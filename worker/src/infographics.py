@@ -19,24 +19,9 @@ except ImportError:
     HAS_PIL = False
 
 from src.i18n import get_i18n_strings
+from src.plotly_charts import COLORS, _strip_kaleido_watermark
 
 logger = logging.getLogger(__name__)
-
-
-def _strip_kaleido_watermark(img_bytes: bytes) -> bytes:
-    """Remove Kaleido 0.2.x 'Humanity ex' watermark from bottom of image."""
-    if not HAS_PIL:
-        return img_bytes
-    try:
-        img = Image.open(io.BytesIO(img_bytes))
-        w, h = img.size
-        # Crop bottom 3% of image where watermark appears
-        cropped = img.crop((0, 0, w, int(h * 0.97)))
-        buf = io.BytesIO()
-        cropped.save(buf, format='PNG')
-        return buf.getvalue()
-    except Exception:
-        return img_bytes
 
 
 def generate_pl_infographic(stmt, lang="sk") -> str:
@@ -87,9 +72,9 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         i.get('sankey_net_profit', 'Čistý zisk'),                    # 7
     ]
     colors = [
-        "#1e40af", "#ef4444", "#10b981",
-        "#ef4444", "#ef4444", "#ef4444", "#ef4444",
-        "#10b981",
+        COLORS['blue_dark'], COLORS['red'], COLORS['green'],
+        COLORS['red'], COLORS['red'], COLORS['red'], COLORS['red'],
+        COLORS['green'],
     ]
 
     source, target, value, link_color = [], [], [], []
@@ -158,7 +143,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=11, family='DejaVu Sans', color='#0f172a'),
+        font=dict(size=11, family=COLORS['font_family'], color=COLORS['text']),
         margin=dict(l=10, r=130, t=20, b=30),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -204,7 +189,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         # Jednoduchý prípad: Čistý zisk + Odpisy + Zmeny v PK → Prevádzkový CF
         # Uzly: 0=Čistý zisk, 1=Odpisy, 2=Zmeny v PK, 3=Prevádzkový CF
         labels = [i.get('sankey_net_profit', 'Čistý zisk'), i.get('sankey_depreciation', 'Odpisy'), i.get('sankey_wc_changes', 'Zmeny v prac. kapitále'), i.get('chart_operating_cf', 'Prevádzkový CF')]
-        colors = ["#10b981", "#3b82f6", "#22c55e", "#10b981"]
+        colors = [COLORS['green'], COLORS['blue'], "#22c55e", COLORS['green']]
         source = [0, 1]
         target = [3, 3]
         value = [net_profit, dep_val]
@@ -220,7 +205,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         # Hrubý CF → Prevádzkový CF + Odtok do PK
         # Uzly: 0=Čistý zisk, 1=Odpisy, 2=Hrubý peňažný tok, 3=Prevádzkový CF, 4=Záporné zmeny v PK
         labels = [i.get('sankey_net_profit', 'Čistý zisk'), i.get('sankey_depreciation', 'Odpisy'), i.get('sankey_gross_cf', 'Hrubý peňažný tok'), i.get('chart_operating_cf', 'Prevádzkový CF'), i.get('sankey_negative_wc', 'Záporné zmeny v prac. kapitále')]
-        colors = ["#10b981", "#3b82f6", "#1d4ed8", "#10b981", "#ef4444"]
+        colors = [COLORS['green'], COLORS['blue'], "#1d4ed8", COLORS['green'], COLORS['red']]
         source = [0, 1, 2, 2]
         target = [2, 2, 3, 4]
         value = [net_profit, dep_val, ocf, abs(working_capital_effect)]
@@ -245,7 +230,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=11, family='DejaVu Sans', color='#0f172a'),
+        font=dict(size=11, family=COLORS['font_family'], color=COLORS['text']),
         margin=dict(l=10, r=130, t=20, b=30),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -339,10 +324,10 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         i.get('sankey_other_pasiva', 'Ostatné pasíva'),   # 11
     ]
     colors = [
-        "#34d399", "#34d399", "#34d399", "#34d399",
-        "#10b981", "#0ea5e9",
-        "#1e293b",
-        "#f43f5e", "#10b981",
+        COLORS['green_light'], COLORS['green_light'], COLORS['green_light'], COLORS['green_light'],
+        COLORS['green'], "#0ea5e9",
+        COLORS['slate'],
+        "#f43f5e", COLORS['green'],
         "#e11d48", "#e11d48", "#e11d48",
     ]
 
@@ -386,7 +371,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=11, family='DejaVu Sans', color='#0f172a'),
+        font=dict(size=11, family=COLORS['font_family'], color=COLORS['text']),
         margin=dict(l=10, r=140, t=20, b=40),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -653,7 +638,7 @@ def _generate_balance_sheet_waterfall(stmt, lang="sk") -> str:
     # Assets Bar
     labels_a = [i.get('sankey_non_current', 'Dlhodobý majetok'), i.get('sankey_inventory', 'Zásoby'), i.get('sankey_receivables', 'Pohľadávky'), i.get('sankey_cash', 'Hotovosť')]
     values_a = [non_current, inventory, receivables, cash]
-    colors_a = ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd']
+    colors_a = [COLORS['blue_dark'], COLORS['blue'], COLORS['blue_light'], '#93c5fd']
     
     for l, v, c in zip(labels_a, values_a, colors_a):
         if v > 0:
@@ -668,7 +653,7 @@ def _generate_balance_sheet_waterfall(stmt, lang="sk") -> str:
 
     labels_c = [i.get('sankey_equity', 'Vlastné imanie'), i.get('sankey_short_liab', 'Krátkodobé záv.'), i.get('sankey_long_liab', 'Dlhodobé záv.')]
     values_c = [abs(equity), short_liab, long_liab]
-    colors_c = ['#10b981' if equity > 0 else '#ef4444', '#f59e0b', '#ef4444']
+    colors_c = [COLORS['green'] if equity > 0 else COLORS['red'], COLORS['amber'], COLORS['red']]
     
     for l, v, c in zip(labels_c, values_c, colors_c):
         if v > 0:
@@ -680,12 +665,12 @@ def _generate_balance_sheet_waterfall(stmt, lang="sk") -> str:
 
     fig.update_layout(
         barmode='stack',
-        title=dict(text=i.get('chart_balance_structure', 'Štruktúra majetku a zdrojov'), font=dict(size=14, color='#0f172a')),
+        title=dict(text=i.get('chart_balance_structure', 'Štruktúra majetku a zdrojov'), font=dict(size=14, color=COLORS['text'], family=COLORS['font_family'])),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         margin=dict(l=80, r=20, t=50, b=100),
-        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=10, color='#475569')),
-        xaxis=dict(showgrid=True, gridcolor='#e2e8f0', zeroline=True, tickfont=dict(color='#64748b')),
-        yaxis=dict(showgrid=False, tickfont=dict(size=12, color='#0f172a', weight='bold'))
+        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=10, color=COLORS['text_light'])),
+        xaxis=dict(showgrid=True, gridcolor=COLORS['grid'], zeroline=True, tickfont=dict(color=COLORS['text_muted'])),
+        yaxis=dict(showgrid=False, tickfont=dict(size=12, color=COLORS['text'], weight='bold'))
     )
     return _to_base64(fig, 800, 300)
