@@ -1621,30 +1621,45 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             for p in sc_result.pillars
         ]
 
-    # Always compute Piotroski F-score from current financial statements — single source of truth
+    # Piotroski F-score: stored scorecard breakdown is the single source of truth
+    # (it corresponds to the stored verifaScore shown on the cover page).
+    # Recompute from current statements ONLY as fallback when stored breakdown
+    # has no Piotroski flag (old verdicts) — then patch flags AND detail so
+    # section II, pillar score and detail panel all show the same value.
+    _pio_score = _extract_piotroski_from_scorecard(scorecard_breakdown)
     sorted_stmts_raw = sorted(stmts or [], key=lambda s: s.year)
-    piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
-    _pio_score = piotroski_result.get("score")
-    _pio_flags = piotroski_result.get("flags", [])
-    # Update scorecard breakdown Pillar 2 flags to use the recomputed Piotroski score
-    # (stored breakdown may have a different score from pipeline time)
-    if scorecard_breakdown and _pio_score is not None:
-        for p in scorecard_breakdown:
-            if p.get("name") == "Finančné zdravie":
-                old_flags = p.get("flags") or []
-                new_flags = []
-                for f in old_flags:
-                    if _re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', f):
-                        new_flags.append(f"Piotroski F-score: {_pio_score} z 8")
-                    elif _re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', f):
-                        if _pio_flags and len(_pio_flags) > 1:
-                            new_flags.append(_pio_flags[1])
+    if _pio_score is not None:
+        # Rebuild piotroski_result from stored flags (incl. neutralized criteria) for the detail panel
+        _stored_pio_flags = []
+        for _p in scorecard_breakdown:
+            for _f in (_p.get("flags") or []):
+                if _re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', _f) or _re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', _f):
+                    _stored_pio_flags.append(_f)
+        piotroski_result = {"score": _pio_score, "flags": _stored_pio_flags or [f"Piotroski F-score: {_pio_score} z 8"]}
+    else:
+        piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
+        _pio_score = piotroski_result.get("score")
+        _pio_flags = piotroski_result.get("flags", [])
+        if scorecard_breakdown and _pio_score is not None:
+            for p in scorecard_breakdown:
+                if p.get("name") == "Finančné zdravie":
+                    old_flags = p.get("flags") or []
+                    new_flags = []
+                    for f in old_flags:
+                        if _re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', f):
+                            new_flags.append(f"Piotroski F-score: {_pio_score} z 8")
+                        elif _re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', f):
+                            if _pio_flags and len(_pio_flags) > 1:
+                                new_flags.append(_pio_flags[1])
+                            else:
+                                new_flags.append(f)
                         else:
                             new_flags.append(f)
-                    else:
-                        new_flags.append(f)
-                p["flags"] = new_flags
-                break
+                    if not any(_re.match(r'Piotroski F-score:', f) for f in new_flags):
+                        new_flags.extend(_pio_flags)
+                    p["flags"] = new_flags
+                    p["detail"] = " | ".join(new_flags[:2])
+                    break
     # i18n: Translate scorecard pillar names, details, and flags at display time
     if scorecard_breakdown:
         scorecard_breakdown = _translate_scorecard(scorecard_breakdown, i18n_strings)
