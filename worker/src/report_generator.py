@@ -451,6 +451,18 @@ _PILLAR_NAME_MAP = {
 # ── Flag/detail translation patterns ──
 import re as _re
 
+
+def _extract_piotroski_from_scorecard(scorecard_breakdown: list) -> int | None:
+    """Extract Piotroski F-score integer from scorecard flags (Slovak format, pre-translation)."""
+    if not scorecard_breakdown:
+        return None
+    for pillar in scorecard_breakdown:
+        for flag in (pillar.get("flags") or []):
+            m = _re.match(r'Piotroski F-score:\s*(\d+)\s*z\s*8', flag)
+            if m:
+                return int(m.group(1))
+    return None
+
 def _translate_flag(flag: str, i18n_strings: dict) -> str:
     """Translate a single scorecard flag from Slovak to the report language."""
     # Current ratio flags
@@ -1507,18 +1519,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
 
     # Extract Piotroski score BEFORE translation (flags are in Slovak at this point)
     sorted_stmts_raw = sorted(stmts or [], key=lambda s: s.year)
-    piotroski_score_from_sc = None
-    if scorecard_breakdown:
-        import re as _re
-        for pillar in scorecard_breakdown:
-            for flag in (pillar.get("flags") or []):
-                m = _re.match(r'Piotroski F-score:\s*(\d+)\s*z\s*8', flag)
-                if m:
-                    piotroski_score_from_sc = int(m.group(1))
-                    break
-            if piotroski_score_from_sc is not None:
-                break
-
+    piotroski_score_from_sc = _extract_piotroski_from_scorecard(scorecard_breakdown)
     # i18n: Translate scorecard pillar names, details, and flags at display time
     if scorecard_breakdown:
         scorecard_breakdown = _translate_scorecard(scorecard_breakdown, i18n_strings)
