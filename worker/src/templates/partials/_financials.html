@@ -387,7 +387,7 @@
     {# ── YoY SÚHRNNÁ TABUĽKA ── #}
     {% if yoy_table and yoy_table.rows|length > 0 %}
     <div class="mb-3">
-        <h3 class="subsection-title-sm mb-1.5">📊 Kľúčové ukazovateľe — medziročný prehľad</h3>
+        <h3 class="subsection-title-sm mb-1.5">{{ i18n.yoy_key_indicators }}</h3>
         <p class="report-caption mb-2">{{ i18n.values_in_millions }}</p>
         <div class="overflow-x-auto">
         <table class="w-full text-xs border-collapse">
@@ -405,8 +405,8 @@
             <tbody>
             {% for row in yoy_table.rows %}
             <tr class="border-b border-slate-100
-                {% if 'Záväzky SP' in row.label or 'Daňové' in row.label %}bg-rose-50{% endif %}
-                {% if 'Čistý zisk' in row.label and row.delta_raw is defined and row.delta_raw is not none and row.delta_raw < -20 %}bg-rose-50{% endif %}">
+                {% if row.field in ('socialInsuranceLiabilities', 'taxLiabilities') %}bg-rose-50{% endif %}
+                {% if row.field == 'netProfitLoss' and row.delta_raw is defined and row.delta_raw is not none and row.delta_raw < -20 %}bg-rose-50{% endif %}">
                 <td class="py-0.5 px-2 font-semibold text-slate-700">{{ row.label }}</td>
                 {% for val in row.vals %}
                 {% set display = val if (val is not none and val != '') else '—' %}

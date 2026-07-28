@@ -22,6 +22,17 @@ _NO_RESULTS_MARKERS = [
     "žiadne záznamy",
 ]
 
+_ERROR_MARKERS = [
+    "služba je dočasne nedostupná",
+    "service unavailable",
+    "status: 503",
+    "503 service",
+    "chyba servera",
+    "internal server error",
+    "prebiehá údržba",
+    "maintenance",
+]
+
 # UI/navigation text ktorý sa nemá dostať do findings
 _SKIP_KEYWORDS = {
     "podľa ičo", "názov povinného", "vyplní ičo",
@@ -138,10 +149,18 @@ class PovereniaScraper(BaseScraper):
             lowered = body_text.lower()
             has_poverenie = "poverenie ecli" in lowered
             no_results = any(m in lowered for m in _NO_RESULTS_MARKERS)
+            has_error = any(m in lowered for m in _ERROR_MARKERS)
 
             pdf_output = output_dir / f"poverenia_{ico}.pdf"
 
-            if has_poverenie:
+            if has_error:
+                logger.warning(f"[{self.source_type}] Služba nedostupná (503/error) pre IČO {ico}.")
+                result = self._make_result(
+                    status="UNAVAILABLE",
+                    file_path=None,
+                    status_message=f"Register poverení na exekúcie je dočasne nedostupný (503). Skúste to neskôr.",
+                )
+            elif has_poverenie:
                 logger.info(f"[{self.source_type}] Pozitívny záznam pre IČO {ico}.")
                 result = await self._make_positive_result(page, pdf_output, ico)
             elif no_results:

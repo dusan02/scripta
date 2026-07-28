@@ -1405,7 +1405,7 @@ def compute_revenue_per_employee_alert(statements: list) -> dict:
 
 # ── YoY súhrnná tabuľka ───────────────────────────────────────────────────────
 
-def compute_yoy_summary_table(statements: list) -> dict:
+def compute_yoy_summary_table(statements: list, i18n_strings: dict = None) -> dict:
     """
     Zostaví kompaktnú YoY tabuľku kľúčových ukazovateľov pre posledné roky.
 
@@ -1414,6 +1414,7 @@ def compute_yoy_summary_table(statements: list) -> dict:
       rows: list[dict]    — každý riadok: {label, values: list[str], delta_pct: str, flag: str}
       years: list[int]
     """
+    _i = i18n_strings or {}
     if not statements:
         return {"headers": [], "rows": [], "years": []}
 
@@ -1463,20 +1464,20 @@ def compute_yoy_summary_table(statements: list) -> dict:
         return ""
 
     _METRICS = [
-        ("Tržby", "mainActivityRevenue", "revenue"),
-        ("Čistý zisk", "netProfitLoss", "profit"),
-        ("Celkové aktíva", "totalAssets", "assets"),
-        ("Vlastné imanie", "equity", "equity"),
-        ("Krát. záväzky", "shortTermLiabilities", "liab"),
-        ("Záväzky SP", "socialInsuranceLiabilities", "liab"),
-        ("Daňové záväzky", "taxLiabilities", "liab"),
-        ("Osobné náklady", "staffCosts", "cost"),
-        ("Odpisy", "depreciation", "cost"),
-        ("Úrokové náklady", "interestExpense", "cost"),
+        ("yoy_revenue", "mainActivityRevenue", "revenue"),
+        ("yoy_net_profit", "netProfitLoss", "profit"),
+        ("yoy_total_assets", "totalAssets", "assets"),
+        ("yoy_equity", "equity", "equity"),
+        ("yoy_short_liab", "shortTermLiabilities", "liab"),
+        ("yoy_social_ins_liab", "socialInsuranceLiabilities", "liab"),
+        ("yoy_tax_liab", "taxLiabilities", "liab"),
+        ("yoy_staff_costs", "staffCosts", "cost"),
+        ("yoy_depreciation", "depreciation", "cost"),
+        ("yoy_interest_expense", "interestExpense", "cost"),
     ]
 
     rows = []
-    for label, field, ftype in _METRICS:
+    for i18n_key, field, ftype in _METRICS:
         values_raw = [_get(s, field, None) for s in sorted_stmts]
 
         # Posledná YoY zmena
@@ -1489,7 +1490,7 @@ def compute_yoy_summary_table(statements: list) -> dict:
             continue
 
         rows.append({
-            "label": label,
+            "label": _i.get(i18n_key, i18n_key),
             "field": field,
             "vals": [_fmt_eur(v) for v in values_raw],
             "delta_pct": _fmt_pct(delta),
@@ -1497,6 +1498,6 @@ def compute_yoy_summary_table(statements: list) -> dict:
             "flag": _flag(delta, ftype),
         })
 
-    headers = ["Ukazovateľ"] + [str(y) for y in years] + ["Δ% (posl. rok)"]
+    headers = [_i.get("yoy_indicator", "Ukazovateľ")] + [str(y) for y in years] + [_i.get("yoy_delta", "Δ% (posl. rok)")]
     return {"headers": headers, "rows": rows, "years": years}
 

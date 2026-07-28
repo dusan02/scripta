@@ -1729,7 +1729,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 _scraper_results[st_type] = {"has_record": has_record}
     _state_liabilities_alert = compute_state_liabilities_alert(_stmts_as_dicts, scraper_results=_scraper_results)
     _rpe_alert = compute_revenue_per_employee_alert(_stmts_as_dicts)
-    _yoy_table = compute_yoy_summary_table(_stmts_as_dicts)
+    _yoy_table = compute_yoy_summary_table(_stmts_as_dicts, i18n_strings=i18n_strings)
 
     return {
         "company": company,
