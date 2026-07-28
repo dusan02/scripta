@@ -1621,9 +1621,30 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             for p in sc_result.pillars
         ]
 
-    # Extract Piotroski score BEFORE translation (flags are in Slovak at this point)
+    # Always compute Piotroski F-score from current financial statements — single source of truth
     sorted_stmts_raw = sorted(stmts or [], key=lambda s: s.year)
-    piotroski_score_from_sc = _extract_piotroski_from_scorecard(scorecard_breakdown)
+    piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
+    _pio_score = piotroski_result.get("score")
+    _pio_flags = piotroski_result.get("flags", [])
+    # Update scorecard breakdown Pillar 2 flags to use the recomputed Piotroski score
+    # (stored breakdown may have a different score from pipeline time)
+    if scorecard_breakdown and _pio_score is not None:
+        for p in scorecard_breakdown:
+            if p.get("name") == "Finančné zdravie":
+                old_flags = p.get("flags") or []
+                new_flags = []
+                for f in old_flags:
+                    if _re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', f):
+                        new_flags.append(f"Piotroski F-score: {_pio_score} z 8")
+                    elif _re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', f):
+                        if _pio_flags and len(_pio_flags) > 1:
+                            new_flags.append(_pio_flags[1])
+                        else:
+                            new_flags.append(f)
+                    else:
+                        new_flags.append(f)
+                p["flags"] = new_flags
+                break
     # i18n: Translate scorecard pillar names, details, and flags at display time
     if scorecard_breakdown:
         scorecard_breakdown = _translate_scorecard(scorecard_breakdown, i18n_strings)
@@ -1660,12 +1681,6 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             [{"year": s.year, **compute_altman_z_score(s)} for s in (stmts or []) if s.year and s.year > 2000],
             key=lambda z: z["year"]
         )
-
-    # Piotroski F-score — use score extracted from scorecard before translation
-    if piotroski_score_from_sc is not None:
-        piotroski_result = {"score": piotroski_score_from_sc, "flags": [f"Piotroski F-score: {piotroski_score_from_sc} z 8"]}
-    else:
-        piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
 
     # Beneish M-score — earnings manipulation detection
     beneish_result = compute_beneish_m_score(sorted_stmts_raw)
