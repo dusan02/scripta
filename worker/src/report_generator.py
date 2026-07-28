@@ -452,7 +452,7 @@ _PILLAR_NAME_MAP = {
 import re as _re
 
 
-def _extract_piotroski_from_scorecard(scorecard_breakdown: list) -> int | None:
+def _extract_piotroski_from_scorecard(scorecard_breakdown: list) -> Optional[int]:
     """Extract Piotroski F-score integer from scorecard flags (Slovak format, pre-translation)."""
     if not scorecard_breakdown:
         return None
