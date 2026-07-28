@@ -711,8 +711,8 @@
     {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
 
     {% if cashflow_chart_base64 %}
-    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3">
-        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="{{ i18n.cashflow_chart_alt }}" class="max-w-full h-auto" style="height: 200px;">
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3 flex-shrink-0">
+        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="{{ i18n.cashflow_chart_alt }}" class="max-w-full h-auto" style="height: 220px;">
     </div>
     {% elif not has_cashflow_data %}
     <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 report-body-sm text-amber-800">
@@ -768,22 +768,22 @@
     {% endif %}
 
     {% if cf_waterfall_base64 or debt_donut_base64 %}
-    <div class="flex flex-row justify-between items-end mt-3 gap-4" style="margin-top: auto;">
+    <div class="flex flex-row justify-between items-stretch mt-3 gap-4 flex-1 min-h-0">
         {% if cf_waterfall_base64 %}
-        <div class="flex-1 flex flex-col">
-            <div class="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm p-3 flex items-center justify-center" style="height: 180px;">
+        <div class="flex-1 flex flex-col min-h-0">
+            <div class="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm p-3 flex items-center justify-center flex-1 min-h-0">
                 <img src="data:image/png;base64,{{ cf_waterfall_base64 }}" alt="{{ i18n.cash_flow }}" class="w-full h-full object-contain">
             </div>
-            <p class="report-caption text-center text-slate-400 mt-1">{{ company.name }} — {{ i18n.cash_flow }} {{ latest_stmt.year }} · RÚZ</p>
+            <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — {{ i18n.cash_flow }} {{ latest_stmt.year }} · RÚZ</p>
         </div>
         {% endif %}
         
         {% if debt_donut_base64 %}
-        <div class="w-48 flex flex-col">
-            <div class="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm p-2 flex items-center justify-center" style="height: 180px;">
+        <div class="w-56 flex flex-col min-h-0">
+            <div class="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm p-2 flex items-center justify-center flex-1 min-h-0">
                 <img src="data:image/png;base64,{{ debt_donut_base64 }}" alt="{{ i18n.capital_liabilities }}" class="w-full h-full object-contain">
             </div>
-            <p class="report-caption text-center text-slate-400 mt-1">{{ i18n.capital_liabilities }} {{ latest_stmt.year }}</p>
+            <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ i18n.capital_liabilities }} {{ latest_stmt.year }}</p>
         </div>
         {% endif %}
     </div>
