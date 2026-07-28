@@ -129,8 +129,12 @@ async def run_scrapers(
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
     # FS semaphore 3 — 8 FS scraperov zdieľa rovnaký server, 3 súbežné je bezpečné
     fs_semaphore = asyncio.Semaphore(3)
-    # Must match browserless MAX_CONCURRENT_SESSIONS — each browser session = 1 semafor slot
-    global_semaphore = asyncio.Semaphore(8)
+    # Nezávislé scrapery — 5 slotov (z 8 celkovo)
+    global_semaphore = asyncio.Semaphore(5)
+    # Závislé scrapery (DISKVALIFIKACIE, FINANCNA_SPRAVA, RPO) — 3 rezervované sloty
+    # Spúšťajú sa po ORSR, nemusia čakať vo fronte s 18+ nezávislými scrapermi
+    # Max súbežných = 5 + 3 = 8 (zmestí sa do RAM a browserless limitu)
+    dependent_semaphore = asyncio.Semaphore(3)
 
     # Rozdelíme na nezávislé a závislé scrapery
     independent = [s for s in sources if s not in _DEPENDS_ON]
@@ -143,11 +147,14 @@ async def run_scrapers(
         scraper = scraper_cls(browser=browser)
         is_fs = source_type in _FS_SOURCE_TYPES
         is_api = source_type in _API_SOURCE_TYPES
+        is_dependent = source_type in _DEPENDS_ON
         _t_start = time.perf_counter()
         logger.debug(f"[TIMING] ▶ {source_type} START")
         try:
             if is_api:
                 semaphores = []
+            elif is_dependent:
+                semaphores = [dependent_semaphore]
             elif is_fs:
                 semaphores = [global_semaphore, fs_semaphore]
             else:
