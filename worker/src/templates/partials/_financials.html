@@ -997,6 +997,15 @@
                     </div>
                     {% endif %}
 
+                    {# Beneish M-Score #}
+                    {% if beneish_m_score is not none %}
+                    <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
+                        <p class="report-label text-slate-400 mb-1">{{ i18n.beneish_m_score }}</p>
+                        <p class="text-base font-black {% if beneish_is_manipulator %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ "%.2f"|format(beneish_m_score) }}</p>
+                        <p class="text-[9px] mt-0.5 {% if beneish_is_manipulator %}text-rose-500{% else %}text-emerald-500{% endif %}">{% if beneish_is_manipulator %}{{ i18n.beneish_manipulator }}{% else %}{{ i18n.beneish_clean }}{% endif %}</p>
+                    </div>
+                    {% endif %}
+
                     {# Likvidita #}
                     <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
                         <p class="report-label text-slate-400 mb-1.5">{{ i18n.liquidity }}</p>

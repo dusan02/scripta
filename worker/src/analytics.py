@@ -183,6 +183,7 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
         current_assets = _get(stmt, 'currentAssets')
         equity = _get(stmt, 'equity')
         net_profit = _get(stmt, 'netProfitLoss')
+        interest_expense = _get(stmt, 'interestExpense')
         short_liabilities = _get(stmt, 'shortTermLiabilities')
         long_liabilities = _get(stmt, 'longTermLiabilities')
 
@@ -208,9 +209,12 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
         else:
             total_liabilities = max(total_assets - equity, 1)  # fallback bilančná rovnica
 
+        # EBIT approx: net profit + interest expense (absolute value, since it may be stored negative)
+        ebit = net_profit + abs(interest_expense) if interest_expense is not None else net_profit
+
         x1 = working_capital / total_assets
         x2 = equity / total_assets               # retained earnings approx
-        x3 = net_profit / total_assets           # EBIT approx
+        x3 = ebit / total_assets                  # EBIT approx (not just net profit)
         x4 = equity / total_liabilities
 
         z = round(6.56 * x1 + 3.26 * x2 + 6.72 * x3 + 1.05 * x4, 3)
@@ -369,7 +373,9 @@ def _risk_category(score: int) -> str:
 def compute_piotroski_f_score(statements: list) -> dict:
     """
     Vypočíta Piotroski F-score na základe 8 kritérií (9. kritérium shares outstanding je vynechané).
-    Škála: 0-8.
+    Škála: 0-8. Chýbajúce dáta pre konkrétne kritérium sa hodnotia ako neutral (0.5 bodu),
+    nie ako 0 (fail) — aby firmy s neúplnými výkazmi (napr. IFRS bez grossProfit)
+    neboli systematicky penalizované.
     Očakáva chronologicky zoradené statements.
     """
     if not statements or len(statements) < 2:
@@ -378,63 +384,89 @@ def compute_piotroski_f_score(statements: list) -> dict:
     curr = statements[-1]
     prev = statements[-2]
 
-    c_net_profit = _get(curr, 'netProfitLoss', 0) or 0
-    c_assets = _get(curr, 'totalAssets', 0) or 0
-    p_net_profit = _get(prev, 'netProfitLoss', 0) or 0
-    p_assets = _get(prev, 'totalAssets', 0) or 0
+    c_net_profit = _get(curr, 'netProfitLoss', None)
+    c_assets = _get(curr, 'totalAssets', None)
+    p_net_profit = _get(prev, 'netProfitLoss', None)
+    p_assets = _get(prev, 'totalAssets', None)
     c_cf = _get(curr, 'operatingCashFlow', None)
-    c_cf = c_cf if c_cf is not None else 0
 
-    c_long_debt = _get(curr, 'longTermLiabilities', 0) or 0
-    p_long_debt = _get(prev, 'longTermLiabilities', 0) or 0
+    c_long_debt = _get(curr, 'longTermLiabilities', None)
+    p_long_debt = _get(prev, 'longTermLiabilities', None)
 
-    c_curr_assets = _get(curr, 'currentAssets', 0) or 0
-    c_curr_liab = _get(curr, 'shortTermLiabilities', 0) or 0
-    p_curr_assets = _get(prev, 'currentAssets', 0) or 0
-    p_curr_liab = _get(prev, 'shortTermLiabilities', 0) or 0
+    c_curr_assets = _get(curr, 'currentAssets', None)
+    c_curr_liab = _get(curr, 'shortTermLiabilities', None)
+    p_curr_assets = _get(prev, 'currentAssets', None)
+    p_curr_liab = _get(prev, 'shortTermLiabilities', None)
 
-    c_gross = _get(curr, 'grossProfit', 0) or 0
-    c_rev = _get(curr, 'mainActivityRevenue', 0) or 0
-    p_gross = _get(prev, 'grossProfit', 0) or 0
-    p_rev = _get(prev, 'mainActivityRevenue', 0) or 0
+    c_gross = _get(curr, 'grossProfit', None)
+    c_rev = _get(curr, 'mainActivityRevenue', None)
+    p_gross = _get(prev, 'grossProfit', None)
+    p_rev = _get(prev, 'mainActivityRevenue', None)
 
-    score = 0
+    score = 0.0
+    skipped = []
 
     # 1. ROA > 0
-    c_roa = c_net_profit / c_assets if c_assets > 0 else 0
-    if c_roa > 0: score += 1
+    if c_net_profit is not None and c_assets is not None and c_assets > 0:
+        if c_net_profit / c_assets > 0: score += 1
+    else:
+        score += 0.5; skipped.append("ROA")
 
     # 2. CFO > 0
-    if c_cf > 0: score += 1
+    if c_cf is not None:
+        if c_cf > 0: score += 1
+    else:
+        score += 0.5; skipped.append("CFO>0")
 
     # 3. dROA > 0
-    p_roa = p_net_profit / p_assets if p_assets > 0 else 0
-    if c_roa > p_roa: score += 1
+    if (c_net_profit is not None and c_assets and c_assets > 0 and
+            p_net_profit is not None and p_assets is not None and p_assets > 0):
+        if (c_net_profit / c_assets) > (p_net_profit / p_assets): score += 1
+    else:
+        score += 0.5; skipped.append("dROA")
 
     # 4. CFO > Net Income
-    if c_cf > c_net_profit: score += 1
+    if c_cf is not None and c_net_profit is not None:
+        if c_cf > c_net_profit: score += 1
+    else:
+        score += 0.5; skipped.append("CFO>NI")
 
     # 5. dLeverage < 0
-    c_lev = c_long_debt / c_assets if c_assets > 0 else 0
-    p_lev = p_long_debt / p_assets if p_assets > 0 else 0
-    if c_lev < p_lev: score += 1
+    if (c_long_debt is not None and c_assets and c_assets > 0 and
+            p_long_debt is not None and p_assets is not None and p_assets > 0):
+        c_lev = c_long_debt / c_assets
+        p_lev = p_long_debt / p_assets
+        if c_lev < p_lev: score += 1
+    else:
+        score += 0.5; skipped.append("dLev")
 
     # 6. dLiquidity > 0
-    c_cr = c_curr_assets / c_curr_liab if c_curr_liab > 0 else 0
-    p_cr = p_curr_assets / p_curr_liab if p_curr_liab > 0 else 0
-    if c_cr > p_cr: score += 1
+    if (c_curr_assets is not None and c_curr_liab is not None and c_curr_liab > 0 and
+            p_curr_assets is not None and p_curr_liab is not None and p_curr_liab > 0):
+        if (c_curr_assets / c_curr_liab) > (p_curr_assets / p_curr_liab): score += 1
+    else:
+        score += 0.5; skipped.append("dLiq")
 
-    # 7. dMargin > 0
-    c_gm = c_gross / c_rev if c_rev > 0 else 0
-    p_gm = p_gross / p_rev if p_rev > 0 else 0
-    if c_gm > p_gm: score += 1
+    # 7. dMargin > 0 — gross margin; skip if grossProfit missing (common for IFRS by-function)
+    if (c_gross is not None and c_rev and c_rev > 0 and
+            p_gross is not None and p_rev and p_rev > 0):
+        if (c_gross / c_rev) > (p_gross / p_rev): score += 1
+    else:
+        score += 0.5; skipped.append("dMargin")
 
     # 8. dTurnover > 0
-    c_at = c_rev / c_assets if c_assets > 0 else 0
-    p_at = p_rev / p_assets if p_assets > 0 else 0
-    if c_at > p_at: score += 1
+    if (c_rev is not None and c_assets and c_assets > 0 and
+            p_rev is not None and p_assets is not None and p_assets > 0):
+        if (c_rev / c_assets) > (p_rev / p_assets): score += 1
+    else:
+        score += 0.5; skipped.append("dTurn")
 
-    return {"score": score, "flags": [f"Piotroski F-score: {score} z 8"]}
+    final_score = int(round(score))
+    flags = [f"Piotroski F-score: {final_score} z 8"]
+    if skipped:
+        flags.append(f"Neutralizované kritériá (chýbajúce dáta): {', '.join(skipped)}")
+
+    return {"score": final_score, "flags": flags, "skipped_criteria": skipped}
 
 
 def compute_beneish_m_score(statements: list) -> dict:
@@ -453,18 +485,16 @@ def compute_beneish_m_score(statements: list) -> dict:
     p_rev = _get(prev, 'mainActivityRevenue', 0) or 0
     c_recv = _get(curr, 'tradeReceivables', 0) or 0
     p_recv = _get(prev, 'tradeReceivables', 0) or 0
-    c_gross = _get(curr, 'grossProfit', 0) or 0
-    p_gross = _get(prev, 'grossProfit', 0) or 0
+    c_gross = _get(curr, 'grossProfit', None)
+    p_gross = _get(prev, 'grossProfit', None)
     c_assets = _get(curr, 'totalAssets', 0) or 0
     p_assets = _get(prev, 'totalAssets', 0) or 0
     c_curr_assets = _get(curr, 'currentAssets', 0) or 0
     p_curr_assets = _get(prev, 'currentAssets', 0) or 0
-    c_pp_e = _get(curr, 'totalAssets', 0) or 0  # approx: no separate PP&E field
-    p_pp_e = _get(prev, 'totalAssets', 0) or 0
     c_dep = _get(curr, 'depreciation', 0) or 0
     p_dep = _get(prev, 'depreciation', 0) or 0
-    c_sga = _get(curr, 'staffCosts', 0) or 0  # approx: staff costs as SG&A proxy
-    p_sga = _get(prev, 'staffCosts', 0) or 0
+    c_sga = _get(curr, 'staffCosts', None)
+    p_sga = _get(prev, 'staffCosts', None)
     c_short_liab = _get(curr, 'shortTermLiabilities', 0) or 0
     p_short_liab = _get(prev, 'shortTermLiabilities', 0) or 0
     c_long_liab = _get(curr, 'longTermLiabilities', 0) or 0
@@ -484,10 +514,13 @@ def compute_beneish_m_score(statements: list) -> dict:
     p_dsr = (p_recv / p_rev) if p_rev > 0 else 0
     dsri = (c_dsr / p_dsr) if p_dsr > 0 else 1.0
 
-    # GMI = Gross Margin Index
-    c_gm = (c_gross / c_rev) if c_rev > 0 else 0
-    p_gm = (p_gross / p_rev) if p_rev > 0 else 0
-    gmi = (p_gm / c_gm) if c_gm > 0 else 1.0
+    # GMI = Gross Margin Index — neutral (1.0) when grossProfit missing (common for IFRS by-function)
+    if c_gross is not None and p_gross is not None:
+        c_gm = (c_gross / c_rev) if c_rev > 0 else 0
+        p_gm = (p_gross / p_rev) if p_rev > 0 else 0
+        gmi = (p_gm / c_gm) if c_gm > 0 else 1.0
+    else:
+        gmi = 1.0
 
     # AQI = Asset Quality Index
     c_aq = ((c_curr_assets - c_recv) / c_assets) if c_assets > 0 else 0
@@ -497,15 +530,17 @@ def compute_beneish_m_score(statements: list) -> dict:
     # SGI = Sales Growth Index
     sgi = (c_rev / p_rev) if p_rev > 0 else 1.0
 
-    # DEPI = Depreciation Index
-    c_dep_rate = (c_dep / (c_dep + c_pp_e)) if (c_dep + c_pp_e) > 0 else 0
-    p_dep_rate = (p_dep / (p_dep + p_pp_e)) if (p_dep + p_pp_e) > 0 else 0
-    depi = (p_dep_rate / c_dep_rate) if c_dep_rate > 0 else 1.0
+    # DEPI = Depreciation Index — neutral (1.0) when no separate PP&E field available
+    # Using totalAssets as PP&E proxy produces meaningless results, so we skip it.
+    depi = 1.0
 
-    # SGAI = SG&A Index
-    c_sga_ratio = (c_sga / c_rev) if c_rev > 0 else 0
-    p_sga_ratio = (p_sga / p_rev) if p_rev > 0 else 0
-    sgai = (c_sga_ratio / p_sga_ratio) if p_sga_ratio > 0 else 1.0
+    # SGAI = SG&A Index — neutral (1.0) when staffCosts missing (staff costs ≠ SG&A)
+    if c_sga is not None and p_sga is not None:
+        c_sga_ratio = (c_sga / c_rev) if c_rev > 0 else 0
+        p_sga_ratio = (p_sga / p_rev) if p_rev > 0 else 0
+        sgai = (c_sga_ratio / p_sga_ratio) if p_sga_ratio > 0 else 1.0
+    else:
+        sgai = 1.0
 
     # TATA = Total Accruals to Total Assets
     total_accruals = c_net_profit - c_op_cf

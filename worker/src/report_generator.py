@@ -39,6 +39,7 @@ from src.analytics import (
     compute_forensic_scorecard,
     detect_startup_profile,
     compute_piotroski_f_score,
+    compute_beneish_m_score,
     compute_state_liabilities_alert,
     compute_revenue_per_employee_alert,
     compute_yoy_summary_table,
@@ -493,6 +494,15 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     if m: return i18n_strings.get("flag_piotroski_score", flag).format(val=m.group(1))
     if flag == "Nedostatok dát pre Piotroski F-score (min. 2 roky)":
         return i18n_strings.get("flag_piotroski_no_data", flag)
+    # Beneish M-score
+    m = _re.match(r"Beneish M-score = (-?[\d.]+) — PRAVDEPODOBNÝ manipulátor", flag)
+    if m: return i18n_strings.get("flag_beneish_manipulator", flag).format(val=m.group(1))
+    m = _re.match(r"Beneish M-score = (-?[\d.]+) — Bez znám manipulácie", flag)
+    if m: return i18n_strings.get("flag_beneish_clean", flag).format(val=m.group(1))
+    if flag == "Nedostatok dát pre Beneish M-score (min. 2 roky)":
+        return i18n_strings.get("flag_beneish_no_data", flag)
+    if flag == "Nedostatok dát pre Beneish M-score (nulové tržby/aktíva)":
+        return i18n_strings.get("flag_beneish_no_revenue", flag)
     # Startup
     m = _re.match(r"STARTUP profil: .* imaním ([\d,.]+) €\)", flag)
     if m: return i18n_strings.get("flag_startup_profile", flag).format(val=m.group(1))
@@ -1545,6 +1555,14 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     else:
         piotroski_result = compute_piotroski_f_score(sorted_stmts_raw)
 
+    # Beneish M-score — earnings manipulation detection
+    beneish_result = compute_beneish_m_score(sorted_stmts_raw)
+    beneish_m_score = beneish_result.get("m_score")
+    beneish_is_manipulator = beneish_result.get("is_manipulator", False)
+    beneish_flags = beneish_result.get("flags", [])
+    # Translate Beneish flags
+    beneish_flags = [_translate_flag(f, i18n_strings) for f in beneish_flags]
+
     # YoY rast tržieb a zisku
     yoy_revenue_growth = None
     yoy_profit_growth = None
@@ -1789,6 +1807,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "has_short_history": has_short_history,
         "piotroski_score": piotroski_result.get("score"),
         "piotroski_flags": piotroski_result.get("flags", []),
+        "beneish_m_score": beneish_m_score,
+        "beneish_is_manipulator": beneish_is_manipulator,
+        "beneish_flags": beneish_flags,
         "yoy_revenue_growth": yoy_revenue_growth,
         "yoy_profit_growth": yoy_profit_growth,
         "trend_ratios": trend_ratios,
