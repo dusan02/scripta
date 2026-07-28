@@ -605,8 +605,12 @@ class FinancnaSpravaBase(BaseScraper):
                     await popup.close()
                 except Exception:
                     pass
-                logger.info(f"[{self.source_type}] PDF uložené (download), popup zatvorený.")
-                return True
+                # Overiť že súbor nie je prázdny
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    logger.info(f"[{self.source_type}] PDF uložené (download, {output_path.stat().st_size} bytes), popup zatvorený.")
+                    return True
+                else:
+                    logger.warning(f"[{self.source_type}] Download prebehol, ale súbor je prázdny (0 bytes) — skúšam PDF print z popupu...")
             except PlaywrightTimeoutError:
                 logger.info(f"[{self.source_type}] Download timeout, skúšam PDF print z popupu...")
             except Exception as e:
@@ -642,10 +646,29 @@ class FinancnaSpravaBase(BaseScraper):
                     await export_link.click()
                 download = await download_info.value
                 await download.save_as(str(output_path))
-                logger.info(f"[{self.source_type}] PDF uložené (priamy download).")
-                return True
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    logger.info(f"[{self.source_type}] PDF uložené (priamy download, {output_path.stat().st_size} bytes).")
+                    return True
+                else:
+                    logger.warning(f"[{self.source_type}] Priamy download prebehol, ale súbor je prázdny — skúšam PDF print z hlavnej stránky...")
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Timeout pri priamom PDF download.")
+
+            # Stratégia 4: PDF print z hlavnej stránky (posledná záchrana)
+            try:
+                logger.info(f"[{self.source_type}] Skúšam PDF print z hlavnej stránky...")
+                await page.pdf(
+                    path=str(output_path),
+                    margin={"top": "20mm", "bottom": "20mm", "left": "10mm", "right": "10mm"}
+                )
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    logger.info(f"[{self.source_type}] PDF uložené (print z hlavnej stránky, {output_path.stat().st_size} bytes).")
+                    return True
+                else:
+                    logger.warning(f"[{self.source_type}] PDF print z hlavnej stránky tiež prázdny.")
+                    return False
+            except Exception as e:
+                logger.warning(f"[{self.source_type}] PDF print z hlavnej stránky zlyhal: {e}")
                 return False
         except PlaywrightTimeoutError:
             logger.warning(f"[{self.source_type}] Timeout pri čakaní na PDF download.")
