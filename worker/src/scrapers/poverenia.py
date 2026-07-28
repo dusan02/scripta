@@ -114,24 +114,16 @@ class PovereniaScraper(BaseScraper):
     source_type = "POVERENIA"
     base_url = "https://obcan.justice.sk/pilot/poverenia/"
 
-    async def _get_sk_page(self) -> Page:
-        context = await self.browser.new_context(
-            locale="sk-SK",
-            viewport={"width": 1920, "height": 1080},
-        )
-        page = await context.new_page()
-        self._contexts.append(context)
-        await page.route("**/*.{png,jpg,jpeg,gif,svg,ico,woff,woff2,ttf,eot}", lambda route: route.abort())
-        return page
-
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
         page: Optional[Page] = None
         try:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
             _t = time.perf_counter()
-            page = await self._get_sk_page()
+            # _get_page so stealth JS + UA/viewport rotáciou; locale fixné sk-SK
+            # (scraper sa spolieha na slovenské UI texty — cookie banner, tlačidlá)
+            page = await self._get_page(block_images=True, locale="sk-SK")
 
-            await page.goto(self.base_url, timeout=30000, wait_until="domcontentloaded")
+            await self._safe_goto(page, self.base_url)
             await self._accept_cookies(page)
             await self._search(page, ico)
             await self._wait_for_results(page)
@@ -173,8 +165,13 @@ class PovereniaScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Hotovo za {time.perf_counter() - _t:.1f}s")
             return result
 
-        except ScraperUnavailableError:
-            raise
+        except ScraperUnavailableError as e:
+            logger.error(f"[{self.source_type}] Nedostupný: {e}")
+            return self._make_result(
+                status="UNAVAILABLE",
+                file_path=None,
+                status_message="Register poverení na exekúcie je nedostupný — skúste vygenerovať report znovu.",
+            )
         except Exception as e:
             logger.exception(f"[{self.source_type}] Nečakaná chyba pri IČO {ico}: {e}")
             return self._make_result(status="FAILED", file_path=None, status_message=f"Interná chyba scrapera: {str(e)}")

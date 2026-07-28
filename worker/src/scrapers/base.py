@@ -41,10 +41,12 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         """Execute the scraper and return a ScrapedSource."""
         raise NotImplementedError
 
-    async def _get_page(self, block_images: bool = True) -> Page:
+    async def _get_page(self, block_images: bool = True, locale: Optional[str] = None) -> Page:
         """Lazily start a browser if one was not injected.
         block_images: ak True, blokuje obrázky/fonty/media pre rýchlosť (text-only scraping).
         Scrapery ktoré generujú PDF s obrázkami (ORSR, RPVS) musia dať block_images=False.
+        locale: ak je zadané, použije sa namiesto náhodnej rotácie — pre scrapery závislé
+        na slovenských UI textoch (cookie bannery, tlačidlá).
         Každý scraper dostáva vlastný browser context (izolované cookies/session)
         s rotáciou User-Agent, proxy a stealth JS pre anti-detekciu."""
         if self.browser is None:
@@ -56,7 +58,7 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         context_kwargs = {
             "user_agent": get_random_user_agent(),
             "viewport": get_random_viewport(),
-            "locale": get_random_locale(),
+            "locale": locale or get_random_locale(),
         }
         proxy = get_rotating_proxy()
         if proxy:
