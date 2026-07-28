@@ -130,7 +130,7 @@ async def run_scrapers(
     # FS semaphore 3 — 8 FS scraperov zdieľa rovnaký server, 3 súbežné je bezpečné
     fs_semaphore = asyncio.Semaphore(3)
     # Must match browserless MAX_CONCURRENT_SESSIONS — each browser session = 1 semafor slot
-    global_semaphore = asyncio.Semaphore(6)
+    global_semaphore = asyncio.Semaphore(8)
 
     # Rozdelíme na nezávislé a závislé scrapery
     independent = [s for s in sources if s not in _DEPENDS_ON]
@@ -154,7 +154,7 @@ async def run_scrapers(
                 semaphores = [global_semaphore]
             # Queue timeout — ak scraper čaká na semafor príliš dlho, vráť UNAVAILABLE
             # namiesto čakania až do per-scraper timeoutu (90s)
-            _SEMAPHORE_QUEUE_TIMEOUT = 60  # sekundy max na čakanie semaforu
+            _SEMAPHORE_QUEUE_TIMEOUT = 90  # sekundy max na čakanie semaforu (match per-scraper timeout)
             for sem in semaphores:
                 try:
                     await asyncio.wait_for(sem.acquire(), timeout=_SEMAPHORE_QUEUE_TIMEOUT)

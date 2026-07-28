@@ -80,7 +80,7 @@ services:
     mem_limit: 2g
     environment:
       - CONNECTION_TIMEOUT=300000
-      - MAX_CONCURRENT_SESSIONS=6
+      - MAX_CONCURRENT_SESSIONS=8
       - TOKEN=${BROWSERLESS_TOKEN:-}
 
   # ─── Python FastAPI Worker ────────────────────────────────

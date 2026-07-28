@@ -82,7 +82,7 @@ export const MANUAL_LOOKUP_URLS: Record<string, string> = {
   VSZP_DLZNICI: "https://www.vszp.sk/prehliadky-a-pojistne/pritomnost-na-trhu-pojistneho/zoznamy-dlznikov/",
   DOVERA_DLZNICI: "https://www.dovera.sk/zoznam-dlznikov/",
   UNION_DLZNICI: "https://www.unionzp.sk/zoznam-dlznikov/",
-  DISKVALIFIKACIE: "https://www.justice.gov.sk/Stranky/Registre/Registrovane-osoby.aspx",
+  DISKVALIFIKACIE: "https://www.justice.gov.sk/registre/registerDiskvalifikacii/",
   ROZHODNUTIA: "https://www.slov-lex.sk/pravne-predpisy/sudy/",
   OBCHODNY_VESTNIK: "https://www.slov-lex.sk/obchodny-vestnik/",
   NCRZP: "https://www.ncz.sk/",
