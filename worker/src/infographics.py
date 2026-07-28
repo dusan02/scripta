@@ -41,10 +41,10 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     if revenue is None or revenue <= 0:
         return ""
 
-    # Ak chýbajú kľúčové položky alebo sú hodnoty neštandardné pre Sankey → waterfall
+    # Ak chýbajú kľúčové položky → waterfall
     if any(val is None for val in [gross, net, staff, depreciation, interest]):
         return _generate_pl_waterfall(stmt, lang=lang)
-    if gross <= 0 or net < 0 or net == 0:
+    if gross <= 0:
         return _generate_pl_waterfall(stmt, lang=lang)
     # Ak je grossProfit odhadnutý (v skutočnosti prevádzkový zisk, nie hrubá marža),
     # Sankey by zobrazil nesprávne COGS → použi waterfall
@@ -110,13 +110,19 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         source.append(idx_ov); target.append(2); value.append(abs(other_opex))
         link_color.append("rgba(59,130,246,0.35)")
 
-    # Čistý zisk
+    # Čistý zisk / Strata
     if net > 0:
         source.append(2); target.append(7); value.append(net)
         link_color.append("rgba(16,185,129,0.35)")
+    elif net < 0:
+        labels.append(i.get('sankey_loss', 'Strata'))
+        colors.append(COLORS['red'])
+        idx_loss = len(labels) - 1
+        source.append(idx_loss); target.append(2); value.append(abs(net))
+        link_color.append("rgba(239,68,68,0.35)")
 
     # Sankey validácia: inflow do uzla 2 musí = outflow z uzla 2
-    in_to_gross  = gross + (abs(other_opex) if other_opex < 0 else 0)
+    in_to_gross  = gross + (abs(other_opex) if other_opex < 0 else 0) + (abs(net) if net < 0 else 0)
     out_from_gross = sum(v for s, v in zip(source, value) if s == 2)
     tol = max(in_to_gross * 0.02, 1000)
     if abs(out_from_gross - in_to_gross) > tol:
@@ -128,6 +134,12 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     # Pravé uzly posunuté z 0.99 na 0.82 aby popisky nepretiekali za okraj.
     node_x = [0.01, 0.45, 0.45, 0.82, 0.82, 0.82, 0.82, 0.82]
     node_y = [0.5, 0.15, 0.75, 0.08, 0.30, 0.50, 0.72, 0.92]
+    if net < 0:
+        node_x.append(0.01)
+        node_y.append(0.85)
+    if other_opex < 0:
+        node_x.append(0.01)
+        node_y.append(0.20)
 
     fig = go.Figure(data=[go.Sankey(
         arrangement="snap",
