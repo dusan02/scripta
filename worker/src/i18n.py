@@ -700,6 +700,29 @@ I18N_STRINGS = {
         "rel_supplier": "Dodávateľ",
         "rel_overview": "Prehľad",
         "rel_relevant_for": "Relevantné pre",
+
+        # State liabilities alert messages
+        "state_liab_sp_critical": "KRITICKÉ: Firma je v registri dlžníkov SP a súvaha ukazuje záväzky {val} (rok {year}). Môže zakladať trestnú zodpovednosť štatutára (§278 TZ SR).",
+        "state_liab_sp_info": "INFO: Súvaha ukazuje záväzky zo sociálneho poistenia {val} (rok {year}). Firma nie je v registri dlžníkov SP — ide o bežné ročné accruals.",
+        "state_liab_sp_warning": "Záväzky zo sociálneho poistenia {val} (rok {year}) — firma je v registri dlžníkov SP, monitorovať.",
+        "state_liab_sp_info_low": "Záväzky zo sociálneho poistenia {val} (rok {year}) — firma nie je v registri dlžníkov SP.",
+        "state_liab_tax_critical": "KRITICKÉ: Firma je v zozname daňových dlžníkov a súvaha ukazuje daňové záväzky {val} (rok {year}). Riziko daňovej exekúcie a záložného práva na majetok.",
+        "state_liab_tax_info": "INFO: Súvaha ukazuje daňové záväzky {val} (rok {year}). Firma nie je v zozname daňových dlžníkov FS — ide o bežné ročné accruals.",
+        "state_liab_tax_warning": "Daňové záväzky {val} (rok {year}) — firma je v zozname daňových dlžníkov FS, preveriť stav.",
+        "state_liab_tax_info_low": "Daňové záväzky {val} (rok {year}) — firma nie je v zozname daňových dlžníkov FS.",
+        "state_liab_emp_warning": "Záväzky voči zamestnancom {val} (rok {year}).",
+
+        # Evidence source name translations (SK→lang)
+        "src_suvaha": "Súvaha",
+        "src_fin_zdravie": "Finančné zdravie",
+        "src_vykaz_ziskov": "Výkaz ziskov a strát",
+        "src_analyza_trendov": "Analýza trendov",
+        "src_vestnik": "Vestník",
+        "src_orsr": "OR SR",
+        "src_crz": "CRZ",
+        "src_rpvs": "RPVS",
+        "src_pdf_vypis": "PDF výpis",
+        "src_ruz": "RÚZ",
     },
 
     "en": {
@@ -1395,6 +1418,29 @@ I18N_STRINGS = {
         "rel_supplier": "Supplier",
         "rel_overview": "Overview",
         "rel_relevant_for": "Relevant for",
+
+        # State liabilities alert messages
+        "state_liab_sp_critical": "CRITICAL: Company is in the SP debtors registry and the balance sheet shows social insurance liabilities of {val} (year {year}). This may constitute criminal liability of the statutory representative (§278 Criminal Code).",
+        "state_liab_sp_info": "INFO: Balance sheet shows social insurance liabilities of {val} (year {year}). Company is not in the SP debtors registry — these are normal annual accruals.",
+        "state_liab_sp_warning": "Social insurance liabilities {val} (year {year}) — company is in the SP debtors registry, monitor.",
+        "state_liab_sp_info_low": "Social insurance liabilities {val} (year {year}) — company is not in the SP debtors registry.",
+        "state_liab_tax_critical": "CRITICAL: Company is in the tax debtors list and the balance sheet shows tax liabilities of {val} (year {year}). Risk of tax execution and lien on assets.",
+        "state_liab_tax_info": "INFO: Balance sheet shows tax liabilities of {val} (year {year}). Company is not in the FS tax debtors list — these are normal annual accruals.",
+        "state_liab_tax_warning": "Tax liabilities {val} (year {year}) — company is in the FS tax debtors list, verify status.",
+        "state_liab_tax_info_low": "Tax liabilities {val} (year {year}) — company is not in the FS tax debtors list.",
+        "state_liab_emp_warning": "Employee liabilities {val} (year {year}).",
+
+        # Evidence source name translations (SK→lang)
+        "src_suvaha": "Balance Sheet",
+        "src_fin_zdravie": "Financial Health",
+        "src_vykaz_ziskov": "P&L Statement",
+        "src_analyza_trendov": "Trend Analysis",
+        "src_vestnik": "Commercial Bulletin",
+        "src_orsr": "Commercial Register",
+        "src_crz": "CRZ",
+        "src_rpvs": "RPVS",
+        "src_pdf_vypis": "PDF Extract",
+        "src_ruz": "RÚZ",
     },
 
     "de": {
@@ -2090,6 +2136,29 @@ I18N_STRINGS = {
         "rel_supplier": "Lieferant",
         "rel_overview": "Überblick",
         "rel_relevant_for": "Relevant für",
+
+        # State liabilities alert messages
+        "state_liab_sp_critical": "KRITISCH: Das Unternehmen ist im Schuldnerverzeichnis der Sozialversicherung eingetragen und die Bilanz zeigt Sozialversicherungsverbindlichkeiten von {val} (Jahr {year}). Dies kann eine strafrechtliche Verantwortung des gesetzlichen Vertreters begründen (§278 StGB).",
+        "state_liab_sp_info": "INFO: Die Bilanz zeigt Sozialversicherungsverbindlichkeiten von {val} (Jahr {year}). Das Unternehmen ist nicht im Schuldnerverzeichnis der Sozialversicherung — es handelt sich um normale jährliche Rückstellungen.",
+        "state_liab_sp_warning": "Sozialversicherungsverbindlichkeiten {val} (Jahr {year}) — das Unternehmen ist im Schuldnerverzeichnis der Sozialversicherung, überwachen.",
+        "state_liab_sp_info_low": "Sozialversicherungsverbindlichkeiten {val} (Jahr {year}) — das Unternehmen ist nicht im Schuldnerverzeichnis der Sozialversicherung.",
+        "state_liab_tax_critical": "KRITISCH: Das Unternehmen ist in der Liste der Steuerschuldner eingetragen und die Bilanz zeigt Steuerungsverbindlichkeiten von {val} (Jahr {year}). Risiko einer Steuervollstreckung und eines Pfandrechts auf Vermögenswerte.",
+        "state_liab_tax_info": "INFO: Die Bilanz zeigt Steuerungsverbindlichkeiten von {val} (Jahr {year}). Das Unternehmen ist nicht in der Liste der Steuerschuldner der Finanzverwaltung — es handelt sich um normale jährliche Rückstellungen.",
+        "state_liab_tax_warning": "Steuerungsverbindlichkeiten {val} (Jahr {year}) — das Unternehmen ist in der Liste der Steuerschuldner der Finanzverwaltung, Status prüfen.",
+        "state_liab_tax_info_low": "Steuerungsverbindlichkeiten {val} (Jahr {year}) — das Unternehmen ist nicht in der Liste der Steuerschuldner der Finanzverwaltung.",
+        "state_liab_emp_warning": "Verbindlichkeiten gegenüber Mitarbeitern {val} (Jahr {year}).",
+
+        # Evidence source name translations (SK→lang)
+        "src_suvaha": "Bilanz",
+        "src_fin_zdravie": "Finanzielle Gesundheit",
+        "src_vykaz_ziskov": "Gewinn- und Verlustrechnung",
+        "src_analyza_trendov": "Trendanalyse",
+        "src_vestnik": "Handelsblatt",
+        "src_orsr": "Handelsregister",
+        "src_crz": "CRZ",
+        "src_rpvs": "RPVS",
+        "src_pdf_vypis": "PDF-Auszug",
+        "src_ruz": "RÚZ",
     },
 }
 

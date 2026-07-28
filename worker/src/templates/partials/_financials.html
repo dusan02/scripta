@@ -1019,7 +1019,7 @@
                             <div class="flex justify-between items-center text-[10px]">
                                 <span class="text-slate-500 font-medium uppercase tracking-wider">{{ l_label }}</span>
                                 {% if l_val is not none %}
-                                <span class="font-bold text-slate-800">{{ l_val }}</span>
+                                <span class="font-bold text-slate-800">{% if l_val > 0 and l_val < 0.01 %}&lt;0.01{% else %}{{ l_val }}{% endif %}</span>
                                 {% else %}
                                 <span class="font-bold text-slate-400">—</span>
                                 {% endif %}

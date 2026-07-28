@@ -634,6 +634,81 @@ def _translate_scorecard(breakdown: list, i18n_strings: dict) -> list:
     return result
 
 
+# ── State liabilities alert translation ──────────────────────────────────────
+
+_STATE_LIAB_MSG_MAP = {
+    # (field, severity, in_registry) → i18n key
+    ("socialInsuranceLiabilities", "CRITICAL", True): "state_liab_sp_critical",
+    ("socialInsuranceLiabilities", "INFO", False): "state_liab_sp_info",
+    ("socialInsuranceLiabilities", "WARNING", True): "state_liab_sp_warning",
+    ("socialInsuranceLiabilities", "INFO", True): "state_liab_sp_info_low",
+    ("taxLiabilities", "CRITICAL", True): "state_liab_tax_critical",
+    ("taxLiabilities", "INFO", False): "state_liab_tax_info",
+    ("taxLiabilities", "WARNING", True): "state_liab_tax_warning",
+    ("taxLiabilities", "INFO", True): "state_liab_tax_info_low",
+    ("employeeLiabilities", "WARNING", None): "state_liab_emp_warning",
+}
+
+
+def _translate_state_liabilities_alert(alert_data: dict, i18n_strings: dict) -> dict:
+    """Translate hardcoded Slovak state liabilities messages to the report language."""
+    if not alert_data or not alert_data.get("alerts"):
+        return alert_data
+    for alert in alert_data["alerts"]:
+        field = alert.get("field", "")
+        severity = alert.get("severity", "")
+        msg = alert.get("message", "")
+        val = alert.get("value", 0)
+        year = ""
+        m = _re.search(r"\(rok (\d+)\)", msg)
+        if m:
+            year = m.group(1)
+        # Determine registry status from message text
+        in_registry = "nie je v" not in msg.lower() and "firma nie je" not in msg.lower()
+        if field == "employeeLiabilities":
+            key = _STATE_LIAB_MSG_MAP.get((field, severity, None))
+        else:
+            key = _STATE_LIAB_MSG_MAP.get((field, severity, in_registry))
+        if key:
+            formatted_val = f"{int(val):,}".replace(",", " ") if val else ""
+            alert["message"] = i18n_strings.get(key, msg).format(val=formatted_val, year=year)
+    return alert_data
+
+
+# ── Evidence source name translation ─────────────────────────────────────────
+
+_EVIDENCE_SOURCE_MAP = {
+    "Súvaha": "src_suvaha",
+    "Finančné zdravie": "src_fin_zdravie",
+    "Výkaz ziskov a strát": "src_vykaz_ziskov",
+    "Analýza trendov": "src_analyza_trendov",
+    "Vestník": "src_vestnik",
+    "OR SR": "src_orsr",
+    "ORSR": "src_orsr",
+    "CRZ": "src_crz",
+    "RPVS": "src_rpvs",
+    "PDF výpis": "src_pdf_vypis",
+    "RÚZ": "src_ruz",
+    "RUZ": "src_ruz",
+}
+
+
+def _translate_evidence_source(source: str, i18n_strings: dict) -> str:
+    """Translate a single evidence source name from Slovak to the report language."""
+    if not source:
+        return source
+    # Exact match
+    key = _EVIDENCE_SOURCE_MAP.get(source.strip())
+    if key:
+        return i18n_strings.get(key, source)
+    # Partial match (source may contain extra text)
+    for sk_name, i18n_key in _EVIDENCE_SOURCE_MAP.items():
+        if sk_name in source:
+            translated = i18n_strings.get(i18n_key, sk_name)
+            return source.replace(sk_name, translated)
+    return source
+
+
 def compute_insolvency_score(stmts, i18n_strings):
     """
     Simple predictive insolvency model based on 5-year trends.
@@ -1449,6 +1524,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 elif "fs_danove" in z: z = i18n_strings.get("evidence_fs_danove", z)
                 elif "insolvency" in z: z = i18n_strings.get("evidence_insolvency", z)
                 elif "orsr" in z: z = i18n_strings.get("evidence_orsr", z)
+                # Also translate SK source names that LLM may have written directly
+                z = _translate_evidence_source(z, i18n_strings)
                 item["zdroj"] = z
             evidence_list = raw_list
     except Exception as e:
@@ -1799,6 +1876,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 has_record = "ŽIADNY ZÁZNAM" not in findings and "NENAŠLI SA ŽIADNE ZÁZNAMY" not in findings and "NENAŠLI ŽIADNE" not in findings
                 _scraper_results[st_type] = {"has_record": has_record}
     _state_liabilities_alert = compute_state_liabilities_alert(_stmts_as_dicts, scraper_results=_scraper_results)
+    _state_liabilities_alert = _translate_state_liabilities_alert(_state_liabilities_alert, i18n_strings)
     _rpe_alert = compute_revenue_per_employee_alert(_stmts_as_dicts)
     _yoy_table = compute_yoy_summary_table(_stmts_as_dicts, i18n_strings=i18n_strings)
 
