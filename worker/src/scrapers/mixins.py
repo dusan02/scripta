@@ -78,7 +78,10 @@ class PdfGeneratorMixin:
             await page.click(download_button_selector)
         download = await download_info.value
         await download.save_as(str(output_path))
-        return 1
+        if output_path.exists() and output_path.stat().st_size > 0:
+            return 1
+        logger.warning(f"Download prebehol, ale súbor je prázdny (0 bytes): {output_path}")
+        return 0
 
     async def _generate_no_results_pdf(
         self, page: Page, output_path: Path, ico: str, *, title: str, message: str

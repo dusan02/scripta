@@ -167,7 +167,7 @@ class PdfCompiler:
                 if _has_no_record(source):
                     source.start_page = None
                     source.page_count = 0
-                    logger.debug(f"[PdfCompiler] SKIP {source.source_type}: no_record (findings={source.findings[:80] if source.findings else 'None'})")
+                    logger.debug(f"[PdfCompiler] SKIP {source.source_type}: no_record")
                     continue
                 # AttachmentFilter: vylúčený zdroj → žiadny link, žiadne PDF v binderi
                 if source.source_type in excluded_source_types:
@@ -178,7 +178,7 @@ class PdfCompiler:
                 if source.status == "SUCCESS" and source.file_path and source.page_count is not None and source.page_count > 0:
                     source.start_page = current
                     start_pages_map[source.source_type] = current
-                    logger.info(f"[PdfCompiler] INCLUDE {source.source_type}: start_page={current}, pages={source.page_count}, file={source.file_path}")
+                    logger.info(f"[PdfCompiler] INCLUDE {source.source_type}: start_page={current}, pages={source.page_count}")
                     current += source.page_count
                 else:
                     source.start_page = None

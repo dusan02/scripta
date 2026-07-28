@@ -166,9 +166,12 @@ class RpvsScraper(BaseScraper):
                 # Skúsime kliknúť na viditeľné tlačidlo/odkaz obsahujúci text "Stiahnuť výpis"
                 download_selector = "a:has-text('Stiahnuť výpis'):visible"
                 await page.locator(download_selector).first.wait_for(state="visible", timeout=5000)
-                await self._download_pdf(page, download_selector, file_path)
-                logger.debug(f"[{self.source_type}] ⏱ detail + download_pdf: {time.perf_counter() - _t:.2f}s")
-                logger.info(f"[{self.source_type}] Oficiálny PDF výpis úspešne stiahnutý do {file_path}")
+                dl_result = await self._download_pdf(page, download_selector, file_path)
+                if dl_result > 0:
+                    logger.debug(f"[{self.source_type}] ⏱ detail + download_pdf: {time.perf_counter() - _t:.2f}s")
+                    logger.info(f"[{self.source_type}] Oficiálny PDF výpis úspešne stiahnutý do {file_path}")
+                else:
+                    raise Exception("Download prebehol, ale súbor je prázdny (0 bytes)")
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Stiahnutie oficiálneho PDF zlyhalo ({e}). Robím fallback na tlač stránky.")
                 await page.emulate_media(media="screen")
