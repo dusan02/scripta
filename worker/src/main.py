@@ -48,14 +48,24 @@ logger = logging.getLogger(__name__)
 # Vytvára sa lazy v lifespan, aby sa naviazal na správny event loop.
 _report_semaphore: Optional[asyncio.Semaphore] = None
 
+# Scraper lock — garantuje že len 1 report súbežne používa browserless (8 contextov).
+# AI/Auditor/Compile fázy môžu bežať paralelne bez tohto locku.
+_scraper_lock: Optional[asyncio.Lock] = None
+
+# PDF compile lock — garantuje že len 1 report súbežne spúšťa lokálny Chromium pre cover page.
+# Zabraňuje RAM špičkám pri 2+ súbežných PDF kompiláciách (~300MB na proces).
+_pdf_lock: Optional[asyncio.Lock] = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if settings.app_env == "production" and not settings.worker_secret:
         raise RuntimeError("WORKER_SECRET must be set in production")
 
-    global _report_semaphore
+    global _report_semaphore, _scraper_lock, _pdf_lock
     _report_semaphore = asyncio.Semaphore(3)
+    _scraper_lock = asyncio.Lock()
+    _pdf_lock = asyncio.Lock()
 
     await connect_db()
 
@@ -216,138 +226,143 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         _log.info(f"[{_rid}] Spúšťam {len(task.sources)} scraperov pre IČO: {task.ico}")
 
-        # 3b: Globálny timeout 180s ako safety net. run_scrapers teraz:
-        #   - má per-scraper timeout 90s (jeden pomalý register nezrúši batch)
-        #   - pri CancelledError vráti už dokončené čiastočné výsledky
-        # Ak globálny timeout vyprší, scraper_task sa zruší, ale run_scrapers
-        # vráti results_by_source s dokončenými scrapermi + FAILED pre nedokončené.
-        scraper_task = asyncio.ensure_future(
-            run_scrapers(
-                sources=task.sources,
-                output_dir=report_dir,
-                browser=browser,
-                target_type=task.target_type,
-                ico=task.ico,
-                report_language=task.report_language or "sk",
-                orsr_extract_type=task.orsr_extract_type,
-                crz_date_from=task.crz_date_from,
-                rozhodnutia_date_from=task.rozhodnutia_date_from,
-                on_source_done=_on_source_done,
+        async with _scraper_lock:
+            _log.info(f"[{_rid}] Scraper lock acquired")
+
+            # 3b: Globálny timeout 180s ako safety net. run_scrapers teraz:
+            #   - má per-scraper timeout 90s (jeden pomalý register nezrúši batch)
+            #   - pri CancelledError vráti už dokončené čiastičné výsledky
+            # Ak globálny timeout vyprší, scraper_task sa zruší, ale run_scrapers
+            # vráti results_by_source s dokončenými scrapermi + FAILED pre nedokončené.
+            scraper_task = asyncio.ensure_future(
+                run_scrapers(
+                    sources=task.sources,
+                    output_dir=report_dir,
+                    browser=browser,
+                    target_type=task.target_type,
+                    ico=task.ico,
+                    report_language=task.report_language or "sk",
+                    orsr_extract_type=task.orsr_extract_type,
+                    crz_date_from=task.crz_date_from,
+                    rozhodnutia_date_from=task.rozhodnutia_date_from,
+                    on_source_done=_on_source_done,
+                )
             )
-        )
-        try:
-            sources = await asyncio.wait_for(scraper_task, timeout=180)
-        except asyncio.TimeoutError:
-            _log.warning(f"[{_rid}] Scraperi prekročili 180s limit — ruším bežiace scrapery, zachovávam dostupné výsledky.")
-            scraper_task.cancel()
             try:
-                # run_scrapers pri CancelledError vráti čiastočné výsledky
-                sources = await scraper_task
-            except asyncio.CancelledError:
-                # Ak sa aj run_scrapers zrušilo pred návratom, vytvoríme placeholdery
-                from src.models import ScrapedSource as _SS
-                sources = [
-                    _SS(source_type=st, status="FAILED", status_message="Scraper timeout (180s)")
-                    for st in task.sources
-                ]
-                _log.warning(f"[{_rid}] Timeout — {len(sources)} zdrojov označených ako FAILED.")
-        
-        if _background_tasks:
-            await asyncio.gather(*_background_tasks, return_exceptions=True)
-
-        t_scrape = time.perf_counter()
-        _scrape_ms = int((t_scrape - t_browser) * 1000)
-        await save_phase_duration(task.report_request_id, "scrapers", _scrape_ms)
-        _source_summary = ', '.join(f'{s.source_type}:{s.status}' for s in sources)
-        _log.info(f"[{_rid}] Scrapers done ({t_scrape - t_browser:.1f}s): {_source_summary}")
-
-        # ── HARD STOP: ORSR nenájdené IČO ──────────────────────────────────
-        orsr_result = next((s for s in sources if s.source_type == "ORSR"), None)
-        if orsr_result and orsr_result.status == "FAILED" and "neexistuje" in (orsr_result.status_message or "").lower():
-            _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} neexistuje v ORSR — report zrušený.")
-            await update_report_status(task.report_request_id, "FAILED")
-            await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
-            return
-
-        # ── Retry failed/unavailable scrapers (exponential backoff with jitter) ──
-        # 3c: Retry aj UNAVAILABLE (register bol nedostupný — presne to čo retry rieši)
-        # 3a: Exponential backoff: ~2s, ~5s, ~15s, ~30s (with ±30% jitter) — max 4 pokusy
-        # 3b: Total retry budget 300s — skip ďalšie passy ak sme nad limit
-        # 3d: Retry len UNAVAILABLE a TIMEOUT (network issues) — nie FAILED z interných chýb
-        # 3h: Browser health check pred každým retry passom
-        _RETRY_DELAYS = [2, 5, 15, 30]
-        _RETRY_TOTAL_BUDGET = 300  # sekundy — max čas na všetky retry passy
-        _retry_elapsed = 0.0
-        retry_pass = 0
-        for retry_pass, base_delay in enumerate(_RETRY_DELAYS):
-            # 3d: Retry len network-related stavy, nie interné chyby (bugy sa nepotvrdia znova)
-            retryable_sources = [
-                s for s in sources
-                if s.status == "UNAVAILABLE"
-                or (s.status == "FAILED" and ("timeout" in (s.status_message or "").lower() or "unreachable" in (s.status_message or "").lower()))
-            ]
-            if not retryable_sources:
-                break
-
-            # 3b: Total budget check — skip ďalšie passy
-            if _retry_elapsed >= _RETRY_TOTAL_BUDGET:
-                _log.info(f"[{_rid}] Retry budget exhausted ({_retry_elapsed:.0f}s) — skipping pass {retry_pass + 1}")
-                break
-
-            # 3a: Jitter ±30% na base delay (anti-thundering-herd)
-            delay = base_delay * random.uniform(0.7, 1.3)
-            retryable_types = [s.source_type for s in retryable_sources]
-            _log.info(f"[{_rid}] Retry pass {retry_pass + 1}/{len(_RETRY_DELAYS)}: {len(retryable_types)} scrapers: {retryable_types} (delay {delay:.1f}s, elapsed {_retry_elapsed:.0f}s)")
-            await update_report_ai_status(task.report_request_id, "ai.retrying", 60)
-            _retry_delay_start = time.perf_counter()
-            await asyncio.sleep(delay)
-            _retry_elapsed += time.perf_counter() - _retry_delay_start
-
-            # 3h: Browser health check pred retry — ak browser spadol, re-launch
-            if browser:
+                sources = await asyncio.wait_for(scraper_task, timeout=180)
+            except asyncio.TimeoutError:
+                _log.warning(f"[{_rid}] Scraperi prekročili 180s limit — ruším bežiace scrapery, zachovávam dostupné výsledky.")
+                scraper_task.cancel()
                 try:
-                    _ = browser.contexts
-                    if not browser.contexts:
-                        raise RuntimeError("Browser has no contexts")
-                except Exception as browser_err:
-                    _log.warning(f"[{_rid}] Browser unhealthy before retry pass {retry_pass + 1}: {browser_err} — re-launching.")
+                    # run_scrapers pri CancelledError vráti čiastočné výsledky
+                    sources = await scraper_task
+                except asyncio.CancelledError:
+                    # Ak sa aj run_scrapers zrušilo pred návratom, vytvoríme placeholdery
+                    from src.models import ScrapedSource as _SS
+                    sources = [
+                        _SS(source_type=st, status="FAILED", status_message="Scraper timeout (180s)")
+                        for st in task.sources
+                    ]
+                    _log.warning(f"[{_rid}] Timeout — {len(sources)} zdrojov označených ako FAILED.")
+
+            if _background_tasks:
+                await asyncio.gather(*_background_tasks, return_exceptions=True)
+
+            t_scrape = time.perf_counter()
+            _scrape_ms = int((t_scrape - t_browser) * 1000)
+            await save_phase_duration(task.report_request_id, "scrapers", _scrape_ms)
+            _source_summary = ', '.join(f'{s.source_type}:{s.status}' for s in sources)
+            _log.info(f"[{_rid}] Scrapers done ({t_scrape - t_browser:.1f}s): {_source_summary}")
+
+            # ── HARD STOP: ORSR nenájdené IČO ──────────────────────────────────
+            orsr_result = next((s for s in sources if s.source_type == "ORSR"), None)
+            if orsr_result and orsr_result.status == "FAILED" and "neexistuje" in (orsr_result.status_message or "").lower():
+                _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} neexistuje v ORSR — report zrušený.")
+                await update_report_status(task.report_request_id, "FAILED")
+                await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
+                return
+
+            # ── Retry failed/unavailable scrapers (exponential backoff with jitter) ──
+            # 3c: Retry aj UNAVAILABLE (register bol nedostupný — presne to čo retry rieši)
+            # 3a: Exponential backoff: ~2s, ~5s, ~15s, ~30s (with ±30% jitter) — max 4 pokusy
+            # 3b: Total retry budget 300s — skip ďalšie passy ak sme nad limit
+            # 3d: Retry len UNAVAILABLE a TIMEOUT (network issues) — nie FAILED z interných chýb
+            # 3h: Browser health check pred každým retry passom
+            _RETRY_DELAYS = [2, 5, 15, 30]
+            _RETRY_TOTAL_BUDGET = 300  # sekundy — max čas na všetky retry passy
+            _retry_elapsed = 0.0
+            retry_pass = 0
+            for retry_pass, base_delay in enumerate(_RETRY_DELAYS):
+                # 3d: Retry len network-related stavy, nie interné chyby (bugy sa nepotvrdia znova)
+                retryable_sources = [
+                    s for s in sources
+                    if s.status == "UNAVAILABLE"
+                    or (s.status == "FAILED" and ("timeout" in (s.status_message or "").lower() or "unreachable" in (s.status_message or "").lower()))
+                ]
+                if not retryable_sources:
+                    break
+
+                # 3b: Total budget check — skip ďalšie passy
+                if _retry_elapsed >= _RETRY_TOTAL_BUDGET:
+                    _log.info(f"[{_rid}] Retry budget exhausted ({_retry_elapsed:.0f}s) — skipping pass {retry_pass + 1}")
+                    break
+
+                # 3a: Jitter ±30% na base delay (anti-thundering-herd)
+                delay = base_delay * random.uniform(0.7, 1.3)
+                retryable_types = [s.source_type for s in retryable_sources]
+                _log.info(f"[{_rid}] Retry pass {retry_pass + 1}/{len(_RETRY_DELAYS)}: {len(retryable_types)} scrapers: {retryable_types} (delay {delay:.1f}s, elapsed {_retry_elapsed:.0f}s)")
+                await update_report_ai_status(task.report_request_id, "ai.retrying", 60)
+                _retry_delay_start = time.perf_counter()
+                await asyncio.sleep(delay)
+                _retry_elapsed += time.perf_counter() - _retry_delay_start
+
+                # 3h: Browser health check pred retry — ak browser spadol, re-launch
+                if browser:
                     try:
-                        await browser.close()
-                    except Exception:
-                        pass
-                    from src.browser_manager import browser_manager
-                    browser = await browser_manager.get_browser(playwright)
-                    _log.info(f"[{_rid}] Browser re-launched for retry pass {retry_pass + 1}.")
+                        _ = browser.contexts
+                        if not browser.contexts:
+                            raise RuntimeError("Browser has no contexts")
+                    except Exception as browser_err:
+                        _log.warning(f"[{_rid}] Browser unhealthy before retry pass {retry_pass + 1}: {browser_err} — re-launching.")
+                        try:
+                            await browser.close()
+                        except Exception:
+                            pass
+                        from src.browser_manager import browser_manager
+                        browser = await browser_manager.get_browser(playwright)
+                        _log.info(f"[{_rid}] Browser re-launched for retry pass {retry_pass + 1}.")
 
-            retry_results = await run_scrapers(
-                sources=retryable_types,
-                output_dir=report_dir,
-                browser=browser,
-                target_type=task.target_type,
-                ico=task.ico,
-                report_language=task.report_language or "sk",
-                orsr_extract_type=task.orsr_extract_type,
-                crz_date_from=task.crz_date_from,
-                rozhodnutia_date_from=task.rozhodnutia_date_from,
-            )
+                retry_results = await run_scrapers(
+                    sources=retryable_types,
+                    output_dir=report_dir,
+                    browser=browser,
+                    target_type=task.target_type,
+                    ico=task.ico,
+                    report_language=task.report_language or "sk",
+                    orsr_extract_type=task.orsr_extract_type,
+                    crz_date_from=task.crz_date_from,
+                    rozhodnutia_date_from=task.rozhodnutia_date_from,
+                )
 
-            # Merge retry results back into sources
-            retry_map = {r.source_type: r for r in retry_results}
-            for i, s in enumerate(sources):
-                if s.source_type in retry_map:
-                    retry_result = retry_map[s.source_type]
-                    if retry_result.status == "SUCCESS":
-                        _log.info(f"[{_rid}] Retry pass {retry_pass + 1} succeeded for {s.source_type}")
-                        sources[i] = retry_result
-                    else:
-                        _log.warning(f"[{_rid}] Retry pass {retry_pass + 1} failed again for {s.source_type}: {retry_result.status}")
+                # Merge retry results back into sources
+                retry_map = {r.source_type: r for r in retry_results}
+                for i, s in enumerate(sources):
+                    if s.source_type in retry_map:
+                        retry_result = retry_map[s.source_type]
+                        if retry_result.status == "SUCCESS":
+                            _log.info(f"[{_rid}] Retry pass {retry_pass + 1} succeeded for {s.source_type}")
+                            sources[i] = retry_result
+                        else:
+                            _log.warning(f"[{_rid}] Retry pass {retry_pass + 1} failed again for {s.source_type}: {retry_result.status}")
 
-        # Log final retry outcome
-        still_failed = [s.source_type for s in sources if s.status in ("FAILED", "UNAVAILABLE")]
-        if still_failed:
-            _log.warning(f"[{_rid}] Scrapery stále zlyhané po {retry_pass + 1} retry passoch ({_retry_elapsed:.0f}s): {still_failed}")
+            # Log final retry outcome
+            still_failed = [s.source_type for s in sources if s.status in ("FAILED", "UNAVAILABLE")]
+            if still_failed:
+                _log.warning(f"[{_rid}] Scrapery stále zlyhané po {retry_pass + 1} retry passoch ({_retry_elapsed:.0f}s): {still_failed}")
 
-        await upsert_report_sources(task.report_request_id, sources)
+            await upsert_report_sources(task.report_request_id, sources)
+
+        _log.info(f"[{_rid}] Scraper lock released")
 
         company_name = _extract_company_name(sources, task.target_type)
 
@@ -503,17 +518,20 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         compiler = PdfCompiler(settings.results_dir)
         t_compile_start = time.perf_counter()
-        with PhaseTimer("PDF compile"):
-            final_path = await compiler.compile(
-                report_request_id=task.report_request_id,
-                target_type=task.target_type,
-                identifier=_identifier(task),
-                sources=sources,
-                company_name=company_name,
-                report_language=task.report_language or "sk",
-                vestnik_date_from=task.vestnik_date_from,
-                attachments_config=task.attachments_config,
-            )
+        async with _pdf_lock:
+            _log.info(f"[{_rid}] PDF compile lock acquired")
+            with PhaseTimer("PDF compile"):
+                final_path = await compiler.compile(
+                    report_request_id=task.report_request_id,
+                    target_type=task.target_type,
+                    identifier=_identifier(task),
+                    sources=sources,
+                    company_name=company_name,
+                    report_language=task.report_language or "sk",
+                    vestnik_date_from=task.vestnik_date_from,
+                    attachments_config=task.attachments_config,
+                )
+            _log.info(f"[{_rid}] PDF compile lock released")
         t_compile = time.perf_counter()
         await save_phase_duration(task.report_request_id, "compile", int((t_compile - t_compile_start) * 1000))
         _log.info(f"[{_rid}] PDF compiled: {final_path.name}")

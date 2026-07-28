@@ -91,7 +91,7 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(redis_url)
     on_startup = startup
     on_shutdown = shutdown
-    max_jobs = 2  # Concurrency limit vo workerovi
+    max_jobs = 3  # Concurrency limit — scraper a PDF fázy chránené _scraper_lock/_pdf_lock v main.py
     job_timeout = 1200  # 20 min — 26 sources with retry passes can exceed 10 min
     keep_result = 3600
     allow_abort_jobs = True
