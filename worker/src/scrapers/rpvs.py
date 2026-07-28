@@ -113,16 +113,16 @@ class RpvsScraper(BaseScraper):
 
             # 5. Počkaj na výsledky a klikni na názov partnera
             # Kliká sa na Meno partnera verejného sektora (4. stĺpec: td:nth-child(4) a).
-            # Ak je viac záznamov, preferujeme riadok so stavom "Platný" (7. stĺpec).
-            company_link = page.locator("tbody tr:has(td:nth-child(7):text('Platný')) td:nth-child(4) a").first
+            # Tabuľka nemá stĺpec "Platný" — 7. stĺpec je Dátum zápisu, takže filter na Platný nepoužívame.
+            company_link = page.locator("tbody tr td:nth-child(4) a").first
             company_name = None
             try:
-                await company_link.wait_for(state="visible", timeout=8000)
+                await company_link.wait_for(state="visible", timeout=15000)
             except PlaywrightTimeoutError:
-                # Fallback: ak nie je žiadny "Platný" riadok, skús prvý odkaz v 4. stĺpci
-                logger.warning(f"[{self.source_type}] Žiadny riadok so stavom 'Platný', skúšam prvý odkaz v 4. stĺpci.")
-                company_link = page.locator("tbody tr td:nth-child(4) a").first
-                await company_link.wait_for(state="visible", timeout=5000)
+                # Fallback: skús selektor s row class (DataTables používa odd/even)
+                logger.warning(f"[{self.source_type}] Prvý odkaz v 4. stĺpci nenájdený, skúšam odd/even selektor.")
+                company_link = page.locator("tbody tr.odd td:nth-child(4) a, tbody tr.even td:nth-child(4) a").first
+                await company_link.wait_for(state="visible", timeout=10000)
             try:
                 company_name = await company_link.inner_text()
                 if company_name:
