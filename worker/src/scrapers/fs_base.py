@@ -572,104 +572,109 @@ class FinancnaSpravaBase(BaseScraper):
         return False
 
     async def _download_pdf(self, page: Page, output_path: Path, findings: Optional[str] = None) -> bool:
-        """Klikne na 'Export do PDF' a uloží stiahnutý súbor. Podporuje popup + download + PDF print fallback."""
+        """Klikne na 'Export do PDF' a uloží stiahnutý súbor.
+
+        Stratégie:
+        1. Získa href z #shlPdfExport a stiahne PDF priamo cez page.request.get()
+        2. Klikne na export link, zachytí download z context (nie len z page)
+        3. Ak sa otvorí popup, získa jeho URL a stiahne PDF z nej
+        """
         try:
-            export_locators = [
-                page.get_by_role("link", name="Export do PDF"),
-                page.locator('a:has-text("Export do PDF")'),
-                page.locator('a:has-text("PDF")'),
-                page.locator('button:has-text("PDF")'),
-            ]
+            # Nájsť export link — preferujeme #shlPdfExport (kanonický selector FS)
             export_link = None
-            for loc in export_locators:
-                if await loc.count() > 0:
-                    export_link = loc.first
-                    logger.info(f"[{self.source_type}] PDF export link nájdený")
-                    break
+            try:
+                export_link = page.locator('#shlPdfExport')
+                if await export_link.count() == 0:
+                    export_link = None
+            except Exception:
+                pass
+            if not export_link:
+                for loc in [
+                    page.get_by_role("link", name="Export do PDF"),
+                    page.locator('a:has-text("Export do PDF")'),
+                    page.locator('a:has-text("PDF")'),
+                    page.locator('button:has-text("PDF")'),
+                ]:
+                    if await loc.count() > 0:
+                        export_link = loc.first
+                        break
             if not export_link:
                 logger.warning(f"[{self.source_type}] PDF export link sa nenašiel")
                 return False
             await export_link.wait_for(timeout=10000)
+            logger.info(f"[{self.source_type}] PDF export link nájdený")
 
-            # Stratégia 1: popup + download (podľa recording skriptu)
+            # Stratégia 1: Získa href a stiahne PDF priamo cez HTTP request (s browser cookies)
+            try:
+                href = await export_link.get_attribute('href')
+                if href:
+                    # Resolve relative URL
+                    from urllib.parse import urljoin
+                    pdf_url = urljoin(page.url, href)
+                    logger.info(f"[{self.source_type}] Sťahujem PDF z href: {pdf_url}")
+                    resp = await page.request.get(pdf_url, timeout=30000)
+                    if resp.ok:
+                        body = await resp.body()
+                        if body and len(body) > 0:
+                            output_path.write_bytes(body)
+                            logger.info(f"[{self.source_type}] PDF uložené (href download, {len(body)} bytes).")
+                            return True
+                        else:
+                            logger.warning(f"[{self.source_type}] href download: prázdne body (0 bytes).")
+                    else:
+                        logger.warning(f"[{self.source_type}] href download: HTTP {resp.status}.")
+            except Exception as e:
+                logger.info(f"[{self.source_type}] href download zlyhal ({e}), skúšam click + download...")
+
+            # Stratégia 2: Klik na export link, zachytí download z page alebo popupu
             try:
                 async with page.expect_download(timeout=30000) as download_info:
                     async with page.context.expect_page(timeout=10000) as popup_info:
                         await export_link.click()
                     popup = await popup_info.value
                     logger.info(f"[{self.source_type}] PDF popup otvorený — čakám na download.")
-                # Download zachytený — až teraz zatvoríme popup
                 download = await download_info.value
                 await download.save_as(str(output_path))
                 try:
                     await popup.close()
                 except Exception:
                     pass
-                # Overiť že súbor nie je prázdny
                 if output_path.exists() and output_path.stat().st_size > 0:
-                    logger.info(f"[{self.source_type}] PDF uložené (download, {output_path.stat().st_size} bytes), popup zatvorený.")
+                    logger.info(f"[{self.source_type}] PDF uložené (download, {output_path.stat().st_size} bytes).")
                     return True
                 else:
-                    logger.warning(f"[{self.source_type}] Download prebehol, ale súbor je prázdny (0 bytes) — skúšam PDF print z popupu...")
+                    logger.warning(f"[{self.source_type}] Download: súbor prázdny (0 bytes) — skúšam popup URL...")
             except PlaywrightTimeoutError:
-                logger.info(f"[{self.source_type}] Download timeout, skúšam PDF print z popupu...")
+                logger.info(f"[{self.source_type}] Download timeout, skúšam popup URL...")
             except Exception as e:
-                logger.info(f"[{self.source_type}] Download zlyhal ({e}), skúšam PDF print z popupu...")
+                logger.info(f"[{self.source_type}] Download zlyhal ({e}), skúšam popup URL...")
 
-            # Stratégia 2: popup sa otvoril s PDF viewerom — uložíme ako PDF
+            # Stratégia 3: Popup sa otvoril — získa jeho URL a stiahne PDF priamo
             try:
                 popup = page.context.pages[-1] if len(page.context.pages) > 1 else None
                 if popup and popup != page:
                     await popup.wait_for_load_state("domcontentloaded", timeout=10000)
-                    
-                    try:
-                        # Fix pre finančnú správu - tabuľky boli zhora odseknuté pri tlači
-                        await popup.add_style_tag(content="@media print { table, .table, .datagrid { margin-top: 60px !important; } }")
-                        # Pridáme aj malé oneskorenie, aby sa CSS aplikovalo
-                        await popup.wait_for_timeout(1000)
-                    except Exception as style_err:
-                        logger.debug(f"[{self.source_type}] Nepodarilo sa pridať CSS štýl (možno ide o raw PDF): {style_err}")
-
-                    await popup.pdf(
-                        path=str(output_path),
-                        margin={"top": "20mm", "bottom": "20mm", "left": "10mm", "right": "10mm"}
-                    )
+                    popup_url = popup.url
+                    logger.info(f"[{self.source_type}] Popup URL: {popup_url}")
                     await popup.close()
-                    logger.info(f"[{self.source_type}] PDF uložené (print z popupu).")
-                    return True
-            except Exception as e:
-                logger.warning(f"[{self.source_type}] PDF print z popupu zlyhal: {e}")
 
-            # Stratégia 3: priamy download bez popupu
-            try:
-                async with page.expect_download(timeout=15000) as download_info:
-                    await export_link.click()
-                download = await download_info.value
-                await download.save_as(str(output_path))
-                if output_path.exists() and output_path.stat().st_size > 0:
-                    logger.info(f"[{self.source_type}] PDF uložené (priamy download, {output_path.stat().st_size} bytes).")
-                    return True
-                else:
-                    logger.warning(f"[{self.source_type}] Priamy download prebehol, ale súbor je prázdny — skúšam PDF print z hlavnej stránky...")
-            except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Timeout pri priamom PDF download.")
-
-            # Stratégia 4: PDF print z hlavnej stránky (posledná záchrana)
-            try:
-                logger.info(f"[{self.source_type}] Skúšam PDF print z hlavnej stránky...")
-                await page.pdf(
-                    path=str(output_path),
-                    margin={"top": "20mm", "bottom": "20mm", "left": "10mm", "right": "10mm"}
-                )
-                if output_path.exists() and output_path.stat().st_size > 0:
-                    logger.info(f"[{self.source_type}] PDF uložené (print z hlavnej stránky, {output_path.stat().st_size} bytes).")
-                    return True
-                else:
-                    logger.warning(f"[{self.source_type}] PDF print z hlavnej stránky tiež prázdny.")
-                    return False
+                    # Stiahnuť PDF z popup URL cez HTTP request
+                    resp = await page.request.get(popup_url, timeout=30000)
+                    if resp.ok:
+                        body = await resp.body()
+                        if body and len(body) > 0:
+                            output_path.write_bytes(body)
+                            logger.info(f"[{self.source_type}] PDF uložené (popup URL download, {len(body)} bytes).")
+                            return True
+                        else:
+                            logger.warning(f"[{self.source_type}] Popup URL download: prázdne body.")
+                    else:
+                        logger.warning(f"[{self.source_type}] Popup URL download: HTTP {resp.status}.")
             except Exception as e:
-                logger.warning(f"[{self.source_type}] PDF print z hlavnej stránky zlyhal: {e}")
-                return False
+                logger.warning(f"[{self.source_type}] Popup URL download zlyhal: {e}")
+
+            logger.warning(f"[{self.source_type}] Všetky stratégie zlyhali — PDF sa nepodarilo stiahnuť.")
+            return False
         except PlaywrightTimeoutError:
             logger.warning(f"[{self.source_type}] Timeout pri čakaní na PDF download.")
             return False
