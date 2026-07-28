@@ -129,7 +129,8 @@ async def run_scrapers(
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
     # FS semaphore 3 — 8 FS scraperov zdieľa rovnaký server, 3 súbežné je bezpečné
     fs_semaphore = asyncio.Semaphore(3)
-    global_semaphore = asyncio.Semaphore(12)
+    # Must match browserless MAX_CONCURRENT_SESSIONS — each browser session = 1 semafor slot
+    global_semaphore = asyncio.Semaphore(6)
 
     # Rozdelíme na nezávislé a závislé scrapery
     independent = [s for s in sources if s not in _DEPENDS_ON]
