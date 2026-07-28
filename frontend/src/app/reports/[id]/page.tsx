@@ -883,7 +883,22 @@ export default function ReportDetailPage() {
 
       {/* ── BOTTOM SECTION: Registry grid (same as home page) ── */}
       <section className="px-2 pt-5 pb-8">
-        {report.sources.length === 0 ? (
+        {report.status === "PENDING" ? (
+          <div className="max-w-2xl mx-auto fade-in">
+            <div className="rounded-2xl p-5 shadow-sm flex items-center gap-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <div className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "var(--warning-bg)" }}>
+                <svg className="w-5 h-5 animate-pulse" style={{ color: "var(--warning)" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{t("report.queuedTitle")}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t("report.queuedMessage")}</p>
+              </div>
+            </div>
+          </div>
+        ) : report.sources.length === 0 ? (
           <div className="card p-8 text-center text-xs" style={{ color: "var(--text-muted)" }}>
             {t("report.zdrojePripravuju")}
           </div>
