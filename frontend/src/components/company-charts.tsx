@@ -72,33 +72,25 @@ export function AssetsEquityChart({ data }: { data: ChartData[] }) {
 }
 
 export function BalanceSankeyChart({ data }: { data: BalanceData[] }) {
-  const { sankeyData, nodeColors, nodeSides } = useMemo(() => {
-    const aktiva = data.filter(d => d.side === "aktiva" && d.value !== null && d.value !== undefined && d.value > 0);
-    const pasiva = data.filter(d => d.side === "pasiva" && d.value !== null && d.value !== undefined && d.value > 0);
-    if (aktiva.length === 0 || pasiva.length === 0) return { sankeyData: null, nodeColors: [] as string[], nodeSides: [] as string[] };
+  const { sankeyData, nodeColors } = useMemo(() => {
+    const source = data.find(d => d.side === "aktiva" && d.value !== null && d.value !== undefined && d.value > 0);
+    const targets = data.filter(d => d.side === "pasiva" && d.value !== null && d.value !== undefined && d.value > 0);
+    if (!source || targets.length === 0) return { sankeyData: null, nodeColors: [] as string[] };
 
     const nodes = [
-      ...aktiva.map(d => ({ name: d.name })),
-      ...pasiva.map(d => ({ name: d.name })),
+      { name: source.name },
+      ...targets.map(d => ({ name: d.name })),
     ];
 
-    const aktivaTotal = aktiva.reduce((s, d) => s + (d.value as number), 0);
-    const pasivaTotal = pasiva.reduce((s, d) => s + (d.value as number), 0);
-    const links: { source: number; target: number; value: number }[] = [];
+    const links = targets.map((d, i) => ({
+      source: 0,
+      target: i + 1,
+      value: d.value as number,
+    }));
 
-    for (let i = 0; i < aktiva.length; i++) {
-      for (let j = 0; j < pasiva.length; j++) {
-        const flow = (aktiva[i].value as number) * (pasiva[j].value as number) / Math.max(aktivaTotal, pasivaTotal);
-        if (flow > 0) {
-          links.push({ source: i, target: aktiva.length + j, value: flow });
-        }
-      }
-    }
+    const colors = [source.color, ...targets.map(d => d.color)];
 
-    const colors = [...aktiva.map(d => d.color), ...pasiva.map(d => d.color)];
-    const sides = [...aktiva.map(() => "aktiva"), ...pasiva.map(() => "pasiva")];
-
-    return { sankeyData: { nodes, links }, nodeColors: colors, nodeSides: sides };
+    return { sankeyData: { nodes, links }, nodeColors: colors };
   }, [data]);
 
   if (!sankeyData) {
@@ -120,7 +112,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData[] }) {
     <ResponsiveContainer width="100%" height={240}>
       <Sankey
         data={sankeyData}
-        nodePadding={14}
+        nodePadding={20}
         nodeWidth={8}
         linkCurvature={0.5}
         margin={{ top: 10, right: 100, bottom: 10, left: 100 }}
@@ -128,11 +120,10 @@ export function BalanceSankeyChart({ data }: { data: BalanceData[] }) {
           const { x, y, width, height, index } = props;
           const color = nodeColors[index] || "#94a3b8";
           const name = sankeyData.nodes[index]?.name || "";
-          const side = nodeSides[index] || "pasiva";
-          const value = side === "aktiva" ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
-          const isLeft = side === "aktiva";
-          const labelX = isLeft ? x - 8 : x + width + 8;
-          const textAnchor = isLeft ? "end" : "start";
+          const isSource = index === 0;
+          const value = isSource ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
+          const labelX = isSource ? x - 8 : x + width + 8;
+          const textAnchor = isSource ? "end" : "start";
           return (
             <Layer key={`node-${index}`}>
               <rect x={x} y={y} width={width} height={height} fill={color} rx={2} />
@@ -164,11 +155,11 @@ export function BalanceSankeyChart({ data }: { data: BalanceData[] }) {
           const link = sankeyData.links[index];
           const color = nodeColors[link.target] || "#94a3b8";
           return (
-            <Layer key={`link-${index}`} opacity={0.25}>
+            <Layer key={`link-${index}`} opacity={0.3}>
               <path
                 d={`M${sourceX},${sourceY}C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
                 stroke={color}
-                strokeWidth={Math.max(0.5, linkWidth)}
+                strokeWidth={Math.max(1, linkWidth)}
                 fill="none"
               />
             </Layer>

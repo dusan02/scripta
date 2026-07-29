@@ -367,11 +367,10 @@ export default async function CompanyPage({ params }: Params) {
   }));
 
   const balanceData = latest ? [
+    { name: "Celkové aktíva", value: latest.totalAssets, color: "#3b82f6", side: "aktiva" as const },
     { name: "Vlastné imanie", value: latest.equity, color: "#10b981", side: "pasiva" as const },
     { name: "Dlhodobé záväzky", value: latest.longTermLiabilities, color: "#f59e0b", side: "pasiva" as const },
     { name: "Krátkodobé záväzky", value: latest.shortTermLiabilities, color: "#ef4444", side: "pasiva" as const },
-    { name: "Obezný majetok", value: latest.currentAssets, color: "#3b82f6", side: "aktiva" as const },
-    { name: "Dlhodobý majetok", value: latest.totalAssets && latest.currentAssets ? latest.totalAssets - latest.currentAssets : null, color: "#6366f1", side: "aktiva" as const },
   ].filter(d => d.value !== null && d.value !== undefined && d.value !== 0) : [];
 
   const jsonLd = {
