@@ -17,7 +17,7 @@ COPY prisma ./prisma
 
 RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 RUN cp prisma/schema.prisma prisma/schema.prisma.bak && \
-    sed '/client_py/,/^}/d' prisma/schema.prisma > prisma/schema_js.prisma && \
+    sed '/client_py/,/}/d' prisma/schema.prisma > prisma/schema_js.prisma && \
     mv prisma/schema_js.prisma prisma/schema.prisma && \
     npx prisma generate && \
     mv prisma/schema.prisma.bak prisma/schema.prisma
