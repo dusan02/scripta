@@ -55,9 +55,9 @@ function DocCard({
         borderColor: "var(--border)",
       }}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         <div
-          className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center"
+          className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center"
           style={{
             background: status === "soon" ? "var(--bg-muted)" : "var(--accent-light)",
             color: status === "soon" ? "var(--text-muted)" : "var(--accent)",
@@ -108,8 +108,9 @@ function ViewButton({ href, label }: { href: string; label: string }) {
       href={href}
       className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 hover:opacity-90"
       style={{
-        background: "var(--accent)",
-        color: "var(--accent-button-text)",
+        background: "transparent",
+        color: "var(--accent)",
+        border: "1px solid var(--accent)",
       }}
     >
       {label} →
@@ -123,7 +124,7 @@ export default function DocumentsPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <LandingNav />
-      <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8 sm:py-12" style={{ paddingTop: 120 }}>
+      <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8 sm:py-12" style={{ paddingTop: "140px" }}>
       {/* Header */}
       <div className="mb-8 sm:mb-10">
         <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: "var(--text)" }}>{t("docs.title")}</h1>

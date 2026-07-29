@@ -36,11 +36,23 @@ export default function LandingNav() {
   const t = useT();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authBarVisible, setAuthBarVisible] = useState(true);
   const darkMode = theme === "dark";
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
+    let lastScrollY = 0;
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      setScrolled(currentY > 20);
+      // Hide auth bar when scrolling down, show when scrolling up
+      if (currentY > 100 && currentY > lastScrollY) {
+        setAuthBarVisible(false);
+      } else {
+        setAuthBarVisible(true);
+      }
+      lastScrollY = currentY;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
@@ -167,13 +179,18 @@ export default function LandingNav() {
         </div>
       </div>
 
-      {/* Mobile: Register + Login below top bar */}
+      {/* Mobile: Register + Login below top bar — hides on scroll down */}
       <div className="mobile-auth-bar" style={{
         maxWidth: 1200,
         margin: "0 auto",
-        padding: "0 16px 12px",
+        padding: "0 16px 10px",
         display: "flex",
         gap: 8,
+        transition: "opacity 0.25s ease, transform 0.25s ease, max-height 0.25s ease",
+        opacity: authBarVisible ? 1 : 0,
+        transform: authBarVisible ? "translateY(0)" : "translateY(-100%)",
+        maxHeight: authBarVisible ? 60 : 0,
+        overflow: "hidden",
       }}>
         <Link
           href="/register"
@@ -249,9 +266,11 @@ export default function LandingNav() {
                   textDecoration: "none",
                   fontSize: 15,
                   fontWeight: 500,
-                  padding: "14px 8px",
+                  padding: "16px 8px",
+                  minHeight: 48,
                   borderBottom: "1px solid var(--border)",
-                  display: "block",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
                 {t(item.key)}
