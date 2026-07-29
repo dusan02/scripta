@@ -116,46 +116,33 @@ export default function SettingsPage() {
   return (
     <div className="max-w-[600px] mx-auto px-4 sm:px-6 pt-8 pb-8 animate-fade-in">
       <div className="text-center mb-8">
-        <h1
-          className="text-2xl font-bold tracking-tight mb-1"
-          style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
-        >
+        <h1 className="text-2xl font-bold tracking-tight mb-1 text-[var(--text)] tracking-[-0.02em]">
           {t("settings.nastavenia")}
         </h1>
-      <p className="text-sm mb-8" style={{ color: "var(--text-muted)" }}>
-        {t("settings.prisposobte")}
-      </p>
+        <p className="text-sm mb-8 text-[var(--text-muted)]">
+          {t("settings.prisposobte")}
+        </p>
       </div>
 
       {/* ORSR Extract Type */}
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2
-              className="text-sm font-semibold mb-1"
-              style={{ color: "var(--text)" }}
-            >
+            <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
               {t("settings.typVypisu")}
             </h2>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs text-[var(--text-muted)]">
               {t("settings.vyberteTyp")}
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div
-            className="h-10 rounded-lg animate-pulse"
-            style={{ background: "var(--bg-muted)" }}
-          />
+          <div className="h-10 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <div className="flex flex-col gap-2">
             <label
-              className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all"
-              style={{
-                background: orsrExtractType === "CURRENT" ? "var(--bg-muted)" : "transparent",
-                border: `1px solid ${orsrExtractType === "CURRENT" ? "var(--accent)" : "var(--border)"}`,
-              }}
+              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${orsrExtractType === "CURRENT" ? "bg-[var(--bg-muted)] border border-[var(--accent)]" : "border border-[var(--border)]"}`}
             >
               <input
                 type="radio"
@@ -166,21 +153,17 @@ export default function SettingsPage() {
                 className="accent-emerald-500"
               />
               <div>
-                <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                <div className="text-sm font-medium text-[var(--text)]">
                   {t("settings.aktualny")}
                 </div>
-                <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <div className="text-xs text-[var(--text-muted)]">
                   {t("settings.aktualnyPopis")}
                 </div>
               </div>
             </label>
 
             <label
-              className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all"
-              style={{
-                background: orsrExtractType === "FULL" ? "var(--bg-muted)" : "transparent",
-                border: `1px solid ${orsrExtractType === "FULL" ? "var(--accent)" : "var(--border)"}`,
-              }}
+              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${orsrExtractType === "FULL" ? "bg-[var(--bg-muted)] border border-[var(--accent)]" : "border border-[var(--border)]"}`}
             >
               <input
                 type="radio"
@@ -191,10 +174,10 @@ export default function SettingsPage() {
                 className="accent-emerald-500"
               />
               <div>
-                <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                <div className="text-sm font-medium text-[var(--text)]">
                   {t("settings.uplny")}
                 </div>
-                <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <div className="text-xs text-[var(--text-muted)]">
                   {t("settings.uplnyPopis")}
                 </div>
               </div>
@@ -207,41 +190,29 @@ export default function SettingsPage() {
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2
-              className="text-sm font-semibold mb-1"
-              style={{ color: "var(--text)" }}
-            >
+            <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
               {t("settings.crzDatum")}
             </h2>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs text-[var(--text-muted)]">
               {t("settings.crzPopis")}
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div
-            className="h-10 rounded-lg animate-pulse"
-            style={{ background: "var(--bg-muted)" }}
-          />
+          <div className="h-10 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <div>
             <input
               type="date"
               value={crzDateFrom}
               onChange={(e) => setCrzDateFrom(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-              }}
+              className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--bg)] text-[var(--text)] border border-[var(--border)]"
             />
             {crzDateFrom && (
               <button
                 onClick={() => setCrzDateFrom("")}
-                className="text-xs mt-2"
-                style={{ color: "var(--text-muted)" }}
+                className="text-xs mt-2 text-[var(--text-muted)]"
               >
                 ↺ {t("settings.zrusitDefault").replace("↺ ", "")}
               </button>
@@ -254,36 +225,25 @@ export default function SettingsPage() {
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2
-              className="text-sm font-semibold mb-1"
-              style={{ color: "var(--text)" }}
-            >
+            <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
               {t("settings.rozhodnutia")}
             </h2>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs text-[var(--text-muted)]">
               {t("settings.rozhodnutiaPopis")}
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div
-            className="h-10 rounded-lg animate-pulse"
-            style={{ background: "var(--bg-muted)" }}
-          />
+          <div className="h-10 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>{t("settings.odRoku")}</label>
+              <label className="text-xs block mb-1 text-[var(--text-muted)]">{t("settings.odRoku")}</label>
               <select
                 value={rozhodnutiaYearFrom}
                 onChange={(e) => setRozhodnutiaYearFrom(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  color: "var(--text)",
-                }}
+                className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--bg)] text-[var(--text)] border border-[var(--border)]"
               >
                 {yearOptions.map(y => (
                   <option key={y} value={y}>{y}</option>
@@ -291,16 +251,11 @@ export default function SettingsPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>{t("settings.doRoku")}</label>
+              <label className="text-xs block mb-1 text-[var(--text-muted)]">{t("settings.doRoku")}</label>
               <select
                 value={String(currentYear)}
                 disabled
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{
-                  background: "var(--bg-muted)",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-muted)",
-                }}
+                className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--bg-muted)] text-[var(--text-muted)] border border-[var(--border)]"
               >
                 <option value={String(currentYear)}>{currentYear}</option>
               </select>
@@ -313,41 +268,29 @@ export default function SettingsPage() {
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2
-              className="text-sm font-semibold mb-1"
-              style={{ color: "var(--text)" }}
-            >
+            <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
               {t("settings.vestnik")}
             </h2>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs text-[var(--text-muted)]">
               {t("settings.vestnikPopis")}
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div
-            className="h-10 rounded-lg animate-pulse"
-            style={{ background: "var(--bg-muted)" }}
-          />
+          <div className="h-10 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <div>
             <input
               type="date"
               value={vestnikDateFrom}
               onChange={(e) => setVestnikDateFrom(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-              }}
+              className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--bg)] text-[var(--text)] border border-[var(--border)]"
             />
             {vestnikDateFrom && (
               <button
                 onClick={() => setVestnikDateFrom("")}
-                className="text-xs mt-2"
-                style={{ color: "var(--text-muted)" }}
+                className="text-xs mt-2 text-[var(--text-muted)]"
               >
                 ↺ {t("settings.zrusitDefault").replace("↺ ", "")}
               </button>
@@ -360,23 +303,17 @@ export default function SettingsPage() {
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2
-              className="text-sm font-semibold mb-1"
-              style={{ color: "var(--text)" }}
-            >
+            <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
               {t("settings.predvoleneRegistre")}
             </h2>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs text-[var(--text-muted)]">
               {t("settings.predvolenePopis")}
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div
-            className="h-32 rounded-lg animate-pulse"
-            style={{ background: "var(--bg-muted)" }}
-          />
+          <div className="h-32 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <RegistryGrid
             mode="selection"
@@ -392,23 +329,17 @@ export default function SettingsPage() {
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2
-              className="text-sm font-semibold mb-1"
-              style={{ color: "var(--text)" }}
-            >
+            <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
               {t("settings.jazykReportu")}
             </h2>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs text-[var(--text-muted)]">
               {t("settings.jazykReportuPopis")}
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div
-            className="h-10 rounded-lg animate-pulse"
-            style={{ background: "var(--bg-muted)" }}
-          />
+          <div className="h-10 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <div className="flex flex-col gap-2">
             {[
@@ -418,11 +349,7 @@ export default function SettingsPage() {
             ].map((lang) => (
               <label
                 key={lang.code}
-                className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all"
-                style={{
-                  background: reportLanguage === lang.code ? "var(--bg-muted)" : "transparent",
-                  border: `1px solid ${reportLanguage === lang.code ? "var(--accent)" : "var(--border)"}`,
-                }}
+                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${reportLanguage === lang.code ? "bg-[var(--bg-muted)] border border-[var(--accent)]" : "border border-[var(--border)]"}`}
               >
                 <input
                   type="radio"
@@ -432,8 +359,8 @@ export default function SettingsPage() {
                   onChange={() => setReportLanguage(lang.code)}
                   className="accent-emerald-500"
                 />
-                <span style={{ fontSize: "16px" }}>{lang.flag}</span>
-                <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                <span className="text-base">{lang.flag}</span>
+                <div className="text-sm font-medium text-[var(--text)]">
                   {lang.label}
                 </div>
               </label>
@@ -446,23 +373,17 @@ export default function SettingsPage() {
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2
-              className="text-sm font-semibold mb-1"
-              style={{ color: "var(--text)" }}
-            >
+            <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
               Prílohy v PDF reporte
             </h2>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs text-[var(--text-muted)]">
               Vyberte, ktoré prílohy sa majú pripojiť k vygenerovanému PDF reportu.
             </p>
           </div>
         </div>
 
         {loading ? (
-          <div
-            className="h-32 rounded-lg animate-pulse"
-            style={{ background: "var(--bg-muted)" }}
-          />
+          <div className="h-32 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <div className="flex flex-col gap-2">
             {[
@@ -473,11 +394,7 @@ export default function SettingsPage() {
             ].map((item) => (
               <div key={item.key}>
                 <label
-                  className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all"
-                  style={{
-                    background: attachmentsConfig[item.key] ? "var(--bg-muted)" : "transparent",
-                    border: `1px solid ${attachmentsConfig[item.key] ? "var(--accent)" : "var(--border)"}`,
-                  }}
+                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${attachmentsConfig[item.key] ? "bg-[var(--bg-muted)] border border-[var(--accent)]" : "border border-[var(--border)]"}`}
                 >
                   <input
                     type="checkbox"
@@ -486,18 +403,18 @@ export default function SettingsPage() {
                     className="accent-emerald-500"
                   />
                   <div>
-                    <div className="text-sm font-medium" style={{ color: "var(--text)" }}>
+                    <div className="text-sm font-medium text-[var(--text)]">
                       {item.label}
                     </div>
-                    <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    <div className="text-xs text-[var(--text-muted)]">
                       {item.desc}
                     </div>
                   </div>
                 </label>
                 {item.warning && (
-                  <div className="flex items-start gap-2 mt-1.5 ml-7 text-xs" style={{ color: "var(--warning)" }}>
-                    <span style={{ lineHeight: "16px" }}>⚠</span>
-                    <span style={{ lineHeight: "16px" }}>Táto príloha môže výrazne zväčšiť PDF report — až o stovky strán.</span>
+                  <div className="flex items-start gap-2 mt-1.5 ml-7 text-xs text-[var(--warning)]">
+                    <span className="leading-4">⚠</span>
+                    <span className="leading-4">Táto príloha môže výrazne zväčšiť PDF report — až o stovky strán.</span>
                   </div>
                 )}
               </div>
@@ -511,33 +428,18 @@ export default function SettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving || loading}
-          className="btn-primary"
-          style={{
-            background: "var(--accent)",
-            color: "var(--accent-button-text)",
-            border: "none",
-            height: "40px",
-            padding: "0 24px",
-            fontSize: "13.5px",
-            fontWeight: 600,
-            borderRadius: "8px",
-            cursor: saving || loading ? "not-allowed" : "pointer",
-            opacity: saving || loading ? 0.6 : 1,
-          }}
+          className="btn-primary h-10 px-6 text-[13.5px] font-semibold rounded-lg bg-[var(--accent)] text-[var(--accent-button-text)] border-none disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {saving ? t("settings.ukladam") : t("settings.ulozit")}
         </button>
         {hasUnsavedChanges && !saved && (
-          <span className="text-xs flex items-center gap-1.5 fade-in" style={{ color: "var(--text-muted)" }}>
-            <span className="inline-block w-2 h-2 rounded-full" style={{ background: "var(--warning)" }} />
+          <span className="text-xs flex items-center gap-1.5 fade-in text-[var(--text-muted)]">
+            <span className="inline-block w-2 h-2 rounded-full bg-[var(--warning)]" />
             {t("settings.neulozeneZmeny")}
           </span>
         )}
         {saved && (
-          <span
-            className="text-xs font-medium fade-in"
-            style={{ color: "var(--accent)" }}
-          >
+          <span className="text-xs font-medium fade-in text-[var(--accent)]">
             {t("settings.ulozene")}
           </span>
         )}
