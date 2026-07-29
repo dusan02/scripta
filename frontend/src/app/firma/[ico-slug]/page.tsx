@@ -203,22 +203,6 @@ export default async function CompanyPage({ params }: Params) {
         )}
 
         <ReportCTA ico={company.ico} name={name} />
-
-        {/* Footer */}
-        <footer className="border-t pt-6 pb-4" style={{ borderColor: "var(--border)" }}>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ color: "var(--text-muted)" }}>
-            <div className="flex items-center gap-2">
-              <Logo size="sm" />
-              <span>© {new Date().getFullYear()} Verifa.sk</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="/pricing" className="hover:underline">Cenník</Link>
-              <Link href="/register" className="hover:underline">Register</Link>
-              <Link href="/terms" className="hover:underline">Podmienky</Link>
-              <a href="mailto:info@verifa.sk" className="hover:underline">info@verifa.sk</a>
-            </div>
-          </div>
-        </footer>
       </div>
     </div>
   );
