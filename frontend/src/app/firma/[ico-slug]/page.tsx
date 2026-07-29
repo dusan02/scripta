@@ -245,7 +245,7 @@ async function getCompanyData(ico: string) {
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
     },
   });
-  if (company) return company;
+  if (company && company.city && company.legalForm) return company;
   return await seedFromRuz(ico);
 }
 
