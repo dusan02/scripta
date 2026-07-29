@@ -397,9 +397,7 @@ export default async function CompanyPage({ params }: Params) {
       <header style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 10 }}>
         <div className="max-w-[920px] mx-auto px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-black" style={{ color: "var(--accent)" }}>
-              Verifa<span style={{ color: "var(--text)" }}>.sk</span>
-            </span>
+            <img src="/logo-verifa.png" alt="Verifa.sk" style={{ height: "40px", width: "auto", display: "block" }} />
           </Link>
           <Link href="/login" className="text-sm font-medium px-4 py-2 rounded-lg transition-colors" style={{ background: "var(--accent)", color: "#fff" }}>
             Prihlásiť sa
