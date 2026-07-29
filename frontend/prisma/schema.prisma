@@ -235,10 +235,36 @@ model Company {
   status              String?
   naceCode            String?
   naceText            String?
+  ownershipType       String?              // Druh vlastníctva (súkromné, štátne, zmiešané...)
+  sizeCategory        String?              // Veľkosť org. (mikro, malá, stredná, veľká)
+  employeeCount       Int?                 // Počet zamestnancov (z RÚZ)
+  latestYear          Int?                 // Rok najnovšej závierky (denormalizované pre screener)
+  latestRevenue       Float?               // Tržby z najnovšej závierky
+  latestProfit        Float?               // Zisk/strata z najnovšej závierky
+  latestAssets        Float?               // Aktíva z najnovšej závierky
+  latestEquity        Float?               // Vlastné imanie z najnovšej závierky
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
   companyEvents       CompanyEvent[]
   auditVerdict        AuditVerdict?
+
+  @@index([legalForm])
+  @@index([city])
+  @@index([naceCode])
+  @@index([status])
+  @@index([establishedAt])
+  @@index([latestRevenue])
+  @@index([latestProfit])
+  @@index([latestAssets])
+}
+
+model NaceCode {
+  code        String   @id  // SK NACE kód (napr. "49410")
+  description String       // Popis (napr. "Cestná doprava osobná")
+  section     String?     // Sekcia (A–Q)
+  sectionName String?     // Názov sekcie
+
+  @@index([section])
 }
 
 model CompanyEvent {

@@ -176,14 +176,33 @@ async function seedFromRuz(ico: string) {
     });
   }
 
-  const naceMap: Record<string, string> = {
-    "49410": "Cestná doprava osobná", "49390": "Ostatná pozemná doprava",
-    "49420": "Cestná doprava nákladná",
-  };
   const lfMap: Record<string, string> = {
     "112": "s.r.o.", "121": "a.s.", "113": "v.o.s.", "114": "k.s.",
     "101": "fyzická osoba", "107": "živnostník",
+    "115": "európske združenie hospodárskych záujmov",
+    "116": "európska spoločnosť", "117": "európske družstvo",
+    "118": "družstvo", "119": "štátny podnik", "120": "rozpočtová organizácia",
+    "122": "príspevková organizácia", "123": "nezisková organizácia",
+    "124": "občianske združenie", "125": "nadácia", "126": "fond",
+    "127": "nezisková organizácia poskytujúca všeobecne prospešné služby",
   };
+  const ownershipMap: Record<string, string> = {
+    "1": "Súkromné domáce", "2": "Súkromné zahraničné",
+    "3": "Zmiešané", "4": "Verejné", "5": "Spoločné",
+    "6": "Dánske", "7": "Zahraničné",
+  };
+  const sizeMap: Record<string, string> = {
+    "10": "Mikro", "11": "Mikro", "20": "Malá", "21": "Malá",
+    "22": "Stredná", "23": "Stredná", "30": "Veľká", "31": "Veľká",
+    "32": "Veľká", "33": "Veľká",
+  };
+
+  // Lookup NACE text from DB (NaceCode table), fall back to null
+  let naceText: string | null = null;
+  if (entity.skNace) {
+    const nace = await prisma.naceCode.findUnique({ where: { code: entity.skNace } });
+    naceText = nace?.description || null;
+  }
 
   await prisma.company.upsert({
     where: { ico },
@@ -194,7 +213,10 @@ async function seedFromRuz(ico: string) {
       zipCode: entity.psc || null, country: "Slovensko",
       establishedAt: entity.datumZalozenia ? new Date(entity.datumZalozenia) : null,
       status: "active", naceCode: entity.skNace || null,
-      naceText: naceMap[entity.skNace] || null,
+      naceText,
+      ownershipType: ownershipMap[entity.druhVlastnictva] || entity.druhVlastnictva || null,
+      sizeCategory: sizeMap[entity.velkostOrganizacie] || entity.velkostOrganizacie || null,
+      employeeCount: entity.pocetZamestnancov ?? null,
     },
     update: {
       name: entity.nazovUJ || null,
@@ -203,7 +225,10 @@ async function seedFromRuz(ico: string) {
       zipCode: entity.psc || null, country: "Slovensko",
       establishedAt: entity.datumZalozenia ? new Date(entity.datumZalozenia) : null,
       status: "active", naceCode: entity.skNace || null,
-      naceText: naceMap[entity.skNace] || null,
+      naceText,
+      ownershipType: ownershipMap[entity.druhVlastnictva] || entity.druhVlastnictva || null,
+      sizeCategory: sizeMap[entity.velkostOrganizacie] || entity.velkostOrganizacie || null,
+      employeeCount: entity.pocetZamestnancov ?? null,
     },
   });
 
@@ -222,6 +247,21 @@ async function seedFromRuz(ico: string) {
         interestExpense: s.interestExpense,
         socialInsuranceLiabilities: s.socialInsuranceLiabilities,
         taxLiabilities: s.taxLiabilities, employeeLiabilities: s.employeeLiabilities,
+      },
+    });
+  }
+
+  // Denormalize latest financial metrics for screener/filter
+  if (stmts.length > 0) {
+    const latest = stmts[0]; // stmts are sorted desc by year
+    await prisma.company.update({
+      where: { ico },
+      data: {
+        latestYear: latest.year,
+        latestRevenue: latest.mainActivityRevenue ?? null,
+        latestProfit: latest.netProfitLoss ?? null,
+        latestAssets: latest.totalAssets ?? null,
+        latestEquity: latest.equity ?? null,
       },
     });
   }
@@ -313,11 +353,6 @@ export default async function CompanyPage({ params }: Params) {
   const name = company.name || `IČO ${company.ico}`;
   const stmts = company.financialStatements;
   const latest = stmts[0];
-  const verdict = company.auditVerdict;
-  const vestnikCount = company.vestnikEvents.length;
-  const hasVestnikIssues = company.vestnikEvents.some(
-    e => e.severityLevel === "CRITICAL" || e.severityLevel === "HIGH"
-  );
 
   const chartData = [...stmts].sort((a, b) => a.year - b.year).map(s => ({
     year: s.year.toString(),
@@ -432,35 +467,6 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Risk indicators */}
-        {(verdict || vestnikCount > 0) && (
-          <div className="rounded-2xl p-6 mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-            <h2 className="text-lg font-bold mb-4" style={{ color: "var(--text)" }}>Rizikové indikátory</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {verdict && (
-                <div className="rounded-xl p-4" style={{ background: "var(--bg-muted)" }}>
-                  <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Verifa skóre</p>
-                  <div className="text-2xl font-black" style={{ color: verdict.riskCategory === "AAA" || verdict.riskCategory === "A" ? "#10b981" : verdict.riskCategory === "B" ? "#f59e0b" : "#ef4444" }}>
-                    {verdict.riskCategory} ({verdict.verifaScore}/100)
-                  </div>
-                </div>
-              )}
-              <div className="rounded-xl p-4" style={{ background: "var(--bg-muted)" }}>
-                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Vestník udalosti</p>
-                <div className="text-2xl font-black" style={{ color: hasVestnikIssues ? "#ef4444" : "#10b981" }}>
-                  {vestnikCount} {vestnikCount === 1 ? "záznam" : vestnikCount < 5 ? "záznamy" : "záznamov"}
-                </div>
-                {hasVestnikIssues && <p className="text-xs mt-1" style={{ color: "#ef4444" }}>⚠ Kritické nálezy</p>}
-              </div>
-              <div className="rounded-xl p-4" style={{ background: "var(--bg-muted)" }}>
-                <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Registre</p>
-                <div className="text-2xl font-black" style={{ color: "var(--accent)" }}>26+</div>
-                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>verejných zdrojov</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* CTA */}
         <div className="rounded-2xl p-8 text-center mb-8" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,130,246,0.08))", border: "1px solid var(--accent-border)" }}>
           <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
@@ -541,7 +547,7 @@ function FinancialTable({ stmts }: { stmts: any[] }) {
     { label: "Osobné náklady", key: "staffCosts" },
     { label: "Odpisy", key: "depreciation" },
   ];
-  const sorted = [...stmts].sort((a, b) => b.year - a.year);
+  const sorted = [...stmts].sort((a, b) => a.year - b.year);
 
   return (
     <div className="overflow-x-auto">
