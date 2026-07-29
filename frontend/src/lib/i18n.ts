@@ -630,7 +630,7 @@ const sk: Dict = {
   "docs.downloadDE": "Stiahnuť (DE)",
   "docs.comingSoon": "Pripravujeme",
   "docs.samplesTitle": "Vzory Verifa reportov",
-  "docs.samplesDesc": "Ukážkové vygenerované reporty pre fiktívne firmy — presvedčte sa o kvalite a rozsahu dokumentu.",
+  "docs.samplesDesc": "Ukážkové vygenerované reporty pre reálne firmy — presvedčte sa o kvalite a rozsahu dokumentu.",
   "docs.termsTitle": "Všeobecné obchodné podmienky",
   "docs.termsDesc": "Podmienky používania platformy Verifa.sk, práva a povinnosti strán.",
   "docs.gdprTitle": "Ochrana osobných údajov",

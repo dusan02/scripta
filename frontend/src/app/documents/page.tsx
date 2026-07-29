@@ -144,12 +144,45 @@ export default function DocumentsPage() {
       {/* Sample Reports */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>{t("docs.samplesTitle")}</h2>
-        <DocCard
-          icon={<ClockIcon />}
-          title={t("docs.samplesTitle")}
-          description={t("docs.samplesDesc")}
-          status="soon"
-        />
+        <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>{t("docs.samplesDesc")}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <DocCard
+            icon={<FileIcon />}
+            title="Mobis Slovakia s.r.o."
+            description="Automobilový priemysel — kompletný report s finančnou analýzou, právnym posudkom a Verifa Score."
+            status="available"
+          >
+            <ViewButton href="/samples/mobis-slovakia.pdf" label={t("docs.zobrazit")} />
+            <DownloadButton href="/samples/mobis-slovakia.pdf" label="PDF" />
+          </DocCard>
+          <DocCard
+            icon={<FileIcon />}
+            title="KAMAX Fasteners s.r.o."
+            description="Výroba spojovacieho materiálu — ukážka reportu s preverením registrov a forenznou analýzou."
+            status="available"
+          >
+            <ViewButton href="/samples/kamax-fasteners.pdf" label={t("docs.zobrazit")} />
+            <DownloadButton href="/samples/kamax-fasteners.pdf" label="PDF" />
+          </DocCard>
+          <DocCard
+            icon={<FileIcon />}
+            title="Continental Tires Slovakia s.r.o."
+            description="Gumárenský priemysel — vzor reportu s Altman Z-Score, auditným verdiktom a semaformi nálezov."
+            status="available"
+          >
+            <ViewButton href="/samples/continental-tires.pdf" label={t("docs.zobrazit")} />
+            <DownloadButton href="/samples/continental-tires.pdf" label="PDF" />
+          </DocCard>
+          <DocCard
+            icon={<FileIcon />}
+            title="Bardejovské kúpele a.s."
+            description="Zdravotníctvo a cestovný ruch — ukážka reportu pre akciovú spoločnosť s kompletnou analýzou."
+            status="available"
+          >
+            <ViewButton href="/samples/bardejovske-kupele.pdf" label={t("docs.zobrazit")} />
+            <DownloadButton href="/samples/bardejovske-kupele.pdf" label="PDF" />
+          </DocCard>
+        </div>
       </div>
 
       {/* Legal Documents */}

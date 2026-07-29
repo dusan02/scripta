@@ -14,8 +14,11 @@ docker save "$IMAGE_NAME" | gzip | ssh "$SERVER" "gunzip | docker load"
 echo "=== Pulling latest code on server ==="
 ssh "$SERVER" "cd $REMOTE_DIR && git pull origin master"
 
+echo "=== Syncing database schema ==="
+ssh "$SERVER" "cd $REMOTE_DIR && docker compose exec -u root frontend npx prisma db push --accept-data-loss"
+
 echo "=== Restarting frontend container ==="
-ssh "$SERVER" "cd $REMOTE_DIR && docker compose up -d frontend"
+ssh "$SERVER" "cd $REMOTE_DIR && docker compose up -d frontend --force-recreate"
 
 echo "=== Done ==="
 echo "Check: https://verifa.sk"
