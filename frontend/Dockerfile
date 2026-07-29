@@ -16,11 +16,9 @@ COPY package*.json ./
 COPY prisma ./prisma
 
 RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
-RUN cp prisma/schema.prisma prisma/schema.prisma.bak && \
-    sed '/client_py/,/}/d' prisma/schema.prisma > prisma/schema_js.prisma && \
-    mv prisma/schema_js.prisma prisma/schema.prisma && \
-    npx prisma generate && \
-    mv prisma/schema.prisma.bak prisma/schema.prisma
+# Prisma client is pre-generated on host (avoids QEMU crash on Apple Silicon)
+COPY node_modules/.prisma ./node_modules/.prisma
+COPY node_modules/@prisma/client ./node_modules/@prisma/client
 
 # ─── Stage 2: Build ────────────────────────────────────────
 FROM node:18-slim AS builder
