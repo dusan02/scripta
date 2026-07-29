@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
 import Logo from "@/components/Logo";
 import { useT } from "@/components/LanguageProvider";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
-import { HamburgerIcon, CloseIcon } from "@/components/icons";
+import { useScrollLock, useScrolled, useHideOnScroll } from "@/components/useNav";
+import { HamburgerButton, MobileMenuBackdrop } from "@/components/NavShared";
+import { useState } from "react";
 
 const NAV_ITEMS = [
   { href: "#funkcie", key: "home.navFeatures" },
@@ -17,32 +18,10 @@ const NAV_ITEMS = [
 
 export default function LandingNav() {
   const t = useT();
-  const [scrolled, setScrolled] = useState(false);
+  const scrolled = useScrolled(20);
+  const authBarVisible = useHideOnScroll(100);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [authBarVisible, setAuthBarVisible] = useState(true);
-
-  useEffect(() => {
-    let lastScrollY = 0;
-    const onScroll = () => {
-      const currentY = window.scrollY;
-      setScrolled(currentY > 20);
-      if (currentY > 100 && currentY > lastScrollY) {
-        setAuthBarVisible(false);
-      } else {
-        setAuthBarVisible(true);
-      }
-      lastScrollY = currentY;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
-    }
-  }, [mobileMenuOpen]);
+  useScrollLock(mobileMenuOpen);
 
   return (
     <nav
@@ -91,18 +70,10 @@ export default function LandingNav() {
         <div className="flex md:hidden items-center gap-2">
           <ThemeToggle size="sm" />
           <LanguageSwitcher />
-          <button
+          <HamburgerButton
+            open={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((v) => !v)}
-            aria-label="Menu"
-            className="w-10 h-10 flex items-center justify-center rounded-lg transition-all hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            style={{
-              background: "var(--bg-muted)",
-              border: "1px solid var(--border)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            {mobileMenuOpen ? <CloseIcon size={20} /> : <HamburgerIcon size={20} />}
-          </button>
+          />
         </div>
       </div>
 
@@ -132,30 +103,24 @@ export default function LandingNav() {
       </div>
 
       {/* Mobile dropdown menu */}
+      <MobileMenuBackdrop open={mobileMenuOpen} onClick={() => setMobileMenuOpen(false)} />
       {mobileMenuOpen && (
-        <>
-          <div
-            className="md:hidden fixed inset-0 top-0 z-40"
-            style={{ background: "rgba(0,0,0,0.4)" }}
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div
-            className="md:hidden relative z-50 px-4 pb-4 pt-2 flex flex-col rounded-b-lg shadow-lg"
-            style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
-          >
-            {NAV_ITEMS.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center text-sm font-medium py-4 min-h-[48px] border-b transition-colors hover:text-[var(--accent)]"
-                style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
-              >
-                {t(item.key)}
-              </a>
-            ))}
-          </div>
-        </>
+        <div
+          className="md:hidden relative z-50 px-4 pb-4 pt-2 flex flex-col rounded-b-lg shadow-lg slide-down"
+          style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
+        >
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center text-sm font-medium py-4 min-h-[48px] border-b transition-colors hover:text-[var(--accent)]"
+              style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+            >
+              {t(item.key)}
+            </a>
+          ))}
+        </div>
       )}
     </nav>
   );

@@ -8,6 +8,8 @@ import { useT } from "@/components/LanguageProvider";
 import Logo from "@/components/Logo";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useScrollLock } from "@/components/useNav";
+import { HamburgerButton, MobileMenuBackdrop } from "@/components/NavShared";
 import {
   LogOutIcon,
   SearchIcon,
@@ -16,8 +18,7 @@ import {
   FileIcon,
   SettingsIcon,
   MailIcon,
-  HamburgerIcon,
-  CloseIcon,
+  CheckIcon,
 } from "@/components/icons";
 
 const NAV_ITEMS = [
@@ -54,12 +55,7 @@ export default function NavBar() {
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   // Lock body scroll when mobile menu is open
-  useEffect(() => {
-    if (mobileOpen) {
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
-    }
-  }, [mobileOpen]);
+  useScrollLock(mobileOpen);
 
   const userInitials = getUserInitials(session?.user?.name, session?.user?.email);
 
@@ -144,9 +140,7 @@ export default function NavBar() {
               }}
               title={t("nav.reportovTentoMesiac")}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-              </svg>
+              <CheckIcon size={12} />
               {creditsUsed !== null ? creditsUsed : "—"}
             </div>
 
@@ -208,30 +202,22 @@ export default function NavBar() {
               )}
             </div>
 
-            {/* Mobile toggle — 44px touch target */}
-            <button
-              className="md:hidden w-11 h-11 flex items-center justify-center rounded-lg transition-colors"
-              style={{ color: "var(--text-secondary)", background: "var(--bg-muted)", border: "1px solid var(--border)" }}
+            {/* Mobile toggle */}
+            <HamburgerButton
+              open={mobileOpen}
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={t("nav.menu")}
-            >
-              {mobileOpen ? <CloseIcon size={20} /> : <HamburgerIcon size={20} />}
-            </button>
+              ariaLabel={t("nav.menu")}
+            />
           </div>
         </div>
 
         {/* Mobile menu */}
+        <MobileMenuBackdrop open={mobileOpen} onClick={() => setMobileOpen(false)} topOffset={64} />
         {mobileOpen && (
           <>
-            {/* Backdrop overlay */}
-            <div
-              className="md:hidden fixed inset-0 top-16 z-40"
-              style={{ background: "rgba(0,0,0,0.4)" }}
-              onClick={() => setMobileOpen(false)}
-            />
             {/* Menu panel */}
             <div
-              className="md:hidden pb-4 pt-3 fade-in relative z-50"
+              className="md:hidden pb-4 pt-3 slide-down relative z-50"
               style={{
                 borderTop: "1px solid var(--border)",
                 background: "var(--surface)",
@@ -244,9 +230,7 @@ export default function NavBar() {
                   className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium flex-shrink-0"
                   style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)", minHeight: "44px" }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                  </svg>
+                  <CheckIcon size={12} />
                   {creditsUsed !== null ? creditsUsed : "—"}
                 </div>
                 <span className="text-xs truncate min-w-0" style={{ color: "var(--text-muted)", maxWidth: "calc(100% - 80px)" }}>

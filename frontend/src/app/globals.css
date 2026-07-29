@@ -506,6 +506,7 @@
   /* Animations */
   .fade-in { animation: fadeIn 0.2s ease forwards; }
   .slide-up { animation: slideUp 0.25s ease forwards; }
+  .slide-down { animation: slideDown 0.2s ease forwards; }
   .scale-in { animation: scaleIn 0.2s ease forwards; }
 
   /* Report table row hover — used in Server Component (no JS handlers) */
@@ -525,6 +526,10 @@
   }
   @keyframes slideUp {
     from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
   @keyframes scaleIn {
