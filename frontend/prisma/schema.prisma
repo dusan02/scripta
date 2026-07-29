@@ -247,6 +247,7 @@ model Company {
   vestnikEvents       VestnikEvent[]
   companyEvents       CompanyEvent[]
   auditVerdict        AuditVerdict?
+  companyPersons      CompanyPerson[]
 
   @@index([legalForm])
   @@index([city])
@@ -256,6 +257,22 @@ model Company {
   @@index([latestRevenue])
   @@index([latestProfit])
   @@index([latestAssets])
+}
+
+model CompanyPerson {
+  id          String   @id @default(uuid())
+  companyIco  String
+  rawName     String
+  cleanName   String
+  role        String   // "statutar" | "spolocnik"
+  city        String?
+  zipCode     String?
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyIco], references: [ico], onDelete: Cascade)
+
+  @@index([companyIco])
+  @@index([role])
 }
 
 model NaceCode {
@@ -324,6 +341,7 @@ model FinancialStatement {
   investingCashFlow                     Float?        // Čisté peňažné toky z investičnej činnosti
   financingCashFlow                     Float?        // Čisté peňažné toky z finančnej činnosti
   interestExpense                       Float?        // Úroky (náklady na úroky)
+  incomeTax                             Float?        // Daň z príjmov (riadok 60 vo Výkaze)
   employeeCount                         Int?          // Odhadovaný počet zamestnancov
   socialInsuranceLiabilities            Float?        // Záväzky zo sociálneho poistenia (336A) — trestná zodpovednosť štatutára
   taxLiabilities                        Float?        // Daňové záväzky a dotácie (341-347) — riziko daňovej exekúcie

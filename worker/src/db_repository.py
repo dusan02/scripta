@@ -268,6 +268,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 'investingCashFlow': data.metriky.investicny_cash_flow if data.metriky.investicny_cash_flow != 0 else None,
                 'financingCashFlow': data.metriky.financny_cash_flow if data.metriky.financny_cash_flow != 0 else None,
                 'interestExpense': data.metriky.uroky,
+                'incomeTax': data.metriky.dan_z_prijmu,
                 'employeeCount': data.metriky.pocet_zamestnancov,
                 'socialInsuranceLiabilities': data.metriky.zavazky_sp,
                 'taxLiabilities': data.metriky.danove_zavazky,
@@ -506,6 +507,33 @@ async def upsert_company_name(ico: str, company_name: str) -> None:
         else:
             name_to_save = company_name if company_name and company_name.lower() not in _INVALID_NAMES else None
             await db.company.create(data={'ico': ico, 'name': name_to_save})
+    finally:
+        pass
+
+
+async def save_company_persons(ico: str, persons: list) -> None:
+    """Uloží osoby z ORSR scraperu (štatutári, spoločníci) do CompanyPerson tabuľky."""
+    db = get_db()
+    try:
+        await db.company.upsert(
+            where={'ico': ico},
+            data={'create': {'ico': ico}, 'update': {}}
+        )
+        await db.companyperson.delete_many(where={'companyIco': ico})
+        for p in persons:
+            await db.companyperson.create(
+                data={
+                    'companyIco': ico,
+                    'rawName': p.raw_name,
+                    'cleanName': p.clean_name,
+                    'role': p.role,
+                    'city': p.city,
+                    'zipCode': p.zip_code,
+                }
+            )
+        logger.info(f"CompanyPerson[] uložené pre IČO={ico}: {len(persons)} osôb")
+    except Exception as e:
+        logger.error(f"Chyba pri ukladaní CompanyPerson pre IČO={ico}: {e}")
     finally:
         pass
 

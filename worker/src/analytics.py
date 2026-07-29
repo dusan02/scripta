@@ -1510,6 +1510,7 @@ def compute_yoy_summary_table(statements: list, i18n_strings: dict = None) -> di
         ("yoy_staff_costs", "staffCosts", "cost"),
         ("yoy_depreciation", "depreciation", "cost"),
         ("yoy_interest_expense", "interestExpense", "cost"),
+        ("yoy_income_tax", "incomeTax", "cost"),
     ]
 
     rows = []

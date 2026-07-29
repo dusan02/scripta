@@ -41,6 +41,7 @@ PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
 - `investicny_cash_flow`: Hľadaj v Cash Flow výkaze: 'Investičná činnosť', 'Investing activities'. Čisté peňažné toky (môže byť záporné).
 - `financny_cash_flow`: Hľadaj v Cash Flow výkaze: 'Finančná činnosť', 'Financing activities'. Čisté peňažné toky (môže byť záporné).
 - `uroky` (Interest expense): Hľadaj vo Výkaze ziskov a strát: 'Úroky', 'Náklady na úroky', 'Interest expense', 'Finance costs', 'Interest payable'. Extrahuj VŽDY ako kladné číslo (náklad je kladný).
+- `dan_z_prijmu` (Income tax): Hľadaj vo Výkaze ziskov a strát: 'Daň z príjmov', 'Daň z príjmov z bežnej činnosti', 'Income tax', 'Tax expense'. Extrahuj ako kladné číslo. Ak chýba, vráť null.
 - `pocet_zamestnancov`: Hľadaj v Poznámkach: 'Priemerný počet zamestnancov', 'Number of employees'. Ak nie je uvedený, vráť null.
 - `typ_zavierky`: Nastav 'IFRS' ak dokument uvádza 'International Financial Reporting Standards' alebo 'IFRS'. Nastav 'MICRO' pre Úč MUJ mikro jednotky. Inak nastav 'SK_GAAP'.
 - KRÁTKE OBDOBIA: Ak dokument na prvej strane uvádza obdobie kratšie ako 12 mesiacov (napr. "01/2024 - 03/2024" = 3 mesiace), MUSÍŠ to reflektovať v poli `pocet_mesiacov_obdobia`. Ak v texte vidíš anotáciu "Dĺžka obdobia: X mesiacov", použi túto hodnotu. Nikdy neporovnávaj tržby alebo zisk z krátkeho obdobia s plným rokom — pokles tržieb z 3-mesačného obdobia oproti 12-mesačnému nie je negatívny trend, ale matematický dôsledok kratšieho obdobia.
@@ -131,7 +132,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
                 "ciste_penazne_toky_z_prevadzkovej_cinnosti",
                 "osobne_naklady", "pohladavky_z_obchodneho_styku",
                 "zavazky_z_obchodneho_styku", "zasoby", "odpisy",
-                "investicny_cash_flow", "financny_cash_flow", "uroky",
+                "investicny_cash_flow", "financny_cash_flow", "uroky", "dan_z_prijmu",
             ]
             for field_name in _MONETARY_FIELDS:
                 val = getattr(m, field_name, None)
@@ -148,7 +149,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
 
     # Safety net: nákladové položky musia byť vždy kladné.
     # LLM môže napriek pokynom vrátiť záporné hodnoty (napr. zátvorky).
-    for cost_field in ("osobne_naklady", "uroky", "odpisy"):
+    for cost_field in ("osobne_naklady", "uroky", "odpisy", "dan_z_prijmu"):
         val = getattr(data.metriky, cost_field, None)
         if val is not None and val < 0:
             logger.warning(f"[LLM] Prepisujem náklad {cost_field}={val} → {abs(val)} (náklad musí byť kladný)")

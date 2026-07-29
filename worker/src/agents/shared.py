@@ -120,6 +120,7 @@ class FinancialMetrics(BaseModel):
     investicny_cash_flow: Optional[float] = Field(..., description="Čisté peňažné toky z investičnej činnosti (Investing cash flow). Hľadaj 'Investičná činnosť', 'Investing activities'. Ak chýba, vráť null.")
     financny_cash_flow: Optional[float] = Field(..., description="Čisté peňažné toky z finančnej činnosti (Financing cash flow). Hľadaj 'Finančná činnosť', 'Financing activities'. Ak chýba, vráť null.")
     uroky: Optional[float] = Field(..., description="Náklady na úroky (Interest expense). Hľadaj 'Úroky', 'Interest expense', 'Finance costs'. Ak chýba, vráť null.")
+    dan_z_prijmu: Optional[float] = Field(None, description="Daň z príjmov (Income tax). Hľadaj 'Daň z príjmov', 'Income tax', 'Daň z príjmov z bežnej činnosti'. Extrahuj ako kladné číslo. Ak chýba, vráť null.")
     pocet_zamestnancov: Optional[int] = Field(..., description="Počet zamestnancov (ak je uvedený v závierke alebo poznámkach). Hľadaj 'Priemerný počet zamestnancov', 'Number of employees', 'PRIEMERNÝ POČET ZAMESTNANCOV'. Ak chýba, vráť null.")
     zavazky_sp: Optional[float] = Field(None, description="Záväzky zo sociálneho poistenia (Social insurance liabilities). Hľadaj 'Záväzky zo sociálneho poistenia', '336A', sekciu 'ZÁVÄZKY VOČI ŠTÁTU A SP'. Ak chýba, vráť null.")
     danove_zavazky: Optional[float] = Field(None, description="Daňové záväzky a dotácie (Tax liabilities). Hľadaj 'Daňové záväzky', '341', '342', '343', '34X', sekciu 'ZÁVÄZKY VOČI ŠTÁTU A SP'. Ak chýba, vráť null.")

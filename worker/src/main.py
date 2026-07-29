@@ -32,6 +32,7 @@ from .db_repository import (
     update_source_page_counts,
     create_bug_report,
     get_verifa_score,
+    save_company_persons,
 )
 from .models import ReportTask
 from .pdf.compiler import PdfCompiler
@@ -195,12 +196,19 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 _background_tasks.add(t1)
                 t1.add_done_callback(_background_tasks.discard)
 
-                if source.source_type == "ORSR" and source.status == "SUCCESS" and getattr(source, "company_name", None):
-                    t2 = loop.create_task(
-                        upsert_company_name(task.ico, source.company_name)
-                    )
-                    _background_tasks.add(t2)
-                    t2.add_done_callback(_background_tasks.discard)
+                if source.source_type == "ORSR" and source.status == "SUCCESS":
+                    if getattr(source, "company_name", None):
+                        t2 = loop.create_task(
+                            upsert_company_name(task.ico, source.company_name)
+                        )
+                        _background_tasks.add(t2)
+                        t2.add_done_callback(_background_tasks.discard)
+                    if getattr(source, "persons", None):
+                        t2b = loop.create_task(
+                            save_company_persons(task.ico, source.persons)
+                        )
+                        _background_tasks.add(t2b)
+                        t2b.add_done_callback(_background_tasks.discard)
 
                 # Progress-based ETA: odhad remaining na základe pomeru dokončených zdrojov
                 if _sources_total > 1:

@@ -289,85 +289,108 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     if not HAS_PLOTLY:
         return _generate_balance_sheet_waterfall(stmt, lang=lang)
 
-    non_current = max(0, total_assets - current)
-    total_liab = short_liab + long_liab
+    equity_val = float(equity)
+    is_negative_equity = equity_val < 0
+    abs_equity = abs(equity_val)
+    
+    current_assets = max(0.0, float(current))
+    non_current_assets = max(0.0, float(total_assets) - current_assets)
+    
+    short_term = max(0.0, float(short_liab))
+    long_term = max(0.0, float(long_liab))
+    
+    # Ľavé uzly (Aktíva + záporné VI)
+    left_nodes = []
+    if current_assets > 0:
+        left_nodes.append({"name": i.get('sankey_current_assets', 'Obežný majetok'), "value": current_assets, "color": COLORS['green'], "link_color": "rgba(16,185,129,0.35)", "id": 4})
+    if non_current_assets > 0:
+        left_nodes.append({"name": i.get('sankey_non_current', 'Dlhodobý majetok'), "value": non_current_assets, "color": "#0ea5e9", "link_color": "rgba(14,165,233,0.35)", "id": 5})
+    if is_negative_equity and abs_equity > 0:
+        left_nodes.append({"name": i.get('sankey_negative_equity', 'Záporné vl. imanie'), "value": abs_equity, "color": "#ef4444", "link_color": "rgba(239,68,68,0.35)", "id": 99})
+        
+    # Pravé uzly (Pasíva)
+    right_nodes = []
+    if not is_negative_equity and abs_equity > 0:
+        right_nodes.append({"name": i.get('sankey_equity', 'Vlastné imanie'), "value": abs_equity, "color": COLORS['green'], "link_color": "rgba(16,185,129,0.35)", "id": 8})
+    if short_term > 0:
+        right_nodes.append({"name": i.get('sankey_short_liab', 'Krátkodobé záväzky'), "value": short_term, "color": "#fca5a5", "link_color": "#fca5a5", "id": 9})
+    if long_term > 0:
+        right_nodes.append({"name": i.get('sankey_long_liab', 'Dlhodobé záväzky'), "value": long_term, "color": "#fca5a5", "link_color": "#fca5a5", "id": 10})
+        
+    left_sum = sum(n["value"] for n in left_nodes)
+    right_sum = sum(n["value"] for n in right_nodes)
+    center_val = max(left_sum, right_sum, float(total_assets))
+    
+    if left_sum < center_val:
+        left_nodes.append({"name": i.get('sankey_other_active', 'Ostatné aktíva'), "value": center_val - left_sum, "color": COLORS['slate'], "link_color": "rgba(148,163,184,0.3)", "id": 100})
+    if right_sum < center_val:
+        right_nodes.append({"name": i.get('sankey_other_pasiva', 'Ostatné pasíva'), "value": center_val - right_sum, "color": COLORS['slate'], "link_color": "#fca5a5", "id": 11})
 
-    # BUG FIX #1: komponenty obežného majetku nesmú presahovať currentAssets.
-    # Ak dátová extrakcia vráti väčšie čiastky, proporcionálne ich zmenšíme.
+    # Sub-nodes for current assets
     raw_components = cash + receivables + inventory
-    if raw_components > current and raw_components > 0:
-        scale = current / raw_components
-        cash = cash * scale
-        receivables = receivables * scale
-        inventory = inventory * scale
+    if raw_components > current_assets and raw_components > 0:
+        scale = current_assets / raw_components
+        cash, receivables, inventory = cash * scale, receivables * scale, inventory * scale
         other_current = 0.0
-    elif raw_components == 0 and current > 0:
-        # Holding firma bez subitems — celý current cez "Ostatný obežný majetok"
-        other_current = float(current)
+    elif raw_components == 0 and current_assets > 0:
+        other_current = current_assets
     else:
-        other_current = max(0.0, current - raw_components)
+        other_current = max(0.0, current_assets - raw_components)
 
-    # BUG FIX #2: Pravá strana — outflow z "Celkové aktíva" musí = total_assets.
-    # Namiesto umelého škálovania (ktoré skresľuje dáta) vypočítame "Ostatné pasíva",
-    # čo predstavuje rezervy, bankové úvery a časové rozlíšenie, ktoré nie sú
-    # explicitne extrahované v krátkodobých/dlhodobých záväzkoch.
-    equity_pos = max(0.0, float(equity))
-    known_liab = short_liab + long_liab
-    ostatne_pasiva = max(0.0, total_assets - equity_pos - known_liab)
+    nodes = []
+    links = []
+    node_x, node_y = [], []
+    
+    # Pridanie sub-nodes
+    sub_nodes_start = len(nodes)
+    if cash > 0: nodes.append({"name": i.get('sankey_cash', 'Hotovosť'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.1)
+    if receivables > 0: nodes.append({"name": i.get('sankey_receivables', 'Pohľadávky'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.3)
+    if inventory > 0: nodes.append({"name": i.get('sankey_inventory', 'Zásoby'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.5)
+    if other_current > 0: nodes.append({"name": i.get('sankey_other_current', 'Ostat. obež. maj.'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.8)
+    
+    # Mapovanie Left nodes
+    left_node_ids = {}
+    for i_node, n in enumerate(left_nodes):
+        nodes.append({"name": n["name"], "color": n["color"]})
+        node_x.append(0.25)
+        node_y.append(0.1 + (i_node * 0.2)) # Rozloženie po Y
+        left_node_ids[n["id"]] = len(nodes) - 1
+        
+    # Prepojenie sub-nodes do Obežného majetku (id: 4)
+    if 4 in left_node_ids:
+        om_idx = left_node_ids[4]
+        idx = sub_nodes_start
+        if cash > 0: links.append({"source": idx, "target": om_idx, "value": cash, "color": "rgba(16,185,129,0.25)"}); idx += 1
+        if receivables > 0: links.append({"source": idx, "target": om_idx, "value": receivables, "color": "rgba(16,185,129,0.25)"}); idx += 1
+        if inventory > 0: links.append({"source": idx, "target": om_idx, "value": inventory, "color": "rgba(16,185,129,0.25)"}); idx += 1
+        if other_current > 0: links.append({"source": idx, "target": om_idx, "value": other_current, "color": "rgba(16,185,129,0.25)"})
+        
+    # Center node
+    center_idx = len(nodes)
+    nodes.append({"name": i.get('sankey_total_assets', 'Celkové aktíva (Bilančná suma)'), "color": COLORS['slate']})
+    node_x.append(0.55)
+    node_y.append(0.5)
+    
+    # Prepojenie Left nodes do Center node
+    for n in left_nodes:
+        idx = left_node_ids[n["id"]]
+        links.append({"source": idx, "target": center_idx, "value": n["value"], "color": n["link_color"]})
+        
+    # Right nodes
+    for i_node, n in enumerate(right_nodes):
+        nodes.append({"name": n["name"], "color": n["color"]})
+        node_x.append(0.9)
+        node_y.append(0.1 + (i_node * 0.25))
+        idx = len(nodes) - 1
+        links.append({"source": center_idx, "target": idx, "value": n["value"], "color": n["link_color"]})
 
-    liab_flow = known_liab + ostatne_pasiva
-    equity_flow = equity_pos
-
-    source, target, value, link_color = [], [], [], []
-
-    # Sada uzlov:
-    labels = [
-        i.get('sankey_cash', 'Hotovosť'),         # 0
-        i.get('sankey_receivables', 'Pohľadávky'),       # 1
-        i.get('sankey_inventory', 'Zásoby'),           # 2
-        i.get('sankey_other_current', 'Ostat. obež. maj.'),# 3
-        i.get('sankey_current_assets', 'Obežný majetok'),   # 4
-        i.get('sankey_non_current', 'Dlhodobý majetok'), # 5
-        i.get('sankey_total_assets', 'Celkové aktíva'),   # 6
-        i.get('sankey_liabilities', 'Záväzky'),             # 7 (Záväzky — zdroj na rozdelenie do podkategórií)
-        i.get('sankey_equity', 'Vlastné imanie'),   # 8
-        i.get('sankey_short_liab', 'Krátkodobé záväzky'),  # 9
-        i.get('sankey_long_liab', 'Dlhodobé záväzky'),    # 10
-        i.get('sankey_other_pasiva', 'Ostatné pasíva'),   # 11
-    ]
-    colors = [
-        COLORS['green_light'], COLORS['green_light'], COLORS['green_light'], COLORS['green_light'],
-        COLORS['green'], "#0ea5e9",
-        COLORS['slate'],
-        "#f43f5e", COLORS['green'],
-        "#e11d48", "#e11d48", "#e11d48",
-    ]
-
-    # Ľavá strana: položky → Obežný majetok
-    if cash > 0:       source.append(0); target.append(4); value.append(cash);        link_color.append("rgba(16,185,129,0.25)")
-    if receivables > 0:source.append(1); target.append(4); value.append(receivables); link_color.append("rgba(16,185,129,0.25)")
-    if inventory > 0:  source.append(2); target.append(4); value.append(inventory);   link_color.append("rgba(16,185,129,0.25)")
-    if other_current > 0: source.append(3); target.append(4); value.append(other_current); link_color.append("rgba(16,185,129,0.25)")
-
-    # Stred: Obežný + Dlhodobý → Celkové aktíva
-    if current > 0:    source.append(4); target.append(6); value.append(current);     link_color.append("rgba(16,185,129,0.35)")
-    if non_current > 0:source.append(5); target.append(6); value.append(non_current); link_color.append("rgba(16,185,129,0.35)")
-
-    # Pravá strana: Celkové aktíva → Záväzky a iné + VK
-    if liab_flow > 0:
-        source.append(6); target.append(7); value.append(liab_flow);   link_color.append("#fecaca")
-    if equity_flow > 0:
-        source.append(6); target.append(8); value.append(equity_flow); link_color.append("rgba(16,185,129,0.35)")
-
-    if short_liab > 0: source.append(7); target.append(9);  value.append(short_liab); link_color.append("#fca5a5")
-    if long_liab > 0:  source.append(7); target.append(10); value.append(long_liab);  link_color.append("#fca5a5")
-    if ostatne_pasiva > 0: source.append(7); target.append(11); value.append(ostatne_pasiva); link_color.append("#fca5a5")
-
-    # Explicitné fixné súradnice — pravé uzly posunuté z 0.99 na 0.85
-    # aby popisky nepretiekali za pravý okraj
-    # x=0 je vľavo, x=1 vpravo
-    node_x = [0.01, 0.01, 0.01, 0.01, 0.22, 0.22, 0.5, 0.72, 0.85, 0.85, 0.85, 0.85]
-    node_y = [0.1, 0.3, 0.5, 0.8, 0.25, 0.75, 0.5, 0.7, 0.15, 0.45, 0.68, 0.88]
+    labels = [n["name"] for n in nodes]
+    colors = [n["color"] for n in nodes]
+    
+    source = [l["source"] for l in links]
+    target = [l["target"] for l in links]
+    value = [l["value"] for l in links]
+    link_color = [l["color"] for l in links]
 
     fig = go.Figure(data=[go.Sankey(
         arrangement="snap",

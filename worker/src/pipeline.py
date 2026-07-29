@@ -132,7 +132,7 @@ def _check_cross_year_unit_consistency(results: list[CompanyFinancialExtraction]
         "ciste_penazne_toky_z_prevadzkovej_cinnosti",
         "osobne_naklady", "pohladavky_z_obchodneho_styku",
         "zavazky_z_obchodneho_styku", "zasoby", "odpisy",
-        "investicny_cash_flow", "financny_cash_flow", "uroky",
+        "investicny_cash_flow", "financny_cash_flow", "uroky", "dan_z_prijmu",
         "zavazky_sp", "danove_zavazky", "zavazky_zamestnanci",
     ]
 
@@ -632,7 +632,7 @@ async def run_and_save_audit_verdict(
                 {f: getattr(s, f, None) for f in (
                     'year', 'mainActivityRevenue', 'netProfitLoss', 'totalAssets', 'equity',
                     'shortTermLiabilities', 'longTermLiabilities', 'staffCosts', 'depreciation',
-                    'interestExpense', 'operatingCashFlow', 'investingCashFlow', 'financingCashFlow',
+                    'interestExpense', 'incomeTax', 'operatingCashFlow', 'investingCashFlow', 'financingCashFlow',
                     'cashAndEquivalents', 'grossProfit', 'currentAssets', 'inventory',
                     'tradeReceivables', 'tradePayables', 'socialInsuranceLiabilities',
                     'taxLiabilities', 'employeeLiabilities', 'employeeCount', 'monthsInPeriod',

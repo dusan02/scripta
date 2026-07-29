@@ -1891,7 +1891,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     _stmts_as_dicts = [
         {f: getattr(s, f, None) for f in (
             'year', 'mainActivityRevenue', 'netProfitLoss', 'totalAssets', 'equity',
-            'shortTermLiabilities', 'staffCosts', 'depreciation', 'interestExpense',
+            'shortTermLiabilities', 'staffCosts', 'depreciation', 'interestExpense', 'incomeTax',
             'socialInsuranceLiabilities', 'taxLiabilities', 'employeeLiabilities',
             'employeeCount',
         )}
