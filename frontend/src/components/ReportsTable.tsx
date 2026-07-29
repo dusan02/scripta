@@ -12,6 +12,13 @@ import { LOCALE_MAP } from "@/lib/i18n";
 import { formatCompanyName } from "@/lib/format";
 import toast from "react-hot-toast";
 import ConfirmModal from "@/components/ConfirmModal";
+import {
+  FileDownloadIcon,
+  RefreshIcon,
+  TrashIcon,
+  SpinnerIcon,
+  ArrowRightIcon,
+} from "@/components/icons";
 
 interface ReportSource {
   sourceType: string;
@@ -176,9 +183,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
             style={{ color: "var(--accent)" }}
           >
             {t("reports.zobrazitHistoriu")}
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <ArrowRightIcon size={12} />
           </Link>
         </div>
       </div>
@@ -223,10 +228,8 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
               >
                 {/* Desktop row */}
                 <div
-                  className="hidden md:grid items-center px-4 py-3 transition-colors duration-100 gap-3"
+                  className="hidden md:grid items-center px-4 py-3 transition-colors duration-100 gap-3 hover:bg-[var(--bg-subtle)]"
                   style={{ gridTemplateColumns: "200px minmax(0, 1fr) 130px" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
                   {/* Identifier — icon centered above company name */}
                   <div className="flex flex-col items-center gap-1 min-w-0">
@@ -286,14 +289,10 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
                           title={t("reports.stiahnutPdf")}
-                          className="transition-all duration-150 rounded-md p-0.5"
+                          className="action-btn action-btn-download rounded-md p-0.5"
                           style={{ color: "var(--accent)" }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--accent-light)"; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          </svg>
+                          <FileDownloadIcon size={14} />
                         </button>
                       )}
                       {canDownload && (
@@ -301,22 +300,10 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.regenerovatReport")}
-                          className="transition-all duration-150 rounded-md p-0.5"
+                          className="action-btn action-btn-retry rounded-md p-0.5"
                           style={{ color: "var(--text-secondary)" }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
                         >
-                          {retryingId === report.id ? (
-                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {retryingId === report.id ? <SpinnerIcon size={14} /> : <RefreshIcon size={14} />}
                         </button>
                       )}
                       {report.status === "FAILED" && (
@@ -324,43 +311,20 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.zopakovatReport")}
-                          className="transition-all duration-150 rounded-md p-0.5"
+                          className="action-btn action-btn-warn rounded-md p-0.5"
                           style={{ color: "var(--warning)" }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--warning-bg)"; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                         >
-                          {retryingId === report.id ? (
-                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {retryingId === report.id ? <SpinnerIcon size={14} /> : <RefreshIcon size={14} />}
                         </button>
                       )}
                       <button
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                         disabled={deletingId === report.id}
                         title={t("reports.vymazat")}
-                        className="transition-all duration-150 rounded-md p-0.5"
+                        className="action-btn action-btn-delete rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--danger-bg)"; (e.currentTarget as HTMLElement).style.color = "var(--danger)"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
                       >
-                        {deletingId === report.id ? (
-                          <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                            <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                          </svg>
-                        ) : (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
+                        {deletingId === report.id ? <SpinnerIcon size={14} /> : <TrashIcon size={14} />}
                       </button>
                     </div>
                   </div>
@@ -420,12 +384,10 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
                           title={t("reports.stiahnutPdf")}
-                          className="transition-all duration-150 rounded-md p-0.5"
+                          className="action-btn action-btn-download rounded-md p-0.5"
                           style={{ color: "var(--accent)" }}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          </svg>
+                          <FileDownloadIcon size={16} />
                         </button>
                       )}
                       {canDownload && (
@@ -433,20 +395,10 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.regenerovatReport")}
-                          className="transition-all duration-150 rounded-md p-0.5"
+                          className="action-btn action-btn-retry rounded-md p-0.5"
                           style={{ color: "var(--text-secondary)" }}
                         >
-                          {retryingId === report.id ? (
-                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
                         </button>
                       )}
                       {report.status === "FAILED" && (
@@ -454,39 +406,20 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.zopakovatReport")}
-                          className="transition-all duration-150 rounded-md p-0.5"
+                          className="action-btn action-btn-warn rounded-md p-0.5"
                           style={{ color: "var(--warning)" }}
                         >
-                          {retryingId === report.id ? (
-                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                              <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
                         </button>
                       )}
                       <button
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                         disabled={deletingId === report.id}
                         title={t("reports.vymazat")}
-                        className="transition-all duration-150 rounded-md p-0.5"
+                        className="action-btn action-btn-delete rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
-                        {deletingId === report.id ? (
-                          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                            <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                          </svg>
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
+                        {deletingId === report.id ? <SpinnerIcon size={16} /> : <TrashIcon size={16} />}
                       </button>
                       <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                         {timeAgoSafe(report.createdAt.toString())}

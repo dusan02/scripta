@@ -34,45 +34,6 @@ const FEEDBACK_CATEGORIES = [
   { value: "OTHER", key: "feedback.ine" },
 ];
 
-const styles = {
-  card: { border: "1px solid var(--border)" } as React.CSSProperties,
-  input: {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    color: "var(--text)",
-  } as React.CSSProperties,
-  textarea: {
-    background: "var(--surface)",
-    borderColor: "var(--border)",
-    color: "var(--text)",
-  } as React.CSSProperties,
-  label: {
-    color: "var(--text-muted)",
-  } as React.CSSProperties,
-  closeBtn: {
-    color: "var(--text-muted)",
-    cursor: "pointer",
-    background: "none",
-    border: "none",
-  } as React.CSSProperties,
-  primaryBtn: (disabled: boolean) => ({
-    background: disabled ? "var(--bg-muted)" : "var(--accent)",
-    color: disabled ? "var(--text-muted)" : "var(--accent-button-text)",
-    border: "none",
-    cursor: disabled ? "not-allowed" : "pointer",
-  }) as React.CSSProperties,
-  tabBtn: (active: boolean) => ({
-    background: active ? "var(--accent)" : "var(--surface)",
-    color: active ? "var(--accent-button-text)" : "var(--text-secondary)",
-    border: active ? "none" : "1px solid var(--border)",
-    cursor: "pointer",
-  }) as React.CSSProperties,
-  typeBadge: (type: string) => ({
-    background: `${TYPE_COLORS[type] || "var(--bg-muted)"}20`,
-    color: TYPE_COLORS[type] || "var(--text-muted)",
-  }) as React.CSSProperties,
-};
-
 function useDateFormat(locale: string) {
   return (iso: string) => {
     const d = new Date(iso);
@@ -273,13 +234,12 @@ function MessageDetail({ msg, t, formatDate, onBack, onReply, showReply }: {
   showReply: boolean;
 }) {
   return (
-    <div className="card p-6 mb-6" style={styles.card}>
+    <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between mb-4">
-        <button onClick={onBack} className="text-sm font-medium flex items-center gap-1"
-          style={{ color: "var(--text-secondary)", cursor: "pointer", background: "none", border: "none" }}>
+        <button onClick={onBack} className="text-sm font-medium flex items-center gap-1 text-[var(--text-secondary)] cursor-pointer bg-transparent border-none">
           ← {t("messages.späť")}
         </button>
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={styles.typeBadge(msg.type)}>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${TYPE_COLORS[msg.type] || "var(--bg-muted)"}20`, color: TYPE_COLORS[msg.type] || "var(--text-muted)" }}>
           {t(TYPE_LABELS[msg.type] || msg.type)}
         </span>
       </div>
@@ -289,7 +249,7 @@ function MessageDetail({ msg, t, formatDate, onBack, onReply, showReply }: {
         {msg.body}
       </div>
       {showReply && (
-        <button onClick={onReply} className="px-4 py-2 rounded-lg text-sm font-semibold" style={styles.primaryBtn(false)}>
+        <button onClick={onReply} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none">
           ↩ {t("messages.odpovedat")}
         </button>
       )}
@@ -305,12 +265,12 @@ function ComposeForm({ t, title, setTitle, body, setBody, sending, onSubmit, onC
   replyContext: Message | null;
 }) {
   return (
-    <div className="card p-6 mb-6" style={styles.card}>
+    <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>
           {replyContext ? t("messages.odpovedat") : t("messages.napisatSpravu")}
         </h2>
-        <button onClick={onClose} className="text-sm" style={styles.closeBtn}>✕</button>
+        <button onClick={onClose} className="text-sm text-[var(--text-muted)] cursor-pointer bg-transparent border-none">✕</button>
       </div>
       {replyContext && (
         <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
@@ -322,20 +282,19 @@ function ComposeForm({ t, title, setTitle, body, setBody, sending, onSubmit, onC
       )}
       <div className="flex flex-col gap-4">
         <div>
-          <label className="text-xs block mb-1" style={styles.label}>{t("messages.predmet")}</label>
+          <label className="text-xs block mb-1 text-[var(--text-muted)]">{t("messages.predmet")}</label>
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
             placeholder={t("messages.predmetPlaceholder")}
-            className="w-full px-3 py-2 rounded-lg text-sm border" style={styles.input} />
+            className="w-full px-3 py-2 rounded-lg text-sm border bg-[var(--surface)] text-[var(--text)] border-[var(--border)]" />
         </div>
         <div>
-          <label className="text-xs block mb-1" style={styles.label}>{t("messages.sprava")}</label>
+          <label className="text-xs block mb-1 text-[var(--text-muted)]">{t("messages.sprava")}</label>
           <textarea value={body} onChange={(e) => setBody(e.target.value)}
             placeholder={t("messages.spravaPlaceholder")} rows={6}
-            className="w-full px-3 py-2 rounded-lg text-sm border resize-none" style={styles.textarea} />
+            className="w-full px-3 py-2 rounded-lg text-sm border resize-none bg-[var(--surface)] text-[var(--text)] border-[var(--border)]" />
         </div>
         <button onClick={onSubmit} disabled={sending || !title.trim() || !body.trim()}
-          className="px-4 py-2 rounded-lg text-sm font-semibold self-start"
-          style={styles.primaryBtn(sending)}>
+          className="px-4 py-2 rounded-lg text-sm font-semibold self-start bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed">
           {sending ? t("messages.odosiela") : t("messages.odoslat")}
         </button>
       </div>
@@ -352,18 +311,18 @@ function FeedbackForm({ t, category, setCategory, requestId, setRequestId, messa
 }) {
   const disabled = sending || !category || !message.trim();
   return (
-    <div className="card p-6 mb-6" style={styles.card}>
+    <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>{t("feedback.titulok")}</h2>
-        <button onClick={onClose} className="text-sm" style={styles.closeBtn}>✕</button>
+        <button onClick={onClose} className="text-sm text-[var(--text-muted)] cursor-pointer bg-transparent border-none">✕</button>
       </div>
       <div className="flex flex-col gap-4">
         <div>
-          <label className="text-xs block mb-1" style={styles.label}>
+          <label className="text-xs block mb-1 text-[var(--text-muted)]">
             {t("feedback.predmet")} <span style={{ color: "var(--danger)" }}>*</span>
           </label>
           <select value={category} onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg text-sm" style={styles.input}>
+            className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]">
             <option value="">{t("feedback.vyberteKategoriu")}</option>
             {FEEDBACK_CATEGORIES.map((cat) => (
               <option key={cat.value} value={cat.value}>{t(cat.key)}</option>
@@ -371,23 +330,22 @@ function FeedbackForm({ t, category, setCategory, requestId, setRequestId, messa
           </select>
         </div>
         <div>
-          <label className="text-xs block mb-1" style={styles.label}>
+          <label className="text-xs block mb-1 text-[var(--text-muted)]">
             {t("feedback.idRequestu")} <span style={{ color: "var(--text-muted)" }}>(nepovinné)</span>
           </label>
           <input type="text" value={requestId} onChange={(e) => setRequestId(e.target.value)}
-            placeholder="napr. clxxxxx" className="w-full px-3 py-2 rounded-lg text-sm" style={styles.input} />
+            placeholder="napr. clxxxxx" className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]" />
         </div>
         <div>
-          <label className="text-xs block mb-1" style={styles.label}>
+          <label className="text-xs block mb-1 text-[var(--text-muted)]">
             {t("feedback.text")} <span style={{ color: "var(--danger)" }}>*</span>
           </label>
           <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5}
             placeholder={t("feedback.popiste")}
-            className="w-full px-3 py-2 rounded-lg text-sm border resize-none" style={styles.textarea} />
+            className="w-full px-3 py-2 rounded-lg text-sm border resize-none bg-[var(--surface)] text-[var(--text)] border-[var(--border)]" />
         </div>
         <button onClick={onSubmit} disabled={disabled}
-          className="px-4 py-2 rounded-lg text-sm font-semibold self-start"
-          style={{ ...styles.primaryBtn(sending), opacity: disabled ? 0.6 : 1 }}>
+          className="px-4 py-2 rounded-lg text-sm font-semibold self-start bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed">
           {sending ? t("feedback.odosielam") : t("feedback.odoslat")}
         </button>
       </div>
@@ -409,21 +367,19 @@ function MessageList({ t, loading, messages, tab, setTab, formatDate, onOpen, on
   return (
     <>
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <button onClick={onCompose} className="px-4 py-2 rounded-lg text-sm font-semibold"
-          style={styles.primaryBtn(false)}>
+        <button onClick={onCompose} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none">
           {t("messages.napisatSpravu")}
         </button>
-        <button onClick={onFeedback} className="px-4 py-2 rounded-lg text-sm font-semibold"
-          style={{ background: "var(--surface)", color: "var(--text-secondary)", border: "1px solid var(--border)", cursor: "pointer" }}>
+        <button onClick={onFeedback} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] cursor-pointer">
           {t("feedback.titulok")}
         </button>
       </div>
 
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setTab("inbox")} className="px-4 py-2 rounded-lg text-sm font-medium" style={styles.tabBtn(tab === "inbox")}>
+        <button onClick={() => setTab("inbox")} className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${tab === "inbox" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
           {t("messages.prijate")}
         </button>
-        <button onClick={() => setTab("sent")} className="px-4 py-2 rounded-lg text-sm font-medium" style={styles.tabBtn(tab === "sent")}>
+        <button onClick={() => setTab("sent")} className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${tab === "sent" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
           {t("messages.odoslane")}
         </button>
       </div>
@@ -431,7 +387,7 @@ function MessageList({ t, loading, messages, tab, setTab, formatDate, onOpen, on
       {loading ? (
         <div className="h-32 rounded-lg animate-pulse" style={{ background: "var(--bg-muted)" }} />
       ) : messages.length === 0 ? (
-        <div className="card p-8 text-center" style={styles.card}>
+        <div className="card p-8 text-center" style={{ border: "1px solid var(--border)" }}>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>{t("messages.ziadneSpravy")}</p>
         </div>
       ) : (
@@ -442,7 +398,7 @@ function MessageList({ t, loading, messages, tab, setTab, formatDate, onOpen, on
               style={{ border: `1px solid ${msg.read ? "var(--border)" : "var(--accent-border)"}`, background: "var(--surface)" }}>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={styles.typeBadge(msg.type)}>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${TYPE_COLORS[msg.type] || "var(--bg-muted)"}20`, color: TYPE_COLORS[msg.type] || "var(--text-muted)" }}>
                     {t(TYPE_LABELS[msg.type] || msg.type)}
                   </span>
                   {!msg.read && <span className="w-2 h-2 rounded-full" style={{ background: "var(--accent)" }} />}

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_SELECTED_SOURCES } from "@/lib/sources";
 import { useT } from "@/components/LanguageProvider";
+import { CheckIcon, SearchIcon, XIcon, ArrowRightIcon, SpinnerIcon, InfoIcon } from "@/components/icons";
 
 function isValidIco(ico: string): boolean {
   if (!/^\d{8}$/.test(ico)) return false;
@@ -99,13 +100,9 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
           {/* Icon — tick when valid IČO, magnifying glass otherwise */}
           <div className="pl-4 pr-2 flex-shrink-0">
             {ico.length === 8 && !icoError ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-accent">
-                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <CheckIcon size={16} className="text-accent" />
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-muted-v">
-                <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+              <SearchIcon size={16} className="text-muted-v" />
             )}
           </div>
 
@@ -138,9 +135,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
               onClick={() => { setIco(""); setIcoError(null); inputRef.current?.focus(); }}
               className="flex-shrink-0 flex items-center justify-center mr-1 transition-opacity w-[24px] h-[24px] text-muted-v"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <XIcon size={14} />
             </button>
           )}
 
@@ -155,16 +150,11 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
             className="flex items-center justify-center gap-1.5 px-4 font-semibold text-sm transition-all duration-150 flex-shrink-0 hover:brightness-110 disabled:cursor-not-allowed cursor-pointer outline-none h-full rounded-r-[11px] border-l border-border"
           >
             {loading ? (
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
+              <SpinnerIcon size={16} />
             ) : (
               <>
                 {t("form.overit")}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <ArrowRightIcon size={14} />
               </>
             )}
           </button>
@@ -181,9 +171,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
       {/* ── Global error ──────────────────────── */}
       {error && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs mt-4 fade-in bg-danger-bg border border-danger text-danger">
-          <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" />
-          </svg>
+          <InfoIcon size={14} className="flex-shrink-0" />
           {error}
         </div>
       )}

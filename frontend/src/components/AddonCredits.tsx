@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/components/LanguageProvider";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { AlertTriangleIcon, XIcon, SpinnerIcon } from "@/components/icons";
 
 interface AddonCreditsProps {
   balance: number;
@@ -65,11 +66,7 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
+            <AlertTriangleIcon size={20} style={{ color: "var(--warning)" }} />
             <h3 className="text-sm font-bold" style={{ color: "var(--text)" }}>
               {t("addon.nadpis")}
             </h3>
@@ -94,12 +91,7 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
                 opacity: loading ? 0.6 : 1,
               }}
             >
-              {loading ? (
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                  <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              ) : null}
+              {loading ? <SpinnerIcon size={16} className="w-4 h-4" /> : null}
               {loading ? t("addon.presmerovanie") : t("addon.kupit")}
             </button>
 
@@ -124,9 +116,7 @@ export default function AddonCredits({ balance, planName }: AddonCreditsProps) {
           }}
           title={t("addon.zavriet")}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <XIcon size={14} />
         </button>
       </div>
     </div>

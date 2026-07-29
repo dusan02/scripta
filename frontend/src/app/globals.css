@@ -520,6 +520,13 @@
     background: var(--bg-subtle) !important;
   }
 
+  /* Report action button hovers — replaces inline onMouseEnter/Leave */
+  .action-btn { transition: background 0.15s, color 0.15s; }
+  .action-btn-download:hover { background: var(--accent-light); }
+  .action-btn-retry:hover { background: var(--bg-muted); color: var(--text) !important; }
+  .action-btn-warn:hover { background: var(--warning-bg); }
+  .action-btn-delete:hover { background: var(--danger-bg); color: var(--danger) !important; }
+
   @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }

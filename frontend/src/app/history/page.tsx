@@ -11,6 +11,14 @@ import { LOCALE_MAP } from "@/lib/i18n";
 import { formatCompanyName } from "@/lib/format";
 import toast from "react-hot-toast";
 import ConfirmModal from "@/components/ConfirmModal";
+import {
+  FileDownloadIcon,
+  RefreshIcon,
+  TrashIcon,
+  SpinnerIcon,
+  ArrowLeftIcon,
+  SearchIcon,
+} from "@/components/icons";
 
 interface ReportSource {
   sourceType: string;
@@ -234,9 +242,7 @@ export default function HistoryPage() {
               className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80"
               style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeftIcon size={14} />
             </Link>
           </div>
           <div className="flex items-center gap-3">
@@ -272,13 +278,7 @@ export default function HistoryPage() {
       <div className="flex flex-col gap-3 mb-4">
         {/* Search input — full width */}
         <div className="relative">
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none"
-            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-muted)" }} />
           <input
             type="text"
             placeholder={t("history.hladatPodla")}
@@ -471,10 +471,8 @@ export default function HistoryPage() {
                 >
                   {/* Desktop row */}
                   <div
-                    className="hidden md:grid items-center px-4 py-3 transition-colors duration-100 gap-3"
+                    className="hidden md:grid items-center px-4 py-3 transition-colors duration-100 gap-3 hover:bg-[var(--bg-muted)]"
                     style={{ gridTemplateColumns: "32px 200px minmax(0, 1fr) 130px" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-muted)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = idx % 2 === 1 ? "var(--bg-subtle)" : "transparent"; }}
                   >
                     <span className="flex items-center justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSelect(report.id); }}>
                       <input
@@ -532,50 +530,29 @@ export default function HistoryPage() {
                           onClick={(e) => handleSearchAgain(e, report)}
                           disabled={retryingId === report.id}
                           title={t("history.spustitHladanie")}
-                          className="transition-colors hover:text-blue-500 p-1.5 rounded-md"
+                          className="action-btn action-btn-retry p-1.5 rounded-md"
                           style={{ color: "var(--info-text)" }}
                         >
-                          {retryingId === report.id ? (
-                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {retryingId === report.id ? <SpinnerIcon size={14} /> : <RefreshIcon size={14} />}
                         </button>
                         {canDownload && (
                           <button
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
                             title={t("history.stiahnutPdf")}
-                            className="transition-colors hover:text-green-600 p-1.5 rounded-md"
+                            className="action-btn action-btn-download p-1.5 rounded-md"
                             style={{ color: "var(--accent)" }}
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <path d="M12 10v6M9 13l3 3 3-3M5 20h14a2 2 0 002-2V8l-6-6H5a2 2 0 00-2 2v14a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                            </svg>
+                            <FileDownloadIcon size={14} />
                           </button>
                         )}
                         <button
                           onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                           disabled={deletingId === report.id}
                           title={t("history.vymazat")}
-                          className="transition-colors hover:text-red-500 p-1.5 rounded-md"
+                          className="action-btn action-btn-delete p-1.5 rounded-md"
                           style={{ color: "var(--danger-text)" }}
                         >
-                          {deletingId === report.id ? (
-                            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {deletingId === report.id ? <SpinnerIcon size={14} /> : <TrashIcon size={14} />}
                         </button>
                       </div>
                     </div>
@@ -633,38 +610,19 @@ export default function HistoryPage() {
                           onClick={(e) => handleSearchAgain(e, report)}
                           disabled={retryingId === report.id}
                           title={t("history.spustitHladanie")}
-                          className="transition-colors hover:text-blue-500"
+                          className="action-btn action-btn-retry"
                           style={{ color: "var(--info-text)" }}
                         >
-                          {retryingId === report.id ? (
-                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M3 3v5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
                         </button>
                         <button
                           onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                           disabled={deletingId === report.id}
                           title={t("history.vymazat")}
-                          className="transition-colors hover:text-red-500"
+                          className="action-btn action-btn-delete"
                           style={{ color: "var(--danger-text)" }}
                         >
-                          {deletingId === report.id ? (
-                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                              <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
+                          {deletingId === report.id ? <SpinnerIcon size={16} /> : <TrashIcon size={16} />}
                         </button>
                       </div>
                     </div>
