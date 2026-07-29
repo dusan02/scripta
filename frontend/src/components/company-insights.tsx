@@ -13,7 +13,7 @@ export function CompanyInsights({ insights }: { insights: Insight[] }) {
   return (
     <div className="mb-6 sm:mb-8">
       <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-        Kľúčové zistenia
+        Základné trendy
       </h2>
       <div className="space-y-2">
         {insights.map((insight, i) => {

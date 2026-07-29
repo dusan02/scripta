@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   const name = company.name || `IČO ${company.ico}`;
   const slug = slugify(company.name);
-  const canonicalUrl = `https://verifa.sk/firma/${company.ico}-${slug}`;
+  const canonicalUrl = `https://verifa.sk/firma/${company.ico}`;
   const title = `${name} (${company.ico}) – Finančné dáta, zisk, súvaha`;
   const description = `${name} (${company.ico})${company.city ? `, ${company.city}` : ""} — účtovné závierky, tržby, zisk, aktíva, Altman Z-skóre a rizikový profil z 26 Registrov SR.`;
 
@@ -58,8 +58,8 @@ export default async function CompanyPage({ params }: Params) {
     (company as any).companyPersons ?? [];
 
   const correctSlug = slugify(company.name);
-  if (parsed.slug && parsed.slug !== correctSlug) {
-    redirect(`/firma/${company.ico}-${correctSlug}`);
+  if (parsed.slug) {
+    redirect(`/firma/${company.ico}`);
   }
 
   const name = company.name || `IČO ${company.ico}`;
@@ -101,7 +101,7 @@ export default async function CompanyPage({ params }: Params) {
         "@type": "Organization",
         "@id": `https://verifa.sk/firma/${company.ico}#organization`,
         name, identifier: company.ico,
-        url: `https://verifa.sk/firma/${company.ico}-${correctSlug}`,
+        url: `https://verifa.sk/firma/${company.ico}`,
       },
       {
         "@type": "Dataset",
@@ -203,22 +203,6 @@ export default async function CompanyPage({ params }: Params) {
         )}
 
         <ReportCTA ico={company.ico} name={name} />
-
-        {/* SEO content */}
-        <div className="mb-6 sm:mb-8" style={{ color: "var(--text-secondary)" }}>
-          <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-            Finančné dáta — {name} ({company.ico})
-          </h2>
-          <p className="text-sm leading-relaxed mb-3">
-            {name} ({company.ico}){company.city ? ` so sídlom v ${company.city}` : ""}
-            {company.legalForm ? ` v právnej forme ${company.legalForm}` : ""}
-            {company.establishedAt ? `, založená v roku ${new Date(company.establishedAt).getFullYear()}` : ""}
-            {company.naceText ? `. Hlavná činnosť: ${company.naceText}.` : ""}
-            {" "}Verifa.sk poskytuje automatizovaný due diligence report z 26+ verejných registrov SR — ORSR, RÚZ,"
-            {" "}insolvenčný register, register exekúcií, RPVS a ďalšie. Report obsahuje analýzu súvahy,"
-            {" "}výkazu ziskov a strát, Altman Z-skóre a rizikové semafóry."
-          </p>
-        </div>
 
         {/* Footer */}
         <footer className="border-t pt-6 pb-4" style={{ borderColor: "var(--border)" }}>

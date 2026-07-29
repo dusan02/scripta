@@ -9,6 +9,8 @@ services:
     container_name: verifa_postgres
     restart: unless-stopped
     mem_limit: 512m
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-verifa}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

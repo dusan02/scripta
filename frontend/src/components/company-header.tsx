@@ -28,10 +28,14 @@ export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; l
         {company.naceText && <span><strong>Predmet činnosti:</strong> {company.naceText}</span>}
       </div>
       <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-        {name} (IČO: {company.ico}) je slovenská spoločnosť{company.city ? ` so sídlom v meste ${company.city}` : ""}
+        {name} (IČO: {company.ico}) je slovenská spoločnosť{company.city ? ` so sídlom v ${company.city}` : ""}
         {company.legalForm ? ` v právnej forme ${company.legalForm}` : ""}
-        {company.establishedAt ? `, založená v roku ${fmtYear(company.establishedAt)}` : ""}.
+        {company.establishedAt ? `, založená v roku ${fmtYear(company.establishedAt)}` : ""}
+        {company.naceText ? `. Hlavná činnosť: ${company.naceText}.` : "."}
         {latestYear ? ` Posledné dostupné účtovné závierky sú za rok ${latestYear}.` : ""}
+        {" "}Verifa.sk poskytuje automatizovaný due diligence report z 26+ verejných registrov SR — ORSR, RÚZ,"
+        {" "}insolvenčný register, register exekúcií, RPVS a ďalšie. Report obsahuje analýzu súvahy,"
+        {" "}výkazu ziskov a strát, Altman Z-skóre a rizikové semafóry.
       </p>
     </div>
   );
