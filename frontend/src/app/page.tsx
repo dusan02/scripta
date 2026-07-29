@@ -21,6 +21,7 @@ export default function LandingPage() {
         @media (max-width: 768px) {
           .desktop-nav { display: none !important; }
           .mobile-nav { display: flex !important; }
+          .mobile-auth-bar { display: flex !important; }
           .how-steps { flex-direction: column !important; align-items: center !important; gap: 16px !important; }
           .how-step-card { width: 100% !important; max-width: 400px !important; }
           .how-arrow { display: none !important; }
@@ -30,7 +31,7 @@ export default function LandingPage() {
           .pricing-guarantee { flex-direction: column !important; gap: 16px !important; text-align: center !important; }
           .cta-card { padding: 40px 24px !important; }
           .section-pad { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 16px !important; padding-right: 16px !important; }
-          .hero-pad { padding-top: 110px !important; padding-bottom: 60px !important; }
+          .hero-pad { padding-top: 160px !important; padding-bottom: 60px !important; }
           .hero-cta { flex-direction: column !important; gap: 12px !important; }
           .hero-cta a { width: 100% !important; text-align: center !important; }
           .report-includes-grid { grid-template-columns: 1fr 1fr !important; gap: 20px 16px !important; }
@@ -43,6 +44,7 @@ export default function LandingPage() {
         @media (min-width: 769px) {
           .desktop-nav { display: flex !important; }
           .mobile-nav { display: none !important; }
+          .mobile-auth-bar { display: none !important; }
         }
       `}</style>
       <LandingNav />

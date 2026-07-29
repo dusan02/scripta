@@ -7,6 +7,30 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useT } from "@/components/LanguageProvider";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+    </svg>
+  );
+}
+
+const MOBILE_NAV_ITEMS = [
+  { href: "#funkcie", key: "home.navFeatures" },
+  { href: "#registre", key: "home.navRegistries" },
+  { href: "#ukazka", key: "nav.dokumenty" },
+  { href: "#pricing", key: "home.navPricing" },
+];
+
 export default function LandingNav() {
   const { theme, toggle } = useTheme();
   const t = useT();
@@ -20,24 +44,55 @@ export default function LandingNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [mobileMenuOpen]);
+
+  const navStyle: React.CSSProperties = {
+    position: "fixed",
+    top: 0, left: 0, right: 0,
+    zIndex: 100,
+    background: scrolled ? "var(--surface)" : "var(--bg)",
+    borderBottom: scrolled ? "1px solid var(--border)" : "1px solid transparent",
+    transition: "all 0.3s ease",
+    backdropFilter: scrolled ? "blur(12px)" : "none",
+  };
+
+  const topBarStyle: React.CSSProperties = {
+    maxWidth: 1200,
+    margin: "0 auto",
+    padding: "12px 16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  };
+
+  const iconBtnStyle: React.CSSProperties = {
+    background: "var(--bg-muted)",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    height: 40,
+    width: 40,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "var(--text-secondary)",
+  };
+
   return (
-    <nav
-      style={{
-        position: "fixed",
-        top: 0, left: 0, right: 0,
-        zIndex: 100,
-        background: scrolled ? "var(--surface)" : "var(--bg)",
-        borderBottom: scrolled ? "1px solid var(--border)" : "1px solid transparent",
-        transition: "all 0.3s ease",
-        backdropFilter: scrolled ? "blur(12px)" : "none",
-      }}
-    >
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <Logo size="md" />
+    <nav style={navStyle}>
+      {/* Top bar */}
+      <div style={topBarStyle}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+          <Logo size="sm" />
         </Link>
 
-        {/* Desktop nav */}
+        {/* Desktop nav links + actions */}
         <div className="desktop-nav" style={{ alignItems: "center", gap: 20 }}>
           <a href="#funkcie" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500, lineHeight: "36px" }}>{t("home.navFeatures")}</a>
           <a href="#registre" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500, lineHeight: "36px" }}>{t("home.navRegistries")}</a>
@@ -45,10 +100,10 @@ export default function LandingNav() {
           <a href="#pricing" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 500, lineHeight: "36px" }}>{t("home.navPricing")}</a>
           <button
             onClick={toggle}
-            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, height: 36, width: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={iconBtnStyle}
             aria-label="Toggle theme"
           >
-            {darkMode ? "☀️" : "🌙"}
+            {darkMode ? <SunIcon /> : <MoonIcon />}
           </button>
           <LanguageSwitcher />
           <Link
@@ -87,82 +142,123 @@ export default function LandingNav() {
           </Link>
         </div>
 
-        {/* Mobile nav controls */}
+        {/* Mobile: theme + language + hamburger */}
         <div className="mobile-nav" style={{ alignItems: "center", gap: 8 }}>
           <button
+            onClick={toggle}
+            style={iconBtnStyle}
+            aria-label="Toggle theme"
+          >
+            {darkMode ? <SunIcon /> : <MoonIcon />}
+          </button>
+          <LanguageSwitcher />
+          <button
             onClick={() => setMobileMenuOpen((v) => !v)}
-            style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, height: 36, width: 36, cursor: "pointer", fontSize: 18, color: "var(--text)", display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={iconBtnStyle}
             aria-label="Menu"
           >
-            {mobileMenuOpen ? "✕" : "☰"}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              {mobileMenuOpen
+                ? <path d="M6 18L18 6M6 6l12 12" />
+                : <><line x1="4" y1="8" x2="20" y2="8" /><line x1="4" y1="16" x2="20" y2="16" /></>
+              }
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Mobile dropdown */}
+      {/* Mobile: Register + Login below top bar */}
+      <div className="mobile-auth-bar" style={{
+        maxWidth: 1200,
+        margin: "0 auto",
+        padding: "0 16px 12px",
+        display: "flex",
+        gap: 8,
+      }}>
+        <Link
+          href="/register"
+          style={{
+            flex: 1,
+            textAlign: "center",
+            color: "var(--text-secondary)",
+            textDecoration: "none",
+            fontSize: 14,
+            fontWeight: 600,
+            height: 40,
+            lineHeight: "40px",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+          }}
+        >
+          {t("home.navRegister")}
+        </Link>
+        <Link
+          href="/login"
+          style={{
+            flex: 1,
+            textAlign: "center",
+            background: "var(--accent)",
+            color: "var(--accent-button-text)",
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: 14,
+            height: 40,
+            lineHeight: "40px",
+            borderRadius: 8,
+          }}
+        >
+          {t("home.navLogin")}
+        </Link>
+      </div>
+
+      {/* Mobile dropdown menu — only anchor links */}
       {mobileMenuOpen && (
-        <div style={{
-          background: "var(--surface)",
-          borderBottom: "1px solid var(--border)",
-          padding: "16px 24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}>
-          <a href="#funkcie" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>{t("home.navFeatures")}</a>
-          <a href="#registre" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>{t("home.navRegistries")}</a>
-          <a href="#ukazka" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>{t("nav.dokumenty")}</a>
-          <a href="#pricing" onClick={() => setMobileMenuOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: 15, fontWeight: 500, padding: "12px 0" }}>{t("home.navPricing")}</a>
-          <div style={{ height: 1, background: "var(--border)", margin: "8px 0" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-            <button
-              onClick={toggle}
-              style={{ background: "var(--surface-hover)", border: "1px solid var(--border)", borderRadius: 8, height: 36, width: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
-              aria-label="Toggle theme"
-            >
-              {darkMode ? "☀️" : "🌙"}
-            </button>
-            <LanguageSwitcher />
+        <>
+          <div
+            className="mobile-nav"
+            style={{
+              position: "fixed",
+              inset: 0,
+              top: 0,
+              zIndex: 90,
+              background: "rgba(0,0,0,0.4)",
+            }}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div
+            className="mobile-nav"
+            style={{
+              position: "relative",
+              zIndex: 95,
+              background: "var(--surface)",
+              borderBottom: "1px solid var(--border)",
+              padding: "8px 16px 16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            }}
+          >
+            {MOBILE_NAV_ITEMS.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  color: "var(--text-secondary)",
+                  textDecoration: "none",
+                  fontSize: 15,
+                  fontWeight: 500,
+                  padding: "14px 8px",
+                  borderBottom: "1px solid var(--border)",
+                  display: "block",
+                }}
+              >
+                {t(item.key)}
+              </a>
+            ))}
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Link
-              href="/register"
-              onClick={() => setMobileMenuOpen(false)}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                color: "var(--text-secondary)",
-                textDecoration: "none",
-                fontSize: 14,
-                fontWeight: 600,
-                height: 40,
-                lineHeight: "40px",
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-              }}
-            >
-              {t("home.navRegister")}
-            </Link>
-            <Link
-              href="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                background: "var(--accent)",
-                color: "var(--accent-button-text)",
-                textDecoration: "none",
-                fontWeight: 600,
-                fontSize: 14,
-                height: 40,
-                lineHeight: "40px",
-                borderRadius: 8,
-              }}
-            >
-              {t("home.navLogin")}
-            </Link>
-          </div>
-        </div>
+        </>
       )}
     </nav>
   );
