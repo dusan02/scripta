@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RevenueProfitChart, AssetsEquityChart, BalanceSankeyChart } from "@/components/company-charts";
+import Logo from "@/components/Logo";
 import { prisma } from "@/lib/prisma";
 import { slugify, parseCompanySlug } from "@/lib/slug";
 
@@ -330,10 +331,7 @@ function fmtEUR(val: number | null | undefined): string {
 
 function fmtNum(val: number | null | undefined): string {
   if (val === null || val === undefined) return "—";
-  const abs = Math.abs(val);
-  if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(2)}M`;
-  if (abs >= 1_000) return `${(val / 1_000).toFixed(1)}`;
-  return val.toFixed(0);
+  return (val / 1_000).toFixed(0);
 }
 
 function fmtYear(date: Date | null | undefined): string {
@@ -366,12 +364,16 @@ export default async function CompanyPage({ params }: Params) {
     vlastnéImanie: s.equity,
   }));
 
-  const balanceData = latest ? [
-    { name: "Celkové aktíva", value: latest.totalAssets, color: "#3b82f6", side: "aktiva" as const },
-    { name: "Vlastné imanie", value: latest.equity, color: "#10b981", side: "pasiva" as const },
-    { name: "Dlhodobé záväzky", value: latest.longTermLiabilities, color: "#f59e0b", side: "pasiva" as const },
-    { name: "Krátkodobé záväzky", value: latest.shortTermLiabilities, color: "#ef4444", side: "pasiva" as const },
-  ].filter(d => d.value !== null && d.value !== undefined && d.value !== 0) : [];
+  const balanceData = latest ? {
+    cash: latest.cashAndEquivalents,
+    receivables: latest.tradeReceivables,
+    inventory: latest.inventory,
+    currentAssets: latest.currentAssets,
+    totalAssets: latest.totalAssets,
+    equity: latest.equity,
+    shortTermLiabilities: latest.shortTermLiabilities,
+    longTermLiabilities: latest.longTermLiabilities,
+  } : null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -401,7 +403,7 @@ export default async function CompanyPage({ params }: Params) {
       <header style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 10 }}>
         <div className="max-w-[920px] mx-auto px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo-verifa.png" alt="Verifa.sk" style={{ height: "40px", width: "auto", display: "block" }} />
+            <Logo size="sm" />
           </Link>
           <Link href="/login" className="text-sm font-medium px-4 py-2 rounded-lg transition-colors" style={{ background: "var(--accent)", color: "#fff" }}>
             Prihlásiť sa
@@ -457,8 +459,8 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Balance sheet donut + Financial table */}
-        {balanceData.length > 0 && (
+        {/* Balance sheet Sankey + Financial table */}
+        {balanceData && balanceData.totalAssets && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <ChartCard title="Štruktúra súvahy">
               <BalanceSankeyChart data={balanceData} />

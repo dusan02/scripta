@@ -4,14 +4,13 @@ import React from "react";
 import { useTheme } from "@/components/ThemeProvider";
 
 interface LogoProps {
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
   forceLight?: boolean;
 }
 
 export default function Logo({ size = "md", forceLight = false }: LogoProps) {
   const { theme } = useTheme();
-  // We use height based on size. The image has a wide aspect ratio.
-  const height = size === "lg" ? "72px" : "56px";
+  const height = size === "lg" ? "72px" : size === "sm" ? "40px" : "56px";
   
   const isDark = theme === "dark" && !forceLight;
 
