@@ -48,13 +48,12 @@ function getRow(tables: any[], idx: number, cislo: number, offset: number, cols:
   const i = cislo - offset;
   if (i < 0 || i >= data.length) return null;
   const row = data[i];
-  if (!row) return null;
-  if (!Array.isArray(row) && cols > 0) {
+  if (Array.isArray(row)) return row;
+  if (cols > 0) {
     const s = i * cols;
     if (s + cols <= data.length) return data.slice(s, s + cols);
-    return null;
   }
-  return Array.isArray(row) ? row : null;
+  return null;
 }
 
 function activVal(t: any[], r: number, cur = true): number | null {
