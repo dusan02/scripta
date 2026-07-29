@@ -10,21 +10,32 @@ interface LogoProps {
 
 export default function Logo({ size = "md", forceLight = false }: LogoProps) {
   const { theme } = useTheme();
-  const height = size === "lg" ? "72px" : size === "sm" ? "40px" : "56px";
-  
+  const heights = { lg: 72, md: 56, sm: 40 };
+  const h = heights[size];
+  const w = Math.round(h * (1024 / 348));
+
   const isDark = theme === "dark" && !forceLight;
 
   return (
-    <div 
-      style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        userSelect: "none", 
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        userSelect: "none",
         cursor: "pointer",
-        lineHeight: 1
+        lineHeight: 1,
+        minHeight: h,
+        minWidth: w,
       }}
     >
-      <img src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"} alt="Verifa.sk" style={{ height, width: "auto", maxWidth: "100%", display: "block" }} loading="eager" />
+      <img
+        key={isDark ? "dark" : "light"}
+        src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"}
+        alt="Verifa.sk"
+        width={w}
+        height={h}
+        style={{ height: h, width: w, display: "block" }}
+      />
     </div>
   );
 }
