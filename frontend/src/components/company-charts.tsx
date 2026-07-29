@@ -76,7 +76,7 @@ export function AssetsEquityChart({ data }: { data: ChartData[] }) {
 }
 
 export function BalanceSankeyChart({ data }: { data: BalanceData }) {
-  const { sankeyData, nodeColors, linkColors, nodeIsSource } = useMemo(() => {
+  const { sankeyData, nodeColors, linkColors, nodeLabelLeft } = useMemo(() => {
     const cash = data.cash ?? 0;
     const receivables = data.receivables ?? 0;
     const inventory = data.inventory ?? 0;
@@ -86,7 +86,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     const shortLiab = data.shortTermLiabilities ?? 0;
     const longLiab = data.longTermLiabilities ?? 0;
 
-    if (totalAssets <= 0) return { sankeyData: null, nodeColors: [] as string[], linkColors: [] as string[], nodeIsSource: [] as boolean[] };
+    if (totalAssets <= 0) return { sankeyData: null, nodeColors: [] as string[], linkColors: [] as string[], nodeLabelLeft: [] as boolean[] };
 
     const nonCurrent = Math.max(0, totalAssets - current);
     const rawComponents = cash + receivables + inventory;
@@ -141,12 +141,12 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     if (longLiab > 0) { links.push({ source: 7, target: 10, value: longLiab }); lColors.push("#fca5a5"); }
     if (ostatnePasiva > 0) { links.push({ source: 7, target: 11, value: ostatnePasiva }); lColors.push("#fca5a5"); }
 
-    // Determine which nodes are primarily sources (labels on left) vs targets (labels on right)
-    const isSource: boolean[] = new Array(12).fill(false);
-    for (const link of links) isSource[link.source] = true;
+    // Fixed label positioning matching report's x coordinates:
+    // Nodes 0-6: left side (label on left), Nodes 7-11: right side (label on right)
+    const labelLeft = [true, true, true, true, true, true, true, false, false, false, false, false];
 
     const nodes = labels.map(name => ({ name }));
-    return { sankeyData: { nodes, links }, nodeColors: colors, linkColors: lColors, nodeIsSource: isSource };
+    return { sankeyData: { nodes, links }, nodeColors: colors, linkColors: lColors, nodeLabelLeft: labelLeft };
   }, [data]);
 
   if (!sankeyData) {
@@ -176,10 +176,11 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
           const { x, y, width, height, index } = props;
           const color = nodeColors[index] || "#94a3b8";
           const name = sankeyData.nodes[index]?.name || "";
-          const isSrc = nodeIsSource[index];
-          const value = isSrc ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
-          const labelX = isSrc ? x - 8 : x + width + 8;
-          const textAnchor = isSrc ? "end" : "start";
+          const isLeft = nodeLabelLeft[index] ?? false;
+          const hasOutgoing = outgoingValue[index] !== undefined;
+          const value = hasOutgoing ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
+          const labelX = isLeft ? x - 8 : x + width + 8;
+          const textAnchor = isLeft ? "end" : "start";
           return (
             <Layer key={`node-${index}`}>
               <rect x={x} y={y} width={width} height={height} fill={color} rx={2} />
