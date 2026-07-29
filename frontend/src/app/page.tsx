@@ -19,9 +19,6 @@ export default function LandingPage() {
       <LandingJsonLd />
       <style>{`
         @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
-          .mobile-nav { display: flex !important; }
-          .mobile-auth-bar { display: flex !important; }
           .how-steps { flex-direction: column !important; align-items: center !important; gap: 16px !important; }
           .how-step-card { width: 100% !important; max-width: 400px !important; }
           .how-arrow { display: none !important; }
@@ -40,11 +37,6 @@ export default function LandingPage() {
           .registries-grid { grid-template-columns: 1fr !important; }
           .target-grid { grid-template-columns: 1fr !important; }
           .footer-bottom { justify-content: center !important; text-align: center !important; }
-        }
-        @media (min-width: 769px) {
-          .desktop-nav { display: flex !important; }
-          .mobile-nav { display: none !important; }
-          .mobile-auth-bar { display: none !important; }
         }
       `}</style>
       <LandingNav />

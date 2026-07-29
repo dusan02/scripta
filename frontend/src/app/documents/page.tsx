@@ -4,35 +4,7 @@ import { useT } from "@/components/LanguageProvider";
 import Link from "next/link";
 import LandingNav from "@/components/landing/LandingNav";
 import LandingFooter from "@/components/landing/LandingFooter";
-
-function FileIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-      <path d="M14 2v6h6" />
-      <path d="M9 13h6M9 17h6M9 9h2" />
-    </svg>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-      <path d="M7 10l5 5 5-5" />
-      <path d="M12 15V3" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 6v6l4 2" />
-    </svg>
-  );
-}
+import { FileIcon, DownloadIcon } from "@/components/icons";
 
 function DocCard({
   icon,
@@ -96,7 +68,7 @@ function DownloadButton({ href, label }: { href: string; label: string }) {
         color: "var(--accent-button-text)",
       }}
     >
-      <DownloadIcon />
+      <DownloadIcon size={14} />
       {label}
     </a>
   );
@@ -135,7 +107,7 @@ export default function DocumentsPage() {
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>{t("docs.manualTitle")}</h2>
         <DocCard
-          icon={<FileIcon />}
+          icon={<FileIcon size={28} />}
           title={t("docs.manualTitle")}
           description={t("docs.manualDesc")}
           status="available"
@@ -152,7 +124,7 @@ export default function DocumentsPage() {
         <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>{t("docs.samplesDesc")}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <DocCard
-            icon={<FileIcon />}
+            icon={<FileIcon size={28} />}
             title="Mobis Slovakia s.r.o."
             description="Automobilový priemysel — kompletný report s finančnou analýzou, právnym posudkom a Verifa Score."
             status="available"
@@ -161,7 +133,7 @@ export default function DocumentsPage() {
             <DownloadButton href="/samples/mobis-slovakia.pdf" label="PDF" />
           </DocCard>
           <DocCard
-            icon={<FileIcon />}
+            icon={<FileIcon size={28} />}
             title="KAMAX Fasteners s.r.o."
             description="Výroba spojovacieho materiálu — ukážka reportu s preverením registrov a forenznou analýzou."
             status="available"
@@ -170,7 +142,7 @@ export default function DocumentsPage() {
             <DownloadButton href="/samples/kamax-fasteners.pdf" label="PDF" />
           </DocCard>
           <DocCard
-            icon={<FileIcon />}
+            icon={<FileIcon size={28} />}
             title="Continental Tires Slovakia s.r.o."
             description="Gumárenský priemysel — vzor reportu s Altman Z-Score, auditným verdiktom a semaformi nálezov."
             status="available"
@@ -179,7 +151,7 @@ export default function DocumentsPage() {
             <DownloadButton href="/samples/continental-tires.pdf" label="PDF" />
           </DocCard>
           <DocCard
-            icon={<FileIcon />}
+            icon={<FileIcon size={28} />}
             title="Bardejovské kúpele a.s."
             description="Zdravotníctvo a cestovný ruch — ukážka reportu pre akciovú spoločnosť s kompletnou analýzou."
             status="available"
@@ -195,7 +167,7 @@ export default function DocumentsPage() {
         <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>{t("docs.termsTitle")}</h2>
         <div className="space-y-4">
           <DocCard
-            icon={<FileIcon />}
+            icon={<FileIcon size={28} />}
             title={t("docs.termsTitle")}
             description={t("docs.termsDesc")}
             status="available"
@@ -203,7 +175,7 @@ export default function DocumentsPage() {
             <ViewButton href="/terms" label={t("docs.zobrazit")} />
           </DocCard>
           <DocCard
-            icon={<FileIcon />}
+            icon={<FileIcon size={28} />}
             title={t("docs.gdprTitle")}
             description={t("docs.gdprDesc")}
             status="available"
@@ -211,7 +183,7 @@ export default function DocumentsPage() {
             <ViewButton href="/privacy" label={t("docs.zobrazit")} />
           </DocCard>
           <DocCard
-            icon={<FileIcon />}
+            icon={<FileIcon size={28} />}
             title={t("docs.dpaTitle")}
             description={t("docs.dpaDesc")}
             status="available"
