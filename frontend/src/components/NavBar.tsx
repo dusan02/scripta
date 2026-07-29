@@ -113,6 +113,17 @@ export default function NavBar() {
   const [creditsUsed, setCreditsUsed] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Close mobile menu on route change
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [mobileOpen]);
+
   const userInitials = getUserInitials(session?.user?.name, session?.user?.email);
 
   useEffect(() => {
@@ -187,7 +198,7 @@ export default function NavBar() {
 
           {/* Right: Unified action cluster */}
           <div className="flex items-center gap-2 flex-1 justify-end">
-            {/* Credits pill */}
+            {/* Credits pill — hidden on mobile, shown in menu */}
             <div
               className="hidden sm:flex items-center gap-1.5 px-2.5 h-9 rounded-lg text-xs font-medium"
               style={{
@@ -203,15 +214,17 @@ export default function NavBar() {
               {creditsUsed !== null ? creditsUsed : "—"}
             </div>
 
-            {/* Language switcher */}
-            <LanguageSwitcher />
+            {/* Language switcher — hidden on mobile, shown in menu */}
+            <div className="hidden sm:block">
+              <LanguageSwitcher />
+            </div>
 
-            {/* Theme toggle */}
+            {/* Theme toggle — hidden on mobile, shown in menu */}
             <button
               id="theme-toggle-btn"
               onClick={toggle}
               title={isDark ? t("nav.svetly") : t("nav.tmavy")}
-              className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
+              className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg transition-all duration-150"
               style={{
                 background: "var(--bg-muted)",
                 border: "1px solid var(--border)",
@@ -221,8 +234,8 @@ export default function NavBar() {
               {isDark ? <SunIcon /> : <MoonIcon />}
             </button>
 
-            {/* Avatar with dropdown */}
-            <div className="relative">
+            {/* Avatar with dropdown — hidden on mobile, shown in menu */}
+            <div className="relative hidden sm:block">
               <button
                 onClick={() => setAvatarOpen(!avatarOpen)}
                 className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition-all duration-150"
@@ -269,14 +282,14 @@ export default function NavBar() {
               )}
             </div>
 
-            {/* Mobile toggle */}
+            {/* Mobile toggle — 44px touch target */}
             <button
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg transition-colors"
+              className="md:hidden w-11 h-11 flex items-center justify-center rounded-lg transition-colors"
               style={{ color: "var(--text-secondary)", background: "var(--bg-muted)", border: "1px solid var(--border)" }}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={t("nav.menu")}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 {mobileOpen
                   ? <path d="M6 18L18 6M6 6l12 12" />
                   : <><line x1="4" y1="8" x2="20" y2="8" /><line x1="4" y1="16" x2="20" y2="16" /></>
@@ -288,82 +301,98 @@ export default function NavBar() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="md:hidden pb-4 pt-3 fade-in" style={{ borderTop: "1px solid var(--border)" }}>
-            {/* Credits + user info */}
-            <div className="flex items-center justify-between mb-3 px-1 gap-2">
-              <div
-                className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium flex-shrink-0"
-                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)", minHeight: "44px" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                </svg>
-                {creditsUsed !== null ? creditsUsed : "—"}
-              </div>
-              <span className="text-xs truncate min-w-0" style={{ color: "var(--text-muted)", maxWidth: "calc(100% - 80px)" }}>
-                {session?.user?.email ?? ""}
-              </span>
-            </div>
-
-            {/* Nav grid */}
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {NAV_ITEMS.map((item) => {
-                const active = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex flex-col items-center gap-1.5 py-3 rounded-lg transition-all duration-150 relative"
-                    style={{
-                      color: active ? "var(--accent)" : "var(--text-secondary)",
-                      background: active ? "var(--accent-light)" : "var(--bg-muted)",
-                    }}
-                  >
-                    <item.icon />
-                    {item.href === "/messages" && unreadCount > 0 && (
-                      <span
-                        className="absolute top-2 right-3 w-2.5 h-2.5 rounded-full"
-                        style={{ background: "#ef4444", border: "1.5px solid var(--surface)" }}
-                      />
-                    )}
-                    <span className="text-[10px] font-medium">{t(item.key)}</span>
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Bottom controls: theme, language, logout */}
-            <div className="flex items-center justify-between gap-2 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={toggle}
-                  className="w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-150"
-                  style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-                  aria-label="Toggle theme"
+          <>
+            {/* Backdrop overlay */}
+            <div
+              className="md:hidden fixed inset-0 top-16 z-40"
+              style={{ background: "rgba(0,0,0,0.4)" }}
+              onClick={() => setMobileOpen(false)}
+            />
+            {/* Menu panel */}
+            <div
+              className="md:hidden pb-4 pt-3 fade-in relative z-50"
+              style={{
+                borderTop: "1px solid var(--border)",
+                background: "var(--surface)",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+              }}
+            >
+              {/* Credits + user info */}
+              <div className="flex items-center justify-between mb-3 px-1 gap-2">
+                <div
+                  className="flex items-center gap-1.5 px-3 rounded-lg text-xs font-medium flex-shrink-0"
+                  style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)", minHeight: "44px" }}
                 >
-                  {isDark ? <SunIcon /> : <MoonIcon />}
-                </button>
-                <LanguageSwitcher />
-              </div>
-              <button
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-medium transition-all duration-150"
-                style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-              >
-                {loggingOut ? (
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                    <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
                   </svg>
-                ) : (
-                  <LogOutIcon />
-                )}
-                {t("nav.odhlasit")}
-              </button>
+                  {creditsUsed !== null ? creditsUsed : "—"}
+                </div>
+                <span className="text-xs truncate min-w-0" style={{ color: "var(--text-muted)", maxWidth: "calc(100% - 80px)" }}>
+                  {session?.user?.email ?? ""}
+                </span>
+              </div>
+
+              {/* Nav grid */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {NAV_ITEMS.map((item) => {
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-lg transition-all duration-150 relative"
+                      style={{
+                        color: active ? "var(--accent)" : "var(--text-secondary)",
+                        background: active ? "var(--accent-light)" : "var(--bg-muted)",
+                      }}
+                    >
+                      <item.icon />
+                      {item.href === "/messages" && unreadCount > 0 && (
+                        <span
+                          className="absolute top-2 right-3 w-2.5 h-2.5 rounded-full"
+                          style={{ background: "#ef4444", border: "1.5px solid var(--surface)" }}
+                        />
+                      )}
+                      <span className="text-[10px] font-medium">{t(item.key)}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Bottom controls: theme, language, logout */}
+              <div className="flex items-center justify-between gap-2 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggle}
+                    className="w-11 h-11 flex items-center justify-center rounded-lg transition-all duration-150"
+                    style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                    aria-label="Toggle theme"
+                  >
+                    {isDark ? <SunIcon /> : <MoonIcon />}
+                  </button>
+                  <LanguageSwitcher />
+                </div>
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="flex items-center gap-2 px-4 h-11 rounded-lg text-sm font-medium transition-all duration-150"
+                  style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                >
+                  {loggingOut ? (
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <LogOutIcon />
+                  )}
+                  {t("nav.odhlasit")}
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
       </header>
