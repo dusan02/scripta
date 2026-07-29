@@ -1,5 +1,24 @@
 const LEGAL_STATUSES = ["v konkurze", "v likvidácii", "v reštrukturalizácii", "konkurz", "likvidácia"];
 
+export function fmtEUR(val: number | null | undefined): string {
+  if (val === null || val === undefined) return "—";
+  const abs = Math.abs(val);
+  if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(2)} mil. €`;
+  if (abs >= 1_000) return `${(val / 1_000).toFixed(1)} tis. €`;
+  return `${val.toFixed(0)} €`;
+}
+
+export function fmtNum(val: number | null | undefined): string {
+  if (val === null || val === undefined) return "—";
+  const n = (val / 1_000).toFixed(0);
+  return Number(n).toLocaleString("sk-SK").replace(/\u00a0/g, "\u00a0");
+}
+
+export function fmtYear(date: Date | null | undefined): string {
+  if (!date) return "—";
+  return new Date(date).getFullYear().toString();
+}
+
 /**
  * Splits a company name into lines at legal status keywords and parenthesized text.
  * e.g. "ABC s.r.o. v konkurze (od: 01.01.2023)" → ["ABC s.r.o.", "v konkurze", "(od: 01.01.2023)"]
