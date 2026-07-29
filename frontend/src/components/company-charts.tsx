@@ -2,8 +2,9 @@
 
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
-  PieChart, Pie, Cell,
+  Sankey, Layer,
 } from "recharts";
+import { useMemo } from "react";
 
 function fmtEUR(val: number | null | undefined): string {
   if (val === null || val === undefined) return "—";
@@ -57,16 +58,100 @@ export function AssetsEquityChart({ data }: { data: ChartData[] }) {
   );
 }
 
-export function BalanceDonutChart({ data }: { data: BalanceData[] }) {
+export function BalanceSankeyChart({ data }: { data: BalanceData[] }) {
+  const { sankeyData, nodeColors } = useMemo(() => {
+    const valid = data.filter(d => d.value !== null && d.value !== undefined && d.value > 0);
+    if (valid.length === 0) return { sankeyData: null, nodeColors: [] };
+
+    const nodes = [
+      { name: "Aktíva" },
+      ...valid.map(d => ({ name: d.name })),
+    ];
+
+    const links = valid.map((d, i) => ({
+      source: 0,
+      target: i + 1,
+      value: d.value as number,
+    }));
+
+    const colors = ["#3b82f6", ...valid.map(d => d.color)];
+
+    return { sankeyData: { nodes, links }, nodeColors: colors };
+  }, [data]);
+
+  if (!sankeyData) {
+    return (
+      <div className="flex items-center justify-center h-[220px] text-sm" style={{ color: "var(--text-muted)" }}>
+        Údaje o súvahy nie sú dostupné
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
-          {data.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-        </Pie>
-        <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-      </PieChart>
+      <Sankey
+        data={sankeyData}
+        nodePadding={16}
+        nodeWidth={8}
+        linkCurvature={0.5}
+        margin={{ top: 10, right: 90, bottom: 10, left: 90 }}
+        node={(props: any) => {
+          const { x, y, width, height, index } = props;
+          const color = nodeColors[index] || "#94a3b8";
+          const name = sankeyData.nodes[index]?.name || "";
+          const value = index === 0
+            ? sankeyData.links.reduce((s: number, l: any) => s + l.value, 0)
+            : sankeyData.links.find((l: any) => l.target === index)?.value || 0;
+          const isSource = index === 0;
+          const labelX = isSource ? x - 8 : x + width + 8;
+          const textAnchor = isSource ? "end" : "start";
+          return (
+            <Layer key={`node-${index}`}>
+              <rect x={x} y={y} width={width} height={height} fill={color} rx={2} />
+              <text
+                x={labelX}
+                y={y + height / 2}
+                dy=".35em"
+                textAnchor={textAnchor}
+                fontSize={11}
+                fill="var(--text)"
+              >
+                {name}
+              </text>
+              <text
+                x={labelX}
+                y={y + height / 2 + 14}
+                dy=".35em"
+                textAnchor={textAnchor}
+                fontSize={10}
+                fill="var(--text-muted)"
+              >
+                {fmtEUR(value)}
+              </text>
+            </Layer>
+          );
+        }}
+        link={(props: any) => {
+          const { sourceX, targetX, sourceY, targetY, sourceControlX, targetControlX, linkWidth, index } = props;
+          const link = sankeyData.links[index];
+          const color = nodeColors[link.target] || "#94a3b8";
+          return (
+            <Layer key={`link-${index}`} opacity={0.4}>
+              <path
+                d={`M${sourceX},${sourceY}C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
+                stroke={color}
+                strokeWidth={Math.max(1, linkWidth)}
+                fill="none"
+              />
+            </Layer>
+          );
+        }}
+      >
+        <Tooltip
+          contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+          formatter={(v: any) => fmtEUR(v as number)}
+        />
+      </Sankey>
     </ResponsiveContainer>
   );
 }

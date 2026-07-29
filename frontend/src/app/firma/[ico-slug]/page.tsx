@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { RevenueProfitChart, AssetsEquityChart, BalanceDonutChart } from "@/components/company-charts";
+import { RevenueProfitChart, AssetsEquityChart, BalanceSankeyChart } from "@/components/company-charts";
 import { prisma } from "@/lib/prisma";
 import { slugify, parseCompanySlug } from "@/lib/slug";
 
@@ -423,7 +423,7 @@ export default async function CompanyPage({ params }: Params) {
         {balanceData.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <ChartCard title="Štruktúra súvahy">
-              <BalanceDonutChart data={balanceData} />
+              <BalanceSankeyChart data={balanceData} />
             </ChartCard>
 
             <ChartCard title="Detailné finančné údaje (v tis. €)">
