@@ -76,7 +76,7 @@ export function AssetsEquityChart({ data }: { data: ChartData[] }) {
 }
 
 export function BalanceSankeyChart({ data }: { data: BalanceData }) {
-  const { sankeyData, nodeColors, nodeLevels } = useMemo(() => {
+  const { sankeyData, nodeColors, linkColors, nodeIsSource } = useMemo(() => {
     const cash = data.cash ?? 0;
     const receivables = data.receivables ?? 0;
     const inventory = data.inventory ?? 0;
@@ -86,7 +86,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     const shortLiab = data.shortTermLiabilities ?? 0;
     const longLiab = data.longTermLiabilities ?? 0;
 
-    if (totalAssets <= 0) return { sankeyData: null, nodeColors: [] as string[], nodeLevels: [] as number[] };
+    if (totalAssets <= 0) return { sankeyData: null, nodeColors: [] as string[], linkColors: [] as string[], nodeIsSource: [] as boolean[] };
 
     const nonCurrent = Math.max(0, totalAssets - current);
     const rawComponents = cash + receivables + inventory;
@@ -108,12 +108,6 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     const ostatnePasiva = Math.max(0, totalAssets - equity - knownLiab);
     const liabFlow = knownLiab + ostatnePasiva;
 
-    // Node indices:
-    // 0: Hotovosť, 1: Pohľadávky, 2: Zásoby, 3: Ostat. obež. maj.
-    // 4: Obežný majetok, 5: Dlhodobý majetok
-    // 6: Celkové aktíva
-    // 7: Záväzky, 8: Vlastné imanie
-    // 9: Krátkodobé záväzky, 10: Dlhodobé záväzky, 11: Ostatné pasíva
     const labels = [
       "Hotovosť", "Pohľadávky", "Zásoby", "Ostat. obež. maj.",
       "Obežný majetok", "Dlhodobý majetok",
@@ -128,38 +122,36 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
       "#f43f5e", "#10b981",
       "#e11d48", "#e11d48", "#e11d48",
     ];
-    // Level: 0=leftmost, 1=middle-left, 2=center, 3=middle-right, 4=rightmost
-    const levels = [0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 4, 4];
 
     const links: { source: number; target: number; value: number }[] = [];
-    const linkColors: string[] = [];
+    const lColors: string[] = [];
 
-    // Left: components → Obežný majetok
-    if (scaledCash > 0) { links.push({ source: 0, target: 4, value: scaledCash }); linkColors.push("rgba(16,185,129,0.25)"); }
-    if (scaledRec > 0) { links.push({ source: 1, target: 4, value: scaledRec }); linkColors.push("rgba(16,185,129,0.25)"); }
-    if (scaledInv > 0) { links.push({ source: 2, target: 4, value: scaledInv }); linkColors.push("rgba(16,185,129,0.25)"); }
-    if (otherCurrent > 0) { links.push({ source: 3, target: 4, value: otherCurrent }); linkColors.push("rgba(16,185,129,0.25)"); }
+    if (scaledCash > 0) { links.push({ source: 0, target: 4, value: scaledCash }); lColors.push("rgba(16,185,129,0.25)"); }
+    if (scaledRec > 0) { links.push({ source: 1, target: 4, value: scaledRec }); lColors.push("rgba(16,185,129,0.25)"); }
+    if (scaledInv > 0) { links.push({ source: 2, target: 4, value: scaledInv }); lColors.push("rgba(16,185,129,0.25)"); }
+    if (otherCurrent > 0) { links.push({ source: 3, target: 4, value: otherCurrent }); lColors.push("rgba(16,185,129,0.25)"); }
 
-    // Middle: Obežný + Dlhodobý → Celkové aktíva
-    if (current > 0) { links.push({ source: 4, target: 6, value: current }); linkColors.push("rgba(16,185,129,0.35)"); }
-    if (nonCurrent > 0) { links.push({ source: 5, target: 6, value: nonCurrent }); linkColors.push("rgba(14,165,233,0.35)"); }
+    if (current > 0) { links.push({ source: 4, target: 6, value: current }); lColors.push("rgba(16,185,129,0.35)"); }
+    if (nonCurrent > 0) { links.push({ source: 5, target: 6, value: nonCurrent }); lColors.push("rgba(14,165,233,0.35)"); }
 
-    // Right: Celkové aktíva → Záväzky + Vlastné imanie
-    if (liabFlow > 0) { links.push({ source: 6, target: 7, value: liabFlow }); linkColors.push("#fecaca"); }
-    if (equity > 0) { links.push({ source: 6, target: 8, value: equity }); linkColors.push("rgba(16,185,129,0.35)"); }
+    if (liabFlow > 0) { links.push({ source: 6, target: 7, value: liabFlow }); lColors.push("#fecaca"); }
+    if (equity > 0) { links.push({ source: 6, target: 8, value: equity }); lColors.push("rgba(16,185,129,0.35)"); }
 
-    // Far right: Záväzky → sub-categories
-    if (shortLiab > 0) { links.push({ source: 7, target: 9, value: shortLiab }); linkColors.push("#fca5a5"); }
-    if (longLiab > 0) { links.push({ source: 7, target: 10, value: longLiab }); linkColors.push("#fca5a5"); }
-    if (ostatnePasiva > 0) { links.push({ source: 7, target: 11, value: ostatnePasiva }); linkColors.push("#fca5a5"); }
+    if (shortLiab > 0) { links.push({ source: 7, target: 9, value: shortLiab }); lColors.push("#fca5a5"); }
+    if (longLiab > 0) { links.push({ source: 7, target: 10, value: longLiab }); lColors.push("#fca5a5"); }
+    if (ostatnePasiva > 0) { links.push({ source: 7, target: 11, value: ostatnePasiva }); lColors.push("#fca5a5"); }
+
+    // Determine which nodes are primarily sources (labels on left) vs targets (labels on right)
+    const isSource: boolean[] = new Array(12).fill(false);
+    for (const link of links) isSource[link.source] = true;
 
     const nodes = labels.map(name => ({ name }));
-    return { sankeyData: { nodes, links }, nodeColors: colors, nodeLevels: levels };
+    return { sankeyData: { nodes, links }, nodeColors: colors, linkColors: lColors, nodeIsSource: isSource };
   }, [data]);
 
   if (!sankeyData) {
     return (
-      <div className="flex items-center justify-center h-[300px] text-sm" style={{ color: "var(--text-muted)" }}>
+      <div className="flex items-center justify-center h-[350px] text-sm" style={{ color: "var(--text-muted)" }}>
         Údaje o súvahy nie sú dostupné
       </div>
     );
@@ -173,24 +165,21 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={350}>
       <Sankey
         data={sankeyData}
-        nodePadding={10}
+        nodePadding={8}
         nodeWidth={6}
         linkCurvature={0.5}
-        margin={{ top: 10, right: 110, bottom: 10, left: 110 }}
+        margin={{ top: 10, right: 120, bottom: 10, left: 120 }}
         node={(props: any) => {
           const { x, y, width, height, index } = props;
           const color = nodeColors[index] || "#94a3b8";
           const name = sankeyData.nodes[index]?.name || "";
-          const level = nodeLevels[index] || 0;
-          const hasIncoming = incomingValue[index] !== undefined;
-          const hasOutgoing = outgoingValue[index] !== undefined;
-          const value = hasOutgoing ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
-          const isLeft = level <= 2;
-          const labelX = isLeft ? x - 8 : x + width + 8;
-          const textAnchor = isLeft ? "end" : "start";
+          const isSrc = nodeIsSource[index];
+          const value = isSrc ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
+          const labelX = isSrc ? x - 8 : x + width + 8;
+          const textAnchor = isSrc ? "end" : "start";
           return (
             <Layer key={`node-${index}`}>
               <rect x={x} y={y} width={width} height={height} fill={color} rx={2} />
@@ -219,13 +208,12 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
         }}
         link={(props: any) => {
           const { sourceX, targetX, sourceY, targetY, sourceControlX, targetControlX, linkWidth, index } = props;
-          const link = sankeyData.links[index];
-          const color = nodeColors[link.target] || "#94a3b8";
+          const lColor = linkColors[index] || "#94a3b8";
           return (
-            <Layer key={`link-${index}`} opacity={0.3}>
+            <Layer key={`link-${index}`}>
               <path
                 d={`M${sourceX},${sourceY}C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
-                stroke={color}
+                stroke={lColor}
                 strokeWidth={Math.max(0.5, linkWidth)}
                 fill="none"
               />
