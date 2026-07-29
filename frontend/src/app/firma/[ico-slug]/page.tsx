@@ -284,7 +284,12 @@ async function getCompanyData(ico: string) {
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
     },
   });
-  if (company && company.city && company.legalForm) return company;
+  if (company && company.city && company.legalForm) {
+    const needsReseed = company.financialStatements.some(
+      s => s.currentAssets === null || s.netProfitLoss === null
+    );
+    if (!needsReseed) return company;
+  }
   return await seedFromRuz(ico);
 }
 
