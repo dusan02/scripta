@@ -284,6 +284,14 @@ function fmtEUR(val: number | null | undefined): string {
   return `${val.toFixed(0)} €`;
 }
 
+function fmtNum(val: number | null | undefined): string {
+  if (val === null || val === undefined) return "—";
+  const abs = Math.abs(val);
+  if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${(val / 1_000).toFixed(1)}`;
+  return val.toFixed(0);
+}
+
 function fmtYear(date: Date | null | undefined): string {
   if (!date) return "—";
   return new Date(date).getFullYear().toString();
@@ -418,7 +426,7 @@ export default async function CompanyPage({ params }: Params) {
               <BalanceDonutChart data={balanceData} />
             </ChartCard>
 
-            <ChartCard title="Detailné finančné údaje">
+            <ChartCard title="Detailné finančné údaje (v tis. €)">
               <FinancialTable stmts={stmts} />
             </ChartCard>
           </div>
@@ -552,7 +560,7 @@ function FinancialTable({ stmts }: { stmts: any[] }) {
               <td className="py-2 px-1" style={{ color: "var(--text-secondary)" }}>{row.label}</td>
               {sorted.map(s => (
                 <td key={s.year} className="text-right py-2 px-1 font-mono" style={{ color: "var(--text)" }}>
-                  {fmtEUR(s[row.key])}
+                  {fmtNum(s[row.key])}
                 </td>
               ))}
             </tr>
