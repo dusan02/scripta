@@ -20,5 +20,8 @@ ssh "$SERVER" "cd $REMOTE_DIR && docker compose exec -u root frontend npx prisma
 echo "=== Restarting frontend container ==="
 ssh "$SERVER" "cd $REMOTE_DIR && docker compose up -d frontend --force-recreate"
 
+echo "=== Cleaning up old Docker images and build cache ==="
+ssh "$SERVER" "docker image prune -f --filter 'until=24h' && docker builder prune -f --filter 'until=24h'"
+
 echo "=== Done ==="
 echo "Check: https://verifa.sk"
