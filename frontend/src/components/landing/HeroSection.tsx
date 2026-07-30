@@ -41,8 +41,8 @@ export default function HeroSection() {
             { num: "1 PDF", label: t("home.statReport") },
           ].map((s) => (
             <div key={s.label} className="text-center">
-              <div className="text-[28px] font-black" style={{ color: "var(--accent)" }}>{s.num}</div>
-              <div className="text-[13px] mt-1" style={{ color: "var(--text-muted)" }}>{s.label}</div>
+              <div className="text-[40px] font-black leading-none" style={{ color: "var(--accent)", letterSpacing: "-0.03em" }}>{s.num}</div>
+              <div className="text-[15px] mt-2 font-medium" style={{ color: "var(--text-muted)" }}>{s.label}</div>
             </div>
           ))}
         </div>

@@ -18,14 +18,14 @@ export default function FeaturesSection() {
           { icon: "📊", title: t("home.feature2Title"), desc: t("home.feature2Desc") },
           { icon: "📋", title: t("home.feature3Title"), desc: t("home.feature3Desc") },
         ].map((col) => (
-          <div key={col.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
+          <div key={col.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
                 {col.icon}
               </div>
-              <h3 style={{ fontSize: 17, fontWeight: 700 }}>{col.title}</h3>
+              <h3 style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.3 }}>{col.title}</h3>
             </div>
-            <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6 }}>{col.desc}</p>
+            <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.6 }}>{col.desc}</p>
           </div>
         ))}
       </div>
