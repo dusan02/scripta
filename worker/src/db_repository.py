@@ -199,20 +199,22 @@ def _is_unknown_auditor_opinion(audit) -> bool:
 async def save_to_db(data: CompanyFinancialExtraction):
     """
     Uloží extrahované finančné dáta a názor audítora do databázy pomocou Prisma Clienta.
+    Všetky operácie (company upsert + financial statement + auditor opinion) sú zabalené
+    v jednej transakcii — ak jedna zlyhá, všetky zmeny sa rollbacknú.
     """
     async with get_db_lock():
         db = get_db()
 
-        try:
+        # Fetch NACE kód outside the transaction (external API call, no need to hold DB locks)
+        nace_code, nace_text = await _fetch_nace_from_api(data.ico)
+
+        async with db.tx() as transaction:
             # 1. Vytvoríme alebo updatneme záznam o firme
             gemini_name = (data.nazov_spolocnosti or "").strip()
             _INVALID_NAMES = {"", "n/a", "n/a.", "nie je známy", "neznámy", "none", "null", "-", "neznáma spoločnosť", "nezistené", "nezisten", "neuvedené", "neuveden", "not stated", "not provided", "unknown"}
             is_placeholder = gemini_name.lower() in _INVALID_NAMES or gemini_name.startswith("Spoločnosť s IČO")
-            
-            # Fetch NACE kód
-            nace_code, nace_text = await _fetch_nace_from_api(data.ico)
-            
-            await db.company.upsert(
+
+            await transaction.company.upsert(
                 where={'ico': data.ico},
                 data={
                     'create': {
@@ -227,10 +229,10 @@ async def save_to_db(data: CompanyFinancialExtraction):
 
             # Update name only if current is empty/placeholder (don't overwrite ORSR's real name)
             if gemini_name and not is_placeholder:
-                existing_co = await db.company.find_unique(where={'ico': data.ico})
+                existing_co = await transaction.company.find_unique(where={'ico': data.ico})
                 curr_name = (existing_co.name or "").lower() if existing_co else ""
                 if not curr_name or curr_name in _INVALID_NAMES or curr_name.startswith("spoločnosť s ičo"):
-                    await db.company.update(
+                    await transaction.company.update(
                         where={'ico': data.ico},
                         data={'name': gemini_name}
                     )
@@ -240,7 +242,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
                     nace_update['naceCode'] = nace_code
                 if nace_text:
                     nace_update['naceText'] = nace_text
-                await db.company.update(
+                await transaction.company.update(
                     where={'ico': data.ico},
                     data=nace_update
                 )
@@ -248,7 +250,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
             # 2. Uložíme finančné výkazy
             # Použijeme upsert namiesto create, aby sme predišli chybe UniqueConstraint
             # Filter out None values — Python Prisma client throws "Null constraint violation"
-            # when None is explicitly passed for nullable Float? fields.
+            # when None is explicitly passed for nullable Decimal? fields.
             stmt_fields = {
                 'totalAssets': data.metriky.celkove_aktiva,
                 'currentAssets': data.metriky.obezny_majetok,
@@ -285,7 +287,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
             for key, value in stmt_data.items():
                 create_data[key] = value
 
-            statement = await db.financialstatement.upsert(
+            statement = await transaction.financialstatement.upsert(
                 where={
                     'companyIco_year': {
                         'companyIco': data.ico,
@@ -302,7 +304,7 @@ async def save_to_db(data: CompanyFinancialExtraction):
             # Neprepisuj placeholder audítorský názor parsovanými metrikami z JSON —
             # čakáme na reálny audítorský výstup z LLM/notes PDF.
             if not _is_unknown_auditor_opinion(data.audit):
-                await db.auditoropinion.upsert(
+                await transaction.auditoropinion.upsert(
                     where={'financialStatementId': statement.id},
                     data={
                         'create': {
@@ -320,8 +322,6 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 )
             else:
                 logger.debug(f"[DB] Preskakujem uloženie audítorského názoru pre {data.ico}/{data.metriky.rok_zavierky}: neznámy názor")
-        finally:
-            pass
 
 async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnalysis):
     """
