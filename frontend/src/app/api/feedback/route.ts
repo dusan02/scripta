@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 const VALID_CATEGORIES = ["BUG", "IMPROVEMENT", "QUESTION", "OTHER"] as const;
 
@@ -18,6 +19,10 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Rate limit: 5 feedback submissions per 10 minutes per user
+    const rl = await rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 5 });
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const body = await req.json();
     const { category, requestId, message } = body;

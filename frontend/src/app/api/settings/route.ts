@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { SOURCE_IDS } from "@/lib/sources";
+import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -40,6 +41,10 @@ export async function PATCH(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Rate limit: 20 settings updates per 10 minutes per user
+    const rl = await rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 20 });
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     const body = await req.json();
     const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, vestnikDateFrom, defaultSources, reportLanguage, attachmentsConfig } = body;
