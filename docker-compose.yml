@@ -61,6 +61,8 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       RESULTS_DIR: /app/results
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Verifa.sk <noreply@verifa.sk>}
       NODE_ENV: production
     ports:
       - "3000:3000"
