@@ -141,6 +141,28 @@ export async function POST(req: NextRequest) {
       `,
     });
 
+    // --- Admin notification about new registration ---
+    try {
+      await sendEmail({
+        to: "info@verifa.sk",
+        subject: `[Verifa.sk] Nová registrácia — ${email}`,
+        text:
+          `Nový používateľ sa zaregistroval.\n\n` +
+          `E-mail: ${email}\n` +
+          `ID: ${newUser.id}\n` +
+          `Čas: ${new Date().toISOString()}\n\n` +
+          `Účet čaká na e-mailovú verifikáciu.`,
+        html:
+          `<h2>Nová registrácia</h2>` +
+          `<p><strong>E-mail:</strong> ${email}</p>` +
+          `<p><strong>ID:</strong> ${newUser.id}</p>` +
+          `<p><strong>Čas:</strong> ${new Date().toISOString()}</p>` +
+          `<p style="color: #52525b;">Účet čaká na e-mailovú verifikáciu.</p>`,
+      });
+    } catch (adminEmailErr) {
+      console.error("[register] Failed to send admin notification email", adminEmailErr);
+    }
+
     return NextResponse.json(
       { message: "Registrácia úspešná. Skontrolujte svoj e-mail pre aktiváciu účtu.", userId: newUser.id },
       { status: 201 }
