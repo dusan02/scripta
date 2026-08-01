@@ -104,12 +104,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check credits — deny if balance <= 0
-    const wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });
-    const balance = wallet ? Number(wallet.balance) : 0;
-    if (balance <= 0) {
+    // Check credits — count only credits from non-expired batches.
+    // The wallet balance may be stale if the expiration cron failed to run,
+    // so we verify against actual batch expiry dates to prevent spending
+    // credits the user no longer has a right to.
+    const validBatches = await prisma.creditBatch.aggregate({
+      where: {
+        userId: user.id,
+        remaining: { gt: 0 },
+        expiresAt: { gt: new Date() },
+      },
+      _sum: { remaining: true },
+    });
+    const availableCredits = validBatches._sum.remaining ?? 0;
+    if (availableCredits <= 0) {
+      // Distinguish "never had credits" from "credits expired" for a clearer message.
+      const wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });
+      const walletBalance = wallet ? Number(wallet.balance) : 0;
+      const errorMsg = walletBalance > 0
+        ? "Vaše kredity expirovali. Vyberte si nový balíček v cenníku."
+        : "Nemáte dostatok kreditov. Vyberte si balíček v cenníku.";
       return NextResponse.json(
-        { error: "Nemáte dostatok kreditov. Vyberte si balíček v cenníku." },
+        { error: errorMsg },
         { status: 402 }
       );
     }

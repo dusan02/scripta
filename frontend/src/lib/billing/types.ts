@@ -20,12 +20,16 @@ export interface WebhookResult {
     | "subscription.canceled"
     | "subscription.updated"
     | "subscription.reactivated"
-    | "payment.failed";
+    | "payment.failed"
+    | "charge.refunded";
   userId: string;
   credits: number;
   planName?: string;
   providerReference: string;
   endsAt?: Date;
+  /** For charge.refunded events: the original payment's providerReference
+   *  (payment_intent or charge id) used to locate the original TOPUP. */
+  originalProviderReference?: string;
 }
 
 export interface PaymentProviderAdapter {

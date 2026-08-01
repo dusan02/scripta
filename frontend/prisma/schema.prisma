@@ -422,7 +422,7 @@ model CreditBatch {
   remaining   Int      // Koľko ostáva k dispozícii
   source      String   // trial | subscription | addon | rollover
   planName    String?
-  expiresAt   DateTime // 90 dní od vytvorenia
+  expiresAt   DateTime // trial=30d, subscription=60d, addon=permanent, rollover=60d
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -450,6 +450,7 @@ enum TransactionType {
   CHARGE
   TOPUP
   REFUND
+  REFUND_DEDUCTION
 }
 
 enum TransactionStatus {

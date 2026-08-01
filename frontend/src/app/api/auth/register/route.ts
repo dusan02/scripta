@@ -102,17 +102,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Grant 1 trial credit (valid 90 days)
-    const creditExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-    await prisma.creditBatch.create({
-      data: {
-        userId: newUser.id,
-        amount: 1,
-        remaining: 1,
-        source: "trial",
-        expiresAt: creditExpiry,
-      },
-    });
+    // Trial credit is granted upon email verification via addCreditBatch
+    // (which also updates the wallet balance). Do NOT create a CreditBatch here —
+    // it would bypass the wallet and leave a phantom batch with remaining=1.
 
     // Generate verification token
     const token = crypto.randomBytes(32).toString("hex");

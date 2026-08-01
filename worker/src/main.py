@@ -20,6 +20,7 @@ from playwright.async_api import async_playwright
 from .config import settings
 from .logging_setup import setup_logging
 from .db_client import connect_db, disconnect_db
+from .s3_client import upload_report_file, is_s3_enabled
 from .db_repository import (
     upsert_company_name,
     update_report_status,
@@ -547,7 +548,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # Aktualizujeme pageCount v DB podľa reálnych hodnôt zistených compilerom
         await update_source_page_counts(task.report_request_id, sources)
 
+        # Upload the final PDF to S3 (or fall back to local path in dev mode).
+        # The returned value is the S3 object key (e.g. "reports/{id}/evidence_binder.pdf")
+        # or a "local://" prefixed path when S3 is not configured.
+        s3_key = upload_report_file(final_path, task.report_request_id, ico=task.ico)
+        _log.info(f"[{_rid}] Report file stored: {s3_key}")
+
         # Cleanup medziproduktov — ponechať len evidence_binder.pdf
+        # (In S3 mode, the local copy is also cleaned up after upload.)
         try:
             for f in report_dir.glob("*.pdf"):
                 if f.name != "evidence_binder.pdf":
@@ -555,7 +563,13 @@ async def _execute_report_inner(task: ReportTask) -> None:
             debug_dir = report_dir / "debug"
             if debug_dir.exists():
                 shutil.rmtree(debug_dir, ignore_errors=True)
-            _log.debug(f"[{_rid}] Cleanup: medziprodukty zmazané")
+            # In S3 mode, remove the local evidence_binder.pdf too — it's
+            # safely in the cloud. In local mode, keep it for download.
+            if is_s3_enabled():
+                final_path.unlink(missing_ok=True)
+                _log.debug(f"[{_rid}] Cleanup: local PDF removed (uploaded to S3)")
+            else:
+                _log.debug(f"[{_rid}] Cleanup: medziprodukty zmazané (local mode)")
         except Exception as cleanup_err:
             _log.warning(f"[{_rid}] Cleanup zlyhal: {cleanup_err}")
 
@@ -582,7 +596,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         await update_report_status(
             task.report_request_id,
             final_status,
-            result_file_path=str(final_path),
+            result_file_path=s3_key,
             company_name=company_name,
             verifa_score=verifa_score_snapshot,
         )

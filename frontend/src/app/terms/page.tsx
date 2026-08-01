@@ -75,7 +75,7 @@ export default function TermsPage() {
             <strong>Predplatné a plány.</strong> Služba ponúka mesačné predplatné (Freelance, Firma, Korporát) a jednorazové nákupy (Štart, dokúpenie kreditov). Platenie prebieha cez Stripe. Predplatné sa obnovuje automaticky každý mesiac, pokiaľ nie je zrušené.
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-            <strong>Platnosť kreditov.</strong> Kredity zakúpené alebo získané v rámci predplatného majú platnosť <strong>90 dní</strong> od dátumu ich pripísania. Po uplynutí tejto lehoty sa nevyužité kredity automaticky vymažú. Kredity sa čerpajú v poradí FIFO (najstaršie kredity sa minú ako prvé).
+            <strong>Platnosť kreditov.</strong> Skúšobné (trial) kredity majú platnosť <strong>30 dní</strong>. Kredity z predplatného majú platnosť <strong>60 dní</strong> (rollover okno). Jednorazovo zakúpené kredity (addon) sú <strong>trvalé</strong>. Po uplynutí lehoty sa nevyužité kredity automaticky vymažú. Kredity sa čerpajú v poradí FIFO (najstaršie kredity sa minú ako prvé).
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
             <strong>Zrušenie predplatného.</strong> Používateľ môže zrušiť predplatné kedykoľvek. Po zrušení zostávajú nevyužité kredity dostupné do konca aktuálneho fakturačného obdobia. Po jeho uplynutí sa všetky zostávajúce kredity vynulujú.

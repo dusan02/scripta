@@ -2,6 +2,7 @@ import { NextAuthOptions, getServerSession as nextAuthGetServerSession } from "n
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addCreditBatch } from "@/lib/credits";
@@ -267,4 +268,24 @@ export async function getCurrentUser(_req: NextRequest): Promise<AuthUser | null
   const session = await nextAuthGetServerSession(authOptions);
   if (!session?.user?.id) return null;
   return session.user as AuthUser;
+}
+
+/**
+ * Verify the x-worker-secret header using a timing-safe comparison.
+ * Use this for worker-to-frontend callback endpoints (refund, notify, etc.)
+ * to prevent timing attacks on the shared secret.
+ *
+ * @returns true if the secret matches, false otherwise.
+ */
+export function verifyWorkerSecret(headerValue: string | null): boolean {
+  const expected = process.env.WORKER_SECRET;
+  if (!expected) return false;
+  if (!headerValue) return false;
+  // Use timingSafeEqual to prevent timing side-channel attacks.
+  // Both buffers must be the same length; if not, return false immediately
+  // (but still in constant time relative to the expected value length).
+  const a = Buffer.from(headerValue);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }

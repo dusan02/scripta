@@ -55,6 +55,12 @@ services:
       AZURE_AD_CLIENT_SECRET: ${AZURE_AD_CLIENT_SECRET:-}
       AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
       CRON_SECRET: ${CRON_SECRET:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      RESULTS_DIR: /app/results
       NODE_ENV: production
     ports:
       - "3000:3000"
@@ -111,6 +117,11 @@ services:
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       EXPERT_MODE: "1"
     volumes:
       - ./worker/results:/app/results  # Evidence Binder PDF súbory
@@ -143,6 +154,11 @@ services:
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       EXPERT_MODE: "1"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8011/health')"]

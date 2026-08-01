@@ -572,13 +572,12 @@ export default function ReportDetailPage() {
     setDownloading(true);
     try {
       const namePart = report?.companyName || report?.ico || report?.id.slice(0, 8);
-      const a = document.createElement("a");
-      // Serve large PDFs directly via nginx /results/ alias (bypass Next.js)
-      a.href = `/results/${params.id}/evidence_binder.pdf`;
-      a.download = `Verifa - ${namePart}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Use the API endpoint which returns a 302 redirect to a presigned S3 URL
+      // (in production) or streams the file directly (in local dev mode).
+      // We use window.location.href so the browser follows the redirect
+      // and downloads the file without loading it into memory.
+      const filename = `Verifa - ${namePart}.pdf`.replace(/\s+/g, "_");
+      window.location.href = `/api/reports/${params.id}/download?filename=${encodeURIComponent(filename)}`;
     } catch {
       toast.error(t("report.stiahnutDokument"));
     } finally {
@@ -618,7 +617,7 @@ export default function ReportDetailPage() {
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const namePart = report?.companyName || report?.ico || report?.id.slice(0, 8);
-      const fileName = `Verifa_${namePart}.pdf`.replace(/\\s+/g, '_');
+      const fileName = `Verifa_${namePart}.pdf`.replace(/\s+/g, '_');
       const file = new File([blob], fileName, { type: "application/pdf" });
       
       if (navigator.canShare && navigator.canShare({ files: [file] })) {

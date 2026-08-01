@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { refundCredits } from "@/lib/credits";
+import { verifyWorkerSecret } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,7 @@ export async function POST(
 ) {
   const { id: reportId } = await params;
 
-  const authHeader = req.headers.get("x-worker-secret");
-  if (authHeader !== process.env.WORKER_SECRET) {
+  if (!verifyWorkerSecret(req.headers.get("x-worker-secret"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

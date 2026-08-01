@@ -35,7 +35,12 @@ export class StripeAdapter implements PaymentProviderAdapter {
         const credits = parseInt(session.metadata?.credits || "0", 10);
         const planName = session.metadata?.planName || "";
 
-        if (userId && credits > 0) {
+        // For subscriptions, credits are granted via the `invoice.paid` event,
+        // which carries a stable providerReference (invoice.id) for idempotency.
+        // The checkout session for subscriptions has payment_intent = null,
+        // so emitting a payment.succeeded here would either skip idempotency
+        // (null reference) or double-grant credits alongside invoice.paid.
+        if (userId && credits > 0 && session.mode === "payment") {
           results.push({
             type: "payment.succeeded",
             userId,
@@ -160,6 +165,71 @@ export class StripeAdapter implements PaymentProviderAdapter {
           } catch {
             // Tax rate might not be configured — skip silently
           }
+        }
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        const userId = (charge.metadata as Record<string, string>)?.userId;
+        const planName = (charge.metadata as Record<string, string>)?.planName;
+        const originalCreditsStr = (charge.metadata as Record<string, string>)?.credits;
+
+        // The original payment reference used to store the TOPUP.
+        // For subscription invoices, the TOPUP was stored with invoice.id
+        // (from the invoice.paid event). The Charge object carries the
+        // invoice ID as a string when the charge was created by an invoice.
+        // We use a type cast because some Stripe SDK versions omit this
+        // property from the TypeScript definitions even though the API
+        // always returns it.
+        const chargeWithInvoice = charge as Stripe.Charge & { invoice?: string | null };
+        const invoiceId =
+          typeof chargeWithInvoice.invoice === "string" ? chargeWithInvoice.invoice : null;
+        const paymentIntentId =
+          typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+        // Prefer invoice.id for subscriptions (matches how TOPUP was stored),
+        // fall back to payment_intent for one-off payments, then charge.id.
+        const originalProviderReference = invoiceId || paymentIntentId || charge.id;
+
+        // The latest refund object — its id is used for idempotency.
+        const latestRefund = charge.refunds?.data?.[charge.refunds.data.length - 1];
+        const refundId = latestRefund?.id || `refund_${charge.id}`;
+        const refundAmountCents = latestRefund?.amount ?? charge.amount_refunded ?? 0;
+        const chargeAmountCents = charge.amount ?? 0;
+
+        // Calculate credits to revoke proportionally.
+        // Use Math.ceil so that partial refunds round UP (we revoke slightly
+        // more credits rather than letting the user keep a fractional credit).
+        // The result is always an integer, matching the Int type of
+        // CreditBatch.remaining.
+        let creditsToRevoke = 0;
+        if (originalCreditsStr && chargeAmountCents > 0) {
+          const originalCredits = parseInt(originalCreditsStr, 10);
+          creditsToRevoke = Math.ceil((refundAmountCents / chargeAmountCents) * originalCredits);
+        } else if (chargeAmountCents > 0 && refundAmountCents >= chargeAmountCents) {
+          // Full refund but no metadata — signal with -1 so revoke function
+          // looks up the original TOPUP amount from the database.
+          creditsToRevoke = -1;
+        }
+
+        // For subscription plans, flag that the subscription should be canceled.
+        // The webhook route will set subscriptionStatus = "canceled" in the DB.
+        const isSubscription = planName &&
+          planName !== "addon" &&
+          !planName.startsWith("payg");
+
+        if (userId && creditsToRevoke !== 0) {
+          results.push({
+            type: "charge.refunded",
+            userId,
+            credits: creditsToRevoke,
+            planName: planName || undefined,
+            providerReference: refundId,
+            originalProviderReference,
+            // Signal subscription cancellation by setting endsAt to now
+            // if this was a subscription plan refund.
+            endsAt: isSubscription ? new Date() : undefined,
+          });
         }
         break;
       }

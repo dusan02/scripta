@@ -15,6 +15,7 @@ from typing import List, Tuple
 
 from .config import settings
 from .db_client import get_db
+from .s3_client import delete_report_file, is_s3_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,16 @@ async def cleanup_old_reports() -> Tuple[int, int]:
         
         for report_id in ids_to_delete:
             db_cleared += 1
-            
-            # Zmaž zložku z disku
+
+            # Delete from S3 if the report file was stored there.
+            old_report = next((r for r in old_reports if r.id == report_id), None)
+            if old_report and old_report.resultFilePath and not old_report.resultFilePath.startswith("local://"):
+                try:
+                    delete_report_file(old_report.resultFilePath)
+                except Exception as s3_err:
+                    logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
+
+            # Zmaž zložku z disku (local mode fallback)
             child = results_dir / report_id
             if child.exists() and child.is_dir():
                 try:
@@ -101,15 +110,22 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
 
             for ex_row in excess:
                 report_id = ex_row.id
-                
+
+                # Delete from S3 if the report file was stored there.
+                if ex_row.resultFilePath and not ex_row.resultFilePath.startswith("local://"):
+                    try:
+                        delete_report_file(ex_row.resultFilePath)
+                    except Exception as s3_err:
+                        logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
+
                 # Zmaž záznam z DB (Cascade sa postará o ReportSource)
                 try:
                     await db.reportrequest.delete(where={"id": report_id})
                     db_cleared += 1
                 except Exception as db_err:
                     logger.warning(f"[CLEANUP] Failed to delete DB record for {report_id}: {db_err}")
-                    
-                # Delete files from disk
+
+                # Delete files from disk (local mode fallback)
                 report_dir = results_dir / report_id
                 if report_dir.exists():
                     await asyncio.to_thread(shutil.rmtree, report_dir, True)
