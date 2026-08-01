@@ -46,6 +46,17 @@ async def startup(ctx):
     logger.info("Spúšťam ARQ Workera...")
     from src.db_client import connect_db
     await connect_db()
+
+    # Initialize asyncio locks that are normally created in the FastAPI
+    # lifespan() hook. The arq worker runs as a separate process and never
+    # calls lifespan(), so without this the locks stay None and
+    # `async with _scraper_lock` raises TypeError.
+    import src.main as _main
+    _main._scraper_lock = asyncio.Lock()
+    _main._pdf_lock = asyncio.Lock()
+    _main._report_semaphore = asyncio.Semaphore(3)
+    logger.info("Asyncio locks initialized (_scraper_lock, _pdf_lock, _report_semaphore)")
+
     await start_healthcheck_server(ctx)
 
 async def shutdown(ctx):
