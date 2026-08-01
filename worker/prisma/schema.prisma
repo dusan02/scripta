@@ -1,8 +1,3 @@
-generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
-}
-
 generator py {
   provider             = "prisma-client-py"
   enable_experimental_decimal = true
@@ -11,7 +6,6 @@ generator py {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model User {
@@ -24,7 +18,10 @@ model User {
   orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
   rozhodnutiaDateFrom DateTime?    // Rozhodnutia dátum "od" — null = defaultne 1 rok dozadu
+  vestnikDateFrom  DateTime?       // Vestník dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
+  reportLanguage   String          @default("sk") // sk | en | de — jazyk PDF reportu
+  attachmentsConfig Json?          // User default: {obchodny_register: true, zivnostensky_register: true, auditorska_sprava: false, uctovna_zavierka_a_poznámky: false}
   tokenVersion     Int             @default(0)
   planName           String?         // Názov paušálu (start, freelance, firma, korporat)
   planRenewalDate    DateTime?       // Dátum obnovenia paušálu
@@ -37,6 +34,8 @@ model User {
   feedback           Feedback[]
   wallet             Wallet?
   creditBatches      CreditBatch[]
+  messages           UserMessage[]      @relation("UserMessages")
+  sentMessages       UserMessage[]      @relation("SentMessages")
 }
 
 model ReportRequest {
@@ -57,6 +56,7 @@ model ReportRequest {
   aiMs            Int?                // Duration of AI pipeline phase in ms
   auditorMs       Int?                // Duration of Chief Auditor phase in ms
   compileMs       Int?                // Duration of PDF compilation phase in ms
+  attachmentsConfig Json?             // Per-report override of attachment visibility
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -96,6 +96,7 @@ enum ReportStatus {
   COMPLETED
   FAILED
   PARTIAL
+  CANCELLED
 }
 
 enum TargetType {
@@ -193,11 +194,13 @@ enum MessageType {
   ANNOUNCEMENT
   REPLY
   SYSTEM
+  USER
 }
 
 model UserMessage {
   id         String          @id @default(cuid())
   userId     String?
+  senderId   String?
   type        MessageType
   title       String
   body        String
@@ -205,19 +208,73 @@ model UserMessage {
   feedbackId  String?
   createdAt   DateTime        @default(now())
 
+  user   User? @relation("UserMessages", fields: [userId], references: [id], onDelete: Cascade)
+  sender User? @relation("SentMessages", fields: [senderId], references: [id], onDelete: SetNull)
+
   @@index([userId])
+  @@index([senderId])
   @@index([read])
 }
 
 model Company {
   ico                 String               @id
   name                String?
+  legalForm           String?
+  city                String?
+  street              String?
+  zipCode             String?
+  country             String?
+  establishedAt       DateTime?
+  status              String?
   naceCode            String?
   naceText            String?
+  ownershipType       String?              // Druh vlastníctva (súkromné, štátne, zmiešané...)
+  sizeCategory        String?              // Veľkosť org. (mikro, malá, stredná, veľká)
+  employeeCount       Int?                 // Počet zamestnancov (z RÚZ)
+  latestYear          Int?                 // Rok najnovšej závierky (denormalizované pre screener)
+  latestRevenue       Float?               // Tržby z najnovšej závierky
+  latestProfit        Float?               // Zisk/strata z najnovšej závierky
+  latestAssets        Float?               // Aktíva z najnovšej závierky
+  latestEquity        Float?               // Vlastné imanie z najnovšej závierky
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
   companyEvents       CompanyEvent[]
   auditVerdict        AuditVerdict?
+  companyPersons      CompanyPerson[]
+
+  @@index([legalForm])
+  @@index([city])
+  @@index([naceCode])
+  @@index([status])
+  @@index([establishedAt])
+  @@index([latestRevenue])
+  @@index([latestProfit])
+  @@index([latestAssets])
+}
+
+model CompanyPerson {
+  id          String   @id @default(uuid())
+  companyIco  String
+  rawName     String
+  cleanName   String
+  role        String   // "statutar" | "spolocnik"
+  city        String?
+  zipCode     String?
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyIco], references: [ico], onDelete: Cascade)
+
+  @@index([companyIco])
+  @@index([role])
+}
+
+model NaceCode {
+  code        String   @id  // SK NACE kód (napr. "49410")
+  description String       // Popis (napr. "Cestná doprava osobná")
+  section     String?     // Sekcia (A–Q)
+  sectionName String?     // Názov sekcie
+
+  @@index([section])
 }
 
 model CompanyEvent {
@@ -279,9 +336,9 @@ model FinancialStatement {
   interestExpense                       Float?        // Úroky (náklady na úroky)
   incomeTax                             Float?        // Daň z príjmov (riadok 60 vo Výkaze)
   employeeCount                         Int?          // Odhadovaný počet zamestnancov
-  socialInsuranceLiabilities            Float?        // Záväzky zo sociálneho poistenia (336A)
-  taxLiabilities                        Float?        // Daňové záväzky a dotácie (341-347)
-  employeeLiabilities                   Float?        // Záväzky voči zamestnancom (331, 333)
+  socialInsuranceLiabilities            Float?        // Záväzky zo sociálneho poistenia (336A) — trestná zodpovednosť štatutára
+  taxLiabilities                        Float?        // Daňové záväzky a dotácie (341-347) — riziko daňovej exekúcie
+  employeeLiabilities                   Float?        // Záväzky voči zamestnancom (331, 333) — riziko nevyplatených miezd
   currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
   statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
@@ -358,7 +415,7 @@ model CreditBatch {
   remaining   Int      // Koľko ostáva k dispozícii
   source      String   // trial | subscription | addon | rollover
   planName    String?
-  expiresAt   DateTime // 90 dní od vytvorenia
+  expiresAt   DateTime // trial=30d, subscription=60d, addon=permanent, rollover=60d
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -386,12 +443,19 @@ enum TransactionType {
   CHARGE
   TOPUP
   REFUND
+  REFUND_DEDUCTION
 }
 
 enum TransactionStatus {
   PENDING
   COMPLETED
   FAILED
+}
+
+enum PaymentProvider {
+  STRIPE
+  PADDLE
+  MANUAL
 }
 
 model WalletTransaction {
@@ -401,7 +465,8 @@ model WalletTransaction {
   type                 TransactionType
   status               TransactionStatus  @default(COMPLETED)
   reportRequestId      String?
-  stripePaymentIntentId String?            @unique
+  provider             PaymentProvider?
+  providerReference    String?            @unique
   description          String?
   createdAt            DateTime           @default(now())
 
@@ -409,5 +474,6 @@ model WalletTransaction {
 
   @@index([walletId])
   @@index([reportRequestId])
+  @@index([provider, providerReference])
 }
 
