@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Webhook } from "svix";
 
 // Resend Inbound webhook — receives email.received events
 // When admin replies to a user message from their email client,
@@ -34,7 +35,37 @@ interface ReceivedEmail {
 
 export async function POST(req: NextRequest) {
   try {
-    const event: InboundEvent = await req.json();
+    // Verify Resend webhook signature using Svix.
+    // The raw body must be used — parsing as JSON and re-stringifying
+    // would break the cryptographic signature.
+    const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error("[inbound] RESEND_WEBHOOK_SECRET not configured — rejecting all webhooks");
+      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+    }
+
+    const payload = await req.text();
+    const svixHeaders: Record<string, string> = {};
+    const svixId = req.headers.get("svix-id");
+    const svixTimestamp = req.headers.get("svix-timestamp");
+    const svixSignature = req.headers.get("svix-signature");
+    if (svixId) svixHeaders["svix-id"] = svixId;
+    if (svixTimestamp) svixHeaders["svix-timestamp"] = svixTimestamp;
+    if (svixSignature) svixHeaders["svix-signature"] = svixSignature;
+
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      console.warn("[inbound] Missing Svix headers — rejecting unauthenticated webhook");
+      return NextResponse.json({ error: "Missing signature headers" }, { status: 401 });
+    }
+
+    const wh = new Webhook(webhookSecret);
+    let event: InboundEvent;
+    try {
+      event = wh.verify(payload, svixHeaders) as InboundEvent;
+    } catch (verifyErr) {
+      console.warn("[inbound] Webhook signature verification failed:", verifyErr);
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
 
     if (event.type !== "email.received") {
       return NextResponse.json({ ok: true });
