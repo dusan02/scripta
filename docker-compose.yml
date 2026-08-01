@@ -116,6 +116,7 @@ services:
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
       REDIS_URL: redis://:${REDIS_PASSWORD:-verifa_redis_dev}@redis:6379/0
+      NEXTAUTH_URL: http://frontend:3000
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -152,6 +153,7 @@ services:
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
       REDIS_URL: redis://:${REDIS_PASSWORD:-verifa_redis_dev}@redis:6379/0
+      NEXTAUTH_URL: http://frontend:3000
       SENTRY_DSN: ${SENTRY_DSN:-}
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
