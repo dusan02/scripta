@@ -116,7 +116,10 @@ class OrsrScraper(BaseScraper):
             return self._make_result(status="FAILED", status_message=f"{type(e).__name__}: {e}")
         finally:
             if page:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     # ── Private helpers ──────────────────────────────────────────────
 

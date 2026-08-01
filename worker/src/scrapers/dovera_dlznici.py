@@ -75,7 +75,7 @@ class DoveraDlzniciScraper(BaseScraper):
             if not is_empty:
                 findings = await self._extract_findings(page, ico)
                 is_debtor = findings is not None and "POZOR" in (findings or "")
-                if is_debtor and findings and ico not in findings:
+                if is_debtor and findings and not self._ico_in_findings(ico, findings):
                     is_debtor = False
                     findings = None
 

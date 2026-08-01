@@ -118,7 +118,9 @@ class SpDlzniciScraper(BaseScraper):
             is_debtor = False
             if not is_empty:
                 findings = await self._extract_table_findings(page, ico, source_name="Sociálnej poisťovne", field_map=_SP_FIELD_MAP)
-                is_debtor = findings is not None and ico in findings
+                # _extract_table_findings already filters rows by IČO match (line 505 in mixins.py),
+                # so if findings is non-None with POZOR, the IČO was verified at row level.
+                is_debtor = findings is not None and "POZOR" in findings
 
             pdf_output = output_dir / f"sp_dlznici_{ico}.pdf"
 

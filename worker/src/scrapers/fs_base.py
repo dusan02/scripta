@@ -91,6 +91,11 @@ class FinancnaSpravaBase(BaseScraper):
                         pass
                     await asyncio.sleep(delay)
                     page = await self._get_page()
+        # All retries exhausted — close the last retry page to avoid leak
+        try:
+            await page.close()
+        except Exception:
+            pass
         raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
 
     # Zoznam textov indikujúcich prázdny výsledok — zdieľané medzi run() a _extract_findings()
@@ -354,7 +359,7 @@ class FinancnaSpravaBase(BaseScraper):
             if findings:
                 # Pre scrapery hľadajúce podľa IČO — overíme, že IČO je skutočne v náleze
                 # (zabraňuje false positives keď tabuľka obsahuje dáta z iného vyhľadávania)
-                if self.search_by == "ico" and "POZOR" in findings and ico and ico not in findings:
+                if self.search_by == "ico" and "POZOR" in findings and ico and not self._ico_in_findings(ico, findings):
                     logger.warning(f"[{self.source_type}] Tabuľka nájdená, ale IČO {ico} nie je v náleze — pravdepodobne false positive.")
                     findings = self._empty_findings()
                 logger.info(f"[{self.source_type}] Findings: {findings[:200]}")
@@ -429,7 +434,10 @@ class FinancnaSpravaBase(BaseScraper):
             )
         finally:
             if page:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     # ── Zdieľané helper metódy ──────────────────────────────────────────
 

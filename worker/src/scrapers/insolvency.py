@@ -128,7 +128,10 @@ class InsolvencyScraper(BaseScraper):
             )
         finally:
             if page:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     async def _process_results(
         self,

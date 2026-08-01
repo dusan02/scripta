@@ -8,7 +8,24 @@ Poskytuje:
 """
 
 from types import SimpleNamespace
+import sys
+import types
 import pytest
+
+# ── Prisma mock ───────────────────────────────────────────────────────────
+# Prisma SDK is incompatible with Pydantic v2 in the local dev environment.
+# We mock it so that scraper modules (which import db_client → prisma) can be
+# imported without triggering the PydanticImportError.
+if "prisma" not in sys.modules:
+    _prisma_mock = types.ModuleType("prisma")
+    _prisma_mock.Prisma = type("Prisma", (), {})
+    sys.modules["prisma"] = _prisma_mock
+
+if "prisma.errors" not in sys.modules:
+    _prisma_errors_mock = types.ModuleType("prisma.errors")
+    _prisma_errors_mock.PrismaError = type("PrismaError", (Exception,), {})
+    sys.modules["prisma.errors"] = _prisma_errors_mock
+    _prisma_mock.errors = _prisma_errors_mock
 
 
 @pytest.fixture

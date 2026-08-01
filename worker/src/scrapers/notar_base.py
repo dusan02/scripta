@@ -172,7 +172,10 @@ class NotarBaseScraper(BaseScraper):
             )
         finally:
             if page:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     async def _collect_all_rows(self, page: Page) -> tuple[list[str], int]:
         """Zbiera všetky riadky tabuľky cez pagination stránky. Vráti (rows_html, page_count)."""

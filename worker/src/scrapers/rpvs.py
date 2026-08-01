@@ -252,7 +252,10 @@ class RpvsScraper(BaseScraper):
             )
         finally:
             if page:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     async def _extract_findings(self, page: Page) -> Optional[str]:
         try:

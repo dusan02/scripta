@@ -1,10 +1,20 @@
 import io
 import base64
+from decimal import Decimal
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
 from src.i18n import get_i18n_strings
+
+
+def _to_float(val):
+    """Convert Decimal/None to float for plotly arithmetic."""
+    if val is None:
+        return 0.0
+    if isinstance(val, Decimal):
+        return float(val)
+    return val
 
 # ─── Unified color palette ───────────────────────────────────────────────────
 COLORS = {
@@ -381,10 +391,10 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
 def generate_debt_donut(stmt, lang="sk") -> str:
     if not stmt: return ""
     i = get_i18n_strings(lang)
-    equity = getattr(stmt, 'equity', None) or 0
-    short_liab = getattr(stmt, 'shortTermLiabilities', None) or 0
-    long_liab = getattr(stmt, 'longTermLiabilities', None) or 0
-    total_assets = getattr(stmt, 'totalAssets', None) or 0
+    equity = _to_float(getattr(stmt, 'equity', None))
+    short_liab = _to_float(getattr(stmt, 'shortTermLiabilities', None))
+    long_liab = _to_float(getattr(stmt, 'longTermLiabilities', None))
+    total_assets = _to_float(getattr(stmt, 'totalAssets', None))
     if equity == 0 and short_liab == 0 and long_liab == 0: return ""
 
     other_pasiva = max(0, total_assets - max(0, equity) - short_liab - long_liab)

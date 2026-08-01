@@ -151,7 +151,10 @@ class RozhodnutiaScraper(BaseScraper):
             )
         finally:
             if page:
-                await page.close()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
 
     def _get_cutoff_date(self, date_str: Optional[str]) -> date:
         if date_str:

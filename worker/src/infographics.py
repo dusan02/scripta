@@ -1,6 +1,8 @@
 import io
 import base64
 import logging
+from decimal import Decimal
+from types import SimpleNamespace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -24,10 +26,54 @@ from src.plotly_charts import COLORS, _strip_kaleido_watermark
 logger = logging.getLogger(__name__)
 
 
+def _to_float(val):
+    """Convert Decimal/None to float for matplotlib/plotly arithmetic."""
+    if val is None:
+        return None
+    if isinstance(val, Decimal):
+        return float(val)
+    return val
+
+
+# Numeric attributes on FinancialMetrics that may arrive as Decimal from Prisma
+_NUMERIC_STMT_FIELDS = (
+    "mainActivityRevenue", "grossProfit", "netProfitLoss", "staffCosts",
+    "depreciation", "interestExpense", "operatingCashFlow",
+    "currentAssets", "inventory", "cashAndEquivalents", "tradeReceivables",
+    "totalAssets", "equity", "shortTermLiabilities", "longTermLiabilities",
+    "tradePayables", "year",
+)
+
+
+def _sanitize_stmt(stmt):
+    """Return a copy of stmt with all numeric fields converted to float.
+
+    Prisma's Decimal type causes TypeError when mixed with float in arithmetic
+    (e.g. ``float - Decimal``). This helper ensures all numeric attributes are
+    plain Python floats before they reach matplotlib/plotly.
+    """
+    if stmt is None:
+        return None
+    if isinstance(stmt, SimpleNamespace):
+        # Already a mock — values are likely float/None, but sanitize anyway
+        pass
+    data = {}
+    for field in _NUMERIC_STMT_FIELDS:
+        val = getattr(stmt, field, None)
+        if val is not None:
+            val = _to_float(val)
+        data[field] = val
+    # Copy non-numeric attributes we might need
+    for attr in ("statementType", "monthsInPeriod", "employeeCount", "auditorOpinion", "_gross_profit_estimated"):
+        data[attr] = getattr(stmt, attr, None)
+    return SimpleNamespace(**data)
+
+
 def generate_pl_infographic(stmt, lang="sk") -> str:
     """Vygeneruje P&L Sankey diagram: Tržby → Hrubá marža → Čistý zisk."""
     if not stmt:
         return ""
+    stmt = _sanitize_stmt(stmt)
     i = get_i18n_strings(lang)
 
     revenue = getattr(stmt, 'mainActivityRevenue', None)
@@ -177,6 +223,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
     """Vygeneruje Sankey graf rozkladenia cash flow."""
     if not stmt:
         return ""
+    stmt = _sanitize_stmt(stmt)
     i = get_i18n_strings(lang)
 
     net_profit = getattr(stmt, 'netProfitLoss', None)
@@ -264,6 +311,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     """Vygeneruje Sankey infografiku štruktúry súvahy."""
     if not stmt:
         return ""
+    stmt = _sanitize_stmt(stmt)
     i = get_i18n_strings(lang)
 
     current = getattr(stmt, 'currentAssets', None)
@@ -569,6 +617,7 @@ def _matplotlib_waterfall(steps, title, lang="sk"):
 def _generate_pl_waterfall(stmt, lang="sk") -> str:
     """Waterfall P&L chart using matplotlib (Kaleido cannot render base parameter)."""
     if not stmt: return ""
+    stmt = _sanitize_stmt(stmt)
     i = get_i18n_strings(lang)
     revenue = getattr(stmt, 'mainActivityRevenue', None)
     gross = getattr(stmt, 'grossProfit', None)
@@ -625,6 +674,7 @@ def _generate_pl_waterfall(stmt, lang="sk") -> str:
 def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
     """Waterfall Cash Flow chart using matplotlib (Kaleido cannot render base parameter)."""
     if not stmt: return ""
+    stmt = _sanitize_stmt(stmt)
     i = get_i18n_strings(lang)
     net_profit = getattr(stmt, 'netProfitLoss', None)
     depreciation = getattr(stmt, 'depreciation', None)
@@ -655,6 +705,7 @@ def _generate_cashflow_waterfall(stmt, lang="sk") -> str:
 def _generate_balance_sheet_waterfall(stmt, lang="sk") -> str:
     """Proper balance sheet composition chart using Plotly."""
     if not stmt: return ""
+    stmt = _sanitize_stmt(stmt)
     i = get_i18n_strings(lang)
     current = getattr(stmt, 'currentAssets', None) or 0
     inventory = getattr(stmt, 'inventory', None) or 0

@@ -226,6 +226,30 @@ class PdfGeneratorMixin:
 
 
 class StealthDebtorMixin:
+    @staticmethod
+    def _ico_in_findings(ico: str, findings: str) -> bool:
+        """Check if IČO appears in findings outside the boilerplate header line.
+
+        The header line always contains the IČO (e.g. 'POZOR: Subjekt (IČO: 123) ...'),
+        so a naive `ico in findings` check is always True and provides no false-positive
+        protection. This helper strips the first line (header) and checks the remaining
+        content — where the IČO should appear if the finding genuinely refers to this
+        subject.
+
+        If there is no body (single-line findings, e.g. '... (detaily v PDF)'), the
+        IČO cannot be verified in the body — but the scraper already confirmed the
+        match via table row filtering, so we return True to avoid false negatives.
+        """
+        if not findings or not ico:
+            return False
+        lines = findings.split("\n")
+        # Drop the header line (always starts with 'POZOR')
+        body = "\n".join(lines[1:]).strip() if len(lines) > 1 else ""
+        if not body:
+            # No body to verify — trust the scraper's row-level IČO match
+            return True
+        return ico in body
+
     def _make_result(
         self,
         status: str,

@@ -180,7 +180,7 @@ class UnionDlzniciScraper(BaseScraper):
                 # _extract_table_findings vracia POZOR len ak našla riadky v tabuľke
                 is_debtor = findings is not None and "POZOR" in findings
                 # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
-                if is_debtor and findings and ico not in findings:
+                if is_debtor and findings and not self._ico_in_findings(ico, findings):
                     logger.warning(f"[{self.source_type}] Tabuľka nájdená, ale IČO {ico} nie je v náleze — pravdepodobne false positive.")
                     is_debtor = False
                     findings = None
