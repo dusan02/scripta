@@ -277,6 +277,7 @@ model FinancialStatement {
   investingCashFlow                     Float?        // Čisté peňažné toky z investičnej činnosti
   financingCashFlow                     Float?        // Čisté peňažné toky z finančnej činnosti
   interestExpense                       Float?        // Úroky (náklady na úroky)
+  incomeTax                             Float?        // Daň z príjmov (riadok 60 vo Výkaze)
   employeeCount                         Int?          // Odhadovaný počet zamestnancov
   socialInsuranceLiabilities            Float?        // Záväzky zo sociálneho poistenia (336A)
   taxLiabilities                        Float?        // Daňové záväzky a dotácie (341-347)
