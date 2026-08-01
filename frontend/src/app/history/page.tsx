@@ -202,6 +202,8 @@ export default function HistoryPage() {
   }, [modal, fetchReports, selectedIds]);
 
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [creditsModalMsg, setCreditsModalMsg] = useState("");
 
   const handleSearchAgain = useCallback(async (e: React.MouseEvent, report: Report) => {
     e.preventDefault();
@@ -221,6 +223,9 @@ export default function HistoryPage() {
       const data = await res.json();
       if (res.ok && data.reportRequestId) {
         router.push(`/reports/${data.reportRequestId}`);
+      } else if (res.status === 402) {
+        setCreditsModalMsg(data.error || t("history.chybaZopakovania"));
+        setShowCreditsModal(true);
       } else {
         toast.error(data.error || t("history.chybaZopakovania"));
       }
@@ -677,6 +682,47 @@ export default function HistoryPage() {
         onCancel={() => setModal(null)}
         loading={deletingId !== null || deletingAll}
       />
+
+      {/* Credits modal — shown when user has insufficient credits */}
+      {showCreditsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0, 0, 0, 0.5)" }}
+          onClick={() => setShowCreditsModal(false)}
+        >
+          <div
+            className="rounded-xl shadow-2xl max-w-sm w-full p-6 text-center"
+            style={{ background: "var(--bg)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <span className="text-3xl">💳</span>
+            </div>
+            <p className="text-sm mb-5" style={{ color: "var(--text-secondary)" }}>
+              {creditsModalMsg}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => setShowCreditsModal(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: "var(--bg-muted)", color: "var(--text)" }}
+              >
+                {t("history.zrusit")}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreditsModal(false);
+                  router.push("/credits");
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{ background: "var(--accent)" }}
+              >
+                {t("history.kredity")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

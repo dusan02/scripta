@@ -285,6 +285,7 @@ const sk: Dict = {
   "history.nedaVratit": "Túto akciu nie je možné vrátiť späť. Všetky reporty budú trvalo vymazané.",
   "history.reportVymazany": "Tento report bude trvalo vymazaný.",
   "history.zrusit": "Zrušiť",
+  "history.kredity": "Kúpiť kredity",
 
   // ── Settings ──
   "settings.nastavenia": "Nastavenia",
@@ -912,6 +913,7 @@ const en: Dict = {
   "history.nedaVratit": "This action cannot be undone. All reports will be permanently deleted.",
   "history.reportVymazany": "This report will be permanently deleted.",
   "history.zrusit": "Cancel",
+  "history.kredity": "Buy credits",
 
   // ── Settings ──
   "settings.nastavenia": "Settings",
@@ -1539,6 +1541,7 @@ const de: Dict = {
   "history.nedaVratit": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Berichte werden dauerhaft gelöscht.",
   "history.reportVymazany": "Dieser Bericht wird dauerhaft gelöscht.",
   "history.zrusit": "Abbrechen",
+  "history.kredity": "Credits kaufen",
 
   // ── Settings ──
   "settings.nastavenia": "Einstellungen",
