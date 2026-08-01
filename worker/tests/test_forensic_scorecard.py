@@ -762,7 +762,18 @@ class TestYoySummaryTable:
 
     def test_rows_contain_key_metrics(self):
         stmts = [_stmt(year=2023), _stmt(year=2024)]
-        result = compute_yoy_summary_table(stmts)
+        i18n = {
+            "yoy_revenue": "Tržby",
+            "yoy_net_profit": "Čistý zisk",
+            "yoy_total_assets": "Celkové aktíva",
+            "yoy_equity": "Vlastné imanie",
+            "yoy_short_liab": "Krátkodobé záväzky",
+            "yoy_staff_costs": "Osobné náklady",
+            "yoy_depreciation": "Odpisy",
+            "yoy_interest_expense": "Náklady na úroky",
+            "yoy_income_tax": "Daň z príjmu",
+        }
+        result = compute_yoy_summary_table(stmts, i18n_strings=i18n)
         labels = [r["label"] for r in result["rows"]]
         assert "Tržby" in labels
         assert "Čistý zisk" in labels

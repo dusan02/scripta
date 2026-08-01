@@ -329,6 +329,37 @@ class TestAltmanZScore:
         assert "x1_working_capital_ratio" in result["components"]
         assert "x4_equity_to_debt" in result["components"]
 
+    def test_zero_current_assets_uses_zero_not_fallback(self):
+        """currentAssets=0 is a legitimate value, not missing data.
+        Working capital should be -short_liabilities, not total_assets*0.6 - short_liabilities."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=0,  # legitimately zero
+            equity=600_000,
+            netProfitLoss=100_000,
+            shortTermLiabilities=200_000,
+            longTermLiabilities=200_000,
+        )
+        result = compute_altman_z_score(s)
+        assert result["z_score"] is not None
+        # x1 = working_capital / total_assets = (0 - 200k) / 1M = -0.2
+        assert result["components"]["x1_working_capital_ratio"] == -0.2
+
+    def test_missing_current_assets_uses_fallback(self):
+        """currentAssets=None is missing data — should use fallback (total_assets * 0.6)."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=None,  # missing
+            equity=600_000,
+            netProfitLoss=100_000,
+            shortTermLiabilities=200_000,
+            longTermLiabilities=200_000,
+        )
+        result = compute_altman_z_score(s)
+        assert result["z_score"] is not None
+        # x1 = (1M*0.6 - 200k) / 1M = 400k / 1M = 0.4
+        assert result["components"]["x1_working_capital_ratio"] == 0.4
+
 
 # ── compute_piotroski_f_score ─────────────────────────────────────────────────
 
@@ -373,6 +404,70 @@ class TestPiotroskiFScore:
         result = compute_piotroski_f_score([_stmt(), _stmt()])
         if result["score"] is not None:
             assert result["score"] <= 8
+
+
+# ── compute_beneish_m_score ───────────────────────────────────────────────────
+
+from src.analytics import compute_beneish_m_score
+
+
+class TestBeneishMScore:
+    def test_insufficient_data(self):
+        """Less than 2 years → None."""
+        result = compute_beneish_m_score([_stmt(year=2024)])
+        assert result["m_score"] is None
+
+    def test_empty_list(self):
+        result = compute_beneish_m_score([])
+        assert result["m_score"] is None
+
+    def test_zero_revenue(self):
+        """Zero revenue → None (can't compute)."""
+        prev = _stmt(year=2023, mainActivityRevenue=0, totalAssets=500_000)
+        curr = _stmt(year=2024, mainActivityRevenue=0, totalAssets=500_000)
+        result = compute_beneish_m_score([prev, curr])
+        assert result["m_score"] is None
+
+    def test_missing_cf_uses_neutral_tata(self):
+        """When operatingCashFlow is missing, TATA should be neutral (0),
+        not (net_profit - 0) / assets which would falsely flag profitable companies."""
+        prev = _stmt(year=2023, mainActivityRevenue=1_000_000, totalAssets=500_000,
+                     currentAssets=200_000, tradeReceivables=50_000, grossProfit=400_000,
+                     depreciation=20_000, shortTermLiabilities=100_000, longTermLiabilities=100_000,
+                     operatingCashFlow=100_000)
+        curr = _stmt(year=2024, mainActivityRevenue=1_200_000, totalAssets=600_000,
+                     currentAssets=250_000, tradeReceivables=60_000, grossProfit=500_000,
+                     netProfitLoss=200_000, depreciation=30_000,
+                     shortTermLiabilities=120_000, longTermLiabilities=100_000,
+                     operatingCashFlow=None)  # Missing CF
+        result = compute_beneish_m_score([prev, curr])
+        assert result["m_score"] is not None
+        # TATA should be 0 (neutral), not (200k - 0) / 600k = 0.333
+        assert result["components"]["tata"] == 0.0
+        # Should NOT be flagged as manipulator just because CF is missing
+        # With neutral TATA, M-score should be well below -1.78 for a healthy company
+        # (dsri≈1.2, gmi≈0.8, aqi≈1.0, sgi≈1.2, depi=1.0, sgai=1.0, tata=0, lvgi≈1.0)
+        # M ≈ -4.84 + 0.92*1.2 + 0.528*0.8 + 0.404*1.0 + 0.892*1.2 + 0.115*1.0 - 0.172*1.0 + 4.679*0 - 0.327*1.0
+        # M ≈ -4.84 + 1.104 + 0.422 + 0.404 + 1.070 + 0.115 - 0.172 + 0 - 0.327 ≈ -2.224
+        assert result["is_manipulator"] is False
+        # Should include a flag warning that TATA was neutralized
+        assert any("TATA neutralizované" in f for f in result["flags"])
+
+    def test_with_cf_computes_real_tata(self):
+        """When operatingCashFlow is present, TATA should be computed normally."""
+        prev = _stmt(year=2023, mainActivityRevenue=1_000_000, totalAssets=500_000,
+                     currentAssets=200_000, tradeReceivables=50_000, grossProfit=400_000,
+                     depreciation=20_000, shortTermLiabilities=100_000, longTermLiabilities=100_000,
+                     operatingCashFlow=100_000)
+        curr = _stmt(year=2024, mainActivityRevenue=1_200_000, totalAssets=600_000,
+                     currentAssets=250_000, tradeReceivables=60_000, grossProfit=500_000,
+                     netProfitLoss=200_000, depreciation=30_000,
+                     shortTermLiabilities=120_000, longTermLiabilities=100_000,
+                     operatingCashFlow=50_000)  # Low CF → high accruals
+        result = compute_beneish_m_score([prev, curr])
+        assert result["m_score"] is not None
+        # TATA = (200k - 50k) / 600k = 150k / 600k ≈ 0.25
+        assert result["components"]["tata"] == round(150_000 / 600_000, 4)
 
 
 # ── detect_startup_profile ────────────────────────────────────────────────────

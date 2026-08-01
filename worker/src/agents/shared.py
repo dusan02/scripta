@@ -55,13 +55,21 @@ def _get_gemini_client() -> genai.Client:
         for _ in range(len(_gemini_keys)):
             key = next(_key_cycle)
             if key not in _failed_keys:
+                _last_issued_key.set(key)
                 return genai.Client(api_key=key)
 
         # All keys failed — reset and try the first one (maybe quota reset)
         logger.warning("[Gemini] All keys have failed — resetting failed set and retrying")
         _failed_keys.clear()
         key = next(_key_cycle)
+        _last_issued_key.set(key)
         return genai.Client(api_key=key)
+
+
+# Context variable tracking the last-issued API key, so safe_llm_call
+# can mark it as failed on 429/503 without needing access to the client.
+import contextvars
+_last_issued_key: contextvars.ContextVar[str] = contextvars.ContextVar("_last_issued_key", default="")
 
 
 def _mark_gemini_key_failed(api_key: str) -> None:
@@ -70,6 +78,13 @@ def _mark_gemini_key_failed(api_key: str) -> None:
         _failed_keys.add(api_key)
         remaining = len(_gemini_keys) - len(_failed_keys)
         logger.warning(f"[Gemini] Key marked as failed. {remaining} key(s) remaining active")
+
+
+def _mark_last_key_failed() -> None:
+    """Mark the last-issued API key as failed. Called by safe_llm_call on 429/503."""
+    key = _last_issued_key.get()
+    if key:
+        _mark_gemini_key_failed(key)
 
 
 @contextmanager
@@ -204,5 +219,6 @@ class VerificationExtraction(BaseModel):
     zisk_alebo_strata_po_zdaneni: Optional[float] = Field(None, description="Čistý zisk alebo strata (Net profit/loss). Ak nenájdeš s istotou, vráť null.")
     vlastne_imanie_celkom: Optional[float] = Field(None, description="Vlastné imanie celkom (Total equity). Ak nenájdeš s istotou, vráť null.")
     ciste_penazne_toky_z_prevadzkovej_cinnosti: Optional[float] = Field(None, description="Prevádzkový cash flow. Ak nenájdeš s istotou, vráť null.")
+    typ_zavierky: Optional[str] = Field(None, description="Typ závierky: 'IFRS', 'MICRO' pre Úč MUJ, inak 'SK_GAAP'. Používa sa na sanity check.")
 
 from .prompt_common import COMMON_BUT_PATTERNS, COMMON_FORENSIC_RULES, COMMON_TEXT_QUALITY_RULES

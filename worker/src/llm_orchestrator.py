@@ -4,6 +4,7 @@ import time
 
 from src.config import settings
 from src.log_helpers import log_llm_retry, get_correlation_id
+from src.agents.shared import _mark_gemini_key_failed, _mark_last_key_failed
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
                 error_reason = "429 (Quota/Credits)" if "429" in error_str or "resource_exhausted" in error_str else "503 (Unavailable)"
                 log_llm_retry(label, model, attempt + 1, len(_BACKOFF_SECONDS), error_reason, wait)
                 _log_failed_call_cost(model, label, error_reason)
+                _mark_last_key_failed()
                 if attempt < len(_BACKOFF_SECONDS) - 1:
                     await asyncio.sleep(wait)
                     continue
@@ -121,7 +123,9 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             _log_failed_call_cost(fb_model, label, "fallback_error")
             if "404" not in error_str and "not_found" not in error_str:
                 # Pre 429/503 skúsiť ďalší fallback; pre iné chyby re-raise
-                if "503" not in error_str and "429" not in error_str and "resource_exhausted" not in error_str:
+                if "503" in error_str or "429" in error_str or "resource_exhausted" in error_str:
+                    _mark_last_key_failed()
+                else:
                     raise
             model = fb_model
             continue

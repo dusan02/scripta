@@ -133,6 +133,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
                 "osobne_naklady", "pohladavky_z_obchodneho_styku",
                 "zavazky_z_obchodneho_styku", "zasoby", "odpisy",
                 "investicny_cash_flow", "financny_cash_flow", "uroky", "dan_z_prijmu",
+                "zavazky_sp", "danove_zavazky", "zavazky_zamestnanci",
             ]
             for field_name in _MONETARY_FIELDS:
                 val = getattr(m, field_name, None)
@@ -166,7 +167,8 @@ async def verify_critical_numbers_blind(file_path: str, model: str = settings.mo
     prompt_text = (
         "Si finančný audítor. V priloženom dokumente nájdi presné hodnoty pre týchto 5 polí. "
         "Ak si nie si istý alebo hodnotu nevieš nájsť, vráť null. "
-        "Nezabudni na pravidlá pre 'v tisícoch EUR' alebo 'v miliónoch EUR' (vtedy hodnoty vynásob príslušne)."
+        "Nezabudni na pravidlá pre 'v tisícoch EUR' alebo 'v miliónoch EUR' (vtedy hodnoty vynásob príslušne). "
+        "Urč aj typ_zavierky: 'IFRS' ak dokument uvádza IFRS, 'MICRO' pre Úč MUJ mikro jednotky, inak 'SK_GAAP'."
     )
     
     config = types.GenerateContentConfig(
@@ -188,12 +190,15 @@ async def verify_critical_numbers_blind(file_path: str, model: str = settings.mo
 
     # Sanity check: rovnaká logika ako v extract_financial_data —
     # ak Flash ignoroval "v tisícoch EUR", násobíme ×1000 alebo ×1 000 000.
+    # Preskakujeme pre MICRO firmy (malé firmy môžu mať legálne aktíva < 10000).
+    # Ak typ_zavierky je None (LLM ho nevrátil), tiež preskakujeme — konzervatívne
+    # je neznásobiť (môže to byť MICRO firma) ako znásobiť MICRO hodnoty x1000.
     _MONETARY_FIELDS = [
         "celkove_aktiva", "trzby_z_hlavnej_cinnosti",
         "zisk_alebo_strata_po_zdaneni", "vlastne_imanie_celkom",
         "ciste_penazne_toky_z_prevadzkovej_cinnosti",
     ]
-    if data.celkove_aktiva is not None and data.celkove_aktiva > 0:
+    if data.celkove_aktiva is not None and data.celkove_aktiva > 0 and data.typ_zavierky not in ('MICRO', None):
         if data.celkove_aktiva < 100:
             logger.warning(f"[VERIFY SANITY] celkove_aktiva={data.celkove_aktiva} < 100 — násobím ×1 000 000")
             multiplier = 1_000_000

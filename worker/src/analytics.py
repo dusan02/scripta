@@ -1,6 +1,7 @@
 import json as _json
 import unicodedata
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import List, Dict, Any, Optional, Union
 
 
@@ -9,6 +10,56 @@ def _get(obj: Any, attr: str, default: Any = None) -> Any:
     if isinstance(obj, dict):
         return obj.get(attr, default)
     return getattr(obj, attr, default)
+
+
+def _to_float(val: Any) -> Optional[float]:
+    """Convert a value to float, handling Decimal (from DB after Float→Decimal migration).
+    Returns None if val is None, raises ValueError for non-numeric types."""
+    if val is None:
+        return None
+    if isinstance(val, Decimal):
+        return float(val)
+    if isinstance(val, (int, float)):
+        return float(val)
+    return float(val)
+
+
+def _sanitize_stmt_numeric(stmt: Any) -> Any:
+    """Sanitize a financial statement: convert all Decimal numeric fields to float.
+    Handles both dict and object (Prisma model) inputs.
+    Returns a dict with float values for all numeric fields."""
+    _NUMERIC_FIELDS = (
+        'mainActivityRevenue', 'totalAssets', 'currentAssets', 'equity',
+        'netProfitLoss', 'shortTermLiabilities', 'longTermLiabilities',
+        'operatingCashFlow', 'grossProfit', 'depreciation', 'inventory',
+        'tradeReceivables', 'tradePayables', 'staffCosts', 'interestExpense',
+        'incomeTax', 'investingCashFlow', 'financingCashFlow',
+        'cashAndEquivalents', 'socialInsuranceLiabilities', 'taxLiabilities',
+        'employeeLiabilities', 'monthsInPeriod', 'year',
+    )
+    result = {}
+    for field_name in _NUMERIC_FIELDS:
+        val = _get(stmt, field_name, None)
+        if val is not None:
+            if field_name == 'year':
+                result[field_name] = int(val)
+            else:
+                result[field_name] = _to_float(val)
+        else:
+            result[field_name] = None
+    # Copy any other fields that might exist
+    if isinstance(stmt, dict):
+        for k, v in stmt.items():
+            if k not in result:
+                result[k] = v
+    else:
+        for attr in dir(stmt):
+            if not attr.startswith('_') and attr not in result:
+                try:
+                    result[attr] = getattr(stmt, attr)
+                except Exception:
+                    pass
+    return result
 
 
 # ── Cash Flow sanitizácia ─────────────────────────────────────────────────────
@@ -63,7 +114,7 @@ def estimate_missing_cash_flow(stmts: list) -> bool:
         if net_profit is None or depreciation is None:
             continue
         if inv is not None and inv_prev is not None and recv is not None and recv_prev is not None and pay is not None and pay_prev is not None:
-            approx_cf = net_profit + depreciation - (inv - inv_prev) - (recv - recv_prev) + (pay - pay_prev)
+            approx_cf = float(net_profit) + float(depreciation) - (float(inv) - float(inv_prev)) - (float(recv) - float(recv_prev)) + (float(pay) - float(pay_prev))
             if isinstance(s, dict):
                 s['operatingCashFlow'] = approx_cf
             else:
@@ -94,6 +145,9 @@ def compute_white_horse_indicator(statements: list) -> dict:
 
     if not statements:
         return {"penalty": 0, "flags": []}
+
+    # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+    statements = [_sanitize_stmt_numeric(s) for s in statements]
 
     latest_stmt = statements[-1]
     revenue = _get(latest_stmt, 'mainActivityRevenue', 0) or 0
@@ -151,6 +205,9 @@ def detect_startup_profile(statements: list) -> dict:
     if not statements:
         return {"is_startup": False}
 
+    # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+    statements = [_sanitize_stmt_numeric(s) for s in statements]
+
     latest = statements[-1]
     revenue = _get(latest, 'mainActivityRevenue', None)
     equity = _get(latest, 'equity', None)
@@ -181,6 +238,8 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
     Vráti skóre, zónu a komponentné hodnoty.
     """
     try:
+        # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+        stmt = _sanitize_stmt_numeric(stmt)
         total_assets = _get(stmt, 'totalAssets')
         current_assets = _get(stmt, 'currentAssets')
         equity = _get(stmt, 'equity')
@@ -192,12 +251,16 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
         if total_assets is None or total_assets <= 0 or net_profit is None or equity is None or short_liabilities is None:
             return {"z_score": None, "zone": "N/A", "reason": "Nedostatok dát pre výpočet"}
 
-        current_assets = current_assets if current_assets is not None else 0
+        # Distinguish missing data (None) from legitimately zero.
+        # If currentAssets is None, use fallback estimate (60% of total assets).
+        # If currentAssets is 0 (legitimate), use 0 — not the fallback.
+        has_current_assets = current_assets is not None
+        current_assets = current_assets if has_current_assets else 0
         long_liabilities = long_liabilities if long_liabilities is not None else 0
 
         # Working capital = Obežný majetok - Krátkodobé záväzky
         # Ak máme currentAssets z DB, použijeme ho. Inak fallback na hrubý odhad.
-        if current_assets > 0:
+        if has_current_assets:
             working_capital = current_assets - short_liabilities
         else:
             working_capital = (total_assets * 0.6) - short_liabilities
@@ -265,6 +328,8 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
     Vypočíta kľúčové finančné ukazovatele pre jedno obdobie.
     """
     try:
+        # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+        stmt = _sanitize_stmt_numeric(stmt)
         total_assets = _get(stmt, 'totalAssets', 0) or 0
         current_assets = _get(stmt, 'currentAssets', 0) or 0
         equity = _get(stmt, 'equity', 0) or 0
@@ -278,6 +343,7 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         op_cashflow = op_cashflow_raw if op_cashflow_raw is not None else 0
         # Anualizácia tržieb pre DSO/DPO pri skrátených obdobiach (napr. 3-mes. závierka)
         months_in_period = _get(stmt, 'monthsInPeriod', 12) or 12
+        revenue = float(revenue)
         annualized_revenue = revenue * (12 / months_in_period) if months_in_period > 0 else revenue
         gross_profit = _get(stmt, 'grossProfit', 0) or 0
         inventory = _get(stmt, 'inventory', 0) or 0
@@ -383,8 +449,9 @@ def compute_piotroski_f_score(statements: list) -> dict:
     if not statements or len(statements) < 2:
         return {"score": None, "flags": ["Nedostatok dát pre Piotroski F-score (min. 2 roky)"]}
 
-    curr = statements[-1]
-    prev = statements[-2]
+    # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+    curr = _sanitize_stmt_numeric(statements[-1])
+    prev = _sanitize_stmt_numeric(statements[-2])
 
     c_net_profit = _get(curr, 'netProfitLoss', None)
     c_assets = _get(curr, 'totalAssets', None)
@@ -480,8 +547,9 @@ def compute_beneish_m_score(statements: list) -> dict:
     if not statements or len(statements) < 2:
         return {"m_score": None, "flags": ["Nedostatok dát pre Beneish M-score (min. 2 roky)"]}
 
-    curr = statements[-1]
-    prev = statements[-2]
+    # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+    curr = _sanitize_stmt_numeric(statements[-1])
+    prev = _sanitize_stmt_numeric(statements[-2])
 
     c_rev = _get(curr, 'mainActivityRevenue', 0) or 0
     p_rev = _get(prev, 'mainActivityRevenue', 0) or 0
@@ -502,8 +570,9 @@ def compute_beneish_m_score(statements: list) -> dict:
     c_long_liab = _get(curr, 'longTermLiabilities', 0) or 0
     p_long_liab = _get(prev, 'longTermLiabilities', 0) or 0
     c_net_profit = _get(curr, 'netProfitLoss', 0) or 0
-    c_op_cf = _get(curr, 'operatingCashFlow', None)
-    c_op_cf = c_op_cf if c_op_cf is not None else 0
+    c_op_cf_raw = _get(curr, 'operatingCashFlow', None)
+    c_op_cf = c_op_cf_raw if c_op_cf_raw is not None else 0
+    has_op_cf = c_op_cf_raw is not None
 
     flags = []
 
@@ -545,8 +614,14 @@ def compute_beneish_m_score(statements: list) -> dict:
         sgai = 1.0
 
     # TATA = Total Accruals to Total Assets
-    total_accruals = c_net_profit - c_op_cf
-    tata = (total_accruals / c_assets) if c_assets > 0 else 0
+    # If operatingCashFlow is missing (common in RÚZ simplified statements),
+    # TATA is meaningless — use neutral 0 instead of (net_profit - 0) / assets
+    # which would falsely flag profitable companies as manipulators.
+    if has_op_cf:
+        total_accruals = c_net_profit - c_op_cf
+        tata = (total_accruals / c_assets) if c_assets > 0 else 0
+    else:
+        tata = 0.0
 
     # LVGI = Leverage Index
     c_lev = ((c_short_liab + c_long_liab) / c_assets) if c_assets > 0 else 0
@@ -570,6 +645,9 @@ def compute_beneish_m_score(statements: list) -> dict:
         flags.append(f"Beneish M-score = {m:.3f} — PRAVDEPODOBNÝ manipulátor (M > -1.78)")
     else:
         flags.append(f"Beneish M-score = {m:.3f} — Bez znám manipulácie (M ≤ -1.78)")
+
+    if not has_op_cf:
+        flags.append("Pozn.: TATA neutralizované (prevádzkový cash flow chýba) — M-score je menej spoľahlivý")
 
     return {
         "m_score": m,
@@ -651,7 +729,7 @@ def _get_latest_revenue(financial_statements: list) -> Optional[float]:
     try:
         latest = max(financial_statements, key=lambda s: getattr(s, "year", 0) or (s.get("year", 0) if isinstance(s, dict) else 0))
         rev = getattr(latest, "mainActivityRevenue", 0) or (latest.get("mainActivityRevenue", 0) if isinstance(latest, dict) else 0)
-        return rev or None
+        return _to_float(rev) or None
     except Exception:
         return None
 
@@ -1129,9 +1207,14 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     """
     if not statements:
         return {"error": "Žiadne dáta na výpočet trendov."}
-        
+
+    # Sanitizácia: konverzia Decimal (z DB po migrácii Float→Decimal) na float.
+    # Toto zabezpečí že všetky aritmetické operácie v downstream funkciách budú
+    # pracovať s float hodnotami, nie Decimal (ktorý nepodporuje * float).
+    sanitized = [_sanitize_stmt_numeric(s) for s in statements]
+
     # Zoradiť vzostupne podľa roku (najstaršie prvé)
-    sorted_stmts = sorted(statements, key=lambda x: _get(x, 'year', 0))
+    sorted_stmts = sorted(sanitized, key=lambda x: _get(x, 'year', 0) or 0)
     
     first = sorted_stmts[0]
     last = sorted_stmts[-1]
@@ -1215,7 +1298,11 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         # Anualizácia tržieb pre korektný YoY výpočet pri posunutých hospodárskych rokoch
         prev_months = _get(prev, 'monthsInPeriod', 12) or 12
         curr_months = _get(curr, 'monthsInPeriod', 12) or 12
-        
+
+        # Konverzia na float — hodnoty z DB môžu byť Decimal (po migrácii Float→Decimal)
+        prev_rev = float(prev_rev)
+        curr_rev = float(curr_rev)
+
         ann_prev_rev = prev_rev * (12 / prev_months) if prev_months > 0 else prev_rev
         ann_curr_rev = curr_rev * (12 / curr_months) if curr_months > 0 else curr_rev
         
@@ -1274,7 +1361,7 @@ def compute_state_liabilities_alert(statements: list, scraper_results: dict = No
     if not statements:
         return {"alerts": [], "has_critical": False}
 
-    latest = statements[-1]
+    latest = _sanitize_stmt_numeric(statements[-1])
     alerts = []
     has_critical = False
 
@@ -1391,7 +1478,7 @@ def compute_revenue_per_employee_alert(statements: list) -> dict:
     if not statements:
         return {"revenue_per_employee": None, "employee_count": None, "source": None, "alert": None}
 
-    latest = statements[-1]
+    latest = _sanitize_stmt_numeric(statements[-1])
     revenue = _get(latest, "mainActivityRevenue", None) or 0
     emp_count = _get(latest, "employeeCount", None)
     source = None
@@ -1452,6 +1539,9 @@ def compute_yoy_summary_table(statements: list, i18n_strings: dict = None) -> di
     _i = i18n_strings or {}
     if not statements:
         return {"headers": [], "rows": [], "years": []}
+
+    # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+    statements = [_sanitize_stmt_numeric(s) for s in statements]
 
     sorted_stmts = sorted(statements, key=lambda s: _get(s, "year", 0) or 0)
     years = [_get(s, "year", "?") for s in sorted_stmts]
