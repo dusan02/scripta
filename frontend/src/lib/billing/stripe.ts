@@ -226,6 +226,34 @@ export class StripeAdapter implements PaymentProviderAdapter {
           planName !== "addon" &&
           !planName.startsWith("payg");
 
+        // For subscription refunds, set endsAt to the current period end
+        // (not now()) so credits from previous periods are preserved until
+        // their natural expiry. Only a full chargeback should end immediately.
+        let subscriptionEndsAt: Date | undefined;
+        if (isSubscription && invoiceId) {
+          try {
+            const invoice = await stripe.invoices.retrieve(invoiceId);
+            const subscriptionId = typeof (invoice as Stripe.Invoice & { subscription?: string | null }).subscription === "string"
+              ? (invoice as Stripe.Invoice & { subscription?: string | null }).subscription
+              : null;
+            if (subscriptionId) {
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              const periodEnd = subscription.items?.data?.[0]?.current_period_end;
+              if (periodEnd) {
+                subscriptionEndsAt = new Date(periodEnd * 1000);
+              }
+            }
+          } catch (err) {
+            console.error("[STRIPE] Failed to retrieve subscription period end for refund:", err);
+          }
+        }
+        // Fallback: if we couldn't get period end, use now() only for full refunds
+        // (chargebacks). For partial refunds, don't cancel the subscription.
+        if (isSubscription && !subscriptionEndsAt) {
+          const isFullRefund = refundAmountCents >= chargeAmountCents;
+          subscriptionEndsAt = isFullRefund ? new Date() : undefined;
+        }
+
         if (userId && creditsToRevoke !== 0) {
           results.push({
             type: "charge.refunded",
@@ -234,9 +262,9 @@ export class StripeAdapter implements PaymentProviderAdapter {
             planName: planName || undefined,
             providerReference: refundId,
             originalProviderReference,
-            // Signal subscription cancellation by setting endsAt to now
-            // if this was a subscription plan refund.
-            endsAt: isSubscription ? new Date() : undefined,
+            // Set endsAt to period end (not now()) to preserve credits
+            // from previous periods. Only full chargebacks end immediately.
+            endsAt: subscriptionEndsAt,
           });
         }
         break;
