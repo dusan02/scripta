@@ -481,7 +481,7 @@ export default function ReportDetailPage() {
   const [sharing, setSharing] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [cancelCountdown, setCancelCountdown] = useState(8);
+  const [cancelCountdown, setCancelCountdown] = useState(15);
   const [etaCountdown, setEtaCountdown] = useState<number | null>(null);
   const etaRef = useRef<number | null>(null);
 

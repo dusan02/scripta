@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const WORKER_URL = process.env.WORKER_URL ?? "http://localhost:8000";
 const WORKER_SECRET = process.env.WORKER_SECRET;
-const CANCEL_WINDOW_SECONDS = 8;
+const CANCEL_WINDOW_SECONDS = 15;
 
 export async function POST(
   req: NextRequest,
