@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 async function getRecentReports(userId: string) {
   try {
     return await prisma.reportRequest.findMany({
-      where: { userId },
+      where: { userId, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 10,
       include: {

@@ -43,6 +43,8 @@ model User {
   emailBouncedReason String?
   emailComplained    Boolean         @default(false)
   emailComplainedAt  DateTime?
+  // Soft delete — null means active, non-null means deleted (timestamp)
+  deletedAt          DateTime?
   reportRequests     ReportRequest[]
   feedback           Feedback[]
   wallet             Wallet?
@@ -72,6 +74,7 @@ model ReportRequest {
   attachmentsConfig Json?             // Per-report override of attachment visibility
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?           // Soft delete — null means active
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   sources         ReportSource[]
 

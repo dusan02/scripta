@@ -19,7 +19,7 @@ export async function GET(
       include: { sources: true },
     });
 
-    if (!report) {
+    if (!report || report.deletedAt) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 

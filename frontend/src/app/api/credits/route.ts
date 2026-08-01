@@ -16,6 +16,7 @@ export async function GET() {
     const count = await prisma.reportRequest.count({
       where: {
         userId: session.user.id,
+        deletedAt: null,
         createdAt: { gte: startOfMonth },
       },
     });

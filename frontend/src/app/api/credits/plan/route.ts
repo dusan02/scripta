@@ -23,12 +23,12 @@ export async function GET(req: NextRequest) {
       prisma.wallet.findUnique({
         where: { userId: user.id },
       }),
-      prisma.reportRequest.count({ where: { userId: user.id } }),
-      prisma.reportRequest.count({ where: { userId: user.id, status: { in: ["COMPLETED", "PARTIAL"] }, createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
-      prisma.reportRequest.count({ where: { userId: user.id, status: "FAILED", createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
-      prisma.reportRequest.count({ where: { userId: user.id, createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
+      prisma.reportRequest.count({ where: { userId: user.id, deletedAt: null } }),
+      prisma.reportRequest.count({ where: { userId: user.id, deletedAt: null, status: { in: ["COMPLETED", "PARTIAL"] }, createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
+      prisma.reportRequest.count({ where: { userId: user.id, deletedAt: null, status: "FAILED", createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
+      prisma.reportRequest.count({ where: { userId: user.id, deletedAt: null, createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
       prisma.reportRequest.findMany({
-        where: { userId: user.id },
+        where: { userId: user.id, deletedAt: null },
         orderBy: { createdAt: "desc" },
         take: 5,
         select: { id: true, ico: true, companyName: true, status: true, createdAt: true },

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
 
-    const where: Record<string, unknown> = { userId: user.id };
+    const where: Record<string, unknown> = { userId: user.id, deletedAt: null };
     // Date range filter (replaces hardcoded 30-day cutoff when provided)
     if (dateFrom || dateTo) {
       const dateFilter: Record<string, unknown> = {};
@@ -280,8 +280,9 @@ export async function DELETE(req: NextRequest) {
     const deleteAll = searchParams.get("all") === "true";
 
     if (deleteAll) {
-      const result = await prisma.reportRequest.deleteMany({
-        where: { userId: user.id },
+      const result = await prisma.reportRequest.updateMany({
+        where: { userId: user.id, deletedAt: null },
+        data: { deletedAt: new Date() },
       });
       revalidatePath("/history");
       revalidatePath("/dashboard");
@@ -295,8 +296,9 @@ export async function DELETE(req: NextRequest) {
       if (idList.length === 0) {
         return NextResponse.json({ error: "No IDs provided" }, { status: 400 });
       }
-      const result = await prisma.reportRequest.deleteMany({
-        where: { id: { in: idList }, userId: user.id },
+      const result = await prisma.reportRequest.updateMany({
+        where: { id: { in: idList }, userId: user.id, deletedAt: null },
+        data: { deletedAt: new Date() },
       });
       revalidatePath("/history");
       revalidatePath("/dashboard");
@@ -311,7 +313,7 @@ export async function DELETE(req: NextRequest) {
       where: { id: reportId },
     });
 
-    if (!report) {
+    if (!report || report.deletedAt) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
@@ -319,8 +321,9 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.reportRequest.delete({
+    await prisma.reportRequest.update({
       where: { id: reportId },
+      data: { deletedAt: new Date() },
     });
 
     revalidatePath("/history");

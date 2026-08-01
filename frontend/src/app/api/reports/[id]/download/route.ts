@@ -43,7 +43,7 @@ export async function GET(
       where: { id: params.id },
     });
 
-    if (!report) {
+    if (!report || report.deletedAt) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 

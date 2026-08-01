@@ -26,10 +26,10 @@ export async function GET(
 
     const report = await prisma.reportRequest.findUnique({
       where: { id: params.id },
-      select: { id: true, userId: true, ico: true, status: true },
+      select: { id: true, userId: true, ico: true, status: true, deletedAt: true },
     });
 
-    if (!report || !report.ico) {
+    if (!report || !report.ico || report.deletedAt) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
 
