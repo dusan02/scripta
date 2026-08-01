@@ -70,13 +70,11 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
                         norm_row = _normalize_name(row_name)
 
                         if norm_verify and norm_row:
-                            # Exact normalized match — "billa s r o" == "billa s r o"
-                            # Also check without legal form suffix for robustness
-                            matches = (
-                                norm_verify == norm_row
-                                or norm_verify.startswith(norm_row)
-                                or norm_row.startswith(norm_verify)
-                            )
+                            # Exact normalized match only.
+                            # _normalize_name strips legal form (s.r.o., a.s., etc.)
+                            # so "BILLA s.r.o." → "billa" and "BILLABONK, s.r.o." → "billabonk"
+                            # startswith would match "billabonk".startswith("billa") = True → FALSE POSITIVE
+                            matches = norm_verify == norm_row
                             if matches:
                                 # Format this row
                                 formatted = self._format_row(row_data, headers)
@@ -101,14 +99,16 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
                 formatted = await self._parse_table_with_headers(page)
                 if formatted:
                     table_text = " ".join(formatted)
-                    if not self._verify_name_match(search_term, table_text):
+                    # Use company_name (full) for verification, not search_term (stripped)
+                    verify_name_fb = company_name or search_term
+                    if not self._verify_name_match(verify_name_fb, table_text):
                         logger.info(
                             f"[{self.source_type}] Tabuľka nájdená, ale názov sa nezhoduje "
-                            f"s hľadaným '{search_term}' — false positive (partial match)."
+                            f"s hľadaným '{verify_name_fb}' — false positive (partial match)."
                         )
                         return self._empty_findings()
 
-                    return f"POZOR: Subjekt '{search_term}' je v zozname daňových dlžníkov.\n" + "\n\n".join(formatted)
+                    return f"POZOR: Subjekt '{verify_name_fb}' je v zozname daňových dlžníkov.\n" + "\n\n".join(formatted)
 
             return f"Subjekt '{search_term}' nájdený v zozname Finančnej správy bez zistených nedoplatkov."
 
