@@ -18,10 +18,15 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Retry configuration for S3 uploads
+S3_UPLOAD_MAX_RETRIES = 3
+S3_UPLOAD_BASE_DELAY = 2.0  # seconds — exponential backoff: 2s, 4s, 8s
 
 # Lazy-init singleton
 _s3_client = None
@@ -101,14 +106,37 @@ def upload_report_file(
     content_type = "application/pdf" if filename.endswith(".pdf") else "application/octet-stream"
 
     logger.info(f"[s3] Uploading {local_path} → s3://{_s3_bucket}/{key}")
-    _s3_client.upload_file(
-        str(local_path),
-        _s3_bucket,
-        key,
-        ExtraArgs={"ContentType": content_type},
-    )
-    logger.info(f"[s3] Upload complete: {key}")
-    return key
+
+    # Retry with exponential backoff — handles transient network errors,
+    # connection timeouts, and S3 5xx errors that boto3's built-in retry
+    # might not cover (e.g. upload_file uses a different code path).
+    last_error: Optional[Exception] = None
+    for attempt in range(1, S3_UPLOAD_MAX_RETRIES + 1):
+        try:
+            _s3_client.upload_file(
+                str(local_path),
+                _s3_bucket,
+                key,
+                ExtraArgs={"ContentType": content_type},
+            )
+            logger.info(f"[s3] Upload complete: {key} (attempt {attempt})")
+            return key
+        except Exception as e:
+            last_error = e
+            if attempt < S3_UPLOAD_MAX_RETRIES:
+                delay = S3_UPLOAD_BASE_DELAY * (2 ** (attempt - 1))
+                logger.warning(
+                    f"[s3] Upload attempt {attempt}/{S3_UPLOAD_MAX_RETRIES} failed: {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+            else:
+                logger.error(
+                    f"[s3] Upload failed after {S3_UPLOAD_MAX_RETRIES} attempts: {e}"
+                )
+
+    # All retries exhausted — re-raise so caller can handle (e.g. mark report FAILED)
+    raise last_error  # type: ignore[misc]
 
 
 def delete_report_file(s3_key: str) -> None:

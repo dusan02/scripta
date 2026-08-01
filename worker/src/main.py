@@ -551,8 +551,25 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # Upload the final PDF to S3 (or fall back to local path in dev mode).
         # The returned value is the S3 object key (e.g. "reports/{id}/evidence_binder.pdf")
         # or a "local://" prefixed path when S3 is not configured.
-        s3_key = upload_report_file(final_path, task.report_request_id, ico=task.ico)
-        _log.info(f"[{_rid}] Report file stored: {s3_key}")
+        # upload_report_file has built-in retry with exponential backoff (3 attempts).
+        # If all retries fail, mark the report as FAILED so it doesn't stay stuck in PROCESSING.
+        try:
+            s3_key = upload_report_file(final_path, task.report_request_id, ico=task.ico)
+            _log.info(f"[{_rid}] Report file stored: {s3_key}")
+        except Exception as upload_err:
+            _log.error(f"[{_rid}] S3 upload failed after all retries: {upload_err}")
+            await update_report_status(
+                task.report_request_id,
+                "FAILED",
+                result_file_path=None,
+                company_name=company_name,
+                verifa_score=verifa_score_snapshot,
+            )
+            await create_bug_report(
+                task.report_request_id,
+                f"S3 upload failed after retries: {upload_err}",
+            )
+            raise
 
         # Cleanup medziproduktov — ponechať len evidence_binder.pdf
         # (In S3 mode, the local copy is also cleaned up after upload.)
