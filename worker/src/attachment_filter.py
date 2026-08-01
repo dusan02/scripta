@@ -23,10 +23,11 @@ ATTACHMENT_CATEGORY_MAP: dict[str, list[str]] = {
 }
 
 # Defaultné hodnoty: všetko true okrem dlhých príloh
+# Musí byť zosynchronizované s frontend settings page defaults.
 DEFAULT_ATTACHMENTS_CONFIG: dict[str, bool] = {
     "obchodny_register": True,
     "zivnostensky_register": True,
-    "auditorska_sprava": True,
+    "auditorska_sprava": False,
     "uctovna_zavierka_a_poznámky": False,
 }
 
@@ -56,7 +57,8 @@ class AttachmentFilter:
     @classmethod
     def from_dict(cls, data: Optional[dict[str, bool]]) -> "AttachmentFilter":
         if data is None:
-            return cls(config=None)
+            # No user config → use defaults (excludes long financial statements)
+            return cls(config=dict(DEFAULT_ATTACHMENTS_CONFIG))
         # Zlúč s defaultmi — chýbajúce kľúče dostanú default hodnotu
         merged = {**DEFAULT_ATTACHMENTS_CONFIG, **data}
         return cls(config=merged)
