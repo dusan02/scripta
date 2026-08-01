@@ -476,6 +476,7 @@ export default function ReportDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -570,15 +571,28 @@ export default function ReportDetailPage() {
 
   const handleDownload = async () => {
     setDownloading(true);
+    setDownloadError(false);
     try {
       const namePart = report?.companyName || report?.ico || report?.id.slice(0, 8);
-      // Use the API endpoint which returns a 302 redirect to a presigned S3 URL
-      // (in production) or streams the file directly (in local dev mode).
-      // We use window.location.href so the browser follows the redirect
-      // and downloads the file without loading it into memory.
       const filename = `Verifa - ${namePart}.pdf`.replace(/\s+/g, "_");
-      window.location.href = `/api/reports/${params.id}/download?filename=${encodeURIComponent(filename)}`;
+      // Use fetch + blob instead of window.location.href so we can catch
+      // network errors and show a retry button. The download endpoint returns
+      // a 302 redirect to a presigned S3 URL — fetch follows it automatically.
+      const res = await fetch(`/api/reports/${params.id}/download?filename=${encodeURIComponent(filename)}`, {
+        redirect: "follow",
+      });
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch {
+      setDownloadError(true);
       toast.error(t("report.stiahnutDokument"));
     } finally {
       setDownloading(false);
@@ -875,6 +889,18 @@ export default function ReportDetailPage() {
                   </>
                 )}
               </button>
+            )}
+            {downloadError && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[11px] text-rose-400">{t("report.stiahnutDokument")}</span>
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 underline disabled:opacity-50"
+                >
+                  ↻ {t("report.skusitZnova") || "Skúsiť znova"}
+                </button>
+              </div>
             )}
           </div>
         </div>
