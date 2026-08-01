@@ -38,12 +38,15 @@ jobs:
           node-version: '20.x'
           cache: 'npm'
           cache-dependency-path: './frontend/package-lock.json'
-      - name: Ensure NEXTAUTH_SECRET for CI
-        # Forks don't have access to repo secrets — inject a temporary secret
-        # so the build can proceed. The real secret is used when available.
+      - name: Ensure NEXTAUTH env vars for CI
+        # Forks don't have access to repo secrets — inject temporary values
+        # so the build can proceed. Real values are used when available.
         run: |
           if [ -z "${NEXTAUTH_SECRET}" ]; then
             echo "NEXTAUTH_SECRET=ci-build-$(head -c32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | cut -c1-32)" >> $GITHUB_ENV
+          fi
+          if [ -z "${NEXTAUTH_URL}" ]; then
+            echo "NEXTAUTH_URL=http://localhost:3000" >> $GITHUB_ENV
           fi
       - name: Install Dependencies
         run: npm ci
