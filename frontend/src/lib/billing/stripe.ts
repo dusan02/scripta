@@ -1,10 +1,15 @@
 import Stripe from "stripe";
 import type { PaymentProviderAdapter, WebhookResult, CheckoutParams, CheckoutResult, PortalResult } from "./types";
+import { NEXTAUTH_URL } from "@/lib/env";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe {
   if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key && process.env.NODE_ENV === "production") {
+      throw new Error("[STRIPE] STRIPE_SECRET_KEY must be set in production — refusing to start with empty key.");
+    }
+    _stripe = new Stripe(key || "");
   }
   return _stripe;
 }
@@ -24,8 +29,11 @@ export class StripeAdapter implements PaymentProviderAdapter {
 
   async handleWebhook(body: string, signature: string): Promise<WebhookResult[]> {
     const stripe = getStripe();
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret && process.env.NODE_ENV === "production") {
+      throw new Error("[STRIPE] STRIPE_WEBHOOK_SECRET must be set in production — refusing to verify webhook without secret.");
+    }
+    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret || "");
     const results: WebhookResult[] = [];
 
     switch (event.type) {
@@ -253,8 +261,8 @@ export class StripeAdapter implements PaymentProviderAdapter {
     const checkoutParams: Stripe.Checkout.SessionCreateParams = {
       mode: plan.mode,
       line_items: [{ price: plan.priceId, quantity: 1 }],
-      success_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/credits?success=1`,
-      cancel_url: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/credits?canceled=1`,
+      success_url: `${NEXTAUTH_URL}/credits?success=1`,
+      cancel_url: `${NEXTAUTH_URL}/credits?canceled=1`,
       customer_email: userEmail,
       metadata: { userId, planId, credits: String(plan.credits), planName: plan.planName },
     };
@@ -279,7 +287,7 @@ export class StripeAdapter implements PaymentProviderAdapter {
       throw new Error("No active subscription found");
     }
 
-    const returnUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/credits`;
+    const returnUrl = `${NEXTAUTH_URL}/credits`;
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,

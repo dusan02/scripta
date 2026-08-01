@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { addCreditBatch, cancelSubscription, revokeCreditsOnRefund } from "@/lib/credits";
 import { getBillingAdapter } from "@/lib/billing";
 import { sendEmail, emailButtonStyle } from "@/lib/email";
+import { NEXTAUTH_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
               // --- User notification (only if wallet went negative) ---
               if (result.newBalance < 0 && result.userEmail) {
                 try {
-                  const pricingUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/pricing`;
+                  const pricingUrl = `${NEXTAUTH_URL}/pricing`;
                   await sendEmail({
                     to: result.userEmail,
                     subject: "Dôležité: Vrátenie platby a obmedzenie účtu",

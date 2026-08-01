@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, emailButtonStyle } from "@/lib/email";
 import { verifyWorkerSecret } from "@/lib/auth";
+import { NEXTAUTH_URL } from "@/lib/env";
 import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export async function POST(
         : "Zlyhaný";
 
     const companyName = report.companyName || report.ico || "Neznámy subjekt";
-    const reportUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reports/${report.id}`;
+    const reportUrl = `${NEXTAUTH_URL}/reports/${report.id}`;
 
     revalidatePath("/dashboard");
     revalidatePath("/history");

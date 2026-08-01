@@ -20,7 +20,7 @@ function uniqueSubjectSuffix(): string {
   return "\u200B".repeat(count);
 }
 
-const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
+import { NEXTAUTH_URL as BASE_URL } from "@/lib/env";
 const TOKEN_EXPIRY_MS = 1000 * 60 * 60 * 24; // 24 hours
 
 /** Hash a password using bcrypt with a fresh salt. */

@@ -43,12 +43,12 @@ const JWT_VERIFY_INTERVAL_MS = 5 * 60 * 1000; // 5 minút
 const _NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 if (!_NEXTAUTH_SECRET) {
   if (process.env.NODE_ENV === "production") {
-    console.error("[AUTH] NEXTAUTH_SECRET is not set — using insecure fallback. Set NEXTAUTH_SECRET env var!");
+    throw new Error("[AUTH] NEXTAUTH_SECRET must be set in production — refusing to start with insecure fallback.");
   }
   console.warn("[AUTH] NEXTAUTH_SECRET is not set — using insecure default for development only");
 }
 
-const _isLocalhost = (process.env.NEXTAUTH_URL || '').includes('localhost');
+const _isLocalhost = (process.env.NEXTAUTH_URL || '').includes('localhost') || !process.env.NEXTAUTH_URL;
 const _useSecureCookies = process.env.NODE_ENV === 'production' && !_isLocalhost;
 
 export const authOptions: NextAuthOptions = {

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { sendEmail } from "@/lib/email";
+import { NEXTAUTH_URL } from "@/lib/env";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const resetLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+    const resetLink = `${NEXTAUTH_URL}/reset-password?token=${token}`;
 
     await sendEmail({
       to: normalizedEmail,

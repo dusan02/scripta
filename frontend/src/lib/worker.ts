@@ -1,6 +1,10 @@
 // Klient pre komunikáciu s Python workerom.
 
-const WORKER_URL = process.env.WORKER_URL ?? "http://localhost:8000";
+const WORKER_URL = process.env.WORKER_URL;
+if (!WORKER_URL && process.env.NODE_ENV === "production") {
+  throw new Error("[WORKER] WORKER_URL must be set in production — refusing to start with localhost fallback.");
+}
+const WORKER_URL_RESOLVED = WORKER_URL || "http://localhost:8000";
 const WORKER_SECRET = process.env.WORKER_SECRET;
 
 export interface EnqueueTaskPayload {
@@ -40,7 +44,7 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
 
   let res: Response;
   try {
-    res = await fetch(`${WORKER_URL}/tasks`, {
+    res = await fetch(`${WORKER_URL_RESOLVED}/tasks`, {
       method: "POST",
       headers,
       body: JSON.stringify(workerPayload),
@@ -49,7 +53,7 @@ export async function enqueueReportTask(payload: EnqueueTaskPayload) {
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === "AbortError" || error.message?.includes("aborted")) {
-      throw new Error(`Worker (Python) na adrese ${WORKER_URL} neodpovedá (Timeout 8s). Zrejme nebeží, alebo je port (napr. 8000) obsadený iným systémovým procesom. Uistite sa, že Worker je zapnutý.`);
+      throw new Error(`Worker (Python) na adrese ${WORKER_URL_RESOLVED} neodpovedá (Timeout 8s). Zrejme nebeží, alebo je port (napr. 8000) obsadený iným systémovým procesom. Uistite sa, že Worker je zapnutý.`);
     }
     throw error;
   }
@@ -67,7 +71,7 @@ export async function checkWorkerHealth(): Promise<boolean> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 sec timeout for health check
   try {
-    const res = await fetch(`${WORKER_URL}/health`, { signal: controller.signal });
+    const res = await fetch(`${WORKER_URL_RESOLVED}/health`, { signal: controller.signal });
     clearTimeout(timeoutId);
     return res.ok;
   } catch {
