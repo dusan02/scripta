@@ -239,10 +239,10 @@ model Company {
   sizeCategory        String?              // Veľkosť org. (mikro, malá, stredná, veľká)
   employeeCount       Int?                 // Počet zamestnancov (z RÚZ)
   latestYear          Int?                 // Rok najnovšej závierky (denormalizované pre screener)
-  latestRevenue       Float?               // Tržby z najnovšej závierky
-  latestProfit        Float?               // Zisk/strata z najnovšej závierky
-  latestAssets        Float?               // Aktíva z najnovšej závierky
-  latestEquity        Float?               // Vlastné imanie z najnovšej závierky
+  latestRevenue       Decimal?  @db.Decimal(15, 2) // Tržby z najnovšej závierky
+  latestProfit        Decimal?  @db.Decimal(15, 2) // Zisk/strata z najnovšej závierky
+  latestAssets        Decimal?  @db.Decimal(15, 2) // Aktíva z najnovšej závierky
+  latestEquity        Decimal?  @db.Decimal(15, 2) // Vlastné imanie z najnovšej závierky
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
   companyEvents       CompanyEvent[]
@@ -293,7 +293,7 @@ model CompanyEvent {
   title        String   // Krátky názov udalosti
   description  String   @db.Text // Detailný popis
   eventDate    DateTime? // Dátum udalosti (ak známy z PDF)
-  amount       Float?   // Finančná hodnota (napr. výška nedoplatku, suma zmluvy)
+  amount       Decimal? @db.Decimal(15, 2) // Finančná hodnota (napr. výška nedoplatku, suma zmluvy)
   metadata     Json?    // Dodatočné dáta (súd, číslo spisu, IČO protistrany...)
   createdAt    DateTime @default(now())
 
@@ -323,29 +323,29 @@ model FinancialStatement {
   id                                    String          @id @default(uuid())
   companyIco                            String
   year                                  Int
-  totalAssets                           Float?
-  currentAssets                         Float?
-  equity                                Float?
-  shortTermLiabilities                  Float?
-  longTermLiabilities                   Float?        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
-  mainActivityRevenue                   Float?
-  grossProfit                           Float?        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
-  netProfitLoss                         Float?
-  cashAndEquivalents                    Float?
-  operatingCashFlow                     Float?
-  staffCosts                            Float?        // Osobné náklady
-  tradeReceivables                      Float?        // Pohľadávky z obch. styku
-  tradePayables                         Float?        // Záväzky z obch. styku
-  inventory                             Float?        // Zásoby
-  depreciation                          Float?        // Odpisy dlhodobého nehmotného a hmotného majetku
-  investingCashFlow                     Float?        // Čisté peňažné toky z investičnej činnosti
-  financingCashFlow                     Float?        // Čisté peňažné toky z finančnej činnosti
-  interestExpense                       Float?        // Úroky (náklady na úroky)
-  incomeTax                             Float?        // Daň z príjmov (riadok 60 vo Výkaze)
+  totalAssets                           Decimal?  @db.Decimal(15, 2)
+  currentAssets                         Decimal?  @db.Decimal(15, 2)
+  equity                                Decimal?  @db.Decimal(15, 2)
+  shortTermLiabilities                  Decimal?  @db.Decimal(15, 2)
+  longTermLiabilities                   Decimal?  @db.Decimal(15, 2)        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
+  mainActivityRevenue                   Decimal?  @db.Decimal(15, 2)
+  grossProfit                           Decimal?  @db.Decimal(15, 2)        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
+  netProfitLoss                         Decimal?  @db.Decimal(15, 2)
+  cashAndEquivalents                    Decimal?  @db.Decimal(15, 2)
+  operatingCashFlow                     Decimal?  @db.Decimal(15, 2)
+  staffCosts                            Decimal?  @db.Decimal(15, 2)        // Osobné náklady
+  tradeReceivables                      Decimal?  @db.Decimal(15, 2)        // Pohľadávky z obch. styku
+  tradePayables                         Decimal?  @db.Decimal(15, 2)        // Záväzky z obch. styku
+  inventory                             Decimal?  @db.Decimal(15, 2)        // Zásoby
+  depreciation                          Decimal?  @db.Decimal(15, 2)        // Odpisy dlhodobého nehmotného a hmotného majetku
+  investingCashFlow                     Decimal?  @db.Decimal(15, 2)        // Čisté peňažné toky z investičnej činnosti
+  financingCashFlow                     Decimal?  @db.Decimal(15, 2)        // Čisté peňažné toky z finančnej činnosti
+  interestExpense                       Decimal?  @db.Decimal(15, 2)        // Úroky (náklady na úroky)
+  incomeTax                             Decimal?  @db.Decimal(15, 2)        // Daň z príjmov (riadok 60 vo Výkaze)
   employeeCount                         Int?          // Odhadovaný počet zamestnancov
-  socialInsuranceLiabilities            Float?        // Záväzky zo sociálneho poistenia (336A) — trestná zodpovednosť štatutára
-  taxLiabilities                        Float?        // Daňové záväzky a dotácie (341-347) — riziko daňovej exekúcie
-  employeeLiabilities                   Float?        // Záväzky voči zamestnancom (331, 333) — riziko nevyplatených miezd
+  socialInsuranceLiabilities            Decimal?  @db.Decimal(15, 2)        // Záväzky zo sociálneho poistenia (336A) — trestná zodpovednosť štatutára
+  taxLiabilities                        Decimal?  @db.Decimal(15, 2)        // Daňové záväzky a dotácie (341-347) — riziko daňovej exekúcie
+  employeeLiabilities                   Decimal?  @db.Decimal(15, 2)        // Záväzky voči zamestnancom (331, 333) — riziko nevyplatených miezd
   currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
   statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky

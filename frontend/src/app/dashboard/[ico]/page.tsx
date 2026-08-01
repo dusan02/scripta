@@ -2,15 +2,18 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import FinancialChart from "@/components/FinancialChart";
+import { num } from "@/lib/format";
+import type { Decimal } from "@prisma/client/runtime/library";
 
-function formatCurrency(value: number | null) {
-  if (value === null || value === undefined) return "N/A";
+function formatCurrency(value: Decimal | number | null) {
+  const n = num(value);
+  if (n === null) return "N/A";
   return new Intl.NumberFormat("sk-SK", {
     style: "currency",
     currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(n);
 }
 
 export default async function DashboardPage({
@@ -314,7 +317,7 @@ export default async function DashboardPage({
           <MetricCard 
             title="Vlastné Imanie" 
             value={formatCurrency(latestStatement.equity)} 
-            isNegative={latestStatement.equity !== null && latestStatement.equity < 0}
+            isNegative={latestStatement.equity !== null && num(latestStatement.equity)! < 0}
           />
           <MetricCard 
             title="Tržby" 
@@ -323,7 +326,7 @@ export default async function DashboardPage({
           <MetricCard 
             title="Zisk / Strata" 
             value={formatCurrency(latestStatement.netProfitLoss)} 
-            isNegative={latestStatement.netProfitLoss !== null && latestStatement.netProfitLoss < 0}
+            isNegative={latestStatement.netProfitLoss !== null && num(latestStatement.netProfitLoss)! < 0}
           />
           <MetricCard 
             title="Krátkodobé záväzky" 
@@ -336,7 +339,7 @@ export default async function DashboardPage({
           <MetricCard 
             title="CF z prevádzky" 
             value={formatCurrency(latestStatement.operatingCashFlow)} 
-            isNegative={latestStatement.operatingCashFlow !== null && latestStatement.operatingCashFlow < 0}
+            isNegative={latestStatement.operatingCashFlow !== null && num(latestStatement.operatingCashFlow)! < 0}
           />
         </section>
 
@@ -423,9 +426,9 @@ export default async function DashboardPage({
               let nYears = company.financialStatements.length;
               if (nYears > 0 && nYears <= 2) {
                 const latest = company.financialStatements[nYears - 1];
-                const rev = latest.mainActivityRevenue;
-                const eq = latest.equity;
-                const assets = latest.totalAssets;
+                const rev = num(latest.mainActivityRevenue);
+                const eq = num(latest.equity);
+                const assets = num(latest.totalAssets);
                 if (assets !== null && assets > 0 && eq !== null && eq >= 500000 && (rev === null || rev <= 100000)) {
                   isStartup = true;
                   equityStr = formatCurrency(eq);
@@ -466,8 +469,8 @@ export default async function DashboardPage({
             })()}
             <FinancialChart data={company.financialStatements.map(s => ({
               year: s.year,
-              netProfitLoss: s.netProfitLoss,
-              operatingCashFlow: s.operatingCashFlow
+              netProfitLoss: num(s.netProfitLoss),
+              operatingCashFlow: num(s.operatingCashFlow)
             }))} />
           </>
         )}
@@ -583,7 +586,7 @@ export default async function DashboardPage({
                       </td>
                       <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.totalAssets)}</td>
                       <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.mainActivityRevenue)}</td>
-                      <td className={`px-6 py-4 font-medium ${stmt.netProfitLoss !== null && stmt.netProfitLoss < 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                      <td className={`px-6 py-4 font-medium ${stmt.netProfitLoss !== null && num(stmt.netProfitLoss)! < 0 ? "text-rose-400" : "text-emerald-400"}`}>
                         {formatCurrency(stmt.netProfitLoss)}
                       </td>
                       <td className="px-6 py-4 text-neutral-300">{formatCurrency(stmt.staffCosts)}</td>

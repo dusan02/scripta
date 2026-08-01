@@ -9,7 +9,7 @@ import { CompanyPersons } from "@/components/company-persons";
 import { ReportCTA } from "@/components/report-cta";
 import { CompanyInsights } from "@/components/company-insights";
 import { slugify, parseCompanySlug } from "@/lib/slug";
-import { fmtEUR } from "@/lib/format";
+import { fmtEUR, num } from "@/lib/format";
 import { calcTrend } from "@/lib/trend";
 import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
@@ -68,30 +68,30 @@ export default async function CompanyPage({ params }: Params) {
   const prev = stmts[1];
 
   const trends = {
-    revenue: calcTrend(latest?.mainActivityRevenue, prev?.mainActivityRevenue),
-    profit: calcTrend(latest?.netProfitLoss, prev?.netProfitLoss),
-    assets: calcTrend(latest?.totalAssets, prev?.totalAssets),
-    equity: calcTrend(latest?.equity, prev?.equity),
+    revenue: calcTrend(num(latest?.mainActivityRevenue), num(prev?.mainActivityRevenue)),
+    profit: calcTrend(num(latest?.netProfitLoss), num(prev?.netProfitLoss)),
+    assets: calcTrend(num(latest?.totalAssets), num(prev?.totalAssets)),
+    equity: calcTrend(num(latest?.equity), num(prev?.equity)),
   };
 
   const chartData = [...stmts].sort((a, b) => a.year - b.year).map(s => ({
     year: s.year.toString(),
-    tržby: s.mainActivityRevenue,
-    zisk: s.netProfitLoss,
-    daň: s.incomeTax,
-    aktíva: s.totalAssets,
-    vlastnéImanie: s.equity,
+    tržby: num(s.mainActivityRevenue),
+    zisk: num(s.netProfitLoss),
+    daň: num(s.incomeTax),
+    aktíva: num(s.totalAssets),
+    vlastnéImanie: num(s.equity),
   }));
 
   const balanceData = latest ? {
-    cash: latest.cashAndEquivalents,
-    receivables: latest.tradeReceivables,
-    inventory: latest.inventory,
-    currentAssets: latest.currentAssets,
-    totalAssets: latest.totalAssets,
-    equity: latest.equity,
-    shortTermLiabilities: latest.shortTermLiabilities,
-    longTermLiabilities: latest.longTermLiabilities,
+    cash: num(latest.cashAndEquivalents),
+    receivables: num(latest.tradeReceivables),
+    inventory: num(latest.inventory),
+    currentAssets: num(latest.currentAssets),
+    totalAssets: num(latest.totalAssets),
+    equity: num(latest.equity),
+    shortTermLiabilities: num(latest.shortTermLiabilities),
+    longTermLiabilities: num(latest.longTermLiabilities),
   } : null;
 
   const jsonLd = {
@@ -149,7 +149,21 @@ export default async function CompanyPage({ params }: Params) {
 
         <CompanyHeader company={company} latestYear={latest?.year} />
 
-        <CompanyInsights insights={generateCompanyInsights(stmts, {
+        <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
+          year: s.year,
+          mainActivityRevenue: num(s.mainActivityRevenue),
+          netProfitLoss: num(s.netProfitLoss),
+          totalAssets: num(s.totalAssets),
+          equity: num(s.equity),
+          grossProfit: num(s.grossProfit),
+          staffCosts: num(s.staffCosts),
+          depreciation: num(s.depreciation),
+          incomeTax: num(s.incomeTax),
+          shortTermLiabilities: num(s.shortTermLiabilities),
+          longTermLiabilities: num(s.longTermLiabilities),
+          currentAssets: num(s.currentAssets),
+          cashAndEquivalents: num(s.cashAndEquivalents),
+        })), {
           forensicRedFlags: (company.auditVerdict as any)?.forensicRedFlags,
           vestnikEvents: company.vestnikEvents,
         })} />
@@ -161,7 +175,7 @@ export default async function CompanyPage({ params }: Params) {
             label="Zisk / Strata"
             value={fmtEUR(latest?.netProfitLoss)}
             sub={latest ? `rok ${latest.year}` : ""}
-            color={latest?.netProfitLoss !== null && latest?.netProfitLoss !== undefined && latest.netProfitLoss >= 0 ? "#10b981" : "#ef4444"}
+            color={latest?.netProfitLoss !== null && latest?.netProfitLoss !== undefined && num(latest.netProfitLoss)! >= 0 ? "#10b981" : "#ef4444"}
             trend={trends.profit}
           />
           <MetricCard label="Celkové aktíva" value={fmtEUR(latest?.totalAssets)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.assets} />

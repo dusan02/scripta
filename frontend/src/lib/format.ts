@@ -1,17 +1,30 @@
+import type { Decimal } from "@prisma/client/runtime/library";
+
 const LEGAL_STATUSES = ["v konkurze", "v likvidácii", "v reštrukturalizácii", "konkurz", "likvidácia"];
 
-export function fmtEUR(val: number | null | undefined): string {
-  if (val === null || val === undefined) return "—";
-  const abs = Math.abs(val);
-  if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(2)} mil. €`;
-  if (abs >= 1_000) return `${(val / 1_000).toFixed(1)} tis. €`;
-  return `${val.toFixed(0)} €`;
+/** Convert Prisma Decimal or number to number, preserving null/undefined. */
+export function num(val: Decimal | number | null | undefined): number | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === "number") return val;
+  return val.toNumber();
 }
 
-export function fmtNum(val: number | null | undefined): string {
+export function fmtEUR(val: Decimal | number | null | undefined): string {
   if (val === null || val === undefined) return "—";
-  const n = (val / 1_000).toFixed(0);
-  return Number(n).toLocaleString("sk-SK").replace(/\u00a0/g, "\u00a0");
+  const n = num(val);
+  if (n === null) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(2)} mil. €`;
+  if (abs >= 1_000) return `${(n / 1_000).toFixed(1)} tis. €`;
+  return `${n.toFixed(0)} €`;
+}
+
+export function fmtNum(val: Decimal | number | null | undefined): string {
+  if (val === null || val === undefined) return "—";
+  const n = num(val);
+  if (n === null) return "—";
+  const s = (n / 1_000).toFixed(0);
+  return Number(s).toLocaleString("sk-SK").replace(/\u00a0/g, "\u00a0");
 }
 
 export function fmtYear(date: Date | null | undefined): string {
