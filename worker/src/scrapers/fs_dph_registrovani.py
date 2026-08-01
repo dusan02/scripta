@@ -46,7 +46,7 @@ class FsDphRegistrovaniScraper(FinancnaSpravaBase):
             logger.warning(f"[{self.source_type}] Extrakcia IČ DPH zlyhala: {e}")
             return None
 
-    async def _extract_findings(self, page: Page, search_term: str) -> str:
+    async def _extract_findings(self, page: Page, search_term: str, company_name=None) -> str:
         """Extrahuje nálezy — DPH registráciu subjektu."""
         try:
             if await self._is_empty_page(page):

@@ -23,7 +23,7 @@ class FsDphNadmernyOdpocetScraper(FinancnaSpravaBase):
     pdf_title = "Zoznam DPH subjektov — nadmerný odpočet"
     search_by = "ico"
 
-    async def _extract_findings(self, page: Page, search_term: str) -> str:
+    async def _extract_findings(self, page: Page, search_term: str, company_name=None) -> str:
         """Extrahuje nálezy — nadmerný odpočet a vlastnú daňovú povinnosť DPH."""
         try:
             if await self._is_empty_page(page):

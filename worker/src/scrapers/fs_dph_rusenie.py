@@ -23,7 +23,7 @@ class FsDphRusenieScraper(FinancnaSpravaBase):
     pdf_title = "Zoznam platiteľov DPH — dôvody na zrušenie registrácie"
     search_by = "ico"
 
-    async def _extract_findings(self, page: Page, search_term: str) -> str:
+    async def _extract_findings(self, page: Page, search_term: str, company_name=None) -> str:
         """Extrahuje nálezy — či je subjekt v zozname platiteľov DPH s dôvodmi na zrušenie."""
         try:
             if await self._is_empty_page(page):

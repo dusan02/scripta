@@ -23,7 +23,7 @@ class FsDanoveSubjektyScraper(FinancnaSpravaBase):
     pdf_title = "Zoznam daňových subjektov — index daňovej spoľahlivosti"
     search_by = "ico"
 
-    async def _extract_findings(self, page: Page, search_term: str) -> str:
+    async def _extract_findings(self, page: Page, search_term: str, company_name=None) -> str:
         """Extrahuje nálezy — index daňovej spoľahlivosti subjektu."""
         try:
             if await self._is_empty_page(page):

@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
+from typing import Optional
 
 from pathlib import Path
 from playwright.async_api import Page
@@ -37,8 +38,13 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
     file_prefix = "financna_sprava_dlznici"
     pdf_title = "Zoznam daňových dlžníkov — Finančná správa SR"
 
-    async def _extract_findings(self, page: Page, search_term: str) -> str:
-        """Extrahuje nálezy z výsledkovej tabuľky zoznamu daňových dlžníkov."""
+    async def _extract_findings(self, page: Page, search_term: str, company_name: str = None) -> str:
+        """Extrahuje nálezy z výsledkovej tabuľky zoznamu daňových dlžníkov.
+
+        FS vyhľadávanie robí partial match — "BILLA" nájde "BILLABONK", "Jozef Billa",
+        "Patrik Billa". Pre overenie používame presný názov spoločnosti z ORSR
+        (company_name) a porovnávame per-row, nie word-boundary na celom texte.
+        """
         try:
             if await self._is_empty_page(page):
                 return self._empty_findings()
@@ -47,6 +53,51 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
             has_debt = "nedoplatok" in text_lower or "nedoplatky" in text_lower or "dlžník" in text_lower
 
             if has_debt:
+                # Parse rows individually for per-row name verification
+                rows = await self._parse_table_rows(page, max_rows=20)
+                if rows:
+                    # Extract headers to find "Názov subjektu" column
+                    headers = await self._get_table_headers(page)
+                    name_col_idx = self._find_name_column(headers)
+
+                    # Use company_name (full, from ORSR) for verification — fallback to search_term
+                    verify_name = company_name or search_term
+                    norm_verify = _normalize_name(verify_name)
+
+                    matched_rows = []
+                    for row_data in rows:
+                        row_name = row_data[name_col_idx] if name_col_idx is not None and name_col_idx < len(row_data) else ""
+                        norm_row = _normalize_name(row_name)
+
+                        if norm_verify and norm_row:
+                            # Exact normalized match — "billa s r o" == "billa s r o"
+                            # Also check without legal form suffix for robustness
+                            matches = (
+                                norm_verify == norm_row
+                                or norm_verify.startswith(norm_row)
+                                or norm_row.startswith(norm_verify)
+                            )
+                            if matches:
+                                # Format this row
+                                formatted = self._format_row(row_data, headers)
+                                if formatted:
+                                    matched_rows.append(formatted)
+                            else:
+                                logger.info(
+                                    f"[{self.source_type}] Riadok vynechaný (name mismatch): "
+                                    f"'{row_name}' != '{verify_name}'"
+                                )
+
+                    if matched_rows:
+                        return f"POZOR: Subjekt '{verify_name}' je v zozname daňových dlžníkov.\n" + "\n\n".join(matched_rows)
+                    else:
+                        logger.info(
+                            f"[{self.source_type}] Tabuľka nájdená, ale žiadny riadok sa nezhoduje "
+                            f"s názvom '{verify_name}' — false positive (partial match)."
+                        )
+                        return self._empty_findings()
+
+                # Fallback: no rows parsed, try old approach
                 formatted = await self._parse_table_with_headers(page)
                 if formatted:
                     table_text = " ".join(formatted)
@@ -64,6 +115,43 @@ class FinancnaSpravaScraper(FinancnaSpravaBase):
         except Exception as e:
             logger.warning(f"[{self.source_type}] Nepodarilo sa extrahovať nálezy: {e}")
             return None
+
+    async def _get_table_headers(self, page: Page) -> list[str]:
+        """Extrahuje hlavičku tabuľky."""
+        try:
+            header_loc = page.locator("table thead tr th, .table thead tr th, table thead tr td")
+            count = await header_loc.count()
+            headers = []
+            for h in range(count):
+                try:
+                    headers.append((await header_loc.nth(h).inner_text(timeout=2000)).strip())
+                except Exception:
+                    headers.append("")
+            return headers
+        except Exception:
+            return []
+
+    @staticmethod
+    def _find_name_column(headers: list[str]) -> Optional[int]:
+        """Nájde index stĺpca 'Názov subjektu' (alebo podobného)."""
+        for i, h in enumerate(headers):
+            h_lower = h.lower()
+            if "názov" in h_lower or "nazov" in h_lower or "meno" in h_lower:
+                return i
+        return None
+
+    @staticmethod
+    def _format_row(row_data: list[str], headers: list[str]) -> str:
+        """Naformátuje jeden riadok tabuľky."""
+        if headers and len(headers) >= len(row_data):
+            parts = []
+            for i, val in enumerate(row_data):
+                if val and headers[i].lower() not in ("hľadať", "akcia"):
+                    parts.append(f"{headers[i]}: {val}")
+            return "\n".join(parts) if parts else ""
+        else:
+            parts = [f"• {val}" for val in row_data if val]
+            return "\n".join(parts) if parts else ""
 
     @staticmethod
     def _verify_name_match(search_term: str, table_text: str) -> bool:

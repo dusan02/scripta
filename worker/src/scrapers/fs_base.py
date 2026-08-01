@@ -350,7 +350,7 @@ class FinancnaSpravaBase(BaseScraper):
                 )
 
             # Extrahovať findings
-            findings = await self._extract_findings(page, search_query)
+            findings = await self._extract_findings(page, search_query, company_name=company_name)
             if findings:
                 # Pre scrapery hľadajúce podľa IČO — overíme, že IČO je skutočne v náleze
                 # (zabraňuje false positives keď tabuľka obsahuje dáta z iného vyhľadávania)
@@ -682,7 +682,7 @@ class FinancnaSpravaBase(BaseScraper):
             logger.warning(f"[{self.source_type}] PDF download zlyhal: {e}")
             return False
 
-    async def _extract_findings(self, page: Page, search_term: str) -> Optional[str]:
+    async def _extract_findings(self, page: Page, search_term: str, company_name: Optional[str] = None) -> Optional[str]:
         """Override v subclassi pre špecifickú extrakciu nálezov."""
         return None
 

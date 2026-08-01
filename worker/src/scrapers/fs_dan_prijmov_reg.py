@@ -23,7 +23,7 @@ class FsDanPrijmovRegistrovaniScraper(FinancnaSpravaBase):
     pdf_title = "Zoznam daňových subjektov registrovaných na daň z príjmov"
     search_by = "ico"
 
-    async def _extract_findings(self, page: Page, search_term: str) -> str:
+    async def _extract_findings(self, page: Page, search_term: str, company_name=None) -> str:
         """Extrahuje nálezy — registráciu subjektu na daň z príjmov."""
         try:
             if await self._is_empty_page(page):
