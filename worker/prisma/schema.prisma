@@ -30,6 +30,12 @@ model User {
   subscriptionEndsAt DateTime?       // Dátum ukončenia predplatného (pre zrušené)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
+  // Email bounce/complaint tracking — prevents sending to invalid addresses
+  emailBounced       Boolean         @default(false)
+  emailBouncedAt     DateTime?
+  emailBouncedReason String?
+  emailComplained    Boolean         @default(false)
+  emailComplainedAt  DateTime?
   reportRequests     ReportRequest[]
   feedback           Feedback[]
   wallet             Wallet?

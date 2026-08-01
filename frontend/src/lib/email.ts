@@ -1,3 +1,5 @@
+import { prisma } from "@/lib/prisma";
+
 type SendEmailParams = {
   to: string;
   subject: string;
@@ -17,6 +19,25 @@ export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailP
     console.log("Text:", text.substring(0, 200));
     console.log("============================================");
     return;
+  }
+
+  // Check if recipient email is bounced/complained — skip sending to protect sender reputation
+  const normalizedEmail = to.toLowerCase().trim();
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { emailBounced: true, emailComplained: true },
+    });
+    if (user?.emailBounced) {
+      console.warn(`[email] Skipping send to ${normalizedEmail} — email bounced`);
+      return;
+    }
+    if (user?.emailComplained) {
+      console.warn(`[email] Skipping send to ${normalizedEmail} — user complained (spam)`);
+      return;
+    }
+  } catch {
+    // DB error — continue sending (fail open, don't block emails on DB issues)
   }
 
   const from = process.env.EMAIL_FROM || "Verifa.sk <noreply@verifa.sk>";
