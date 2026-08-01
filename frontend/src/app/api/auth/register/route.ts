@@ -20,6 +20,90 @@ function uniqueSubjectSuffix(): string {
   return "\u200B".repeat(count);
 }
 
+const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
+const TOKEN_EXPIRY_MS = 1000 * 60 * 60 * 24; // 24 hours
+
+/** Hash a password using bcrypt with a fresh salt. */
+async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10);
+  return bcrypt.hash(password, salt);
+}
+
+/** Generate a verification token, persist its hash to the DB, and return the raw token. */
+async function createVerificationToken(email: string): Promise<string> {
+  // Delete any existing tokens for this email first (idempotent re-send).
+  await prisma.verificationToken.deleteMany({ where: { email } });
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expires = new Date(Date.now() + TOKEN_EXPIRY_MS);
+  await prisma.verificationToken.create({
+    data: { email, token: hashToken(token), expires },
+  });
+  return token;
+}
+
+/** Send the verification email with the activation link. */
+async function sendVerificationEmail(email: string, token: string, isNew: boolean): Promise<void> {
+  const verifyLink = `${BASE_URL}/verify-email?token=${token}`;
+  const subject = isNew
+    ? `Potvrdenie registrácie - Verifa.sk${uniqueSubjectSuffix()}`
+    : `Nový verifikačný odkaz - Verifa.sk${uniqueSubjectSuffix()}`;
+
+  const heading = isNew ? "Vitajte na Verifa.sk" : "Verifa.sk — nový verifikačný odkaz";
+  const intro = isNew
+    ? "Ďakujeme za registráciu. Pre aktiváciu vášho účtu kliknite na tlačidlo nižšie:"
+    : "Poslali sme vám nový odkaz na aktiváciu účtu:";
+  const footer = isNew
+    ? "Tento odkaz je platný 24 hodín. Ak ste sa neregistrovali, ignorujte tento e-mail."
+    : "Tento odkaz je platný 24 hodín.";
+  const textIntro = isNew
+    ? "Ďakujeme za registráciu na Verifa.sk.\n\nPre aktiváciu vášho účtu kliknite na nasledujúci odkaz:"
+    : "Poslali sme vám nový verifikačný odkaz.";
+
+  await sendEmail({
+    to: email,
+    subject,
+    text: `Dobrý deň,\n\n${textIntro}\n${verifyLink}\n\n${footer}\n\nS pozdravom,\nTím Verifa.sk`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
+        <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Kliknite na odkaz pre aktiváciu vášho účtu na Verifa.sk</div>
+        <h2>${heading}</h2>
+        <p>Dobrý deň,</p>
+        <p>${intro}</p>
+        <p><a href="${verifyLink}" style="${emailButtonStyle()}">Aktivovať účet</a></p>
+        <p style="color: #52525b; font-size: 14px;">${footer}</p>
+        <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
+        <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
+      </div>
+    `,
+  });
+}
+
+/** Send an admin notification email about a new registration. */
+async function sendAdminRegistrationNotification(email: string, userId: string): Promise<void> {
+  const timestamp = new Date().toISOString();
+  try {
+    await sendEmail({
+      to: "info@verifa.sk",
+      subject: `[Verifa.sk] Nová registrácia — ${email}`,
+      text:
+        `Nový používateľ sa zaregistroval.\n\n` +
+        `E-mail: ${email}\n` +
+        `ID: ${userId}\n` +
+        `Čas: ${timestamp}\n\n` +
+        `Účet čaká na e-mailovú verifikáciu.`,
+      html:
+        `<h2>Nová registrácia</h2>` +
+        `<p><strong>E-mail:</strong> ${email}</p>` +
+        `<p><strong>ID:</strong> ${userId}</p>` +
+        `<p><strong>Čas:</strong> ${timestamp}</p>` +
+        `<p style="color: #52525b;">Účet čaká na e-mailovú verifikáciu.</p>`,
+    });
+  } catch (err) {
+    console.error("[register] Failed to send admin notification email", err);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const rl = await rateLimit(req, { windowMs: 60 * 60 * 1000, maxRequests: 5 });
   if (!rl.allowed) return rateLimitResponse(rl);
@@ -42,47 +126,24 @@ export async function POST(req: NextRequest) {
     if (!emailRl.allowed) return rateLimitResponse(emailRl);
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
       if (existingUser.emailVerified) {
-        // Already verified — cannot re-register
         return NextResponse.json(
           { message: "Používateľ s týmto e-mailom už existuje." },
           { status: 400 }
         );
       }
 
-      // Not verified yet — update password, delete old token, send new verification email
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
-      await prisma.user.update({ where: { email }, data: { passwordHash } });
-      await prisma.verificationToken.deleteMany({ where: { email } });
-
-      const token = crypto.randomBytes(32).toString("hex");
-      const expires = new Date(Date.now() + 1000 * 60 * 60 * 24);
-      await prisma.verificationToken.create({ data: { email, token: hashToken(token), expires } });
-
-      const verifyLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/verify-email?token=${token}`;
-      await sendEmail({
-        to: email,
-        subject: `Nový verifikačný odkaz - Verifa.sk${uniqueSubjectSuffix()}`,
-        text: `Dobrý deň,\n\nPoslali sme vám nový verifikačný odkaz.\n\n${verifyLink}\n\nTento odkaz platí 24 hodín.`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
-            <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Kliknite na odkaz pre aktiváciu vášho účtu na Verifa.sk</div>
-            <h2>Verifa.sk — nový verifikačný odkaz</h2>
-            <p>Dobrý deň,</p>
-            <p>Poslali sme vám nový odkaz na aktiváciu účtu:</p>
-            <p><a href="${verifyLink}" style="${emailButtonStyle()}">Aktivovať účet</a></p>
-            <p style="color: #52525b; font-size: 14px;">Tento odkaz je platný 24 hodín.</p>
-            <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-            <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
-          </div>
-        `,
+      // Not verified yet — update password and send new verification email
+      await prisma.user.update({
+        where: { email },
+        data: { passwordHash: await hashPassword(password) },
       });
+
+      const token = await createVerificationToken(email);
+      await sendVerificationEmail(email, token, false);
 
       return NextResponse.json(
         { message: "Poslali sme nový verifikačný e-mail. Skontrolujte svoju schránku." },
@@ -90,78 +151,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // Create user (emailVerified = null, requires verification)
+    // New user — create account (emailVerified = null, requires verification)
     const newUser = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-      },
+      data: { email, passwordHash: await hashPassword(password) },
     });
 
     // Trial credit is granted upon email verification via addCreditBatch
     // (which also updates the wallet balance). Do NOT create a CreditBatch here —
     // it would bypass the wallet and leave a phantom batch with remaining=1.
 
-    // Generate verification token
-    const token = crypto.randomBytes(32).toString("hex");
-    const expires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours
-
-    await prisma.verificationToken.create({
-      data: {
-        email,
-        token: hashToken(token),
-        expires,
-      },
-    });
-
-    // Send verification email
-    const verifyLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/verify-email?token=${token}`;
-
-    await sendEmail({
-      to: email,
-      subject: `Potvrdenie registrácie - Verifa.sk${uniqueSubjectSuffix()}`,
-      text: `Dobrý deň,\n\nĎakujeme za registráciu na Verifa.sk.\n\nPre aktiváciu vášho účtu kliknite na nasledujúci odkaz:\n${verifyLink}\n\nTento odkaz platí 24 hodín.\n\nAk ste sa neregistrovali, môžete tento e-mail ignorovať.\n\nS pozdravom,\nTím Verifa.sk`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
-          <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Kliknite na odkaz pre aktiváciu vášho účtu na Verifa.sk</div>
-          <h2>Vitajte na Verifa.sk</h2>
-          <p>Dobrý deň,</p>
-          <p>Ďakujeme za registráciu. Pre aktiváciu vášho účtu kliknite na tlačidlo nižšie:</p>
-          <p>
-            <a href="${verifyLink}" style="${emailButtonStyle()}">Aktivovať účet</a>
-          </p>
-          <p style="color: #52525b; font-size: 14px;">Tento odkaz je platný 24 hodín. Ak ste sa neregistrovali, ignorujte tento e-mail.</p>
-          <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-          <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
-        </div>
-      `,
-    });
-
-    // --- Admin notification about new registration ---
-    try {
-      await sendEmail({
-        to: "info@verifa.sk",
-        subject: `[Verifa.sk] Nová registrácia — ${email}`,
-        text:
-          `Nový používateľ sa zaregistroval.\n\n` +
-          `E-mail: ${email}\n` +
-          `ID: ${newUser.id}\n` +
-          `Čas: ${new Date().toISOString()}\n\n` +
-          `Účet čaká na e-mailovú verifikáciu.`,
-        html:
-          `<h2>Nová registrácia</h2>` +
-          `<p><strong>E-mail:</strong> ${email}</p>` +
-          `<p><strong>ID:</strong> ${newUser.id}</p>` +
-          `<p><strong>Čas:</strong> ${new Date().toISOString()}</p>` +
-          `<p style="color: #52525b;">Účet čaká na e-mailovú verifikáciu.</p>`,
-      });
-    } catch (adminEmailErr) {
-      console.error("[register] Failed to send admin notification email", adminEmailErr);
-    }
+    const token = await createVerificationToken(email);
+    await sendVerificationEmail(email, token, true);
+    await sendAdminRegistrationNotification(email, newUser.id);
 
     return NextResponse.json(
       { message: "Registrácia úspešná. Skontrolujte svoj e-mail pre aktiváciu účtu.", userId: newUser.id },
