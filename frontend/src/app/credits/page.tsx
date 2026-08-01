@@ -252,19 +252,19 @@ export default function CreditsPage() {
         </h2>
         <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--info-bg)", color: "var(--info)" }}>trial</span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 w-[80px] text-center" style={{ background: "var(--info-bg)", color: "var(--info)" }}>trial</span>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaTrial")}</p>
           </div>
           <div className="flex items-start gap-3">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--accent-bg, var(--bg-muted))", color: "var(--accent)" }}>paušál</span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 w-[80px] text-center" style={{ background: "var(--accent-bg, var(--bg-muted))", color: "var(--accent)" }}>paušál</span>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaSubscription")}</p>
           </div>
           <div className="flex items-start gap-3">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--success-bg)", color: "var(--success)" }}>jednorazové</span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 w-[80px] text-center" style={{ background: "var(--success-bg)", color: "var(--success)" }}>jednoraz.</span>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaAddon")}</p>
           </div>
           <div className="flex items-start gap-3">
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>prenos</span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 w-[80px] text-center" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>prenos</span>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{t("plan.expiraciaRollover")}</p>
           </div>
         </div>
