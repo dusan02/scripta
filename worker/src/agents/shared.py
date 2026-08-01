@@ -1,5 +1,7 @@
 import os
 import logging
+import itertools
+import threading
 from contextlib import contextmanager
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -9,10 +11,65 @@ from src.config import settings
 
 logger = logging.getLogger(__name__)
 
+# ── Gemini API key pool ──────────────────────────────────────────────────────
+# Supports multiple keys via GEMINI_API_KEYS (comma-separated) for round-robin
+# rotation. Falls back to single GEMINI_API_KEY / GOOGLE_API_KEY env var.
+# This prevents all LLM calls from failing when a single key hits quota limits.
+
+def _load_gemini_keys() -> list[str]:
+    """Load API keys from environment, supporting both multi-key and single-key configs."""
+    keys: list[str] = []
+    multi = os.environ.get("GEMINI_API_KEYS", "").strip()
+    if multi:
+        keys = [k.strip() for k in multi.split(",") if k.strip()]
+    if not keys:
+        single = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()
+        if single:
+            keys = [single]
+    return keys
+
+_gemini_keys = _load_gemini_keys()
+_key_cycle = itertools.cycle(_gemini_keys) if _gemini_keys else None
+_key_lock = threading.Lock()
+
+# Track failed keys to skip them on subsequent calls
+_failed_keys: set[str] = set()
+
+if _gemini_keys:
+    logger.info(f"[Gemini] Loaded {len(_gemini_keys)} API key(s) for round-robin rotation")
+else:
+    logger.warning("[Gemini] No API keys configured — LLM calls will fail")
+
 
 def _get_gemini_client() -> genai.Client:
-    """Vráti Gemini API klienta s API kľúčom z environment variables."""
-    return genai.Client(api_key=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    """Vráti Gemini API klienta s API kľúčom z environment variables.
+
+    Pri viacerých kľúčoch (GEMINI_API_KEYS) strieda kľúče round-robin,
+    preskakuje kľúče ktoré už raz zlyhali (napr. quota exceeded).
+    """
+    if not _key_cycle:
+        raise RuntimeError("No Gemini API keys configured")
+
+    with _key_lock:
+        # Try to find a non-failed key
+        for _ in range(len(_gemini_keys)):
+            key = next(_key_cycle)
+            if key not in _failed_keys:
+                return genai.Client(api_key=key)
+
+        # All keys failed — reset and try the first one (maybe quota reset)
+        logger.warning("[Gemini] All keys have failed — resetting failed set and retrying")
+        _failed_keys.clear()
+        key = next(_key_cycle)
+        return genai.Client(api_key=key)
+
+
+def _mark_gemini_key_failed(api_key: str) -> None:
+    """Mark a Gemini API key as failed (e.g. quota exceeded). It will be skipped on subsequent calls."""
+    with _key_lock:
+        _failed_keys.add(api_key)
+        remaining = len(_gemini_keys) - len(_failed_keys)
+        logger.warning(f"[Gemini] Key marked as failed. {remaining} key(s) remaining active")
 
 
 @contextmanager
