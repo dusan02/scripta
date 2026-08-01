@@ -1,7 +1,7 @@
 // Klient pre komunikáciu s Python workerom.
 
 const WORKER_URL = process.env.WORKER_URL;
-if (!WORKER_URL && process.env.NODE_ENV === "production") {
+if (!WORKER_URL && process.env.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-server") {
   throw new Error("[WORKER] WORKER_URL must be set in production — refusing to start with localhost fallback.");
 }
 const WORKER_URL_RESOLVED = WORKER_URL || "http://localhost:8000";

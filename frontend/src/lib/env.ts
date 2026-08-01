@@ -7,7 +7,7 @@
  */
 
 const _isProduction = process.env.NODE_ENV === "production";
-const _isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const _isProductionServer = _isProduction && process.env.NEXT_PHASE === "phase-production-server";
 
 /**
  * Returns NEXTAUTH_URL, throwing in production runtime if not set.
@@ -17,7 +17,7 @@ const _isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 export const NEXTAUTH_URL = (() => {
   const url = process.env.NEXTAUTH_URL;
   if (!url) {
-    if (_isProduction && !_isBuildPhase) {
+    if (_isProductionServer) {
       throw new Error("[ENV] NEXTAUTH_URL must be set in production — refusing to start with localhost fallback.");
     }
     return "http://localhost:3000";
@@ -33,7 +33,7 @@ export const NEXTAUTH_URL = (() => {
 export const NEXTAUTH_SECRET = (() => {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) {
-    if (_isProduction && !_isBuildPhase) {
+    if (_isProductionServer) {
       throw new Error("[ENV] NEXTAUTH_SECRET must be set in production — refusing to start with insecure fallback.");
     }
     return "dev-only-insecure-secret-do-not-use-in-production";
