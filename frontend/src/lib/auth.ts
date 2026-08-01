@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addCreditBatch } from "@/lib/credits";
 import { rateLimitByKey } from "@/lib/rateLimit";
@@ -34,6 +34,7 @@ declare module "next-auth/jwt" {
     id: string;
     tokenVersion: number;
     lastVerified?: number;
+    role?: string;
   }
 }
 
@@ -41,12 +42,20 @@ const JWT_VERIFY_INTERVAL_MS = 5 * 60 * 1000; // 5 minút
 
 // ─── Auth Options ─────────────────────────────────────────────────────────────
 
+// NEXTAUTH_SECRET — fail-fast only at production RUNTIME (not during build).
+// During `next build`, Next.js evaluates route modules to collect page data.
+// NEXT_PHASE may not be reliably propagated to all modules in all environments,
+// so we only throw when we're certain we're in a running server (phase-production-server).
+// The real protection is docker-compose.yml's `${NEXTAUTH_SECRET:?must be set}`.
+const _isProductionServer = process.env.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-server";
 const _NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 if (!_NEXTAUTH_SECRET) {
-  if (process.env.NODE_ENV === "production") {
+  if (_isProductionServer) {
     throw new Error("[AUTH] NEXTAUTH_SECRET must be set in production — refusing to start with insecure fallback.");
   }
-  console.warn("[AUTH] NEXTAUTH_SECRET is not set — using insecure default for development only");
+  if (process.env.NODE_ENV !== "production") {
+    console.warn("[AUTH] NEXTAUTH_SECRET is not set — using insecure default for development only");
+  }
 }
 
 const _isLocalhost = (process.env.NEXTAUTH_URL || '').includes('localhost') || !process.env.NEXTAUTH_URL;
@@ -158,6 +167,9 @@ export const authOptions: NextAuthOptions = {
           clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         })]
       : []),
+    // TODO: Azure AD provider — env vars (AZURE_AD_CLIENT_ID, AZURE_AD_CLIENT_SECRET,
+    // AZURE_AD_TENANT_ID) are configured in docker-compose.yml but the provider
+    // is not yet implemented. Add AzureADProvider when ready.
   ],
 
   callbacks: {
@@ -173,15 +185,18 @@ export const authOptions: NextAuthOptions = {
         token.tokenVersion = dbUser?.tokenVersion ?? 0;
         token.role = dbUser?.role;
       }
-      // For OAuth sign-in, create/link user if not exists
+      // For OAuth sign-in, create/link user if not exists.
+      // Uses create + catch(P2002) to handle race conditions atomically:
+      //   - New user: create succeeds → grant trial credit
+      //   - Race condition (two tabs): second create fails with P2002 → find existing → no double credit
+      //   - Existing unverified: create fails → updateMany claims verification atomically → grant credit
+      //   - Existing verified: create fails → emailVerified already set → no credit
       if (account && account.provider !== "credentials" && user) {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-        if (!existingUser) {
-          const trialEndsAt = new Date();
-          trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
 
+        try {
+          // Try to create — succeeds only for genuinely new users
           const newUser = await prisma.user.create({
             data: {
               email: user.email!,
@@ -189,23 +204,37 @@ export const authOptions: NextAuthOptions = {
               emailVerified: new Date(),
               trialEndsAt,
             },
+            select: { id: true, tokenVersion: true },
           });
-
-          // Grant 1 free trial credit via CreditBatch
+          // Create succeeded → new user → grant 1 trial credit
           await addCreditBatch(newUser.id, 1, "trial");
-        } else if (!existingUser.emailVerified) {
-          await prisma.user.update({
-            where: { id: existingUser.id },
-            data: { emailVerified: new Date() },
+          token.id = newUser.id;
+          token.tokenVersion = newUser.tokenVersion;
+        } catch (createErr: any) {
+          // P2002 = unique constraint violation (user already exists)
+          if (createErr?.code !== "P2002") throw createErr;
+
+          const existingUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+            select: { id: true, tokenVersion: true, emailVerified: true },
           });
-        }
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-          select: { id: true, tokenVersion: true },
-        });
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.tokenVersion = dbUser.tokenVersion;
+          if (!existingUser) throw createErr;
+
+          // For existing unverified users, atomically claim verification.
+          // updateMany with where: { emailVerified: null } ensures only one
+          // concurrent request can set it — preventing double trial credits.
+          if (!existingUser.emailVerified) {
+            const claimResult = await prisma.user.updateMany({
+              where: { id: existingUser.id, emailVerified: null },
+              data: { emailVerified: new Date() },
+            });
+            if (claimResult.count > 0) {
+              await addCreditBatch(existingUser.id, 1, "trial");
+            }
+          }
+
+          token.id = existingUser.id;
+          token.tokenVersion = existingUser.tokenVersion;
         }
       }
       // Verify user still exists — but only every 5 minutes, not on every request.
@@ -233,13 +262,14 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       // Expose id and role in the session object.
-      // If token was invalidated (id cleared), session has no user.
+      // If token was invalidated (id cleared), return null session —
+      // NextAuth treats null session as "not authenticated".
       if (session.user && token.id) {
         session.user.id = token.id;
         session.user.role = token.role as string | undefined;
       } else {
-        // Invalidated token — return empty session
-        session.user = undefined as unknown as typeof session.user;
+        // Invalidated token — clear user data so session is treated as unauthenticated
+        return null as unknown as typeof session;
       }
       return session;
     },
@@ -275,6 +305,18 @@ export async function getCurrentUser(_req: NextRequest): Promise<AuthUser | null
 }
 
 /**
+ * Timing-safe string comparison.
+ * Returns true if both strings are equal, false otherwise.
+ * Prevents timing side-channel attacks on secret comparisons.
+ */
+function timingSafeEqualString(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
  * Verify the x-worker-secret header using a timing-safe comparison.
  * Use this for worker-to-frontend callback endpoints (refund, notify, etc.)
  * to prevent timing attacks on the shared secret.
@@ -283,13 +325,53 @@ export async function getCurrentUser(_req: NextRequest): Promise<AuthUser | null
  */
 export function verifyWorkerSecret(headerValue: string | null): boolean {
   const expected = process.env.WORKER_SECRET;
-  if (!expected) return false;
-  if (!headerValue) return false;
-  // Use timingSafeEqual to prevent timing side-channel attacks.
-  // Both buffers must be the same length; if not, return false immediately
-  // (but still in constant time relative to the expected value length).
-  const a = Buffer.from(headerValue);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  if (!expected || !headerValue) return false;
+  return timingSafeEqualString(headerValue, expected);
+}
+
+/**
+ * Verify a Bearer token from the Authorization header using a timing-safe
+ * comparison. Use this for cron endpoint authentication.
+ *
+ * @returns true if the token matches, false otherwise.
+ */
+export function verifyCronSecret(authHeader: string | null): boolean {
+  const expected = process.env.CRON_SECRET;
+  if (!expected || !authHeader) return false;
+
+  const prefix = "Bearer ";
+  if (!authHeader.startsWith(prefix)) return false;
+
+  return timingSafeEqualString(authHeader.slice(prefix.length), expected);
+}
+
+/**
+ * Admin authorization check for API route handlers.
+ * Returns the authenticated admin user or a NextResponse error.
+ *
+ * Usage:
+ *   const [admin, error] = await requireAdmin(req);
+ *   if (error) return error;
+ *   // admin is guaranteed to be an ADMIN user
+ *
+ * @returns [user, null] on success, [null, NextResponse] on failure
+ */
+export async function requireAdmin(
+  _req: NextRequest
+): Promise<[AuthUser | null, null] | [null, NextResponse]> {
+  const user = await getCurrentUser(_req);
+  if (!user) {
+    return [null, NextResponse.json({ error: "Unauthorized" }, { status: 401 })];
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { role: true },
+  });
+
+  if (!dbUser || dbUser.role !== "ADMIN") {
+    return [null, NextResponse.json({ error: "Forbidden" }, { status: 403 })];
+  }
+
+  return [user, null];
 }

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { PaymentProvider } from "@prisma/client";
-import { sendEmail, emailButtonStyle } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
 import type { PrismaClient } from "@prisma/client";
 
 type PrismaTransaction = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
@@ -216,7 +216,10 @@ export async function refundCreditsTx(
     SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
   `;
   const wallet = walletRows[0];
-  if (!wallet) return;
+  if (!wallet) {
+    console.warn(`[refundCreditsTx] No wallet found for user ${userId} — refund skipped for report ${reportRequestId}.`);
+    return;
+  }
 
   // Idempotency: find original CHARGE
   const chargeTx = await tx.walletTransaction.findFirst({
@@ -230,7 +233,7 @@ export async function refundCreditsTx(
 
   // Idempotency: check if refund already exists
   const existingRefund = await tx.walletTransaction.findFirst({
-    where: { type: "REFUND", reportRequestId },
+    where: { walletId: wallet.id, type: "REFUND", reportRequestId },
   });
   if (existingRefund) return;
 
@@ -273,7 +276,7 @@ export async function refundCreditsTx(
   }
 
   await tx.wallet.update({
-    where: { userId },
+    where: { id: wallet.id },
     data: {
       balance: { increment: amount },
       version: { increment: 1 },
@@ -630,12 +633,13 @@ export async function revokeCreditsOnRefund(
     //    reflecting that the user spent credits they no longer have a right to.
     //    The POST /api/reports check (availableCredits from non-expired
     //    batches) will block new reports until the debt is settled.
-    await tx.wallet.update({
+    const updatedWallet = await tx.wallet.update({
       where: { id: wallet.id },
       data: {
         balance: { decrement: creditsToRevoke },
         version: { increment: 1 },
       },
+      select: { balance: true },
     });
 
     // 4. Audit log.
@@ -651,8 +655,8 @@ export async function revokeCreditsOnRefund(
       },
     });
 
-    // Compute the new balance for notification purposes.
-    const newBalance = Number(wallet.balance) - creditsToRevoke;
+    // Use the actual updated balance from the database (not a cached computation).
+    const newBalance = Number(updatedWallet.balance);
 
     // Fetch user email for notifications (inside the transaction for consistency).
     const userRow = await tx.user.findUnique({

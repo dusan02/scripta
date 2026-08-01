@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { refundCredits } from "@/lib/credits";
+import { verifyCronSecret } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,17 +19,10 @@ export const dynamic = "force-dynamic";
  * any FAILED report without an existing REFUND transaction will be refunded here.
  *
  * Schedule: every 15 minutes via external cron (e.g. Vercel Cron, Upstash QStash).
- * Auth: Bearer CRON_SECRET header.
+ * Auth: Bearer CRON_SECRET header (timing-safe comparison).
  */
 export async function POST(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  const expectedSecret = process.env.CRON_SECRET;
-
-  if (!expectedSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  if (authHeader !== `Bearer ${expectedSecret}`) {
+  if (!verifyCronSecret(req.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -37,10 +31,13 @@ export async function POST(req: Request) {
 
   try {
     // 1. Find reports stuck in PROCESSING for longer than the threshold.
+    //    Exclude soft-deleted reports — they were removed by the user and
+    //    should not be recovered or refunded.
     const stuckReports = await prisma.reportRequest.findMany({
       where: {
         status: "PROCESSING",
         createdAt: { lt: cutoff },
+        deletedAt: null,
       },
       select: { id: true, userId: true },
     });
@@ -62,8 +59,16 @@ export async function POST(req: Request) {
     // 2. Find FAILED reports that were never refunded (worker's fire-and-forget
     //    refund request may have failed due to network/cold-start issues).
     //    We look for FAILED reports with a CHARGE transaction but no REFUND.
+    //    Limit to recent reports (last 24h) to avoid scanning the entire table
+    //    on every cron run — older FAILED reports have already been processed
+    //    by previous runs.
+    const failedCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const failedReports = await prisma.reportRequest.findMany({
-      where: { status: "FAILED" },
+      where: {
+        status: "FAILED",
+        deletedAt: null,
+        createdAt: { gte: failedCutoff },
+      },
       select: { id: true, userId: true },
       take: 100,
     });

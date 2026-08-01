@@ -27,6 +27,9 @@ export interface WebhookResult {
   planName?: string;
   providerReference: string;
   endsAt?: Date;
+  /** The subscription's current period end — used to set planRenewalDate
+   *  accurately instead of hardcoding +30 days. */
+  currentPeriodEnd?: Date;
   /** For charge.refunded events: the original payment's providerReference
    *  (payment_intent or charge id) used to locate the original TOPUP. */
   originalProviderReference?: string;

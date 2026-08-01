@@ -26,12 +26,23 @@ npm run test:e2e:ui       # Run with interactive UI
 npm run test:e2e:report   # Show HTML report
 ```
 
+## Unit Tests (Node.js native test runner)
+
+```bash
+npm run test:unit         # Run all unit tests (src/lib/__tests__/*.test.ts)
+```
+
 ### Test Structure
 
-- `e2e/billing.spec.ts` — Billing webhook → credit grant flow
+- `e2e/billing.spec.ts` — Billing webhook → credit grant flow, checkout validation, dead proxy routes
 - `e2e/report-auth.spec.ts` — IDOR protection, worker secret verification, cron auth
-- `e2e/credits.spec.ts` — Credit system cron health checks, report creation guards
+- `e2e/credits.spec.ts` — Credit system cron health checks, report creation guards, recover-stuck edge cases
+- `e2e/auth.spec.ts` — Registration, verify-email, forgot-password, admin access
+- `e2e/security.spec.ts` — XSS prevention, header injection, timing-safe secret comparison
 - `e2e/helpers.ts` — Test utilities (login, mock Stripe events)
+- `src/lib/__tests__/sanitize.test.ts` — Unit tests for escapeHtml, sanitizeFilename
+- `src/lib/__tests__/email.test.ts` — Unit tests for emailShell, emailButton
+- `src/lib/__tests__/credits.test.ts` — Unit tests for credit system (consume, refund, revoke, addBatch)
 
 ### Running Tests
 

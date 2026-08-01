@@ -22,3 +22,18 @@ export const NEXTAUTH_URL = (() => {
   }
   return url;
 })();
+
+/**
+ * Returns NEXTAUTH_SECRET, throwing in production if not set.
+ * In development, falls back to a deterministic dev-only secret.
+ */
+export const NEXTAUTH_SECRET = (() => {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    if (_isProduction) {
+      throw new Error("[ENV] NEXTAUTH_SECRET must be set in production — refusing to start with insecure fallback.");
+    }
+    return "dev-only-insecure-secret-do-not-use-in-production";
+  }
+  return secret;
+})();

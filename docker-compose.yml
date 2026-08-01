@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ─── PostgreSQL ───────────────────────────────────────────
   postgres:
@@ -9,8 +7,8 @@ services:
     container_name: verifa_postgres
     restart: unless-stopped
     mem_limit: 512m
-    ports:
-      - "5432:5432"
+    # No ports exposed — Postgres is only accessible from within the Docker network.
+    # To access from host for debugging, use: docker exec -it verifa_postgres psql -U verifa
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-verifa}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -52,9 +50,11 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
       DATABASE_URL_UNPOOLED: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change_me_in_production_please}
+      # No insecure default — app refuses to start in production without NEXTAUTH_SECRET
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set}
       WORKER_URL: http://worker:8000
-      WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
+      # No insecure default — worker callbacks rejected without WORKER_SECRET
+      WORKER_SECRET: ${WORKER_SECRET:?WORKER_SECRET must be set}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
@@ -80,9 +80,9 @@ services:
     image: redis:7-alpine
     container_name: verifa_redis
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:-verifa_redis_dev}
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-verifa_redis_dev}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -115,13 +115,13 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
-      APP_ENV: development
+      APP_ENV: ${APP_ENV:-production}
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
       PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
-      WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-verifa_redis_dev}@redis:6379/0
+      WORKER_SECRET: ${WORKER_SECRET:?WORKER_SECRET must be set}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       NEXTAUTH_URL: http://frontend:3000
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
@@ -152,13 +152,13 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
-      APP_ENV: development
+      APP_ENV: ${APP_ENV:-production}
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
       PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
-      WORKER_SECRET: ${WORKER_SECRET:-change_me_worker_secret}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-verifa_redis_dev}@redis:6379/0
+      WORKER_SECRET: ${WORKER_SECRET:?WORKER_SECRET must be set}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       NEXTAUTH_URL: http://frontend:3000
       SENTRY_DSN: ${SENTRY_DSN:-}
       CRE_USERNAME: ${CRE_USERNAME:-}

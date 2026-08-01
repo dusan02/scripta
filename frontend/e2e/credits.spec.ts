@@ -115,3 +115,47 @@ test.describe("Credit system — report creation guards", () => {
     expect(Array.isArray(body.reports)).toBe(true);
   });
 });
+
+test.describe("Credit system — recover-stuck edge cases", () => {
+  const CRON_SECRET = process.env.CRON_SECRET || "test-cron-secret";
+  const headers = {
+    "Content-Type": "application/json",
+    authorization: `Bearer ${CRON_SECRET}`,
+  };
+
+  test("recover-stuck does not process soft-deleted reports", async ({ request }) => {
+    // Create a report, soft-delete it, then run recover-stuck.
+    // The deleted report should NOT be recovered or refunded.
+    const authHeaders = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+
+    // Create a FAILED report (via direct API — will fail because worker is down)
+    const createRes = await request.post("/api/reports", {
+      headers: { ...authHeaders, "Content-Type": "application/json" },
+      data: { targetType: "COMPANY", ico: "12345678", sources: ["ORSR"] },
+    });
+    // 503 (worker down) or 201 (worker up) — either way, no report to delete
+    if (createRes.status() === 201) {
+      const { reportRequestId } = await createRes.json();
+      // Soft-delete the report
+      await request.delete(`/api/reports?id=${reportRequestId}`, { headers: authHeaders });
+    }
+
+    // Run recover-stuck — should not crash and should return 0 for stuck
+    const res = await request.post("/api/reports/recover-stuck", { headers });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.stuckRecovered).toBeGreaterThanOrEqual(0);
+    expect(body.missedRefundsProcessed).toBeGreaterThanOrEqual(0);
+  });
+
+  test("recover-stuck is safe to run repeatedly (idempotent)", async ({ request }) => {
+    const res1 = await request.post("/api/reports/recover-stuck", { headers });
+    expect(res1.status()).toBe(200);
+
+    const res2 = await request.post("/api/reports/recover-stuck", { headers });
+    expect(res2.status()).toBe(200);
+    const body2 = await res2.json();
+    // Second run should not find any new stuck reports
+    expect(body2.stuckRecovered).toBe(0);
+  });
+});

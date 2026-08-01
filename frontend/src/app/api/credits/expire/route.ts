@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { expireOldCredits, zeroOutExpiredSubscription } from "@/lib/credits";
+import { verifyCronSecret } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  const expectedSecret = process.env.CRON_SECRET;
-
-  if (!expectedSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  if (authHeader !== `Bearer ${expectedSecret}`) {
+  if (!verifyCronSecret(req.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

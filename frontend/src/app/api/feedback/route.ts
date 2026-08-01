@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/sanitize";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 const VALID_CATEGORIES = ["BUG", "IMPROVEMENT", "QUESTION", "OTHER"] as const;
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
         replyTo,
         subject: `[Verifa.sk] ${title}`,
         text: `Od: ${user.email}\nKategória: ${categoryLabel}\n${requestId ? `Request ID: ${requestId}\n` : ""}\n${message.trim()}`,
-        html: `<p><strong>Od:</strong> ${user.email}</p><p><strong>Kategória:</strong> ${categoryLabel}</p>${requestId ? `<p><strong>Request ID:</strong> ${requestId}</p>` : ""}<hr><p style="white-space: pre-wrap;">${message.trim()}</p>`,
+        html: `<p><strong>Od:</strong> ${escapeHtml(user.email)}</p><p><strong>Kategória:</strong> ${escapeHtml(categoryLabel)}</p>${requestId ? `<p><strong>Request ID:</strong> ${escapeHtml(requestId)}</p>` : ""}<hr><p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>`,
       });
     } catch (emailErr) {
       console.error("Failed to send feedback email", emailErr);

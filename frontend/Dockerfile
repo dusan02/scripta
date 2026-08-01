@@ -36,9 +36,9 @@ ENV NODE_ENV=production
 ENV DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 ENV DATABASE_URL_UNPOOLED=postgresql://dummy:dummy@localhost:5432/dummy
 ENV NEXTAUTH_URL=http://localhost:3000
-ENV NEXTAUTH_SECRET=change_me_in_production_please
+# NEXTAUTH_SECRET intentionally not set during build — it's a runtime secret.
+# Next.js build does not need it; setting it here would bake it into the image.
 ENV WORKER_URL=http://localhost:8000
-ENV WORKER_SECRET=change_me_worker_secret
 ENV SENTRY_AUTH_TOKEN=
 
 RUN npm run build

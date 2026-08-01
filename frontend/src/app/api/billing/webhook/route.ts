@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addCreditBatch, cancelSubscription, revokeCreditsOnRefund } from "@/lib/credits";
 import { getBillingAdapter } from "@/lib/billing";
-import { sendEmail, emailButtonStyle } from "@/lib/email";
+import { sendEmail, emailShell, emailButton } from "@/lib/email";
+import { escapeHtml } from "@/lib/sanitize";
 import { NEXTAUTH_URL } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -50,8 +51,9 @@ export async function POST(req: NextRequest) {
             );
 
             if (event.planName && event.planName !== "addon") {
-              const renewalDate = new Date();
-              renewalDate.setDate(renewalDate.getDate() + 30);
+              // Use the actual subscription period end from Stripe if available;
+              // fall back to +30 days only if we don't have it (e.g. one-off payments).
+              const renewalDate = event.currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
               await prisma.user.update({
                 where: { id: event.userId },
                 data: {
@@ -135,13 +137,13 @@ export async function POST(req: NextRequest) {
                     `Plan: ${event.planName ?? "N/A"}`,
                   html:
                     `<h2>Vrátenie platby / Chargeback</h2>` +
-                    `<p><strong>Používateľ ID:</strong> ${event.userId}</p>` +
-                    `<p><strong>E-mail:</strong> ${result.userEmail ?? "neznámy"}</p>` +
+                    `<p><strong>Používateľ ID:</strong> ${escapeHtml(event.userId)}</p>` +
+                    `<p><strong>E-mail:</strong> ${escapeHtml(result.userEmail ?? "neznámy")}</p>` +
                     `<p><strong>Stornovaných kreditov:</strong> ${result.revoked}</p>` +
-                    `<p><strong>Identifikátor platby:</strong> ${event.originalProviderReference}</p>` +
-                    `<p><strong>Refund ID:</strong> ${event.providerReference}</p>` +
+                    `<p><strong>Identifikátor platby:</strong> ${escapeHtml(event.originalProviderReference)}</p>` +
+                    `<p><strong>Refund ID:</strong> ${escapeHtml(event.providerReference)}</p>` +
                     `<p><strong>Výsledný wallet.balance:</strong> ${result.newBalance}</p>` +
-                    `<p><strong>Plan:</strong> ${event.planName ?? "N/A"}</p>`,
+                    `<p><strong>Plan:</strong> ${escapeHtml(event.planName ?? "N/A")}</p>`,
                 });
               } catch (emailErr) {
                 console.error("[webhook] Failed to send admin chargeback email", emailErr);
@@ -164,31 +166,25 @@ export async function POST(req: NextRequest) {
                       `Cenník: ${pricingUrl}\n\n` +
                       `Ak máte otázky, kontaktujte nás na info@verifa.sk.\n\n` +
                       `S pozdravom,\nTím Verifa.sk`,
-                    html: `
-                      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
-                        <h2>Vrátenie platby a obmedzenie účtu</h2>
-                        <p>Dobrý deň,</p>
-                        <p>
-                          Zaznamenali sme vrátenie platby (refund/chargeback) na vašom účte.
-                          Z tohto dôvodu bol váš kreditový zostatok upravený a aktuálne je v
-                          <strong>zápornej hodnote (${result.newBalance} kreditov)</strong>.
-                        </p>
-                        <p>
-                          Generovanie nových reportov je <strong>dočasne pozastavené</strong>.
-                          Pre pokračovanie vo využívaní služieb si prosím zakúpte nový balíček
-                          kreditov v cenníku, čím sa záporný zostatok automaticky dorovná.
-                        </p>
-                        <p>
-                          <a href="${pricingUrl}" style="${emailButtonStyle()}">Zakúpiť kredity</a>
-                        </p>
-                        <p style="color: #52525b; font-size: 14px;">
-                          Ak máte otázky, kontaktujte nás na
-                          <a href="mailto:info@verifa.sk" style="color: #10b981;">info@verifa.sk</a>.
-                        </p>
-                        <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-                        <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
-                      </div>
-                    `,
+                    html: emailShell(`
+                      <h2>Vrátenie platby a obmedzenie účtu</h2>
+                      <p>Dobrý deň,</p>
+                      <p>
+                        Zaznamenali sme vrátenie platby (refund/chargeback) na vašom účte.
+                        Z tohto dôvodu bol váš kreditový zostatok upravený a aktuálne je v
+                        <strong>zápornej hodnote (${result.newBalance} kreditov)</strong>.
+                      </p>
+                      <p>
+                        Generovanie nových reportov je <strong>dočasne pozastavené</strong>.
+                        Pre pokračovanie vo využívaní služieb si prosím zakúpte nový balíček
+                        kreditov v cenníku, čím sa záporný zostatok automaticky dorovná.
+                      </p>
+                      <p>${emailButton(pricingUrl, "Zakúpiť kredity")}</p>
+                      <p style="color: #52525b; font-size: 14px;">
+                        Ak máte otázky, kontaktujte nás na
+                        <a href="mailto:info@verifa.sk" style="color: #10b981;">info@verifa.sk</a>.
+                      </p>
+                    `),
                   });
                 } catch (emailErr) {
                   console.error("[webhook] Failed to send user chargeback email", emailErr);

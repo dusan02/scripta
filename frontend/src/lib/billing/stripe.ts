@@ -14,7 +14,7 @@ function getStripe(): Stripe {
   return _stripe;
 }
 
-const PRICE_MAP: Record<string, { priceId: string; mode: "payment" | "subscription"; credits: number; planName: string }> = {
+export const PRICE_MAP: Record<string, { priceId: string; mode: "payment" | "subscription"; credits: number; planName: string }> = {
   payg1:     { priceId: process.env.STRIPE_PRICE_PAYG1     || "", mode: "payment",      credits: 1,   planName: "payg1" },
   payg10:    { priceId: process.env.STRIPE_PRICE_PAYG10    || "", mode: "payment",      credits: 10,  planName: "payg10" },
   payg50:    { priceId: process.env.STRIPE_PRICE_PAYG50    || "", mode: "payment",      credits: 50,  planName: "payg50" },
@@ -66,6 +66,7 @@ export class StripeAdapter implements PaymentProviderAdapter {
         let userId = invoice.metadata?.userId;
         let planName = invoice.metadata?.planName;
         let creditsStr = invoice.metadata?.credits;
+        let currentPeriodEnd: Date | undefined;
 
         if (!userId || !creditsStr) {
           const subDetails = invoice.parent?.subscription_details;
@@ -75,6 +76,8 @@ export class StripeAdapter implements PaymentProviderAdapter {
             userId = userId || subscription.metadata?.userId;
             planName = planName || subscription.metadata?.planName;
             creditsStr = creditsStr || subscription.metadata?.credits;
+            const periodEnd = subscription.items?.data?.[0]?.current_period_end;
+            if (periodEnd) currentPeriodEnd = new Date(periodEnd * 1000);
           }
         }
 
@@ -86,6 +89,7 @@ export class StripeAdapter implements PaymentProviderAdapter {
             credits,
             planName: planName || undefined,
             providerReference: invoice.id,
+            currentPeriodEnd,
           });
         }
         break;

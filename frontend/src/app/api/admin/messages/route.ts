@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
-import { sendEmail } from "@/lib/email";
+import { requireAdmin } from "@/lib/auth";
+import { sendEmail, emailShell } from "@/lib/email";
+import { escapeHtml } from "@/lib/sanitize";
 
 // GET — list all USER messages + all messages for admin
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true },
-    });
-
-    if (dbUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const [, error] = await requireAdmin(req);
+    if (error) return error;
 
     const url = new URL(req.url);
     const filter = url.searchParams.get("filter") || "inbox";
@@ -51,19 +41,8 @@ export async function GET(req: NextRequest) {
 // POST — admin sends announcement/reply to a user or broadcast
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true, email: true },
-    });
-
-    if (dbUser?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const [adminUser, error] = await requireAdmin(req);
+    if (error) return error;
 
     const body = await req.json();
     const { title, message, type, targetUserId } = body;
@@ -81,7 +60,7 @@ export async function POST(req: NextRequest) {
     const msg = await prisma.userMessage.create({
       data: {
         type: msgType,
-        senderId: user.id,
+        senderId: adminUser!.id,
         userId: targetUserId || null,
         title: title.trim().slice(0, 200),
         body: message.trim().slice(0, 5000),
@@ -100,7 +79,10 @@ export async function POST(req: NextRequest) {
             to: targetUser.email,
             subject: `[Verifa.sk] ${title.trim()}`,
             text: message.trim(),
-            html: `<p style="white-space: pre-wrap;">${message.trim()}</p><hr><p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk.</p>`,
+            html: emailShell(`
+              <p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>
+              <p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk.</p>
+            `),
           });
         } catch (emailErr) {
           console.error("Failed to send email to user", emailErr);
@@ -118,7 +100,10 @@ export async function POST(req: NextRequest) {
             to: u.email,
             subject: `[Verifa.sk] ${title.trim()}`,
             text: message.trim(),
-            html: `<p style="white-space: pre-wrap;">${message.trim()}</p><hr><p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk.</p>`,
+            html: emailShell(`
+              <p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>
+              <p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk.</p>
+            `),
           });
         } catch (emailErr) {
           console.error(`Failed to send email to ${u.email}`, emailErr);

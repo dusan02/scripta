@@ -4,6 +4,7 @@ import path from "path";
 import { Readable } from "stream";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { sanitizeFilename } from "@/lib/sanitize";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -66,7 +67,7 @@ export async function GET(
     }
 
     const filePath = report.resultFilePath;
-    const filename = req.nextUrl.searchParams.get("filename") || `evidence-binder-${params.id}.pdf`;
+    const filename = sanitizeFilename(req.nextUrl.searchParams.get("filename") || `evidence-binder-${params.id}.pdf`);
 
     // ── S3 mode: generate presigned URL and redirect ──────────────────────
     // The worker stores the S3 object key (e.g. "reports/{id}/evidence_binder.pdf")

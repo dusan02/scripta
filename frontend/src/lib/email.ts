@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { emailShell, emailButton, emailButtonStyle } from "@/lib/emailTemplates";
+
+export { emailShell, emailButton, emailButtonStyle };
 
 type SendEmailParams = {
   to: string;
@@ -55,8 +58,4 @@ export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailP
     const err = await res.text();
     throw new Error(`Resend error ${res.status}: ${err}`);
   }
-}
-
-export function emailButtonStyle(): string {
-  return "display: inline-block; background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 8px;";
 }

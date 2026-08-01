@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendEmail, emailButtonStyle } from "@/lib/email";
+import { sendEmail, emailShell, emailButton } from "@/lib/email";
 import { verifyWorkerSecret } from "@/lib/auth";
+import { escapeHtml } from "@/lib/sanitize";
 import { NEXTAUTH_URL } from "@/lib/env";
 import { revalidatePath } from "next/cache";
 
@@ -62,19 +63,13 @@ export async function POST(
       to: user.email,
       subject: `Report ${statusLabel.toLowerCase()} — ${companyName} | Verifa.sk`,
       text: `Dobrý deň ${user.name || ""},\n\nVáš report pre ${companyName} bol ${statusLabel.toLowerCase()}.\n\nZobraziť report: ${reportUrl}\n\nS pozdravom,\nTím Verifa.sk`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
-          <h2>Report ${statusLabel}</h2>
-          <p>Dobrý deň ${user.name || ""},</p>
-          <p>Váš Business Risk Report pre <strong>${companyName}</strong> bol ${statusLabel.toLowerCase()}.</p>
-          <p>
-            <a href="${reportUrl}" style="${emailButtonStyle()}">Zobraziť report</a>
-          </p>
-          ${report.status === "FAILED" ? '<p style="color: #dc2626; font-size: 14px;">Pri generovaní reportu nastala chyba. Skúste to prosím znova alebo nás kontaktujte na info@verifa.sk.</p>' : ""}
-          <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-          <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
-        </div>
-      `,
+      html: emailShell(`
+        <h2>Report ${statusLabel}</h2>
+        <p>Dobrý deň ${escapeHtml(user.name || "")},</p>
+        <p>Váš Business Risk Report pre <strong>${escapeHtml(companyName)}</strong> bol ${statusLabel.toLowerCase()}.</p>
+        <p>${emailButton(reportUrl, "Zobraziť report")}</p>
+        ${report.status === "FAILED" ? '<p style="color: #dc2626; font-size: 14px;">Pri generovaní reportu nastala chyba. Skúste to prosím znova alebo nás kontaktujte na info@verifa.sk.</p>' : ""}
+      `),
     });
 
     return NextResponse.json({ sent: true });

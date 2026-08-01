@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
         replyTo,
         subject: `[Verifa.sk] ${title.trim()}`,
         text: `Od: ${user.email}\n\n${message.trim()}`,
-        html: `<p><strong>Od:</strong> ${user.email}</p><p><strong>Predmet:</strong> ${title.trim()}</p><hr><p style="white-space: pre-wrap;">${message.trim()}</p>`,
+        html: `<p><strong>Od:</strong> ${escapeHtml(user.email)}</p><p><strong>Predmet:</strong> ${escapeHtml(title.trim())}</p><hr><p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>`,
       });
     } catch (emailErr) {
       console.error("Failed to send notification email", emailErr);

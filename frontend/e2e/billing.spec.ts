@@ -20,7 +20,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { mockCheckoutCompletedEvent, mockInvoicePaidEvent, mockChargeRefundedEvent } from "./helpers";
+import { mockCheckoutCompletedEvent, mockInvoicePaidEvent, mockChargeRefundedEvent, loginAPIAs, TEST_USER_A } from "./helpers";
 
 // The webhook secret used for testing. Must match the .env value.
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "whsec_test_secret";
@@ -108,5 +108,66 @@ test.describe("Billing webhook — credit grant flow", () => {
     });
 
     expect(res.status()).toBe(400);
+  });
+});
+
+test.describe("Checkout endpoint validation", () => {
+  test("rejects unauthenticated user", async ({ request }) => {
+    const res = await request.post("/api/billing/checkout", {
+      headers: { "Content-Type": "application/json" },
+      data: { planId: "payg1" },
+    });
+    expect(res.status()).toBe(401);
+  });
+
+  test("rejects missing planId", async ({ request }) => {
+    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const res = await request.post("/api/billing/checkout", {
+      headers: { ...auth, "Content-Type": "application/json" },
+      data: {},
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test("rejects invalid planId", async ({ request }) => {
+    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const res = await request.post("/api/billing/checkout", {
+      headers: { ...auth, "Content-Type": "application/json" },
+      data: { planId: "invalid-plan-xyz" },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test("rejects non-string planId", async ({ request }) => {
+    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const res = await request.post("/api/billing/checkout", {
+      headers: { ...auth, "Content-Type": "application/json" },
+      data: { planId: 123 },
+    });
+    expect(res.status()).toBe(400);
+  });
+});
+
+test.describe("Stripe proxy routes removed (dead code)", () => {
+  test("/api/stripe/checkout returns 404", async ({ request }) => {
+    const res = await request.post("/api/stripe/checkout", {
+      headers: { "Content-Type": "application/json" },
+      data: { planId: "payg1" },
+    });
+    expect(res.status()).toBe(404);
+  });
+
+  test("/api/stripe/portal returns 404", async ({ request }) => {
+    const res = await request.post("/api/stripe/portal", {
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(res.status()).toBe(404);
+  });
+
+  test("/api/stripe/webhook returns 404", async ({ request }) => {
+    const res = await request.post("/api/stripe/webhook", {
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(res.status()).toBe(404);
   });
 });

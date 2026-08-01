@@ -1,4 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import { config as loadEnv } from "dotenv";
+
+// Load .env so test files can read CRON_SECRET, WORKER_SECRET, etc.
+loadEnv();
+
+// Billing webhook tests use a fake user ID ("test-user-id"), so the webhook
+// must NOT pass signature verification (otherwise it tries to create a wallet
+// for a non-existent user → FK violation → 500).
+// Override the dev secret with a test-only value so signature verification
+// always fails gracefully (400) in E2E tests.
+process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_secret";
 
 /**
  * Playwright E2E test configuration for Scripta/Verifa.

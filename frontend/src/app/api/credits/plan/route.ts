@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    const [userPlan, wallet, totalReports, successfulReports, failedReports, usedThisMonth, recentReports] = await Promise.all([
+    const [userPlan, wallet, totalReports, successfulReports, failedReports, usedThisMonth, recentReports, successfulReportsAllTime] = await Promise.all([
       prisma.user.findUnique({
         where: { id: user.id },
         select: { planName: true, planRenewalDate: true },
@@ -33,10 +33,16 @@ export async function GET(req: NextRequest) {
         take: 5,
         select: { id: true, ico: true, companyName: true, status: true, createdAt: true },
       }),
+      prisma.reportRequest.count({ where: { userId: user.id, status: { in: ["COMPLETED", "PARTIAL"] } } }),
     ]);
 
     const remaining = wallet ? Number(wallet.balance) : 0;
-    const totalCredits = remaining + successfulReports;
+    // totalCredits = current balance + all-time successful reports.
+    // Only COMPLETED/PARTIAL reports consumed credits permanently — FAILED and
+    // CANCELLED reports were refunded, so their credits are already in `remaining`.
+    // NOTE: This assumes 1 report = 1 credit. If variable credit costs are
+    // introduced (e.g. CRE reports costing 5 credits), this will undercount.
+    const totalCredits = remaining + successfulReportsAllTime;
 
     let daysRemaining: number | null = null;
     if (userPlan?.planRenewalDate) {

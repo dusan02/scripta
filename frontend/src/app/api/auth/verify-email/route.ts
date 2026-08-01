@@ -3,8 +3,13 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
 import { addCreditBatch } from "@/lib/credits";
+import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET(req: NextRequest) {
+  // Rate limit: 20 attempts per 15 min per IP (prevents token brute-force, even though 32-byte tokens are impractical to guess)
+  const rl = await rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 20 });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const token = req.nextUrl.searchParams.get("token");
 
   if (!token) {
@@ -23,34 +28,44 @@ export async function GET(req: NextRequest) {
 
   if (verificationRecord.expires < new Date()) {
     await prisma.verificationToken.delete({ where: { id: verificationRecord.id } });
-    return NextResponse.json({ message: "Verifikačný token expiroval. Zaregistrujte sa znova." }, { status: 400 });
+    return NextResponse.json({ message: "Verifikačný token expiroval. Zareistrujte sa znova." }, { status: 400 });
   }
 
+  // Atomic verification: update emailVerified + trialEndsAt + delete token in a transaction.
+  // The conditional update (where: { emailVerified: null }) prevents double-credit
+  // race conditions — only the first request succeeds, the second gets 0 rows updated.
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Conditional update — only succeeds if emailVerified is still null
+    const updated = await tx.user.updateMany({
+      where: { email: verificationRecord.email, emailVerified: null },
+      data: { emailVerified: new Date(), trialEndsAt },
+    });
+
+    await tx.verificationToken.delete({ where: { id: verificationRecord.id } });
+
+    return updated.count;
+  });
+
+  if (result === 0) {
+    // emailVerified was already set by a concurrent request — no credit grant
+    return NextResponse.json({ message: "Účet je už aktivovaný." });
+  }
+
+  // Fetch user ID outside transaction (addCreditBatch has its own transaction)
   const user = await prisma.user.findUnique({
     where: { email: verificationRecord.email },
+    select: { id: true },
   });
 
   if (!user) {
     return NextResponse.json({ message: "Používateľ neexistuje." }, { status: 400 });
   }
 
-  if (user.emailVerified) {
-    await prisma.verificationToken.delete({ where: { id: verificationRecord.id } });
-    return NextResponse.json({ message: "Účet je už aktivovaný." });
-  }
-
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 30);
-
-  await prisma.user.update({
-    where: { email: verificationRecord.email },
-    data: { emailVerified: new Date(), trialEndsAt },
-  });
-
-  // Create wallet with 1 free trial credit via CreditBatch
+  // Grant 1 free trial credit via CreditBatch (has its own transaction)
   await addCreditBatch(user.id, 1, "trial");
-
-  await prisma.verificationToken.delete({ where: { id: verificationRecord.id } });
 
   return NextResponse.json({ message: "Účet bol úspešne aktivovaný. Môžete sa prihlásiť." });
 }

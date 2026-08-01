@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import { getBillingAdapter } from "@/lib/billing";
+import { PRICE_MAP } from "@/lib/billing/stripe";
+import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
+
+// Valid plan IDs — derived from PRICE_MAP to stay in sync
+const VALID_PLAN_IDS = new Set(Object.keys(PRICE_MAP));
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,9 +16,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limit: max 10 checkout sessions per user per 10 minutes
+    // (prevents Stripe API abuse — each session is a paid API call)
+    const rl = await rateLimitByKey(`checkout:${session.user.id}`, {
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 10,
+    });
+    if (!rl.allowed) return rateLimitResponse(rl);
+
     const { planId } = await req.json();
-    if (!planId) {
+    if (!planId || typeof planId !== "string") {
       return NextResponse.json({ error: "Plan ID required" }, { status: 400 });
+    }
+
+    if (!VALID_PLAN_IDS.has(planId)) {
+      return NextResponse.json({ error: "Invalid plan ID" }, { status: 400 });
     }
 
     const adapter = getBillingAdapter();
@@ -24,7 +41,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ url: result.url });
-  } catch {
-    return NextResponse.json({ error: "Checkout failed" }, { status: 500 });
+  } catch (error) {
+    console.error("Checkout error:", error);
+    const message = error instanceof Error ? error.message : "Checkout failed";
+    const status = message === "Invalid plan" ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

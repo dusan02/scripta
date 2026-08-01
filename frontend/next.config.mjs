@@ -13,6 +13,7 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Origin', value: process.env.NEXTAUTH_URL || 'https://verifa.sk' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PATCH, DELETE, OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, x-worker-secret, svix-id, svix-timestamp, svix-signature' },
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
           { key: 'Access-Control-Max-Age', value: '86400' },
         ],
       },

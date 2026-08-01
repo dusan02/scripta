@@ -3,7 +3,8 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitResponse, rateLimitByKey } from "@/lib/rateLimit";
 import { hashToken } from "@/lib/token";
-import { sendEmail, emailButtonStyle } from "@/lib/email";
+import { sendEmail, emailShell, emailButton } from "@/lib/email";
+import { escapeHtml } from "@/lib/sanitize";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -64,18 +65,14 @@ async function sendVerificationEmail(email: string, token: string, isNew: boolea
     to: email,
     subject,
     text: `Dobrý deň,\n\n${textIntro}\n${verifyLink}\n\n${footer}\n\nS pozdravom,\nTím Verifa.sk`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
-        <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Kliknite na odkaz pre aktiváciu vášho účtu na Verifa.sk</div>
-        <h2>${heading}</h2>
-        <p>Dobrý deň,</p>
-        <p>${intro}</p>
-        <p><a href="${verifyLink}" style="${emailButtonStyle()}">Aktivovať účet</a></p>
-        <p style="color: #52525b; font-size: 14px;">${footer}</p>
-        <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-        <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
-      </div>
-    `,
+    html: emailShell(`
+      <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Kliknite na odkaz pre aktiváciu vášho účtu na Verifa.sk</div>
+      <h2>${heading}</h2>
+      <p>Dobrý deň,</p>
+      <p>${intro}</p>
+      <p>${emailButton(verifyLink, "Aktivovať účet")}</p>
+      <p style="color: #52525b; font-size: 14px;">${footer}</p>
+    `),
   });
 }
 
@@ -94,9 +91,9 @@ async function sendAdminRegistrationNotification(email: string, userId: string):
         `Účet čaká na e-mailovú verifikáciu.`,
       html:
         `<h2>Nová registrácia</h2>` +
-        `<p><strong>E-mail:</strong> ${email}</p>` +
-        `<p><strong>ID:</strong> ${userId}</p>` +
-        `<p><strong>Čas:</strong> ${timestamp}</p>` +
+        `<p><strong>E-mail:</strong> ${escapeHtml(email)}</p>` +
+        `<p><strong>ID:</strong> ${escapeHtml(userId)}</p>` +
+        `<p><strong>Čas:</strong> ${escapeHtml(timestamp)}</p>` +
         `<p style="color: #52525b;">Účet čaká na e-mailovú verifikáciu.</p>`,
     });
   } catch (err) {

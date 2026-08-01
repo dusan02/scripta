@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, emailShell, emailButton } from "@/lib/email";
 import { NEXTAUTH_URL } from "@/lib/env";
 import crypto from "crypto";
 
@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
 
-    // Save hashed token to DB (raw token goes only in the email link)
+    // Delete any existing tokens for this email first (idempotent re-send),
+    // then save the new hashed token (raw token goes only in the email link)
+    await prisma.passwordResetToken.deleteMany({ where: { email: normalizedEmail } });
     await prisma.passwordResetToken.create({
       data: {
         email: normalizedEmail,
@@ -48,17 +50,13 @@ export async function POST(req: NextRequest) {
       to: normalizedEmail,
       subject: "Obnova hesla - Verifa.sk",
       text: `Dobrý deň,\n\nPožiadali ste o obnovu hesla k vášmu účtu na Verifa.sk.\n\nKliknite na nasledujúci odkaz pre nastavenie nového hesla:\n${resetLink}\n\nTento odkaz platí 1 hodinu.\n\nAk ste o túto zmenu nežiadali, môžete tento e-mail ignorovať.\n\nS pozdravom,\nTím Verifa.sk`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
-          <h2>Obnova hesla</h2>
-          <p>Dobrý deň,</p>
-          <p>Požiadali ste o obnovu hesla k vášmu účtu na portáli <strong>Verifa.sk</strong>.</p>
-          <p>
-            <a href="${resetLink}" style="display: inline-block; background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 8px;">Nastaviť nové heslo</a>
-          </p>
-          <p style="color: #52525b; font-size: 14px;">Tento odkaz je platný 1 hodinu. Ak ste o zmenu hesla nežiadali, ignorujte tento e-mail.</p>
-        </div>
-      `,
+      html: emailShell(`
+        <h2>Obnova hesla</h2>
+        <p>Dobrý deň,</p>
+        <p>Požiadali ste o obnovu hesla k vášmu účtu na portáli <strong>Verifa.sk</strong>.</p>
+        <p>${emailButton(resetLink, "Nastaviť nové heslo")}</p>
+        <p style="color: #52525b; font-size: 14px;">Tento odkaz je platný 1 hodinu. Ak ste o zmenu hesla nežiadali, ignorujte tento e-mail.</p>
+      `),
     });
 
     return NextResponse.json({ message: "Ak účet existuje, zaslali sme e-mail s odkazom na obnovu hesla." });
