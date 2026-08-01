@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 const RUZ_API = "https://www.registeruz.sk/cruz-public/api";
 const UA = "Verifa.sk/1.0 (+https://verifa.sk)";
@@ -399,9 +400,17 @@ async function seedCompany(ico: string) {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ ico: string }> }
 ) {
+  const user = await getCurrentUser(req);
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
+  }
+
   const { ico } = await params;
   if (!/^\d{8,10}$/.test(ico)) {
     return NextResponse.json({ error: "Invalid IČO format" }, { status: 400 });

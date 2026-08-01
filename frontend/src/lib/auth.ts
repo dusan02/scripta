@@ -14,6 +14,7 @@ export type AuthUser = {
   id: string;
   email: string;
   name?: string | null;
+  role?: string;
 };
 
 // Augment next-auth types so session.user.id is available with full typing.
@@ -164,12 +165,13 @@ export const authOptions: NextAuthOptions = {
       // `user` is only available on sign-in; persist id and tokenVersion into token.
       if (user) {
         token.id = user.id;
-        // Fetch tokenVersion from DB at sign-in
+        // Fetch tokenVersion and role from DB at sign-in
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { tokenVersion: true },
+          select: { tokenVersion: true, role: true },
         });
         token.tokenVersion = dbUser?.tokenVersion ?? 0;
+        token.role = dbUser?.role;
       }
       // For OAuth sign-in, create/link user if not exists
       if (account && account.provider !== "credentials" && user) {
@@ -216,11 +218,12 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id },
-            select: { id: true, tokenVersion: true },
+            select: { id: true, tokenVersion: true, role: true },
           });
           if (!dbUser || dbUser.tokenVersion !== token.tokenVersion) {
             token.id = "";
           }
+          token.role = dbUser?.role;
         } catch {
           // DB error — keep existing token, don't logout
         }
@@ -229,10 +232,11 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // Expose id in the session object.
+      // Expose id and role in the session object.
       // If token was invalidated (id cleared), session has no user.
       if (session.user && token.id) {
         session.user.id = token.id;
+        session.user.role = token.role as string | undefined;
       } else {
         // Invalidated token — return empty session
         session.user = undefined as unknown as typeof session.user;
