@@ -111,26 +111,30 @@ export async function addCreditBatch(
  * Deducts from the oldest non-expired batches first.
  * Returns true if enough credits were available, false otherwise.
  */
+export type ConsumeResult =
+  | { ok: true }
+  | { ok: false; reason: "NO_WALLET" | "INSUFFICIENT" | "EXPIRED" };
+
 /**
  * Consume credits within an existing transaction (for atomic report creation).
  * Uses pessimistic locking on Wallet and CreditBatch rows.
- * Returns true on success, false if insufficient credits.
+ * Returns { ok: true } on success, or { ok: false, reason } with specific failure reason.
  */
 export async function consumeCreditsTx(
   tx: PrismaTransaction,
   userId: string,
   amount: number,
   reportRequestId?: string
-): Promise<boolean> {
+): Promise<ConsumeResult> {
   // Pessimistic lock on wallet row — prevents concurrent modifications
   const walletRows = await tx.$queryRaw<any[]>`
     SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
   `;
   const wallet = walletRows[0];
-  if (!wallet) return false;
+  if (!wallet) return { ok: false, reason: "NO_WALLET" };
 
   const walletBalance = Number(wallet.balance);
-  if (walletBalance < amount) return false;
+  if (walletBalance < amount) return { ok: false, reason: "INSUFFICIENT" };
 
   // Pessimistic lock on batches — consume by soonest expiry first so that
   // credits closest to expiration are spent before longer-lived ones.
@@ -143,7 +147,11 @@ export async function consumeCreditsTx(
   `;
 
   const totalAvailable = batches.reduce((sum, b) => sum + b.remaining, 0);
-  if (totalAvailable < amount) return false;
+  if (totalAvailable < amount) {
+    // Wallet has balance but no non-expired batches with remaining credits
+    // → credits expired between the initial check and this transaction
+    return { ok: false, reason: "EXPIRED" };
+  }
 
   let toConsume = amount;
 
@@ -179,7 +187,7 @@ export async function consumeCreditsTx(
     },
   });
 
-  return true;
+  return { ok: true };
 }
 
 export async function consumeCredits(
@@ -187,9 +195,10 @@ export async function consumeCredits(
   amount: number,
   reportRequestId?: string
 ): Promise<boolean> {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     return consumeCreditsTx(tx, userId, amount, reportRequestId);
   });
+  return result.ok;
 }
 
 /**

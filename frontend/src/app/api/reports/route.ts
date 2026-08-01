@@ -176,10 +176,12 @@ export async function POST(req: NextRequest) {
     // This prevents race conditions where another request could exhaust credits
     // between the check and the consumption, or where report creation succeeds
     // but credit consumption fails (leaving an unpaid report).
+    let creditFailReason: "INSUFFICIENT" | "EXPIRED" | "NO_WALLET" | null = null;
     const reportRequest = await prisma.$transaction(async (tx) => {
       // Consume credit first — if this fails, no report is created
-      const creditConsumed = await consumeCreditsTx(tx, user.id, 1);
-      if (!creditConsumed) {
+      const creditResult = await consumeCreditsTx(tx, user.id, 1);
+      if (!creditResult.ok) {
+        creditFailReason = creditResult.reason;
         throw new Error("CREDIT_CONSUMPTION_FAILED");
       }
 
@@ -207,8 +209,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (!reportRequest) {
+      // Distinguish "credits expired between check and consume" from "insufficient"
+      const errorMsg = creditFailReason === "EXPIRED"
+        ? "Vaše kredity expirovali. Vyberte si nový balíček v cenníku."
+        : "Nepodarilo sa stiahnuť kredity. Skúste to znova alebo kontaktujte podporu.";
       return NextResponse.json(
-        { error: "Nepodarilo sa stiahnuť kredity. Skúste to znova alebo kontaktujte podporu." },
+        { error: errorMsg },
         { status: 402 }
       );
     }
