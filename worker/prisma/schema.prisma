@@ -475,5 +475,8 @@ model WalletTransaction {
   @@index([walletId])
   @@index([reportRequestId])
   @@index([provider, providerReference])
+  // DB-level idempotency: prevent duplicate CHARGE or REFUND for the same report.
+  // Partial unique index — only applies when reportRequestId is not null.
+  @@unique([reportRequestId, type])
 }
 
