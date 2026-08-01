@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { refundCredits } from "@/lib/credits";
+import { refundCreditsTx } from "@/lib/credits";
 
 export const dynamic = "force-dynamic";
 
@@ -60,14 +60,15 @@ export async function POST(
       console.error("Worker cancel request failed", e);
     }
 
-    // 2. Update report status to CANCELLED
-    await prisma.reportRequest.update({
-      where: { id: params.id },
-      data: { status: "CANCELLED", completedAt: new Date() },
+    // 2. Atomically refund credit + update report status to CANCELLED.
+    // If refund fails, report stays in its current status (not CANCELLED without refund).
+    await prisma.$transaction(async (tx) => {
+      await refundCreditsTx(tx, user.id, 1, params.id);
+      await tx.reportRequest.update({
+        where: { id: params.id },
+        data: { status: "CANCELLED", completedAt: new Date() },
+      });
     });
-
-    // 3. Refund credit
-    await refundCredits(user.id, 1, params.id);
 
     return NextResponse.json({ status: "cancelled" });
   } catch (error) {

@@ -194,6 +194,97 @@ export async function consumeCredits(
 
 /**
  * Refund credits back to batches if a report fails.
+ * Uses an existing transaction client — for atomic operations with report status updates.
+ */
+export async function refundCreditsTx(
+  tx: PrismaTransaction,
+  userId: string,
+  amount: number,
+  reportRequestId: string
+): Promise<void> {
+  // Lock wallet row
+  const walletRows = await tx.$queryRaw<any[]>`
+    SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
+  `;
+  const wallet = walletRows[0];
+  if (!wallet) return;
+
+  // Idempotency: find original CHARGE
+  const chargeTx = await tx.walletTransaction.findFirst({
+    where: {
+      walletId: wallet.id,
+      type: "CHARGE",
+      reportRequestId,
+    },
+  });
+  if (!chargeTx) return;
+
+  // Idempotency: check if refund already exists
+  const existingRefund = await tx.walletTransaction.findFirst({
+    where: { type: "REFUND", reportRequestId },
+  });
+  if (existingRefund) return;
+
+  // Lock batches (LIFO — newest first) with pessimistic lock for consistency
+  const batches = await tx.$queryRaw<any[]>`
+    SELECT * FROM "CreditBatch"
+    WHERE "userId" = ${userId} AND "expiresAt" > NOW()
+    ORDER BY "createdAt" DESC
+    FOR UPDATE
+  `;
+
+  let toRefund = amount;
+  for (const batch of batches) {
+    if (toRefund <= 0) break;
+    const space = batch.amount - batch.remaining;
+    if (space === 0) continue;
+    const refund = Math.min(space, toRefund);
+
+    await tx.creditBatch.update({
+      where: { id: batch.id },
+      data: { remaining: { increment: refund } },
+    });
+
+    toRefund -= refund;
+  }
+
+  // If no batch had space, create a new rollover batch
+  if (toRefund > 0) {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + EXPIRY_DAYS.rollover);
+    await tx.creditBatch.create({
+      data: {
+        userId,
+        amount: toRefund,
+        remaining: toRefund,
+        source: "rollover",
+        expiresAt,
+      },
+    });
+  }
+
+  await tx.wallet.update({
+    where: { userId },
+    data: {
+      balance: { increment: amount },
+      version: { increment: 1 },
+    },
+  });
+
+  await tx.walletTransaction.create({
+    data: {
+      walletId: wallet.id,
+      amount,
+      type: "REFUND",
+      status: "COMPLETED",
+      reportRequestId,
+      description: `Vrátenie kreditov — report ${reportRequestId}`,
+    },
+  });
+}
+
+/**
+ * Refund credits back to batches if a report fails.
  */
 export async function refundCredits(
   userId: string,
@@ -201,85 +292,7 @@ export async function refundCredits(
   reportRequestId: string
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
-    // Lock wallet row
-    const walletRows = await tx.$queryRaw<any[]>`
-      SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
-    `;
-    const wallet = walletRows[0];
-    if (!wallet) return;
-
-    // Idempotency: find original CHARGE
-    const chargeTx = await tx.walletTransaction.findFirst({
-      where: {
-        walletId: wallet.id,
-        type: "CHARGE",
-        reportRequestId,
-      },
-    });
-    if (!chargeTx) return;
-
-    // Idempotency: check if refund already exists
-    const existingRefund = await tx.walletTransaction.findFirst({
-      where: { type: "REFUND", reportRequestId },
-    });
-    if (existingRefund) return;
-
-    // Lock batches (LIFO — newest first) with pessimistic lock for consistency
-    const batches = await tx.$queryRaw<any[]>`
-      SELECT * FROM "CreditBatch" 
-      WHERE "userId" = ${userId} AND "expiresAt" > NOW() 
-      ORDER BY "createdAt" DESC 
-      FOR UPDATE
-    `;
-
-    let toRefund = amount;
-    for (const batch of batches) {
-      if (toRefund <= 0) break;
-      const space = batch.amount - batch.remaining;
-      if (space === 0) continue;
-      const refund = Math.min(space, toRefund);
-
-      await tx.creditBatch.update({
-        where: { id: batch.id },
-        data: { remaining: { increment: refund } },
-      });
-
-      toRefund -= refund;
-    }
-
-    // If no batch had space, create a new rollover batch
-    if (toRefund > 0) {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + EXPIRY_DAYS.rollover);
-      await tx.creditBatch.create({
-        data: {
-          userId,
-          amount: toRefund,
-          remaining: toRefund,
-          source: "rollover",
-          expiresAt,
-        },
-      });
-    }
-
-    await tx.wallet.update({
-      where: { userId },
-      data: {
-        balance: { increment: amount },
-        version: { increment: 1 },
-      },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        amount,
-        type: "REFUND",
-        status: "COMPLETED",
-        reportRequestId,
-        description: `Vrátenie kreditov — report ${reportRequestId}`,
-      },
-    });
+    return refundCreditsTx(tx, userId, amount, reportRequestId);
   });
 }
 
