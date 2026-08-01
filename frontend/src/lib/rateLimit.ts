@@ -100,16 +100,29 @@ export async function rateLimit(
   if (UPSTASH_URL && UPSTASH_TOKEN) {
     try {
       return await redisRateLimit(key, options);
-    } catch {
+    } catch (err) {
+      // In production, fail CLOSED — deny the request rather than falling back
+      // to in-memory (which is per-instance and ineffective in multi-instance deployments).
       if (process.env.NODE_ENV === "production") {
-        console.warn("[rateLimit] Upstash Redis failed — using in-memory fallback");
+        console.error("[rateLimit] Upstash Redis failed — denying request (fail closed):", err);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetTime: Date.now() + options.windowMs,
+        };
       }
+      // In development, fail open with in-memory fallback
       return memRateLimit(key, options);
     }
   }
 
   if (process.env.NODE_ENV === "production") {
-    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback");
+    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — denying request (fail closed)");
+    return {
+      allowed: false,
+      remaining: 0,
+      resetTime: Date.now() + options.windowMs,
+    };
   }
 
   return memRateLimit(key, options);
@@ -138,16 +151,26 @@ export async function rateLimitByKey(
   if (UPSTASH_URL && UPSTASH_TOKEN) {
     try {
       return await redisRateLimit(rateLimitKey, options);
-    } catch {
+    } catch (err) {
       if (process.env.NODE_ENV === "production") {
-        console.warn("[rateLimit] Upstash Redis failed — using in-memory fallback");
+        console.error("[rateLimit] Upstash Redis failed — denying request (fail closed):", err);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetTime: Date.now() + options.windowMs,
+        };
       }
       return memRateLimit(rateLimitKey, options);
     }
   }
 
   if (process.env.NODE_ENV === "production") {
-    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback");
+    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — denying request (fail closed)");
+    return {
+      allowed: false,
+      remaining: 0,
+      resetTime: Date.now() + options.windowMs,
+    };
   }
 
   return memRateLimit(rateLimitKey, options);
