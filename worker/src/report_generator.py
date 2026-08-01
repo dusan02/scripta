@@ -2018,35 +2018,42 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
             "--disable-gpu", "--no-sandbox",
         ])
         page = await browser.new_page()
-        await page.goto(f"file://{html_path}", wait_until="networkidle", timeout=30000)
         try:
-            await page.wait_for_function(
-                "() => { const styles = document.querySelectorAll('style'); for (const s of styles) { if (s.textContent.includes('--tw') || s.textContent.includes('.container')) return true; } return false; }",
-                timeout=10000
+            await page.goto(f"file://{html_path}", wait_until="networkidle", timeout=30000)
+            try:
+                await page.wait_for_function(
+                    "() => { const styles = document.querySelectorAll('style'); for (const s of styles) { if (s.textContent.includes('--tw') || s.textContent.includes('.container')) return true; } return false; }",
+                    timeout=10000
+                )
+            except Exception:
+                logger.warning("Tailwind JIT styles neboli detekované včas — pokračujem bez čakania")
+            try:
+                await page.evaluate("async () => { await document.fonts.ready; }")
+            except Exception:
+                pass
+            try:
+                await page.wait_for_function(
+                    "() => document.fonts.check('10px Inter') && document.fonts.check('bold 10px Inter') && document.fonts.check('10px \"DejaVu Sans\"')",
+                    timeout=10000
+                )
+            except Exception:
+                pass
+            await page.emulate_media(media="print")
+            await page.pdf(
+                path=pdf_path,
+                format="A4",
+                margin={"top": "12mm", "bottom": "18mm", "left": "0mm", "right": "0mm"},
+                print_background=True,
+                display_header_footer=False,
+                prefer_css_page_size=True,
             )
-        except Exception:
-            logger.warning("Tailwind JIT styles neboli detekované včas — pokračujem bez čakania")
-        try:
-            await page.evaluate("async () => { await document.fonts.ready; }")
-        except Exception:
-            pass
-        try:
-            await page.wait_for_function(
-                "() => document.fonts.check('10px Inter') && document.fonts.check('bold 10px Inter') && document.fonts.check('10px \"DejaVu Sans\"')",
-                timeout=10000
-            )
-        except Exception:
-            pass
-        await page.emulate_media(media="print")
-        await page.pdf(
-            path=pdf_path, 
-            format="A4", 
-            margin={"top": "12mm", "bottom": "18mm", "left": "0mm", "right": "0mm"}, 
-            print_background=True,
-            display_header_footer=False,
-            prefer_css_page_size=True,
-        )
-        await browser.close()
+        finally:
+            # Explicit page close prevents resource leaks if PDF generation throws
+            try:
+                await page.close()
+            except Exception:
+                pass
+            await browser.close()
     try:
         os.remove(html_path)
     except Exception:

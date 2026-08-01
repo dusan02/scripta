@@ -548,6 +548,11 @@ async def _playwright_fallback(
         except Exception as e:
             logger.warning(f"[RUZ_PW] Chyba pri hľadaní 'Stiahnuť' linkov: {e}")
 
+        # Explicit page close prevents resource leak
+        try:
+            await page.close()
+        except Exception:
+            pass
         await context.close()
 
     except Exception as e:

@@ -66,17 +66,21 @@ async def shutdown(ctx):
     await disconnect_db()
 
 # Hlavná funkcia na spracovanie
+MAX_TRIES = int(os.getenv("ARQ_MAX_TRIES", "3"))
+
 async def execute_report_task(ctx, task_dict: dict):
     from src.models import ReportTask
     from src.main import _execute_report_inner
     from arq import Retry
+    from src.db_client import get_db
+    from datetime import datetime, timezone
 
     task = ReportTask(**task_dict)
     ico = task.ico
     report_request_id = task.report_request_id
     job_try = ctx.get('job_try', 1)
-    
-    logger.info(f"Spracovávam IČO: {ico} (Pokus {job_try}/3)")
+
+    logger.info(f"Spracovávam IČO: {ico} (Pokus {job_try}/{MAX_TRIES})")
 
     try:
         # Volanie skutočnej orchestration funkcie
@@ -86,15 +90,27 @@ async def execute_report_task(ctx, task_dict: dict):
         logger.error(f"Chyba pri spracovaní IČO {ico}: {e}", exc_info=True)
         if sentry_dsn:
             sentry_sdk.capture_exception(e)
-            
-        if job_try < 3:
-            # Exponential backoff: 2s, 8s
-            delay = 2 if job_try == 1 else 8
-            logger.warning(f"Plánujem retry pre {ico} o {delay} sekúnd...")
+
+        if job_try < MAX_TRIES:
+            # Exponential backoff: 5s, 30s, 120s...
+            delay = min(5 * (2 ** (job_try - 1)), 120)
+            logger.warning(f"Plánujem retry pre {ico} o {delay} sekúnd (pokus {job_try + 1}/{MAX_TRIES})...")
             raise Retry(defer=delay)
         else:
             logger.error(f"Úloha pre IČO {ico} definitívne zlyhala po {job_try} pokusoch.")
-            # V reálnom nasadení by sme tu aktualizovali DB status na ERROR
+            # Označ report ako FAILED v databáze
+            try:
+                db = get_db()
+                await db.reportrequest.update(
+                    where={'id': report_request_id},
+                    data={
+                        'status': 'FAILED',
+                        'completedAt': datetime.now(timezone.utc),
+                    }
+                )
+                logger.info(f"[ARQ] Report {report_request_id} označený ako FAILED v DB.")
+            except Exception as db_err:
+                logger.error(f"[ARQ] Nepodarilo sa označiť report {report_request_id} ako FAILED: {db_err}")
             raise
 
 class WorkerSettings:
