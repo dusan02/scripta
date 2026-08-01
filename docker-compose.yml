@@ -17,6 +17,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-verifa}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - postgres_wal:/var/lib/postgresql/wal
     command: >
       postgres
       -c shared_preload_libraries=pgaudit
@@ -24,6 +25,11 @@ services:
       -c pgaudit.log_catalog=off
       -c pgaudit.log_relation=on
       -c log_line_prefix="%m [%p] %u@%d "
+      -c wal_level=replica
+      -c archive_mode=on
+      -c archive_command="test ! -f /var/lib/postgresql/wal/%f && cp %p /var/lib/postgresql/wal/%f"
+      -c max_wal_senders=3
+      -c wal_keep_size=1GB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U verifa"]
       interval: 5s
@@ -201,4 +207,5 @@ services:
 
 volumes:
   postgres_data:
+  postgres_wal:
   db_backups:
