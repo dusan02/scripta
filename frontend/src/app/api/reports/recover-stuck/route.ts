@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  * to /api/reports/{id}/refund failed (e.g. Vercel cold start, network issue) —
  * any FAILED report without an existing REFUND transaction will be refunded here.
  *
- * Schedule: every 30 minutes via external cron (e.g. Vercel Cron, Upstash QStash).
+ * Schedule: every 15 minutes via external cron (e.g. Vercel Cron, Upstash QStash).
  * Auth: Bearer CRON_SECRET header.
  */
 export async function POST(req: Request) {
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const STUCK_THRESHOLD_MINUTES = 30;
+  const STUCK_THRESHOLD_MINUTES = 20;
   const cutoff = new Date(Date.now() - STUCK_THRESHOLD_MINUTES * 60 * 1000);
 
   try {

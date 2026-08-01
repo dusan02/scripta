@@ -141,16 +141,17 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
 
 
 async def recover_stale_reports() -> int:
-    """Mark PROCESSING reports older than 30 minutes as FAILED.
+    """Mark PROCESSING reports older than the configured threshold as FAILED.
 
-    This handles cases where the worker crashed mid-task.
+    This handles cases where the worker crashed mid-task (OOM, SIGKILL).
     Returns count of recovered reports.
     """
     db = get_db()
 
     recovered = 0
     try:
-        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=30)
+        threshold_min = settings.stale_report_threshold_minutes
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=threshold_min)
         stale_reports = await db.reportrequest.find_many(
             where={
                 "status": "PROCESSING",
