@@ -101,30 +101,19 @@ export async function rateLimit(
     try {
       return await redisRateLimit(key, options);
     } catch (err) {
-      // In production, fail CLOSED — deny the request rather than falling back
-      // to in-memory (which is per-instance and ineffective in multi-instance deployments).
-      if (process.env.NODE_ENV === "production") {
-        console.error("[rateLimit] Upstash Redis failed — denying request (fail closed):", err);
-        return {
-          allowed: false,
-          remaining: 0,
-          resetTime: Date.now() + options.windowMs,
-        };
-      }
-      // In development, fail open with in-memory fallback
-      return memRateLimit(key, options);
+      console.error("[rateLimit] Upstash Redis failed — failing open:", err);
+      // Fail open: allow the request but log the error.
+      // Blocking all requests when Redis is down would lock out every user.
+      return { allowed: true, remaining: options.maxRequests - 1, resetTime: Date.now() + options.windowMs };
     }
   }
 
+  // Upstash not configured — fail open with in-memory fallback.
+  // In-memory is per-instance (ineffective in multi-instance deployments),
+  // but blocking all requests when Redis is not configured would lock out users.
   if (process.env.NODE_ENV === "production") {
-    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — denying request (fail closed)");
-    return {
-      allowed: false,
-      remaining: 0,
-      resetTime: Date.now() + options.windowMs,
-    };
+    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback (per-instance, not effective in multi-instance deployments)");
   }
-
   return memRateLimit(key, options);
 }
 
@@ -152,26 +141,13 @@ export async function rateLimitByKey(
     try {
       return await redisRateLimit(rateLimitKey, options);
     } catch (err) {
-      if (process.env.NODE_ENV === "production") {
-        console.error("[rateLimit] Upstash Redis failed — denying request (fail closed):", err);
-        return {
-          allowed: false,
-          remaining: 0,
-          resetTime: Date.now() + options.windowMs,
-        };
-      }
-      return memRateLimit(rateLimitKey, options);
+      console.error("[rateLimit] Upstash Redis failed — failing open:", err);
+      return { allowed: true, remaining: options.maxRequests - 1, resetTime: Date.now() + options.windowMs };
     }
   }
 
   if (process.env.NODE_ENV === "production") {
-    console.error("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — denying request (fail closed)");
-    return {
-      allowed: false,
-      remaining: 0,
-      resetTime: Date.now() + options.windowMs,
-    };
+    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback (per-instance, not effective in multi-instance deployments)");
   }
-
   return memRateLimit(rateLimitKey, options);
 }
