@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import type { PaymentProvider } from "@prisma/client";
 import { sendEmail, emailButtonStyle } from "@/lib/email";
+import type { PrismaClient } from "@prisma/client";
+
+type PrismaTransaction = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
 // Source-based expiry: trial=30d, subscription=60d (rollover window), addon=permanent, rollover=60d
 const EXPIRY_DAYS: Record<string, number> = {
@@ -108,70 +111,84 @@ export async function addCreditBatch(
  * Deducts from the oldest non-expired batches first.
  * Returns true if enough credits were available, false otherwise.
  */
+/**
+ * Consume credits within an existing transaction (for atomic report creation).
+ * Uses pessimistic locking on Wallet and CreditBatch rows.
+ * Returns true on success, false if insufficient credits.
+ */
+export async function consumeCreditsTx(
+  tx: PrismaTransaction,
+  userId: string,
+  amount: number,
+  reportRequestId?: string
+): Promise<boolean> {
+  // Pessimistic lock on wallet row — prevents concurrent modifications
+  const walletRows = await tx.$queryRaw<any[]>`
+    SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
+  `;
+  const wallet = walletRows[0];
+  if (!wallet) return false;
+
+  const walletBalance = Number(wallet.balance);
+  if (walletBalance < amount) return false;
+
+  // Pessimistic lock on batches — consume by soonest expiry first so that
+  // credits closest to expiration are spent before longer-lived ones.
+  // Addon batches (expiresAt ~ +100y) naturally sort last.
+  const batches = await tx.$queryRaw<any[]>`
+    SELECT * FROM "CreditBatch"
+    WHERE "userId" = ${userId} AND remaining > 0 AND "expiresAt" > NOW()
+    ORDER BY "expiresAt" ASC
+    FOR UPDATE
+  `;
+
+  const totalAvailable = batches.reduce((sum, b) => sum + b.remaining, 0);
+  if (totalAvailable < amount) return false;
+
+  let toConsume = amount;
+
+  for (const batch of batches) {
+    if (toConsume <= 0) break;
+    const deduct = Math.min(batch.remaining, toConsume);
+
+    await tx.creditBatch.update({
+      where: { id: batch.id },
+      data: { remaining: { decrement: deduct } },
+    });
+
+    toConsume -= deduct;
+  }
+
+  // Simple update — FOR UPDATE guarantees exclusivity, no version check needed
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: {
+      balance: { decrement: amount },
+      version: { increment: 1 },
+    },
+  });
+
+  await tx.walletTransaction.create({
+    data: {
+      walletId: wallet.id,
+      amount,
+      type: "CHARGE",
+      status: "COMPLETED",
+      reportRequestId: reportRequestId || null,
+      description: `Spotreba kreditov — report${reportRequestId ? ` ${reportRequestId}` : ""}`,
+    },
+  });
+
+  return true;
+}
+
 export async function consumeCredits(
   userId: string,
   amount: number,
   reportRequestId?: string
 ): Promise<boolean> {
   return await prisma.$transaction(async (tx) => {
-    // Pessimistic lock on wallet row — prevents concurrent modifications
-    const walletRows = await tx.$queryRaw<any[]>`
-      SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
-    `;
-    const wallet = walletRows[0];
-    if (!wallet) return false;
-
-    const walletBalance = Number(wallet.balance);
-    if (walletBalance < amount) return false;
-
-    // Pessimistic lock on batches — consume by soonest expiry first so that
-    // credits closest to expiration are spent before longer-lived ones.
-    // Addon batches (expiresAt ~ +100y) naturally sort last.
-    const batches = await tx.$queryRaw<any[]>`
-      SELECT * FROM "CreditBatch"
-      WHERE "userId" = ${userId} AND remaining > 0 AND "expiresAt" > NOW()
-      ORDER BY "expiresAt" ASC
-      FOR UPDATE
-    `;
-
-    const totalAvailable = batches.reduce((sum, b) => sum + b.remaining, 0);
-    if (totalAvailable < amount) return false;
-
-    let toConsume = amount;
-
-    for (const batch of batches) {
-      if (toConsume <= 0) break;
-      const deduct = Math.min(batch.remaining, toConsume);
-
-      await tx.creditBatch.update({
-        where: { id: batch.id },
-        data: { remaining: { decrement: deduct } },
-      });
-
-      toConsume -= deduct;
-    }
-
-    // Simple update — FOR UPDATE guarantees exclusivity, no version check needed
-    await tx.wallet.update({
-      where: { id: wallet.id },
-      data: {
-        balance: { decrement: amount },
-        version: { increment: 1 },
-      },
-    });
-
-    await tx.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        amount,
-        type: "CHARGE",
-        status: "COMPLETED",
-        reportRequestId: reportRequestId || null,
-        description: `Spotreba kreditov — report${reportRequestId ? ` ${reportRequestId}` : ""}`,
-      },
-    });
-
-    return true;
+    return consumeCreditsTx(tx, userId, amount, reportRequestId);
   });
 }
 

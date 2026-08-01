@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask, checkWorkerHealth } from "@/lib/worker";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
-import { consumeCredits, refundCredits } from "@/lib/credits";
+import { consumeCreditsTx, refundCredits } from "@/lib/credits";
 import { reportRequestSchema } from "./schema";
 import { prisma } from "@/lib/prisma";
 
@@ -172,32 +172,41 @@ export async function POST(req: NextRequest) {
     // Company name sa nastaví workerom po ORSR scrape (správne handling neaktuálnych výpisov)
     const companyName: string | null = null;
 
-    const reportRequest = await prisma.reportRequest.create({
-      data: {
-        userId: user.id,
-        targetType: "COMPANY",
-        ico: ico ?? null,
-        companyName,
-        selectedSources: sources as SourceType[],
-        status: "PENDING",
-        attachmentsConfig: dbUser?.attachmentsConfig as any ?? undefined,
-        sources: {
-          create: (sources as SourceType[]).map((source) => ({
-            sourceType: source,
-            status: "PENDING",
-          })),
+    // Atomic transaction: consume credit + create report in one DB transaction.
+    // This prevents race conditions where another request could exhaust credits
+    // between the check and the consumption, or where report creation succeeds
+    // but credit consumption fails (leaving an unpaid report).
+    const reportRequest = await prisma.$transaction(async (tx) => {
+      // Consume credit first — if this fails, no report is created
+      const creditConsumed = await consumeCreditsTx(tx, user.id, 1);
+      if (!creditConsumed) {
+        throw new Error("CREDIT_CONSUMPTION_FAILED");
+      }
+
+      // Create report in the same transaction
+      return tx.reportRequest.create({
+        data: {
+          userId: user.id,
+          targetType: "COMPANY",
+          ico: ico ?? null,
+          companyName,
+          selectedSources: sources as SourceType[],
+          status: "PENDING",
+          attachmentsConfig: dbUser?.attachmentsConfig as any ?? undefined,
+          sources: {
+            create: (sources as SourceType[]).map((source) => ({
+              sourceType: source,
+              status: "PENDING",
+            })),
+          },
         },
-      },
+      });
+    }).catch((err) => {
+      if (err.message === "CREDIT_CONSUMPTION_FAILED") return null;
+      throw err;
     });
 
-    // Deduct 1 credit via FIFO (oldest batches first) BEFORE enqueuing
-    const creditConsumed = await consumeCredits(user.id, 1, reportRequest.id);
-    
-    if (!creditConsumed) {
-      await prisma.reportRequest.update({
-        where: { id: reportRequest.id },
-        data: { status: "FAILED" }
-      });
+    if (!reportRequest) {
       return NextResponse.json(
         { error: "Nepodarilo sa stiahnuť kredity. Skúste to znova alebo kontaktujte podporu." },
         { status: 402 }
