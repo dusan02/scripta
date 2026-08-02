@@ -1,3 +1,5 @@
+"use client";
+
 import type { Insight } from "@/lib/company-insights";
 import { useT } from "@/components/LanguageProvider";
 

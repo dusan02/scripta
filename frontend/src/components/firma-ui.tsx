@@ -1,3 +1,5 @@
+"use client";
+
 import { fmtNum } from "@/lib/format";
 import { useT } from "@/components/LanguageProvider";
 

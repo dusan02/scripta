@@ -1,3 +1,5 @@
+"use client";
+
 import { ChartCard } from "@/components/firma-ui";
 import { useT } from "@/components/LanguageProvider";
 

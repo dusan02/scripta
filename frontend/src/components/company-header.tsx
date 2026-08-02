@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { fmtYear } from "@/lib/format";
 import { useT } from "@/components/LanguageProvider";
