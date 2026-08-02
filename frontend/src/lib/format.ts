@@ -3,9 +3,10 @@ import type { Decimal } from "@prisma/client/runtime/library";
 const LEGAL_STATUSES = ["v konkurze", "v likvidácii", "v reštrukturalizácii", "konkurz", "likvidácia"];
 
 /** Convert Prisma Decimal or number to number, preserving null/undefined. */
-export function num(val: Decimal | number | null | undefined): number | null {
+export function num(val: Decimal | number | string | null | undefined): number | null {
   if (val === null || val === undefined) return null;
   if (typeof val === "number") return val;
+  if (typeof val === "string") return parseFloat(val);
   return val.toNumber();
 }
 
