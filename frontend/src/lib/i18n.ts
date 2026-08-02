@@ -34,6 +34,13 @@ const sk: Dict = {
 
   // ── Layout / Footer ──
   "footer.urcene": "Business risk report",
+  "landing.footerTagline": "Business Risk Report zo štátnych registrov SR. Automatizované, rýchle, presné.",
+  "landing.regGroup1": "Základné firemné a právne registre",
+  "landing.regGroup2": "Insolvencia, exekúcie a dlhy",
+  "landing.regGroup3": "Finančná správa a DPH",
+  "landing.regGroup4": "Súdy a sankcie",
+  "landing.regGroup5": "Financie a štátne zákazky",
+  "landing.regGroup6": "Majetok a práva",
   "global.offline": "Ste offline — skontrolujte internetové pripojenie",
 
   // ── Home / SearchSection ──
@@ -82,6 +89,13 @@ const sk: Dict = {
   "firma.vlastneImanie": "Vlastné imanie",
   "firma.kratkodobeZavazky": "Krátkodobé záväzky",
   "firma.dlhodobeZavazky": "Dlhodobé záväzky",
+  "firma.dlhodobyMajetok": "Dlhodobý majetok",
+  "firma.bilancnaSuma": "Bilančná suma",
+  "firma.zaporneImanie": "Záporné vl. imanie",
+  "firma.ostatneAktiva": "Ostatné aktíva",
+  "firma.ostatnePasiva": "Ostatné pasíva",
+  "firma.analyzaTrendu": "Analýza trendu",
+  "firma.udajeNedostupne": "Údaje o súvahy nie sú dostupné",
   "firma.trzby": "Tržby",
   "firma.hrubaMarza": "Hrubá marža",
   "firma.osobneNaklady": "Osobné náklady",
@@ -478,6 +492,7 @@ const sk: Dict = {
   "feedback.predmet": "Predmet",
   "feedback.vyberteKategoriu": "Vyberte kategóriu...",
   "feedback.idRequestu": "ID requestu",
+  "feedback.nepovinne": "(nepovinné)",
   "feedback.text": "Text",
   "feedback.popiste": "Popíšte nám problém, nápad alebo otázku...",
   "feedback.odosielam": "Odosielam...",
@@ -732,6 +747,13 @@ const en: Dict = {
 
   // ── Layout / Footer ──
   "footer.urcene": "Business risk report",
+  "landing.footerTagline": "Business Risk Report from Slovak state registries. Automated, fast, precise.",
+  "landing.regGroup1": "Core business & legal registries",
+  "landing.regGroup2": "Insolvency, enforcement & debts",
+  "landing.regGroup3": "Tax authority & VAT",
+  "landing.regGroup4": "Courts & sanctions",
+  "landing.regGroup5": "Finance & public procurement",
+  "landing.regGroup6": "Assets & rights",
   "global.offline": "You are offline — check your internet connection",
 
   // ── Home / SearchSection ──
@@ -780,6 +802,13 @@ const en: Dict = {
   "firma.vlastneImanie": "Equity",
   "firma.kratkodobeZavazky": "Short-term liabilities",
   "firma.dlhodobeZavazky": "Long-term liabilities",
+  "firma.dlhodobyMajetok": "Non-current assets",
+  "firma.bilancnaSuma": "Balance sheet total",
+  "firma.zaporneImanie": "Negative equity",
+  "firma.ostatneAktiva": "Other assets",
+  "firma.ostatnePasiva": "Other liabilities",
+  "firma.analyzaTrendu": "Trend analysis",
+  "firma.udajeNedostupne": "Balance sheet data not available",
   "firma.trzby": "Revenue",
   "firma.hrubaMarza": "Gross margin",
   "firma.osobneNaklady": "Staff costs",
@@ -1176,6 +1205,7 @@ const en: Dict = {
   "feedback.predmet": "Subject",
   "feedback.vyberteKategoriu": "Select category...",
   "feedback.idRequestu": "Request ID",
+  "feedback.nepovinne": "(optional)",
   "feedback.text": "Message",
   "feedback.popiste": "Describe the issue, idea or question...",
   "feedback.odosielam": "Sending...",
@@ -1430,6 +1460,13 @@ const de: Dict = {
 
   // ── Layout / Footer ──
   "footer.urcene": "Business risk report",
+  "landing.footerTagline": "Business Risk Report aus staatlichen Registern der Slowakei. Automatisiert, schnell, präzise.",
+  "landing.regGroup1": "Kernregister für Unternehmen & Recht",
+  "landing.regGroup2": "Insolvenz, Vollstreckung & Schulden",
+  "landing.regGroup3": "Finanzverwaltung & USt",
+  "landing.regGroup4": "Gerichte & Sanktionen",
+  "landing.regGroup5": "Finanzen & öffentliche Aufträge",
+  "landing.regGroup6": "Vermögen & Rechte",
   "global.offline": "Sie sind offline — überprüfen Sie Ihre Internetverbindung",
 
   // ── Home / SearchSection ──
@@ -1478,6 +1515,13 @@ const de: Dict = {
   "firma.vlastneImanie": "Eigenkapital",
   "firma.kratkodobeZavazky": "Kurzfristige Verbindlichkeiten",
   "firma.dlhodobeZavazky": "Langfristige Verbindlichkeiten",
+  "firma.dlhodobyMajetok": "Anlagevermögen",
+  "firma.bilancnaSuma": "Bilanzsumme",
+  "firma.zaporneImanie": "Negatives Eigenkapital",
+  "firma.ostatneAktiva": "Sonstige Aktiva",
+  "firma.ostatnePasiva": "Sonstige Passiva",
+  "firma.analyzaTrendu": "Trendanalyse",
+  "firma.udajeNedostupne": "Bilanzdaten nicht verfügbar",
   "firma.trzby": "Umsatz",
   "firma.hrubaMarza": "Rohergebnis",
   "firma.osobneNaklady": "Personalkosten",
@@ -1874,6 +1918,7 @@ const de: Dict = {
   "feedback.predmet": "Betreff",
   "feedback.vyberteKategoriu": "Kategorie auswählen...",
   "feedback.idRequestu": "Anfrage-ID",
+  "feedback.nepovinne": "(optional)",
   "feedback.text": "Nachricht",
   "feedback.popiste": "Beschreiben Sie das Problem, die Idee oder die Frage...",
   "feedback.odosielam": "Senden...",

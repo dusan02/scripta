@@ -42,6 +42,7 @@ describe("a11y keys exist in all languages", () => {
     "a11y.openReport",
     "a11y.closeModal",
     "a11y.deleteAllReports",
+    "a11y.skipToContent",
   ];
 
   for (const key of A11Y_KEYS) {
@@ -54,6 +55,54 @@ describe("a11y keys exist in all languages", () => {
       }
     });
   }
+});
+
+describe("chart keys exist in all languages", () => {
+  const CHART_KEYS = [
+    "firma.analyzaTrendu",
+    "firma.udajeNedostupne",
+    "firma.bilancnaSuma",
+    "firma.dlhodobyMajetok",
+    "firma.zaporneImanie",
+    "firma.ostatneAktiva",
+    "firma.ostatnePasiva",
+  ];
+
+  for (const key of CHART_KEYS) {
+    it(`"${key}" exists in all languages`, () => {
+      for (const lang of LANGS) {
+        assert.ok(key in translations[lang], `Missing "${key}" in ${lang}`);
+      }
+    });
+  }
+});
+
+describe("landing keys exist in all languages", () => {
+  const LANDING_KEYS = [
+    "landing.footerTagline",
+    "landing.regGroup1",
+    "landing.regGroup2",
+    "landing.regGroup3",
+    "landing.regGroup4",
+    "landing.regGroup5",
+    "landing.regGroup6",
+  ];
+
+  for (const key of LANDING_KEYS) {
+    it(`"${key}" exists in all languages`, () => {
+      for (const lang of LANGS) {
+        assert.ok(key in translations[lang], `Missing "${key}" in ${lang}`);
+      }
+    });
+  }
+});
+
+describe("feedback.nepovinne exists in all languages", () => {
+  it(`"feedback.nepovinne" exists in all languages`, () => {
+    for (const lang of LANGS) {
+      assert.ok("feedback.nepovinne" in translations[lang], `Missing "feedback.nepovinne" in ${lang}`);
+    }
+  });
 });
 
 describe("home.welcome keys exist in all languages", () => {

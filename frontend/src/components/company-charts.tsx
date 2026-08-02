@@ -5,6 +5,7 @@ import {
   Sankey, Layer,
 } from "recharts";
 import { useMemo, useState } from "react";
+import { useT } from "@/components/LanguageProvider";
 
 function fmtEUR(val: number | null | undefined): string {
   if (val === null || val === undefined) return "—";
@@ -35,6 +36,7 @@ type BalanceData = {
 };
 
 export function RevenueProfitChart({ data }: { data: ChartData[] }) {
+  const t = useT();
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggle = (key: string) => setHidden(prev => {
     const next = new Set(prev);
@@ -48,15 +50,16 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
         <YAxis tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : ""} tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--border)" }} width={45} />
         <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
         <Legend wrapperStyle={{ fontSize: 11, cursor: "pointer" }} onClick={(e: any) => { if (e?.dataKey) toggle(e.dataKey); }} />
-        <Bar dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Tržby" hide={hidden.has("tržby")} />
-        <Bar dataKey="zisk" fill="#10b981" radius={[4, 4, 0, 0]} name="Zisk/Strata" hide={hidden.has("zisk")} />
-        <Bar dataKey="daň" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Daň z príjmu" hide={hidden.has("daň")} />
+        <Bar dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
+        <Bar dataKey="zisk" fill="#10b981" radius={[4, 4, 0, 0]} name={t("firma.ziskStrata")} hide={hidden.has("zisk")} />
+        <Bar dataKey="daň" fill="#f59e0b" radius={[4, 4, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
       </BarChart>
     </ResponsiveContainer>
   );
 }
 
 export function BalanceSankeyChart({ data }: { data: BalanceData }) {
+  const t = useT();
   const { sankeyData } = useMemo(() => {
     const current = Math.max(0, data.currentAssets ?? 0);
     const rawTotalAssets = Math.max(0, data.totalAssets ?? 0);
@@ -70,24 +73,24 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     const longLiab = Math.max(0, data.longTermLiabilities ?? 0);
 
     const leftNodes = [];
-    if (current > 0) leftNodes.push({ name: "Obežný majetok", value: current, color: "#10b981", linkColor: "rgba(16,185,129,0.3)" });
-    if (nonCurrent > 0) leftNodes.push({ name: "Dlhodobý majetok", value: nonCurrent, color: "#0ea5e9", linkColor: "rgba(14,165,233,0.3)" });
-    if (isNegativeEquity && absEquity > 0) leftNodes.push({ name: "Záporné vl. imanie", value: absEquity, color: "#ef4444", linkColor: "rgba(239,68,68,0.3)" });
+    if (current > 0) leftNodes.push({ name: t("firma.obeznyMajetok"), value: current, color: "#10b981", linkColor: "rgba(16,185,129,0.3)" });
+    if (nonCurrent > 0) leftNodes.push({ name: t("firma.dlhodobyMajetok"), value: nonCurrent, color: "#0ea5e9", linkColor: "rgba(14,165,233,0.3)" });
+    if (isNegativeEquity && absEquity > 0) leftNodes.push({ name: t("firma.zaporneImanie"), value: absEquity, color: "#ef4444", linkColor: "rgba(239,68,68,0.3)" });
 
     const rightNodes = [];
-    if (!isNegativeEquity && absEquity > 0) rightNodes.push({ name: "Vlastné imanie", value: absEquity, color: "#10b981", linkColor: "rgba(16,185,129,0.3)" });
-    if (shortLiab > 0) rightNodes.push({ name: "Krátkodobé záväzky", value: shortLiab, color: "#f43f5e", linkColor: "rgba(244,63,94,0.3)" });
-    if (longLiab > 0) rightNodes.push({ name: "Dlhodobé záväzky", value: longLiab, color: "#f43f5e", linkColor: "rgba(244,63,94,0.3)" });
+    if (!isNegativeEquity && absEquity > 0) rightNodes.push({ name: t("firma.vlastneImanie"), value: absEquity, color: "#10b981", linkColor: "rgba(16,185,129,0.3)" });
+    if (shortLiab > 0) rightNodes.push({ name: t("firma.kratkodobeZavazky"), value: shortLiab, color: "#f43f5e", linkColor: "rgba(244,63,94,0.3)" });
+    if (longLiab > 0) rightNodes.push({ name: t("firma.dlhodobeZavazky"), value: longLiab, color: "#f43f5e", linkColor: "rgba(244,63,94,0.3)" });
 
     const leftSum = leftNodes.reduce((sum, n) => sum + n.value, 0);
     const rightSum = rightNodes.reduce((sum, n) => sum + n.value, 0);
     const centerValue = Math.max(leftSum, rightSum, rawTotalAssets);
 
     if (leftSum < centerValue) {
-      leftNodes.push({ name: "Ostatné aktíva", value: centerValue - leftSum, color: "#94a3b8", linkColor: "rgba(148,163,184,0.3)" });
+      leftNodes.push({ name: t("firma.ostatneAktiva"), value: centerValue - leftSum, color: "#94a3b8", linkColor: "rgba(148,163,184,0.3)" });
     }
     if (rightSum < centerValue) {
-      rightNodes.push({ name: "Ostatné pasíva", value: centerValue - rightSum, color: "#64748b", linkColor: "rgba(100,116,139,0.3)" });
+      rightNodes.push({ name: t("firma.ostatnePasiva"), value: centerValue - rightSum, color: "#64748b", linkColor: "rgba(100,116,139,0.3)" });
     }
 
     const nodes: { name: string; color: string; isLeft: boolean }[] = [];
@@ -100,7 +103,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
 
     // Center node
     const centerIndex = nodes.length;
-    nodes.push({ name: "Bilančná suma", color: "#64748b", isLeft: true });
+    nodes.push({ name: t("firma.bilancnaSuma"), color: "#64748b", isLeft: true });
 
     // Right nodes
     const rightStartIndex = nodes.length;
@@ -122,12 +125,12 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     });
 
     return { sankeyData: { nodes, links } };
-  }, [data]);
+  }, [data, t]);
 
   if (!sankeyData || sankeyData.links.length === 0) {
     return (
       <div className="flex items-center justify-center h-[250px] sm:h-[300px] text-sm" style={{ color: "var(--text-muted)" }}>
-        Údaje o súvahy nie sú dostupné
+        {t("firma.udajeNedostupne")}
       </div>
     );
   }

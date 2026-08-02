@@ -15,7 +15,7 @@ type CompanyInfo = {
 
 export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; latestYear?: number }) {
   const t = useT();
-  const name = company.name || `IČO ${company.ico}`;
+  const name = company.name || `${t("company.ico")} ${company.ico}`;
 
   const cityPart = company.city ? t("company.descCity", { city: company.city }) : "";
   const legalFormPart = company.legalForm ? t("company.descLegalForm", { legalForm: company.legalForm }) : "";

@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useT } from "@/components/LanguageProvider";
 
 type ChartData = {
   year: number;
@@ -18,6 +19,7 @@ type ChartData = {
 };
 
 export default function FinancialChart({ data }: { data: ChartData[] }) {
+  const t = useT();
   // Ak máme málo dát, napr. 1 rok, graf to síce vykreslí ako bod, ale lepšie je sortovať vzostupne
   const sortedData = [...data].sort((a, b) => a.year - b.year);
 
@@ -32,7 +34,7 @@ export default function FinancialChart({ data }: { data: ChartData[] }) {
 
   return (
     <div className="w-full h-[400px] bg-white/5 border border-white/10 rounded-2xl p-6 mt-8">
-      <h3 className="text-lg font-medium text-white mb-6">Analýza Trendu</h3>
+      <h3 className="text-lg font-medium text-white mb-6">{t("firma.analyzaTrendu")}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={sortedData}
@@ -67,7 +69,7 @@ export default function FinancialChart({ data }: { data: ChartData[] }) {
           />
           <Legend wrapperStyle={{ paddingTop: "20px" }} />
           <Line
-            name="Zisk / Strata"
+            name={t("firma.ziskStrata")}
             type="monotone"
             dataKey="netProfitLoss"
             connectNulls={true}
@@ -77,7 +79,7 @@ export default function FinancialChart({ data }: { data: ChartData[] }) {
             activeDot={{ r: 6, strokeWidth: 0 }}
           />
           <Line
-            name="Prevádzkový Cash-flow"
+            name={t("firma.cashFlowPrevadzky")}
             type="monotone"
             dataKey="operatingCashFlow"
             connectNulls={true}

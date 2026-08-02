@@ -6,32 +6,32 @@ import { useT } from "@/components/LanguageProvider";
 const REGISTRY_GROUPS = [
   {
     icon: "🏢",
-    category: "Základné firemné a právne registre",
+    categoryKey: "landing.regGroup1",
     items: ["Obchodný register SR (ORSR)", "Živnostenský register (ŽRSR)", "Register právnických osôb (RPO)", "Register partnerov ver. sektora (RPVS)", "Obchodný vestník"],
   },
   {
     icon: "⚠️",
-    category: "Insolvencia, exekúcie a dlhy",
+    categoryKey: "landing.regGroup2",
     items: ["Register úpadcov", "Poverenia na exekúcie", "Daňoví dlžníci", "Sociálna poisťovňa", "VšZP", "Dôvera", "Union"],
   },
   {
     icon: "💰",
-    category: "Finančná správa a DPH",
+    categoryKey: "landing.regGroup3",
     items: ["Index daň. spoľahlivosti", "Platitelia DPH", "Zrušenie DPH", "Vymazaní z DPH", "Nadmerný odpočet", "Daň z príjmov PO", "Reg. k dani z príjmov"],
   },
   {
     icon: "⚖️",
-    category: "Súdy a sankcie",
+    categoryKey: "landing.regGroup4",
     items: ["Register diskvalifikácií"],
   },
   {
     icon: "🏛️",
-    category: "Financie a štátne zákazky",
+    categoryKey: "landing.regGroup5",
     items: ["Účtovné závierky (RÚZ)", "Register zmlúv (CRZ)", "Verejné obstarávanie (ÚVO)"],
   },
   {
     icon: "🛡️",
-    category: "Majetok a práva",
+    categoryKey: "landing.regGroup6",
     items: ["Záložné práva", "Register dražieb"],
   },
 ];
@@ -73,11 +73,11 @@ export default function RegistriesSection() {
       {showRegistries && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "stretch" }} className="registries-grid">
           {REGISTRY_GROUPS.map((group) => (
-            <div key={group.category} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column" }}>
+            <div key={group.categoryKey} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column" }}>
               <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 16 }}>
                 {group.icon}
               </div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{group.category}</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{t(group.categoryKey)}</h3>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {group.items.map((r) => (
                   <li key={r} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>

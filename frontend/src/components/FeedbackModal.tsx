@@ -139,7 +139,7 @@ export default function FeedbackModal({
                 className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                {t("feedback.idRequestu")} <span style={{ color: "var(--text-muted)" }}>(nepovinné)</span>
+                {t("feedback.idRequestu")} <span style={{ color: "var(--text-muted)" }}>{t("feedback.nepovinne")}</span>
               </label>
               <input
                 type="text"
