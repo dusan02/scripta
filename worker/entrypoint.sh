@@ -11,10 +11,15 @@ if [ -d /app/results ]; then
 fi
 
 # Fix Prisma binary permissions — Prisma downloads query engine to
-# /root/.cache during build, but workeruser can't access it at runtime.
-if [ -d /root/.cache/prisma-python ]; then
-  chown -R workeruser:worker /root/.cache/prisma-python
+# /root/.cache during build, but /root is 700 (root-only) so workeruser
+# can't access it at runtime. Copy to /tmp/.cache and set HOME=/tmp.
+if [ -d /root/.cache/prisma-python ] && [ ! -d /tmp/.cache/prisma-python ]; then
+  mkdir -p /tmp/.cache
+  cp -r /root/.cache/prisma-python /tmp/.cache/prisma-python
+  chown -R workeruser:worker /tmp/.cache
 fi
 
 # Drop privileges and run the actual command as workeruser
+# Set HOME=/tmp so Prisma can find its binary cache
+export HOME=/tmp
 exec gosu workeruser "$@"
