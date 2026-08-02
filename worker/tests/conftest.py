@@ -12,13 +12,19 @@ import sys
 import types
 import pytest
 
-# ── Custom markers ────────────────────────────────────────────────────────
-# "integration" marker pre testy, ktoré vyžadujú live internet (scrapers, FS).
-# CI spúšťa: pytest tests/ -m "not integration"
+# ── pytest-asyncio config ─────────────────────────────────────────────────
+# auto mode: async def test functions run automatically without needing
+# @pytest.mark.asyncio on every test
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "integration: marks tests as requiring live internet access"
     )
+    # Set asyncio_mode to auto so async tests run without explicit markers
+    config.option.asyncio_mode = "auto"
+
+# ── Custom markers ────────────────────────────────────────────────────────
+# "integration" marker pre testy, ktoré vyžadujú live internet (scrapers, FS).
+# CI spúšťa: pytest tests/ -m "not integration"
 
 
 # ── Prisma mock ───────────────────────────────────────────────────────────
