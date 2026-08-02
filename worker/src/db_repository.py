@@ -503,7 +503,9 @@ async def upsert_company_name(ico: str, company_name: str) -> None:
         name_to_save = company_name if company_name and company_name.lower() not in _INVALID_NAMES else None
 
         # Fetch current name first (needed for conditional update logic)
-        existing = await db.company.find_unique(where={'ico': ico}, select={'name': True})
+        # Note: Prisma Python 0.15 doesn't support `select` in find_unique,
+        # so we fetch the full record and access .name
+        existing = await db.company.find_unique(where={'ico': ico})
 
         if existing:
             if name_to_save:

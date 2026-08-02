@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     @property
     def model_verdict(self) -> str:
         """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.5 in Standard."""
-        return "gemini-3.1-pro" if self.expert_mode else "gemini-3.5-flash"
+        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.5-flash"
 
     @property
     def model_qa(self) -> str:
@@ -106,7 +106,6 @@ class Settings(BaseSettings):
             "gemini-3.5-flash-lite":  (0.30,  2.50),
             "gemini-3.5-pro":         (2.50, 15.00),
             "gemini-3.1-pro-preview": (2.00, 12.00),
-            "gemini-3.1-pro":         (2.00, 12.00),
         }
 
 
