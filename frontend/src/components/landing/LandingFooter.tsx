@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
 import { useT } from "@/components/LanguageProvider";
 
 export default function LandingFooter() {
   const t = useT();
+  const pathname = usePathname();
+  const isLanding = pathname === "/";
+  const navHref = (hash: string) => {
+    if (isLanding) return hash;
+    if (hash === "#ukazka") return "/documents";
+    return `/${hash}`;
+  };
 
   return (
     <footer style={{ borderTop: "1px solid var(--border)", padding: "40px 24px" }} className="section-pad">
@@ -25,10 +33,10 @@ export default function LandingFooter() {
           <div>
             <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>{t("home.footerProduct")}</h4>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <a href="#funkcie" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navFeatures")}</a>
-              <a href="#registre" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navRegistries")}</a>
-              <a href="#ukazka" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</a>
-              <a href="#pricing" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
+              <a href={navHref("#funkcie")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navFeatures")}</a>
+              <a href={navHref("#registre")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navRegistries")}</a>
+              <a href={navHref("#ukazka")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</a>
+              <a href={navHref("#pricing")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
               <Link href="/slovnik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerGlossary")}</Link>
             </div>
           </div>
