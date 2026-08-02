@@ -29,6 +29,20 @@ describe("format.ts — num()", () => {
     const fakeDecimal = { toNumber: () => 99.5 };
     assert.equal(num(fakeDecimal as any), 99.5);
   });
+
+  it("parses string values via parseFloat", () => {
+    assert.equal(num("123.45"), 123.45);
+    assert.equal(num("0"), 0);
+    assert.equal(num("-500.99"), -500.99);
+  });
+
+  it("returns NaN for malformed string (parseFloat behavior)", () => {
+    assert.ok(Number.isNaN(num("abc") as number));
+  });
+
+  it("parses string with leading/trailing whitespace", () => {
+    assert.equal(num("  42.5  "), 42.5);
+  });
 });
 
 describe("format.ts — fmtEUR()", () => {

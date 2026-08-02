@@ -54,10 +54,8 @@ export default async function CompanyPage({ params }: Params) {
   const company = await getCompanyData(parsed.ico);
   if (!company) notFound();
 
-  const persons: Array<{ id: string; rawName: string; role: string; city: string | null; zipCode: string | null }> =
-    (company as any).companyPersons ?? [];
+  const persons = company.companyPersons ?? [];
 
-  const correctSlug = slugify(company.name);
   if (parsed.slug) {
     redirect(`/firma/${company.ico}`);
   }
@@ -191,8 +189,18 @@ export default async function CompanyPage({ params }: Params) {
 
         <CompanyPersons persons={persons} />
 
+        {/* No financial data fallback */}
+        {stmts.length === 0 && (
+          <div className="rounded-2xl p-6 sm:p-8 text-center mb-6 sm:mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              Pre túto spoločnosť zatiaľ nie sú k dispozícii účtovné závierky z registra RÚZ.
+              Môžete vygenerovať full report, ktorý čerpá dáta z 26 registrov SR.
+            </p>
+          </div>
+        )}
+
         {/* Balance Sheet section */}
-        {balanceData && balanceData.totalAssets && (
+        {balanceData && balanceData.totalAssets != null && (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-8">
             <div className="lg:col-span-3">
               <ChartCard title="Štruktúra súvahy">

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
 const RUZ_API = "https://www.registeruz.sk/cruz-public/api";
@@ -259,17 +260,19 @@ export async function seedFromRuz(ico: string) {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       auditVerdict: true,
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
+      companyPersons: { orderBy: { rawName: "asc" } },
     },
   });
 }
 
-export async function getCompanyData(ico: string) {
+export const getCompanyData = cache(async (ico: string) => {
   const company = await prisma.company.findUnique({
     where: { ico },
     include: {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       auditVerdict: true,
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
+      companyPersons: { orderBy: { rawName: "asc" } },
     },
   });
   if (company && company.city && company.legalForm) {
@@ -279,4 +282,4 @@ export async function getCompanyData(ico: string) {
     if (!needsReseed) return company;
   }
   return await seedFromRuz(ico);
-}
+});
