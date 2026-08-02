@@ -9,6 +9,7 @@ import ToasterProvider from "@/components/ToasterProvider";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import CookieBanner from "@/components/CookieBanner";
 import AuthProvider from "@/components/AuthProvider";
+import SkipToContent from "@/components/SkipToContent";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -105,8 +106,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <LanguageProvider>
+              <SkipToContent />
               <NavWrapper />
-              <main style={{ minHeight: "calc(100vh - 56px)" }}>{children}</main>
+              <main id="main-content" style={{ minHeight: "calc(100vh - 56px)" }}>{children}</main>
               <Footer />
               <ToasterProvider />
               <OfflineIndicator />

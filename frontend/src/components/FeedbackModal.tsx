@@ -73,6 +73,9 @@ export default function FeedbackModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("feedback.titulok")}
         className="w-full max-w-md rounded-xl p-6"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
         onClick={(e) => e.stopPropagation()}
@@ -86,6 +89,7 @@ export default function FeedbackModal({
           </h2>
           <button
             onClick={onClose}
+            aria-label={t("a11y.closeModal")}
             className="text-sm"
             style={{ color: "var(--text-muted)" }}
           >

@@ -39,6 +39,8 @@ const sk: Dict = {
   // ── Home / SearchSection ──
   "home.overenieSubjektu": "Overenie subjektu",
   "home.zadajteIco": "Zadajte IČO spoločnosti a my ju preveríme vo všetkých dostupných registroch",
+  "home.welcomeTitle": "Vitajte vo Verifa! Máte 1 kredit na overenie firmy.",
+  "home.welcomeDesc": "Zadajte IČO spoločnosti do vyhľadávacieho poľa — skontrolujeme ju v 25+ registroch a pripravíme Business Risk Report.",
 
   // ── ReportForm ──
   "form.zadajteIco": "Zadajte IČO...",
@@ -50,6 +52,17 @@ const sk: Dict = {
   "form.sietovaChyba": "Sieťová chyba. Skúste znova.",
   "form.skryt": "Skryť",
   "form.zobrazit": "Zobraziť",
+
+  // ── Accessibility (aria-labels) ──
+  "a11y.icoInput": "IČO spoločnosti",
+  "a11y.clearIco": "Vymazať IČO",
+  "a11y.retryReport": "Vygenerovať report znova",
+  "a11y.deleteReport": "Vymazať report",
+  "a11y.downloadReport": "Stiahnuť report",
+  "a11y.openReport": "Otvoriť report",
+  "a11y.closeModal": "Zavrieť okno",
+  "a11y.deleteAllReports": "Vymazať všetky reporty",
+  "a11y.skipToContent": "Preskočiť na obsah",
 
   // ── RegistryGrid ──
   "grid.oznacitVsetko": "Označiť všetko",
@@ -724,6 +737,8 @@ const en: Dict = {
   // ── Home / SearchSection ──
   "home.overenieSubjektu": "Entity Verification",
   "home.zadajteIco": "Enter a company VAT number and we'll verify it across all available registries",
+  "home.welcomeTitle": "Welcome to Verifa! You have 1 credit to verify a company.",
+  "home.welcomeDesc": "Enter the company's IČO in the search field — we'll check it across 25+ registries and prepare a Business Risk Report.",
 
   // ── ReportForm ──
   "form.zadajteIco": "Enter VAT number...",
@@ -735,6 +750,17 @@ const en: Dict = {
   "form.sietovaChyba": "Network error. Try again.",
   "form.skryt": "Hide",
   "form.zobrazit": "Show",
+
+  // ── Accessibility (aria-labels) ──
+  "a11y.icoInput": "Company ID (IČO)",
+  "a11y.clearIco": "Clear IČO",
+  "a11y.retryReport": "Regenerate report",
+  "a11y.deleteReport": "Delete report",
+  "a11y.downloadReport": "Download report",
+  "a11y.openReport": "Open report",
+  "a11y.closeModal": "Close dialog",
+  "a11y.deleteAllReports": "Delete all reports",
+  "a11y.skipToContent": "Skip to content",
 
   // ── RegistryGrid ──
   "grid.oznacitVsetko": "Select all",
@@ -1409,6 +1435,8 @@ const de: Dict = {
   // ── Home / SearchSection ──
   "home.overenieSubjektu": "Unternehmensprüfung",
   "home.zadajteIco": "Geben Sie die USt-IdNr. eines Unternehmens ein und wir prüfen sie in allen verfügbaren Registern",
+  "home.welcomeTitle": "Willkommen bei Verifa! Sie haben 1 Guthaben zur Unternehmensprüfung.",
+  "home.welcomeDesc": "Geben Sie die IČO des Unternehmens in das Suchfeld ein — wir prüfen es in 25+ Registern und erstellen einen Business Risk Report.",
 
   // ── ReportForm ──
   "form.zadajteIco": "USt-IdNr. eingeben...",
@@ -1420,6 +1448,17 @@ const de: Dict = {
   "form.sietovaChyba": "Netzwerkfehler. Versuchen Sie es erneut.",
   "form.skryt": "Verbergen",
   "form.zobrazit": "Anzeigen",
+
+  // ── Accessibility (aria-labels) ──
+  "a11y.icoInput": "Unternehmens-ID (IČO)",
+  "a11y.clearIco": "IČO löschen",
+  "a11y.retryReport": "Report neu generieren",
+  "a11y.deleteReport": "Report löschen",
+  "a11y.downloadReport": "Report herunterladen",
+  "a11y.openReport": "Report öffnen",
+  "a11y.closeModal": "Dialog schließen",
+  "a11y.deleteAllReports": "Alle Reports löschen",
+  "a11y.skipToContent": "Zum Inhalt springen",
 
   // ── RegistryGrid ──
   "grid.oznacitVsetko": "Alle auswählen",

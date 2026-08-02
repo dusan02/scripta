@@ -48,6 +48,9 @@ export default function ConfirmModal({
       onClick={onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="rounded-2xl p-6 max-w-sm w-full fade-in"
         style={{
           background: "var(--surface)",

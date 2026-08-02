@@ -113,6 +113,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
             type="text"
             inputMode="numeric"
             placeholder={t("form.zadajteIco")}
+            aria-label={t("a11y.icoInput")}
             value={ico}
             onChange={(e) => {
               const val = e.target.value.replace(/\D/g, "").slice(0, 8);
@@ -133,6 +134,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
             <button
               type="button"
               onClick={() => { setIco(""); setIcoError(null); inputRef.current?.focus(); }}
+              aria-label={t("a11y.clearIco")}
               className="flex-shrink-0 flex items-center justify-center mr-1 transition-opacity w-[24px] h-[24px] text-muted-v"
             >
               <XIcon size={14} />

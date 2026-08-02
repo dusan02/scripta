@@ -167,6 +167,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
           <button
             onClick={handleDeleteAll}
             disabled={deletingAll}
+            aria-label={t("a11y.deleteAllReports")}
             className="text-xs font-medium transition-colors hover:text-red-500"
             style={{ color: "var(--text-muted)" }}
           >
@@ -289,6 +290,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
                           title={t("reports.stiahnutPdf")}
+                          aria-label={t("a11y.downloadReport")}
                           className="action-btn action-btn-download rounded-md p-0.5"
                           style={{ color: "var(--accent)" }}
                         >
@@ -300,6 +302,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.regenerovatReport")}
+                          aria-label={t("a11y.retryReport")}
                           className="action-btn action-btn-retry rounded-md p-0.5"
                           style={{ color: "var(--text-secondary)" }}
                         >
@@ -311,6 +314,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.zopakovatReport")}
+                          aria-label={t("a11y.retryReport")}
                           className="action-btn action-btn-warn rounded-md p-0.5"
                           style={{ color: "var(--warning)" }}
                         >
@@ -321,6 +325,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                         disabled={deletingId === report.id}
                         title={t("reports.vymazat")}
+                        aria-label={t("a11y.deleteReport")}
                         className="action-btn action-btn-delete rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
@@ -384,6 +389,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
                           title={t("reports.stiahnutPdf")}
+                          aria-label={t("a11y.downloadReport")}
                           className="action-btn action-btn-download rounded-md p-0.5"
                           style={{ color: "var(--accent)" }}
                         >
@@ -395,6 +401,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.regenerovatReport")}
+                          aria-label={t("a11y.retryReport")}
                           className="action-btn action-btn-retry rounded-md p-0.5"
                           style={{ color: "var(--text-secondary)" }}
                         >
@@ -406,6 +413,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => handleRetry(e, report)}
                           disabled={retryingId === report.id}
                           title={t("reports.zopakovatReport")}
+                          aria-label={t("a11y.retryReport")}
                           className="action-btn action-btn-warn rounded-md p-0.5"
                           style={{ color: "var(--warning)" }}
                         >
@@ -416,6 +424,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                         disabled={deletingId === report.id}
                         title={t("reports.vymazat")}
+                        aria-label={t("a11y.deleteReport")}
                         className="action-btn action-btn-delete rounded-md p-0.5"
                         style={{ color: "var(--text-secondary)" }}
                       >

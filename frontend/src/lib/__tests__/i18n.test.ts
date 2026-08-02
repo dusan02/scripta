@@ -1,0 +1,91 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { translations, translate, Lang } from "../i18n";
+
+const LANGS: Lang[] = ["sk", "en", "de"];
+
+describe("i18n key completeness", () => {
+  it("all languages have the same set of keys", () => {
+    const skKeys = Object.keys(translations.sk).sort();
+    const enKeys = Object.keys(translations.en).sort();
+    const deKeys = Object.keys(translations.de).sort();
+    assert.deepEqual(skKeys, enKeys, "en keys mismatch");
+    assert.deepEqual(skKeys, deKeys, "de keys mismatch");
+  });
+
+  it("has a reasonable number of keys (>= 500)", () => {
+    for (const lang of LANGS) {
+      const count = Object.keys(translations[lang]).length;
+      assert.ok(count >= 500, `${lang} has only ${count} keys (expected >= 500)`);
+    }
+  });
+
+  it("no empty string values in any language", () => {
+    for (const lang of LANGS) {
+      const entries = Object.entries(translations[lang]);
+      for (const [key, val] of entries) {
+        if (typeof val === "string" && val.trim() === "") {
+          assert.fail(`Empty value for key "${key}" in ${lang}`);
+        }
+      }
+    }
+  });
+});
+
+describe("a11y keys exist in all languages", () => {
+  const A11Y_KEYS = [
+    "a11y.icoInput",
+    "a11y.clearIco",
+    "a11y.retryReport",
+    "a11y.deleteReport",
+    "a11y.downloadReport",
+    "a11y.openReport",
+    "a11y.closeModal",
+    "a11y.deleteAllReports",
+  ];
+
+  for (const key of A11Y_KEYS) {
+    it(`"${key}" exists in all languages`, () => {
+      for (const lang of LANGS) {
+        assert.ok(
+          key in translations[lang],
+          `Missing "${key}" in ${lang}`
+        );
+      }
+    });
+  }
+});
+
+describe("home.welcome keys exist in all languages", () => {
+  for (const key of ["home.welcomeTitle", "home.welcomeDesc"]) {
+    it(`"${key}" exists in all languages`, () => {
+      for (const lang of LANGS) {
+        assert.ok(key in translations[lang], `Missing "${key}" in ${lang}`);
+      }
+    });
+  }
+});
+
+describe("translate function", () => {
+  it("returns Slovak for sk", () => {
+    assert.equal(translate("sk", "home.overenieSubjektu"), "Overenie subjektu");
+  });
+
+  it("returns English for en", () => {
+    assert.equal(translate("en", "home.overenieSubjektu"), "Entity Verification");
+  });
+
+  it("falls back to sk for unknown language", () => {
+    assert.equal(translate("xx" as Lang, "home.overenieSubjektu"), "Overenie subjektu");
+  });
+
+  it("interpolates parameters", () => {
+    const result = translate("sk", "grid.zRegistrov", { total: 25 });
+    assert.ok(result.includes("25"), `Expected "25" in result: ${result}`);
+  });
+
+  it("returns key name for missing key", () => {
+    const result = translate("sk", "nonexistent.key.xyz");
+    assert.equal(result, "nonexistent.key.xyz");
+  });
+});

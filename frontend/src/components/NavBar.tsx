@@ -109,6 +109,7 @@ export default function NavBar() {
                   key={item.href}
                   href={item.href}
                   title={t(item.key)}
+                  aria-current={active ? "page" : undefined}
                   className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg transition-all duration-150 relative"
                   style={{
                     color: active ? "var(--accent)" : "var(--text-secondary)",
@@ -247,6 +248,7 @@ export default function NavBar() {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
+                      aria-current={active ? "page" : undefined}
                       className="flex flex-col items-center gap-1.5 py-3 rounded-lg transition-all duration-150 relative"
                       style={{
                         color: active ? "var(--accent)" : "var(--text-secondary)",
