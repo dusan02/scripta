@@ -10,8 +10,7 @@ export default function NavWrapper() {
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/forgot-password" ||
-    pathname === "/reset-password" ||
-    pathname === "/documents"
+    pathname === "/reset-password"
   ) {
     return null;
   }

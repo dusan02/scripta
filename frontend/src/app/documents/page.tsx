@@ -2,6 +2,7 @@
 
 import { useT } from "@/components/LanguageProvider";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import LandingNav from "@/components/landing/LandingNav";
 import LandingFooter from "@/components/landing/LandingFooter";
 import { FileIcon, DownloadIcon } from "@/components/icons";
@@ -92,11 +93,13 @@ function ViewButton({ href, label }: { href: string; label: string }) {
 
 export default function DocumentsPage() {
   const t = useT();
+  const { data: session } = useSession();
+  const isAnonymous = !session;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
-      <LandingNav />
-      <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8 sm:py-12" style={{ paddingTop: "140px" }}>
+      {isAnonymous && <LandingNav />}
+      <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8 sm:py-12" style={{ paddingTop: isAnonymous ? "140px" : "32px" }}>
       {/* Header */}
       <div className="mb-8 sm:mb-10">
         <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: "var(--text)" }}>{t("docs.title")}</h1>
@@ -204,7 +207,7 @@ export default function DocumentsPage() {
         </Link>
       </div>
       </div>
-      <LandingFooter />
+      {isAnonymous && <LandingFooter />}
     </div>
   );
 }

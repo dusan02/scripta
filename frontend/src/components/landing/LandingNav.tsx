@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
 import { useT } from "@/components/LanguageProvider";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -10,18 +11,29 @@ import { HamburgerButton, MobileMenuBackdrop } from "@/components/NavShared";
 import { useState } from "react";
 
 const NAV_ITEMS = [
-  { href: "#funkcie", key: "home.navFeatures" },
-  { href: "#registre", key: "home.navRegistries" },
-  { href: "#ukazka", key: "nav.dokumenty" },
-  { href: "#pricing", key: "home.navPricing" },
+  { hash: "#funkcie", key: "home.navFeatures" },
+  { hash: "#registre", key: "home.navRegistries" },
+  { hash: "#ukazka", key: "nav.dokumenty" },
+  { hash: "#pricing", key: "home.navPricing" },
 ];
 
 export default function LandingNav() {
   const t = useT();
+  const pathname = usePathname();
   const scrolled = useScrolled(20);
   const authBarVisible = useHideOnScroll(100);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   useScrollLock(mobileMenuOpen);
+
+  // On the landing page, hash links scroll to sections.
+  // On other pages (e.g. /documents), link to landing page sections or /documents directly.
+  const isLanding = pathname === "/";
+  const navHref = (hash: string) => {
+    if (isLanding) return hash;
+    // #ukazka is the "Dokumenty" link — go directly to /documents on non-landing pages
+    if (hash === "#ukazka") return "/documents";
+    return `/${hash}`;
+  };
 
   return (
     <nav
@@ -40,8 +52,8 @@ export default function LandingNav() {
         <div className="hidden md:flex items-center gap-5">
           {NAV_ITEMS.map((item) => (
             <a
-              key={item.href}
-              href={item.href}
+              key={item.hash}
+              href={navHref(item.hash)}
               className="text-sm font-medium leading-9 transition-colors hover:text-[var(--accent)]"
               style={{ color: "var(--text-secondary)" }}
             >
@@ -111,8 +123,8 @@ export default function LandingNav() {
         >
           {NAV_ITEMS.map((item) => (
             <a
-              key={item.href}
-              href={item.href}
+              key={item.hash}
+              href={navHref(item.hash)}
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center text-sm font-medium py-4 min-h-[48px] border-b transition-colors hover:text-[var(--accent)]"
               style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
