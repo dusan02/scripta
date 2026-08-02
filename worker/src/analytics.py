@@ -282,7 +282,7 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
         x3 = ebit / total_assets                  # EBIT approx (not just net profit)
         x4 = equity / total_liabilities
 
-        z = round(6.56 * x1 + 3.26 * x2 + 6.72 * x3 + 1.05 * x4, 3)
+        z = round(6.56 * x1 + 3.26 * x2 + 6.72 * x3 + 1.05 * x4, 2)
 
         if z > 2.6:
             zone = "SAFE"
@@ -902,6 +902,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         if pio_score is not None:
             p2_raw += min(10, int((pio_score / 8.0) * 10))
             p2_flags.extend(piotroski.get("flags", []))
+            if pio_score <= 4:
+                p2_flags.append(f"Pozn.: Piotroski {pio_score}/8 indikuje stagnáciu v niektorých oblastiach, ale celkové skóre odráža silné fundamentals (Altman, likvidita, zadlženosť)")
         else:
             p2_flags.append("Piotroski F-score: N/A")
 
@@ -967,6 +969,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         if cf_ratio is not None and profitable_years > 0 and cf_ratio < 0:
             p3_raw = max(0, p3_raw - 5)
             p3_flags.append(f"⚠ Divergencia CF/Zisk: Záporný CF pri zisku")
+        elif cf_ratio is not None and profitable_years > 0 and 0 < cf_ratio < 1:
+            p3_flags.append(f"Pozn.: CF/Zisk = {cf_ratio:.1f}× — prevádzkové peňažné toky nepokrývajú čistý zisk v plnej miere (možný vplyv zmien pracovného kapitálu alebo odpisov)")
 
     p3_raw = max(0, min(30, p3_raw))
     p3_score = int(round((p3_raw / 30.0) * nace_w["P3"]))

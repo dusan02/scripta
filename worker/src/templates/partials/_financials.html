@@ -575,7 +575,12 @@
                 (i18n.row_long_term_liab, 'longTermLiabilities', 'pl-4'),
                 (i18n.row_trade_payables, 'tradePayables', 'pl-8'),
             ] %}
-            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1" style="color: #94a3b8;">{{ i18n.assets }}</td></tr>
+            <tr><td class="subsection-title-sm py-1" style="color: #94a3b8;">{{ i18n.assets }}</td>
+            {% for stmt in stmts_sorted %}
+            {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
+            <td class="py-0.5 px-2 text-right font-bold text-slate-600" style="color: #94a3b8;">{% if ta is not none %}{{ ta | format_number_millions }}{% else %}—{% endif %}</td>
+            {% endfor %}
+            </tr>
             {% for label, field, padding_class in asset_rows %}
             <tr class="border-b border-slate-100">
                 <td class="py-0.5 px-2 font-semibold text-slate-700 {{ padding_class }}">{{ label }}</td>
@@ -591,7 +596,15 @@
                 {% endfor %}
             </tr>
             {% endfor %}
-            <tr><td colspan="{{ stmts_sorted|length + 1 }}" class="subsection-title-sm py-1 pt-2" style="color: #94a3b8;">{{ i18n.capital_liabilities }}</td></tr>
+            <tr><td class="subsection-title-sm py-1 pt-2" style="color: #94a3b8;">{{ i18n.capital_liabilities }}</td>
+            {% for stmt in stmts_sorted %}
+            {% set eq = stmt.equity if stmt.equity is defined else none %}
+            {% set stl = stmt.shortTermLiabilities if stmt.shortTermLiabilities is defined else none %}
+            {% set ltl = stmt.longTermLiabilities if stmt.longTermLiabilities is defined else none %}
+            {% set total_liab = (eq or 0) + (stl or 0) + (ltl or 0) if (eq is not none or stl is not none or ltl is not none) else none %}
+            <td class="py-0.5 px-2 text-right font-bold" style="color: #94a3b8;">{% if total_liab is not none %}{{ total_liab | format_number_millions }}{% else %}—{% endif %}</td>
+            {% endfor %}
+            </tr>
             {% for label, field, padding_class in liability_rows %}
             <tr class="border-b border-slate-100">
                 <td class="py-0.5 px-2 font-semibold text-slate-700 {{ padding_class }}">{{ label }}</td>
