@@ -144,7 +144,11 @@ async def _fetch_details(
 
 
 async def _download_pdf(url: str) -> Optional[bytes]:
-    """Stiahne PDF z URL (pre attachment/prílohy)."""
+    """Stiahne PDF z URL (pre attachment/prílohy).
+
+    Deprecated — prefer _download_attachment which handles ZIP archives too.
+    Kept for backward compatibility with Playwright fallback code.
+    """
     def _fetch():
         ctx = ssl.create_default_context()
         req = Request(url, headers={"User-Agent": _UA})
@@ -163,19 +167,105 @@ async def _download_pdf(url: str) -> Optional[bytes]:
     return None
 
 
+async def _download_attachment(url: str) -> Optional[tuple[bytes, str]]:
+    """Stiahne prílohu z URL — podporuje PDF aj ZIP archívy.
+
+    RÚZ API od ~2024 vracia prílohy veľkých firiem ako ZIP archívy
+    (obsahujúce PDF výkazy) namiesto priamych PDF. Táto funkcia
+    rozpozná oba formáty a vráti (body, mime_type) tuple.
+
+    Returns:
+        (body, mime_type) alebo None pri zlyhaní/neznámom formáte.
+    """
+    def _fetch():
+        ctx = ssl.create_default_context()
+        req = Request(url, headers={"User-Agent": _UA})
+        with urlopen(req, context=ctx) as resp:
+            body = resp.read()
+            content_type = resp.headers.get("content-type", "").lower()
+            # Rozpoznaj PDF priamo
+            if "application/pdf" in content_type or body.startswith(b"%PDF"):
+                return (body, "application/pdf")
+            # Rozpoznaj ZIP — RÚZ vracia prílohy veľkých firiem ako ZIP
+            if "application/zip" in content_type or body.startswith(b"PK"):
+                return (body, "application/zip")
+            # Neznámy formát — log pre debug
+            logger.debug(f"[RUZ_API] Unknown attachment type: {content_type}, size={len(body)}")
+            return None
+    try:
+        result = await asyncio.to_thread(_fetch)
+        if result and len(result[0]) > 100:
+            return result
+    except Exception as e:
+        logger.warning(f"[RUZ_API] Attachment download failed {url}: {e}")
+    return None
+
+
+def _extract_pdfs_from_zip(zip_bytes: bytes) -> list[bytes]:
+    """Extrahuje všetky PDF súbory z ZIP archívu.
+
+    RÚZ ZIP prílohy obsahujú typicky:
+      - Účtovná závierka.PDF
+      - Vybrané údaje.PDF
+      - Správa audítora.PDF
+
+    Vráti zoznam PDF bytes (prázdny zoznam ak ZIP neobsahuje PDF).
+    """
+    import io
+    import zipfile
+    pdfs = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            for name in zf.namelist():
+                if name.lower().endswith(".pdf"):
+                    data = zf.read(name)
+                    if data and len(data) > 100 and data.startswith(b"%PDF"):
+                        pdfs.append(data)
+                        logger.info(f"[RUZ_API] ZIP extrahovaný: {name} ({len(data)} bytes)")
+    except Exception as e:
+        logger.warning(f"[RUZ_API] ZIP extraction failed: {e}")
+    return pdfs
+
+
 async def _download_prilohy(prilohy: list[dict]) -> list[bytes]:
-    """Stiahne všetky PDF prílohy z daného zoznamu paralelne."""
+    """Stiahne všetky prílohy z daného zoznamu paralelne.
+
+    Podporuje PDF aj ZIP prílohy. ZIP archívy sa rozbalia a
+    extrahované PDF sa pridajú do výsledného zoznamu.
+    """
     sem = asyncio.Semaphore(_CONCURRENCY)
 
-    async def _fetch_one(priloha: dict) -> Optional[bytes]:
+    async def _fetch_one(priloha: dict) -> list[bytes]:
         pid = priloha.get("id")
         if not pid:
-            return None
+            return []
+        meno = priloha.get("meno", "")
+        mime_hint = priloha.get("mimeType", "").lower()
         async with sem:
-            return await _download_pdf(f"{_RUZ_ATTACHMENT}/{pid}")
+            result = await _download_attachment(f"{_RUZ_ATTACHMENT}/{pid}")
+        if result is None:
+            logger.debug(f"[RUZ_API] Príloha {pid} ({meno}) — nepodarilo sa stiahnuť")
+            return []
+        body, content_type = result
+        if content_type == "application/zip":
+            pdfs = _extract_pdfs_from_zip(body)
+            if pdfs:
+                logger.info(f"[RUZ_API] Príloha {pid} ({meno}): ZIP → {len(pdfs)} PDF extrahovaných")
+            else:
+                logger.warning(f"[RUZ_API] Príloha {pid} ({meno}): ZIP neobsahuje žiadne PDF")
+            return pdfs
+        # PDF priamo
+        return [body]
 
     results = await asyncio.gather(*[_fetch_one(p) for p in prilohy], return_exceptions=True)
-    return [r for r in results if isinstance(r, bytes) and r]
+    # results je list[list[bytes]] alebo Exception — sploštíme
+    pdfs: list[bytes] = []
+    for r in results:
+        if isinstance(r, list):
+            pdfs.extend(r)
+        elif isinstance(r, Exception):
+            logger.warning(f"[RUZ_API] Príloha download error: {r}")
+    return pdfs
 
 
 # ── Main client ──────────────────────────────────────────────────────────────

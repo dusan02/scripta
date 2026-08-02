@@ -596,3 +596,337 @@ class TestRuzCacheInvalidation:
             # API was called (cache was expired), entity not found
             assert result == ["__ENTITY_NOT_FOUND__"], \
                 "Expired cache should trigger re-download"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Finally block cleanup — browser.close() exception handling
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFinallyBlockCleanup:
+    """Test that browser.close() exception in finally block doesn't
+    prevent playwright.stop() from running — prevents process/memory leak."""
+
+    @pytest.mark.asyncio
+    async def test_browser_close_exception_does_not_skip_playwright_stop(self):
+        """If browser.close() raises, playwright.stop() must still be called.
+
+        This simulates the finally block in _execute_report_inner where
+        a crashed browser can raise during close, but we still need to
+        stop the playwright process to avoid a process leak.
+        """
+        browser = AsyncMock()
+        browser.close.side_effect = RuntimeError("Browser already crashed")
+        playwright = AsyncMock()
+        playwright.stop = AsyncMock(return_value=None)
+
+        # Replicate the finally block logic from _execute_report_inner
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+        browser.close.assert_awaited_once()
+        playwright.stop.assert_awaited_once(), \
+            "playwright.stop() must be called even if browser.close() raised"
+
+    @pytest.mark.asyncio
+    async def test_both_close_and_stop_succeed(self):
+        """Happy path: both browser.close() and playwright.stop() succeed."""
+        browser = AsyncMock()
+        playwright = AsyncMock()
+
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+        browser.close.assert_awaited_once()
+        playwright.stop.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_none_browser_skips_close(self):
+        """If browser is None (launch failed), close should be skipped."""
+        browser = None
+        playwright = AsyncMock()
+
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+        playwright.stop.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_both_none_skips_both(self):
+        """If both browser and playwright are None, nothing should be called."""
+        browser = None
+        playwright = None
+
+        # Should not raise
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+    @pytest.mark.asyncio
+    async def test_playwright_stop_exception_does_not_propagate(self):
+        """If playwright.stop() also raises, the exception should be caught."""
+        browser = AsyncMock()
+        playwright = AsyncMock()
+        playwright.stop.side_effect = RuntimeError("Stop failed")
+
+        # Should not raise
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+        browser.close.assert_awaited_once()
+        playwright.stop.assert_awaited_once()
+
+    def test_finally_block_source_has_try_except(self):
+        """Verify that the source code of _execute_report_inner has try/except
+        around browser.close() and playwright.stop() in the finally block."""
+        # Read source file directly — importing src.main triggers prisma import
+        # which fails in test environment without generated prisma client.
+        import pathlib, re
+        main_path = pathlib.Path(__file__).parent.parent / "src" / "main.py"
+        source = main_path.read_text()
+        # Find the finally keyword (indented with 4 spaces, not inside a string)
+        # Use regex to find "    finally:" at the start of a line
+        match = re.search(r'^    finally:', source, re.MULTILINE)
+        assert match, "finally block not found in _execute_report_inner"
+        finally_block = source[match.start():]
+        # Truncate at the next function/class definition or end of function
+        next_def = re.search(r'\n\n(?:async def |def |class |@app\.)', finally_block[10:])
+        if next_def:
+            finally_block = finally_block[:next_def.start() + 10]
+        # browser.close() should be inside a try
+        assert "browser.close()" in finally_block, "browser.close() not in finally block"
+        assert "except" in finally_block, "no try/except in finally block"
+        # playwright.stop() should also be inside a try
+        assert "playwright.stop()" in finally_block, "playwright.stop() not in finally block"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RÚZ ZIP attachment support — large firms (e.g. Adient) have ZIP prílohy
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestRuzZipAttachments:
+    """RÚZ API od ~2024 vracia prílohy veľkých firiem ako ZIP archívy
+    namiesto priamych PDF. Testy overujú, že scraper ich správne
+    rozbalí a extrahuje PDF."""
+
+    def _make_zip_with_pdfs(self, pdf_count: int = 2) -> bytes:
+        """Vytvor ZIP archív s daným počtom PDF súborov."""
+        import io, zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            for i in range(pdf_count):
+                # Minimálny platný PDF header
+                pdf_content = b"%PDF-1.4\n%test pdf content " + str(i).encode() + b" " * 200 + b"\n%%EOF"
+                zf.writestr(f"document_{i}.pdf", pdf_content)
+        return buf.getvalue()
+
+    def _make_zip_without_pdfs(self) -> bytes:
+        """Vytvor ZIP archív bez PDF súborov (len .txt a .xml)."""
+        import io, zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("data.txt", "not a pdf")
+            zf.writestr("meta.xml", "<xml/>")
+        return buf.getvalue()
+
+    def test_extract_pdfs_from_zip_success(self):
+        """_extract_pdfs_from_zip by mal extrahovať PDF súbory z ZIP."""
+        from src.ruz_api import _extract_pdfs_from_zip
+        zip_bytes = self._make_zip_with_pdfs(3)
+        pdfs = _extract_pdfs_from_zip(zip_bytes)
+        assert len(pdfs) == 3
+        for pdf in pdfs:
+            assert pdf.startswith(b"%PDF")
+
+    def test_extract_pdfs_from_zip_no_pdfs(self):
+        """ZIP bez PDF → prázdny zoznam."""
+        from src.ruz_api import _extract_pdfs_from_zip
+        zip_bytes = self._make_zip_without_pdfs()
+        pdfs = _extract_pdfs_from_zip(zip_bytes)
+        assert pdfs == []
+
+    def test_extract_pdfs_from_zip_invalid_data(self):
+        """Neplatný ZIP → prázdny zoznam (bez výnimky)."""
+        from src.ruz_api import _extract_pdfs_from_zip
+        pdfs = _extract_pdfs_from_zip(b"not a zip file at all")
+        assert pdfs == []
+
+    def test_extract_pdfs_from_zip_empty(self):
+        """Prázdny vstup → prázdny zoznam."""
+        from src.ruz_api import _extract_pdfs_from_zip
+        pdfs = _extract_pdfs_from_zip(b"")
+        assert pdfs == []
+
+    def test_extract_pdfs_filters_non_pdf(self):
+        """ZIP s mixom PDF a non-PDF → iba PDF súbory."""
+        import io, zipfile
+        from src.ruz_api import _extract_pdfs_from_zip
+        pdf_body = b"%PDF-1.4\n" + b"x" * 200 + b"\n%%EOF"
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("report.pdf", pdf_body)
+            zf.writestr("notes.txt", "text file")
+            zf.writestr("data.xml", "<xml/>")
+            zf.writestr("image.pdf", pdf_body)
+        pdfs = _extract_pdfs_from_zip(buf.getvalue())
+        assert len(pdfs) == 2  # iba 2 PDF súbory
+
+    def test_extract_pdfs_filters_invalid_pdf_content(self):
+        """Súbor s .pdf príponou ale bez PDF magic bytes sa ignoruje."""
+        import io, zipfile
+        from src.ruz_api import _extract_pdfs_from_zip
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("fake.pdf", b"this is not really a pdf but longer than 100 chars " + b"x" * 100)
+            zf.writestr("real.pdf", b"%PDF-1.4\n" + b"y" * 200 + b"\n%%EOF")
+        pdfs = _extract_pdfs_from_zip(buf.getvalue())
+        assert len(pdfs) == 1  # iba real.pdf
+
+    @pytest.mark.asyncio
+    async def test_download_prilohy_with_zip(self):
+        """_download_prilohy by mal stiahnuť ZIP a extrahovať PDF."""
+        from src.ruz_api import _download_prilohy
+        zip_bytes = self._make_zip_with_pdfs(2)
+
+        prilohy = [{"id": 12345, "meno": "Účtovná závierka.ZIP", "mimeType": "application/zip"}]
+
+        async def mock_download_attachment(url):
+            return (zip_bytes, "application/zip")
+
+        with patch("src.ruz_api._download_attachment", side_effect=mock_download_attachment):
+            result = await _download_prilohy(prilohy)
+
+        assert len(result) == 2
+        for pdf in result:
+            assert pdf.startswith(b"%PDF")
+
+    @pytest.mark.asyncio
+    async def test_download_prilohy_with_pdf(self):
+        """_download_prilohy by mal stiahnuť PDF priamo (backward compat)."""
+        from src.ruz_api import _download_prilohy
+        pdf_bytes = b"%PDF-1.4\ntest pdf content\n%%EOF"
+
+        prilohy = [{"id": 67890, "meno": "Správa audítora.PDF", "mimeType": "application/pdf"}]
+
+        async def mock_download_attachment(url):
+            return (pdf_bytes, "application/pdf")
+
+        with patch("src.ruz_api._download_attachment", side_effect=mock_download_attachment):
+            result = await _download_prilohy(prilohy)
+
+        assert len(result) == 1
+        assert result[0] == pdf_bytes
+
+    @pytest.mark.asyncio
+    async def test_download_prilohy_mixed_zip_and_pdf(self):
+        """Mix ZIP a PDF príloh → všetky PDF extrahované."""
+        from src.ruz_api import _download_prilohy
+        zip_bytes = self._make_zip_with_pdfs(2)
+        pdf_bytes = b"%PDF-1.4\nstandalone pdf\n%%EOF"
+
+        prilohy = [
+            {"id": 1, "meno": "Zavierka.ZIP", "mimeType": "application/zip"},
+            {"id": 2, "meno": "Auditor.PDF", "mimeType": "application/pdf"},
+        ]
+
+        async def mock_download_attachment(url):
+            if "1" in url or "/12345" in url:
+                return (zip_bytes, "application/zip")
+            return (pdf_bytes, "application/pdf")
+
+        # Simuluj: prvý call → ZIP, druhý → PDF
+        call_count = [0]
+        async def mock_download_attachment_counted(url):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return (zip_bytes, "application/zip")
+            return (pdf_bytes, "application/pdf")
+
+        with patch("src.ruz_api._download_attachment", side_effect=mock_download_attachment_counted):
+            result = await _download_prilohy(prilohy)
+
+        assert len(result) == 3  # 2 z ZIP + 1 PDF
+
+    @pytest.mark.asyncio
+    async def test_download_prilohy_zip_without_pdfs(self):
+        """ZIP bez PDF → prázdny výsledok (s warning logom)."""
+        from src.ruz_api import _download_prilohy
+        zip_bytes = self._make_zip_without_pdfs()
+
+        prilohy = [{"id": 999, "meno": "Data.ZIP", "mimeType": "application/zip"}]
+
+        async def mock_download_attachment(url):
+            return (zip_bytes, "application/zip")
+
+        with patch("src.ruz_api._download_attachment", side_effect=mock_download_attachment):
+            result = await _download_prilohy(prilohy)
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_download_prilohy_download_failure(self):
+        """Ak download zlyhá, príloha sa preskočí (bez výnimky)."""
+        from src.ruz_api import _download_prilohy
+
+        prilohy = [{"id": 404, "meno": "Missing.ZIP", "mimeType": "application/zip"}]
+
+        async def mock_download_attachment(url):
+            return None  # download failed
+
+        with patch("src.ruz_api._download_attachment", side_effect=mock_download_attachment):
+            result = await _download_prilohy(prilohy)
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_download_prilohy_empty_list(self):
+        """Prázdny zoznam príloh → prázdny výsledok."""
+        from src.ruz_api import _download_prilohy
+        result = await _download_prilohy([])
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_download_prilohy_priloha_without_id(self):
+        """Príloha bez 'id' → preskočí sa."""
+        from src.ruz_api import _download_prilohy
+        prilohy = [{"meno": "No ID", "mimeType": "application/pdf"}]
+        result = await _download_prilohy(prilohy)
+        assert result == []

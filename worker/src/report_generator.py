@@ -43,6 +43,7 @@ from src.analytics import (
     compute_state_liabilities_alert,
     compute_revenue_per_employee_alert,
     compute_yoy_summary_table,
+    _to_float,
 )
 
 logger = logging.getLogger(__name__)
@@ -1298,6 +1299,18 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     if company.financialStatements:
         company.financialStatements = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
     stmts = company.financialStatements
+    # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+    # Všetky aritmetické operácie v tejto funkcii + chart funkciách vyžadujú float
+    for stmt in (stmts or []):
+        for field in ("mainActivityRevenue", "grossProfit", "netProfitLoss", "staffCosts",
+                       "depreciation", "interestExpense", "operatingCashFlow",
+                       "investingCashFlow", "financingCashFlow",
+                       "currentAssets", "inventory", "cashAndEquivalents", "tradeReceivables",
+                       "totalAssets", "equity", "shortTermLiabilities", "longTermLiabilities",
+                       "tradePayables"):
+            val = getattr(stmt, field, None)
+            if val is not None:
+                setattr(stmt, field, _to_float(val))
     # Sanitizácia: 0 pre cash flow polia = chýbajúce dáta (artefakt starého LLM promptu)
     for stmt in (stmts or []):
         sanitize_cash_flow_fields(stmt)

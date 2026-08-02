@@ -673,10 +673,19 @@ async def _execute_report_inner(task: ReportTask) -> None:
             _log.warning(f"[{_rid}] Credit refund request failed (exception path): {refund_err}")
         raise
     finally:
+        # browser.close() môže vyhodiť výnimku (browser už crashol, connection
+        # timeout) — musíme ju zachytiť, inak sa playwright.stop() nevykoná
+        # a playwright proces zostane bežať (memory/process leak).
         if browser:
-            await browser.close()
+            try:
+                await browser.close()
+            except Exception as close_err:
+                _log.warning(f"[{_rid}] Browser close error in finally: {close_err}")
         if playwright:
-            await playwright.stop()
+            try:
+                await playwright.stop()
+            except Exception as stop_err:
+                _log.warning(f"[{_rid}] Playwright stop error in finally: {stop_err}")
         # Pool je modulový singleton — nezatvárame ho po každej úlohe.
 
 

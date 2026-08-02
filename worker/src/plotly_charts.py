@@ -43,6 +43,7 @@ def _fmt_currency(x):
 
 def _prepare_statements(statements):
     from datetime import datetime
+    from types import SimpleNamespace
     current_year = datetime.now().year
     seen_years = set()
     valid_stmts = []
@@ -56,7 +57,42 @@ def _prepare_statements(statements):
         except (ValueError, TypeError):
             continue
     valid_stmts.sort(key=lambda x: x.year)
-    return valid_stmts
+    # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
+    # Všetky chart funkcie robia aritmetiku s týmito hodnotami — Decimal + float = TypeError
+    return [_sanitize_stmt(s) for s in valid_stmts]
+
+
+# Numeric fields that may arrive as Decimal from Prisma after Float→Decimal migration
+_NUMERIC_CHART_FIELDS = (
+    "mainActivityRevenue", "grossProfit", "netProfitLoss", "staffCosts",
+    "depreciation", "interestExpense", "operatingCashFlow",
+    "investingCashFlow", "financingCashFlow",
+    "currentAssets", "inventory", "cashAndEquivalents", "tradeReceivables",
+    "totalAssets", "equity", "shortTermLiabilities", "longTermLiabilities",
+    "tradePayables", "year", "employeeCount", "monthsInPeriod",
+)
+
+
+def _sanitize_stmt(stmt):
+    """Return a copy of stmt with all numeric fields converted to float.
+
+    Prisma's Decimal type causes TypeError when mixed with float in arithmetic
+    (e.g. ``float - Decimal``). This helper ensures all numeric attributes are
+    plain Python floats before they reach plotly chart functions.
+    """
+    from types import SimpleNamespace
+    if stmt is None:
+        return None
+    data = {}
+    for field in _NUMERIC_CHART_FIELDS:
+        val = getattr(stmt, field, None)
+        if val is not None:
+            val = _to_float(val)
+        data[field] = val
+    # Copy non-numeric attributes we might need
+    for attr in ("statementType", "isConsolidated", "auditorOpinion", "narrativeRisk", "notesRisk", "_gross_profit_estimated"):
+        data[attr] = getattr(stmt, attr, None)
+    return SimpleNamespace(**data)
 
 def get_base_layout(title):
     return dict(
