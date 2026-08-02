@@ -28,6 +28,10 @@ _MIGRATION_PATH = (
     / "20260801600000_add_dedup_constraints" / "migration.sql"
 )
 
+# Skip schema/migration tests if frontend dir not available (e.g. in worker container)
+_SKIP_SCHEMA = not _SCHEMA_PATH.exists()
+skip_if_no_schema = pytest.mark.skipif(_SKIP_SCHEMA, reason="frontend/prisma/schema.prisma not accessible from this environment")
+
 def _schema_path():
     return str(_SCHEMA_PATH)
 
@@ -378,6 +382,7 @@ class TestSaveVestnikEvents:
 class TestSchemaConstraints:
     """Verifikuje že schema.prisma má unikátne obmedzenia pre dedup."""
 
+    @skip_if_no_schema
     def test_company_event_has_unique_constraint(self):
         """CompanyEvent by mal mať @@unique([companyIco, source, eventType, eventDate, amount])."""
         schema_path = _schema_path()
@@ -393,6 +398,7 @@ class TestSchemaConstraints:
         assert "source" in model_text
         assert "eventType" in model_text
 
+    @skip_if_no_schema
     def test_vestnik_event_has_unique_constraint(self):
         """VestnikEvent by mal mať @@unique([companyIco, sourceId])."""
         schema_path = _schema_path()
@@ -406,6 +412,7 @@ class TestSchemaConstraints:
         assert "companyIco" in model_text
         assert "sourceId" in model_text
 
+    @skip_if_no_schema
     def test_report_request_has_deletedAt_index(self):
         """ReportRequest by mať @@index([deletedAt])."""
         schema_path = _schema_path()
@@ -418,12 +425,14 @@ class TestSchemaConstraints:
         assert "deletedAt" in model_text
         assert "@@index([deletedAt])" in model_text
 
+    @skip_if_no_schema
     def test_migration_file_exists(self):
         """Migrácia pre dedup constraints by mala existovať."""
         import os
         migration_path = _migration_path()
         assert os.path.exists(migration_path), f"Migration file not found: {migration_path}"
 
+    @skip_if_no_schema
     def test_migration_has_dedup_cleanup(self):
         """Migrácia by mala obsahovať DELETE pre dedup existujúcich duplikátov."""
         migration_path = _migration_path()
@@ -434,6 +443,7 @@ class TestSchemaConstraints:
         assert "VestnikEvent" in content
         assert "CREATE UNIQUE INDEX" in content
 
+    @skip_if_no_schema
     def test_migration_has_deletedAt_index(self):
         """Migrácia by mala vytvoriť index pre deletedAt."""
         migration_path = _migration_path()
