@@ -170,6 +170,42 @@ describe("admin keys exist in all languages", () => {
     "admin.odoslanieZlyhalo",
   ];
 
+  const EMAIL_KEYS = [
+    "email.footer",
+    "email.dobryDen",
+    "email.sPozdravom",
+    "email.timVerifa",
+    "email.reportDokonceny",
+    "email.reportCiastocne",
+    "email.reportZlyhany",
+    "email.reportNeznamy",
+    "email.reportZobrazit",
+    "email.reportChyba",
+    "email.reportSubject",
+    "email.reportBodyText",
+    "email.reportBodyHtml",
+    "email.reportHeading",
+    "email.feedbackChyba",
+    "email.feedbackNavrh",
+    "email.feedbackOtazka",
+    "email.feedbackIne",
+    "email.feedbackSpatnaVazba",
+    "email.feedbackKategoriaPovinna",
+    "email.feedbackTextPovinny",
+    "email.inboundPrazdnaOdpoved",
+    "email.inboundOdpoved",
+    "email.bounceNotificationTitle",
+    "email.bounceNotificationBody",
+  ];
+
+  for (const key of EMAIL_KEYS) {
+    it(`"${key}" exists in all languages`, () => {
+      for (const lang of LANGS) {
+        assert.ok(key in translations[lang], `Missing "${key}" in ${lang}`);
+      }
+    });
+  }
+
   for (const key of ADMIN_KEYS) {
     it(`"${key}" exists in all languages`, () => {
       for (const lang of LANGS) {

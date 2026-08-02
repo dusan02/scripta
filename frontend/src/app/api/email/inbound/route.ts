@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Webhook } from "svix";
+import { translate, normalizeLang } from "@/lib/i18n";
 
 // Resend Inbound webhook — receives email.received events
 // When admin replies to a user message from their email client,
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Verify user exists
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true },
+      select: { id: true, email: true, reportLanguage: true },
     });
 
     if (!user) {
@@ -142,14 +143,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (!body.trim()) {
-      body = "(prázdna odpoveď)";
+      const lang = normalizeLang(user.reportLanguage);
+      body = translate(lang, "email.inboundPrazdnaOdpoved");
     }
 
     // Clean subject — remove Re:/Fwd: prefixes and [Verifa.sk] prefix
+    const lang = normalizeLang(user.reportLanguage);
     const cleanSubject = subject
       .replace(/^(Re|Fwd|Aw):\s*/gi, "")
       .replace(/^\[Verifa\.sk\]\s*/i, "")
-      .trim() || "Odpoveď";
+      .trim() || translate(lang, "email.inboundOdpoved");
 
     // Create REPLY message in user's inbox
     await prisma.userMessage.create({

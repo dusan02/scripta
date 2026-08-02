@@ -592,6 +592,33 @@ const sk: Dict = {
   "admin.admin": "Admin",
   "admin.pouzivatelRole": "Používateľ",
 
+  // ── Email templates ──
+  "email.footer": "Verifa.sk — Business Risk Report zo štátnych registrov SR.",
+  "email.dobryDen": "Dobrý deň",
+  "email.sPozdravom": "S pozdravom",
+  "email.timVerifa": "Tím Verifa.sk",
+  "email.reportDokonceny": "Dokončený",
+  "email.reportCiastocne": "Čiastočne dokončený",
+  "email.reportZlyhany": "Zlyhaný",
+  "email.reportNeznamy": "Neznámy subjekt",
+  "email.reportZobrazit": "Zobraziť report",
+  "email.reportChyba": "Pri generovaní reportu nastala chyba. Skúste to prosím znova alebo nás kontaktujte na info@verifa.sk.",
+  "email.reportSubject": "Report {status} — {company} | Verifa.sk",
+  "email.reportBodyText": "Váš report pre {company} bol {status}.",
+  "email.reportBodyHtml": "Váš Business Risk Report pre <strong>{company}</strong> bol {status}.",
+  "email.reportHeading": "Report {status}",
+  "email.feedbackChyba": "Chyba",
+  "email.feedbackNavrh": "Nápad na zlepšenie",
+  "email.feedbackOtazka": "Otázka",
+  "email.feedbackIne": "Iné",
+  "email.feedbackSpatnaVazba": "Spätná väzba",
+  "email.feedbackKategoriaPovinna": "Kategória je povinná (BUG, IMPROVEMENT, QUESTION, OTHER)",
+  "email.feedbackTextPovinny": "Text správy je povinný",
+  "email.inboundPrazdnaOdpoved": "(prázdna odpoveď)",
+  "email.inboundOdpoved": "Odpoveď",
+  "email.bounceNotificationTitle": "Email sa nepodarilo doručiť",
+  "email.bounceNotificationBody": "Váša e-mailová adresa bola označená ako nedoručiteľná. Skontrolujte si prosím e-mail v nastaveniach účtu.",
+
   // ── CopyableText ──
   "copy.skopirovane": "Skopírované",
   "copy.kopirovat": "Kopírovať",
@@ -1365,6 +1392,33 @@ const en: Dict = {
   "admin.odoslanieZlyhalo": "Failed to send message.",
   "admin.admin": "Admin",
   "admin.pouzivatelRole": "User",
+
+  // ── Email templates ──
+  "email.footer": "Verifa.sk — Business Risk Report from Slovak state registries.",
+  "email.dobryDen": "Hello",
+  "email.sPozdravom": "Best regards",
+  "email.timVerifa": "Verifa.sk Team",
+  "email.reportDokonceny": "completed",
+  "email.reportCiastocne": "partially completed",
+  "email.reportZlyhany": "failed",
+  "email.reportNeznamy": "Unknown entity",
+  "email.reportZobrazit": "View report",
+  "email.reportChyba": "An error occurred while generating the report. Please try again or contact us at info@verifa.sk.",
+  "email.reportSubject": "Report {status} — {company} | Verifa.sk",
+  "email.reportBodyText": "Your report for {company} was {status}.",
+  "email.reportBodyHtml": "Your Business Risk Report for <strong>{company}</strong> was {status}.",
+  "email.reportHeading": "Report {status}",
+  "email.feedbackChyba": "Bug",
+  "email.feedbackNavrh": "Improvement suggestion",
+  "email.feedbackOtazka": "Question",
+  "email.feedbackIne": "Other",
+  "email.feedbackSpatnaVazba": "Feedback",
+  "email.feedbackKategoriaPovinna": "Category is required (BUG, IMPROVEMENT, QUESTION, OTHER)",
+  "email.feedbackTextPovinny": "Message text is required",
+  "email.inboundPrazdnaOdpoved": "(empty reply)",
+  "email.inboundOdpoved": "Reply",
+  "email.bounceNotificationTitle": "Email delivery failed",
+  "email.bounceNotificationBody": "Your email address has been marked as undeliverable. Please check your email in account settings.",
 
   // ── CopyableText ──
   "copy.skopirovane": "Copied",
@@ -2140,6 +2194,33 @@ const de: Dict = {
   "admin.admin": "Admin",
   "admin.pouzivatelRole": "Benutzer",
 
+  // ── Email templates ──
+  "email.footer": "Verifa.sk — Business Risk Report aus staatlichen Registern der Slowakei.",
+  "email.dobryDen": "Guten Tag",
+  "email.sPozdravom": "Mit freundlichen Grüßen",
+  "email.timVerifa": "Verifa.sk Team",
+  "email.reportDokonceny": "abgeschlossen",
+  "email.reportCiastocne": "teilweise abgeschlossen",
+  "email.reportZlyhany": "fehlgeschlagen",
+  "email.reportNeznamy": "Unbekannter Eintrag",
+  "email.reportZobrazit": "Bericht ansehen",
+  "email.reportChyba": "Beim Erstellen des Berichts ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie uns unter info@verifa.sk.",
+  "email.reportSubject": "Bericht {status} — {company} | Verifa.sk",
+  "email.reportBodyText": "Ihr Bericht für {company} wurde {status}.",
+  "email.reportBodyHtml": "Ihr Business Risk Report für <strong>{company}</strong> wurde {status}.",
+  "email.reportHeading": "Bericht {status}",
+  "email.feedbackChyba": "Fehler",
+  "email.feedbackNavrh": "Verbesserungsvorschlag",
+  "email.feedbackOtazka": "Frage",
+  "email.feedbackIne": "Sonstiges",
+  "email.feedbackSpatnaVazba": "Feedback",
+  "email.feedbackKategoriaPovinna": "Kategorie ist erforderlich (BUG, IMPROVEMENT, QUESTION, OTHER)",
+  "email.feedbackTextPovinny": "Nachrichtentext ist erforderlich",
+  "email.inboundPrazdnaOdpoved": "(leere Antwort)",
+  "email.inboundOdpoved": "Antwort",
+  "email.bounceNotificationTitle": "E-Mail-Zustellung fehlgeschlagen",
+  "email.bounceNotificationBody": "Ihre E-Mail-Adresse wurde als unzustellbar markiert. Bitte überprüfen Sie Ihre E-Mail in den Kontoeinstellungen.",
+
   // ── CopyableText ──
   "copy.skopirovane": "Kopiert",
   "copy.kopirovat": "Kopieren",
@@ -2337,6 +2418,13 @@ const de: Dict = {
 };
 
 export const translations: Record<Lang, Dict> = { sk, en, de };
+
+const VALID_LANGS: Lang[] = ["sk", "en", "de"];
+
+export function normalizeLang(lang: string | null | undefined): Lang {
+  if (lang && VALID_LANGS.includes(lang as Lang)) return lang as Lang;
+  return "sk";
+}
 
 export function translate(lang: Lang, key: string, params?: Record<string, string | number>): string {
   let str = translations[lang]?.[key] ?? translations.sk[key] ?? key;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Webhook } from "svix";
+import { translate, normalizeLang } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,14 @@ export async function POST(req: NextRequest) {
   try {
     if (event.type === "email.bounced") {
       const reason = event.bounce?.message || event.bounce?.smtpResponse || "Unknown bounce";
-      await prisma.user.updateMany({
+
+      // Check if this user was already marked as bounced — avoid duplicate notifications
+      const existingBounced = await prisma.user.findFirst({
+        where: { email: emailAddress, emailBounced: true },
+        select: { id: true },
+      });
+
+      const updated = await prisma.user.updateMany({
         where: { email: emailAddress },
         data: {
           emailBounced: true,
@@ -70,6 +78,26 @@ export async function POST(req: NextRequest) {
         },
       });
       console.warn(`[email/events] Bounce recorded for ${emailAddress}: ${reason}`);
+
+      // Create in-app notification ONLY on first bounce (not already bounced)
+      if (updated.count > 0 && !existingBounced) {
+        const users = await prisma.user.findMany({
+          where: { email: emailAddress },
+          select: { id: true, reportLanguage: true },
+        });
+        for (const u of users) {
+          const lang = normalizeLang(u.reportLanguage);
+          await prisma.userMessage.create({
+            data: {
+              type: "SYSTEM",
+              userId: u.id,
+              title: translate(lang, "email.bounceNotificationTitle"),
+              body: translate(lang, "email.bounceNotificationBody"),
+              read: false,
+            },
+          }).catch(() => {});
+        }
+      }
     } else if (event.type === "email.complained") {
       await prisma.user.updateMany({
         where: { email: emailAddress },

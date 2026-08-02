@@ -5,6 +5,7 @@ import { verifyWorkerSecret } from "@/lib/auth";
 import { escapeHtml } from "@/lib/sanitize";
 import { NEXTAUTH_URL } from "@/lib/env";
 import { revalidatePath } from "next/cache";
+import { translate, normalizeLang } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -38,38 +39,50 @@ export async function POST(
 
     const user = await prisma.user.findUnique({
       where: { id: report.userId },
-      select: { email: true, name: true },
+      select: { email: true, name: true, reportLanguage: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const statusLabel =
+    const lang = normalizeLang(user.reportLanguage);
+    const statusKey =
       report.status === "COMPLETED"
-        ? "Dokončený"
+        ? "email.reportDokonceny"
         : report.status === "PARTIAL"
-        ? "Čiastočne dokončený"
-        : "Zlyhaný";
+        ? "email.reportCiastocne"
+        : "email.reportZlyhany";
+    const statusLabel = translate(lang, statusKey);
 
-    const companyName = report.companyName || report.ico || "Neznámy subjekt";
+    const companyName = report.companyName || report.ico || translate(lang, "email.reportNeznamy");
     const reportUrl = `${NEXTAUTH_URL}/reports/${report.id}`;
 
     revalidatePath("/dashboard");
     revalidatePath("/history");
     revalidatePath(`/reports/${report.id}`);
 
+    const subject = translate(lang, "email.reportSubject", { status: statusLabel, company: companyName });
+    const greeting = translate(lang, "email.dobryDen");
+    const bodyText = translate(lang, "email.reportBodyText", { company: companyName, status: statusLabel });
+    const bodyHtml = translate(lang, "email.reportBodyHtml", { company: escapeHtml(companyName), status: statusLabel });
+    const viewBtn = translate(lang, "email.reportZobrazit");
+    const heading = translate(lang, "email.reportHeading", { status: statusLabel });
+    const regards = translate(lang, "email.sPozdravom");
+    const team = translate(lang, "email.timVerifa");
+    const errorText = report.status === "FAILED" ? translate(lang, "email.reportChyba") : "";
+
     await sendEmail({
       to: user.email,
-      subject: `Report ${statusLabel.toLowerCase()} — ${companyName} | Verifa.sk`,
-      text: `Dobrý deň ${user.name || ""},\n\nVáš report pre ${companyName} bol ${statusLabel.toLowerCase()}.\n\nZobraziť report: ${reportUrl}\n\nS pozdravom,\nTím Verifa.sk`,
+      subject,
+      text: `${greeting} ${user.name || ""},\n\n${bodyText}\n\n${viewBtn}: ${reportUrl}\n\n${regards},\n${team}`,
       html: emailShell(`
-        <h2>Report ${statusLabel}</h2>
-        <p>Dobrý deň ${escapeHtml(user.name || "")},</p>
-        <p>Váš Business Risk Report pre <strong>${escapeHtml(companyName)}</strong> bol ${statusLabel.toLowerCase()}.</p>
-        <p>${emailButton(reportUrl, "Zobraziť report")}</p>
-        ${report.status === "FAILED" ? '<p style="color: #dc2626; font-size: 14px;">Pri generovaní reportu nastala chyba. Skúste to prosím znova alebo nás kontaktujte na info@verifa.sk.</p>' : ""}
-      `),
+        <h2>${escapeHtml(heading)}</h2>
+        <p>${greeting} ${escapeHtml(user.name || "")},</p>
+        <p>${bodyHtml}</p>
+        <p>${emailButton(reportUrl, viewBtn)}</p>
+        ${errorText ? `<p style="color: #dc2626; font-size: 14px;">${escapeHtml(errorText)}</p>` : ""}
+      `, lang),
     });
 
     return NextResponse.json({ sent: true });

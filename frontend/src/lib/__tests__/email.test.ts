@@ -3,12 +3,22 @@ import assert from "node:assert/strict";
 import { emailShell, emailButton, emailButtonStyle } from "../emailTemplates";
 
 describe("emailShell", () => {
-  it("wraps body in standard email container with footer", () => {
+  it("wraps body in standard email container with footer (default sk)", () => {
     const result = emailShell("<h2>Test</h2><p>Hello</p>");
     assert.ok(result.includes("font-family: sans-serif"));
     assert.ok(result.includes("max-width: 600px"));
     assert.ok(result.includes("<h2>Test</h2><p>Hello</p>"));
-    assert.ok(result.includes("Verifa.sk — Business Risk Report"));
+    assert.ok(result.includes("Verifa.sk — Business Risk Report zo štátnych registrov SR."));
+  });
+
+  it("uses English footer when lang=en", () => {
+    const result = emailShell("<p>body</p>", "en");
+    assert.ok(result.includes("Verifa.sk — Business Risk Report from Slovak state registries."));
+  });
+
+  it("uses German footer when lang=de", () => {
+    const result = emailShell("<p>body</p>", "de");
+    assert.ok(result.includes("Verifa.sk — Business Risk Report aus staatlichen Registern der Slowakei."));
   });
 
   it("includes hr separator before footer", () => {

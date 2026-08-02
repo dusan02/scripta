@@ -4,14 +4,15 @@ import { getCurrentUser } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { translate, normalizeLang } from "@/lib/i18n";
 
 const VALID_CATEGORIES = ["BUG", "IMPROVEMENT", "QUESTION", "OTHER"] as const;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  BUG: "Chyba",
-  IMPROVEMENT: "Nápad na zlepšenie",
-  QUESTION: "Otázka",
-  OTHER: "Iné",
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  BUG: "email.feedbackChyba",
+  IMPROVEMENT: "email.feedbackNavrh",
+  QUESTION: "email.feedbackOtazka",
+  OTHER: "email.feedbackIne",
 };
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,13 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Fetch user's language preference for i18n
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { reportLanguage: true },
+    });
+    const lang = normalizeLang(dbUser?.reportLanguage);
 
     // Rate limit: 5 feedback submissions per 10 minutes per user
     const rl = await rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 5 });
@@ -30,14 +38,14 @@ export async function POST(req: NextRequest) {
 
     if (!category || !VALID_CATEGORIES.includes(category)) {
       return NextResponse.json(
-        { error: "Kategória je povinná (BUG, IMPROVEMENT, QUESTION, OTHER)" },
+        { error: translate(lang, "email.feedbackKategoriaPovinna") },
         { status: 400 }
       );
     }
 
     if (!message || typeof message !== "string" || message.trim().length === 0) {
       return NextResponse.json(
-        { error: "Text správy je povinný" },
+        { error: translate(lang, "email.feedbackTextPovinny") },
         { status: 400 }
       );
     }
@@ -52,10 +60,11 @@ export async function POST(req: NextRequest) {
     });
 
     // Vytvoriť aj UserMessage záznam — objaví sa v "Odoslané" na /messages
-    const categoryLabel = CATEGORY_LABELS[category] || category;
+    const categoryLabel = translate(lang, CATEGORY_LABEL_KEYS[category] || "email.feedbackIne");
+    const feedbackTitle = translate(lang, "email.feedbackSpatnaVazba");
     const title = requestId
       ? `[${categoryLabel}] ${requestId}`
-      : `[${categoryLabel}] Spätná väzba`;
+      : `[${categoryLabel}] ${feedbackTitle}`;
 
     await prisma.userMessage.create({
       data: {

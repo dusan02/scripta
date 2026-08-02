@@ -1,5 +1,7 @@
 // @ts-ignore — .ts extension required for Node.js native test runner compatibility
 import { escapeHtml } from "./sanitize.ts";
+// @ts-ignore — .ts extension required for Node.js native test runner compatibility
+import { translate, type Lang } from "./i18n.ts";
 
 /**
  * Standard email button style — green CTA button.
@@ -14,15 +16,19 @@ export function emailButtonStyle(): string {
  * across all transactional emails. All user-supplied content passed to
  * `bodyHtml` must already be escaped via `escapeHtml()`.
  *
+ * @param lang - Language for footer text (defaults to "sk")
+ *
  * @example
  *   html: emailShell(`<h2>Report Ready</h2><p>${escapeHtml(companyName)}</p>`)
+ *   html: emailShell(`<h2>Report Ready</h2>`, "en")
  */
-export function emailShell(bodyHtml: string): string {
+export function emailShell(bodyHtml: string, lang: Lang = "sk"): string {
+  const footer = translate(lang, "email.footer");
   return `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #09090b;">
       ${bodyHtml}
       <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;">
-      <p style="color: #a1a1aa; font-size: 12px;">Verifa.sk — Business Risk Report zo štátnych registrov SR.</p>
+      <p style="color: #a1a1aa; font-size: 12px;">${escapeHtml(footer)}</p>
     </div>
   `;
 }
