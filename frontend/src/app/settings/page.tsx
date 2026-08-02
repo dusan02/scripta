@@ -374,10 +374,10 @@ export default function SettingsPage() {
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
-              Prílohy v PDF reporte
+              {t("settings.prilohy")}
             </h2>
             <p className="text-xs text-[var(--text-muted)]">
-              Vyberte, ktoré prílohy sa majú pripojiť k vygenerovanému PDF reportu.
+              {t("settings.prilohyPopis")}
             </p>
           </div>
         </div>
@@ -387,10 +387,10 @@ export default function SettingsPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {[
-              { key: "obchodny_register", label: "Obchodný register (ORSR)", desc: "Výpis z obchodného registra" },
-              { key: "zivnostensky_register", label: "Živnostensky register (ZRSR)", desc: "Výpis zo živnostenského registra" },
-              { key: "auditorska_sprava", label: "Audítorská správa", desc: "Audítorský posudok k účtovnej závierke", warning: true },
-              { key: "uctovna_zavierka_a_poznámky", label: "Účtovná závierka a poznámky", desc: "Dlhé prílohy — môžu mať stovky strán", warning: true },
+              { key: "obchodny_register", label: t("settings.attObchodny"), desc: t("settings.attObchodnyDesc") },
+              { key: "zivnostensky_register", label: t("settings.attZivnostensky"), desc: t("settings.attZivnostenskyDesc") },
+              { key: "auditorska_sprava", label: t("settings.attAuditorska"), desc: t("settings.attAuditorskaDesc"), warning: true },
+              { key: "uctovna_zavierka_a_poznámky", label: t("settings.attUctovna"), desc: t("settings.attUctovnaDesc"), warning: true },
             ].map((item) => (
               <div key={item.key}>
                 <label
@@ -414,7 +414,7 @@ export default function SettingsPage() {
                 {item.warning && (
                   <div className="flex items-start gap-2 mt-1.5 ml-7 text-xs text-[var(--warning)]">
                     <span className="leading-4">⚠</span>
-                    <span className="leading-4">Táto príloha môže výrazne zväčšiť PDF report — až o stovky strán.</span>
+                    <span className="leading-4">{t("settings.attWarning")}</span>
                   </div>
                 )}
               </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fmtYear } from "@/lib/format";
+import { useT } from "@/components/LanguageProvider";
 
 type CompanyInfo = {
   ico: string;
@@ -13,29 +14,29 @@ type CompanyInfo = {
 };
 
 export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; latestYear?: number }) {
+  const t = useT();
   const name = company.name || `IČO ${company.ico}`;
+
+  const cityPart = company.city ? t("company.descCity", { city: company.city }) : "";
+  const legalFormPart = company.legalForm ? t("company.descLegalForm", { legalForm: company.legalForm }) : "";
+  const establishedPart = company.establishedAt ? t("company.descEstablished", { year: fmtYear(company.establishedAt) }) : "";
+  const nacePart = company.naceText ? t("company.descNace", { nace: company.naceText }) : "";
+  const latestYearPart = latestYear ? t("company.descLatestYear", { year: String(latestYear) }) : "";
 
   return (
     <div className="mb-8">
       <h1 className="text-2xl sm:text-3xl font-black mb-2" style={{ color: "var(--text)" }}>{name}</h1>
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 sm:gap-x-6 sm:gap-y-2 text-xs sm:text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-        <span><strong>IČO:</strong> {company.ico}</span>
-        {company.legalForm && <span><strong>Právna forma:</strong> {company.legalForm}</span>}
+        <span><strong>{t("company.ico")}:</strong> {company.ico}</span>
+        {company.legalForm && <span><strong>{t("company.pravnaForma")}:</strong> {company.legalForm}</span>}
         {company.city && (
-          <span><strong>Sídlo:</strong> {company.street ? `${company.street}, ` : ""}{company.city}{company.zipCode ? `, ${company.zipCode}` : ""}</span>
+          <span><strong>{t("firma.sidlo")}:</strong> {company.street ? `${company.street}, ` : ""}{company.city}{company.zipCode ? `, ${company.zipCode}` : ""}</span>
         )}
-        {company.establishedAt && <span><strong>Založená:</strong> {fmtYear(company.establishedAt)}</span>}
-        {company.naceText && <span><strong>Predmet činnosti:</strong> {company.naceText}</span>}
+        {company.establishedAt && <span><strong>{t("firma.zalozena")}:</strong> {fmtYear(company.establishedAt)}</span>}
+        {company.naceText && <span><strong>{t("firma.predmetCinnosti")}:</strong> {company.naceText}</span>}
       </div>
       <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-        {name} (IČO: {company.ico}) je slovenská spoločnosť{company.city ? ` so sídlom v ${company.city}` : ""}
-        {company.legalForm ? ` v právnej forme ${company.legalForm}` : ""}
-        {company.establishedAt ? `, založená v roku ${fmtYear(company.establishedAt)}` : ""}
-        {company.naceText ? `. Hlavná činnosť: ${company.naceText}.` : "."}
-        {latestYear ? ` Posledné dostupné účtovné závierky sú za rok ${latestYear}.` : ""}
-        {" "}Verifa.sk poskytuje automatizovaný due diligence report z 26+ verejných registrov SR — ORSR, RÚZ,"
-        {" "}insolvenčný register, register exekúcií, RPVS a ďalšie. Report obsahuje analýzu súvahy,"
-        {" "}výkazu ziskov a strát, Altman Z-skóre a rizikové semafóry.
+        {t("company.desc", { name, ico: company.ico, city: cityPart, legalForm: legalFormPart, established: establishedPart, nace: nacePart })}{latestYearPart}
       </p>
     </div>
   );

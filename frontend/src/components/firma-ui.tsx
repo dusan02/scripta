@@ -1,45 +1,46 @@
 import { fmtNum } from "@/lib/format";
-
-const BS_ASSETS_ROWS = [
-  { label: "Celkové aktíva", key: "totalAssets" },
-  { label: "Obežný majetok", key: "currentAssets" },
-  { label: "Zásoby", key: "inventory" },
-  { label: "Pohľadávky", key: "tradeReceivables" },
-  { label: "Cash a ekvivalenty", key: "cashAndEquivalents" },
-];
-
-const BS_LIABILITIES_ROWS = [
-  { label: "Vlastné imanie", key: "equity" },
-  { label: "Krátkodobé záväzky", key: "shortTermLiabilities" },
-  { label: "Dlhodobé záväzky", key: "longTermLiabilities" },
-];
-
-const PL_ROWS = [
-  { label: "Tržby", key: "mainActivityRevenue" },
-  { label: "Hrubá marža", key: "grossProfit" },
-  { label: "Osobné náklady", key: "staffCosts" },
-  { label: "Odpisy", key: "depreciation" },
-  { label: "Úroky", key: "interestExpense" },
-  { label: "Daň z príjmu", key: "incomeTax" },
-  { label: "Zisk/Strata", key: "netProfitLoss" },
-  { label: "Cash flow z prevádzky", key: "operatingCashFlow" },
-];
+import { useT } from "@/components/LanguageProvider";
 
 export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const BS_ASSETS_ROWS = [
+    { label: t("firma.celkoveAktiva"), key: "totalAssets" },
+    { label: t("firma.obeznyMajetok"), key: "currentAssets" },
+    { label: t("firma.zasoby"), key: "inventory" },
+    { label: t("firma.pohladavky"), key: "tradeReceivables" },
+    { label: t("firma.cashEkvivalenty"), key: "cashAndEquivalents" },
+  ];
+  const BS_LIABILITIES_ROWS = [
+    { label: t("firma.vlastneImanie"), key: "equity" },
+    { label: t("firma.kratkodobeZavazky"), key: "shortTermLiabilities" },
+    { label: t("firma.dlhodobeZavazky"), key: "longTermLiabilities" },
+  ];
   return (
     <div>
-      <GenericTable stmts={stmts} rows={BS_ASSETS_ROWS} sectionTitle="Aktíva" />
+      <GenericTable stmts={stmts} rows={BS_ASSETS_ROWS} sectionTitle={t("firma.aktiva")} />
       <div className="mt-3" />
-      <GenericTable stmts={stmts} rows={BS_LIABILITIES_ROWS} sectionTitle="Pasíva" />
+      <GenericTable stmts={stmts} rows={BS_LIABILITIES_ROWS} sectionTitle={t("firma.pasiva")} />
     </div>
   );
 }
 
 export function ProfitLossTable({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const PL_ROWS = [
+    { label: t("firma.trzby"), key: "mainActivityRevenue" },
+    { label: t("firma.hrubaMarza"), key: "grossProfit" },
+    { label: t("firma.osobneNaklady"), key: "staffCosts" },
+    { label: t("firma.odpisy"), key: "depreciation" },
+    { label: t("firma.uroky"), key: "interestExpense" },
+    { label: t("firma.danZPrjimu"), key: "incomeTax" },
+    { label: t("firma.ziskStrata"), key: "netProfitLoss" },
+    { label: t("firma.cashFlowPrevadzky"), key: "operatingCashFlow" },
+  ];
   return <GenericTable stmts={stmts} rows={PL_ROWS} />;
 }
 
 function GenericTable({ stmts, rows, sectionTitle }: { stmts: any[], rows: any[], sectionTitle?: string }) {
+  const t = useT();
   const sorted = [...stmts].sort((a, b) => a.year - b.year);
 
   return (
@@ -50,7 +51,7 @@ function GenericTable({ stmts, rows, sectionTitle }: { stmts: any[], rows: any[]
       <table className="w-full" style={{ fontSize: 11, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse", minWidth: 320 }}>
         <thead>
           <tr style={{ borderBottom: "2px solid var(--border)" }}>
-            <th className="text-left py-1.5 px-1.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>Ukazovateľ</th>
+            <th className="text-left py-1.5 px-1.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
             {sorted.map(s => (
               <th key={s.year} className="text-right py-1.5 px-1.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
             ))}

@@ -56,6 +56,52 @@ const sk: Dict = {
   "grid.odznacitVsetko": "Odznačiť všetko",
   "grid.zRegistrov": "z {total} registrov",
 
+  // ── Company persons ──
+  "company.statutari": "Štatutári",
+  "company.spolocnici": "Spoločníci",
+
+  // ── Company financials (firma-ui) ──
+  "firma.celkoveAktiva": "Celkové aktíva",
+  "firma.obeznyMajetok": "Obežný majetok",
+  "firma.zasoby": "Zásoby",
+  "firma.pohladavky": "Pohľadávky",
+  "firma.cashEkvivalenty": "Cash a ekvivalenty",
+  "firma.vlastneImanie": "Vlastné imanie",
+  "firma.kratkodobeZavazky": "Krátkodobé záväzky",
+  "firma.dlhodobeZavazky": "Dlhodobé záväzky",
+  "firma.trzby": "Tržby",
+  "firma.hrubaMarza": "Hrubá marža",
+  "firma.osobneNaklady": "Osobné náklady",
+  "firma.odpisy": "Odpisy",
+  "firma.uroky": "Úroky",
+  "firma.danZPrjimu": "Daň z príjmu",
+  "firma.ziskStrata": "Zisk/Strata",
+  "firma.cashFlowPrevadzky": "Cash flow z prevádzky",
+  "firma.aktiva": "Aktíva",
+  "firma.pasiva": "Pasíva",
+  "firma.ukazovatel": "Ukazovateľ",
+
+  // ── Company header ──
+  "company.ico": "IČO",
+  "company.pravnaForma": "Právna forma",
+  "firma.sidlo": "Sídlo",
+  "firma.zalozena": "Založená",
+  "firma.predmetCinnosti": "Predmet činnosti",
+  "company.desc": "{name} (IČO: {ico}) je slovenská spoločnosť{city}{legalForm}{established}{nace}. Verifa.sk poskytuje automatizovaný due diligence report z 26+ verejných registrov SR — ORSR, RÚZ, insolvenčný register, register exekúcií, RPVS a ďalšie. Report obsahuje analýzu súvahy, výkazu ziskov a strát, Altman Z-skóre a rizikové semafóry.",
+  "company.descLegalForm": " v právnej forme {legalForm}",
+  "company.descCity": " so sídlom v {city}",
+  "company.descEstablished": ", založená v roku {year}",
+  "company.descNace": ". Hlavná činnosť: {nace}",
+  "company.descLatestYear": " Posledné dostupné účtovné závierky sú za rok {year}.",
+
+  // ── Company insights ──
+  "firma.zakladneTrendy": "Základné trendy",
+
+  // ── Report CTA ──
+  "firma.ctaTitle": "Odhaľte skutočné riziká firmy {name}",
+  "firma.ctaDesc": "Základné trendy ukazujú len začiatok. Plnohodnotný report odhalí exekúcie, insolvencie, konkurzy, zmeny v štatutároch, Altman Z-skóre a rizikové semafóry z 26 registrov — všetko v jednom PDF za 10 minút.",
+  "firma.ctaButton": "Vygenerovať report →",
+
   // ── ReportsTable ──
   "reports.praveTeraz": "práve teraz",
   "reports.predMin": "pred {n} min",
@@ -314,6 +360,17 @@ const sk: Dict = {
 "settings.doRoku": "Do roku",
 "settings.vestnik": "Obchodný vestník",
 "settings.vestnikPopis": "Dátum, od ktorého sa budú v reporte zobrazovať udalosti z Obchodného vestníka. Defaultne 1 rok dozadu.",
+"settings.prilohy": "Prílohy v PDF reporte",
+"settings.prilohyPopis": "Vyberte, ktoré prílohy sa majú pripojiť k vygenerovanému PDF reportu.",
+"settings.attObchodny": "Obchodný register (ORSR)",
+"settings.attObchodnyDesc": "Výpis z obchodného registra",
+"settings.attZivnostensky": "Živnostensky register (ZRSR)",
+"settings.attZivnostenskyDesc": "Výpis zo živnostenského registra",
+"settings.attAuditorska": "Audítorská správa",
+"settings.attAuditorskaDesc": "Audítorský posudok k účtovnej závierke",
+"settings.attUctovna": "Účtovná závierka a poznámky",
+"settings.attUctovnaDesc": "Dlhé prílohy — môžu mať stovky strán",
+"settings.attWarning": "Táto príloha môže výrazne zväčšiť PDF report — až o stovky strán.",
 
   // ── Messages ──
   "messages.spravy": "Správy",
@@ -684,6 +741,52 @@ const en: Dict = {
   "grid.odznacitVsetko": "Deselect all",
   "grid.zRegistrov": "of {total} registries",
 
+  // ── Company persons ──
+  "company.statutari": "Statutory representatives",
+  "company.spolocnici": "Shareholders",
+
+  // ── Company financials (firma-ui) ──
+  "firma.celkoveAktiva": "Total assets",
+  "firma.obeznyMajetok": "Current assets",
+  "firma.zasoby": "Inventory",
+  "firma.pohladavky": "Receivables",
+  "firma.cashEkvivalenty": "Cash and equivalents",
+  "firma.vlastneImanie": "Equity",
+  "firma.kratkodobeZavazky": "Short-term liabilities",
+  "firma.dlhodobeZavazky": "Long-term liabilities",
+  "firma.trzby": "Revenue",
+  "firma.hrubaMarza": "Gross margin",
+  "firma.osobneNaklady": "Staff costs",
+  "firma.odpisy": "Depreciation",
+  "firma.uroky": "Interest",
+  "firma.danZPrjimu": "Income tax",
+  "firma.ziskStrata": "Profit/Loss",
+  "firma.cashFlowPrevadzky": "Operating cash flow",
+  "firma.aktiva": "Assets",
+  "firma.pasiva": "Liabilities",
+  "firma.ukazovatel": "Indicator",
+
+  // ── Company header ──
+  "company.ico": "Reg. No. (IČO)",
+  "company.pravnaForma": "Legal form",
+  "firma.sidlo": "Registered office",
+  "firma.zalozena": "Established",
+  "firma.predmetCinnosti": "Business activity",
+  "company.desc": "{name} (IČO: {ico}) is a Slovak company{city}{legalForm}{established}{nace}. Verifa.sk provides an automated due diligence report from 26+ public Slovak registries — ORSR, RÚZ, insolvency register, execution register, RPVS and more. The report includes balance sheet analysis, P&L, Altman Z-score and risk indicators.",
+  "company.descLegalForm": " in the legal form of {legalForm}",
+  "company.descCity": " based in {city}",
+  "company.descEstablished": ", established in {year}",
+  "company.descNace": ". Main activity: {nace}",
+  "company.descLatestYear": " Latest available financial statements are for {year}.",
+
+  // ── Company insights ──
+  "firma.zakladneTrendy": "Key trends",
+
+  // ── Report CTA ──
+  "firma.ctaTitle": "Uncover the real risks of {name}",
+  "firma.ctaDesc": "Key trends are just the beginning. A full report reveals executions, insolvencies, bankruptcies, statutory changes, Altman Z-score and risk indicators from 26 registries — all in one PDF in 10 minutes.",
+  "firma.ctaButton": "Generate report →",
+
   // ── ReportsTable ──
   "reports.praveTeraz": "just now",
   "reports.predMin": "{n} min ago",
@@ -942,6 +1045,17 @@ const en: Dict = {
 "settings.doRoku": "To year",
 "settings.vestnik": "Commercial Bulletin",
 "settings.vestnikPopis": "Date from which Commercial Bulletin events will be shown in the report. Defaults to 1 year back.",
+"settings.prilohy": "Attachments in PDF report",
+"settings.prilohyPopis": "Select which attachments should be included in the generated PDF report.",
+"settings.attObchodny": "Commercial Register (ORSR)",
+"settings.attObchodnyDesc": "Extract from the Commercial Register",
+"settings.attZivnostensky": "Trade Register (ZRSR)",
+"settings.attZivnostenskyDesc": "Extract from the Trade Register",
+"settings.attAuditorska": "Auditor's report",
+"settings.attAuditorskaDesc": "Auditor's opinion on the financial statements",
+"settings.attUctovna": "Financial statements and notes",
+"settings.attUctovnaDesc": "Long attachments — may be hundreds of pages",
+"settings.attWarning": "This attachment can significantly increase the PDF report — by hundreds of pages.",
 
   // ── Messages ──
   "messages.spravy": "Messages",
@@ -1312,6 +1426,52 @@ const de: Dict = {
   "grid.odznacitVsetko": "Alle abwählen",
   "grid.zRegistrov": "von {total} Registern",
 
+  // ── Company persons ──
+  "company.statutari": "Gesetzliche Vertreter",
+  "company.spolocnici": "Gesellschafter",
+
+  // ── Company financials (firma-ui) ──
+  "firma.celkoveAktiva": "Gesamtvermögen",
+  "firma.obeznyMajetok": "Umlaufvermögen",
+  "firma.zasoby": "Vorräte",
+  "firma.pohladavky": "Forderungen",
+  "firma.cashEkvivalenty": "Cash und Äquivalente",
+  "firma.vlastneImanie": "Eigenkapital",
+  "firma.kratkodobeZavazky": "Kurzfristige Verbindlichkeiten",
+  "firma.dlhodobeZavazky": "Langfristige Verbindlichkeiten",
+  "firma.trzby": "Umsatz",
+  "firma.hrubaMarza": "Rohergebnis",
+  "firma.osobneNaklady": "Personalkosten",
+  "firma.odpisy": "Abschreibungen",
+  "firma.uroky": "Zinsen",
+  "firma.danZPrjimu": "Ertragsteuern",
+  "firma.ziskStrata": "Gewinn/Verlust",
+  "firma.cashFlowPrevadzky": "Cashflow aus Betrieb",
+  "firma.aktiva": "Aktiva",
+  "firma.pasiva": "Passiva",
+  "firma.ukazovatel": "Kennzahl",
+
+  // ── Company header ──
+  "company.ico": "Reg.-Nr. (IČO)",
+  "company.pravnaForma": "Rechtsform",
+  "firma.sidlo": "Sitz",
+  "firma.zalozena": "Gegründet",
+  "firma.predmetCinnosti": "Geschäftstätigkeit",
+  "company.desc": "{name} (IČO: {ico}) ist ein slowakisches Unternehmen{city}{legalForm}{established}{nace}. Verifa.sk bietet einen automatisierten Due-Diligence-Bericht aus 26+ öffentlichen slowakischen Registern — ORSR, RÚZ, Insolvenzregister, Vollstreckungsregister, RPVS und weitere. Der Bericht umfasst Bilanzanalyse, Gewinn- und Verlustrechnung, Altman Z-Score und Risikoindikatoren.",
+  "company.descLegalForm": " in der Rechtsform {legalForm}",
+  "company.descCity": " mit Sitz in {city}",
+  "company.descEstablished": ", gegründet {year}",
+  "company.descNace": ". Haupttätigkeit: {nace}",
+  "company.descLatestYear": " Die aktuellsten verfügbaren Jahresabschlüsse sind für {year}.",
+
+  // ── Company insights ──
+  "firma.zakladneTrendy": "Grundlegende Trends",
+
+  // ── Report CTA ──
+  "firma.ctaTitle": "Decken Sie die echten Risiken von {name} auf",
+  "firma.ctaDesc": "Grundlegende Trends sind erst der Anfang. Ein vollständiger Bericht offenbart Zwangsvollstreckungen, Insolvenzen, Konkurse, Änderungen bei gesetzlichen Vertretern, Altman Z-Score und Risikoindikatoren aus 26 Registern — alles in einem PDF in 10 Minuten.",
+  "firma.ctaButton": "Bericht erstellen →",
+
   // ── ReportsTable ──
   "reports.praveTeraz": "gerade eben",
   "reports.predMin": "vor {n} Min",
@@ -1570,6 +1730,17 @@ const de: Dict = {
 "settings.doRoku": "Bis Jahr",
 "settings.vestnik": "Handelsregister",
 "settings.vestnikPopis": "Datum, ab dem Handelsregister-Ereignisse im Bericht angezeigt werden. Standardmäßig 1 Jahr zurück.",
+"settings.prilohy": "Anhänge im PDF-Bericht",
+"settings.prilohyPopis": "Wählen Sie, welche Anhänge dem generierten PDF-Bericht beigefügt werden sollen.",
+"settings.attObchodny": "Handelsregister (ORSR)",
+"settings.attObchodnyDesc": "Auszug aus dem Handelsregister",
+"settings.attZivnostensky": "Gewerberegister (ZRSR)",
+"settings.attZivnostenskyDesc": "Auszug aus dem Gewerberegister",
+"settings.attAuditorska": "Abschlussprüfungsbericht",
+"settings.attAuditorskaDesc": "Bestätigungsvermerk des Abschlussprüfers",
+"settings.attUctovna": "Jahresabschluss und Anhang",
+"settings.attUctovnaDesc": "Lange Anhänge — können Hunderte Seiten umfassen",
+"settings.attWarning": "Dieser Anhang kann den PDF-Bericht erheblich vergrößern — um Hunderte Seiten.",
 
   // ── Messages ──
   "messages.spravy": "Nachrichten",

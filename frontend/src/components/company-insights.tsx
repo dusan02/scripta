@@ -1,4 +1,5 @@
 import type { Insight } from "@/lib/company-insights";
+import { useT } from "@/components/LanguageProvider";
 
 const CATEGORY_STYLES: Record<Insight["category"], { color: string; bg: string; icon: string }> = {
   positive: { color: "#10b981", bg: "rgba(16,185,129,0.08)", icon: "✓" },
@@ -8,12 +9,13 @@ const CATEGORY_STYLES: Record<Insight["category"], { color: string; bg: string; 
 };
 
 export function CompanyInsights({ insights }: { insights: Insight[] }) {
+  const t = useT();
   if (insights.length === 0) return null;
 
   return (
     <div className="mb-6 sm:mb-8">
       <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-        Základné trendy
+        {t("firma.zakladneTrendy")}
       </h2>
       <div className="space-y-2">
         {insights.map((insight, i) => {

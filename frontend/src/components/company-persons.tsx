@@ -1,4 +1,5 @@
 import { ChartCard } from "@/components/firma-ui";
+import { useT } from "@/components/LanguageProvider";
 
 type Person = {
   id: string;
@@ -8,12 +9,13 @@ type Person = {
   zipCode: string | null;
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  statutar: "Štatutári",
-  spolocnik: "Spoločníci",
-};
-
 export function CompanyPersons({ persons }: { persons: Person[] }) {
+  const t = useT();
+  const ROLE_LABELS: Record<string, string> = {
+    statutar: t("company.statutari"),
+    spolocnik: t("company.spolocnici"),
+  };
+
   if (persons.length === 0) return null;
 
   return (

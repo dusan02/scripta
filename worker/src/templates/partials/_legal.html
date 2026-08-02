@@ -21,7 +21,7 @@
             {% for i in range(3) %}
             {% set cell_count = vestnik_events | selectattr('severityLevel', 'equalto', 'CRITICAL' if i == 2 else 'HIGH' if i == 1 else 'MEDIUM') | list | length %}
             <div class="py-2 rounded font-semibold" style="background: {{ bg }}; color: {{ txt }};">
-                {% if cell_count > 0 %}{{ cell_count }} event{% if cell_count > 1 %}y{% endif %}{% else %}—{% endif %}
+                {% if cell_count > 0 %}{{ cell_count }} {{ i18n.events }}{% else %}—{% endif %}
             </div>
             {% endfor %}
             {% endfor %}
