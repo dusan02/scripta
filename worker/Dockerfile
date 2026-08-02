@@ -62,7 +62,9 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Vygenerovanie Prisma klienta (iba raz)
-RUN prisma generate --schema=./prisma/schema.prisma
+# Set HOME=/tmp so Prisma downloads query engine to /tmp/.cache (accessible by workeruser)
+ENV HOME=/tmp
+RUN prisma generate --schema=./prisma/schema.prisma && chown -R workeruser:worker /tmp/.cache
 
 # Entrypoint runs as root to fix volume permissions, then drops to workeruser via gosu
 ENTRYPOINT ["/entrypoint.sh"]
