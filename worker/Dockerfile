@@ -51,6 +51,9 @@ RUN addgroup --system --gid 1001 worker && \
 # Ensure results directory exists and is writable by workeruser
 RUN mkdir -p /app/results && chown workeruser:worker /app/results
 
+# Create log files writable by workeruser (pipeline.py writes errors.log in CWD)
+RUN touch /app/errors.log /app/uvicorn.log && chown workeruser:worker /app/errors.log /app/uvicorn.log
+
 # Kopírovanie zdrojového kódu
 COPY --chown=workeruser:worker . .
 
