@@ -495,18 +495,30 @@ async def get_report_request_company_name(report_request_id: str) -> Optional[st
 async def upsert_company_name(ico: str, company_name: str) -> None:
     db = get_db()
     try:
-        existing = await db.company.find_unique(where={'ico': ico})
         _INVALID_NAMES = {"", "n/a", "n/a.", "none", "null", "-", "nezistené", "nezisten", "neuvedené", "neuveden", "not stated", "not provided", "unknown", "neznáma spoločnosť"}
-        
+
+        # Use upsert to avoid read-then-write race condition.
+        # If company doesn't exist → create with name (if valid).
+        # If company exists → update name only if current name is invalid/empty.
+        name_to_save = company_name if company_name and company_name.lower() not in _INVALID_NAMES else None
+
+        # Fetch current name first (needed for conditional update logic)
+        existing = await db.company.find_unique(where={'ico': ico}, select={'name': True})
+
         if existing:
-            # Update len ak máme lepší názov
-            if company_name and company_name.lower() not in _INVALID_NAMES:
+            if name_to_save:
                 curr = (existing.name or "").lower()
                 if not curr or curr in _INVALID_NAMES or curr.startswith("spoločnosť s ičo"):
                     await db.company.update(where={'ico': ico}, data={'name': company_name})
         else:
-            name_to_save = company_name if company_name and company_name.lower() not in _INVALID_NAMES else None
-            await db.company.create(data={'ico': ico, 'name': name_to_save})
+            # Atomic create — if race condition causes duplicate, upsert handles it
+            await db.company.upsert(
+                where={'ico': ico},
+                data={
+                    'create': {'ico': ico, 'name': name_to_save},
+                    'update': {'name': name_to_save} if name_to_save else {},
+                }
+            )
     finally:
         pass
 
@@ -515,27 +527,27 @@ async def save_company_persons(ico: str, persons: list) -> None:
     """Uloží osoby z ORSR scraperu (štatutári, spoločníci) do CompanyPerson tabuľky."""
     db = get_db()
     try:
-        await db.company.upsert(
-            where={'ico': ico},
-            data={'create': {'ico': ico}, 'update': {}}
-        )
-        await db.companyperson.delete_many(where={'companyIco': ico})
-        for p in persons:
-            await db.companyperson.create(
-                data={
-                    'companyIco': ico,
-                    'rawName': p.raw_name,
-                    'cleanName': p.clean_name,
-                    'role': p.role,
-                    'city': p.city,
-                    'zipCode': p.zip_code,
-                }
+        async with db.tx() as transaction:
+            await transaction.company.upsert(
+                where={'ico': ico},
+                data={'create': {'ico': ico}, 'update': {}}
             )
+            await transaction.companyperson.delete_many(where={'companyIco': ico})
+            for p in persons:
+                await transaction.companyperson.create(
+                    data={
+                        'companyIco': ico,
+                        'rawName': p.raw_name,
+                        'cleanName': p.clean_name,
+                        'role': p.role,
+                        'city': p.city,
+                        'zipCode': p.zip_code,
+                    }
+                )
         logger.info(f"CompanyPerson[] uložené pre IČO={ico}: {len(persons)} osôb")
     except Exception as e:
         logger.error(f"Chyba pri ukladaní CompanyPerson pre IČO={ico}: {e}")
-    finally:
-        pass
+        raise
 
 
 async def get_verifa_score(ico: str) -> Optional[int]:
@@ -685,33 +697,34 @@ async def save_phase_duration(report_request_id: str, phase: str, duration_ms: i
 async def upsert_report_sources(report_request_id: str, sources: list) -> None:
     db = get_db()
     try:
-        for source in sources:
-            await db.reportsource.upsert(
-                where={
-                    "reportRequestId_sourceType": {
-                        "reportRequestId": report_request_id,
-                        "sourceType": source.source_type
-                    }
-                },
-                data={
-                    "create": {
-                        "reportRequestId": report_request_id,
-                        "sourceType": source.source_type,
-                        "status": source.status,
-                        "statusMessage": source.status_message,
-                        "filePath": source.file_path,
-                        "pageCount": source.page_count,
-                        "findings": source.findings,
+        async with db.tx() as transaction:
+            for source in sources:
+                await transaction.reportsource.upsert(
+                    where={
+                        "reportRequestId_sourceType": {
+                            "reportRequestId": report_request_id,
+                            "sourceType": source.source_type
+                        }
                     },
-                    "update": {
-                        "status": source.status,
-                        "statusMessage": source.status_message,
-                        "filePath": source.file_path,
-                        "pageCount": source.page_count,
-                        "findings": source.findings,
+                    data={
+                        "create": {
+                            "reportRequestId": report_request_id,
+                            "sourceType": source.source_type,
+                            "status": source.status,
+                            "statusMessage": source.status_message,
+                            "filePath": source.file_path,
+                            "pageCount": source.page_count,
+                            "findings": source.findings,
+                        },
+                        "update": {
+                            "status": source.status,
+                            "statusMessage": source.status_message,
+                            "filePath": source.file_path,
+                            "pageCount": source.page_count,
+                            "findings": source.findings,
+                        }
                     }
-                }
-            )
+                )
     except PrismaError as e:
         logger.error(f"DB error upserting report sources for {report_request_id}: {e}")
         raise

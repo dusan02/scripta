@@ -80,6 +80,7 @@ model ReportRequest {
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([deletedAt])
 }
 
 model ReportSource {
@@ -310,6 +311,10 @@ model CompanyEvent {
 
   @@index([companyIco])
   @@index([severity])
+  // Dedup: zabraňuje duplicitným eventom s rovnakým zdrojom, typom, dátumom a sumou.
+  // eventDate a amount môžu byť NULL — PostgreSQL považuje NULL hodnoty za distinct,
+  // takže unikátnosť sa uplatní len pri non-NULL hodnotách.
+  @@unique([companyIco, source, eventType, eventDate, amount])
 }
 
 model VestnikEvent {
@@ -326,6 +331,9 @@ model VestnikEvent {
 
   @@index([companyIco])
   @@index([severityLevel])
+  // Dedup: sourceId je identifikátor z XML feedu (číslo vydania/záznamu).
+  // Ak je sourceId NULL (pre staré dáta alebo ručné vloženie), unikátnosť sa neuplatní.
+  @@unique([companyIco, sourceId])
 }
 
 model FinancialStatement {

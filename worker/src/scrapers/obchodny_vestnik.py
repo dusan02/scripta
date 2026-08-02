@@ -220,37 +220,58 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
             where={'ico': ico},
             data={'create': {'ico': ico}, 'update': {}}
         )
-        
+
         saved = []
-        for e in events:
-            # Pretože nemáme unikátne obmedzenie na VestnikEvent okrem id, 
-            # na zamedzenie duplicít by bolo lepšie kontrolovať sourceId.
-            # Ak sourceId nemáme, vytvoríme nový záznam.
-            
-            analysis: VestnikExtraction = e["analysis"]
-            
-            # Formátovanie dátumu (ak je 'UNKNOWN', použijeme aktuálny)
-            from datetime import datetime
-            pub_date = datetime.utcnow()
-            if e.get("publishedAt") and e["publishedAt"] != "UNKNOWN":
-                try:
-                    pub_date = datetime.fromisoformat(e["publishedAt"].replace("Z", "+00:00")).replace(tzinfo=None)
-                except (ValueError, TypeError):
+        async with db.tx() as transaction:
+            for e in events:
+                analysis: VestnikExtraction = e["analysis"]
+
+                # Formátovanie dátumu (ak je 'UNKNOWN', použijeme aktuálny)
+                from datetime import datetime
+                pub_date = datetime.utcnow()
+                if e.get("publishedAt") and e["publishedAt"] != "UNKNOWN":
                     try:
-                        pub_date = datetime.strptime(e["publishedAt"][:10], "%Y-%m-%d")
+                        pub_date = datetime.fromisoformat(e["publishedAt"].replace("Z", "+00:00")).replace(tzinfo=None)
                     except (ValueError, TypeError):
-                        pass
-                    
-            record = await db.vestnikevent.create({
-                "companyIco": ico,
-                "eventType": analysis.typ_udalosti,
-                "severityLevel": analysis.rizikovost,
-                "summary": analysis.zhrnutie + "\nRed Flags: " + ", ".join(analysis.red_flags),
-                "publishedAt": pub_date,
-                "sourceId": e["sourceId"]
-            })
-            saved.append(record)
-            
+                        try:
+                            pub_date = datetime.strptime(e["publishedAt"][:10], "%Y-%m-%d")
+                        except (ValueError, TypeError):
+                            pass
+
+                # Use upsert with (companyIco, sourceId) unique constraint for dedup.
+                # If sourceId is None, upsert falls back to create (no conflict possible).
+                source_id = e.get("sourceId")
+                if source_id:
+                    record = await transaction.vestnikevent.upsert(
+                        where={"companyIco_sourceId": {"companyIco": ico, "sourceId": source_id}},
+                        data={
+                            "create": {
+                                "companyIco": ico,
+                                "eventType": analysis.typ_udalosti,
+                                "severityLevel": analysis.rizikovost,
+                                "summary": analysis.zhrnutie + "\nRed Flags: " + ", ".join(analysis.red_flags),
+                                "publishedAt": pub_date,
+                                "sourceId": source_id,
+                            },
+                            "update": {
+                                "eventType": analysis.typ_udalosti,
+                                "severityLevel": analysis.rizikovost,
+                                "summary": analysis.zhrnutie + "\nRed Flags: " + ", ".join(analysis.red_flags),
+                                "publishedAt": pub_date,
+                            },
+                        }
+                    )
+                else:
+                    record = await transaction.vestnikevent.create({
+                        "companyIco": ico,
+                        "eventType": analysis.typ_udalosti,
+                        "severityLevel": analysis.rizikovost,
+                        "summary": analysis.zhrnutie + "\nRed Flags: " + ", ".join(analysis.red_flags),
+                        "publishedAt": pub_date,
+                        "sourceId": source_id,
+                    })
+                saved.append(record)
+
         return saved
     finally:
         pass
