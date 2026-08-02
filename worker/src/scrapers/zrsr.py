@@ -1,12 +1,16 @@
 from pathlib import Path
 from typing import Optional
 import logging
+import re
 import time
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
 from .base import BaseScraper, ScrapedSource, ScraperUnavailableError
 
 logger = logging.getLogger(__name__)
+
+# IČO format validation — must be exactly 8 digits (defense-in-depth)
+_ICO_PATTERN = re.compile(r"^\d{8}$")
 
 
 class ZrsrScraper(BaseScraper):
@@ -73,6 +77,13 @@ class ZrsrScraper(BaseScraper):
             return self._make_result(
                 status="FAILED",
                 status_message="IČO je povinné pre vyhľadávanie firmy v ZRSR.",
+            )
+
+        # Validate IČO format (defense-in-depth)
+        if not _ICO_PATTERN.match(ico):
+            return self._make_result(
+                status="FAILED",
+                status_message=f"Neplatné IČO formát: {ico}. IČO musí obsahovať presne 8 číslic.",
             )
 
         logger.info(f"[{self.source_type}] Navigujem na {self._base_url_company}")

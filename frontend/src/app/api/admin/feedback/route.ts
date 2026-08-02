@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const [, error] = await requireAdmin(req);
+    const [adminUser, error] = await requireAdmin(req);
     if (error) return error;
 
     const body = await req.json();
@@ -61,6 +62,8 @@ export async function PATCH(req: NextRequest) {
       where: { id },
       data: { status },
     });
+
+    await logAdminAction(adminUser.id, "FEEDBACK_UPDATE", id, { status }, req);
 
     return NextResponse.json({ ok: true, feedback });
   } catch (error) {

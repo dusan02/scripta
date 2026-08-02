@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
       where: {
         type: "USER",
         senderId: user.id,
+        deletedAt: null,
       },
       orderBy: { createdAt: "desc" },
       take: 50,

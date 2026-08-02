@@ -283,13 +283,15 @@ async def _execute_report_inner(task: ReportTask) -> None:
             _source_summary = ', '.join(f'{s.source_type}:{s.status}' for s in sources)
             _log.info(f"[{_rid}] Scrapers done ({t_scrape - t_browser:.1f}s): {_source_summary}")
 
-            # ── HARD STOP: ORSR nenájdené IČO ──────────────────────────────────
+            # ── HARD STOP: ORSR nenájdené IČO or invalid IČO format ─────────────
             orsr_result = next((s for s in sources if s.source_type == "ORSR"), None)
-            if orsr_result and orsr_result.status == "FAILED" and "neexistuje" in (orsr_result.status_message or "").lower():
-                _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} neexistuje v ORSR — report zrušený.")
-                await update_report_status(task.report_request_id, "FAILED")
-                await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
-                return
+            if orsr_result and orsr_result.status == "FAILED":
+                msg = (orsr_result.status_message or "").lower()
+                if "neexistuje" in msg or "neplatné ičo" in msg:
+                    _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} — {orsr_result.status_message}")
+                    await update_report_status(task.report_request_id, "FAILED")
+                    await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
+                    return
 
             # ── Retry failed/unavailable scrapers (exponential backoff with jitter) ──
             # 3c: Retry aj UNAVAILABLE (register bol nedostupný — presne to čo retry rieši)

@@ -7,6 +7,7 @@ services:
     container_name: verifa_postgres
     restart: unless-stopped
     mem_limit: 512m
+    pids_limit: 200
     # No ports exposed — Postgres is only accessible from within the Docker network.
     # To access from host for debugging, use: docker exec -it verifa_postgres psql -U verifa
     environment:
@@ -43,6 +44,7 @@ services:
     container_name: verifa_frontend
     restart: unless-stopped
     mem_limit: 512m
+    pids_limit: 200
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,7 +62,7 @@ services:
       AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
       AZURE_AD_CLIENT_SECRET: ${AZURE_AD_CLIENT_SECRET:-}
       AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
-      CRON_SECRET: ${CRON_SECRET:-}
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET must be set}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_REGION: ${S3_REGION:-auto}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
@@ -72,6 +74,12 @@ services:
       NODE_ENV: production
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       - ./worker/results:/app/results:ro  # read-only prístup k vygenerovaným PDF
 
@@ -108,6 +116,7 @@ services:
     container_name: verifa_worker
     restart: unless-stopped
     mem_limit: 1g
+    pids_limit: 300
     depends_on:
       postgres:
         condition: service_healthy
@@ -144,6 +153,7 @@ services:
     container_name: verifa_arq_worker
     restart: unless-stopped
     mem_limit: 2g
+    pids_limit: 300
     command: arq src.worker_arq.WorkerSettings
     depends_on:
       postgres:

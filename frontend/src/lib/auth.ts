@@ -145,6 +145,11 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Prevent soft-deleted users from logging in
+        if (user.deletedAt) {
+          return null;
+        }
+
         if (!user.emailVerified) {
           throw new Error("EMAIL_NOT_VERIFIED");
         }
@@ -216,9 +221,9 @@ export const authOptions: NextAuthOptions = {
 
           const existingUser = await prisma.user.findUnique({
             where: { email: user.email! },
-            select: { id: true, tokenVersion: true, emailVerified: true },
+            select: { id: true, tokenVersion: true, emailVerified: true, deletedAt: true },
           });
-          if (!existingUser) throw createErr;
+          if (!existingUser || existingUser.deletedAt) throw createErr;
 
           // For existing unverified users, atomically claim verification.
           // updateMany with where: { emailVerified: null } ensures only one
@@ -247,9 +252,9 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id },
-            select: { id: true, tokenVersion: true, role: true },
+            select: { id: true, tokenVersion: true, role: true, deletedAt: true },
           });
-          if (!dbUser || dbUser.tokenVersion !== token.tokenVersion) {
+          if (!dbUser || dbUser.deletedAt || dbUser.tokenVersion !== token.tokenVersion) {
             token.id = "";
           }
           token.role = dbUser?.role;
@@ -337,7 +342,8 @@ export function verifyWorkerSecret(headerValue: string | null): boolean {
  */
 export function verifyCronSecret(authHeader: string | null): boolean {
   const expected = process.env.CRON_SECRET;
-  if (!expected || !authHeader) return false;
+  // Reject empty or too-short secrets — prevents unauthenticated access if env var is unset
+  if (!expected || expected.length < 16 || !authHeader) return false;
 
   const prefix = "Bearer ";
   if (!authHeader.startsWith(prefix)) return false;
@@ -354,11 +360,15 @@ export function verifyCronSecret(authHeader: string | null): boolean {
  *   if (error) return error;
  *   // admin is guaranteed to be an ADMIN user
  *
+ *   Note: TypeScript narrows the type — when error is null, adminUser is non-null.
+ *
  * @returns [user, null] on success, [null, NextResponse] on failure
  */
+export type AdminResult = [AuthUser, null] | [null, NextResponse];
+
 export async function requireAdmin(
   _req: NextRequest
-): Promise<[AuthUser | null, null] | [null, NextResponse]> {
+): Promise<AdminResult> {
   const user = await getCurrentUser(_req);
   if (!user) {
     return [null, NextResponse.json({ error: "Unauthorized" }, { status: 401 })];

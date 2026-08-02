@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
-import { slugify } from "@/lib/slug";
 import { glossaryTerms } from "@/lib/glossary";
 
 export const revalidate = 3600; // Regenerate every hour
@@ -45,7 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   const companyPages: MetadataRoute.Sitemap = companies.map((c) => ({
-    url: `${baseUrl}/firma/${c.ico}-${slugify(c.name)}`,
+    url: `${baseUrl}/firma/${c.ico}`,
     lastModified: c.auditVerdict?.createdAt || new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.6,

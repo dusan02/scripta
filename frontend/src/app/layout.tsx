@@ -101,6 +101,23 @@ export default function RootLayout({
             }),
           }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Verifa.sk",
+              url: "https://verifa.sk",
+              description: "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy z štátnych registrov SR.",
+              publisher: {
+                "@type": "Organization",
+                name: "Verifa.sk",
+                url: "https://verifa.sk",
+              },
+            }),
+          }}
+        />
       </head>
       <body>
         <ThemeProvider>

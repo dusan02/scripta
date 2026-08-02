@@ -98,8 +98,31 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
 
   const related = glossaryTerms.filter((t) => t.slug !== term.slug).slice(0, 3);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: term.title,
+        description: term.shortDescription,
+        url: `https://verifa.sk/slovnik/${term.slug}`,
+        author: { "@type": "Organization", name: "Verifa.sk", url: "https://verifa.sk" },
+        publisher: { "@type": "Organization", name: "Verifa.sk", url: "https://verifa.sk" },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Verifa.sk", item: "https://verifa.sk" },
+          { "@type": "ListItem", position: 2, name: "Slovník", item: "https://verifa.sk/slovnik" },
+          { "@type": "ListItem", position: 3, name: term.title, item: `https://verifa.sk/slovnik/${term.slug}` },
+        ],
+      },
+    ],
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "120px 24px 80px" }}>
         <Link
           href="/slovnik"

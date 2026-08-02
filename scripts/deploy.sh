@@ -18,6 +18,9 @@ git pull
 echo "[2/5] Rebuilding containers..."
 docker compose up -d --build
 
+# Ensure worker results directory is writable by container user (uid 1001)
+chown -R 1001:1001 ./worker/results 2>/dev/null || true
+
 # ─── 3. Run DB migration ───────────────────────────────────
 echo "[3/5] Running DB migration..."
 docker compose exec -T -e HOME=/tmp frontend npx prisma migrate deploy

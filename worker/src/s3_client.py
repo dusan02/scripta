@@ -18,11 +18,15 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# CUID pattern — validates report_request_id to prevent key injection
+_CUID_PATTERN = re.compile(r"^[a-zA-Z0-9]{20,30}$")
 
 # Retry configuration for S3 uploads
 S3_UPLOAD_MAX_RETRIES = 3
@@ -100,8 +104,14 @@ def upload_report_file(
     assert _s3_client is not None
     assert _s3_bucket is not None
 
+    # Validate report_request_id — prevents S3 key injection
+    if not _CUID_PATTERN.match(report_request_id):
+        raise ValueError(f"Invalid report_request_id format: {report_request_id}")
+
     filename = local_path.name
-    key = f"reports/{report_request_id}/{filename}"
+    # Sanitize filename — only allow safe characters in S3 key
+    safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
+    key = f"reports/{report_request_id}/{safe_filename}"
 
     content_type = "application/pdf" if filename.endswith(".pdf") else "application/octet-stream"
 
@@ -117,7 +127,10 @@ def upload_report_file(
                 str(local_path),
                 _s3_bucket,
                 key,
-                ExtraArgs={"ContentType": content_type},
+                ExtraArgs={
+                    "ContentType": content_type,
+                    "ServerSideEncryption": "AES256",
+                },
             )
             logger.info(f"[s3] Upload complete: {key} (attempt {attempt})")
             return key

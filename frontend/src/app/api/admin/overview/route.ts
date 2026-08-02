@@ -20,11 +20,11 @@ export async function GET(req: NextRequest) {
       totalWalletTransactions,
       totalCreditsSpent,
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.reportRequest.count(),
-      prisma.reportRequest.count({ where: { status: "COMPLETED" } }),
-      prisma.reportRequest.count({ where: { status: "FAILED" } }),
-      prisma.reportRequest.count({ where: { status: { in: ["PENDING", "PROCESSING"] } } }),
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.reportRequest.count({ where: { deletedAt: null } }),
+      prisma.reportRequest.count({ where: { status: "COMPLETED", deletedAt: null } }),
+      prisma.reportRequest.count({ where: { status: "FAILED", deletedAt: null } }),
+      prisma.reportRequest.count({ where: { status: { in: ["PENDING", "PROCESSING"] }, deletedAt: null } }),
       prisma.feedback.count(),
       prisma.feedback.count({ where: { status: "OPEN" } }),
       prisma.userMessage.count(),
@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     const recentReports = await prisma.reportRequest.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 10,
       select: {
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
     });
 
     const recentUsers = await prisma.user.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 10,
       select: {

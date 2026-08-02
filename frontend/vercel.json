@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/reports/recover-stuck",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/credits/expire",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

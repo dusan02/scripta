@@ -9,6 +9,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    gosu \
     nodejs \
     npm \
     wget \
@@ -38,13 +39,31 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --default-timeout=120 --retries=5 prisma
 
 # Inštalácia Playwright prehliadačov (ak sa scraper používa)
-# Note: Playwright browsers are installed in /root/.cache/ms-playwright
-RUN playwright install chromium
+# Install to /ms-playwright (shared, accessible by non-root user)
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN playwright install chromium && \
+    chmod -R a+rx /ms-playwright
+
+# Create non-root user
+RUN addgroup --system --gid 1001 worker && \
+    adduser --system --uid 1001 --ingroup worker --home /app workeruser
+
+# Ensure results directory exists and is writable by workeruser
+RUN mkdir -p /app/results && chown workeruser:worker /app/results
 
 # Kopírovanie zdrojového kódu
-COPY . .
+COPY --chown=workeruser:worker . .
+
+# Entrypoint script — fixes volume permissions at runtime (runs as root, then drops to workeruser)
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Vygenerovanie Prisma klienta (iba raz)
 RUN prisma generate --schema=./prisma/schema.prisma
+
+# Entrypoint runs as root to fix volume permissions, then drops to workeruser via gosu
+ENTRYPOINT ["/entrypoint.sh"]
+
+EXPOSE 8000
 
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

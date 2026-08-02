@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/audit";
 import { sendEmail, emailShell } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 
@@ -13,11 +14,11 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const filter = url.searchParams.get("filter") || "inbox";
 
-    let where: Record<string, unknown> = {};
+    let where: Record<string, unknown> = { deletedAt: null };
     if (filter === "inbox") {
-      where = { type: "USER" };
+      where = { type: "USER", deletedAt: null };
     } else if (filter === "sent") {
-      where = { type: { in: ["ANNOUNCEMENT", "REPLY", "SYSTEM"] }, senderId: { not: null } };
+      where = { type: { in: ["ANNOUNCEMENT", "REPLY", "SYSTEM"] }, senderId: { not: null }, deletedAt: null };
     }
 
     const messages = await prisma.userMessage.findMany({
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     const msg = await prisma.userMessage.create({
       data: {
         type: msgType,
-        senderId: adminUser!.id,
+        senderId: adminUser.id,
         userId: targetUserId || null,
         title: title.trim().slice(0, 200),
         body: message.trim().slice(0, 5000),
@@ -117,6 +118,13 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    await logAdminAction(adminUser.id, "MESSAGE_SEND", targetUserId || null, {
+      messageId: msg.id,
+      type: msgType,
+      broadcast: !targetUserId,
+      emailSkipped,
+    }, req);
 
     return NextResponse.json({ ok: true, id: msg.id, emailSkipped });
   } catch (error) {

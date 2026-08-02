@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Prihlásenie",
   description: "Prihlásenie do systému Verifa.sk — Komplexné reporty",
+  robots: { index: false, follow: false },
 };
 
 /**

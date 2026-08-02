@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "@/lib/auth";
+import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET(
   request: NextRequest,
@@ -12,10 +13,15 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limit by user ID (not just IP) — prevents enumeration via IP rotation
+    const rl = await rateLimitByKey(`company:${session.user.id}`, { windowMs: 10 * 60 * 1000, maxRequests: 60 });
+    if (!rl.allowed) return rateLimitResponse(rl);
+
     const ico = params.ico;
 
-    if (!ico) {
-      return NextResponse.json({ error: "IČO is required" }, { status: 400 });
+    // Validate IČO format — must be exactly 8 digits
+    if (!ico || !/^\d{8}$/.test(ico)) {
+      return NextResponse.json({ error: "Neplatné IČO" }, { status: 400 });
     }
 
     // Načítame firmu so všetkými finančnými výkazmi a názormi audítora

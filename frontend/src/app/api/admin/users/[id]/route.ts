@@ -54,7 +54,7 @@ export async function GET(
         },
       }),
       prisma.reportRequest.findMany({
-        where: { userId: params.id },
+        where: { userId: params.id, deletedAt: null },
         orderBy: { createdAt: "desc" },
         take: 20,
         select: {

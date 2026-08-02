@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
 # ─── Stage 1: Dependencies ─────────────────────────────────
-FROM node:18-slim AS deps
+FROM node:20-slim AS deps
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ COPY node_modules/.prisma ./node_modules/.prisma
 COPY node_modules/@prisma/client ./node_modules/@prisma/client
 
 # ─── Stage 2: Build ────────────────────────────────────────
-FROM node:18-slim AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -44,7 +44,7 @@ ENV SENTRY_AUTH_TOKEN=
 RUN npm run build
 
 # ─── Stage 3: Runner (production) ──────────────────────────
-FROM node:18-slim AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 

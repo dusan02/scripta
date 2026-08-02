@@ -12,6 +12,9 @@ from ..models import ScrapedSource, PersonInfo, ACADEMIC_TITLES, ZIP_RE
 
 logger = logging.getLogger(__name__)
 
+# IČO format validation — must be exactly 8 digits (defense-in-depth)
+_ICO_PATTERN = re.compile(r"^\d{8}$")
+
 _EMPTY_MARKERS = ("Nenašli sa žiadne", "Podmienkam nevyhovuje žiadny", "Záznamy: 0 - 0 / 0", "Kritériám vyhľadávania nezodpovedá žiadny záznam")
 _OUTDATED_MARKER = "Výpis je neaktuálny"
 _TRANSFERRED_MARKER = "Spis odstúpený na iný registrový súd"
@@ -34,6 +37,15 @@ class OrsrScraper(BaseScraper):
     async def run(self, *, ico: str, output_dir: Path, orsr_extract_type: str = "CURRENT", **kwargs) -> ScrapedSource:
         page: Optional[Page] = None
         try:
+            # Validate IČO format before scraping (defense-in-depth)
+            if not ico or not _ICO_PATTERN.match(ico):
+                return self._make_result(
+                    status="FAILED",
+                    file_path=None,
+                    status_message=f"Neplatné IČO formát: {ico}. IČO musí obsahovať presne 8 číslic.",
+                    findings="Neplatný vstup — IČO nezodpovedá formátu 8 číslic.",
+                )
+
             logger.info(f"[{self.source_type}] Začínam pre IČO: {ico} (typ: {orsr_extract_type})")
             _t = time.perf_counter()
             page = await self._get_page(block_images=False)

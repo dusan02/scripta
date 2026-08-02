@@ -155,7 +155,8 @@ async def recover_stale_reports() -> int:
         stale_reports = await db.reportrequest.find_many(
             where={
                 "status": "PROCESSING",
-                "updatedAt": {"lt": cutoff}
+                "updatedAt": {"lt": cutoff},
+                "deletedAt": None
             }
         )
         if stale_reports:

@@ -244,3 +244,64 @@ Schedul: 06:00 CEST denne (po update registrov)
 | Priemerný počet sledovaných firiem na používateľa | 8 |
 | Alert → report konverzný pomer | 5% (1 z 20 alertov → kúpený Business Risk Report) |
 | Retention používateľov s monitoringom vs bez | 2× vyšší |
+
+## Bezpečnostné požiadavky (must implement)
+
+### Soft delete
+- Všetky modely (`WatchedCompany`, `AlertEvent`, `AlertDelivery`) musia mať `deletedAt DateTime?` pole
+- Pridať `@@index([deletedAt])` pre efektívne filtrovanie
+- Všetky dotazy musia filtrovať `deletedAt: null` (okrem cleanup cronu)
+
+### IDOR ochrana
+- Všetky API endpointy musia filtrovať podľa `userId` z session
+- Používateľ nemôže vidieť sledované firmy ani alerty iných používateľov
+- `GET /api/watched-companies` → `where: { userId: session.user.id, deletedAt: null }`
+- `DELETE /api/watched-companies/[id]` → `where: { id, userId: session.user.id, deletedAt: null }`
+
+### Rate limiting
+- `POST /api/watched-companies` — 10 operácií za minútu na používateľa
+- `DELETE /api/watched-companies/[id]` — 10 operácií za minútu na používateľa
+- `PATCH /api/alert-events/[id]/read` — 50 operácií za minútu na používateľa
+- Použiť `rateLimitByKey("watch:${userId}", ...)` pattern
+
+### Input validation
+- IČO musí byť validované: `/^\d{8}$/` regex
+- Skontrolovať existenciu firmy v `Company` tabuľke pred pridaním do sledovaných
+- Note pole obmedziť na 500 znakov, sanitizovať (escapeHtml)
+
+### Plan-based limits
+- Free: 3 firmy, len konkurz/insolvencia alerty
+- Freelance (49€): 10 firiem
+- Firma (159€): 50 firiem
+- Korporát (289€): 200 firiem
+- Pred pridaním skontrolovať `user.planName` a spočítať existujúce `WatchedCompany`
+- Pre Free tier filtrovať alerty podľa typu (len konkurz/insolvencia)
+
+### Cron security
+- Cron endpoint chránený `verifyCronSecret()` s timing-safe comparison
+- Rate limited: max 1 volanie za hodinu
+- Pridať do `vercel.json` s schedule `0 6 * * *` (06:00 UTC denne)
+- Timeout: max 10 minút na beh (spracovanie ~10k firiem)
+
+### Notification rate limiting
+- Max 10 alertov na email za deň na používateľa
+- Kritické alerty (konkurz, insolvencia) vždy odoslať okamžite
+- Batch less-severe alerty do denného digestu
+- Ak používateľ má `emailBounced = true`, neposielať email
+
+### Data retention
+- `AlertEvent` staršie ako 1 rok → automaticky zmazať (cron)
+- `AlertDelivery` staršie ako 30 dní → automaticky zmazať
+- `WatchedCompany` pri vymazaní používateľa → CASCADE zmazať
+
+### Audit logging
+- Logovať pridanie/odobranie sledovanej firmy (userId, companyId, action, timestamp)
+- Logovať odoslanie notifikácie (alertId, userId, channel, status)
+- Audit logy uchovávať 12 mesiacov
+
+### Zánik sledovanej firmy
+- Ak ORSR vráti "neexistuje" pre sledované IČO, vytvoriť AlertEvent s severity "critical"
+- Notifikovať používateľa: "Sledovaná firma [IČO] bola vymazaná z ORSR. Monitoring bol pozastavený."
+- WatchedCompany záznam ponechať (nezmazať) — používateľ môže firma re-sledovať ak sa vráti do registra
+- Ak firma neexistuje v ORSR 30 dní, automaticky označiť WatchedCompany ako `deletedAt` (soft delete)
+- Cron musí skontrolovať existenciu firmy v ORSR pred pokusom o diff

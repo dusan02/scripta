@@ -4,6 +4,7 @@ import SearchSection from "@/components/SearchSection";
 import ReportsTable from "@/components/ReportsTable";
 import AddonCredits from "@/components/AddonCredits";
 import NewUserBanner from "@/components/NewUserBanner";
+import WatchedCompanies from "@/components/WatchedCompanies";
 
 import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -14,6 +15,7 @@ export const revalidate = 0;
 export const metadata: Metadata = {
   title: "Verifa — Dashboard",
   description: "Verifa.sk — previerka subjektov zo štátnych registrov SR",
+  robots: { index: false, follow: false },
 };
 
 async function getRecentReports(userId: string) {
@@ -71,6 +73,24 @@ export default async function DashboardPage() {
   const reports = await getRecentReports(session.user.id);
   const isNewUser = reports.length === 0;
 
+  // Get user's watched companies for monitoring feature
+  const watchedCompaniesRaw = await prisma.watchedCompany.findMany({
+    where: { userId: session.user.id, deletedAt: null },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      companyId: true,
+      note: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  const watchedCompanies = watchedCompaniesRaw.map((w) => ({
+    ...w,
+    createdAt: w.createdAt.toISOString(),
+    updatedAt: w.updatedAt.toISOString(),
+  }));
+
   const serializedReports = reports.map((r) => ({
     id:         r.id,
     status:     r.status,
@@ -89,6 +109,7 @@ export default async function DashboardPage() {
 
       <SearchSection />
       <ReportsTable reports={serializedReports} />
+      <WatchedCompanies initialWatched={watchedCompanies} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "História reportov",
   description: "Prehľad všetkých vygenerovaných reportov na Verifa.sk.",
+  robots: { index: false, follow: false },
 };
 
 export default function HistoryLayout({

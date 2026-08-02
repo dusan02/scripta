@@ -12,12 +12,14 @@ export async function GET(req: NextRequest) {
 
     // Správy pre všetkých (userId = null) + správy pre konkrétneho používateľa
     // USER-type messages are outgoing (sent BY user), not shown in inbox
+    // Filter out soft-deleted messages
     const where = user
       ? { AND: [
           { OR: [{ userId: null }, { userId: user.id }] },
           { NOT: { type: "USER" as const } },
+          { deletedAt: null },
         ]}
-      : { AND: [{ userId: null }, { NOT: { type: "USER" as const } }] };
+      : { AND: [{ userId: null }, { NOT: { type: "USER" as const } }, { deletedAt: null }] };
 
     const messages = await prisma.userMessage.findMany({
       where,
@@ -118,11 +120,12 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Označiť správy ako prečítané (len pre prihláseného používateľa)
+    // Označiť správy ako prečítané (len pre prihláseného používateľa, nie soft-deleted)
     await prisma.userMessage.updateMany({
       where: {
         id: { in: messageIds },
         OR: [{ userId: null }, { userId: user.id }],
+        deletedAt: null,
       },
       data: { read: true },
     });

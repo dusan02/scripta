@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { refundCredits } from "@/lib/credits";
 import { verifyCronSecret } from "@/lib/auth";
+import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +22,33 @@ export const dynamic = "force-dynamic";
  * Schedule: every 15 minutes via external cron (e.g. Vercel Cron, Upstash QStash).
  * Auth: Bearer CRON_SECRET header (timing-safe comparison).
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   if (!verifyCronSecret(req.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const STUCK_THRESHOLD_MINUTES = 20;
+  // Rate limit: max 20 calls per 10 minutes (prevents abuse if secret leaks)
+  const rl = await rateLimitByKey("cron:recover-stuck", { windowMs: 10 * 60 * 1000, maxRequests: 20 });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
+  return runRecoverStuck();
+}
+
+// Vercel Cron sends GET requests by default — delegate to POST handler.
+// Authentication is still required via Authorization header.
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
+
+async function runRecoverStuck() {
+
+  // Use createdAt with a 30-minute threshold for the frontend cron.
+  // The worker cleanup (in-process) uses updatedAt with 20 min — it knows the actual state.
+  // The frontend cron is a fallback for when the worker is completely dead (crashed, OOM).
+  // Using updatedAt here would cause false positives during long scraping phases
+  // where the worker doesn't update ai_status for >20 minutes.
+  // Using createdAt with 30 min gives the worker enough time to finish long reports.
+  const STUCK_THRESHOLD_MINUTES = 30;
   const cutoff = new Date(Date.now() - STUCK_THRESHOLD_MINUTES * 60 * 1000);
 
   try {
@@ -111,7 +133,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Recover-stuck cron error:", error);
     return NextResponse.json(
-      { error: "Cron failed", details: error instanceof Error ? error.message : String(error) },
+      { error: "Cron failed" },
       { status: 500 }
     );
   }

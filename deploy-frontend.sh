@@ -14,8 +14,8 @@ docker save "$IMAGE_NAME" | gzip | ssh "$SERVER" "gunzip | docker load"
 echo "=== Pulling latest code on server ==="
 ssh "$SERVER" "cd $REMOTE_DIR && git pull origin master"
 
-echo "=== Syncing database schema ==="
-ssh "$SERVER" "cd $REMOTE_DIR && docker compose exec -u root frontend npx prisma db push --accept-data-loss"
+echo "=== Running DB migrations ==="
+ssh "$SERVER" "cd $REMOTE_DIR && docker compose exec -T -e HOME=/tmp frontend npx prisma migrate deploy"
 
 echo "=== Restarting frontend container ==="
 ssh "$SERVER" "cd $REMOTE_DIR && docker compose up -d frontend --force-recreate"

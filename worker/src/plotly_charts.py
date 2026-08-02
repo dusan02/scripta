@@ -1,11 +1,14 @@
 import io
 import base64
+import logging
 from decimal import Decimal
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
 from src.i18n import get_i18n_strings
+
+logger = logging.getLogger(__name__)
 
 
 def _to_float(val):
@@ -40,6 +43,22 @@ def _fmt_currency(x):
     if abs(x) >= 1e6: return f'{x/1e6:.1f}M'
     if abs(x) >= 1e3: return f'{x/1e3:.0f}k'
     return f'{x:.0f}'
+
+
+def _sanitize_value(val):
+    """Replace NaN/Infinity/None/invalid with 0.0 for safe chart rendering."""
+    import math
+    if val is None:
+        return 0.0
+    try:
+        f = float(val)
+    except (ValueError, TypeError):
+        logger.warning(f"Non-numeric value sanitized: {val!r}")
+        return 0.0
+    if not math.isfinite(f):
+        logger.warning(f"Non-finite value sanitized: {val}")
+        return 0.0
+    return f
 
 def _prepare_statements(statements):
     from datetime import datetime
@@ -128,7 +147,7 @@ def _to_base64(fig, width=1000, height=450):
         img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
-        print(f"Plotly render error: {e}")
+        logger.error(f"Plotly render error: {e}", exc_info=True)
         return ""
 
 def generate_financial_chart(statements, lang="sk") -> str:
@@ -136,8 +155,8 @@ def generate_financial_chart(statements, lang="sk") -> str:
     i = get_i18n_strings(lang)
     statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
-    revenues = [s.mainActivityRevenue or 0 for s in statements]
-    profits = [s.netProfitLoss or 0 for s in statements]
+    revenues = [_sanitize_value(s.mainActivityRevenue) for s in statements]
+    profits = [_sanitize_value(s.netProfitLoss) for s in statements]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -161,17 +180,17 @@ def generate_balance_sheet_chart(statements, lang="sk") -> str:
     i = get_i18n_strings(lang)
     statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
-    assets = [s.totalAssets or 0 for s in statements]
-    equity = [s.equity or 0 for s in statements]
-    debt = [((s.shortTermLiabilities or 0) + (s.longTermLiabilities or 0)) for s in statements]
+    assets = [_sanitize_value(s.totalAssets) for s in statements]
+    equity = [_sanitize_value(s.equity) for s in statements]
+    debt = [(_sanitize_value(s.shortTermLiabilities) + _sanitize_value(s.longTermLiabilities)) for s in statements]
 
     fig = go.Figure()
     other_pasiva = []
     for s in statements:
-        ta = s.totalAssets or 0
-        eq = max(0, s.equity or 0)
-        sl = s.shortTermLiabilities or 0
-        ll = s.longTermLiabilities or 0
+        ta = _sanitize_value(s.totalAssets)
+        eq = max(0, _sanitize_value(s.equity))
+        sl = _sanitize_value(s.shortTermLiabilities)
+        ll = _sanitize_value(s.longTermLiabilities)
         other_pasiva.append(max(0, ta - eq - sl - ll))
 
     fig.add_trace(go.Scatter(
@@ -201,10 +220,10 @@ def generate_pnl_chart(statements, lang="sk") -> str:
     i = get_i18n_strings(lang)
     statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
-    revenues = [s.mainActivityRevenue or 0 for s in statements]
-    gross = [s.grossProfit or 0 for s in statements]
-    ebitda = [(s.netProfitLoss or 0) + abs(s.interestExpense or 0) + (s.depreciation or 0) for s in statements]
-    net = [s.netProfitLoss or 0 for s in statements]
+    revenues = [_sanitize_value(s.mainActivityRevenue) for s in statements]
+    gross = [_sanitize_value(s.grossProfit) for s in statements]
+    ebitda = [_sanitize_value(s.netProfitLoss) + abs(_sanitize_value(s.interestExpense)) + _sanitize_value(s.depreciation) for s in statements]
+    net = [_sanitize_value(s.netProfitLoss) for s in statements]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(x=years, y=revenues, name=i.get('chart_revenue', 'Tržby'), marker_color=COLORS['slate']))
@@ -230,10 +249,10 @@ def generate_cashflow_chart(statements, lang="sk") -> str:
     years = [str(s.year) for s in statements]
     ocf_raw = [s.operatingCashFlow for s in statements]
     if all(v is None or v == 0 for v in ocf_raw): return ""
-    ocf = [v or 0 for v in ocf_raw]
-    icf = [s.investingCashFlow or 0 for s in statements]
-    fcf = [s.financingCashFlow or 0 for s in statements]
-    cash = [s.cashAndEquivalents or 0 for s in statements]
+    ocf = [_sanitize_value(v) for v in ocf_raw]
+    icf = [_sanitize_value(s.investingCashFlow) for s in statements]
+    fcf = [_sanitize_value(s.financingCashFlow) for s in statements]
+    cash = [_sanitize_value(s.cashAndEquivalents) for s in statements]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color=COLORS['green']))
@@ -255,13 +274,13 @@ def generate_liquidity_chart(statements, lang="sk") -> str:
     i = get_i18n_strings(lang)
     statements = _prepare_statements(statements)
     years = [str(s.year) for s in statements]
-    wc = [(s.currentAssets or 0) - (s.shortTermLiabilities or 0) for s in statements]
+    wc = [(_sanitize_value(s.currentAssets)) - (_sanitize_value(s.shortTermLiabilities)) for s in statements]
     cr = []
     qr = []
     for s in statements:
-        stl = s.shortTermLiabilities or 0
-        ca = s.currentAssets or 0
-        inv = s.inventory or 0
+        stl = _sanitize_value(s.shortTermLiabilities)
+        ca = _sanitize_value(s.currentAssets)
+        inv = _sanitize_value(s.inventory)
         if stl > 0:
             cr.append(ca / stl)
             qr.append((ca - inv) / stl)
@@ -500,7 +519,7 @@ def generate_rpe_chart(statements, lang="sk") -> str:
         return ""
     i = get_i18n_strings(lang)
     years = [str(s.year) for s in valid]
-    rpe = [s.mainActivityRevenue / s.employeeCount for s in valid]
+    rpe = [_sanitize_value(s.mainActivityRevenue / s.employeeCount) for s in valid]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(

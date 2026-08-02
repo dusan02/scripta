@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
           { OR: [{ userId: null }, { userId: user.id }] },
           { NOT: { type: "USER" as const } },
           { read: false },
+          { deletedAt: null },
         ],
       },
     });

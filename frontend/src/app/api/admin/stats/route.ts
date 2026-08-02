@@ -23,17 +23,17 @@ export async function GET(req: NextRequest) {
       reportsToday,
       reportsLast7d,
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.reportRequest.count(),
-      prisma.reportRequest.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-      prisma.reportRequest.count({ where: { createdAt: { gte: todayStart } } }),
-      prisma.reportRequest.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.reportRequest.count({ where: { deletedAt: null } }),
+      prisma.reportRequest.count({ where: { createdAt: { gte: thirtyDaysAgo }, deletedAt: null } }),
+      prisma.reportRequest.count({ where: { createdAt: { gte: todayStart }, deletedAt: null } }),
+      prisma.reportRequest.count({ where: { createdAt: { gte: sevenDaysAgo }, deletedAt: null } }),
     ]);
 
     // ── Reports per day + unique active users per day (last 30 days) ───
     // Single query, derive both metrics in JS
     const recentReports = await prisma.reportRequest.findMany({
-      where: { createdAt: { gte: thirtyDaysAgo } },
+      where: { createdAt: { gte: thirtyDaysAgo }, deletedAt: null },
       select: { userId: true, createdAt: true },
     });
 
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     // ── Success / failure rates ───────────────────────────
     const statusCounts = await prisma.reportRequest.groupBy({
       by: ["status"],
-      where: { createdAt: { gte: thirtyDaysAgo } },
+      where: { createdAt: { gte: thirtyDaysAgo }, deletedAt: null },
       _count: { id: true },
     });
     const statusBreakdown = statusCounts.map((s) => ({
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
     // ── Target type breakdown ─────────────────────────────
     const targetTypeCounts = await prisma.reportRequest.groupBy({
       by: ["targetType"],
-      where: { createdAt: { gte: thirtyDaysAgo } },
+      where: { createdAt: { gte: thirtyDaysAgo }, deletedAt: null },
       _count: { id: true },
     });
     const targetTypeBreakdown = targetTypeCounts.map((t) => ({
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
 
     // ── Hourly distribution (last 7 days) ─────────────────
     const last7dReports = await prisma.reportRequest.findMany({
-      where: { createdAt: { gte: sevenDaysAgo } },
+      where: { createdAt: { gte: sevenDaysAgo }, deletedAt: null },
       select: { createdAt: true },
     });
     const hourlyMap: Record<number, number> = {};

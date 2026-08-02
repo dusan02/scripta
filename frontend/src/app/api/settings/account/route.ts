@@ -81,7 +81,7 @@ export async function DELETE(req: NextRequest) {
       where: { id: user.id },
     });
 
-    console.log(`[ACCOUNT] User ${dbUser.email} (${user.id}) deleted their account (GDPR Article 17).`);
+    console.log(`[ACCOUNT] User ${user.id} deleted their account (GDPR Article 17).`);
 
     return NextResponse.json({ ok: true, message: "Account permanently deleted." });
   } catch (error) {

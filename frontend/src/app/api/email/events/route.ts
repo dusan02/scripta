@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       // Create in-app notification ONLY on first bounce (not already bounced)
       if (updated.count > 0 && !existingBounced) {
         const users = await prisma.user.findMany({
-          where: { email: emailAddress },
+          where: { email: emailAddress, deletedAt: null },
           select: { id: true, reportLanguage: true },
         });
         for (const u of users) {

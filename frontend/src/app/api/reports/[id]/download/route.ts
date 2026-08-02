@@ -15,19 +15,30 @@ export const dynamic = "force-dynamic";
 let _s3Client: S3Client | null = null;
 function getS3Client(): S3Client | null {
   const bucket = process.env.S3_BUCKET;
-  if (!bucket) return null;
+  const accessKey = process.env.AWS_ACCESS_KEY_ID;
+  const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+  if (!bucket || !accessKey || !secretKey) return null;
 
   if (!_s3Client) {
     _s3Client = new S3Client({
       region: process.env.S3_REGION || "auto",
       endpoint: process.env.S3_ENDPOINT || undefined,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+        accessKeyId: accessKey,
+        secretAccessKey: secretKey,
       },
     });
   }
   return _s3Client;
+}
+
+// Validate S3 object key — prevent path traversal and invalid characters.
+// Valid keys: reports/{cuid}/{sanitized_filename}
+const S3_KEY_PATTERN = /^reports\/[a-zA-Z0-9]{20,40}\/[a-zA-Z0-9._-]+$/;
+function isValidS3Key(key: string): boolean {
+  if (!key || key.length > 512) return false;
+  if (key.includes("..") || key.includes("\0")) return false;
+  return S3_KEY_PATTERN.test(key);
 }
 
 export async function GET(
@@ -83,6 +94,16 @@ export async function GET(
       }
 
       const bucket = process.env.S3_BUCKET!;
+
+      // Validate S3 object key — prevent path traversal and malformed keys
+      if (!isValidS3Key(filePath)) {
+        console.error("[download] Invalid S3 key:", filePath);
+        return NextResponse.json(
+          { error: "Invalid file path" },
+          { status: 403 }
+        );
+      }
+
       const command = new GetObjectCommand({
         Bucket: bucket,
         Key: filePath,
@@ -90,7 +111,7 @@ export async function GET(
       });
 
       try {
-        const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+        const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
         return NextResponse.redirect(presignedUrl, { status: 302 });
       } catch (s3Err) {
         console.error("[download] Presigned URL generation failed:", s3Err);

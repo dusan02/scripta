@@ -111,6 +111,13 @@ export default async function CompanyPage({ params }: Params) {
         about: { "@type": "Organization", name, identifier: company.ico },
         temporalCoverage: latest ? `${latest.year}` : undefined,
       },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Verifa.sk", item: "https://verifa.sk" },
+          { "@type": "ListItem", position: 2, name, item: `https://verifa.sk/firma/${company.ico}` },
+        ],
+      },
     ],
   };
 

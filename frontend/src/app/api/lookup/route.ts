@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
+import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit by user ID (not just IP) — prevents enumeration via IP rotation
+  const rl = await rateLimitByKey(`lookup:${session.user.id}`, { windowMs: 10 * 60 * 1000, maxRequests: 30 });
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const ico = req.nextUrl.searchParams.get("ico");
   if (!ico || !/^\d{8}$/.test(ico)) {
@@ -36,7 +41,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ found: false, companyName: null });
     }
 
-    return NextResponse.json({ found: true, companyName });
+    // Cache successful lookups for 5 minutes (company names rarely change,
+    // but we don't want stale data if a company renames)
+    const response = NextResponse.json({ found: true, companyName });
+    response.headers.set("Cache-Control", "private, max-age=300");
+    return response;
   } catch {
     return NextResponse.json({ error: "Lookup zlyhal" }, { status: 502 });
   }
