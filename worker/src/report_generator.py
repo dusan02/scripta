@@ -26,7 +26,6 @@ from src.plotly_charts import (
     generate_altman_chart,
     generate_ratios_trend_chart,
     generate_radar_chart,
-    generate_debt_donut,
     generate_employee_chart,
     generate_rpe_chart
 )
@@ -1794,9 +1793,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     gauge_end_y = round(gy - gr * math.sin(rad), 2)
     gauge_large_arc = 1 if arc_angle > 180 else 0
 
-    # Cash flow waterfall + debt donut + balance sheet infographic
+    # Cash flow waterfall + balance sheet infographic
     cf_waterfall_base64 = generate_cashflow_waterfall(latest_stmt, lang=report_language) if latest_stmt else ""
-    debt_donut_base64 = generate_debt_donut(latest_stmt, lang=report_language) if latest_stmt else ""
     bs_infographic_base64 = generate_balance_sheet_infographic(latest_stmt, lang=report_language) if latest_stmt else ""
     pl_infographic_base64 = generate_pl_infographic(latest_stmt, lang=report_language) if latest_stmt else ""
     liquidity_chart_base64 = generate_liquidity_chart(stmts_sorted, lang=report_language) if stmts_sorted else ""
@@ -1976,7 +1974,6 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "gauge_end_y": gauge_end_y,
         "gauge_large_arc": gauge_large_arc,
         "cf_waterfall_base64": cf_waterfall_base64,
-        "debt_donut_base64": debt_donut_base64,
         "bs_infographic_base64": bs_infographic_base64,
         "pl_infographic_base64": pl_infographic_base64,
         "liquidity_chart_base64": liquidity_chart_base64,
