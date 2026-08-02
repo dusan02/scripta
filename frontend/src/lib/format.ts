@@ -6,7 +6,10 @@ const LEGAL_STATUSES = ["v konkurze", "v likvidácii", "v reštrukturalizácii",
 export function num(val: Decimal | number | string | null | undefined): number | null {
   if (val === null || val === undefined) return null;
   if (typeof val === "number") return val;
-  if (typeof val === "string") return parseFloat(val);
+  if (typeof val === "string") {
+    const parsed = parseFloat(val);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
   return val.toNumber();
 }
 

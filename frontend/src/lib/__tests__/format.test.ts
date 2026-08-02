@@ -36,8 +36,9 @@ describe("format.ts — num()", () => {
     assert.equal(num("-500.99"), -500.99);
   });
 
-  it("returns NaN for malformed string (parseFloat behavior)", () => {
-    assert.ok(Number.isNaN(num("abc") as number));
+  it("returns null for malformed string (NaN guard)", () => {
+    assert.equal(num("abc"), null);
+    assert.equal(num("N/A"), null);
   });
 
   it("parses string with leading/trailing whitespace", () => {

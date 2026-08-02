@@ -260,7 +260,7 @@ export async function seedFromRuz(ico: string) {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       auditVerdict: true,
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
-      companyPersons: { orderBy: { rawName: "asc" } },
+      companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
     },
   });
 }
@@ -272,7 +272,7 @@ export const getCompanyData = cache(async (ico: string) => {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       auditVerdict: true,
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
-      companyPersons: { orderBy: { rawName: "asc" } },
+      companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
     },
   });
   if (company && company.city && company.legalForm) {
@@ -281,5 +281,7 @@ export const getCompanyData = cache(async (ico: string) => {
     );
     if (!needsReseed) return company;
   }
-  return await seedFromRuz(ico);
+  // Try seeding from RUZ; if it fails (RUZ down), fall back to existing DB record
+  const seeded = await seedFromRuz(ico);
+  return seeded ?? company;
 });
