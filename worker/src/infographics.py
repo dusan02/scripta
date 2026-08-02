@@ -201,8 +201,8 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=11, family=COLORS['font_family'], color=COLORS['text']),
-        margin=dict(l=10, r=130, t=20, b=30),
+        font=dict(size=14, family=COLORS['font_family'], color=COLORS['text']),
+        margin=dict(l=90, r=130, t=20, b=30),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -211,7 +211,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            img_bytes = fig.to_image(format="png", width=920, height=420, scale=2, engine="kaleido")
+            img_bytes = fig.to_image(format="png", width=1000, height=420, scale=2, engine="kaleido")
         img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
@@ -289,8 +289,8 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=11, family=COLORS['font_family'], color=COLORS['text']),
-        margin=dict(l=10, r=130, t=20, b=30),
+        font=dict(size=14, family=COLORS['font_family'], color=COLORS['text']),
+        margin=dict(l=90, r=130, t=20, b=30),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -299,7 +299,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            img_bytes = fig.to_image(format="png", width=920, height=400, scale=2, engine="kaleido")
+            img_bytes = fig.to_image(format="png", width=1000, height=400, scale=2, engine="kaleido")
         img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
@@ -416,7 +416,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     # Center node
     center_idx = len(nodes)
     nodes.append({"name": i.get('sankey_total_assets', 'Celkové aktíva (Bilančná suma)'), "color": COLORS['slate']})
-    node_x.append(0.55)
+    node_x.append(0.5)
     node_y.append(0.5)
     
     # Prepojenie Left nodes do Center node
@@ -427,7 +427,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     # Right nodes
     for i_node, n in enumerate(right_nodes):
         nodes.append({"name": n["name"], "color": n["color"]})
-        node_x.append(0.9)
+        node_x.append(0.85)
         node_y.append(0.1 + (i_node * 0.25))
         idx = len(nodes) - 1
         links.append({"source": center_idx, "target": idx, "value": n["value"], "color": n["link_color"]})
@@ -454,8 +454,8 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         link=dict(source=source, target=target, value=value, color=link_color),
     )])
     fig.update_layout(
-        font=dict(size=11, family=COLORS['font_family'], color=COLORS['text']),
-        margin=dict(l=10, r=140, t=20, b=40),
+        font=dict(size=14, family=COLORS['font_family'], color=COLORS['text']),
+        margin=dict(l=90, r=140, t=20, b=40),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
     )
@@ -464,7 +464,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            img_bytes = fig.to_image(format="png", width=920, height=460, scale=2, engine="kaleido")
+            img_bytes = fig.to_image(format="png", width=1000, height=460, scale=2, engine="kaleido")
         img_bytes = _strip_kaleido_watermark(img_bytes)
         return base64.b64encode(img_bytes).decode('utf-8')
     except Exception as e:
