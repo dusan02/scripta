@@ -11,11 +11,11 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   const term = getGlossaryTerm(params.slug);
   if (!term) {
     return {
-      title: "Pojem nenájdený | Verifa.sk",
+      title: "Pojem nenájdený",
     };
   }
   return {
-    title: `${term.title} — vysvetlenie | Verifa.sk`,
+    title: `${term.title} — vysvetlenie`,
     description: term.shortDescription,
     alternates: {
       canonical: `https://verifa.sk/slovnik/${term.slug}`,
