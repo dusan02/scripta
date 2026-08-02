@@ -15,13 +15,10 @@ export async function GET(req: NextRequest) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    const [userPlan, wallet, totalReports, successfulReports, failedReports, usedThisMonth, recentReports, successfulReportsAllTime] = await Promise.all([
+    const [userPlan, totalReports, successfulReports, failedReports, usedThisMonth, recentReports, successfulReportsAllTime, validBatches, rolloverBatches] = await Promise.all([
       prisma.user.findUnique({
         where: { id: user.id },
         select: { planName: true, planRenewalDate: true },
-      }),
-      prisma.wallet.findUnique({
-        where: { userId: user.id },
       }),
       prisma.reportRequest.count({ where: { userId: user.id, deletedAt: null } }),
       prisma.reportRequest.count({ where: { userId: user.id, deletedAt: null, status: { in: ["COMPLETED", "PARTIAL"] }, createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
@@ -34,9 +31,34 @@ export async function GET(req: NextRequest) {
         select: { id: true, ico: true, companyName: true, status: true, createdAt: true },
       }),
       prisma.reportRequest.count({ where: { userId: user.id, status: { in: ["COMPLETED", "PARTIAL"] } } }),
+      // Sum of non-expired batch remaining — matches the report API's credit check.
+      // Wallet.balance can be stale if the expiration cron hasn't run yet.
+      prisma.creditBatch.aggregate({
+        where: {
+          userId: user.id,
+          remaining: { gt: 0 },
+          expiresAt: { gt: now },
+        },
+        _sum: { remaining: true },
+      }),
+      // Rollover credits — separate display in UI
+      prisma.creditBatch.aggregate({
+        where: {
+          userId: user.id,
+          remaining: { gt: 0 },
+          expiresAt: { gt: now },
+          source: "rollover",
+        },
+        _sum: { remaining: true },
+      }),
     ]);
 
-    const remaining = wallet ? Number(wallet.balance) : 0;
+    // Use CreditBatch SUM (non-expired) instead of Wallet.balance for consistency
+    // with the report API. Wallet.balance may be stale if the expiration cron
+    // hasn't run yet, leading to a discrepancy where UI shows credits but
+    // report creation is blocked.
+    const remaining = validBatches._sum.remaining ?? 0;
+    const rolloverCredits = rolloverBatches._sum.remaining ?? 0;
     // totalCredits = current balance + all-time successful reports.
     // Only COMPLETED/PARTIAL reports consumed credits permanently — FAILED and
     // CANCELLED reports were refunded, so their credits are already in `remaining`.
@@ -57,6 +79,7 @@ export async function GET(req: NextRequest) {
       failedReports,
       remaining,
       totalCredits,
+      rolloverCredits,
       planName: userPlan?.planName ?? null,
       daysRemaining,
       recentReports: recentReports.map((r) => ({

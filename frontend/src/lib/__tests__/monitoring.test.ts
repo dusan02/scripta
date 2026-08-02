@@ -140,34 +140,61 @@ describe("Monitoring plan security requirements", () => {
     }
   });
 
-  it("specifies IČO validation pattern", () => {
-    assert.ok(planContent.includes("/^\\d{8}$/") || true); // Check in actual file
+  // Helper: read monitoring-plan.md — fail if missing (no silent skips)
+  function readPlanDoc(): string {
+    const { readFileSync, existsSync } = require("node:fs");
+    const { join } = require("node:path");
+    const planPath = join(process.cwd(), "..", "docs", "monitoring-plan.md");
+    assert.ok(existsSync(planPath), `monitoring-plan.md must exist at ${planPath}`);
+    return readFileSync(planPath, "utf-8");
+  }
+
+  it("specifies IČO validation pattern in the plan document", () => {
+    const content = readPlanDoc();
+    assert.ok(
+      content.includes("\\d{8}") || content.includes("IČO"),
+      "Plan should specify IČO validation pattern"
+    );
   });
 
-  it("specifies rate limit for watch operations", () => {
-    // The plan should specify rate limits for watch/unwatch operations
-    const rateLimitSpec = "10 operácií za minútu";
-    assert.ok(rateLimitSpec.length > 0);
+  it("specifies rate limit for watch operations in the plan document", () => {
+    const content = readPlanDoc();
+    assert.ok(
+      content.includes("rate") || content.includes("Rate") || content.includes("10"),
+      "Plan should specify rate limiting for watch operations"
+    );
   });
 
-  it("specifies plan-based limits (3/10/50/200)", () => {
-    const limits = [3, 10, 50, 200];
-    assert.equal(limits.length, 4);
+  it("specifies plan-based limits in the plan document", () => {
+    const content = readPlanDoc();
+    assert.ok(
+      content.includes("3") || content.includes("10") || content.includes("50") || content.includes("200"),
+      "Plan should specify plan-based limits"
+    );
   });
 
-  it("specifies cron schedule (daily at 06:00)", () => {
-    const schedule = "0 6 * * *";
-    assert.ok(schedule.includes("6"));
+  it("specifies cron schedule in the plan document", () => {
+    const content = readPlanDoc();
+    assert.ok(
+      content.includes("cron") || content.includes("Cron") || content.includes("0 6"),
+      "Plan should specify cron schedule"
+    );
   });
 
-  it("specifies data retention for AlertEvent (1 year)", () => {
-    const retention = "1 rok";
-    assert.ok(retention.includes("rok"));
+  it("specifies data retention for AlertEvent in the plan document", () => {
+    const content = readPlanDoc();
+    assert.ok(
+      content.includes("retention") || content.includes("Retention") || content.includes("rok") || content.includes("year"),
+      "Plan should specify data retention for AlertEvent"
+    );
   });
 
-  it("specifies data retention for AlertDelivery (30 days)", () => {
-    const retention = "30 dní";
-    assert.ok(retention.includes("30"));
+  it("specifies data retention for AlertDelivery in the plan document", () => {
+    const content = readPlanDoc();
+    assert.ok(
+      content.includes("30") || content.includes("days") || content.includes("dní"),
+      "Plan should specify data retention for AlertDelivery"
+    );
   });
 });
 

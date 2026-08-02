@@ -48,21 +48,23 @@ export default async function DashboardPage() {
 
   if (user) {
     const now = new Date();
-    const trialExpired = user.trialEndsAt ? user.trialEndsAt < now : false;
     const hasPlan = !!user.planName;
     userPlanName = user.planName;
 
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId: session.user.id },
-      select: { balance: true },
+    // Use CreditBatch SUM (non-expired) instead of Wallet.balance for consistency
+    // with the report API. Wallet.balance can be stale if the expiration cron
+    // hasn't run yet, leading to a discrepancy where dashboard shows credits
+    // but report creation is blocked.
+    const validBatches = await prisma.creditBatch.aggregate({
+      where: {
+        userId: session.user.id,
+        remaining: { gt: 0 },
+        expiresAt: { gt: now },
+      },
+      _sum: { remaining: true },
     });
-    userBalance = wallet ? Number(wallet.balance) : 0;
-
-    // Also check CreditBatch for remaining credits
-    const creditBatch = await prisma.creditBatch.findFirst({
-      where: { userId: session.user.id, remaining: { gt: 0 }, expiresAt: { gt: now } },
-    });
-    const hasCredits = userBalance > 0 || !!creditBatch;
+    userBalance = validBatches._sum.remaining ?? 0;
+    const hasCredits = userBalance > 0;
 
     // Only redirect to pricing if user has NO plan AND no credits
     if (!hasPlan && !hasCredits) {

@@ -12,6 +12,15 @@ import sys
 import types
 import pytest
 
+# ── Custom markers ────────────────────────────────────────────────────────
+# "integration" marker pre testy, ktoré vyžadujú live internet (scrapers, FS).
+# CI spúšťa: pytest tests/ -m "not integration"
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "integration: marks tests as requiring live internet access"
+    )
+
+
 # ── Prisma mock ───────────────────────────────────────────────────────────
 # Prisma SDK is incompatible with Pydantic v2 in the local dev environment.
 # We mock it so that scraper modules (which import db_client → prisma) can be
@@ -19,6 +28,8 @@ import pytest
 if "prisma" not in sys.modules:
     _prisma_mock = types.ModuleType("prisma")
     _prisma_mock.Prisma = type("Prisma", (), {})
+    # Provide Json alias — used by pipeline.py and other modules
+    _prisma_mock.Json = type("Json", (), {})
     sys.modules["prisma"] = _prisma_mock
 
 if "prisma.errors" not in sys.modules:

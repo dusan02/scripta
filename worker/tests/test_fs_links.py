@@ -12,6 +12,10 @@ import asyncio
 import pytest
 from playwright.async_api import async_playwright
 
+# All tests in this file require live internet access to Finančná správa.
+# CI runs: pytest tests/ -m "not integration"
+pytestmark = pytest.mark.integration
+
 from src.scrapers.fs import FinancnaSpravaScraper
 from src.scrapers.fs_dph_rusenie import FsDphRusenieScraper
 from src.scrapers.fs_dph_vymazani import FsDphVymazaniScraper

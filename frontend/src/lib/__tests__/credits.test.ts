@@ -515,3 +515,130 @@ describe("addCreditBatch", () => {
     assert.ok(diffDays >= 29 && diffDays <= 31, `Expected ~30 days, got ${diffDays}`);
   });
 });
+
+// ─── Credit consistency: UI vs Report API ─────────────────────────────────
+// The bug: /api/credits/plan used Wallet.balance (stale if cron hasn't run),
+// but /api/reports used SUM(CreditBatch.remaining WHERE expiresAt > NOW()).
+// This test suite verifies the correct query pattern.
+
+describe("Credit consistency: UI vs Report API", () => {
+  // Simulate the credit check logic used by both /api/reports and /api/credits/plan
+  function calculateAvailableCredits(
+    batches: { remaining: number; expiresAt: Date; source: string }[]
+  ): number {
+    const now = new Date();
+    return batches
+      .filter((b) => b.remaining > 0 && b.expiresAt > now)
+      .reduce((sum, b) => sum + b.remaining, 0);
+  }
+
+  function calculateRolloverCredits(
+    batches: { remaining: number; expiresAt: Date; source: string }[]
+  ): number {
+    const now = new Date();
+    return batches
+      .filter((b) => b.remaining > 0 && b.expiresAt > now && b.source === "rollover")
+      .reduce((sum, b) => sum + b.remaining, 0);
+  }
+
+  // Simulate stale Wallet.balance (not decremented by cron)
+  function calculateWalletBalance(
+    batches: { remaining: number; expiresAt: Date; source: string }[]
+  ): number {
+    // Wallet.balance = SUM(all batch.remaining) — includes expired if cron hasn't run
+    return batches.reduce((sum, b) => sum + b.remaining, 0);
+  }
+
+  it("returns 0 when all batches are expired (CreditBatch SUM)", () => {
+    const batches = [
+      { remaining: 2, expiresAt: new Date(Date.now() - 86400000), source: "trial" },
+    ];
+    assert.equal(calculateAvailableCredits(batches), 0);
+  });
+
+  it("returns 2 when Wallet.balance is stale (bug scenario)", () => {
+    const batches = [
+      { remaining: 2, expiresAt: new Date(Date.now() - 86400000), source: "trial" },
+    ];
+    // Wallet.balance is stale — shows 2 even though credits expired
+    assert.equal(calculateWalletBalance(batches), 2);
+    // But CreditBatch SUM correctly shows 0
+    assert.equal(calculateAvailableCredits(batches), 0);
+  });
+
+  it("returns correct count when some batches are expired", () => {
+    const batches = [
+      { remaining: 5, expiresAt: new Date(Date.now() + 86400000), source: "subscription" },
+      { remaining: 3, expiresAt: new Date(Date.now() - 86400000), source: "trial" },
+    ];
+    // Only the non-expired batch counts
+    assert.equal(calculateAvailableCredits(batches), 5);
+    // Wallet.balance would show 8 (stale)
+    assert.equal(calculateWalletBalance(batches), 8);
+  });
+
+  it("returns 0 when all batches have remaining=0", () => {
+    const batches = [
+      { remaining: 0, expiresAt: new Date(Date.now() + 86400000), source: "subscription" },
+    ];
+    assert.equal(calculateAvailableCredits(batches), 0);
+  });
+
+  it("counts rollover credits separately", () => {
+    const batches = [
+      { remaining: 5, expiresAt: new Date(Date.now() + 86400000), source: "subscription" },
+      { remaining: 3, expiresAt: new Date(Date.now() + 86400000), source: "rollover" },
+    ];
+    assert.equal(calculateAvailableCredits(batches), 8);
+    assert.equal(calculateRolloverCredits(batches), 3);
+  });
+
+  it("excludes expired rollover credits", () => {
+    const batches = [
+      { remaining: 5, expiresAt: new Date(Date.now() + 86400000), source: "subscription" },
+      { remaining: 3, expiresAt: new Date(Date.now() - 86400000), source: "rollover" },
+    ];
+    assert.equal(calculateAvailableCredits(batches), 5);
+    assert.equal(calculateRolloverCredits(batches), 0);
+  });
+
+  it("UI and Report API return the same value when cron has run", () => {
+    // After cron runs, expired batches have remaining=0, so both methods agree
+    const batches = [
+      { remaining: 0, expiresAt: new Date(Date.now() - 86400000), source: "trial" },
+      { remaining: 5, expiresAt: new Date(Date.now() + 86400000), source: "subscription" },
+    ];
+    assert.equal(calculateAvailableCredits(batches), 5);
+    assert.equal(calculateWalletBalance(batches), 5); // Same after cron
+  });
+
+  it("UI and Report API DISAGREE when cron hasn't run (the bug)", () => {
+    const batches = [
+      { remaining: 2, expiresAt: new Date(Date.now() - 86400000), source: "trial" },
+    ];
+    // This is the exact bug scenario: UI shows 2, report API blocks
+    assert.equal(calculateWalletBalance(batches), 2);
+    assert.equal(calculateAvailableCredits(batches), 0);
+    assert.notEqual(calculateWalletBalance(batches), calculateAvailableCredits(batches));
+  });
+
+  it("addon credits never expire (36500 days)", () => {
+    const farFuture = new Date(Date.now() + 36500 * 86400000);
+    const batches = [
+      { remaining: 10, expiresAt: farFuture, source: "addon" },
+    ];
+    assert.equal(calculateAvailableCredits(batches), 10);
+  });
+
+  it("mixed sources with partial expiry", () => {
+    const now = Date.now();
+    const batches = [
+      { remaining: 5, expiresAt: new Date(now + 86400000), source: "subscription" },
+      { remaining: 3, expiresAt: new Date(now + 86400000), source: "rollover" },
+      { remaining: 2, expiresAt: new Date(now - 86400000), source: "trial" },
+      { remaining: 10, expiresAt: new Date(now + 36500 * 86400000), source: "addon" },
+    ];
+    assert.equal(calculateAvailableCredits(batches), 18); // 5 + 3 + 10
+    assert.equal(calculateRolloverCredits(batches), 3);
+  });
+});

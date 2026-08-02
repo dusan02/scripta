@@ -101,4 +101,4 @@ jobs:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           DATABASE_URL_UNPOOLED: "postgresql://dummy:dummy@localhost:5432/dummy"
       - name: Worker Unit Tests
-        run: python -m pytest tests/ -q --tb=short
+        run: python -m pytest tests/ -q --tb=short -m "not integration"

@@ -61,16 +61,20 @@ describe("Monitoring API — watched companies", () => {
       assert.equal(limit, 3);
     });
 
-    it("blocks add when at limit", () => {
-      const limit = PLAN_LIMITS.FREE;
-      const existingCount = 3;
-      assert.ok(existingCount >= limit, "Should block when at limit");
-    });
-
-    it("allows add when under limit", () => {
-      const limit = PLAN_LIMITS.PRO;
-      const existingCount = 10;
-      assert.ok(existingCount < limit, "Should allow when under limit");
+    it("limit check blocks when existing >= limit", () => {
+      // Simulate the actual limit check logic from the API endpoint
+      function canAdd(existingCount: number, planName: string): boolean {
+        const limit = PLAN_LIMITS[planName] ?? PLAN_LIMITS.FREE;
+        return existingCount < limit;
+      }
+      assert.equal(canAdd(3, "FREE"), false);       // At limit → blocked
+      assert.equal(canAdd(2, "FREE"), true);         // Under limit → allowed
+      assert.equal(canAdd(10, "STARTER"), false);    // At limit → blocked
+      assert.equal(canAdd(9, "STARTER"), true);     // Under limit → allowed
+      assert.equal(canAdd(50, "PRO"), false);        // At limit → blocked
+      assert.equal(canAdd(49, "PRO"), true);        // Under limit → allowed
+      assert.equal(canAdd(200, "ENTERPRISE"), false); // At limit → blocked
+      assert.equal(canAdd(199, "ENTERPRISE"), true); // Under limit → allowed
     });
   });
 
@@ -361,8 +365,9 @@ describe("requireAdmin type safety", () => {
     const result: AdminResult = [{ id: "admin-456", email: "admin@test.sk" }, null];
     const [admin, error] = result;
     if (!error) {
-      // admin.id is safe — no `!` needed
-      assert.ok(admin.id.length > 0);
+      // TypeScript narrows admin to non-null — verify both fields are accessible
+      assert.equal(admin.id, "admin-456");
+      assert.equal(admin.email, "admin@test.sk");
     }
   });
 });

@@ -57,8 +57,11 @@ class AttachmentFilter:
     @classmethod
     def from_dict(cls, data: Optional[dict[str, bool]]) -> "AttachmentFilter":
         if data is None:
-            # No user config → use defaults (excludes long financial statements)
-            return cls(config=dict(DEFAULT_ATTACHMENTS_CONFIG))
+            # No user config → all attachments included (backward compatibility).
+            # Note: this returns config=None, NOT dict(DEFAULT_ATTACHMENTS_CONFIG).
+            # DEFAULT_ATTACHMENTS_CONFIG excludes auditorska_sprava and uctovna_zavierka,
+            # but None means "no filtering" — all categories enabled.
+            return cls(config=None)
         # Zlúč s defaultmi — chýbajúce kľúče dostanú default hodnotu
         merged = {**DEFAULT_ATTACHMENTS_CONFIG, **data}
         return cls(config=merged)

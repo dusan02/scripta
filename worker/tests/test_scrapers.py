@@ -20,6 +20,10 @@ import pytest
 from pathlib import Path
 from playwright.async_api import async_playwright
 
+# All tests in this file require live internet access to Slovak government portals.
+# CI runs: pytest tests/ -m "not integration"
+pytestmark = pytest.mark.integration
+
 from src.scrapers.dovera_dlznici import DoveraDlzniciScraper
 from src.scrapers.sp_dlznici import SpDlzniciScraper
 from src.scrapers.vszp_dlznici import VszpDlzniciScraper
