@@ -68,12 +68,18 @@ export async function POST(req: NextRequest) {
     });
 
     // If targeted, send email notification
+    let emailSkipped = false;
     if (targetUserId) {
       const targetUser = await prisma.user.findUnique({
         where: { id: targetUserId },
-        select: { email: true },
+        select: { email: true, emailBounced: true, deletedAt: true },
       });
-      if (targetUser) {
+      if (!targetUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      if (targetUser.emailBounced || targetUser.deletedAt) {
+        emailSkipped = true;
+      } else {
         try {
           await sendEmail({
             to: targetUser.email,
@@ -86,12 +92,13 @@ export async function POST(req: NextRequest) {
           });
         } catch (emailErr) {
           console.error("Failed to send email to user", emailErr);
+          emailSkipped = true;
         }
       }
     } else {
-      // Broadcast — send to all users
+      // Broadcast — send to all verified users with valid email
       const users = await prisma.user.findMany({
-        where: { emailVerified: { not: null } },
+        where: { emailVerified: { not: null }, emailBounced: false, deletedAt: null },
         select: { email: true },
       });
       for (const u of users) {
@@ -111,7 +118,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, id: msg.id });
+    return NextResponse.json({ ok: true, id: msg.id, emailSkipped });
   } catch (error) {
     console.error("POST /api/admin/messages error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

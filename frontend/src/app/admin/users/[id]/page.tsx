@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/components/LanguageProvider";
 import Link from "next/link";
+import { getServerSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
 interface UserDetail {
   user: {
@@ -79,7 +82,31 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
   );
 }
 
-export default function AdminUserDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminUserDetailPage({ params }: { params: { id: string } }) {
+  const session = await getServerSession();
+  if (!session?.user) redirect("/login");
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+
+  if (user?.role !== "ADMIN") {
+    return (
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-8 pb-8">
+        <div className="card p-8 text-center">
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Prístup zamietnutý. Vyžaduje sa rola ADMIN.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <AdminUserDetailContent params={params} />;
+}
+
+function AdminUserDetailContent({ params }: { params: { id: string } }) {
   const t = useT();
   const [data, setData] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -132,7 +159,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800 }}>{user.name || user.email}</h1>
         <p style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 4 }}>
-          {user.email} · {user.role === "ADMIN" ? "Admin" : "Používateľ"} · Registrácia: {new Date(user.createdAt).toLocaleDateString("sk-SK")}
+          {user.email} · {user.role === "ADMIN" ? t("admin.admin") : t("admin.pouzivatelRole")} · {new Date(user.createdAt).toLocaleDateString("sk-SK")}
         </p>
         {user.planName && (
           <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>
@@ -145,12 +172,12 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
 
       {/* Summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        <StatCard label="Wallet balance" value={summary.walletBalance} color="var(--success)" />
-        <StatCard label="Nakúpené kredity" value={summary.totalPurchased} />
-        <StatCard label="Minuté kredity" value={summary.totalSpent} color="var(--danger)" />
-        <StatCard label="Vrátené kredity" value={summary.totalRefunded} color="var(--info-text)" />
-        <StatCard label="Aktívne batche" value={summary.activeBatches} />
-        <StatCard label="Reporty" value={summary.totalReports} />
+        <StatCard label={t("admin.walletBalance")} value={summary.walletBalance} color="var(--success)" />
+        <StatCard label={t("admin.nakupeneKredity")} value={summary.totalPurchased} />
+        <StatCard label={t("admin.minuteKredityUser")} value={summary.totalSpent} color="var(--danger)" />
+        <StatCard label={t("admin.vrateneKredity")} value={summary.totalRefunded} color="var(--info-text)" />
+        <StatCard label={t("admin.aktivneBatche")} value={summary.activeBatches} />
+        <StatCard label={t("admin.reportyPouzivatela")} value={summary.totalReports} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
@@ -171,7 +198,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
                 {transactions.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-                      Žiadne transakcie
+                      {t("admin.ziadneTransakcie")}
                     </td>
                   </tr>
                 ) : (
@@ -201,7 +228,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
 
         {/* Credit batches */}
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Kreditové batche</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.kreditoveBatche")}</h2>
           <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
             <table className="w-full" style={{ fontSize: 13 }}>
               <thead>
@@ -246,7 +273,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
 
       {/* Reports */}
       <div style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Reporty používateľa</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.reportyPouzivatela")}</h2>
         <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <table className="w-full" style={{ fontSize: 14 }}>
             <thead>
@@ -262,7 +289,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
               {reports.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-                    Žiadne reporty
+                    {t("admin.ziadneReportyUser")}
                   </td>
                 </tr>
               ) : (

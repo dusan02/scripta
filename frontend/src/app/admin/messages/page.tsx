@@ -71,6 +71,7 @@ function AdminMessagesContent() {
   const [composeType, setComposeType] = useState("ANNOUNCEMENT");
   const [composeTarget, setComposeTarget] = useState("");
   const [sending, setSending] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const fetchMessages = async () => {
     setLoading(true);
@@ -106,14 +107,29 @@ function AdminMessagesContent() {
         }),
       });
       if (res.ok) {
+        const data = await res.json();
         setComposeTitle("");
         setComposeBody("");
         setComposeTarget("");
         setShowCompose(false);
         fetchMessages();
+        if (data.emailSkipped) {
+          setStatusMsg(t("admin.emailNeposlany"));
+        } else {
+          setStatusMsg(t("admin.spravaOdoslana"));
+        }
+        setTimeout(() => setStatusMsg(null), 5000);
+      } else if (res.status === 404) {
+        setStatusMsg(t("admin.pouzivatelNenajdeny"));
+        setTimeout(() => setStatusMsg(null), 5000);
+      } else {
+        setStatusMsg(t("admin.odoslanieZlyhalo"));
+        setTimeout(() => setStatusMsg(null), 5000);
       }
     } catch (error) {
       console.error("Failed to send message", error);
+      setStatusMsg(t("admin.odoslanieZlyhalo"));
+      setTimeout(() => setStatusMsg(null), 5000);
     } finally {
       setSending(false);
     }
@@ -127,10 +143,10 @@ function AdminMessagesContent() {
   };
 
   const typeLabels: Record<string, string> = {
-    ANNOUNCEMENT: "Novinka",
-    REPLY: "Odpoveď",
-    SYSTEM: "Systém",
-    USER: "Od používateľa",
+    ANNOUNCEMENT: t("admin.novinka"),
+    REPLY: t("admin.odpoved"),
+    SYSTEM: t("admin.system"),
+    USER: t("admin.odPouzivatela"),
   };
 
   return (
@@ -138,10 +154,10 @@ function AdminMessagesContent() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight mb-1" style={{ color: "var(--text)" }}>
-            Admin — Správy
+            {t("admin.messagesTitulok")}
           </h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Prijaté správy od používateľov a odoslané oznámenia
+            {t("admin.prijate")} · {t("admin.poslane")}
           </p>
         </div>
         <button
@@ -154,9 +170,23 @@ function AdminMessagesContent() {
             cursor: "pointer",
           }}
         >
-          {showCompose ? "Zrušiť" : "+ Nová správa"}
+          {showCompose ? t("admin.zrusit") : t("admin.novaSprava")}
         </button>
       </div>
+
+      {/* Status message */}
+      {statusMsg && (
+        <div
+          className="card p-3 mb-4 text-sm"
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--bg-muted)",
+            color: "var(--text)",
+          }}
+        >
+          {statusMsg}
+        </div>
+      )}
 
       {/* Compose form */}
       {showCompose && (
@@ -173,9 +203,9 @@ function AdminMessagesContent() {
                 className="w-full px-3 py-2 rounded-lg text-sm border"
                 style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
               >
-                <option value="ANNOUNCEMENT">Novinka (pre všetkých alebo konkrétneho používateľa)</option>
-                <option value="REPLY">Odpoveď (na podnet používateľa)</option>
-                <option value="SYSTEM">Systémové oznámenie</option>
+                <option value="ANNOUNCEMENT">{t("admin.novinkaVsetky")}</option>
+                <option value="REPLY">{t("admin.odpovedPodnet")}</option>
+                <option value="SYSTEM">{t("admin.systemOznamenie")}</option>
               </select>
             </div>
             <div>
@@ -186,7 +216,7 @@ function AdminMessagesContent() {
                 type="text"
                 value={composeTarget}
                 onChange={(e) => setComposeTarget(e.target.value)}
-                placeholder="Zanechajte prázdne pre broadcast"
+                placeholder={t("admin.zanechajtePrazdne")}
                 className="w-full px-3 py-2 rounded-lg text-sm border"
                 style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
               />
@@ -197,7 +227,7 @@ function AdminMessagesContent() {
                 type="text"
                 value={composeTitle}
                 onChange={(e) => setComposeTitle(e.target.value)}
-                placeholder="Nadpis správy"
+                placeholder={t("admin.nadpisSpravy")}
                 className="w-full px-3 py-2 rounded-lg text-sm border"
                 style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
               />
@@ -207,7 +237,7 @@ function AdminMessagesContent() {
               <textarea
                 value={composeBody}
                 onChange={(e) => setComposeBody(e.target.value)}
-                placeholder="Text správy..."
+                placeholder={t("admin.textSpravy")}
                 rows={5}
                 className="w-full px-3 py-2 rounded-lg text-sm border resize-none"
                 style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
@@ -224,7 +254,7 @@ function AdminMessagesContent() {
                 cursor: sending ? "not-allowed" : "pointer",
               }}
             >
-              {sending ? "Odosielam..." : "Odoslať"}
+              {sending ? t("admin.odosielam") : t("admin.odoslat")}
             </button>
           </div>
         </div>
@@ -242,7 +272,7 @@ function AdminMessagesContent() {
             cursor: "pointer",
           }}
         >
-          Prijaté (od používateľov)
+          {t("admin.prijate")}
         </button>
         <button
           onClick={() => setFilter("sent")}
@@ -254,7 +284,7 @@ function AdminMessagesContent() {
             cursor: "pointer",
           }}
         >
-          Odoslané (od admina)
+          {t("admin.poslane")}
         </button>
       </div>
 
@@ -265,7 +295,7 @@ function AdminMessagesContent() {
         </div>
       ) : messages.length === 0 ? (
         <div className="card p-8 text-center">
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Žiadne správy.</p>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>{t("admin.ziadneSpravy")}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

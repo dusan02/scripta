@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/components/LanguageProvider";
 import Link from "next/link";
+import { getServerSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
 interface Stats {
   totalUsers: number;
@@ -55,7 +58,31 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
   );
 }
 
-export default function AdminOverviewPage() {
+export default async function AdminOverviewPage() {
+  const session = await getServerSession();
+  if (!session?.user) redirect("/login");
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+
+  if (user?.role !== "ADMIN") {
+    return (
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-8 pb-8">
+        <div className="card p-8 text-center">
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Prístup zamietnutý. Vyžaduje sa rola ADMIN.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <AdminOverviewContent />;
+}
+
+function AdminOverviewContent() {
   const t = useT();
   const [stats, setStats] = useState<Stats | null>(null);
   const [reports, setReports] = useState<RecentReport[]>([]);
@@ -95,7 +122,7 @@ export default function AdminOverviewPage() {
     return (
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-8 pb-8">
         <div className="card p-8 text-center" style={{ border: "1px solid var(--border)" }}>
-          <p style={{ color: "var(--text-muted)" }}>Načítanie prehľadu zlyhalo. Prihláste sa ako admin.</p>
+          <p style={{ color: "var(--text-muted)" }}>{t("admin.nacitanieZlyhalo")}</p>
         </div>
       </div>
     );
@@ -103,39 +130,39 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-8 pb-8">
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 24 }}>Prehľad</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 24 }}>{t("admin.prehled")}</h1>
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Používatelia" value={stats!.totalUsers} />
-        <StatCard label="Reporty celkom" value={stats!.totalReports} />
-        <StatCard label="Dokončené" value={stats!.completedReports} color="var(--success)" />
-        <StatCard label="Prebiehajúce" value={stats!.pendingReports} color="var(--info-text)" />
-        <StatCard label="Zlyhané" value={stats!.failedReports} color="var(--danger)" />
-        <StatCard label="Spätná väzba (otvorené)" value={`${stats!.openFeedback}/${stats!.totalFeedback}`} />
-        <StatCard label="Správy používateľov" value={stats!.userMessages} />
-        <StatCard label="Minuté kredity" value={stats!.totalCreditsSpent} />
+        <StatCard label={t("admin.pouzivatelia")} value={stats!.totalUsers} />
+        <StatCard label={t("admin.reportyCelkom")} value={stats!.totalReports} />
+        <StatCard label={t("admin.dokoncene")} value={stats!.completedReports} color="var(--success)" />
+        <StatCard label={t("admin.prebiejajuce")} value={stats!.pendingReports} color="var(--info-text)" />
+        <StatCard label={t("admin.zlyhanе")} value={stats!.failedReports} color="var(--danger)" />
+        <StatCard label={t("admin.spatnaVazba")} value={`${stats!.openFeedback}/${stats!.totalFeedback}`} />
+        <StatCard label={t("admin.spravyPouzivatelov")} value={stats!.userMessages} />
+        <StatCard label={t("admin.minuteKredity")} value={stats!.totalCreditsSpent} />
       </div>
 
       {/* Recent reports */}
       <div className="mb-8">
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Posledné reporty</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.posledneReporty")}</h2>
         <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <table className="w-full" style={{ fontSize: 14 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-muted)" }}>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Firma</th>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>IČO</th>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Používateľ</th>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Stav</th>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Dátum</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.firma")}</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.ico")}</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.pouzivatel")}</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.stav")}</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.datum")}</th>
               </tr>
             </thead>
             <tbody>
               {reports.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-                    Žiadne reporty
+                    {t("admin.ziadneReporty")}
                   </td>
                 </tr>
               ) : (
@@ -166,22 +193,22 @@ export default function AdminOverviewPage() {
 
       {/* Recent users */}
       <div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Poslední používatelia</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.posledniPouzivatelia")}</h2>
         <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <table className="w-full" style={{ fontSize: 14 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-muted)" }}>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>E-mail</th>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Meno</th>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Rola</th>
-                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Registrácia</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.email")}</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.meno")}</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.rola")}</th>
+                <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.registracia")}</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 ? (
                 <tr>
                   <td colSpan={4} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-                    Žiadni používatelia
+                    {t("admin.ziadniPouzivatelia")}
                   </td>
                 </tr>
               ) : (

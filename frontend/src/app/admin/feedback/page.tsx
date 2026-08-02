@@ -124,7 +124,7 @@ function AdminFeedbackContent() {
     <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-8 pb-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight mb-2" style={{ color: "var(--text)" }}>
-          Admin - Feedback
+          {t("admin.feedbackTitulok")}
         </h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
           Správa používateľského feedbacku a bug reportov
@@ -145,7 +145,7 @@ function AdminFeedbackContent() {
               color: "var(--text)",
             }}
           >
-            <option value="ALL">Všetky</option>
+            <option value="ALL">{t("admin.vsetky")}</option>
             <option value="BUG">BUG</option>
             <option value="IMPROVEMENT">IMPROVEMENT</option>
             <option value="QUESTION">QUESTION</option>
@@ -164,7 +164,7 @@ function AdminFeedbackContent() {
               color: "var(--text)",
             }}
           >
-            <option value="ALL">Všetky</option>
+            <option value="ALL">{t("admin.vsetky")}</option>
             <option value="OPEN">OPEN</option>
             <option value="RESOLVED">RESOLVED</option>
             <option value="CLOSED">CLOSED</option>
@@ -182,7 +182,7 @@ function AdminFeedbackContent() {
       ) : filteredFeedbacks.length === 0 ? (
         <div className="card p-8 text-center">
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Žiadne feedbacky.
+            {t("admin.ziadneFeedbacky")}
           </p>
         </div>
       ) : (

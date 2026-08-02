@@ -105,6 +105,80 @@ describe("feedback.nepovinne exists in all languages", () => {
   });
 });
 
+describe("admin keys exist in all languages", () => {
+  const ADMIN_KEYS = [
+    "admin.pristupZamietnuty",
+    "admin.prehled",
+    "admin.pouzivatelia",
+    "admin.reportyCelkom",
+    "admin.dokoncene",
+    "admin.prebiejajuce",
+    "admin.zlyhanе",
+    "admin.spatnaVazba",
+    "admin.spravyPouzivatelov",
+    "admin.minuteKredity",
+    "admin.posledneReporty",
+    "admin.posledniPouzivatelia",
+    "admin.firma",
+    "admin.ico",
+    "admin.pouzivatel",
+    "admin.stav",
+    "admin.datum",
+    "admin.ziadneReporty",
+    "admin.ziadniPouzivatelia",
+    "admin.email",
+    "admin.meno",
+    "admin.rola",
+    "admin.registracia",
+    "admin.nacitanieZlyhalo",
+    "admin.walletBalance",
+    "admin.nakupeneKredity",
+    "admin.minuteKredityUser",
+    "admin.vrateneKredity",
+    "admin.aktivneBatche",
+    "admin.reportyPouzivatela",
+    "admin.ziadneTransakcie",
+    "admin.ziadneReportyUser",
+    "admin.ziadneBatche",
+    "admin.kreditoveBatche",
+    "admin.admin",
+    "admin.pouzivatelRole",
+    "admin.feedbackTitulok",
+    "admin.vsetky",
+    "admin.ziadneFeedbacky",
+    "admin.messagesTitulok",
+    "admin.novinka",
+    "admin.odpoved",
+    "admin.system",
+    "admin.odPouzivatela",
+    "admin.zrusit",
+    "admin.novaSprava",
+    "admin.novinkaVsetky",
+    "admin.odpovedPodnet",
+    "admin.systemOznamenie",
+    "admin.zanechajtePrazdne",
+    "admin.nadpisSpravy",
+    "admin.textSpravy",
+    "admin.odosielam",
+    "admin.odoslat",
+    "admin.ziadneSpravy",
+    "admin.prijate",
+    "admin.poslane",
+    "admin.spravaOdoslana",
+    "admin.emailNeposlany",
+    "admin.pouzivatelNenajdeny",
+    "admin.odoslanieZlyhalo",
+  ];
+
+  for (const key of ADMIN_KEYS) {
+    it(`"${key}" exists in all languages`, () => {
+      for (const lang of LANGS) {
+        assert.ok(key in translations[lang], `Missing "${key}" in ${lang}`);
+      }
+    });
+  }
+});
+
 describe("home.welcome keys exist in all languages", () => {
   for (const key of ["home.welcomeTitle", "home.welcomeDesc"]) {
     it(`"${key}" exists in all languages`, () => {
