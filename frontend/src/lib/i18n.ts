@@ -239,6 +239,7 @@ const sk: Dict = {
   "pricing.eur": "€",
   "pricing.jednorazove": "Jednorazové",
   "pricing.reportovZaReport": "{n} reportov · {price} € / report",
+  "pricing.reportZaReport": "1 report · {price} € / report",
   "pricing.vybrane": "Vybrané ✓",
   "pricing.vybrat": "Vybrať",
   "pricing.kupit": "Kúpiť",
@@ -682,9 +683,9 @@ const sk: Dict = {
   "report.patienceBody": "Spracovávame rozsiahle finančné výkazy a výročné správy.\nProsím, nezatvárajte túto stránku — report sa dokončí automaticky.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Business Risk Report do 10 minút",
+  "home.badge": "Business Risk Report do 10 minút",
   "home.heroTitle1": "Preverenie firmy",
-  "home.heroTitle2": "jedným klikom",
+  "home.heroTitle2": "jedným reportom",
   "home.heroSubtitle": "Zadajte IČO a dostanete kompletný PDF report s hlavným posudkom, finančnou analýzou a Verifa Score — za minúty, nie za hodiny.",
   "home.heroCtaRegister": "Zaregistrovať sa a overiť zadarmo →",
   "home.heroHintGuest": "Bez záväzkov · Pri registrácii dostanete kredit na overenie 1 firmy",
@@ -734,7 +735,7 @@ const sk: Dict = {
   "home.step1Title": "Zadáte IČO",
   "home.step1Desc": "Zadajte identifikačné číslo firmy, ktorú chcete preveriť.",
   "home.step2Title": "Overenie a posudok",
-  "home.step2Desc": "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok so subjektívnym Verifa Score.",
+  "home.step2Desc": "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok s Verifa Score.",
   "home.step3Title": "Stiahnite správu",
   "home.step3Desc": "Stiahnete si komplexnú Správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente.",
 
@@ -742,7 +743,7 @@ const sk: Dict = {
   "home.navRegistries": "Registre",
   "home.registriesTitle": "Pokryté registre",
   "home.registriesSubtitle": "Všetky zdroje v jednom reporte, zoskupené podľa oblasti.",
-  "home.registriesShow": "Pozrite si zoznam všetkých 20+ prehľadávaných registrov",
+  "home.registriesShow": "Pozrite si zoznam všetkých 25+ prehľadávaných registrov",
   "home.registriesHide": "Skryť zoznam registrov",
 
   // ── Landing page: Target groups ──
@@ -769,8 +770,8 @@ const sk: Dict = {
   "home.creditsValidFrom": "— použite ich kedykoľvek.",
 
   // ── Landing page: CTA ──
-  "home.ctaTitle": "Pripravený preveriť svojho partnera?",
-  "home.ctaDesc": "Zaregistrujte sa a začnite s Business Risk Reportom.",
+  "home.ctaTitle": "Pripravený preveriť firmu?",
+  "home.ctaDesc": "Zaregistrujte sa a dostanete kredit na prvý report zadarmo.",
 
   // ── Landing page: Footer ──
   "home.footerContact": "Kontakt",
@@ -1491,9 +1492,9 @@ const en: Dict = {
   "report.patienceBody": "We are processing extensive financial statements and annual reports.\nPlease do not close this page — the report will complete automatically.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Business Risk Report in 10 minutes",
+  "home.badge": "Business Risk Report in 10 minutes",
   "home.heroTitle1": "Company verification",
-  "home.heroTitle2": "with one click",
+  "home.heroTitle2": "in one report",
   "home.heroSubtitle": "Enter a company ID and get a complete PDF report with forensic assessment, financial analysis and Verifa Score — in minutes, not hours.",
   "home.heroCtaRegister": "Sign up and verify for free →",
   "home.heroHintGuest": "No commitment · Get a credit to verify 1 company on sign-up",
@@ -1543,7 +1544,7 @@ const en: Dict = {
   "home.step1Title": "Enter IČO",
   "home.step1Desc": "Enter the company identification number you want to verify.",
   "home.step2Title": "Verification and assessment",
-  "home.step2Desc": "The system verifies data across all public registries and produces a main assessment with a subjective Verifa Score.",
+  "home.step2Desc": "The system verifies data across all public registries and produces a main assessment with a Verifa Score.",
   "home.step3Title": "Download the report",
   "home.step3Desc": "Download the comprehensive PDF report with all extracts and the assessment in one document.",
 
@@ -1551,7 +1552,7 @@ const en: Dict = {
   "home.navRegistries": "Registries",
   "home.registriesTitle": "Covered registries",
   "home.registriesSubtitle": "All sources in one report, grouped by area.",
-  "home.registriesShow": "View the full list of 20+ searched registries",
+  "home.registriesShow": "View the full list of 25+ searched registries",
   "home.registriesHide": "Hide registry list",
 
   // ── Landing page: Target groups ──
@@ -1578,8 +1579,8 @@ const en: Dict = {
   "home.creditsValidFrom": "— use them anytime.",
 
   // ── Landing page: CTA ──
-  "home.ctaTitle": "Ready to verify your partner?",
-  "home.ctaDesc": "Register and start with a Business Risk Report.",
+  "home.ctaTitle": "Ready to verify a company?",
+  "home.ctaDesc": "Register and get a credit for your first report free.",
 
   // ── Landing page: Footer ──
   "home.footerContact": "Contact",
@@ -2300,9 +2301,9 @@ const de: Dict = {
   "report.patienceBody": "Wir verarbeiten umfangreiche Finanzberichte und Jahresabschlüsse.\nBitte schließen Sie diese Seite nicht — der Bericht wird automatisch fertiggestellt.",
 
   // ── Landing page ──
-  "home.badge": "⚡ Business Risk Report in 10 Minuten",
+  "home.badge": "Business Risk Report in 10 Minuten",
   "home.heroTitle1": "Unternehmensprüfung",
-  "home.heroTitle2": "mit einem Klick",
+  "home.heroTitle2": "in einem Bericht",
   "home.heroSubtitle": "Geben Sie eine Firmen-ID ein und erhalten Sie einen vollständigen PDF-Bericht mit forensischer Bewertung, Finanzanalyse und Verifa Score — in Minuten, nicht in Stunden.",
   "home.heroCtaRegister": "Registrieren und kostenlos prüfen →",
   "home.heroHintGuest": "Ohne Verpflichtung · Bei Registrierung erhalten Sie ein Guthaben zur Prüfung von 1 Firma",
@@ -2352,7 +2353,7 @@ const de: Dict = {
   "home.step1Title": "IČO eingeben",
   "home.step1Desc": "Geben Sie die Identifikationsnummer der Firma ein, die Sie prüfen möchten.",
   "home.step2Title": "Verifizierung und Gutachten",
-  "home.step2Desc": "Das System verifiziert Daten in allen öffentlichen Registern und erstellt ein Hauptgutachten mit subjektivem Verifa Score.",
+  "home.step2Desc": "Das System verifiziert Daten in allen öffentlichen Registern und erstellt ein Hauptgutachten mit Verifa Score.",
   "home.step3Title": "Bericht herunterladen",
   "home.step3Desc": "Laden Sie den umfassenden PDF-Bericht mit allen Auszügen und dem Gutachten in einem Dokument herunter.",
 
@@ -2360,7 +2361,7 @@ const de: Dict = {
   "home.navRegistries": "Register",
   "home.registriesTitle": "Abgedeckte Register",
   "home.registriesSubtitle": "Alle Quellen in einem Bericht, nach Bereich gruppiert.",
-  "home.registriesShow": "Vollständige Liste der 20+ durchsuchten Register anzeigen",
+  "home.registriesShow": "Vollständige Liste der 25+ durchsuchten Register anzeigen",
   "home.registriesHide": "Registerliste ausblenden",
 
   // ── Landing page: Target groups ──
@@ -2387,8 +2388,8 @@ const de: Dict = {
   "home.creditsValidFrom": "— nutzen Sie es jederzeit.",
 
   // ── Landing page: CTA ──
-  "home.ctaTitle": "Bereit, Ihren Partner zu prüfen?",
-  "home.ctaDesc": "Registrieren Sie sich und starten Sie mit einem Business Risk Report.",
+  "home.ctaTitle": "Bereit, ein Unternehmen zu prüfen?",
+  "home.ctaDesc": "Registrieren Sie sich und erhalten Sie ein Guthaben für Ihren ersten Bericht kostenlos.",
 
   // ── Landing page: Footer ──
   "home.footerContact": "Kontakt",

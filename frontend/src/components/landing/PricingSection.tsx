@@ -41,7 +41,9 @@ export default function PricingSection() {
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
                 {plan.isSubscription
                   ? t("pricing.mesiacne", { n: plan.reports, price: plan.pricePerReport })
-                  : t("pricing.reportovZaReport", { n: plan.reports, price: plan.pricePerReport })}
+                  : plan.reports === 1
+                    ? t("pricing.reportZaReport", { price: plan.pricePerReport })
+                    : t("pricing.reportovZaReport", { n: plan.reports, price: plan.pricePerReport })}
               </p>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 18 }}>&nbsp;</p>
               <Link href="/register" style={{ display: "block", textAlign: "center", background: plan.highlight ? "var(--accent)" : "var(--surface-hover)", color: plan.highlight ? "var(--accent-button-text)" : "var(--text)", border: plan.highlight ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 18 }}>
