@@ -73,28 +73,25 @@ export default function RoiSection() {
           </div>
         </div>
 
-        {/* Results */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-xl p-5 text-center" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
-            <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>{t("home.roiManual")}</p>
-            <p className="text-2xl font-black" style={{ color: "var(--text)" }}>{manualCost.toFixed(0)} €</p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{manualMinutes} min</p>
+        {/* Results — compact inline */}
+        <div className="flex items-stretch gap-3 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+          <div className="flex-1 p-3 text-center" style={{ background: "var(--bg-muted)" }}>
+            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("home.roiManual")}</p>
+            <p className="text-xl font-black" style={{ color: "var(--text)" }}>{manualCost.toFixed(0)} €</p>
+            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{manualMinutes} min</p>
           </div>
-          <div className="rounded-xl p-5 text-center" style={{ background: "var(--accent-light)", border: "1px solid var(--accent-border)" }}>
-            <p className="text-xs mb-2" style={{ color: "var(--accent)" }}>{t("home.roiVerifa")}</p>
-            <p className="text-2xl font-black" style={{ color: "var(--accent)" }}>{verifaCost} €</p>
-            <p className="text-xs mt-1" style={{ color: "var(--accent)" }}>~{VERIFA_MINUTES} min</p>
+          <div className="flex-1 p-3 text-center" style={{ background: "var(--accent-light)" }}>
+            <p className="text-[11px]" style={{ color: "var(--accent)" }}>{t("home.roiVerifa")}</p>
+            <p className="text-xl font-black" style={{ color: "var(--accent)" }}>{verifaCost} €</p>
+            <p className="text-[11px]" style={{ color: "var(--accent)" }}>~{VERIFA_MINUTES} min</p>
           </div>
-        </div>
-
-        {/* Savings highlight */}
-        <div className="mt-4 rounded-xl p-5 text-center" style={{ background: "var(--success-bg)", border: "1px solid var(--success)" }}>
-          <p className="text-sm" style={{ color: "var(--success)" }}>{t("home.roiSavings")}</p>
-          <p className="text-3xl font-black mt-1" style={{ color: "var(--success)" }}>
-            {savings > 0 ? `${savings.toFixed(0)} €` : "0 €"}
-            <span className="text-base font-semibold ml-2">({savingsPct}%)</span>
-          </p>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{t("home.roiPerReport")}</p>
+          <div className="flex-1 p-3 text-center" style={{ background: "var(--success-bg)" }}>
+            <p className="text-[11px]" style={{ color: "var(--success)" }}>{t("home.roiSavings")}</p>
+            <p className="text-xl font-black" style={{ color: "var(--success)" }}>
+              {savings > 0 ? `${savings.toFixed(0)} €` : "0 €"}
+            </p>
+            <p className="text-[11px]" style={{ color: "var(--success)" }}>({savingsPct}%)</p>
+          </div>
         </div>
       </div>
 
