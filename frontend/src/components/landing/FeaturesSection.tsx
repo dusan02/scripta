@@ -7,9 +7,9 @@ export default function FeaturesSection() {
 
   return (
     <section id="funkcie" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }} className="section-pad">
-      <div style={{ textAlign: "center", marginBottom: 60 }}>
-        <h2 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>{t("home.featuresTitle")}</h2>
-        <p style={{ fontSize: 17, color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto" }}>{t("home.featuresSubtitle")}</p>
+      <div style={{ textAlign: "center", marginBottom: 56 }}>
+        <h2 style={{ fontSize: "clamp(24px, 3.5vw, 34px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 14 }}>{t("home.featuresTitle")}</h2>
+        <p style={{ fontSize: 15, color: "var(--text-secondary)", maxWidth: 580, margin: "0 auto" }}>{t("home.featuresSubtitle")}</p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }} className="features-grid">
@@ -18,14 +18,14 @@ export default function FeaturesSection() {
           { icon: "📊", title: t("home.feature2Title"), desc: t("home.feature2Desc") },
           { icon: "📋", title: t("home.feature3Title"), desc: t("home.feature3Desc") },
         ].map((col) => (
-          <div key={col.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+          <div key={col.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, flexShrink: 0 }}>
                 {col.icon}
               </div>
-              <h3 style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.3 }}>{col.title}</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3 }}>{col.title}</h3>
             </div>
-            <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.6 }}>{col.desc}</p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>{col.desc}</p>
           </div>
         ))}
       </div>
