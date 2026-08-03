@@ -38,7 +38,7 @@ const REGISTRY_GROUPS = [
 
 export default function RegistriesSection() {
   const t = useT();
-  const [showRegistries, setShowRegistries] = useState(true);
+  const [showRegistries, setShowRegistries] = useState(false);
 
   return (
     <section id="registre" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }} className="section-pad">
