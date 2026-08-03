@@ -69,7 +69,7 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>8. Kredity a refundácie</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            <strong>Skúšobný kredit.</strong> Pri registrácii používateľ dostáva 1 skúšobný kredit na overenie firmy. Skúšobný kredit je platný 30 dní od pridelenia.
+            <strong>Skúšobný kredit.</strong> Pri registrácii používateľ dostáva 1 skúšobný kredit na overenie firmy. Skúšobný kredit neexpiruje — použite ho kedykoľvek.
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
             <strong>Jednorazové balíky.</strong> Služba ponúka jednorazové nákupy kreditov (1×, 10×, 50× Report). Platenie prebieha cez Paddle (Merchant of Record), ktorý zabezpečuje fakturáciu a odvod DPH. Kredity zakúpené jednorazovo <strong>neexpirujú</strong> — použite ich kedykoľvek.

@@ -118,7 +118,7 @@ export default function PrivacyPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>9. Prenos údajov do tretích krajín</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Údaje sú uložené na serveroch v Európskej únii. Platobné spracúvanie zabezpečuje Stripe, ktoré môže spracúvať údaje mimo EHP v súlade so Standard Contractual Clauses (SCC). Žiadne iné prenosy do tretích krajín neprebiehajú.
+            Údaje sú uložené na serveroch v Európskej únii. Platobné spracúvanie zabezpečuje Paddle (Merchant of Record), ktoré môže spracúvať údaje mimo EHP v súlade so Standard Contractual Clauses (SCC). Žiadne iné prenosy do tretích krajín neprebiehajú.
           </p>
         </section>
 
@@ -138,7 +138,7 @@ export default function PrivacyPage() {
 
         <section>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 32 }}>
-            Posledná aktualizácia: 14. júla 2026
+            Posledná aktualizácia: {new Date().toLocaleDateString("sk-SK")}.
           </p>
         </section>
       </div>
