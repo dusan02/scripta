@@ -15,8 +15,8 @@
     --light-border-strong: #d4d4d8;
     --light-text: #09090b;
     --light-text-secondary: #52525b;
-    --light-text-muted: #a1a1aa;
-    --light-text-placeholder: #d4d4d8;
+    --light-text-muted: #71717a;
+    --light-text-placeholder: #a1a1aa;
 
     --light-accent: #5b9279;
     --light-accent-light: #f0f7f4;
@@ -51,7 +51,7 @@
     --dark-border-strong: #52525b;
     --dark-text: #a1a1aa;
     --dark-text-secondary: #8b8b94;
-    --dark-text-muted: #71717a;
+    --dark-text-muted: #9b9ba4;
     --dark-text-placeholder: #52525b;
 
     --dark-accent: #7bb095;

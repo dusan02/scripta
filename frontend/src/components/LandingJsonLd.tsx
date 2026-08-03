@@ -20,33 +20,15 @@ const landingJsonLd = {
         },
         {
           "@type": "Offer",
-          price: "59.00",
+          price: "89.00",
           priceCurrency: "EUR",
-          description: "5× Report — 5 reportov jednorazovo",
+          description: "10× Report — 10 reportov jednorazovo",
         },
         {
           "@type": "Offer",
-          price: "199.00",
+          price: "349.00",
           priceCurrency: "EUR",
-          description: "20× Report — 20 reportov jednorazovo",
-        },
-        {
-          "@type": "Offer",
-          price: "49.00",
-          priceCurrency: "EUR",
-          description: "Freelance — 5 reportov mesačne",
-        },
-        {
-          "@type": "Offer",
-          price: "159.00",
-          priceCurrency: "EUR",
-          description: "Firma — 20 reportov mesačne",
-        },
-        {
-          "@type": "Offer",
-          price: "289.00",
-          priceCurrency: "EUR",
-          description: "Korporát — 40 reportov mesačne",
+          description: "50× Report — 50 reportov jednorazovo",
         },
       ],
       provider: {
@@ -71,7 +53,7 @@ const landingJsonLd = {
           name: "Koľko stojí Verifa.sk report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Ponúkame šesť plánov: 1× Report (1 report za 14 € jednorazovo), 5× Report (5 reportov za 59 € jednorazovo), 20× Report (20 reportov za 199 € jednorazovo), Freelance (5 reportov za 49 €/mesiac), Firma (20 reportov za 159 €/mesiac) a Korporát (40 reportov za 289 €/mesiac). Pri registrácii dostanete 1 skúšobný kredit zadarmo na 30 dní."
+            text: "Ponúkame tri balíčky: 1× Report (1 report za 14 € jednorazovo), 10× Report (10 reportov za 89 € jednorazovo) a 50× Report (50 reportov za 349 € jednorazovo). Pri registrácii dostanete 1 skúšobný kredit zadarmo. Kredity neexpirujú."
           },
         },
         {
@@ -79,7 +61,7 @@ const landingJsonLd = {
           name: "Aké registre sa kontrolujú v reporte?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Report kontroluje 20+ verejných a privátnych registrov vrátane Obchodného registra (ORSR), Živnostenského registra (ZRSR), insolvenčných registrov, registrov daňových dlžníkov, DPH registrov, Obchodného vestníka, RÚZ finančných výkazov a ďalších.",
+            text: "Report kontroluje 25+ verejných registrov vrátane Obchodného registra (ORSR), Živnostenského registra (ZRSR), insolvenčných registrov, registrov daňových dlžníkov, DPH registrov, Obchodného vestníka, RÚZ finančných výkazov a ďalších.",
           },
         },
         {

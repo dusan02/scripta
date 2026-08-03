@@ -15,7 +15,10 @@ export default function FaqSection() {
         {[
           { q: t("home.faq1q"), a: t("home.faq1a") },
           { q: t("home.faq2q"), a: t("home.faq2a") },
+          { q: t("home.faq8q"), a: t("home.faq8a") },
           { q: t("home.faq3q"), a: t("home.faq3a") },
+          { q: t("home.faq6q"), a: t("home.faq6a") },
+          { q: t("home.faq7q"), a: t("home.faq7a") },
           { q: t("home.faq5q"), a: t("home.faq5a") },
         ].map((item, i) => (
           <div key={i} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 22 }}>
