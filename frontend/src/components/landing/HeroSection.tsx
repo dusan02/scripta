@@ -7,7 +7,7 @@ export default function HeroSection() {
   const t = useT();
 
   return (
-    <section className="relative overflow-hidden pt-35 pb-20 hero-pad">
+    <section className="relative overflow-hidden pt-28 pb-20 hero-pad">
       <div className="absolute -top-50 -right-25 w-125 h-125 rounded-full opacity-[0.06] blur-[80px]" style={{ background: "var(--accent)" }} />
       <div className="absolute top-25 -left-38 w-100 h-100 rounded-full opacity-[0.04] blur-[60px]" style={{ background: "var(--accent)" }} />
 
