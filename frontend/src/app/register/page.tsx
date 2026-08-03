@@ -184,6 +184,22 @@ export default function RegisterPage() {
             )}
           </div>
 
+          {/* Consent checkbox */}
+          <div className="flex items-start gap-2" style={{ marginTop: "4px" }}>
+            <input
+              id="register-consent"
+              type="checkbox"
+              required
+              style={{ marginTop: 3, flexShrink: 0 }}
+            />
+            <label htmlFor="register-consent" className="text-[12px]" style={{ color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              Súhlasím s{" "}
+              <a href="/terms" style={{ color: "var(--accent)", textDecoration: "none" }}>podmienkami používania</a>,{" "}
+              <a href="/privacy" style={{ color: "var(--accent)", textDecoration: "none" }}>zásadami ochrany osobných údajov</a> a{" "}
+              <a href="/dpa" style={{ color: "var(--accent)", textDecoration: "none" }}>dohodou o spracúvaní údajov (DPA)</a>.
+            </label>
+          </div>
+
           {/* Submit */}
           <button
             id="register-submit-btn"
