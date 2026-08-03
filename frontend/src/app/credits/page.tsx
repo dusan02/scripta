@@ -155,6 +155,29 @@ export default function CreditsPage() {
         </p>
       </div>
 
+      {/* Progress bar */}
+      {data.totalCredits > 0 && (
+        <div className="mb-8">
+          <div className="flex justify-between items-baseline mb-2">
+            <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+              {t("plan.zostava")}: {data.remaining} / {data.totalCredits}
+            </span>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              {Math.round((data.successfulReports / data.totalCredits) * 100)}% {t("plan.vyuzite")}
+            </span>
+          </div>
+          <div className="h-3 rounded-full overflow-hidden" style={{ background: "var(--bg-muted)" }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${(data.remaining / data.totalCredits) * 100}%`,
+                background: "var(--accent)",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {/* Remaining — most prominent */}
