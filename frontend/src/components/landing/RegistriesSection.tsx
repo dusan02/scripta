@@ -49,6 +49,7 @@ export default function RegistriesSection() {
 
       <div style={{ textAlign: "center", marginBottom: showRegistries ? 36 : 0 }}>
         <button
+          type="button"
           onClick={() => setShowRegistries((v) => !v)}
           style={{
             background: "var(--surface)",

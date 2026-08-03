@@ -37,6 +37,7 @@ export default function FaqSection() {
               }}
             >
               <button
+                type="button"
                 onClick={() => setOpenIndex(isOpen ? null : i)}
                 style={{
                   width: "100%",
