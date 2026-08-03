@@ -29,10 +29,8 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
       setTheme(stored);
       document.documentElement.setAttribute("data-theme", stored);
     } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const resolved: Theme = prefersDark ? "dark" : "light";
-      setTheme(resolved);
-      document.documentElement.setAttribute("data-theme", resolved);
+      setTheme("light");
+      document.documentElement.setAttribute("data-theme", "light");
     }
   }, []);
 

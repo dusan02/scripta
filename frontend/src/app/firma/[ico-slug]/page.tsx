@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
 import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable } from "@/components/firma-ui";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { CompanyHeader } from "@/components/company-header";
 import { CompanyPersons } from "@/components/company-persons";
 import { ReportCTA } from "@/components/report-cta";
@@ -130,6 +131,7 @@ export default async function CompanyPage({ params }: Params) {
             <Logo size="sm" />
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle size="sm" />
             <Link
               href={`/dashboard?ico=${company.ico}`}
               className="text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-lg transition-all hover:scale-105"
