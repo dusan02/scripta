@@ -5,12 +5,14 @@ import LandingNav from "@/components/landing/LandingNav";
 import HeroSection from "@/components/landing/HeroSection";
 import FeaturesSection from "@/components/landing/FeaturesSection";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import RoiSection from "@/components/landing/RoiSection";
 import RegistriesSection from "@/components/landing/RegistriesSection";
 import TargetSection from "@/components/landing/TargetSection";
 import SampleReportSection from "@/components/landing/SampleReportSection";
 import FaqSection from "@/components/landing/FaqSection";
 import PricingSection from "@/components/landing/PricingSection";
 import CtaSection from "@/components/landing/CtaSection";
+import StickyCta from "@/components/landing/StickyCta";
 import LandingFooter from "@/components/landing/LandingFooter";
 
 export default function LandingPage() {
@@ -43,12 +45,14 @@ export default function LandingPage() {
       <HeroSection />
       <FeaturesSection />
       <HowItWorksSection />
+      <RoiSection />
       <RegistriesSection />
       <TargetSection />
       <SampleReportSection />
       <FaqSection />
       <PricingSection />
       <CtaSection />
+      <StickyCta />
       <LandingFooter />
     </div>
   );

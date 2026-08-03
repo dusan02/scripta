@@ -34,9 +34,22 @@ export default function HeroSection() {
           </Link>
         </div>
 
-        <p className="text-[13px] mb-9" style={{ color: "var(--text-muted)" }}>
+        <p className="text-[13px] mb-3" style={{ color: "var(--text-muted)" }}>
           {t("home.heroHintGuest")}
         </p>
+
+        {/* Trust badges */}
+        <div className="flex gap-5 justify-center flex-wrap mb-9 text-[12px]" style={{ color: "var(--text-muted)" }}>
+          <span className="flex items-center gap-1.5">
+            <span style={{ color: "var(--accent)" }}>✓</span> {t("home.trustGdpr")}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span style={{ color: "var(--accent)" }}>✓</span> {t("home.trustNoCommitment")}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span style={{ color: "var(--accent)" }}>✓</span> {t("home.trustFreeReport")}
+          </span>
+        </div>
 
         <div className="mt-8 flex gap-8 justify-center flex-wrap hero-stats">
           {[
