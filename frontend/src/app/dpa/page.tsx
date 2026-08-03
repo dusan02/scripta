@@ -32,7 +32,7 @@ export default function DpaPage() {
             Česká republika<br />
             IČ: 06119859<br />
             (nie je platca DPH)<br />
-            E-mail: <a href="mailto:dusan_baran@hotmail.com" style={{ color: "var(--accent)", textDecoration: "none" }}>dusan_baran@hotmail.com</a><br />
+            E-mail: <a href="mailto:info@verifa.sk" style={{ color: "var(--accent)", textDecoration: "none" }}>info@verifa.sk</a><br />
             Tel: +421 949 718 320
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
@@ -110,7 +110,7 @@ export default function DpaPage() {
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 8 }}>
             Dušan Baran<br />
-            E-mail: <a href="mailto:dusan_baran@hotmail.com" style={{ color: "var(--accent)", textDecoration: "none" }}>dusan_baran@hotmail.com</a><br />
+            E-mail: <a href="mailto:info@verifa.sk" style={{ color: "var(--accent)", textDecoration: "none" }}>info@verifa.sk</a><br />
             Tel: +421 949 718 320
           </p>
         </section>
