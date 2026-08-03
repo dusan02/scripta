@@ -269,10 +269,12 @@ export default function CreditsPage() {
         </div>
       )}
 
-      {/* Period info */}
-      <div className="text-center mb-6 text-xs" style={{ color: "var(--text-muted)" }}>
-        {t("plan.obdobie")}: {periodStart} — {periodEnd}
-      </div>
+      {/* Period info — only for subscription users */}
+      {data.periodStart && data.periodEnd && (
+        <div className="text-center mb-6 text-xs" style={{ color: "var(--text-muted)" }}>
+          {t("plan.obdobie")}: {periodStart} — {periodEnd}
+        </div>
+      )}
 
       {/* Credit expiry info */}
       <div className="card p-6 mb-6">
