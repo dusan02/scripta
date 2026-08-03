@@ -45,6 +45,7 @@ export default function LandingFooter() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <a href="/terms" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</a>
               <a href="/privacy" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerPrivacy")}</a>
+              <a href="/dpa" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>DPA</a>
             </div>
           </div>
         </div>

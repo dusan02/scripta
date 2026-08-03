@@ -41,7 +41,7 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>4. Ochrana osobných údajov (GDPR)</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Spracúvame osobné údaje v súlade s nariadením GDPR. Údaje získavané zo štátnych registrov sú verejne dostupné. Používateľ má právo na prístup k svojim údajom, ich opravu alebo vymazanie. Viac informácií nájdete v našich <a href="/privacy" style={{ color: "var(--accent)", textDecoration: "none" }}>Zásadoch ochrany osobných údajov</a>.
+            Spracúvame osobné údaje v súlade s nariadením GDPR. Údaje získavané zo štátnych registrov sú verejne dostupné. Používateľ má právo na prístup k svojim údajom, ich opravu alebo vymazanie. Viac informácií nájdete v našich <a href="/privacy" style={{ color: "var(--accent)", textDecoration: "none" }}>Zásadoch ochrany osobných údajov</a> a v <a href="/dpa" style={{ color: "var(--accent)", textDecoration: "none" }}>Dohode o spracúvaní osobných údajov (DPA)</a>.
           </p>
         </section>
 
