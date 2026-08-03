@@ -20,7 +20,7 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>1. Úvod</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Tieto podmienky používania (ďalej len „Podmienky“) upravujú prístup a používanie služby Verifa.sk (ďalej len „Služba“), ktorú prevádzkuje Verifa.sk. Používaním Služby vyjadrujete súhlas s týmito Podmienkami.
+            Tieto podmienky používania (ďalej len „Podmienky&ldquo;) upravujú prístup a používanie služby Verifa.sk (ďalej len „Služba&ldquo;), ktorú prevádzkuje Verifa.sk. Používaním Služby vyjadrujete súhlas s týmito Podmienkami.
           </p>
         </section>
 
@@ -41,7 +41,7 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>4. Ochrana osobných údajov (GDPR)</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Spracúvame osobné údaje v súlade s nariadením GDPR. Údaje získavané zo štátnych registrov sú verejne dostupné. Používateľ má právo na prístup k svojim údajom, ich opravu alebo vymazanie. Viac informácií nájdete v našich <a href="/privacy" style={{ color: "var(--accent)", textDecoration: "none" }}>Zásadoch ochrany osobných údajov</a>. Pre firemných zákazníkov je k dispozícii aj <a href="/dpa" style={{ color: "var(--accent)", textDecoration: "none" }}>Spracovateľská zmluva (DPA)</a>.
+            Spracúvame osobné údaje v súlade s nariadením GDPR. Údaje získavané zo štátnych registrov sú verejne dostupné. Používateľ má právo na prístup k svojim údajom, ich opravu alebo vymazanie. Viac informácií nájdete v našich <a href="/privacy" style={{ color: "var(--accent)", textDecoration: "none" }}>Zásadoch ochrany osobných údajov</a>.
           </p>
         </section>
 
@@ -55,33 +55,33 @@ export default function TermsPage() {
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>6. Verifa Score</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa Score je subjektívne hodnotenie vypočítané na základe vlastných algoritmov aplikácie. Skóre (0-100) a kategória rizika (AAA/A/B/C) sú výhradne informatívne a slúžia ako pomocný nástroj pre používateľa. Verifa Score nezastupuje profesionálne právne, finančné ani daňové posúdenie a nemôže byť použité ako jediný podklad pre rozhodovanie. Verifa.sk nezodpovedá za dôsledky rozhodnutí urobených na základe Verifa Score.
+            Verifa Score je hodnotenie vypočítané na základe vlastných algoritmov aplikácie. Skóre (0–100) a kategória rizika (AAA/A/B/C) sú výhradne informatívne a slúžia ako pomocný nástroj pre používateľa. Verifa Score nezastupuje profesionálne právne, finančné ani daňové posúdenie a nemôže byť použité ako jediný podklad pre rozhodovanie. Verifa.sk nezodpovedá za dôsledky rozhodnutí urobených na základe Verifa Score.
           </p>
         </section>
 
         <section>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>7. Vylúčenie zodpovednosti</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Služba je poskytovaná „tak, ako je“, bez akejkoľvek záruky. Verifa.sk nenahrádza právne, daňové ani iné profesionálne poradenstvo. Verifa.sk nezodpovedá za žiadne škody vyplývajúce z používania alebo nemožnosti použiť Službu.
+            Služba je poskytovaná „tak, ako je&ldquo;, bez akejkoľvek záruky. Verifa.sk nenahrádza právne, daňové ani iné profesionálne poradenstvo. Verifa.sk nezodpovedá za žiadne škody vyplývajúce z používania alebo nemožnosti použiť Službu.
           </p>
         </section>
 
         <section>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>8. Kredity, predplatné a refundácie</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>8. Kredity a refundácie</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            <strong>Skúšobný kredit.</strong> Pri registrácii používateľ dostáva 1 skúšobný kredit na 30 dní. Po uplynutí skúšobného obdobia bez zakúpenia plánu používateľ stratí prístup k vytváraniu reportov.
+            <strong>Skúšobný kredit.</strong> Pri registrácii používateľ dostáva 1 skúšobný kredit na overenie firmy. Skúšobný kredit je platný 30 dní od pridelenia.
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-            <strong>Predplatné a plány.</strong> Služba ponúka mesačné predplatné (Freelance, Firma, Korporát) a jednorazové nákupy (Štart, dokúpenie kreditov). Platenie prebieha cez Stripe. Predplatné sa obnovuje automaticky každý mesiac, pokiaľ nie je zrušené.
+            <strong>Jednorazové balíky.</strong> Služba ponúka jednorazové nákupy kreditov (1×, 10×, 50× Report). Platenie prebieha cez Paddle (Merchant of Record), ktorý zabezpečuje fakturáciu a odvod DPH. Kredity zakúpené jednorazovo <strong>neexpirujú</strong> — použite ich kedykoľvek.
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-            <strong>Platnosť kreditov.</strong> Skúšobné (trial) kredity majú platnosť <strong>30 dní</strong>. Kredity z predplatného majú platnosť <strong>60 dní</strong> (rollover okno). Jednorazovo zakúpené kredity (addon) sú <strong>trvalé</strong>. Po uplynutí lehoty sa nevyužité kredity automaticky vymažú. Kredity sa čerpajú v poradí FIFO (najstaršie kredity sa minú ako prvé).
+            <strong>Čerpanie.</strong> Kredity sa čerpajú v poradí FIFO (najstaršie kredity sa minú ako prvé). Jeden kredit = jeden vygenerovaný report.
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-            <strong>Zrušenie predplatného.</strong> Používateľ môže zrušiť predplatné kedykoľvek. Po zrušení zostávajú nevyužité kredity dostupné do konca aktuálneho fakturačného obdobia. Po jeho uplynutí sa všetky zostávajúce kredity vynulujú.
+            <strong>Refundácia.</strong> Ak sa report nepodarí vygenerovať z dôvodu technického výpadku registrov alebo chyby systému, kredit sa automaticky vráti. Ak report zlyhá kvôli neexistujúcemu IČO alebo chybe používateľa, kredit sa nevracia.
           </p>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-            <strong>Refundácie.</strong> Ak sa nepodarí získať dáta z plateného zdroja, kredity za tento zdroj budú vrátené. Pri zlyhaní spracovania reportu na strane systému sa kredit automaticky vráti.
+            <strong>Platobné metódy.</strong> Akceptujeme platby kartou (Visa, Mastercard, American Express), Apple Pay, Google Pay, PayPal a SEPA bankový prevod prostredníctvom Paddle.
           </p>
         </section>
 
@@ -101,7 +101,7 @@ export default function TermsPage() {
 
         <section>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 32 }}>
-            Posledná aktualizácia: 7. júla 2026
+            Posledná aktualizácia: {new Date().toLocaleDateString("sk-SK")}.
           </p>
         </section>
       </div>

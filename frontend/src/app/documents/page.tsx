@@ -107,22 +107,7 @@ export default function DocumentsPage() {
         <p className="text-sm sm:text-base" style={{ color: "var(--text-secondary)" }}>{t("docs.subtitle")}</p>
       </div>
 
-      {/* User Manual */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>{t("docs.manualTitle")}</h2>
-        <DocCard
-          icon={<FileIcon size={28} />}
-          title={t("docs.manualTitle")}
-          description={t("docs.manualDesc")}
-          status="available"
-        >
-          <DownloadButton href="/documents/verifa-manual-sk.pdf" label={t("docs.downloadSK")} />
-          <DownloadButton href="/documents/verifa-manual-en.pdf" label={t("docs.downloadEN")} />
-          <DownloadButton href="/documents/verifa-manual-de.pdf" label={t("docs.downloadDE")} />
-        </DocCard>
-      </div>
-
-      {/* Sample Reports */}
+      {/* Sample Reports — first */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>{t("docs.samplesTitle")}</h2>
         <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>{t("docs.samplesDesc")}</p>
@@ -164,6 +149,21 @@ export default function DocumentsPage() {
             <DownloadButton href="/samples/bardejovske-kupele.pdf" label="PDF" />
           </DocCard>
         </div>
+      </div>
+
+      {/* User Manual */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>{t("docs.manualTitle")}</h2>
+        <DocCard
+          icon={<FileIcon size={28} />}
+          title={t("docs.manualTitle")}
+          description={t("docs.manualDesc")}
+          status="available"
+        >
+          <DownloadButton href="/documents/verifa-manual-sk.pdf" label={t("docs.downloadSK")} />
+          <DownloadButton href="/documents/verifa-manual-en.pdf" label={t("docs.downloadEN")} />
+          <DownloadButton href="/documents/verifa-manual-de.pdf" label={t("docs.downloadDE")} />
+        </DocCard>
       </div>
 
       {/* Legal Documents */}

@@ -10,7 +10,7 @@ const VERIFA_MINUTES = 8;
 export default function RoiSection() {
   const t = useT();
   const [hours, setHours] = useState(2.5);
-  const [rate, setRate] = useState(60);
+  const [rate, setRate] = useState(35);
 
   const manualCost = hours * rate;
   const verifaCost = VERIFA_PRICE;
@@ -59,9 +59,9 @@ export default function RoiSection() {
           <div className="flex items-center gap-4">
             <input
               type="range"
-              min="20"
-              max="200"
-              step="10"
+              min="15"
+              max="50"
+              step="5"
               value={rate}
               onChange={(e) => setRate(parseInt(e.target.value))}
               className="flex-1"
