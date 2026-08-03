@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+});
 import NavWrapper from "@/components/NavWrapper";
 import ThemeProvider from "@/components/ThemeProvider";
 import { LanguageProvider } from "@/components/LanguageProvider";
@@ -80,7 +87,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="sk" suppressHydrationWarning className={GeistSans.className}>
+    <html lang="sk" suppressHydrationWarning className={inter.variable}>
       <head>
         {/* No-flash theme script — must run before any rendering */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
