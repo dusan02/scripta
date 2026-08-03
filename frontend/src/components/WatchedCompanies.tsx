@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { TrashIcon, SpinnerIcon, PlusIcon, BellIcon } from "@/components/icons";
+import { TrashIcon, SpinnerIcon, PlusIcon, BellIcon, EditIcon, CheckIcon, CloseIcon } from "@/components/icons";
 
 interface WatchedCompany {
   id: string;
@@ -32,6 +32,9 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
   const [newNote, setNewNote] = useState("");
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -101,6 +104,39 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
     }
   }, []);
 
+  const startEdit = (w: WatchedCompany) => {
+    setEditingId(w.id);
+    setEditNote(w.note || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditNote("");
+  };
+
+  const saveEdit = useCallback(async (id: string) => {
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/watched-companies/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: editNote.trim() || undefined }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWatched((prev) => prev.map((w) => (w.id === id ? data.watched : w)));
+        toast.success("Poznámka bola uložená");
+        cancelEdit();
+      } else {
+        toast.error("Chyba pri ukladaní");
+      }
+    } catch {
+      toast.error("Chyba pri ukladaní");
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editNote]);
+
   const markAlertRead = useCallback(async (alertId: string) => {
     try {
       await fetch(`/api/alert-events/${alertId}/read`, { method: "PATCH" });
@@ -141,6 +177,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
               type="text"
               value={newIco}
               onChange={(e) => setNewIco(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !adding && handleAdd()}
               placeholder="IČO (8 čísel)"
               className="flex-1 px-3 py-2 text-sm rounded-lg focus:outline-none"
               style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
@@ -150,6 +187,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
               type="text"
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !adding && handleAdd()}
               placeholder="Poznámka (voliteľné)"
               className="flex-1 px-3 py-2 text-sm rounded-lg focus:outline-none"
               style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
@@ -167,37 +205,100 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
           </div>
         </div>
 
-        {/* Watched list */}
+        {/* Watched list — table */}
         {watched.length === 0 ? (
           <div className="px-5 py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
             Zatiaľ nesledujete žiadne firmy. Pridajte firmu zadaním IČO vyššie.
           </div>
         ) : (
-          <div>
-            {watched.map((w, i) => (
-              <div key={w.id} className="px-5 py-3 flex items-center gap-3" style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}>
-                <Link
-                  href={`/firma/${w.companyId}`}
-                  className="text-sm font-medium hover:underline"
-                  style={{ color: "var(--accent)" }}
-                >
-                  {w.companyId}
-                </Link>
-                {w.note && (
-                  <span className="text-sm truncate" style={{ color: "var(--text-muted)" }}>— {w.note}</span>
-                )}
-                <button
-                  onClick={() => handleRemove(w.id)}
-                  disabled={removing === w.id}
-                  className="ml-auto disabled:opacity-50"
-                  style={{ color: "var(--text-muted)" }}
-                  title="Prestať sledovať"
-                >
-                  {removing === w.id ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
-                </button>
-              </div>
-            ))}
-          </div>
+          <table className="w-full" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                <th className="text-left py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>IČO</th>
+                <th className="text-left py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Poznámka</th>
+                <th className="text-right py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Akcie</th>
+              </tr>
+            </thead>
+            <tbody>
+              {watched.map((w) => (
+                <tr key={w.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td className="py-3 px-4">
+                    <Link
+                      href={`/firma/${w.companyId}`}
+                      className="text-sm font-medium hover:underline"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      {w.companyId}
+                    </Link>
+                  </td>
+                  <td className="py-3 px-4">
+                    {editingId === w.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editNote}
+                          onChange={(e) => setEditNote(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !savingEdit) saveEdit(w.id);
+                            if (e.key === "Escape") cancelEdit();
+                          }}
+                          placeholder="Pridať poznámku..."
+                          className="flex-1 px-2 py-1 text-sm rounded-lg focus:outline-none"
+                          style={{ background: "var(--surface)", border: "1px solid var(--accent)", color: "var(--text)" }}
+                          maxLength={500}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => saveEdit(w.id)}
+                          disabled={savingEdit}
+                          className="p-1.5 rounded-lg"
+                          style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+                          title="Uložiť"
+                        >
+                          {savingEdit ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="p-1.5 rounded-lg"
+                          style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}
+                          title="Zrušiť"
+                        >
+                          <CloseIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-sm" style={{ color: w.note ? "var(--text-secondary)" : "var(--text-muted)" }}>
+                        {w.note || "—"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex items-center justify-end gap-2">
+                      {editingId !== w.id && (
+                        <button
+                          onClick={() => startEdit(w)}
+                          className="p-1.5 rounded-lg transition-colors"
+                          style={{ color: "var(--text-muted)" }}
+                          title="Upraviť poznámku"
+                        >
+                          <EditIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleRemove(w.id)}
+                        disabled={removing === w.id}
+                        className="p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        style={{ color: "var(--text-muted)" }}
+                        title="Prestať sledovať"
+                      >
+                        {removing === w.id ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
