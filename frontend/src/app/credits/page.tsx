@@ -157,24 +157,29 @@ export default function CreditsPage() {
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        {/* Total credits (paušál) */}
-        <div className="card p-5 flex flex-col items-center text-center">
+        {/* Remaining — most prominent */}
+        <div className="card p-5 flex flex-col items-center text-center" style={{ borderColor: "var(--accent)", borderWidth: 2 }}>
           <div className="flex-1 flex flex-col justify-end mb-3 w-full">
             <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
-              {Array.from({ length: Math.min(data.totalCredits, 40) }).map((_, i) => (
-                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
+              {Array.from({ length: Math.min(data.remaining, 40) }).map((_, i) => (
+                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--accent)" }} />
               ))}
             </div>
           </div>
-          <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>
-            {data.totalCredits}
+          <span className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
+            {data.remaining}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            {t("plan.celkovyPausal")}
+            {t("plan.zostava")}
           </span>
+          {data.rolloverCredits && data.rolloverCredits > 0 && (
+            <span className="text-[10px] mt-0.5" style={{ color: "var(--info)" }}>
+              ({data.rolloverCredits} prenesených)
+            </span>
+          )}
         </div>
 
-        {/* Successful */}
+        {/* Used (successful) */}
         <div className="card p-5 flex flex-col items-center text-center">
           <div className="flex-1 flex flex-col justify-end mb-3 w-full items-center">
             <div
@@ -195,7 +200,7 @@ export default function CreditsPage() {
           </span>
         </div>
 
-        {/* Failed */}
+        {/* Failed (refunded) */}
         <div className="card p-5 flex flex-col items-center text-center">
           <div className="flex-1 flex flex-col justify-end mb-3 w-full items-center">
             <div
@@ -211,31 +216,26 @@ export default function CreditsPage() {
           <span className="text-3xl font-bold" style={{ color: "var(--danger)" }}>
             {data.failedReports}
           </span>
-          <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+          <span className="text-xs mt-1 leading-tight" style={{ color: "var(--text-muted)" }}>
             {t("plan.neuspesne")}
           </span>
         </div>
 
-        {/* Remaining */}
+        {/* Total purchased */}
         <div className="card p-5 flex flex-col items-center text-center">
           <div className="flex-1 flex flex-col justify-end mb-3 w-full">
             <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
-              {Array.from({ length: Math.min(data.remaining, 40) }).map((_, i) => (
-                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--success)" }} />
+              {Array.from({ length: Math.min(data.totalCredits, 40) }).map((_, i) => (
+                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
               ))}
             </div>
           </div>
-          <span className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
-            {data.remaining}
+          <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>
+            {data.totalCredits}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            {t("plan.zostava")}
+            {t("plan.celkovyPausal")}
           </span>
-          {data.rolloverCredits && data.rolloverCredits > 0 && (
-            <span className="text-[10px] mt-0.5" style={{ color: "var(--info)" }}>
-              ({data.rolloverCredits} prenesených)
-            </span>
-          )}
         </div>
       </div>
 
@@ -324,7 +324,9 @@ export default function CreditsPage() {
                 <span className="text-sm" style={{ color: "var(--text-muted)" }}>€</span>
               </div>
               <p className="text-[11px] mb-4" style={{ color: "var(--text-muted)" }}>
-                {t("pricing.reportovZaReport", { n: pkg.reports, price: pkg.pricePerReport })}
+                {pkg.reports === 1
+                  ? t("pricing.reportZaReport", { price: pkg.pricePerReport })
+                  : t("pricing.reportovZaReport", { n: pkg.reports, price: pkg.pricePerReport })}
               </p>
               <button
                 onClick={() => handleCheckout(pkg.id)}

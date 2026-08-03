@@ -630,9 +630,9 @@ const sk: Dict = {
 
   // ── Plan page ──
   "plan.prehlad": "Prehľad vašich reportov a spotreby",
-  "plan.celkovyPausal": "Celkové kredity",
-  "plan.uspesne": "Úspešné reporty",
-  "plan.neuspesne": "Neúspešné reporty",
+  "plan.celkovyPausal": "Celkom zakúpené",
+  "plan.uspesne": "Využité reporty",
+  "plan.neuspesne": "Neúspešné (kredit vrátený)",
   "plan.zostava": "Zostáva kreditov",
   "plan.dniDoObnovenia": "{days} dní do obnovenia",
   "plan.obdobie": "Obdobie",
@@ -1439,9 +1439,9 @@ const en: Dict = {
 
   // ── Plan page ──
   "plan.prehlad": "Overview of your reports and usage",
-  "plan.celkovyPausal": "Total credits",
-  "plan.uspesne": "Successful reports",
-  "plan.neuspesne": "Failed reports",
+  "plan.celkovyPausal": "Total purchased",
+  "plan.uspesne": "Used reports",
+  "plan.neuspesne": "Failed (credit refunded)",
   "plan.zostava": "Remaining credits",
   "plan.dniDoObnovenia": "{days} days until renewal",
   "plan.obdobie": "Period",
@@ -2248,9 +2248,9 @@ const de: Dict = {
 
   // ── Plan page ──
   "plan.prehlad": "Übersicht Ihrer Berichte und Nutzung",
-  "plan.celkovyPausal": "Gesamte Credits",
-  "plan.uspesne": "Erfolgreiche Berichte",
-  "plan.neuspesne": "Fehlgeschlagene Berichte",
+  "plan.celkovyPausal": "Gesamt gekauft",
+  "plan.uspesne": "Verbrauchte Berichte",
+  "plan.neuspesne": "Fehlgeschlagen (Guthaben erstattet)",
   "plan.zostava": "Verbleibende Credits",
   "plan.dniDoObnovenia": "{days} Tage bis zur Erneuerung",
   "plan.obdobie": "Zeitraum",
