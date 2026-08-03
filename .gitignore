@@ -48,3 +48,4 @@ worker/debug_*.png
 worker/test_results/
 .env.bak
 schema.prisma.bak
+worker/=0.23.0
