@@ -29,9 +29,11 @@ export default function PrivacyPage() {
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>2. Prevádzkovateľ</h2>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Prevádzkovateľom služby Verifa.sk je:<br />
-            <strong>Verifa s.r.o.</strong><br />
-            IČO: 12345678<br />
-            Slovenská republika<br />
+            <strong>Dušan Baran</strong><br />
+            Kubelíkova 1258/43<br />
+            130 00 Praha<br />
+            Česká republika<br />
+            IČO: 06119859 (nie je platca DPH)<br />
             Kontakt: <a href="mailto:info@verifa.sk" style={{ color: "var(--accent)", textDecoration: "none" }}>info@verifa.sk</a>
           </p>
         </section>
