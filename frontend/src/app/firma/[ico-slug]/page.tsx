@@ -203,33 +203,29 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Balance Sheet section */}
         {balanceData && balanceData.totalAssets != null && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-8">
-            <div className="lg:col-span-3">
+          <div className="mb-8">
+            <div className="mb-4">
               <ChartCard title="Štruktúra súvahy">
                 <BalanceSankeyChart data={balanceData} />
               </ChartCard>
             </div>
-            <div className="lg:col-span-2 overflow-hidden">
-              <ChartCard title="Súvaha (v tis. €)">
-                <BalanceSheetTable stmts={stmts} />
-              </ChartCard>
-            </div>
+            <ChartCard title="Súvaha (v tis. €)">
+              <BalanceSheetTable stmts={stmts} />
+            </ChartCard>
           </div>
         )}
 
         {/* Profit and Loss section */}
         {chartData.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-8">
-            <div className="lg:col-span-3">
+          <div className="mb-8">
+            <div className="mb-4">
               <ChartCard title="Tržby a zisk v čase">
                 <RevenueProfitChart data={chartData} />
               </ChartCard>
             </div>
-            <div className="lg:col-span-2 overflow-hidden">
-              <ChartCard title="Výkaz ziskov a strát (v tis. €)">
-                <ProfitLossTable stmts={stmts} />
-              </ChartCard>
-            </div>
+            <ChartCard title="Výkaz ziskov a strát (v tis. €)">
+              <ProfitLossTable stmts={stmts} />
+            </ChartCard>
           </div>
         )}
 

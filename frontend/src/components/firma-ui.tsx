@@ -46,25 +46,25 @@ function GenericTable({ stmts, rows, sectionTitle }: { stmts: any[], rows: any[]
   const sorted = [...stmts].sort((a, b) => a.year - b.year);
 
   return (
-    <div className="-mx-1 px-1">
+    <div>
       {sectionTitle && (
         <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
       )}
-      <table className="w-full" style={{ fontSize: 11, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse" }}>
+      <table className="w-full" style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ borderBottom: "2px solid var(--border)" }}>
-            <th className="text-left py-1.5 px-1.5 font-semibold" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
+            <th className="text-left py-2 px-2 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
             {sorted.map(s => (
-              <th key={s.year} className="text-right py-1.5 px-1.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
+              <th key={s.year} className="text-right py-2 px-3 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.key} style={{ borderBottom: "1px solid var(--border)" }}>
-              <td className="py-1.5 px-1.5" style={{ color: "var(--text-secondary)" }}>{row.label}</td>
+              <td className="py-2 px-2 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{row.label}</td>
               {sorted.map(s => (
-                <td key={s.year} className="text-right py-1.5 px-1.5 whitespace-nowrap" style={{ color: "var(--text)", fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace", fontVariantNumeric: "tabular-nums" }}>
+                <td key={s.year} className="text-right py-2 px-3 whitespace-nowrap" style={{ color: "var(--text)", fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace", fontVariantNumeric: "tabular-nums" }}>
                   {fmtNum(s[row.key])}
                 </td>
               ))}
