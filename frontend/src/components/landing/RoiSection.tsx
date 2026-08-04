@@ -47,10 +47,10 @@ export default function RoiSection() {
       </div>
 
       {/* Calculator */}
-      <div className="card p-6 sm:p-8 mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
+      <div className="card p-4 sm:p-5 mb-6" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16 }}>
         {/* Package selector */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>
+        <div className="mb-4">
+          <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text)" }}>
             {t("home.roiPackage")}
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -58,16 +58,16 @@ export default function RoiSection() {
               <button
                 key={p.id}
                 onClick={() => setPkgIdx(i)}
-                className="rounded-lg p-3 text-center transition-all"
+                className="rounded-lg p-2 text-center transition-all"
                 style={{
                   background: i === pkgIdx ? "var(--accent-light)" : "var(--bg-muted)",
                   border: i === pkgIdx ? "2px solid var(--accent)" : "1px solid var(--border)",
                 }}
               >
-                <p className="text-sm font-bold" style={{ color: i === pkgIdx ? "var(--accent)" : "var(--text)" }}>
+                <p className="text-xs font-bold" style={{ color: i === pkgIdx ? "var(--accent)" : "var(--text)" }}>
                   {p.reports}× report
                 </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
                   {p.totalPrice} € ({p.perReport.toFixed(2).replace(".", ",")} €/ks)
                 </p>
               </button>
@@ -75,45 +75,48 @@ export default function RoiSection() {
           </div>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>
-            {t("home.roiSliderLabel")}
-          </label>
-          <div className="flex items-center gap-4">
-            <input
-              type="range"
-              min="0.5"
-              max="6"
-              step="0.5"
-              value={hours}
-              onChange={(e) => setHours(parseFloat(e.target.value))}
-              className="flex-1"
-              style={{ accentColor: "var(--accent)" }}
-            />
-            <span className="text-lg font-bold min-w-[60px] text-right" style={{ color: "var(--accent)" }}>
-              {hours} h
-            </span>
+        {/* Sliders — side by side on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text)" }}>
+              {t("home.roiSliderLabel")}
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0.5"
+                max="6"
+                step="0.5"
+                value={hours}
+                onChange={(e) => setHours(parseFloat(e.target.value))}
+                className="flex-1"
+                style={{ accentColor: "var(--accent)" }}
+              />
+              <span className="text-sm font-bold min-w-[45px] text-right" style={{ color: "var(--accent)" }}>
+                {hours} h
+              </span>
+            </div>
           </div>
-        </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>
-            {t("home.roiHourlyRate")}
-          </label>
-          <div className="flex items-center gap-4">
-            <input
-              type="range"
-              min="15"
-              max="50"
-              step="5"
-              value={rate}
-              onChange={(e) => setRate(parseInt(e.target.value))}
-              className="flex-1"
-              style={{ accentColor: "var(--accent)" }}
-            />
-            <span className="text-lg font-bold min-w-[60px] text-right" style={{ color: "var(--accent)" }}>
-              {rate} €/h
-            </span>
+          <div>
+            <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text)" }}>
+              {t("home.roiHourlyRate")}
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="15"
+                max="50"
+                step="5"
+                value={rate}
+                onChange={(e) => setRate(parseInt(e.target.value))}
+                className="flex-1"
+                style={{ accentColor: "var(--accent)" }}
+              />
+              <span className="text-sm font-bold min-w-[55px] text-right" style={{ color: "var(--accent)" }}>
+                {rate} €/h
+              </span>
+            </div>
           </div>
         </div>
 
