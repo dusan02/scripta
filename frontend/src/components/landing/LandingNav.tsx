@@ -30,8 +30,6 @@ export default function LandingNav() {
   const isLanding = pathname === "/";
   const navHref = (hash: string) => {
     if (isLanding) return hash;
-    // #ukazka is the "Reporty" link — go directly to /reports on non-landing pages
-    if (hash === "#ukazka") return "/reports";
     return `/${hash}`;
   };
 

@@ -11,7 +11,6 @@ export default function LandingFooter() {
   const isLanding = pathname === "/";
   const navHref = (hash: string) => {
     if (isLanding) return hash;
-    if (hash === "#ukazka") return "/reports";
     return `/${hash}`;
   };
 

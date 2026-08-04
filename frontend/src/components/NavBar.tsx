@@ -15,7 +15,6 @@ import {
   SearchIcon,
   ClockIcon,
   CreditCardIcon,
-  FileIcon,
   SettingsIcon,
   MailIcon,
   CheckIcon,
@@ -25,7 +24,6 @@ const NAV_ITEMS = [
   { href: "/dashboard", key: "nav.overenie", icon: SearchIcon },
   { href: "/history", key: "nav.historia", icon: ClockIcon },
   { href: "/credits", key: "nav.kredity", icon: CreditCardIcon },
-  { href: "/reports", key: "nav.reporty", icon: FileIcon },
   { href: "/settings", key: "nav.nastavenia", icon: SettingsIcon },
   { href: "/messages", key: "nav.spravy", icon: MailIcon },
 ];
