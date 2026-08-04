@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { PRICING_PLANS, REPORT_INCLUDES_KEYS } from "@/lib/pricing-plans";
+import { PRICING_PLANS, REPORT_INCLUDES_KEYS } from "../pricing-plans";
 
 describe("pricing-plans.ts — PRICING_PLANS structure", () => {
-  it("has exactly 6 plans", () => {
-    assert.equal(PRICING_PLANS.length, 6);
+  it("has exactly 3 plans", () => {
+    assert.equal(PRICING_PLANS.length, 3);
   });
 
   it("all plans have unique IDs", () => {
@@ -29,33 +29,16 @@ describe("pricing-plans.ts — PRICING_PLANS structure", () => {
     }
   });
 
-  it("pay-as-you-go plans are not subscriptions", () => {
-    const payg = PRICING_PLANS.filter((p) => !p.isSubscription);
-    for (const plan of payg) {
-      assert.equal(plan.isSubscription, false);
+  it("all plans are pay-as-you-go (no subscriptions)", () => {
+    for (const plan of PRICING_PLANS) {
+      assert.equal(plan.isSubscription, false, `${plan.id} should not be a subscription`);
       assert.ok(["payg1", "payg10", "payg50"].includes(plan.id));
-    }
-  });
-
-  it("subscription plans are marked as subscriptions", () => {
-    const subs = PRICING_PLANS.filter((p) => p.isSubscription);
-    for (const plan of subs) {
-      assert.equal(plan.isSubscription, true);
-      assert.ok(["freelance", "firma", "korporat"].includes(plan.id));
     }
   });
 
   it("at least one plan is highlighted", () => {
     const highlighted = PRICING_PLANS.filter((p) => p.highlight);
     assert.ok(highlighted.length >= 1, "At least one plan should be highlighted");
-  });
-
-  it("highlighted plans span both PAYG and subscription tiers", () => {
-    const highlighted = PRICING_PLANS.filter((p) => p.highlight);
-    const hasPayg = highlighted.some((p) => !p.isSubscription);
-    const hasSub = highlighted.some((p) => p.isSubscription);
-    assert.ok(hasPayg, "Should highlight at least one PAYG plan");
-    assert.ok(hasSub, "Should highlight at least one subscription plan");
   });
 
   it("payg1 has 1 report", () => {
@@ -73,22 +56,7 @@ describe("pricing-plans.ts — PRICING_PLANS structure", () => {
     assert.equal(payg50?.reports, 50);
   });
 
-  it("freelance has 5 reports", () => {
-    const freelance = PRICING_PLANS.find((p) => p.id === "freelance");
-    assert.equal(freelance?.reports, 5);
-  });
-
-  it("firma has 20 reports", () => {
-    const firma = PRICING_PLANS.find((p) => p.id === "firma");
-    assert.equal(firma?.reports, 20);
-  });
-
-  it("korporat has 40 reports", () => {
-    const korporat = PRICING_PLANS.find((p) => p.id === "korporat");
-    assert.equal(korporat?.reports, 40);
-  });
-
-  it("price per report decreases with volume (payg plans)", () => {
+  it("price per report decreases with volume", () => {
     const payg1 = PRICING_PLANS.find((p) => p.id === "payg1")!;
     const payg10 = PRICING_PLANS.find((p) => p.id === "payg10")!;
     const payg50 = PRICING_PLANS.find((p) => p.id === "payg50")!;
