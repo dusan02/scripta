@@ -148,7 +148,7 @@ export default function RoiSection() {
             <span className="text-sm font-semibold ml-2">({totalSavingsPct}%)</span>
           </p>
           <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
-            {totalManualCost.toFixed(0)} € → {totalVerifaCost} €
+            {t("home.roiTotalVsVerifa", { manual: totalManualCost.toFixed(0), verifa: totalVerifaCost })}
           </p>
         </div>
       </div>
