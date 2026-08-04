@@ -16,7 +16,7 @@ export default function RoiSection() {
   const t = useT();
   const [hours, setHours] = useState(2.5);
   const [rate, setRate] = useState(35);
-  const [pkgIdx, setPkgIdx] = useState(0);
+  const [pkgIdx, setPkgIdx] = useState(1); // default 10× — best value
 
   const pkg = PACKAGES[pkgIdx];
   const verifaPerReport = pkg.perReport;
@@ -26,10 +26,14 @@ export default function RoiSection() {
   const savingsPct = manualCostPerReport > 0 ? Math.round((savingsPerReport / manualCostPerReport) * 100) : 0;
   const manualMinutes = Math.round(hours * 60);
 
-  // Total savings across the whole package
   const totalManualCost = manualCostPerReport * pkg.reports;
   const totalVerifaCost = pkg.totalPrice;
   const totalSavings = totalManualCost - totalVerifaCost;
+  const totalSavingsPct = totalManualCost > 0 ? Math.round((totalSavings / totalManualCost) * 100) : 0;
+
+  const ctaLabel = pkg.reports === 1
+    ? t("home.roiCtaSingle", { price: pkg.totalPrice })
+    : t("home.roiCtaMulti", { reports: pkg.reports, price: pkg.totalPrice });
 
   return (
     <section id="roi" style={{ padding: "80px 24px", maxWidth: 1000, margin: "0 auto" }} className="section-pad">
@@ -113,37 +117,40 @@ export default function RoiSection() {
           </div>
         </div>
 
-        {/* Results — compact inline */}
-        <div className="flex items-stretch gap-3 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-          <div className="flex-1 p-3 text-center" style={{ background: "var(--bg-muted)" }}>
-            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("home.roiManual")}</p>
-            <p className="text-xl font-black" style={{ color: "var(--text)" }}>{manualCostPerReport.toFixed(0)} €</p>
-            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{manualMinutes} min</p>
+        {/* Results — per report */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+          <div className="p-3 text-center" style={{ background: "var(--bg-muted)" }}>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--text-muted)" }}>{t("home.roiManual")}</p>
+            <p className="text-base sm:text-xl font-black" style={{ color: "var(--text)" }}>{manualCostPerReport.toFixed(0)} €</p>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--text-muted)" }}>{manualMinutes} min</p>
           </div>
-          <div className="flex-1 p-3 text-center" style={{ background: "var(--accent-light)" }}>
-            <p className="text-[11px]" style={{ color: "var(--accent)" }}>{t("home.roiVerifa")}</p>
-            <p className="text-xl font-black" style={{ color: "var(--accent)" }}>{verifaPerReport.toFixed(2).replace(".", ",")} €</p>
-            <p className="text-[11px]" style={{ color: "var(--accent)" }}>~{VERIFA_MINUTES} min</p>
+          <div className="p-3 text-center" style={{ background: "var(--accent-light)" }}>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--accent)" }}>{t("home.roiVerifa")}</p>
+            <p className="text-base sm:text-xl font-black" style={{ color: "var(--accent)" }}>{verifaPerReport.toFixed(2).replace(".", ",")} €</p>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--accent)" }}>~{VERIFA_MINUTES} min</p>
           </div>
-          <div className="flex-1 p-3 text-center" style={{ background: "var(--success-bg)" }}>
-            <p className="text-[11px]" style={{ color: "var(--success)" }}>{t("home.roiSavings")}</p>
-            <p className="text-xl font-black" style={{ color: "var(--success)" }}>
+          <div className="p-3 text-center" style={{ background: "var(--success-bg)" }}>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--success)" }}>{t("home.roiSavings")}</p>
+            <p className="text-base sm:text-xl font-black" style={{ color: "var(--success)" }}>
               {savingsPerReport > 0 ? `${savingsPerReport.toFixed(0)} €` : "0 €"}
             </p>
-            <p className="text-[11px]" style={{ color: "var(--success)" }}>({savingsPct}%)</p>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--success)" }}>({savingsPct}%)</p>
           </div>
         </div>
 
-        {/* Total package savings */}
-        {pkg.reports > 1 && (
-          <div className="mt-3 text-center text-sm" style={{ color: "var(--text-secondary)" }}>
-            {t("home.roiTotalSavings", { reports: pkg.reports })}:{" "}
-            <span className="font-black" style={{ color: "var(--success)" }}>
-              {totalSavings > 0 ? `${totalSavings.toFixed(0)} €` : "0 €"}
-            </span>{" "}
-            ({t("home.roiPerReport")}: {totalManualCost.toFixed(0)} € → {totalVerifaCost} €)
-          </div>
-        )}
+        {/* Total package savings — always show */}
+        <div className="mt-3 rounded-xl p-4 text-center" style={{ background: "var(--success-bg)", border: "1px solid var(--success)" }}>
+          <p className="text-xs" style={{ color: "var(--success)" }}>
+            {t("home.roiTotalSavings", { reports: pkg.reports })}
+          </p>
+          <p className="text-2xl font-black mt-1" style={{ color: "var(--success)" }}>
+            {totalSavings > 0 ? `${totalSavings.toFixed(0)} €` : "0 €"}
+            <span className="text-sm font-semibold ml-2">({totalSavingsPct}%)</span>
+          </p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+            {totalManualCost.toFixed(0)} € → {totalVerifaCost} €
+          </p>
+        </div>
       </div>
 
       {/* Comparison table */}
@@ -162,12 +169,12 @@ export default function RoiSection() {
               { label: t("home.roiCost"), manual: `${manualCostPerReport.toFixed(0)} €`, verifa: `${verifaPerReport.toFixed(2).replace(".", ",")} €` },
               { label: t("home.roiRegistre"), manual: t("home.roiRegistreManual"), verifa: t("home.roiRegistreVerifa") },
               { label: t("home.roiAnalysis"), manual: t("home.roiAnalysisManual"), verifa: t("home.roiAnalysisVerifa") },
-              { label: t("home.roiPdf"), manual: t("home.roiPdfManual"), verifa: t("home.roiPdfVerifa") },
+              { label: t("home.roiPdf"), manual: "✗", verifa: "✓" },
             ].map((row, i) => (
               <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
                 <td className="p-4 text-sm font-medium" style={{ color: "var(--text)" }}>{row.label}</td>
-                <td className="p-4 text-center text-sm" style={{ color: "var(--text-muted)" }}>{row.manual}</td>
-                <td className="p-4 text-center text-sm font-semibold" style={{ color: "var(--accent)" }}>{row.verifa}</td>
+                <td className="p-4 text-center text-sm" style={{ color: row.manual === "✗" ? "var(--danger)" : "var(--text-muted)", fontWeight: row.manual === "✗" ? 800 : 400 }}>{row.manual}</td>
+                <td className="p-4 text-center text-sm font-semibold" style={{ color: row.verifa === "✓" ? "var(--success)" : "var(--accent)", fontWeight: row.verifa === "✓" ? 800 : 600 }}>{row.verifa}</td>
               </tr>
             ))}
           </tbody>
@@ -180,7 +187,7 @@ export default function RoiSection() {
           className="inline-block px-8 py-4 rounded-xl no-underline font-bold text-[16px] transition-all hover:opacity-90"
           style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--shadow-lg)" }}
         >
-          {t("home.roiCta")}
+          {ctaLabel}
         </Link>
       </div>
     </section>
