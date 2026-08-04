@@ -420,7 +420,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         
     # Center node
     center_idx = len(nodes)
-    nodes.append({"name": i.get('sankey_total_assets', 'Celkové aktíva (Bilančná suma)'), "color": COLORS['slate']})
+    nodes.append({"name": i.get('sankey_total_assets', 'Celkové aktíva'), "color": COLORS['slate']})
     node_x.append(0.5)
     node_y.append(0.5)
     

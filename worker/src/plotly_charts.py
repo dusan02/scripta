@@ -292,9 +292,10 @@ def generate_liquidity_chart(statements, lang="sk") -> str:
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     fig.add_trace(go.Bar(x=years, y=wc, name=i.get('chart_working_capital', 'Pracovný kapitál'), marker_color='rgba(148,163,184,0.6)'), secondary_y=False)
-    cr_text = [f'{v:.2f}' if v is not None else 'N/A' for v in cr]
+    cr_text = [f'{v:.2f}' if v is not None else '' for v in cr]
+    qr_text = [f'{v:.2f}' if v is not None else '' for v in qr]
     fig.add_trace(go.Scatter(x=years, y=cr, name=i.get('liq_current', 'Current Ratio'), mode='lines+markers+text', line=dict(color=COLORS['blue'], width=2), marker=dict(size=7), text=cr_text, textposition='top center', textfont=dict(size=9, color=COLORS['blue']), connectgaps=True), secondary_y=True)
-    fig.add_trace(go.Scatter(x=years, y=qr, name=i.get('liq_quick', 'Quick Ratio'), mode='lines+markers', line=dict(color=COLORS['green'], width=2), marker=dict(size=7, symbol='diamond'), connectgaps=True), secondary_y=True)
+    fig.add_trace(go.Scatter(x=years, y=qr, name=i.get('liq_quick', 'Quick Ratio'), mode='lines+markers+text', line=dict(color=COLORS['green'], width=2), marker=dict(size=7, symbol='diamond'), text=qr_text, textposition='bottom center', textfont=dict(size=9, color=COLORS['green']), connectgaps=True), secondary_y=True)
     
     # 1.0 threshold line
     fig.add_hline(y=1.0, line_dash="dash", line_color="rgba(239,68,68,0.5)", secondary_y=True)
@@ -391,11 +392,22 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
         if key:
             raw_name = i.get(key, raw_name).split("—")[0].strip()
         
-        # Add a soft break <br> if the label is too long (e.g. > 16 chars and contains space)
+        # Break long labels into up to 3 lines at word boundaries
+        # (single split at first space left 25+ char second lines that clipped at edges)
         if len(raw_name) > 16 and " " in raw_name:
-            parts = raw_name.split(" ", 1)
-            raw_name = f"{parts[0]}<br>{parts[1]}"
-            
+            words = raw_name.split(" ")
+            lines = []
+            current = ""
+            for w in words:
+                if current and len(current) + len(w) + 1 > 14:
+                    lines.append(current)
+                    current = w
+                else:
+                    current = f"{current} {w}" if current else w
+            if current:
+                lines.append(current)
+            raw_name = "<br>".join(lines)
+
         labels.append(raw_name)
     scores = [p["score"] for p in radar_pillars]
     max_scores = [p["max_score"] for p in radar_pillars]
@@ -432,16 +444,16 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
 
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, 100], tickvals=[20,40,60,80,100], gridcolor=COLORS['grid'], linecolor=COLORS['grid']),
+            radialaxis=dict(visible=True, range=[0, 100], tickvals=[20,40,60,80,100], gridcolor=COLORS['grid'], linecolor=COLORS['grid'], angle=45, tickangle=45),
             angularaxis=dict(gridcolor=COLORS['grid'], linecolor=COLORS['grid'], tickfont=dict(size=11, color=COLORS['text_light'], family=COLORS['font_family']))
         ),
         showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=80, r=80, t=60, b=80 if annotations else 60),
+        margin=dict(l=100, r=100, t=60, b=90 if annotations else 60),
         annotations=annotations,
     )
-    return _to_base64(fig, 600, 600)
+    return _to_base64(fig, 700, 620)
 
 def generate_debt_donut(stmt, lang="sk") -> str:
     if not stmt: return ""
@@ -465,18 +477,20 @@ def generate_debt_donut(stmt, lang="sk") -> str:
     fig = go.Figure(data=[go.Pie(
         labels=labels, values=values, hole=.5,
         marker=dict(colors=colors, line=dict(color='#ffffff', width=2)),
-        textinfo='percent', textfont=dict(size=24, color='#ffffff', family=COLORS['font_family'], weight='bold'),
+        textinfo='percent',
+        texttemplate='%{percent:.1%}',
+        textfont=dict(size=16, color='#ffffff', family=COLORS['font_family'], weight='bold'),
         insidetextorientation='horizontal'
     )])
 
     fig.update_layout(
         showlegend=True,
-        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=14, color=COLORS['text_light'])),
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02, font=dict(size=12, color=COLORS['text_light'])),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=20, t=20, b=20)
+        margin=dict(l=10, r=160, t=20, b=20)
     )
-    return _to_base64(fig, 600, 550)
+    return _to_base64(fig, 700, 420)
 
 
 def generate_employee_chart(statements, lang="sk") -> str:
