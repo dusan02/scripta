@@ -13,7 +13,7 @@ import { useState } from "react";
 const NAV_ITEMS = [
   { hash: "#funkcie", key: "home.navFeatures" },
   { hash: "#registre", key: "home.navRegistries" },
-  { hash: "#ukazka", key: "nav.dokumenty" },
+  { hash: "#ukazka", key: "nav.reporty" },
   { hash: "#pricing", key: "home.navPricing" },
 ];
 
@@ -26,12 +26,12 @@ export default function LandingNav() {
   useScrollLock(mobileMenuOpen);
 
   // On the landing page, hash links scroll to sections.
-  // On other pages (e.g. /documents), link to landing page sections or /documents directly.
+  // On other pages (e.g. /reports), link to landing page sections or /reports directly.
   const isLanding = pathname === "/";
   const navHref = (hash: string) => {
     if (isLanding) return hash;
-    // #ukazka is the "Dokumenty" link — go directly to /documents on non-landing pages
-    if (hash === "#ukazka") return "/documents";
+    // #ukazka is the "Reporty" link — go directly to /reports on non-landing pages
+    if (hash === "#ukazka") return "/reports";
     return `/${hash}`;
   };
 

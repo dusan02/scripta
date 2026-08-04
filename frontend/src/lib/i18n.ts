@@ -833,8 +833,12 @@ const sk: Dict = {
 
   // ── Documents page ──
   "nav.dokumenty": "Dokumenty",
+  "nav.reporty": "Reporty",
   "docs.title": "Dokumenty",
-  "docs.subtitle": "Príručky, vzory a právne dokumenty",
+  "reports.title": "Ukážkové reporty",
+  "reports.subtitle": "Pozrite si, ako vyzerá Verifa Business Risk Report.",
+  "reports.desc": "Ukážky reportov pre rôzne firmy a priemyselné odvetvia.",
+  "docs.subtitle": "Príručky a právne dokumenty",
   "docs.manualTitle": "Používateľská príručka",
   "docs.manualDesc": "Kompletný návod k aplikácii Verifa.sk — štruktúra reportu, prínosy, slovník pojmov a metodika hodnotenia.",
   "docs.downloadSK": "Stiahnuť (SK)",
@@ -1672,8 +1676,12 @@ const en: Dict = {
 
   // ── Documents page ──
   "nav.dokumenty": "Documents",
+  "nav.reporty": "Reports",
   "docs.title": "Documents",
-  "docs.subtitle": "Manuals, samples and legal documents",
+  "docs.subtitle": "Manuals and legal documents",
+  "reports.title": "Sample Reports",
+  "reports.subtitle": "See what a Verifa Business Risk Report looks like.",
+  "reports.desc": "Sample reports for various companies and industries.",
   "docs.manualTitle": "User Manual",
   "docs.manualDesc": "Complete guide to the Verifa.sk application — report structure, benefits, glossary of terms and scoring methodology.",
   "docs.downloadSK": "Download (SK)",
@@ -2511,8 +2519,12 @@ const de: Dict = {
 
   // ── Documents page ──
   "nav.dokumenty": "Dokumente",
+  "nav.reporty": "Berichte",
   "docs.title": "Dokumente",
-  "docs.subtitle": "Handbücher, Muster und Rechtsdokumente",
+  "docs.subtitle": "Handbücher und Rechtsdokumente",
+  "reports.title": "Musterberichte",
+  "reports.subtitle": "Sehen Sie, wie ein Verifa Business Risk Report aussieht.",
+  "reports.desc": "Musterberichte für verschiedene Unternehmen und Branchen.",
   "docs.manualTitle": "Benutzerhandbuch",
   "docs.manualDesc": "Vollständige Anleitung zur Verifa.sk Anwendung — Berichtsstruktur, Nutzen, Glossar und Bewertungsmethodik.",
   "docs.downloadSK": "Herunterladen (SK)",

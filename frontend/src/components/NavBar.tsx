@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", key: "nav.overenie", icon: SearchIcon },
   { href: "/history", key: "nav.historia", icon: ClockIcon },
   { href: "/credits", key: "nav.kredity", icon: CreditCardIcon },
-  { href: "/documents", key: "nav.dokumenty", icon: FileIcon },
+  { href: "/reports", key: "nav.reporty", icon: FileIcon },
   { href: "/settings", key: "nav.nastavenia", icon: SettingsIcon },
   { href: "/messages", key: "nav.spravy", icon: MailIcon },
 ];

@@ -11,7 +11,7 @@ export default function LandingFooter() {
   const isLanding = pathname === "/";
   const navHref = (hash: string) => {
     if (isLanding) return hash;
-    if (hash === "#ukazka") return "/documents";
+    if (hash === "#ukazka") return "/reports";
     return `/${hash}`;
   };
 
@@ -35,7 +35,7 @@ export default function LandingFooter() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <a href={navHref("#funkcie")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navFeatures")}</a>
               <a href={navHref("#registre")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navRegistries")}</a>
-              <a href={navHref("#ukazka")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</a>
+              <a href={navHref("#ukazka")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.reporty")}</a>
               <a href={navHref("#pricing")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
               <Link href="/slovnik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerGlossary")}</Link>
             </div>
@@ -46,6 +46,7 @@ export default function LandingFooter() {
               <a href="/terms" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</a>
               <a href="/privacy" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerPrivacy")}</a>
               <a href="/dpa" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>DPA</a>
+              <a href="/documents" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</a>
             </div>
           </div>
         </div>
