@@ -19,7 +19,7 @@ export default function TargetSection() {
           { icon: "💼", title: t("home.target3Title"), desc: t("home.target3Desc") },
         ].map((item) => (
           <div key={item.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 26, transition: "transform 0.2s ease, box-shadow 0.2s ease" }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, marginBottom: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, marginBottom: 14 }}>
               {item.icon}
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10 }}>{item.title}</h3>

@@ -132,7 +132,7 @@ export default async function CompanyPage({ params }: Params) {
             <Link
               href={`/dashboard?ico=${company.ico}`}
               className="text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-lg transition-all hover:scale-105"
-              style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 2px 8px rgba(16,185,129,0.25)" }}
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
             >
               Report →
             </Link>

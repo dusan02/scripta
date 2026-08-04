@@ -16,7 +16,7 @@ export default function ToasterProvider() {
           background: isDark ? "rgba(28, 28, 31, 0.92)" : "rgba(255, 255, 255, 0.92)",
           color: "var(--text)",
           border: `1px solid ${isDark ? "rgba(63, 63, 70, 0.8)" : "rgba(228, 228, 231, 0.8)"}`,
-          borderRadius: "10px",
+          borderRadius: "12px",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           boxShadow: isDark
@@ -28,7 +28,7 @@ export default function ToasterProvider() {
         },
         success: {
           iconTheme: {
-            primary: "#5b9279",
+            primary: "#16a34a",
             secondary: isDark ? "#1c1c1f" : "#ffffff",
           },
         },

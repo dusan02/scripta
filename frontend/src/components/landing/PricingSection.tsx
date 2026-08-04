@@ -46,7 +46,7 @@ export default function PricingSection() {
                     : t("pricing.reportovZaReport", { n: plan.reports, price: plan.pricePerReport })}
               </p>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 18 }}>&nbsp;</p>
-              <Link href="/register" style={{ display: "block", textAlign: "center", background: plan.highlight ? "var(--accent)" : "var(--surface-hover)", color: plan.highlight ? "var(--accent-button-text)" : "var(--text)", border: plan.highlight ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 10, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 18 }}>
+              <Link href="/register" style={{ display: "block", textAlign: "center", background: plan.highlight ? "var(--accent)" : "var(--surface-hover)", color: plan.highlight ? "var(--accent-button-text)" : "var(--text)", border: plan.highlight ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 18 }}>
                 {t("home.startVerifying")}
               </Link>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>

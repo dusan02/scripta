@@ -182,7 +182,7 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
                   justifyContent: "space-between",
                   background: "var(--surface)",
                   border: "1px solid var(--border)",
-                  borderRadius: 10,
+                  borderRadius: 12,
                   padding: "14px 20px",
                   textDecoration: "none",
                 }}

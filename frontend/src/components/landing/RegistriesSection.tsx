@@ -74,8 +74,8 @@ export default function RegistriesSection() {
       {showRegistries && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, alignItems: "stretch" }} className="registries-grid">
           {REGISTRY_GROUPS.map((group) => (
-            <div key={group.categoryKey} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 22, display: "flex", flexDirection: "column" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 14 }}>
+            <div key={group.categoryKey} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 22, display: "flex", flexDirection: "column" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 14 }}>
                 {group.icon}
               </div>
               <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>{t(group.categoryKey)}</h3>

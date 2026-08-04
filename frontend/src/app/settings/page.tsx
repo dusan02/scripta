@@ -150,7 +150,7 @@ export default function SettingsPage() {
                 value="CURRENT"
                 checked={orsrExtractType === "CURRENT"}
                 onChange={() => setOrsrExtractType("CURRENT")}
-                className="accent-emerald-500"
+                className="accent-[var(--accent)]"
               />
               <div>
                 <div className="text-sm font-medium text-[var(--text)]">
@@ -171,7 +171,7 @@ export default function SettingsPage() {
                 value="FULL"
                 checked={orsrExtractType === "FULL"}
                 onChange={() => setOrsrExtractType("FULL")}
-                className="accent-emerald-500"
+                className="accent-[var(--accent)]"
               />
               <div>
                 <div className="text-sm font-medium text-[var(--text)]">
@@ -357,7 +357,7 @@ export default function SettingsPage() {
                   value={lang.code}
                   checked={reportLanguage === lang.code}
                   onChange={() => setReportLanguage(lang.code)}
-                  className="accent-emerald-500"
+                  className="accent-[var(--accent)]"
                 />
                 <span className="text-base">{lang.flag}</span>
                 <div className="text-sm font-medium text-[var(--text)]">
@@ -400,7 +400,7 @@ export default function SettingsPage() {
                     type="checkbox"
                     checked={attachmentsConfig[item.key] ?? true}
                     onChange={(e) => setAttachmentsConfig((p) => ({ ...p, [item.key]: e.target.checked }))}
-                    className="accent-emerald-500"
+                    className="accent-[var(--accent)]"
                   />
                   <div>
                     <div className="text-sm font-medium text-[var(--text)]">

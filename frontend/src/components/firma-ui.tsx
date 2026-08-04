@@ -77,7 +77,7 @@ function GenericTable({ stmts, rows, sectionTitle }: { stmts: any[], rows: any[]
 }
 
 export function MetricCard({ label, value, sub, color, trend }: { label: string; value: string; sub: string; color: string; trend?: { direction: "up" | "down" | "flat"; pct: number } }) {
-  const trendColor = trend?.direction === "up" ? "#10b981" : trend?.direction === "down" ? "#ef4444" : "var(--text-muted)";
+  const trendColor = trend?.direction === "up" ? "var(--success)" : trend?.direction === "down" ? "var(--danger)" : "var(--text-muted)";
   const trendIcon = trend?.direction === "up" ? "↑" : trend?.direction === "down" ? "↓" : "→";
   const trendText = trend ? `${trendIcon} ${trend.pct > 0 ? trend.pct.toFixed(0) : "0"}%` : null;
   return (

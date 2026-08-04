@@ -20,7 +20,7 @@ export default function FeaturesSection() {
         ].map((col) => (
           <div key={col.title} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 28 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 10, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, flexShrink: 0 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 21, flexShrink: 0 }}>
                 {col.icon}
               </div>
               <h3 style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3 }}>{col.title}</h3>

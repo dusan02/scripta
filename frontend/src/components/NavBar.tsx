@@ -121,7 +121,7 @@ export default function NavBar() {
                   {item.href === "/messages" && unreadCount > 0 && (
                     <span
                       className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full"
-                      style={{ background: "#ef4444", border: "1.5px solid var(--surface)" }}
+                      style={{ background: "var(--danger)", border: "1.5px solid var(--surface)" }}
                     />
                   )}
                 </Link>
@@ -261,7 +261,7 @@ export default function NavBar() {
                       {item.href === "/messages" && unreadCount > 0 && (
                         <span
                           className="absolute top-2 right-3 w-2.5 h-2.5 rounded-full"
-                          style={{ background: "#ef4444", border: "1.5px solid var(--surface)" }}
+                          style={{ background: "var(--danger)", border: "1.5px solid var(--surface)" }}
                         />
                       )}
                       <span className="text-[10px] font-medium">{t(item.key)}</span>
