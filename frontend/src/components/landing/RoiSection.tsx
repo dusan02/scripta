@@ -81,42 +81,42 @@ export default function RoiSection() {
             <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text)" }}>
               {t("home.roiSliderLabel")}
             </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0.5"
-                max="6"
-                step="0.5"
-                value={hours}
-                onChange={(e) => setHours(parseFloat(e.target.value))}
-                className="flex-1"
-                style={{ accentColor: "var(--accent)" }}
-              />
-              <span className="text-sm font-bold min-w-[45px] text-right" style={{ color: "var(--accent)" }}>
+            <div className="text-center mb-1">
+              <span className="inline-block text-sm font-bold px-3 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
                 {hours} h
               </span>
             </div>
+            <input
+              type="range"
+              min="0.5"
+              max="6"
+              step="0.5"
+              value={hours}
+              onChange={(e) => setHours(parseFloat(e.target.value))}
+              className="w-full"
+              style={{ accentColor: "var(--accent)" }}
+            />
           </div>
 
           <div>
             <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text)" }}>
               {t("home.roiHourlyRate")}
             </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="15"
-                max="50"
-                step="5"
-                value={rate}
-                onChange={(e) => setRate(parseInt(e.target.value))}
-                className="flex-1"
-                style={{ accentColor: "var(--accent)" }}
-              />
-              <span className="text-sm font-bold min-w-[55px] text-right" style={{ color: "var(--accent)" }}>
+            <div className="text-center mb-1">
+              <span className="inline-block text-sm font-bold px-3 py-0.5 rounded-full" style={{ background: "var(--accent-light)", color: "var(--accent)" }}>
                 {rate} €/h
               </span>
             </div>
+            <input
+              type="range"
+              min="15"
+              max="50"
+              step="5"
+              value={rate}
+              onChange={(e) => setRate(parseInt(e.target.value))}
+              className="w-full"
+              style={{ accentColor: "var(--accent)" }}
+            />
           </div>
         </div>
 
