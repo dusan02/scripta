@@ -34,7 +34,7 @@ const sk: Dict = {
 
   // ── Layout / Footer ──
   "footer.urcene": "Business risk report",
-  "landing.footerTagline": "Business Risk Report zo štátnych registrov SR. Automatizované, rýchle, presné.",
+  "landing.footerTagline": "Business Risk Report zo štátnych registrov SR. Automatizované, rýchle, presné",
   "landing.regGroup1": "Základné firemné a právne registre",
   "landing.regGroup2": "Insolvencia, exekúcie a dlhy",
   "landing.regGroup3": "Finančná správa a DPH",
@@ -747,7 +747,7 @@ const sk: Dict = {
   "home.needMore": "Potrebujete viac reportov? Kontaktujte nás na",
   "home.terms": "Podmienky používania",
   "home.contact": "Kontakt",
-  "home.rights": "Všetky práva vyhradené.",
+  "home.rights": "Všetky práva vyhradené",
 
   // ── Landing page: Features ──
   "home.featuresTitle": "Čo správa obsahuje",
@@ -877,7 +877,7 @@ const en: Dict = {
 
   // ── Layout / Footer ──
   "footer.urcene": "Business risk report",
-  "landing.footerTagline": "Business Risk Report from Slovak state registries. Automated, fast, precise.",
+  "landing.footerTagline": "Business Risk Report from Slovak state registries. Automated, fast, precise",
   "landing.regGroup1": "Core business & legal registries",
   "landing.regGroup2": "Insolvency, enforcement & debts",
   "landing.regGroup3": "Tax authority & VAT",
@@ -1590,7 +1590,7 @@ const en: Dict = {
   "home.needMore": "Need more reports? Contact us at",
   "home.terms": "Terms of Use",
   "home.contact": "Contact",
-  "home.rights": "All rights reserved.",
+  "home.rights": "All rights reserved",
 
   // ── Landing page: Features ──
   "home.featuresTitle": "What the report includes",
@@ -1720,7 +1720,7 @@ const de: Dict = {
 
   // ── Layout / Footer ──
   "footer.urcene": "Business risk report",
-  "landing.footerTagline": "Business Risk Report aus staatlichen Registern der Slowakei. Automatisiert, schnell, präzise.",
+  "landing.footerTagline": "Business Risk Report aus staatlichen Registern der Slowakei. Automatisiert, schnell, präzise",
   "landing.regGroup1": "Kernregister für Unternehmen & Recht",
   "landing.regGroup2": "Insolvenz, Vollstreckung & Schulden",
   "landing.regGroup3": "Finanzverwaltung & USt",
