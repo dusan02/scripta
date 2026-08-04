@@ -25,9 +25,6 @@ type ChartData = {
 };
 
 type BalanceData = {
-  cash: number | null;
-  receivables: number | null;
-  inventory: number | null;
   currentAssets: number | null;
   totalAssets: number | null;
   equity: number | null;
@@ -93,17 +90,17 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
       rightNodes.push({ name: t("firma.ostatnePasiva"), value: centerValue - rightSum, color: "#64748b", linkColor: "rgba(100,116,139,0.3)" });
     }
 
-    const nodes: { name: string; color: string; isLeft: boolean }[] = [];
-    const links: { source: number; target: number; value: number; lColor: string }[] = [];
+    const nodes: { name: string; color: string; isLeft: boolean; isCenter?: boolean }[] = [];
+    const links: { source: number; target: number; value: number; lColor: string; srcName?: string; tgtName?: string }[] = [];
 
     // Left nodes
     leftNodes.forEach(n => {
       nodes.push({ name: n.name, color: n.color, isLeft: true });
     });
 
-    // Center node
+    // Center node — no label (it's a conduit, label would overlap links)
     const centerIndex = nodes.length;
-    nodes.push({ name: t("firma.bilancnaSuma"), color: "#64748b", isLeft: true });
+    nodes.push({ name: "", color: "#64748b", isLeft: true, isCenter: true });
 
     // Right nodes
     const rightStartIndex = nodes.length;
@@ -114,13 +111,13 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     // Add links
     leftNodes.forEach((n, i) => {
       if (n.value > 0) {
-        links.push({ source: i, target: centerIndex, value: n.value, lColor: n.linkColor });
+        links.push({ source: i, target: centerIndex, value: n.value, lColor: n.linkColor, srcName: n.name, tgtName: t("firma.bilancnaSuma") });
       }
     });
 
     rightNodes.forEach((n, i) => {
       if (n.value > 0) {
-        links.push({ source: centerIndex, target: rightStartIndex + i, value: n.value, lColor: n.linkColor });
+        links.push({ source: centerIndex, target: rightStartIndex + i, value: n.value, lColor: n.linkColor, srcName: t("firma.bilancnaSuma"), tgtName: n.name });
       }
     });
 
@@ -155,8 +152,19 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
           const color = payload?.color || "#94a3b8";
           const name = payload?.name || "";
           const isLeft = payload?.isLeft ?? false;
+          const isCenter = payload?.isCenter ?? false;
           const hasOutgoing = outgoingValue[index] !== undefined;
           const value = hasOutgoing ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
+
+          // Center node: render bar only, no label (label would overlap links)
+          if (isCenter) {
+            return (
+              <Layer key={`node-${index}`}>
+                <rect x={x} y={y} width={width} height={height} fill={color} rx={3} />
+              </Layer>
+            );
+          }
+
           const labelX = isLeft ? x - 6 : x + width + 6;
           const textAnchor = isLeft ? "end" : "start";
           const words = name.split(" ");
@@ -217,7 +225,13 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
       >
         <Tooltip
           contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-          formatter={(v: any) => fmtEUR(v as number)}
+          formatter={(v: any, _name: any, props: any) => {
+            const payload = props?.payload;
+            if (payload?.srcName && payload?.tgtName) {
+              return [fmtEUR(v as number), `${payload.srcName} → ${payload.tgtName}`];
+            }
+            return [fmtEUR(v as number), ""];
+          }}
         />
       </Sankey>
     </ResponsiveContainer>

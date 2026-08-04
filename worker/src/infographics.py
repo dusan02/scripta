@@ -178,8 +178,9 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     # COGS a Hrubá marža sú umelo umiestnené do stredného stĺpca (x=0.5),
     # aby sa obrovské vlákno COGS netiahlo až na koniec a neprekrývalo ostatné.
     # Pravé uzly posunuté z 0.99 na 0.82 aby popisky nepretiekali za okraj.
+    # Y rozsah 0.12–0.88 aby sa labely neodrezávali na okrajoch (boli 0.08–0.92).
     node_x = [0.01, 0.45, 0.45, 0.82, 0.82, 0.82, 0.82, 0.82]
-    node_y = [0.5, 0.15, 0.75, 0.08, 0.30, 0.50, 0.72, 0.92]
+    node_y = [0.50, 0.15, 0.75, 0.12, 0.32, 0.50, 0.68, 0.88]
     if net < 0:
         node_x.append(0.01)
         node_y.append(0.85)
@@ -254,7 +255,7 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         value = [net_profit, dep_val]
         link_color = ["rgba(16,185,129,0.4)", "rgba(59,130,246,0.4)"]
         node_x = [0.01, 0.01, 0.01, 0.82]
-        node_y = [0.25, 0.60, 0.90, 0.50]
+        node_y = [0.25, 0.60, 0.85, 0.50]
         if working_capital_effect > 0:
             source.append(2); target.append(3); value.append(working_capital_effect)
             link_color.append("rgba(34,197,94,0.4)")
@@ -389,19 +390,23 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     links = []
     node_x, node_y = [], []
     
-    # Pridanie sub-nodes
+    # Pridanie sub-nodes — Y rozsah 0.12–0.85, rovnomerne rozmiestnené
     sub_nodes_start = len(nodes)
-    if cash > 0: nodes.append({"name": i.get('sankey_cash', 'Hotovosť'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.1)
-    if receivables > 0: nodes.append({"name": i.get('sankey_receivables', 'Pohľadávky'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.3)
-    if inventory > 0: nodes.append({"name": i.get('sankey_inventory', 'Zásoby'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.5)
-    if other_current > 0: nodes.append({"name": i.get('sankey_other_current', 'Ostat. obež. maj.'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.8)
+    if cash > 0: nodes.append({"name": i.get('sankey_cash', 'Hotovosť'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.12)
+    if receivables > 0: nodes.append({"name": i.get('sankey_receivables', 'Pohľadávky'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.33)
+    if inventory > 0: nodes.append({"name": i.get('sankey_inventory', 'Zásoby'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.54)
+    if other_current > 0: nodes.append({"name": i.get('sankey_other_current', 'Ostat. obež. maj.'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.82)
     
-    # Mapovanie Left nodes
+    # Mapovanie Left nodes — Y rozsah 0.12–0.82, rovnomerne
+    left_count = len(left_nodes)
     left_node_ids = {}
     for i_node, n in enumerate(left_nodes):
         nodes.append({"name": n["name"], "color": n["color"]})
         node_x.append(0.25)
-        node_y.append(0.1 + (i_node * 0.2)) # Rozloženie po Y
+        if left_count <= 1:
+            node_y.append(0.50)
+        else:
+            node_y.append(0.12 + (i_node * (0.70 / (left_count - 1))))
         left_node_ids[n["id"]] = len(nodes) - 1
         
     # Prepojenie sub-nodes do Obežného majetku (id: 4)
@@ -424,11 +429,15 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
         idx = left_node_ids[n["id"]]
         links.append({"source": idx, "target": center_idx, "value": n["value"], "color": n["link_color"]})
         
-    # Right nodes
+    # Right nodes — Y rozsah 0.12–0.85, rovnomerne
+    right_count = len(right_nodes)
     for i_node, n in enumerate(right_nodes):
         nodes.append({"name": n["name"], "color": n["color"]})
         node_x.append(0.85)
-        node_y.append(0.1 + (i_node * 0.25))
+        if right_count <= 1:
+            node_y.append(0.50)
+        else:
+            node_y.append(0.12 + (i_node * (0.73 / (right_count - 1))))
         idx = len(nodes) - 1
         links.append({"source": center_idx, "target": idx, "value": n["value"], "color": n["link_color"]})
 

@@ -83,9 +83,6 @@ export default async function CompanyPage({ params }: Params) {
   }));
 
   const balanceData = latest ? {
-    cash: num(latest.cashAndEquivalents),
-    receivables: num(latest.tradeReceivables),
-    inventory: num(latest.inventory),
     currentAssets: num(latest.currentAssets),
     totalAssets: num(latest.totalAssets),
     equity: num(latest.equity),

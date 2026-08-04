@@ -44,48 +44,57 @@ export default function LandingNav() {
     >
       {/* Top bar */}
       <div className="max-w-[1200px] mx-auto px-4 flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center no-underline">
-          <Logo size="sm" />
-        </Link>
+        {/* Left: Logo + desktop nav links */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center no-underline">
+            <Logo size="sm" />
+          </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-5">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.hash}
-              href={navHref(item.hash)}
-              className="text-sm font-medium leading-9 transition-colors hover:text-[var(--accent)]"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {t(item.key)}
-            </a>
-          ))}
-          <ThemeToggle size="md" />
-          <LanguageSwitcher />
-          <Link
-            href="/register"
-            className="inline-flex items-center h-9 px-4 rounded-lg text-sm font-medium border transition-all hover:opacity-80"
-            style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
-          >
-            {t("home.navRegister")}
-          </Link>
-          <Link
-            href="/login"
-            className="inline-flex items-center h-9 px-5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
-            style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
-          >
-            {t("home.navLogin")}
-          </Link>
+          {/* Desktop nav links */}
+          <div className="hidden md:flex items-center gap-5">
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.hash}
+                href={navHref(item.hash)}
+                className="text-sm font-medium leading-9 transition-colors hover:text-[var(--accent)]"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {t(item.key)}
+              </a>
+            ))}
+          </div>
         </div>
 
-        {/* Mobile: theme + language + hamburger */}
-        <div className="flex md:hidden items-center gap-2">
-          <ThemeToggle size="sm" />
-          <LanguageSwitcher />
-          <HamburgerButton
-            open={mobileMenuOpen}
-            onClick={() => setMobileMenuOpen((v) => !v)}
-          />
+        {/* Right: controls + auth buttons */}
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
+            <ThemeToggle size="md" />
+            <LanguageSwitcher />
+            <Link
+              href="/register"
+              className="inline-flex items-center h-9 px-4 rounded-lg text-sm font-medium border transition-all hover:opacity-80"
+              style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+            >
+              {t("home.navRegister")}
+            </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center h-9 px-5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+            >
+              {t("home.navLogin")}
+            </Link>
+          </div>
+
+          {/* Mobile: theme + language + hamburger */}
+          <div className="flex md:hidden items-center gap-2">
+            <ThemeToggle size="sm" />
+            <LanguageSwitcher />
+            <HamburgerButton
+              open={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((v) => !v)}
+            />
+          </div>
         </div>
       </div>
 
