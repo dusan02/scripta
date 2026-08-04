@@ -138,19 +138,21 @@ export default function RoiSection() {
           </div>
         </div>
 
-        {/* Total package savings — always show */}
-        <div className="mt-3 rounded-xl p-4 text-center" style={{ background: "var(--success-bg)", border: "1px solid var(--success)" }}>
-          <p className="text-xs" style={{ color: "var(--success)" }}>
-            {t("home.roiTotalSavings", { reports: pkg.reports })}
-          </p>
-          <p className="text-2xl font-black mt-1" style={{ color: "var(--success)" }}>
-            {totalSavings > 0 ? `${totalSavings.toFixed(0)} €` : "0 €"}
-            <span className="text-sm font-semibold ml-2">({totalSavingsPct}%)</span>
-          </p>
-          <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
-            {t("home.roiTotalVsVerifa", { manual: totalManualCost.toFixed(0), verifa: totalVerifaCost })}
-          </p>
-        </div>
+        {/* Total package savings — only for multi-report packages */}
+        {pkg.reports > 1 && (
+          <div className="mt-3 rounded-xl p-4 text-center" style={{ background: "var(--success-bg)", border: "1px solid var(--success)" }}>
+            <p className="text-xs" style={{ color: "var(--success)" }}>
+              {t("home.roiTotalSavings", { reports: pkg.reports })}
+            </p>
+            <p className="text-2xl font-black mt-1" style={{ color: "var(--success)" }}>
+              {totalSavings > 0 ? `${totalSavings.toFixed(0)} €` : "0 €"}
+              <span className="text-sm font-semibold ml-2">({totalSavingsPct}%)</span>
+            </p>
+            <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+              {t("home.roiTotalVsVerifa", { manual: totalManualCost.toFixed(0), verifa: totalVerifaCost })}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Comparison table */}
