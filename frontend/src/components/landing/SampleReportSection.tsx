@@ -11,8 +11,8 @@ export default function SampleReportSection() {
       <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
         <h2 style={{ fontSize: "clamp(24px, 3.5vw, 34px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 14 }}>{t("home.sampleTitle")}</h2>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", maxWidth: 580, margin: "0 auto 28px" }}>{t("home.sampleDesc")}</p>
-        <Link href="/documents" style={{ display: "inline-block", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "12px 28px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 14 }}>
-          {t("nav.dokumenty")} →
+        <Link href="/reports" style={{ display: "inline-block", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", padding: "12px 28px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 14 }}>
+          {t("nav.reporty")} →
         </Link>
       </div>
     </section>

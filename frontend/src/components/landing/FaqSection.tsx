@@ -38,6 +38,7 @@ export default function FaqSection() {
             >
               <button
                 type="button"
+                aria-expanded={isOpen}
                 onClick={() => setOpenIndex(isOpen ? null : i)}
                 style={{
                   width: "100%",

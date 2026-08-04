@@ -125,7 +125,7 @@ function ProgressTimeline({ status, sources }: { status: string; sources: Report
 
               {i < steps.length - 1 && (
                 <div
-                  className="h-[2px] w-10 sm:w-16 sm:w-28 mx-1 transition-all duration-700"
+                  className="h-[2px] w-10 sm:w-16 md:w-28 mx-1 transition-all duration-700"
                   style={{ background: current > i ? "var(--accent)" : "var(--border)" }}
                 />
               )}

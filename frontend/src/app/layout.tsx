@@ -89,7 +89,7 @@ export default function RootLayout({
     <html lang="sk" suppressHydrationWarning className={inter.variable}>
       <head>
         {/* No-flash theme script — must run before any rendering */}
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />
         {/* JSON-LD structured data for SEO */}
         <script
           type="application/ld+json"

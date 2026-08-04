@@ -159,6 +159,8 @@ export default function NavBar() {
             <div className="relative hidden sm:block">
               <button
                 onClick={() => setAvatarOpen(!avatarOpen)}
+                aria-label={t("nav.odhlasit")}
+                aria-expanded={avatarOpen}
                 className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 transition-all duration-150"
                 style={{
                   background: "var(--bg-muted)",
