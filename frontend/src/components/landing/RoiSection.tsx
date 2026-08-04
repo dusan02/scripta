@@ -78,7 +78,7 @@ export default function RoiSection() {
         {/* Sliders — side by side on desktop */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text)" }}>
+            <label className="block text-xs font-semibold mb-2 text-center" style={{ color: "var(--text)" }}>
               {t("home.roiSliderLabel")}
             </label>
             <div className="text-center mb-1">
@@ -99,7 +99,7 @@ export default function RoiSection() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold mb-2" style={{ color: "var(--text)" }}>
+            <label className="block text-xs font-semibold mb-2 text-center" style={{ color: "var(--text)" }}>
               {t("home.roiHourlyRate")}
             </label>
             <div className="text-center mb-1">
