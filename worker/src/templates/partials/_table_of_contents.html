@@ -12,8 +12,8 @@
         {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
         {% set is_fs_info = source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
         
-        {% set dot_color = "#10b981" %}
-        {% set dot_bg = "#ecfdf5" %}
+        {% set dot_color = "#5b9279" %}
+        {% set dot_bg = "#f0f7f4" %}
         {% set status_text = i18n.status_ok %}
         {% if source.status == "SUCCESS" and has_pozor and not is_info %}
             {% set dot_color = "#ef4444" %}

@@ -5,7 +5,7 @@
     {% if logo_base64 %}
     <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-24 mb-10">
     {% else %}
-    <h1 class="text-5xl font-black text-[#10b981] mb-10">Verifa.sk</h1>
+    <h1 class="text-5xl font-black text-[#5b9279] mb-10">Verifa.sk</h1>
     {% endif %}
     
     <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">{{ i18n.due_diligence_report }}</h2>
@@ -34,7 +34,7 @@
 
     <div class="flex flex-col items-center justify-center mb-16">
         {% set score = verdict.verifaScore %}
-        {% set gauge_color = "#10b981" if score >= 80 else "#f59e0b" if score >= 50 else "#e11d48" %}
+        {% set gauge_color = "#5b9279" if score >= 80 else "#f59e0b" if score >= 50 else "#e11d48" %}
 
         {# ── Pečiatka: VERIFA SKÓRE (Zväčšená) ── #}
         <div style="transform: rotate(4deg);">

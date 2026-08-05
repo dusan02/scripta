@@ -21,8 +21,8 @@ def _to_float(val):
 
 # ─── Unified color palette ───────────────────────────────────────────────────
 COLORS = {
-    'green':       '#10b981',
-    'green_light': '#34d399',
+    'green':       '#5b9279',
+    'green_light': '#7bb095',
     'red':         '#ef4444',
     'red_light':   '#fca5a5',
     'amber':       '#f59e0b',
@@ -163,8 +163,8 @@ def generate_financial_chart(statements, lang="sk") -> str:
         x=years, y=revenues, name=i.get('chart_revenue', 'Tržby'), mode='lines+markers',
         line=dict(color='#1e293b', width=3, shape='spline'), marker=dict(size=8, color='#1e293b')
     ))
-    color = '#10b981' if sum(profits) >= 0 else '#ef4444'
-    fillcolor = 'rgba(16,185,129,0.1)' if sum(profits) >= 0 else 'rgba(239,68,68,0.1)'
+    color = COLORS['green'] if sum(profits) >= 0 else COLORS['red']
+    fillcolor = 'rgba(91,146,121,0.1)' if sum(profits) >= 0 else 'rgba(239,68,68,0.1)'
     fig.add_trace(go.Scatter(
         x=years, y=profits, name=i.get('chart_net_profit_loss', 'Čistý Zisk / Strata'), mode='lines+markers',
         fill='tozeroy', fillcolor=fillcolor,
@@ -322,11 +322,11 @@ def generate_altman_chart(altman_scores, lang="sk") -> str:
     # Add colored zones (Distress, Grey, Safe)
     fig.add_hrect(y0=min_y, y1=1.1, fillcolor="#ef4444", opacity=0.1, line_width=0)
     fig.add_hrect(y0=1.1, y1=2.6, fillcolor="#f59e0b", opacity=0.1, line_width=0)
-    fig.add_hrect(y0=2.6, y1=max_y, fillcolor="#10b981", opacity=0.1, line_width=0)
+    fig.add_hrect(y0=2.6, y1=max_y, fillcolor=COLORS['green'], opacity=0.1, line_width=0)
     
     # Threshold lines
     fig.add_hline(y=1.1, line_dash="dash", line_color="rgba(239,68,68,0.5)")
-    fig.add_hline(y=2.6, line_dash="dash", line_color="rgba(16,185,129,0.5)")
+    fig.add_hline(y=2.6, line_dash="dash", line_color="rgba(91,146,121,0.5)")
 
     colors = [COLORS['green'] if s > 2.6 else COLORS['amber'] if s >= 1.1 else COLORS['red'] for s in scores]
     
@@ -417,7 +417,7 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
         r=pcts + [pcts[0]],
         theta=labels + [labels[0]],
         fill='toself',
-        fillcolor='rgba(16,185,129,0.2)',
+        fillcolor='rgba(91,146,121,0.2)',
         line=dict(color=COLORS['green'], width=2),
         marker=dict(size=8, color=COLORS['green'])
     ))
@@ -546,7 +546,7 @@ def generate_rpe_chart(statements, lang="sk") -> str:
         textposition='top center',
         textfont=dict(size=9, color='#059669'),
         fill='tozeroy',
-        fillcolor='rgba(16,185,129,0.08)',
+        fillcolor='rgba(91,146,121,0.08)',
     ))
 
     avg = sum(rpe) / len(rpe)

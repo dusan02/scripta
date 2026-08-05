@@ -22,7 +22,7 @@
                 {% set icon = "⚠" %}
                 {% set icon_color = "text-violet-500" %}
             {% elif pct >= 70 %}
-                {% set bar_color = "#10b981" %}
+                {% set bar_color = "#5b9279" %}
                 {% set score_color = "text-emerald-700" %}
                 {% set row_bg = "" %}
                 {% set icon = "✓" %}
@@ -467,14 +467,14 @@
         {% if insolvency_score.risk_level == 'critical' %}#ef4444; background: #fef2f2;
         {% elif insolvency_score.risk_level == 'high' %}#f97316; background: #fff7ed;
         {% elif insolvency_score.risk_level == 'medium' %}#f59e0b; background: #fffbeb;
-        {% else %}#10b981; background: #ecfdf5;{% endif %}">
+        {% else %}#5b9279; background: #f0f7f4;{% endif %}">
         <div class="flex-shrink-0">
             <div class="relative w-20 h-20">
                 <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="34" fill="none" stroke="#e2e8f0" stroke-width="6"/>
                     <circle cx="40" cy="40" r="34" fill="none" stroke-width="6" stroke-linecap="round"
                         stroke-dasharray="{{ insolvency_score.score * 2.136 }} 213.6"
-                        stroke="{% if insolvency_score.risk_level == 'critical' %}#ef4444{% elif insolvency_score.risk_level == 'high' %}#f97316{% elif insolvency_score.risk_level == 'medium' %}#f59e0b{% else %}#10b981{% endif %}"/>
+                        stroke="{% if insolvency_score.risk_level == 'critical' %}#ef4444{% elif insolvency_score.risk_level == 'high' %}#f97316{% elif insolvency_score.risk_level == 'medium' %}#f59e0b{% else %}#5b9279{% endif %}"/>
                 </svg>
                 <div class="absolute inset-0 flex items-center justify-center">
                     <span class="text-2xl font-black" style="color:
@@ -1021,7 +1021,7 @@
                         <p class="report-label text-slate-400 mb-1">Piotroski F</p>
                         <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-700{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }} <span class="text-slate-400 text-sm font-normal">{{ i18n.out_of_8 }}</span></p>
                         <div class="w-full bg-slate-100 rounded-full mt-1.5" style="height: 3px;">
-                            <div class="rounded-full" style="height: 3px; width: {{ piotroski_score / 8 * 100 }}%; background: {% if piotroski_score >= 6 %}#047857{% elif piotroski_score >= 4 %}#d97706{% else %}#e11d48{% endif %};"></div>
+                            <div class="rounded-full" style="height: 3px; width: {{ piotroski_score / 8 * 100 }}%; background: {% if piotroski_score >= 6 %}#5b9279{% elif piotroski_score >= 4 %}#d97706{% else %}#e11d48{% endif %};"></div>
                         </div>
                     </div>
                     {% endif %}

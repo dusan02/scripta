@@ -400,7 +400,7 @@ class PdfCompiler:
         c.rect(0, 0, 595, 842, fill=1, stroke=0)
 
         # Horizontálna čiara hore
-        c.setStrokeColor(colors.HexColor("#10b981"))
+        c.setStrokeColor(colors.HexColor("#5b9279"))
         c.setLineWidth(3)
         c.line(80, 500, 515, 500)
 
@@ -420,7 +420,7 @@ class PdfCompiler:
         c.drawString(80, 385, i18n_strings.get("divider_desc_2", "Prílohy sú chronologicky zoradené podľa zdroja v Obsahu reportu."))
 
         # Dolná akcentná čiara
-        c.setStrokeColor(colors.HexColor("#10b981"))
+        c.setStrokeColor(colors.HexColor("#5b9279"))
         c.setLineWidth(1.5)
         c.line(80, 360, 200, 360)
 
@@ -490,7 +490,7 @@ class PdfCompiler:
             c.drawRightString(page_w - x_margin, y_pos, "Verifa.sk")
             
             # Akcentná čiara pod nadpisom (emerald, hrubšia)
-            c.setStrokeColor(colors.HexColor("#10b981"))
+            c.setStrokeColor(colors.HexColor("#5b9279"))
             c.setLineWidth(1.5)
             c.line(x_margin, y_pos - 10, page_w - x_margin, y_pos - 10)
             

@@ -130,7 +130,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         source.append(0); target.append(1); value.append(cogs)
         link_color.append("rgba(239,68,68,0.35)")
     source.append(0); target.append(2); value.append(gross)
-    link_color.append("rgba(16,185,129,0.35)")
+    link_color.append("rgba(91,146,121,0.35)")
 
     # Hrubá marža → náklady
     if staff_val > 0:
@@ -159,7 +159,7 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     # Čistý zisk / Strata
     if net > 0:
         source.append(2); target.append(7); value.append(net)
-        link_color.append("rgba(16,185,129,0.35)")
+        link_color.append("rgba(91,146,121,0.35)")
     elif net < 0:
         labels.append(i.get('sankey_loss', 'Strata'))
         colors.append(COLORS['red'])
@@ -249,11 +249,11 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         # Jednoduchý prípad: Čistý zisk + Odpisy + Zmeny v PK → Prevádzkový CF
         # Uzly: 0=Čistý zisk, 1=Odpisy, 2=Zmeny v PK, 3=Prevádzkový CF
         labels = [i.get('sankey_net_profit', 'Čistý zisk'), i.get('sankey_depreciation', 'Odpisy'), i.get('sankey_wc_changes', 'Zmeny v prac. kapitále'), i.get('chart_operating_cf', 'Prevádzkový CF')]
-        colors = [COLORS['green'], COLORS['blue'], "#22c55e", COLORS['green']]
+        colors = [COLORS['green'], COLORS['blue'], COLORS['green_light'], COLORS['green']]
         source = [0, 1]
         target = [3, 3]
         value = [net_profit, dep_val]
-        link_color = ["rgba(16,185,129,0.4)", "rgba(59,130,246,0.4)"]
+        link_color = ["rgba(91,146,121,0.4)", "rgba(59,130,246,0.4)"]
         node_x = [0.01, 0.01, 0.01, 0.82]
         node_y = [0.25, 0.60, 0.85, 0.50]
         if working_capital_effect > 0:
@@ -270,8 +270,8 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
         target = [2, 2, 3, 4]
         value = [net_profit, dep_val, ocf, abs(working_capital_effect)]
         link_color = [
-            "rgba(16,185,129,0.4)", "rgba(59,130,246,0.4)",
-            "rgba(16,185,129,0.4)", "rgba(239,68,68,0.4)"
+            "rgba(91,146,121,0.4)", "rgba(59,130,246,0.4)",
+            "rgba(91,146,121,0.4)", "rgba(239,68,68,0.4)"
         ]
         node_x = [0.01, 0.01, 0.45, 0.82, 0.82]
         node_y = [0.25, 0.70, 0.50, 0.25, 0.75]
@@ -351,7 +351,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     # Ľavé uzly (Aktíva + záporné VI)
     left_nodes = []
     if current_assets > 0:
-        left_nodes.append({"name": i.get('sankey_current_assets', 'Obežný majetok'), "value": current_assets, "color": COLORS['green'], "link_color": "rgba(16,185,129,0.35)", "id": 4})
+        left_nodes.append({"name": i.get('sankey_current_assets', 'Obežný majetok'), "value": current_assets, "color": COLORS['green'], "link_color": "rgba(91,146,121,0.35)", "id": 4})
     if non_current_assets > 0:
         left_nodes.append({"name": i.get('sankey_non_current', 'Dlhodobý majetok'), "value": non_current_assets, "color": "#0ea5e9", "link_color": "rgba(14,165,233,0.35)", "id": 5})
     if is_negative_equity and abs_equity > 0:
@@ -360,7 +360,7 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     # Pravé uzly (Pasíva)
     right_nodes = []
     if not is_negative_equity and abs_equity > 0:
-        right_nodes.append({"name": i.get('sankey_equity', 'Vlastné imanie'), "value": abs_equity, "color": COLORS['green'], "link_color": "rgba(16,185,129,0.35)", "id": 8})
+        right_nodes.append({"name": i.get('sankey_equity', 'Vlastné imanie'), "value": abs_equity, "color": COLORS['green'], "link_color": "rgba(91,146,121,0.35)", "id": 8})
     if short_term > 0:
         right_nodes.append({"name": i.get('sankey_short_liab', 'Krátkodobé záväzky'), "value": short_term, "color": "#fca5a5", "link_color": "#fca5a5", "id": 9})
     if long_term > 0:
@@ -413,10 +413,10 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     if 4 in left_node_ids:
         om_idx = left_node_ids[4]
         idx = sub_nodes_start
-        if cash > 0: links.append({"source": idx, "target": om_idx, "value": cash, "color": "rgba(16,185,129,0.25)"}); idx += 1
-        if receivables > 0: links.append({"source": idx, "target": om_idx, "value": receivables, "color": "rgba(16,185,129,0.25)"}); idx += 1
-        if inventory > 0: links.append({"source": idx, "target": om_idx, "value": inventory, "color": "rgba(16,185,129,0.25)"}); idx += 1
-        if other_current > 0: links.append({"source": idx, "target": om_idx, "value": other_current, "color": "rgba(16,185,129,0.25)"})
+        if cash > 0: links.append({"source": idx, "target": om_idx, "value": cash, "color": "rgba(91,146,121,0.25)"}); idx += 1
+        if receivables > 0: links.append({"source": idx, "target": om_idx, "value": receivables, "color": "rgba(91,146,121,0.25)"}); idx += 1
+        if inventory > 0: links.append({"source": idx, "target": om_idx, "value": inventory, "color": "rgba(91,146,121,0.25)"}); idx += 1
+        if other_current > 0: links.append({"source": idx, "target": om_idx, "value": other_current, "color": "rgba(91,146,121,0.25)"})
         
     # Center node
     center_idx = len(nodes)
@@ -538,7 +538,7 @@ def _waterfall_to_bars(steps):
             else:
                 bar_base.append(running)
                 bar_y.append(val)
-                bar_colors.append('#10b981')
+                bar_colors.append(COLORS['green'])
             running += val
         elif measure == 'total':
             bar_base.append(0)
