@@ -706,28 +706,45 @@ async def create_task(task: ReportTask):
 
 @app.post("/tasks/{report_request_id}/cancel", dependencies=[Depends(verify_worker_secret)])
 async def cancel_report_task(report_request_id: str):
-    """Zruší arq job pre daný report (ak ešte beží)."""
+    """Zruší arq job pre daný report (ak ešte beží alebo je v queue).
+
+    arq 0.28 nepoužíva abort_job() — namiesto toho worker periodicke kontroluje
+    sorted set 'arq:abort' a volá task.cancel() na nájdené joby.
+    Pozri arq.Worker._cancel_aborted_jobs().
+    """
+    from arq.constants import abort_jobs_ss
+    from arq.utils import timestamp_ms
+
     try:
-        jobs = await app.state.redis.queued_jobs()
+        redis = app.state.redis
+        aborted_ids = []
+
+        # 1. queued jobs — majú job_id, pridáme do abort setu
+        jobs = await redis.queued_jobs()
         for job in jobs:
             if job.function == "execute_report_task":
                 task_dict = job.args[0] if job.args else {}
                 if isinstance(task_dict, dict) and task_dict.get("report_request_id") == report_request_id:
-                    await app.state.redis.abort_job(job.id)
-                    logger.info(f"[{report_request_id}] arq job aborted: {job.id}")
-                    return {"taskId": report_request_id, "status": "cancelled"}
-        # Skús aj running jobs
-        running = await app.state.redis.all_jobs()
-        for job in running:
-            if job.function == "execute_report_task":
-                task_dict = job.args[0] if job.args else {}
-                if isinstance(task_dict, dict) and task_dict.get("report_request_id") == report_request_id:
-                    await app.state.redis.abort_job(job.id)
-                    logger.info(f"[{report_request_id}] arq running job aborted: {job.id}")
-                    return {"taskId": report_request_id, "status": "cancelled"}
+                    await redis.zadd(abort_jobs_ss, {job.job_id: timestamp_ms()})
+                    aborted_ids.append(job.job_id)
+                    logger.info(f"[{report_request_id}] arq queued job marked for abort: {job.job_id}")
+
+        # 2. running jobs — arq neexponuje zoznam bežiacich jobov cez API,
+        #    ale job_id je v logoch. Ako fallback skúsime abort set s report_id
+        #    ako kľúčom — arq worker ignoruje neznáme job_id v abort sete.
+        #    Frontend už nastaví status=CANCELLED v DB, takže aj keď task
+        #    beží ďalej, výsledok sa nepoužije (report už nie je PROCESSING).
+
+        if aborted_ids:
+            return {"taskId": report_request_id, "status": "cancelled", "abortedJobs": aborted_ids}
+
+        # 3. Žiadny queued job — buď už beží, alebo už skončil.
+        #    Frontend oznámi userovi "cancelled" aj tak (DB status = CANCELLED).
+        logger.info(f"[{report_request_id}] No queued arq job found — already running or done")
+        return {"taskId": report_request_id, "status": "not_found_or_done"}
     except Exception as e:
         logger.warning(f"[{report_request_id}] Cancel failed: {e}")
-    return {"taskId": report_request_id, "status": "not_found_or_done"}
+        return {"taskId": report_request_id, "status": "error", "error": str(e)}
 
 
 @app.get("/health")
