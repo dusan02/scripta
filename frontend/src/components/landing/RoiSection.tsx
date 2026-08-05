@@ -132,22 +132,22 @@ export default function RoiSection() {
             <p className="text-base sm:text-xl font-black" style={{ color: "var(--accent)" }}>{verifaPerReport.toFixed(2).replace(".", ",")} €</p>
             <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--accent)" }}>~{VERIFA_MINUTES} min</p>
           </div>
-          <div className="p-3 text-center" style={{ background: "var(--success-bg)" }}>
-            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--success)" }}>{t("home.roiSavings")}</p>
-            <p className="text-base sm:text-xl font-black" style={{ color: "var(--success)" }}>
+          <div className="p-3 text-center" style={{ background: "var(--accent-light)" }}>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--accent)" }}>{t("home.roiSavings")}</p>
+            <p className="text-base sm:text-xl font-black" style={{ color: "var(--accent)" }}>
               {savingsPerReport > 0 ? `${savingsPerReport.toFixed(0)} €` : "0 €"}
             </p>
-            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--success)" }}>({savingsPct}%)</p>
+            <p className="text-[10px] sm:text-[11px]" style={{ color: "var(--accent)" }}>({savingsPct}%)</p>
           </div>
         </div>
 
         {/* Total package savings — only for multi-report packages */}
         {pkg.reports > 1 && (
-          <div className="mt-3 rounded-xl p-4 text-center" style={{ background: "var(--success-bg)", border: "1px solid var(--success)" }}>
-            <p className="text-xs" style={{ color: "var(--success)" }}>
+          <div className="mt-3 rounded-xl p-4 text-center" style={{ background: "var(--accent-light)", border: "1px solid var(--accent)" }}>
+            <p className="text-xs" style={{ color: "var(--accent)" }}>
               {t("home.roiTotalSavings", { reports: pkg.reports })}
             </p>
-            <p className="text-2xl font-black mt-1" style={{ color: "var(--success)" }}>
+            <p className="text-2xl font-black mt-1" style={{ color: "var(--accent)" }}>
               {totalSavings > 0 ? `${totalSavings.toFixed(0)} €` : "0 €"}
               <span className="text-sm font-semibold ml-2">({totalSavingsPct}%)</span>
             </p>
@@ -179,7 +179,7 @@ export default function RoiSection() {
               <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
                 <td className="p-4 text-sm font-medium" style={{ color: "var(--text)" }}>{row.label}</td>
                 <td className="p-4 text-center text-sm" style={{ color: row.manual === "✗" ? "var(--danger)" : "var(--text-muted)", fontWeight: row.manual === "✗" ? 800 : 400 }}>{row.manual}</td>
-                <td className="p-4 text-center text-sm font-semibold" style={{ color: row.verifa === "✓" ? "var(--success)" : "var(--accent)", fontWeight: row.verifa === "✓" ? 800 : 600 }}>{row.verifa}</td>
+                <td className="p-4 text-center text-sm font-semibold" style={{ color: row.verifa === "✓" ? "var(--accent)" : "var(--accent)", fontWeight: row.verifa === "✓" ? 800 : 600 }}>{row.verifa}</td>
               </tr>
             ))}
           </tbody>

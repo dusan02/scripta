@@ -725,3 +725,12 @@ textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ── Landing: Report Includes cards hover ── */
+.report-includes-card:hover {
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+@media (hover: none) {
+  .report-includes-card:hover { transform: none; }
+}

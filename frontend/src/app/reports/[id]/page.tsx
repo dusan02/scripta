@@ -385,12 +385,12 @@ function PhaseProgress({
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-3">
             {/* Animated Icon */}
-            <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center relative" style={{ background: "var(--success-bg)" }}>
-              <svg className="w-4 h-4 animate-spin relative z-10" style={{ color: "var(--success)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center relative" style={{ background: "var(--accent-light)" }}>
+              <svg className="w-4 h-4 animate-spin relative z-10" style={{ color: "var(--accent)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--success)" }}></div>
+              <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--accent)" }}></div>
             </div>
             {isScraping && sourcesTotal > 0 && (
               <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -399,7 +399,7 @@ function PhaseProgress({
             )}
           </div>
           {/* Percentage badge — always top-right, never wraps into text */}
-          <span className="shrink-0 text-2xl font-bold tabular-nums leading-none" style={{ color: "var(--success)" }}>
+          <span className="shrink-0 text-2xl font-bold tabular-nums leading-none" style={{ color: "var(--accent)" }}>
             {Math.round(displayProgress)}<span className="text-sm font-semibold">%</span>
           </span>
         </div>
@@ -409,7 +409,7 @@ function PhaseProgress({
           <span className="shrink-0 tabular-nums text-xs font-mono" style={{ color: "var(--text-muted)" }}>
             [{new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}]
           </span>
-          <span className="text-[14px] font-medium leading-snug" style={{ color: "var(--success)" }}>
+          <span className="text-[14px] font-medium leading-snug" style={{ color: "var(--accent)" }}>
             {statusText}
           </span>
         </div>
@@ -420,7 +420,7 @@ function PhaseProgress({
         <div className="w-full h-2.5 rounded-full overflow-hidden relative" style={{ background: "var(--border)" }}>
           <div
             className="h-full rounded-full ease-linear"
-            style={{ width: `${displayProgress}%`, background: "var(--success)", transition: "width 500ms linear" }}
+            style={{ width: `${displayProgress}%`, background: "var(--accent)", transition: "width 500ms linear" }}
           />
         </div>
       </div>
@@ -441,7 +441,7 @@ function PhaseProgress({
             return (
               <div key={entry.timestamp} className="flex items-start gap-2 py-0.5" style={{ opacity: isLast ? 1 : 0.5 }}>
                 <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>[{time}]</span>
-                <span style={{ color: isLast ? "var(--success)" : "var(--text-muted)", fontWeight: isLast ? 500 : 400 }}>
+                <span style={{ color: isLast ? "var(--accent)" : "var(--text-muted)", fontWeight: isLast ? 500 : 400 }}>
                   {entry.text}
                 </span>
               </div>
