@@ -187,7 +187,8 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8011/health')"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 12
+      start_period: 30s
     volumes:
       - ./worker/results:/app/results
 

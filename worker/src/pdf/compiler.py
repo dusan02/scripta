@@ -223,6 +223,39 @@ class PdfCompiler:
             )
 
         # 5. Zlúčime cover page + divider + PDF zdrojov pomocou PdfWriter.
+        # Táto operácia je CPU-bound (PyPDF2 merge, page numbering, overlay) a môže trvať
+        # minúty pre veľké reporty (1600+ strán). Bežie v thread pool-e, aby nezablokovala
+        # asyncio event loop a health check endpoint.
+        import asyncio
+        final_path = await asyncio.to_thread(
+            self._merge_pdfs_sync,
+            output_dir=output_dir,
+            cover_path=cover_path,
+            sources=sources,
+            i18n_strings=i18n_strings,
+            actual_cover_pages=actual_cover_pages,
+            identifier=identifier,
+            generated_at=generated_at,
+            report_request_id=report_request_id,
+            report_language=report_language,
+        )
+
+        return final_path
+
+    def _merge_pdfs_sync(
+        self,
+        *,
+        output_dir: Path,
+        cover_path: Path,
+        sources: List[ScrapedSource],
+        i18n_strings: dict,
+        actual_cover_pages: int,
+        identifier: str,
+        generated_at,
+        report_request_id: str,
+        report_language: str = "sk",
+    ) -> Path:
+        """Synchronná PDF merge operácia — volá sa cez asyncio.to_thread()."""
         writer = PdfWriter()
         writer.append(cover_path)
 
@@ -243,7 +276,7 @@ class PdfCompiler:
         skipped_no_record = []
         bookmarks = []
         bookmarks.append((i18n_strings.get("divider_title", "PRÍLOHY") + " — " + i18n_strings.get("divider_subtitle", "ZDROJOVÉ DÁTA"), actual_cover_pages))
-        
+
         for source in sources:
             if source.start_page is not None and source.file_path:
                 writer.append(source.file_path)
@@ -288,10 +321,10 @@ class PdfCompiler:
                                     if "/A" in annot_obj:
                                         del annot_obj["/A"]
                                     annot_obj[NameObject("/Dest")] = ArrayObject([
-                                        target_page.indirect_reference, 
-                                        NameObject("/XYZ"), 
-                                        NumberObject(0), 
-                                        target_page.mediabox.top, 
+                                        target_page.indirect_reference,
+                                        NameObject("/XYZ"),
+                                        NumberObject(0),
+                                        target_page.mediabox.top,
                                         NumberObject(0)
                                     ])
 
