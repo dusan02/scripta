@@ -3,7 +3,6 @@
 import LandingJsonLd from "@/components/LandingJsonLd";
 import LandingNav from "@/components/landing/LandingNav";
 import HeroSection from "@/components/landing/HeroSection";
-import FeaturesSection from "@/components/landing/FeaturesSection";
 import ReportIncludesSection from "@/components/landing/ReportIncludesSection";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import RoiSection from "@/components/landing/RoiSection";
@@ -44,7 +43,6 @@ export default function LandingPage() {
       `}</style>
       <LandingNav />
       <HeroSection />
-      <FeaturesSection />
       <ReportIncludesSection />
       <HowItWorksSection />
       <RoiSection />

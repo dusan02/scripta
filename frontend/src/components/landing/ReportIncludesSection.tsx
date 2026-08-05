@@ -3,18 +3,48 @@
 import { useT } from "@/components/LanguageProvider";
 
 const ITEMS = [
-  { icon: "M", highlight: "AI", keys: { title: "home.ri1Title", desc: "home.ri1Desc" } },
-  { icon: "H", highlight: "7", keys: { title: "home.ri2Title", desc: "home.ri2Desc" } },
-  { icon: "B", highlight: "%", keys: { title: "home.ri3Title", desc: "home.ri3Desc" } },
-  { icon: "S", highlight: "!", keys: { title: "home.ri4Title", desc: "home.ri4Desc" } },
-  { icon: "A", highlight: "✓", keys: { title: "home.ri5Title", desc: "home.ri5Desc" } },
-  { icon: "L", highlight: "⏱", keys: { title: "home.ri6Title", desc: "home.ri6Desc" } },
+  // ── Overview (3 cards from old FeaturesSection) ──
+  { icon: "R", keys: { title: "home.feature1Title", desc: "home.feature1Desc" } },
+  { icon: "F", keys: { title: "home.feature2Title", desc: "home.feature2Desc" } },
+  { icon: "V", keys: { title: "home.feature3Title", desc: "home.feature3Desc" } },
+  // ── Detailed analyses (6 cards) ──
+  { icon: "M", keys: { title: "home.ri1Title", desc: "home.ri1Desc" } },
+  { icon: "H", keys: { title: "home.ri2Title", desc: "home.ri2Desc" } },
+  { icon: "B", keys: { title: "home.ri3Title", desc: "home.ri3Desc" } },
+  { icon: "S", keys: { title: "home.ri4Title", desc: "home.ri4Desc" } },
+  { icon: "A", keys: { title: "home.ri5Title", desc: "home.ri5Desc" } },
+  { icon: "L", keys: { title: "home.ri6Title", desc: "home.ri6Desc" } },
 ] as const;
 
 // Inline SVG icons for each card — clean, professional, no emoji
 function CardIcon({ type }: { type: string }) {
   const common = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (type) {
+    case "R": // Registries — database/layers
+      return (
+        <svg {...common}>
+          <ellipse cx="12" cy="5" rx="9" ry="3" />
+          <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+          <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6" />
+        </svg>
+      );
+    case "F": // Financial analysis — bar chart
+      return (
+        <svg {...common}>
+          <path d="M3 3v18h18" />
+          <rect x="7" y="12" width="3" height="6" />
+          <rect x="12" y="8" width="3" height="10" />
+          <rect x="17" y="5" width="3" height="13" />
+        </svg>
+      );
+    case "V": // Verifa Score — gauge/speedometer
+      return (
+        <svg {...common}>
+          <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+          <path d="M12 12l4-3" />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+        </svg>
+      );
     case "M": // Executive summary — document with text lines
       return (
         <svg {...common}>
@@ -39,7 +69,7 @@ function CardIcon({ type }: { type: string }) {
           <path d="M16 7h4v4" />
         </svg>
       );
-    case "S": // State liabilities — warning triangle with building
+    case "S": // State liabilities — warning triangle
       return (
         <svg {...common}>
           <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -53,7 +83,7 @@ function CardIcon({ type }: { type: string }) {
           <path d="M9 12l2 2 4-4" />
         </svg>
       );
-    case "L": // Legal timeline — clock with document
+    case "L": // Legal timeline — clock
       return (
         <svg {...common}>
           <circle cx="12" cy="12" r="9" />

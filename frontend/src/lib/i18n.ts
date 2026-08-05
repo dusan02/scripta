@@ -758,7 +758,7 @@ const sk: Dict = {
   "home.feature2Title": "Automatizovaná finančná analýza",
   "home.feature2Desc": "5-ročná história z účtovných závierok, Altman Z-Score, Piotroski F-Score, ukazovatele likvidity a zadlženosti, identifikácia rizikových vzorcov a schránkových firiem.",
   "home.feature3Title": "Verifa Score a záverečný posudok",
-  "home.feature3Desc": "5-pilierové hodnotenie s Verifa Score (0–100), kategóriou rizika (AAA/A/B/C) a konkrétnymi odporúčaniami naďalej.",
+  "home.feature3Desc": "5-pilierové hodnotenie s Verifa Score (0–100), kategóriou rizika (AAA/A/B/C) a konkrétnymi odporúčaniami pre ďalšie kroky.",
 
   // ── Landing page: How it works ──
   "home.stepLabel": "Krok",
@@ -791,7 +791,7 @@ const sk: Dict = {
 
   // ── Landing page: Report Includes (detailed breakdown) ──
   "home.reportIncludesTitle": "Čo správa obsahuje",
-  "home.reportIncludesSubtitle": "Šesť kľúčových analýz, ktoré vám ušetria hodiny manuálneho preverovania.",
+  "home.reportIncludesSubtitle": "Deväť kľúčových analýz a overení, ktoré vám ušetria hodiny manuálneho preverovania.",
   "home.ri1Title": "Manažérske zhrnutie",
   "home.ri1Desc": "AI generovaný posudok v prirodzenom jazyku, ktorý identifikuje kľúčové riziká a odporúčania. Priamo vložiteľné do spisu alebo správy pre klienta.",
   "home.ri2Title": "Mapa rizík podvodu",
@@ -1650,7 +1650,7 @@ const en: Dict = {
 
   // ── Landing page: Report Includes (detailed breakdown) ──
   "home.reportIncludesTitle": "What the report includes",
-  "home.reportIncludesSubtitle": "Six key analyses that save you hours of manual verification.",
+  "home.reportIncludesSubtitle": "Nine key analyses and checks that save you hours of manual verification.",
   "home.ri1Title": "Executive Summary",
   "home.ri1Desc": "AI-generated assessment in natural language that identifies key risks and recommendations. Directly embeddable in a client file or report.",
   "home.ri2Title": "Fraud Risk Heatmap",
@@ -2509,7 +2509,7 @@ const de: Dict = {
 
   // ── Landing page: Report Includes (detailed breakdown) ──
   "home.reportIncludesTitle": "Was der Bericht enthält",
-  "home.reportIncludesSubtitle": "Sechs Schlüsselanalysen, die Ihnen Stunden manueller Prüfung sparen.",
+  "home.reportIncludesSubtitle": "Neun Schlüsselanalysen und Prüfungen, die Ihnen Stunden manueller Prüfung sparen.",
   "home.ri1Title": "Management-Zusammenfassung",
   "home.ri1Desc": "KI-generiertes Gutachten in natürlicher Sprache, das Kernrisiken und Empfehlungen identifiziert. Direkt in eine Akte oder einen Mandantenbericht einfügbar.",
   "home.ri2Title": "Betrugsrisiko-Heatmap",
