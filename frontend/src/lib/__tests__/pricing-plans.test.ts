@@ -85,8 +85,8 @@ describe("pricing-plans.ts — PRICING_PLANS structure", () => {
 });
 
 describe("pricing-plans.ts — REPORT_INCLUDES_KEYS", () => {
-  it("has 12 include keys", () => {
-    assert.equal(REPORT_INCLUDES_KEYS.length, 12);
+  it("has 20 include keys", () => {
+    assert.equal(REPORT_INCLUDES_KEYS.length, 20);
   });
 
   it("all keys are non-empty strings starting with 'pricing.'", () => {
