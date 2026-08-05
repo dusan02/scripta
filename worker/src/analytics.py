@@ -36,6 +36,17 @@ def _sanitize_stmt_numeric(stmt: Any) -> Any:
         'incomeTax', 'investingCashFlow', 'financingCashFlow',
         'cashAndEquivalents', 'socialInsuranceLiabilities', 'taxLiabilities',
         'employeeLiabilities', 'monthsInPeriod', 'year',
+        # Extended fields (template 699 — asset/equity composition, income detail)
+        'nonCurrentAssets', 'intangibleAssets', 'tangibleAssets',
+        'ltFinancialAssets', 'ltReceivables', 'stFinancialAssets',
+        'deferredAssets', 'shareCapital', 'sharePremium',
+        'otherCapitalFunds', 'statutoryReserveFunds', 'otherProfitFunds',
+        'retainedEarnings', 'retainedProfit', 'accumulatedLoss',
+        'currentYearProfit', 'ltReserves', 'stReserves',
+        'stBankLoans', 'stFinancialAssistance',
+        'operatingCosts', 'materialConsumption', 'servicesCosts',
+        'wageCosts', 'taxesFees', 'financialResult',
+        'profitBeforeTax', 'profitTransfer',
     )
     result = {}
     for field_name in _NUMERIC_FIELDS:
