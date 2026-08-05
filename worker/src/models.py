@@ -5,10 +5,11 @@ from pydantic import BaseModel, Field
 
 # Slovenské akademické tituly pre očistu mena
 ACADEMIC_TITLES = {
-    "ing.", "mgr.", "mudr.", "mddr.", "mvdr.", "bc.", "bca.", "judr.",
-    "phdr.", "rndr.", "pharmdr.", "thdr.", "thlic.", "paeddr.", "dr.",
-    "prof.", "doc.", "akad.", "phd.", "dba", "edd.", "dsc.", "drsc.",
-    "csc.", "dis.", "etds.", "mba",
+    "ing", "mgr", "mudr", "mddr", "mvdr", "bc", "bca", "judr",
+    "phdr", "rndr", "pharmdr", "thdr", "thlic", "paeddr", "dr",
+    "prof", "doc", "akad", "phd", "dba", "edd", "dsc", "drsc",
+    "csc", "dis", "etds", "mba",
+    "ll.m", "ll.b", "ll.d", "j.d",
 }
 
 ZIP_RE = re.compile(r'\b(\d{3}\s*\d{2})\b')

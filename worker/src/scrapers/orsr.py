@@ -327,6 +327,8 @@ class OrsrScraper(BaseScraper):
         # Nájdeme koniec sekcie — ďalší riadok ktorý vyzerá ako label (slovo + ':')
         section_lines: list[str] = []
         _LABEL_RE = re.compile(r'^[A-ZÁ-Ž][a-zá-ž]+\s*[a-zá-ž]*:')
+        # Sub-labely ktoré sa objavujú vnútri sekcií a nesmú ukončiť parsovanie
+        _SUBLABELS = {"vznik funkcie", "konanie menom", "spôsob konania", "dátum aktualizácie"}
         for line in lines[1:]:  # preskočíme prvý riadok (label)
             stripped = line.strip()
             if not stripped:
@@ -335,7 +337,11 @@ class OrsrScraper(BaseScraper):
                     continue
                 continue
             if _LABEL_RE.match(stripped) and len(stripped) < 60:
-                break  # ďalší label — koniec sekcie
+                # Skontroluj či to nie je sub-label (napr. "Vznik funkcie:")
+                if stripped.lower().split(":")[0].strip() in _SUBLABELS:
+                    section_lines.append(stripped)
+                    continue
+                break  # ďalší section label — koniec sekcie
             section_lines.append(stripped)
 
         # Parsovanie osôb z section_lines
@@ -388,12 +394,14 @@ class OrsrScraper(BaseScraper):
             for keyword in _NON_PERSON_KEYWORDS:
                 if keyword in lowered:
                     return False
-            # Musí obsahovať aspoň 2 slová po odstránení titulov
+            # Musí obsahovať aspoň 2 slová po odstránení titulov a interpunkcie
             words = line.split()
             name_words = [w for w in words if w.lower().rstrip(".,") not in ACADEMIC_TITLES]
+            # Odstrániť čisté interpunkčné tokeny (",", ".", "PhD.,", "LL.M.")
+            name_words = [w for w in name_words if w.rstrip(".,;") and any(c.isalpha() for c in w)]
             if len(name_words) < 2:
                 return False
-            # Všetky slová (okrem titulov) musia byť alfabetické
+            # Všetky slová musia byť alfabetické (po odstránení titulov a interpunkcie)
             for w in name_words:
                 if not w.isalpha():
                     return False
@@ -418,8 +426,9 @@ class OrsrScraper(BaseScraper):
             name_part = line.split(" - ")[0].strip() if " - " in line else line
             # Rozdeliť na slová
             words = name_part.split()
-            # Odstrániť tituly
+            # Odstrániť tituly a interpunkčné tokeny
             name_words = [w for w in words if w.lower().rstrip(".,") not in ACADEMIC_TITLES]
+            name_words = [w for w in name_words if w.rstrip(".,;") and any(c.isalpha() for c in w)]
             if len(name_words) < 2:
                 i += 1
                 continue
