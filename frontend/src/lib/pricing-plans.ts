@@ -72,6 +72,8 @@ export const REPORT_INCLUDES_KEYS = [
   "pricing.incAiFinancna",
   "pricing.incAltman",
   "pricing.incRizika",
+  "pricing.incAiPosudok",
+  "pricing.incFraudHeatmap",
   "pricing.incInsolvencie",
   "pricing.incExekucie",
   "pricing.incDiskvalifikacie",
