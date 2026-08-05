@@ -1211,7 +1211,9 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
 
     # 6. From auditor opinion
     if stmts:
-        for stmt in reversed(sorted(stmts, key=lambda s: s.year)):
+        sorted_stmts_desc = sorted(stmts, key=lambda s: s.year, reverse=True)
+        latest_year = sorted_stmts_desc[0].year
+        for stmt in sorted_stmts_desc:
             ao = getattr(stmt, 'auditorOpinion', None)
             if ao:
                 op_type = getattr(ao, 'opinionType', '') or ''
@@ -1223,9 +1225,17 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
                         getattr(ao, 'goingConcernRisk', None) or
                         (nr and getattr(nr, 'goingConcernDoubts', None))
                     )
+                    # Ak audit je starší ako 2 roky od najnovšieho výkazu,
+                    # zobraz ako varovanie (nie silnú stránku) — môže byť neaktuálny
+                    audit_age = latest_year - stmt.year
+                    is_stale_audit = audit_age > 2
+
                     if 'bez výhrad' in op_lower or 'unqualified' in op_lower:
                         if has_going_concern:
                             _weakness(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year}) — {i18n_strings.get('sw_going_concern_doubt', 'Going Concern pochybnosti')}",
+                                      i18n_strings.get("sw_source_auditor", ""))
+                        elif is_stale_audit:
+                            _weakness(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year}) — {i18n_strings.get('sw_stale_audit', 'pozor: audit chýba za posledné roky')}",
                                       i18n_strings.get("sw_source_auditor", ""))
                         else:
                             _strength(f"{i18n_strings.get('sw_auditor_clean', 'Audítorský posudok bez výhrad')} ({stmt.year})",

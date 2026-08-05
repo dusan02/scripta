@@ -34,9 +34,15 @@ class FsDphVymazaniScraper(FinancnaSpravaBase):
 
             if has_results:
                 formatted = await self._parse_table_with_headers(page)
+                historical_note = (
+                    "\n\nPoznámka: Tento zoznam obsahuje historické záznamy subjektov, "
+                    "ktoré boli v minulosti vymazané z registrácie DPH (t.j. porušenie bolo vyriešené). "
+                    "Ak je subjekt aktuálne registrovaný pre DPH (viď FS_DPH_REGISTROVANI), "
+                    "tento záznam je iba historický a neznamená aktuálny problém."
+                )
                 if formatted:
-                    return f"POZOR: Subjekt (IČO: {search_term}) je v zozname vymazaných platiteľov DPH.\n" + "\n\n".join(formatted)
-                return f"POZOR: Subjekt (IČO: {search_term}) je v zozname vymazaných platiteľov DPH (detaily v PDF)."
+                    return f"POZOR: Subjekt (IČO: {search_term}) je v zozname vymazaných platiteľov DPH.\n" + "\n\n".join(formatted) + historical_note
+                return f"POZOR: Subjekt (IČO: {search_term}) je v zozname vymazaných platiteľov DPH (detaily v PDF).{historical_note}"
 
             return f"Subjekt (IČO: {search_term}) nájdený bez zistených záznamov o vymazaní z registrácie DPH."
 
