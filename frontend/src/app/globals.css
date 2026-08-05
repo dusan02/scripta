@@ -18,9 +18,9 @@
     --light-text-muted: #71717a;
     --light-text-placeholder: #a1a1aa;
 
-    --light-accent: #0d9463;
-    --light-accent-light: #ecfdf5;
-    --light-accent-border: #a7f3d0;
+    --light-accent: #5b9279;
+    --light-accent-light: #f0f7f4;
+    --light-accent-border: #c3dcd0;
     --light-accent-button-text: #ffffff;
 
     --light-success: #16a34a;
@@ -54,10 +54,10 @@
     --dark-text-muted: #b4b4bc;
     --dark-text-placeholder: #52525b;
 
-    --dark-accent: #34d399;
-    --dark-accent-light: rgba(52, 211, 153, 0.12);
-    --dark-accent-border: rgba(52, 211, 153, 0.25);
-    --dark-accent-button-text: #09090b;
+    --dark-accent: #7bb095;
+    --dark-accent-light: rgba(123, 176, 149, 0.15);
+    --dark-accent-border: rgba(123, 176, 149, 0.30);
+    --dark-accent-button-text: #ffffff;
 
     --dark-success: #4ade80;
     --dark-success-bg: rgba(74, 222, 128, 0.10);
@@ -125,7 +125,7 @@
     --text-3xl: 2.25rem;
 
     /* ── Glow effects (visible mainly in dark mode) ── */
-    --glow-accent: 0 0 20px rgba(13, 148, 99, 0.15);
+    --glow-accent: 0 0 20px rgba(91, 146, 121, 0.15);
     --glow-success: 0 0 12px rgba(22, 163, 74, 0.2);
     --glow-warning: 0 0 12px rgba(245, 158, 11, 0.2);
     --glow-danger: 0 0 12px rgba(239, 68, 68, 0.2);
@@ -167,7 +167,7 @@
       --shadow: var(--dark-shadow);
       --shadow-md: var(--dark-shadow-md);
       --shadow-lg: var(--dark-shadow-lg);
-      --glow-accent: 0 0 24px rgba(52, 211, 153, 0.25);
+      --glow-accent: 0 0 24px rgba(123, 176, 149, 0.25);
       --glow-success: 0 0 16px rgba(74, 222, 128, 0.3);
       --glow-warning: 0 0 16px rgba(251, 191, 36, 0.3);
       --glow-danger: 0 0 16px rgba(248, 113, 113, 0.3);
@@ -208,7 +208,7 @@
     --shadow: var(--dark-shadow);
     --shadow-md: var(--dark-shadow-md);
     --shadow-lg: var(--dark-shadow-lg);
-    --glow-accent: 0 0 24px rgba(52, 211, 153, 0.25);
+    --glow-accent: 0 0 24px rgba(123, 176, 149, 0.25);
     --glow-success: 0 0 16px rgba(74, 222, 128, 0.3);
     --glow-warning: 0 0 16px rgba(251, 191, 36, 0.3);
     --glow-danger: 0 0 16px rgba(248, 113, 113, 0.3);
@@ -422,7 +422,7 @@
   .input::placeholder { color: var(--text-placeholder); }
   .input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-border), 0 0 16px rgba(13, 148, 99, 0.08);
+    box-shadow: 0 0 0 3px var(--accent-border), 0 0 16px rgba(91, 146, 121, 0.08);
   }
   .input:disabled { opacity: 0.5; cursor: not-allowed; }
 
