@@ -937,6 +937,7 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     nace_w = get_nace_weights(nace_code)
 
     # ── HARD STOP: Konkurz / Likvidácia ───────────────────────────────────────
+    hard_stop_triggered = False
     for event in vestnik_events:
         event_type = (
             event.get("eventType", "").lower()
@@ -945,13 +946,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         )
         event_type_norm = unicodedata.normalize("NFC", event_type)
         if any(kw in event_type_norm for kw in ("konkurz", "likvidáci", "reštrukturalizáci")):
-            pillars.append(ScorecardPillar(
-                name="Platobná schopnosť & Exekúcie",
-                score=0, max_score=nace_w["P1"],
-                detail="HARD STOP — Firma je v konkurze, likvidácii alebo reštrukturalizácii.",
-                flags=["Konkurz / Likvidácia / Reštrukturalizácia"]
-            ))
-            return ScorecardResult(total_score=0, pillars=pillars, risk_category="C", hard_stop=True, score_version="v2")
+            hard_stop_triggered = True
+            break
 
     # ── Startup detekcia ─────────────────────────────────────────────────────
     stmts_raw = company_dict.get("financialStatements", [])
@@ -1065,11 +1061,19 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
 
     p1_raw = max(0, min(30, p1_raw))
     p1_score = int(round((p1_raw / 30.0) * nace_w["P1"]))
-    pillars.append(ScorecardPillar(
-        name="Platobná schopnosť & Exekúcie",
-        score=p1_score, max_score=nace_w["P1"],
-        detail=" | ".join(p1_flags[:2]) if p1_flags else "", flags=p1_flags
-    ))
+    if hard_stop_triggered:
+        pillars.append(ScorecardPillar(
+            name="Platobná schopnosť & Exekúcie",
+            score=0, max_score=nace_w["P1"],
+            detail="HARD STOP — Firma je v konkurze, likvidácii alebo reštrukturalizácii.",
+            flags=["Konkurz / Likvidácia / Reštrukturalizácia"]
+        ))
+    else:
+        pillars.append(ScorecardPillar(
+            name="Platobná schopnosť & Exekúcie",
+            score=p1_score, max_score=nace_w["P1"],
+            detail=" | ".join(p1_flags[:2]) if p1_flags else "", flags=p1_flags
+        ))
 
     # ══════════════════════════════════════════════════════════════════════════
     # PILIER 2 — Finančné zdravie — Altman Z'' & Piotroski (raw max 30)
@@ -1417,11 +1421,16 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         ))
         total_score = int(round(total_score * dq_mult))
 
+    # Ak bol hard_stop triggered (konkurz/likvidácia), vynuluj total_score
+    # ale zachovaj všetky piliere pre zobrazenie v tabuľke
+    if hard_stop_triggered:
+        total_score = 0
+
     return ScorecardResult(
         total_score=total_score,
         pillars=pillars,
         risk_category=_risk_category(total_score),
-        hard_stop=False,
+        hard_stop=hard_stop_triggered,
         score_version="v2"
     )
 

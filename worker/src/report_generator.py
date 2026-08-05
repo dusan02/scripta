@@ -946,14 +946,25 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             "details": details or [],
         })
 
-    # 1. Vestnik events
-    vestnik_critical = sum(1 for e in vestnik_events if getattr(e, 'severityLevel', '').lower() in ('critical', 'kriticke', 'kritisch'))
-    vestnik_high = sum(1 for e in vestnik_events if getattr(e, 'severityLevel', '').lower() in ('high', 'vysoka', 'hoch'))
-    vestnik_count = len(vestnik_events)
+    # 1. Vestnik events — odfiltruj insolventné eventy (z INSOLVENCY scraperu)
+    # Tie patria do "Právne registre", nie do "Obchodný vestník"
+    real_vestnik_events = []
+    insolvency_events = []
+    for e in (vestnik_events or []):
+        source_id = getattr(e, 'sourceId', '') or ''
+        event_type = getattr(e, 'eventType', '').lower()
+        if 'INSOLVENCY' in source_id or 'konkurz' in event_type or 'likvid' in event_type:
+            insolvency_events.append(e)
+        else:
+            real_vestnik_events.append(e)
+
+    vestnik_critical = sum(1 for e in real_vestnik_events if getattr(e, 'severityLevel', '').lower() in ('critical', 'kriticke', 'kritisch'))
+    vestnik_high = sum(1 for e in real_vestnik_events if getattr(e, 'severityLevel', '').lower() in ('high', 'vysoka', 'hoch'))
+    vestnik_count = len(real_vestnik_events)
     if vestnik_critical > 0:
-        _add("fraud_cat_vestnik", "critical", vestnik_count, [getattr(e, 'eventType', '') for e in vestnik_events[:3]])
+        _add("fraud_cat_vestnik", "critical", vestnik_count, [getattr(e, 'eventType', '') for e in real_vestnik_events[:3]])
     elif vestnik_high > 0:
-        _add("fraud_cat_vestnik", "high", vestnik_count, [getattr(e, 'eventType', '') for e in vestnik_events[:3]])
+        _add("fraud_cat_vestnik", "high", vestnik_count, [getattr(e, 'eventType', '') for e in real_vestnik_events[:3]])
     elif vestnik_count > 0:
         _add("fraud_cat_vestnik", "medium", vestnik_count)
     else:
@@ -1048,7 +1059,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
 
     _add("fraud_cat_auditor", auditor_sev, len(auditor_details), auditor_details[:3])
 
-    # 6. Legal registries (from verdict evidence)
+    # 6. Legal registries (from verdict evidence + insolvency events)
     legal_flags = []
     if verdict and getattr(verdict, 'evidence', None):
         raw = verdict.evidence
@@ -1060,9 +1071,14 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
                 pass
         elif isinstance(raw, list):
             legal_flags = [e for e in raw if isinstance(e, dict) and e.get('impact', '').upper() in ('CRITICAL', 'WARNING')]
-    critical_count = sum(1 for e in legal_flags if e.get('impact', '').upper() == 'CRITICAL')
+
+    # Pridaj insolventné eventy (konkurz/likvidácia) do právnych registrov
+    insolvency_details = [getattr(e, 'eventType', '') for e in insolvency_events[:3]]
+    legal_flags.extend([{"impact": "CRITICAL", "claim": et} for et in insolvency_details])
+
+    critical_count = sum(1 for e in legal_flags if (e.get('impact', '') if isinstance(e, dict) else '').upper() == 'CRITICAL')
     if critical_count > 0:
-        _add("fraud_cat_legal", "critical", len(legal_flags))
+        _add("fraud_cat_legal", "critical", len(legal_flags), insolvency_details if insolvency_details else None)
     elif len(legal_flags) >= 2:
         _add("fraud_cat_legal", "high", len(legal_flags))
     elif len(legal_flags) >= 1:
