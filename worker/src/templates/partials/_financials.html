@@ -130,24 +130,108 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="4" class="py-3 px-3 bg-white border-t border-slate-200">
-                    <div class="flex gap-4 items-center">
-                        <div class="flex-1">
-                            <p class="report-caption text-slate-500">
-                                {{ i18n.pillar_weights_note }}
-                            </p>
-                        </div>
-                        {% if radar_chart_base64 %}
-                        <div class="w-64 flex-shrink-0 flex flex-col items-center">
-                            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" class="w-full h-auto">
-                            <p class="report-caption text-slate-400 text-center mt-1">{{ i18n.pillar_profile }}</p>
-                        </div>
-                        {% endif %}
-                    </div>
+                <td colspan="4" class="py-2 px-3 bg-white border-t border-slate-200">
+                    <p class="report-caption text-slate-500">
+                        {{ i18n.pillar_weights_note }}
+                    </p>
                 </td>
             </tr>
         </tfoot>
     </table>
+    {% if radar_chart_base64 %}
+    <div class="flex justify-end -mt-1 mb-1" style="page-break-inside: avoid; break-inside: avoid;">
+        <div class="flex items-end gap-3">
+            <p class="report-caption text-slate-400 text-right pb-2">{{ i18n.pillar_profile }}</p>
+            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 140px; height: auto;">
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── KPI SNAPSHOT: Rýchle kľúčové metriky hneď za Scorecard ── #}
+{% if latest_ratios and latest_stmt %}
+<div class="mb-4" style="page-break-inside: avoid; break-inside: avoid;">
+    {# ── Company info: zamestnanci, tržby/zamestnanca, sídlo, rok vzniku ── #}
+    <div class="mb-2 flex flex-wrap items-center gap-2">
+        {% if employee_count is not none and employee_count > 0 %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <svg class="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+            </svg>
+            <span class="report-body-sm font-bold text-slate-700">{% if employee_count_estimated %}~{% endif %}{{ employee_count }}</span>
+            <span class="report-caption text-slate-400">{{ i18n.employees_short }}</span>
+        </div>
+        {% endif %}
+        {% if revenue_per_employee is not none and revenue_per_employee > 0 %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <span class="report-body-sm font-bold text-slate-700">{{ "{:,}".format(revenue_per_employee).replace(",", " ") }}</span>
+            <span class="report-caption text-slate-400">{{ i18n.revenue_per_employee }}</span>
+        </div>
+        {% endif %}
+        {% if company_city %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <svg class="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+            </svg>
+            <span class="report-body-sm font-bold text-slate-700">{{ company_city }}</span>
+        </div>
+        {% endif %}
+        {% if company_founded_year %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <span class="report-body-sm font-bold text-slate-700">{{ company_founded_year }}</span>
+            <span class="report-caption text-slate-400">{{ i18n.founded_year }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Kľúčové metriky na jeden pohľad ── #}
+    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+        <h3 class="subsection-title-sm mb-2 text-slate-600">{{ i18n.key_metrics_overview }}</h3>
+        <div class="grid grid-cols-5 gap-2">
+            {% set rev = latest_stmt.mainActivityRevenue or 0 %}
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">{{ i18n.revenue }}</p>
+                <p class="text-base font-black text-slate-800">{{ rev | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
+                {% if yoy_revenue_growth is not none %}
+                <p class="mt-1"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold {% if yoy_revenue_growth < 0 %}border-rose-300 text-rose-600 bg-rose-50 border{% else %}border-slate-200 text-slate-500 bg-slate-50 border{% endif %}">{% if yoy_revenue_growth > 0 %}▲ +{% endif %}{{ yoy_revenue_growth }}% YoY</span></p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">{{ i18n.net_profit_short }}</p>
+                {% set profit = latest_stmt.netProfitLoss or 0 %}
+                <p class="text-base font-black {% if profit >= 0 %}text-emerald-700{% else %}text-rose-600{% endif %}">{{ profit | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
+                {% if yoy_profit_growth is not none %}
+                <p class="mt-1"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold {% if yoy_profit_growth < 0 %}border-rose-300 text-rose-600 bg-rose-50 border{% else %}border-slate-200 text-slate-500 bg-slate-50 border{% endif %}">{% if yoy_profit_growth > 0 %}▲ +{% endif %}{{ yoy_profit_growth }}% YoY</span></p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">EBITDA</p>
+                {% if latest_ratios.ebitda is not none %}
+                <p class="text-base font-black text-slate-800">{{ latest_ratios.ebitda | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
+                {% else %}
+                <p class="text-base font-black text-slate-400">—</p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">ROE</p>
+                {% if latest_ratios.roe_pct is not none %}
+                <p class="text-base font-black {% if latest_ratios.roe_pct >= 0 %}text-emerald-700{% else %}text-rose-600{% endif %}">{{ latest_ratios.roe_pct }}%</p>
+                {% else %}
+                <p class="text-base font-black text-slate-400">—</p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">{{ i18n.interest_coverage_short }}</p>
+                {% if latest_ratios.interest_coverage is not none %}
+                {% set icov = latest_ratios.interest_coverage %}
+                <p class="text-base font-black {% if icov < 1.5 %}text-rose-600{% elif icov < 3 %}text-amber-600{% else %}text-emerald-700{% endif %}">{{ "%.1f"|format(icov) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">×</span></p>
+                {% else %}
+                <p class="text-base font-black text-slate-400">—</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
 
@@ -803,94 +887,6 @@
     <div class="page-break"></div>
     <div class="mb-4 pt-6">
         <h2 id="financne_ukazovatele" class="section-title mb-3">{{ i18n.financial_health }} ({{ latest_stmt.year }})</h2>
-
-        {# ── Company info: zamestnanci, tržby/zamestnanca, sídlo, rok vzniku ── #}
-        <div class="mb-3 flex flex-wrap items-center gap-3">
-            {% if employee_count is not none and employee_count > 0 %}
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
-                <svg class="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
-                </svg>
-                <span class="report-body-sm font-bold text-slate-700">{% if employee_count_estimated %}~{% endif %}{{ employee_count }}</span>
-                <span class="report-caption text-slate-400">{{ i18n.employees_short }}</span>
-            </div>
-            {% endif %}
-            {% if revenue_per_employee is not none and revenue_per_employee > 0 %}
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
-                <svg class="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M12 7a1 1 0 01-1-1V4.41l-3.3 3.3a1 1 0 01-1.4 0l-1.5-1.5a1 1 0 010-1.4L8.59 2H6a1 1 0 010-2h6a1 1 0 011 1v6a1 1 0 01-1 1z" clip-rule="evenodd"/>
-                    <path d="M4 10a1 1 0 011-1h10a1 1 0 011 1v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6z"/>
-                </svg>
-                <span class="report-body-sm font-bold text-slate-700">{{ "{:,}".format(revenue_per_employee).replace(",", " ") }}</span>
-                <span class="report-caption text-slate-400">{{ i18n.revenue_per_employee }}</span>
-            </div>
-            {% endif %}
-            {% if company_city %}
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
-                <svg class="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                </svg>
-                <span class="report-body-sm font-bold text-slate-700">{{ company_city }}</span>
-            </div>
-            {% endif %}
-            {% if company_founded_year %}
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
-                <svg class="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
-                </svg>
-                <span class="report-body-sm font-bold text-slate-700">{{ company_founded_year }}</span>
-                <span class="report-caption text-slate-400">{{ i18n.founded_year }}</span>
-            </div>
-            {% endif %}
-        </div>
-
-        {# ── Kľúčové metriky na jeden pohľad ── #}
-        <div class="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-            <h3 class="subsection-title-sm mb-2 text-slate-600">{{ i18n.key_metrics_overview }}</h3>
-            <div class="grid grid-cols-5 gap-2">
-                {% set rev = latest_stmt.mainActivityRevenue or 0 %}
-                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
-                    <p class="report-label text-slate-400">{{ i18n.revenue }}</p>
-                    <p class="text-base font-black text-slate-800">{{ rev | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
-                    {% if yoy_revenue_growth is not none %}
-                    <p class="mt-1"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold {% if yoy_revenue_growth < 0 %}border-rose-300 text-rose-600 bg-rose-50 border{% else %}border-slate-200 text-slate-500 bg-slate-50 border{% endif %}">{% if yoy_revenue_growth > 0 %}▲ +{% endif %}{{ yoy_revenue_growth }}% YoY</span></p>
-                    {% endif %}
-                </div>
-                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
-                    <p class="report-label text-slate-400">{{ i18n.net_profit_short }}</p>
-                    {% set profit = latest_stmt.netProfitLoss or 0 %}
-                    <p class="text-base font-black {% if profit >= 0 %}text-emerald-700{% else %}text-rose-600{% endif %}">{{ profit | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
-                    {% if yoy_profit_growth is not none %}
-                    <p class="mt-1"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold {% if yoy_profit_growth < 0 %}border-rose-300 text-rose-600 bg-rose-50 border{% else %}border-slate-200 text-slate-500 bg-slate-50 border{% endif %}">{% if yoy_profit_growth > 0 %}▲ +{% endif %}{{ yoy_profit_growth }}% YoY</span></p>
-                    {% endif %}
-                </div>
-                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
-                    <p class="report-label text-slate-400">EBITDA</p>
-                    {% if latest_ratios.ebitda is not none %}
-                    <p class="text-base font-black text-slate-800">{{ latest_ratios.ebitda | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
-                    {% else %}
-                    <p class="text-base font-black text-slate-400">—</p>
-                    {% endif %}
-                </div>
-                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
-                    <p class="report-label text-slate-400">ROE</p>
-                    {% if latest_ratios.roe_pct is not none %}
-                    <p class="text-base font-black {% if latest_ratios.roe_pct >= 0 %}text-emerald-700{% else %}text-rose-600{% endif %}">{{ latest_ratios.roe_pct }}%</p>
-                    {% else %}
-                    <p class="text-base font-black text-slate-400">—</p>
-                    {% endif %}
-                </div>
-                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
-                    <p class="report-label text-slate-400">{{ i18n.interest_coverage_short }}</p>
-                    {% if latest_ratios.interest_coverage is not none %}
-                    {% set icov = latest_ratios.interest_coverage %}
-                    <p class="text-base font-black {% if icov < 1.5 %}text-rose-600{% elif icov < 3 %}text-amber-600{% else %}text-emerald-700{% endif %}">{{ "%.1f"|format(icov) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">×</span></p>
-                    {% else %}
-                    <p class="text-base font-black text-slate-400">—</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
 
         {# Dvojstĺpcový layout: Grafy (vľavo) a Metriky (vpravo) #}
         <div class="flex flex-row gap-4 items-stretch mt-3">

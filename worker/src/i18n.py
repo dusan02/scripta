@@ -158,6 +158,7 @@ I18N_STRINGS = {
 
         # Table of contents
         "toc_title": "Prehľad preverených registrov",
+        "critical_legal_findings": "Kritické právne nálezy",
         "toc_part_a": "ČASŤ A — Analýza",
         "toc_part_b": "ČASŤ B — Prílohy (zdrojové dáta)",
         "toc_appendices": "Prílohy — zdrojové dáta",
@@ -928,6 +929,7 @@ I18N_STRINGS = {
 
         # Table of contents
         "toc_title": "Registry Verification Overview",
+        "critical_legal_findings": "Critical Legal Findings",
         "toc_part_a": "PART A — Analysis",
         "toc_part_b": "PART B — Appendices (source data)",
         "toc_appendices": "Appendices — source data",
@@ -1693,6 +1695,7 @@ I18N_STRINGS = {
 
         # Table of contents
         "toc_title": "Registerüberprüfung",
+        "critical_legal_findings": "Kritische rechtliche Feststellungen",
         "toc_part_a": "TEIL A — Analyse",
         "toc_part_b": "TEIL B — Anhänge (Quelldaten)",
         "toc_appendices": "Anhänge — Quelldaten",

@@ -2,6 +2,43 @@
 <div class="pt-2">
     <h2 class="section-title mb-3" style="border-bottom: 0;">{{ i18n.toc_title }}</h2>
 
+    {# ── Kritické právne nálezy — red flag box nad gridom ── #}
+    {% set critical_sources = [] %}
+    {% for cat_name, cat_sources in grouped_sources %}
+        {% for source in cat_sources %}
+            {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
+            {% set is_critical_type = source.source_type in ["EXECUTOR", "REGISTER_UPADCOV", "SUDY", "ORSR_LIKVIDACIA", "ORSR_KONKURZ"] %}
+            {% set is_failed = source.status != "SUCCESS" and source.status != "UNAVAILABLE" %}
+            {% if (has_pozor and not source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG", "CRZ", "RPVS", "UVO", "REGISTER_UZ", "ROZHODNUTIA"]) or is_critical_type %}
+                {% if source.status == "SUCCESS" and has_pozor %}
+                    {% set _ = critical_sources.append(source) %}
+                {% elif is_critical_type and source.status == "SUCCESS" and has_pozor %}
+                    {% set _ = critical_sources.append(source) %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    {% if critical_sources|length > 0 %}
+    <div class="mb-4 p-3 rounded-lg border-2 border-rose-300 bg-rose-50" style="page-break-inside: avoid; break-inside: avoid;">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="text-rose-600 text-lg">⛔</span>
+            <h3 class="subsection-title text-rose-800" style="font-size: 11px;">{{ i18n.critical_legal_findings }}</h3>
+        </div>
+        <div class="space-y-1.5">
+            {% for source in critical_sources %}
+            <div class="flex items-start gap-2 p-2 bg-white rounded border border-rose-200">
+                <span class="text-rose-500 text-xs flex-shrink-0 mt-0.5">▸</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[11px] font-bold text-rose-800">{{ labels.get(source.source_type, source.source_type) }}</p>
+                    <p class="text-[10px] text-rose-600 leading-tight">{{ source | format_findings | safe | striptags | truncate(200) }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     {# ── Registry sources (compact grid) ── #}
     {% for cat_name, cat_sources in grouped_sources %}
     <p class="subsection-title-sm mb-1.5 mt-3">{{ cat_name }}</p>
