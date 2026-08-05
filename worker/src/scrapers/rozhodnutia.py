@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
@@ -10,6 +11,30 @@ from .base import BaseScraper, ScraperUnavailableError
 from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
+
+
+def _clean_zvyraznenie(text: str) -> str:
+    """Vyčistí highlight snippet z ISU API:
+    - odstráni HTML tagy (<span class="highlight-substring">...)
+    - odstráni ECLI kódy
+    - odstráni nadbytočné prázdne riadky
+    - skráti príliš dlhé texty
+    """
+    if not text:
+        return ""
+    # Odstráni HTML tagy
+    text = re.sub(r'<[^>]+>', '', text)
+    # Odstráni ECLI kódy (ECLI:SK:OSTT:2026:... alebo ECLI: ECLI:SK:...)
+    text = re.sub(r'ECLI:\s*ECLI:[\w:.]+', '', text)
+    text = re.sub(r'\bECLI:[\w:.]+', '', text)
+    # Normalizuje prázdne riadky a medzery
+    text = re.sub(r'\n\s*\n', '\n', text)
+    text = re.sub(r' +', ' ', text)
+    text = text.strip()
+    # Skráti na max 300 znakov (odseknuté fragmenty sú často dlhé a neúplné)
+    if len(text) > 300:
+        text = text[:297] + "..."
+    return text
 
 class RozhodnutiaScraper(BaseScraper):
     source_type = "ROZHODNUTIA"
@@ -89,7 +114,9 @@ class RozhodnutiaScraper(BaseScraper):
             # Vygenerovať HTML a PDF
             html_rows = []
             for d in recent_decisions:
-                zvyraznenie = "<br/>".join(d.get("zvyraznenie", []))
+                zvyraznenie_parts = [_clean_zvyraznenie(z) for z in d.get("zvyraznenie", [])]
+                zvyraznenie_parts = [z for z in zvyraznenie_parts if z]  # vynechaj prázdne
+                zvyraznenie = "<br/>".join(zvyraznenie_parts)
                 html_rows.append(f'''
                 <div class="isu-list-item">
                     <div class="isu-list-item-title-link">{d.get("formaRozhodnutia", "")} {d.get("spisovaZnacka", "")} - {d.get("datumVydania", "")}</div>

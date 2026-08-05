@@ -285,7 +285,7 @@ def _is_financial_institution(stmt: Any) -> bool:
     return total_liabilities > total_assets * 0.5
 
 
-def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
+def compute_altman_z_score(stmt: Any, force_financial_inst: bool = False) -> Dict[str, Any]:
     """
     Vypočíta Altman Z''-score pre jedno účtovné obdobie.
     Vráti skóre, zónu a komponentné hodnoty.
@@ -293,13 +293,17 @@ def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
     Pre finančné inštitúcie (poisťovne, banky) vráti N/A — Altman Z''
     nie je aplikovateľný, pretože IFRS súvahy týchto inštitúcií nemajú
     štandardnú klasifikáciu obežného majetku a krátkodobých záväzkov.
+
+    force_financial_inst: ak True, preskočí heuristiku a vráti N/A priamo
+    (používa sa keď najnovší rok bol detekovaný ako finančná inštitúcia
+    a chceme aplikovať výnimku na všetky historické roky).
     """
     try:
         # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
         stmt = _sanitize_stmt_numeric(stmt)
 
         # Sektorová detekcia: finančné inštitúcie
-        if _is_financial_institution(stmt):
+        if force_financial_inst or _is_financial_institution(stmt):
             return {
                 "z_score": None,
                 "zone": "N/A",
@@ -1488,9 +1492,12 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         trends["bankruptcy_risk_indicators"].append("Krátkodobé záväzky prevyšujú celkové aktíva (Riziko insolvencie)")
     
     # Altman Z-score a finančné ukazovatele pre každý rok
+    # Ak najnovší rok je finančná inštitúcia, aplikuj výnimku na všetky roky
+    # (staršie roky mohli mať currentAssets vyplnené, ale entita je stále F.I.)
+    is_financial_inst_all = _is_financial_institution(last)
     for s in sorted_stmts:
         yr = _get(s, 'year', 0)
-        z = compute_altman_z_score(s)
+        z = compute_altman_z_score(s, force_financial_inst=is_financial_inst_all)
         ratios = compute_financial_ratios(s)
         trends["altman_z_scores"].append({"year": yr, **z})
         trends["ratios_by_year"].append({"year": yr, **ratios})

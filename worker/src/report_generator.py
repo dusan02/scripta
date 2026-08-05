@@ -45,6 +45,7 @@ from src.analytics import (
     compute_revenue_per_employee_alert,
     compute_yoy_summary_table,
     _to_float,
+    _is_financial_institution,
 )
 
 logger = logging.getLogger(__name__)
@@ -796,9 +797,11 @@ def compute_insolvency_score(stmts, i18n_strings):
     profit_trend, profit_consecutive = _trend([p for p in profits if p is not None]) if len([p for p in profits if p is not None]) >= 2 else ("stable", 0)
 
     # 5. Altman Z'' trend (computed on-the-fly since altmanZScore is not stored in DB)
+    # Pre finančné inštitúcie sa Altman nehodnotí
+    _is_fi = stmts_sorted and _is_financial_institution(max(stmts_sorted, key=lambda s: s.year))
     altman_values = []
     for s in stmts_sorted:
-        z_result = compute_altman_z_score(s)
+        z_result = compute_altman_z_score(s, force_financial_inst=_is_fi)
         z = z_result.get('z_score')
         if z is not None:
             altman_values.append(float(z))
@@ -1064,7 +1067,8 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     fin_details = []
     if stmts and len(stmts) >= 2:
         latest = max(stmts, key=lambda s: s.year)
-        altman_result = compute_altman_z_score(latest)
+        _is_fi = _is_financial_institution(latest)
+        altman_result = compute_altman_z_score(latest, force_financial_inst=_is_fi)
         altman = altman_result.get('z_score')
         if altman is not None and float(altman) < 1.1:
             fin_sev = "critical"
@@ -1163,7 +1167,8 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
     # 5. From financial statements
     if stmts and len(stmts) >= 2:
         latest = max(stmts, key=lambda s: s.year)
-        altman_result = compute_altman_z_score(latest)
+        _is_fi = _is_financial_institution(latest)
+        altman_result = compute_altman_z_score(latest, force_financial_inst=_is_fi)
         altman = altman_result.get('z_score')
         if altman is not None:
             try:
@@ -1693,8 +1698,16 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     is_financial_institution = False
     if company.naceCode and company.naceCode.startswith(("64", "65", "66")):
         is_financial_institution = True
-    elif company.name and re.search(r'\bbanka\b|\bpoisťovňa\b', company.name.lower()):
+    elif company.name and re.search(r'\bbanka\b|\bpoisťovňa\b|\bpojišťovna\b|\bpoisťovne\b', company.name.lower()):
         is_financial_institution = True
+
+    # Súvahová heuristika — ak najnovší výkaz vyzerá ako finančná inštitúcia
+    # (currentAssets chýba, shortTermLiabilities takmer 0, veľké záväzky)
+    if not is_financial_institution and stmts:
+        latest_stmt = max(stmts, key=lambda s: s.year)
+        from src.analytics import _is_financial_institution as _is_fin_inst_balance
+        if _is_fin_inst_balance(latest_stmt):
+            is_financial_institution = True
 
     # Startup detekcia — pre pre-revenue firmy s veľkým imaním
     sorted_stmts_for_startup = sorted(stmts or [], key=lambda s: s.year)
