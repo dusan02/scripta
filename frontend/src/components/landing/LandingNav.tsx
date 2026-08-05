@@ -11,7 +11,7 @@ import { HamburgerButton, MobileMenuBackdrop } from "@/components/NavShared";
 import { useState } from "react";
 
 const NAV_ITEMS = [
-  { hash: "#funkcie", key: "home.navFeatures" },
+  { hash: "#obsah", key: "home.navFeatures" },
   { hash: "#registre", key: "home.navRegistries" },
   { hash: "#ukazka", key: "nav.reporty" },
   { hash: "#pricing", key: "home.navPricing" },
