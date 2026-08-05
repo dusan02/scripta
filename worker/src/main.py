@@ -710,7 +710,7 @@ async def cancel_report_task(report_request_id: str):
     try:
         jobs = await app.state.redis.queued_jobs()
         for job in jobs:
-            if job.func_name == "execute_report_task":
+            if job.function == "execute_report_task":
                 task_dict = job.args[0] if job.args else {}
                 if isinstance(task_dict, dict) and task_dict.get("report_request_id") == report_request_id:
                     await app.state.redis.abort_job(job.id)
@@ -719,7 +719,7 @@ async def cancel_report_task(report_request_id: str):
         # Skús aj running jobs
         running = await app.state.redis.all_jobs()
         for job in running:
-            if job.func_name == "execute_report_task":
+            if job.function == "execute_report_task":
                 task_dict = job.args[0] if job.args else {}
                 if isinstance(task_dict, dict) and task_dict.get("report_request_id") == report_request_id:
                     await app.state.redis.abort_job(job.id)
