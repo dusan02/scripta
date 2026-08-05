@@ -250,6 +250,13 @@ def format_findings(source, i18n=None) -> str:
     raw = re.sub(r'^Interná chyba:\s*\w*Error:\s*', 'Interná chyba: ', raw)
     raw = re.sub(r'^Neznáma chyba[^:]*:\s*\w*Error:\s*', 'Neznáma chyba: ', raw)
     raw = re.sub(r'^Chyba pri spracovaní[^:]*:\s*\w*Error:\s*', 'Chyba pri spracovaní: ', raw)
+    # Playwright race condition errors — replace with clean UI message
+    raw = re.sub(r'Page\.add_style_tag:\s*Execution context was destroyed.*', 'Register dočasne nedostupný — chyba pri renderovaní stránky.', raw)
+    raw = re.sub(r'Execution context was destroyed.*', 'Register dočasne nedostupný — chyba pri renderovaní stránky.', raw)
+    raw = re.sub(r'Target page.*has been closed.*', 'Register dočasne nedostupný — chyba pri renderovaní stránky.', raw)
+    raw = re.sub(r'Page\.goto:\s*Navigation.*timeout.*', 'Register nedostupný — prekročený časový limit načítania.', raw)
+    # Generic Playwright error patterns
+    raw = re.sub(r'^Chyba pri generovaní PDF[^:]*:\s*Page\.\w+:\s*', 'Register dočasne nedostupný — ', raw)
     # FS scraper — link not found means the state portal changed its layout
     raw = re.sub(r'^Nepodarilo sa nájsť link\s*["„].*["„]\.', 'Register nedostupný — štátny portál zmenil layout.', raw)
     raw = sanitize_llm_text(raw)
@@ -2041,6 +2048,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "labels": {k: i18n_strings.get(v, k) for k, v in SOURCE_LABEL_I18N_KEYS.items()},
         "scorecard_breakdown": scorecard_breakdown,
         "algorithmic_total": algorithmic_total,
+        "hard_stop": any("HARD STOP" in (p.get("detail") or "") for p in scorecard_breakdown),
         "altman_scores": altman_scores,
         "is_financial_institution": is_financial_institution,
         "is_startup": is_startup,

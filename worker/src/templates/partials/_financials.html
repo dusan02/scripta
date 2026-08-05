@@ -111,6 +111,15 @@
                     <span class="report-body-sm text-slate-500">{{ i18n.based_on_registers }}</span>
                 </td>
             </tr>
+            {% if hard_stop %}
+            <tr class="bg-rose-50 border-b border-rose-200">
+                <td class="py-2.5 px-3 font-semibold text-rose-700 report-body-sm" colspan="2">⛔ {{ i18n.hard_stop_penalty }}</td>
+                <td class="py-2.5 px-3 text-center font-bold text-lg text-rose-600">−{{ algorithmic_total }}</td>
+                <td class="py-2.5 px-3 text-right">
+                    <span class="report-body-sm text-rose-600">{{ i18n.hard_stop_penalty_desc }}</span>
+                </td>
+            </tr>
+            {% endif %}
             <tr class="bg-slate-100 border-t-2 border-slate-400">
                 <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide" colspan="2">{{ i18n.final_score }}</td>
                 <td class="py-3 px-3 text-center font-black text-xl
