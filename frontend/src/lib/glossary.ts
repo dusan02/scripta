@@ -3,7 +3,7 @@ export interface GlossaryTerm {
   title: string;
   shortDescription: string;
   fullDescription: string;
-  category: "Finančná analýza" | "Právne registre" | "Risk Assessment";
+  category: "Finančná analýza" | "Finančné ukazovatele" | "Právne registre" | "Risk Assessment";
 }
 
 export const glossaryTerms: GlossaryTerm[] = [
@@ -229,6 +229,92 @@ Verifa Score je **informatívny ukazovateľ**, nie právny ani finančný posudo
 
 Každý Verifa.sk report obsahuje Verifa Score na titulnej strane spolu s kategóriou rizika a krátkym slovným posudkom. Detailný rozpad skóre podľa jednotlivých dimenzií je dostupný v analytickej časti reportu.`,
     category: "Risk Assessment",
+  },
+  {
+    slug: "going-concern",
+    title: "Going Concern (pokračovanie činnosti)",
+    shortDescription: "Princíp, že firma bude pokračovať v činnosti aj v dohľadnej budúcnosti — kľúčový pre audítorský posudok.",
+    fullDescription: `**Going Concern** (v preklade "pokračovanie činnosti") je základný účtovný princíp, ktorý predpokladá, že spoločnosť bude pokračovať v svojej činnosti aj v dohľadnej budúcnosti (minimálne 12 mesiacov od dátumu závierky) a nie je v situácii, ktorá by viedla k jej zánku alebo úpadku.
+
+## Prečo je to dôležité
+
+Ak auditor vyjadri **pochybnosť o going concern**, znamená to, že existuje signifikantné riziko, že firma nebude schopná plniť svoje záväzky. To má vážne dôsledky:
+
+- **Pre dodávateľov** — riziko nezaplatenia faktúr
+- **Pre banky** — riziko nedoplatenia úverov
+- **Pre investorov** — riziko straty investície
+- **Pre účtovníkov** — ovplyvňuje spôsob oceňovania majetku (historické ceny vs. likvidačné hodnoty)
+
+## Typy audítorských posudkov
+
+- **Bez výhrad** — auditor nepovažuje going concern za ohrozené
+- **S výhradou** — auditor vyjadril pochybnosť, ale závierka je aj tak zostavená na princípe going concern
+- **Zamietavý** — auditor nepovažuje za možné vyjadriť posudok
+
+## Going Concern v Verifa.sk reporte
+
+Verifa.sk report extrahuje typ audítorského posudku z RÚZ a zobrazuje ho v sekcii "Finančný posudok". Ak auditor vyjadril pochybnosť o going concern, systém zobrazí varovný box s červeným okrajom.`,
+    category: "Finančné ukazovatele",
+  },
+  {
+    slug: "fraud-heatmap",
+    title: "Fraud Heatmap (mapa rizík podvodu)",
+    shortDescription: "Vizuálny semafor, ktorý agreguje red flags z 7 kategórií do jedného prehľadného gridu.",
+    fullDescription: `**Fraud Heatmap** (mapa rizík podvodu) je vizualizácia v Verifa.sk reporte, ktorá agreguje nálezy z viacerých zdrojov do jedného prehľadného gridu. Každá kategória má farebný semafor (zelená/žltá/oranžová/červená) podľa závažnosti nálezov.
+
+## 7 kategórií rizík
+
+1. **Obchodný vestník** — konkurzy, reštrukturalizácie, výmazy, likvidácie
+2. **Forenzná analýza** — anomálie v účtovných dátach, manipulácia ukazovateľov
+3. **Naratívna analýza** — riziká z poznámok k výkazom (going concern, key risks)
+4. **Poznámky k výkazom** — off-balance sheet, kontingentné záväzky, vnútroskupinové transakcie
+5. **Auditné overenie** — typ posudku, výhrady audítora
+6. **Právne registre** — insolvenčný register, exekúcie, diskvalifikácie
+7. **Finančné ukazovatele** — Altman Z'', Piotroski F, Beneish M, likvidita
+
+## Ako to čítať
+
+- **Zelená (Žiadne)** — v kategórii neboli nájdené žiadne red flags
+- **Žltá (Nízke)** — malé anomálie, sledovať
+- **Oranžová (Stredné/Vysoké)** — signifikantné riziká, vyžaduje pozornosť
+- **Červená (Kritické)** — kritické nálezy, okamžité riziko
+
+Fraud heatmap je na prvej strane reportu a umožňuje na jeden pohľad identifikovať, v ktorých oblastiach má firma problémy.`,
+    category: "Risk Assessment",
+  },
+  {
+    slug: "insolvency-score",
+    title: "Insolvency Score (predikcia úpadku)",
+    shortDescription: "Algoritmický model, ktorý odhaduje pravdepodobnosť bankrotu firmy na základe finančných ukazovateľov.",
+    fullDescription: `**Insolvency Score** je algoritmický model v Verifa.sk reporte, ktorý odhaduje pravdepodobnosť úpadku (bankrotu) firmy na základe historických finančných ukazovateľov.
+
+## Ako funguje
+
+Model kombinuje viacero finančných metrík:
+
+- **Altman Z''-Score** — akademicky overený model predikcie bankrotu
+- **Piotroski F-Score** — hodnotenie finančnej sily (0-9)
+- **Likvidita** — current ratio, quick ratio, cash ratio
+- **Zadlženosť** — D/E ratio, equity ratio
+- **Rentabilita** — ROA, ROE, EBITDA margin
+- **Trendy** — smerovanie ukazovateľov (zlepšenie/zhoršenie)
+
+## Interpretácia
+
+- **Nízke riziko** — firma je finančne zdravá, pravdepodobnosť úpadku je minimálna
+- **Stredné riziko** — existujú signály zhoršujúce sa finančnej situácie
+- **Vysoké riziko** — firma vykazuje viaceré varovné signály
+- **Kritické riziko** — firma je v ťažkostiach, úpadok je pravdepodobný
+
+## Pre koho je to kľúčové
+
+- **Špedícia a logistika** — bude partner schopný platiť faktúry za prepravu?
+- **Dodávatelia** — má zmysel poskytnúť odklad splatnosti?
+- **Banky a leasing** — je klient bonitný na úver?
+- **Investori** — je bezpečné investovať?
+
+Insolvency Score je doplnený 3-4 trendmi, ktoré ukazujú smerovanie kľúčových ukazovateľov v čase.`,
+    category: "Finančné ukazovatele",
   },
 ];
 

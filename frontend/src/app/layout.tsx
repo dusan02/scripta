@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     template: "%s | Verifa.sk",
   },
   description:
-    "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy v jednom PDF. Verifa Score (0–100), Altman Z-Score, kontrola 25+ registrov.",
-  keywords: ["business risk report", "riziko firmy", "overenie firmy", "report", "ORSR", "advokát", "právnik", "register", "previerka", "daňoví dlžníci", "exekúcie", "insolvencia"],
+    "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy v jednom PDF. AI manažérske zhrnutie, mapa rizík podvodu, predikcia úpadku, alert na štátne pohľadávky, audítorský posudok a Verifa Score (0–100) z 25+ registrov SR.",
+  keywords: ["business risk report", "riziko firmy", "overenie firmy", "previerka firmy", "due diligence", "AI posudok firmy", "predikcia úpadku", "insolvency score", "fraud heatmap", "going concern", "audítorský posudok", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "daňoví dlžníci", "ORSR", "RÚZ", "Obchodný vestník", "insolvencia", "exekúcie", "RPVS", "advokát", "právnik", "notár", "účtovník", "špedícia", "register", "report"],
   robots: { index: true, follow: true },
   icons: {
     icon: "/icon.svg",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     siteName: "Verifa.sk",
     title: "Verifa.sk — Business Risk Report",
     description:
-      "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy v jednom PDF s Verifa Score a semaformi nálezov.",
+      "Automatizovaný Business Risk Report — AI manažérske zhrnutie, mapa rizík podvodu, predikcia úpadku, alert na štátne pohľadávky a Verifa Score z 25+ registrov SR.",
     images: [
       {
         url: "/logo-verifa.png",
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Verifa.sk — Business Risk Report",
     description:
-      "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy v jednom PDF s AI analýzou finančného zdravia.",
+      "Automatizovaný Business Risk Report — AI posudok, fraud heatmap, predikcia úpadku a Verifa Score z 25+ registrov SR v jednom PDF.",
     images: ["/logo-verifa.png"],
   },
   alternates: {
