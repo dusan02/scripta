@@ -246,10 +246,17 @@ def detect_startup_profile(statements: list) -> dict:
 def _is_financial_institution(stmt: Any) -> bool:
     """
     Detekuje finančnú inštitúciu (poisťovňu/banku) zo štruktúry súvahy —
-    bez potreby NACE kódu. Heuristika:
-    - currentAssets chýba alebo je 0 (IFRS súvaha bez štandardnej klasifikácie)
-    - equity je kladné a > 10% totalAssets (solventná inštitúcia)
-    - shortTermLiabilities dominuje (> 50% totalAssets) — technické rezervy
+    bez potreby NACE kódu.
+
+    Signatúra IFRS súvahy finančnej inštitúcie:
+    - currentAssets chýba (None) alebo je zanedbateľné (< 1% aktív)
+      — IFRS súvaha nemá štandardnú klasifikáciu obežného majetku
+    - shortTermLiabilities je takmer 0 (< 5% aktív)
+      — technické rezervy/pojistné záväzky nie sú klasifikované ako krátkodobé
+    - Skutočné záväzky (totalAssets - equity) sú veľké (> 50% aktív)
+      — poisťovne držia obrovské technické rezervy
+    - equity je kladné (solventná inštitúcia)
+    - totalAssets > 10M (významná inštitúcia, nie malá firma s chýbajúcimi dátami)
     """
     stmt = _sanitize_stmt_numeric(stmt)
     total_assets = _get(stmt, 'totalAssets')
@@ -257,16 +264,25 @@ def _is_financial_institution(stmt: Any) -> bool:
     equity = _get(stmt, 'equity')
     short_liab = _get(stmt, 'shortTermLiabilities')
 
-    if total_assets is None or total_assets <= 0:
+    if total_assets is None or total_assets <= 10_000_000:
         return False
     if equity is None or equity <= 0:
         return False
-    if (current_assets is not None and current_assets > total_assets * 0.1):
-        return False
-    if short_liab is None or short_liab <= 0:
+
+    # currentAssets chýba alebo je zanedbateľné
+    if current_assets is not None and current_assets > total_assets * 0.01:
         return False
 
-    return (equity / total_assets > 0.1) and (short_liab > total_assets * 0.5)
+    # shortTermLiabilities je takmer 0 (technické rezervy nie sú krátkodobé)
+    if short_liab is not None and short_liab > total_assets * 0.05:
+        return False
+
+    # Skutočné záväzky sú veľké (totalAssets - equity > 50% aktív)
+    total_liabilities = total_assets - equity
+    if total_liabilities <= 0:
+        return False
+
+    return total_liabilities > total_assets * 0.5
 
 
 def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
