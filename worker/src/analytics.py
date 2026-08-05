@@ -243,14 +243,54 @@ def detect_startup_profile(statements: list) -> dict:
     }
 
 
+def _is_financial_institution(stmt: Any) -> bool:
+    """
+    Detekuje finančnú inštitúciu (poisťovňu/banku) zo štruktúry súvahy —
+    bez potreby NACE kódu. Heuristika:
+    - currentAssets chýba alebo je 0 (IFRS súvaha bez štandardnej klasifikácie)
+    - equity je kladné a > 10% totalAssets (solventná inštitúcia)
+    - shortTermLiabilities dominuje (> 50% totalAssets) — technické rezervy
+    """
+    stmt = _sanitize_stmt_numeric(stmt)
+    total_assets = _get(stmt, 'totalAssets')
+    current_assets = _get(stmt, 'currentAssets')
+    equity = _get(stmt, 'equity')
+    short_liab = _get(stmt, 'shortTermLiabilities')
+
+    if total_assets is None or total_assets <= 0:
+        return False
+    if equity is None or equity <= 0:
+        return False
+    if (current_assets is not None and current_assets > total_assets * 0.1):
+        return False
+    if short_liab is None or short_liab <= 0:
+        return False
+
+    return (equity / total_assets > 0.1) and (short_liab > total_assets * 0.5)
+
+
 def compute_altman_z_score(stmt: Any) -> Dict[str, Any]:
     """
     Vypočíta Altman Z''-score pre jedno účtovné obdobie.
     Vráti skóre, zónu a komponentné hodnoty.
+
+    Pre finančné inštitúcie (poisťovne, banky) vráti N/A — Altman Z''
+    nie je aplikovateľný, pretože IFRS súvahy týchto inštitúcií nemajú
+    štandardnú klasifikáciu obežného majetku a krátkodobých záväzkov.
     """
     try:
         # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
         stmt = _sanitize_stmt_numeric(stmt)
+
+        # Sektorová detekcia: finančné inštitúcie
+        if _is_financial_institution(stmt):
+            return {
+                "z_score": None,
+                "zone": "N/A",
+                "zone_label": "N/A — finančná inštitúcia",
+                "reason": "Altman Z'' nie je aplikovateľný pre finančné inštitúcie (poisťovne/banky) — IFRS súvaha bez štandardnej klasifikácie obežného majetku",
+            }
+
         total_assets = _get(stmt, 'totalAssets')
         current_assets = _get(stmt, 'currentAssets')
         equity = _get(stmt, 'equity')
@@ -653,7 +693,17 @@ def compute_piotroski_f_score(statements: list) -> dict:
 
     final_score = int(round(score))
     flags = [f"Piotroski F-score: {final_score} z 8"]
-    if skipped:
+
+    # Sektorovo-špecifická poznámka pre finančné inštitúcie
+    is_fin_inst = _is_financial_institution(curr) or _is_financial_institution(prev)
+    if is_fin_inst:
+        sector_skipped = [s for s in skipped if s in ("dLev", "dLiq", "dMargin")]
+        if sector_skipped:
+            flags.append(f"Sektorovo neutralizované (finančná inštitúcia — IFRS): {', '.join(sector_skipped)}")
+        data_skipped = [s for s in skipped if s not in ("dLev", "dLiq", "dMargin")]
+        if data_skipped:
+            flags.append(f"Neutralizované kritériá (chýbajúce dáta): {', '.join(data_skipped)}")
+    elif skipped:
         flags.append(f"Neutralizované kritériá (chýbajúce dáta): {', '.join(skipped)}")
 
     return {"score": final_score, "flags": flags, "skipped_criteria": skipped}
@@ -888,6 +938,13 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     sorted_stmts_raw = sorted(stmts_raw, key=lambda x: x.year if hasattr(x, "year") else x.get("year", 0))
     startup_info = detect_startup_profile(sorted_stmts_raw)
 
+    # ── Sektorová detekcia: finančné inštitúcie (poisťovne, banky) ──────────
+    # Altman Z'', bežná likvidita a Piotroski dLiq/dMargin nie sú aplikovateľné
+    # pre IFRS súvahy finančných inštitúcií bez štandardnej klasifikácie obežného majetku.
+    is_financial_inst = False
+    if sorted_stmts_raw:
+        is_financial_inst = _is_financial_institution(sorted_stmts_raw[-1])
+
     # Use the most recent year with valid data, not blindly [-1]
     # (the newest year may have partial data — e.g. shortTermLiabilities missing)
     all_ratios = trends.get("ratios_by_year") or [{}]
@@ -936,7 +993,14 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     p1_flags = []
 
     cr = last_ratios.get("current_ratio")
-    if cr is None:
+    if is_financial_inst:
+        # Finančné inštitúcie (poisťovne, banky): bežná likvidita nie je relevantná
+        # — IFRS súvaha nemá štandardnú klasifikáciu obežného majetku.
+        # Namiesto penalizácie priradíme neutrálne skóre a hodnotíme solventnosť
+        # cez equity_to_debt (vlastné imanie vs. záväzky).
+        p1_raw += 10
+        p1_flags.append("Current ratio: N/A — finančná inštitúcia (likvidita sa nehodnotí cez bežný pomer)")
+    elif cr is None:
         p1_raw += 6
         p1_flags.append("Current ratio: N/A (bez dát)")
     elif cr >= 1.5:
@@ -1000,6 +1064,22 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         p2_raw += 15
         eq = startup_info.get("equity", 0)
         p2_flags.append(f"STARTUP profil: Altman Z'' neaplikovateľné (pre-revenue firma s imaním {eq:,.0f} €)".replace(",", " "))
+    elif is_financial_inst:
+        # Finančné inštitúcie: Altman Z'' a Piotroski dLiq/dMargin nie sú aplikovateľné.
+        # Hodnotíme len ROA, ziskovosť a solventnosť (equity ratio).
+        p2_raw += 15  # neutrálne — Altman sa nehodnotí
+        p2_flags.append("Altman Z'': N/A — finančná inštitúcia (model nie je aplikovateľný pre IFRS súvahy poisťovní/bankovníctva)")
+
+        # Piotroski F-score (max 10 raw) — neutralizované sektorovo-špecifické kritériá
+        pio_score = piotroski.get("score")
+        if pio_score is not None:
+            # Pre finančné inštitúcie je Piotroski čiastočne relevantný (ROA, CFO, ziskovosť),
+            # ale dLiq/dMargin sú neutralizované. Priradíme proporčne s vysvetlením.
+            p2_raw += min(10, int((pio_score / 8.0) * 10))
+            p2_flags.extend(piotroski.get("flags", []))
+            p2_flags.append("Pozn.: Piotroski obmedzene aplikovateľný — dLiq/dMargin neutralizované (IFRS súvaha bez obežného majetku/hrubej marže)")
+        else:
+            p2_flags.append("Piotroski F-score: N/A")
     elif data_void:
         p2_raw = 0
         p2_flags.append("DATA VOID: Kľúčové finančné metriky nedostupné")
