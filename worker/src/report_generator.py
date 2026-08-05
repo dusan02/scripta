@@ -1803,6 +1803,24 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     employee_chart_base64 = generate_employee_chart(stmts_sorted, lang=report_language) if stmts_sorted else ""
     rpe_chart_base64 = generate_rpe_chart(stmts_sorted, lang=report_language) if stmts_sorted else ""
 
+    # Asset & equity composition donuts + forensic statement delay
+    asset_composition_chart_base64 = ""
+    equity_composition_chart_base64 = ""
+    statement_delay_days = None
+    if latest_stmt:
+        asset_composition_chart_base64 = generate_asset_composition_donut(latest_stmt, lang=report_language)
+        equity_composition_chart_base64 = generate_equity_composition_donut(latest_stmt, lang=report_language)
+        # Forensic signal: days between period end and statement compilation date
+        stmt_date_raw = getattr(latest_stmt, "statementDate", None)
+        if stmt_date_raw:
+            try:
+                from datetime import date as _date
+                stmt_date = _date.fromisoformat(str(stmt_date_raw)[:10])
+                period_end = _date(latest_stmt.year, 12, 31)
+                statement_delay_days = (stmt_date - period_end).days
+            except (ValueError, TypeError):
+                pass
+
     # QR code for cover page
     qr_base64 = ""
     try:
