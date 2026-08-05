@@ -80,6 +80,7 @@ I18N_STRINGS = {
         "yoy_staff_costs": "Osobné náklady",
         "yoy_depreciation": "Odpisy",
         "yoy_interest_expense": "Úrokové náklady",
+        "yoy_income_tax": "Daň z príjmov",
 
         # P&L
         "pnl_statement": "Výkaz ziskov a strát",
@@ -853,6 +854,7 @@ I18N_STRINGS = {
         "yoy_staff_costs": "Staff costs",
         "yoy_depreciation": "Depreciation",
         "yoy_interest_expense": "Interest expense",
+        "yoy_income_tax": "Income tax",
 
         # P&L
         "pnl_statement": "Profit & Loss Statement",
@@ -1621,6 +1623,7 @@ I18N_STRINGS = {
         "yoy_staff_costs": "Personalkosten",
         "yoy_depreciation": "Abschreibungen",
         "yoy_interest_expense": "Zinsaufwand",
+        "yoy_income_tax": "Einkommensteuer",
 
         # P&L
         "pnl_statement": "Gewinn- und Verlustrechnung",
