@@ -37,6 +37,16 @@ class RegisterUzScraper(BaseScraper):
                     findings=self._no_results_msg,
                 )
 
+            # Check for data-not-public sentinel (legitimate: statements exist but are non-public)
+            if files == ["__DATA_NOT_PUBLIC__"]:
+                logger.info(f"[{self.source_type}] IČO {ico}: závierky existujú ale údaje sú neverejné")
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=None,
+                    status_message=f"Účtovné závierky tejto spoločnosti nie sú verejne dostupné.",
+                    findings="Spoločnosť má v Registri účtovných závierok podané výkazy, ale údaje sú označené ako neverejné (typické pre pobočky zahraničných spoločností, banky a poisťovne).",
+                )
+
             if not files:
                 # Distinguish between "firm not in RÚZ" and "API failure"
                 # Check if entity exists by looking at cache dir — if API found entity ID but no files,
@@ -46,7 +56,7 @@ class RegisterUzScraper(BaseScraper):
                     status="UNAVAILABLE",
                     file_path=None,
                     status_message=f"RÚZ API: nepodarilo sa stiahnuť závierky pre IČO {ico} — skúste vygenerovať report znovu.",
-                    findings=f"Účtovné závierky sa nepodarilo stiahnuť — register môže byť dočasne nedostupný.",
+                    findings=f"Účtovné závierky sa nepodarilo stiahnuť — register môže byť dočasne nedostupný. Informáciu môžete dohľadať na: www.registeruz.sk/",
                 )
 
             pdf_files = [f for f in files if f.endswith(".pdf")]

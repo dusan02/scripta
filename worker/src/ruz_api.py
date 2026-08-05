@@ -418,6 +418,16 @@ async def download_ifrs_reports(
 
     logger.info(f"[RUZ_API] Stiahnutých {len(downloaded_files)} súborov pre IČO {ico}")
 
+    # Ak entita existuje, má závierky, ale všetky výkazy sú neverejné —
+    # vráť sentinel, aby scraper mohol zobraziť správnu správu (nie "skúste znovu")
+    if not downloaded_files and zavierka_ids:
+        # Skontrolujeme či všetky závierky mali aspoň jeden výkaz s neverejnými dátami
+        # (heuristic: ak mali závierky výkazy ale nič sa nestiahlo, sú neverejné)
+        total_vykazov = sum(len(z.get("idUctovnychVykazov", [])) for z in top_zavierky)
+        if total_vykazov > 0:
+            logger.info(f"[RUZ_API] IČO {ico}: {len(zavierka_ids)} závierok, {total_vykazov} výkazov — všetky neverejné")
+            return ["__DATA_NOT_PUBLIC__"]
+
     # ── Playwright fallback: ak chýba najnovší rok, skús doplniť z webu ──
     if top_zavierky:
         _api_years = set()
@@ -695,6 +705,14 @@ async def _process_zavierka(
         if not isinstance(vykaz, dict):
             continue
         all_vykazy.append(vykaz)
+
+        # Detekcia neverejných dát — pobočky zahraničných spoločností,
+        # banky a poisťovne majú často výkazy označené ako "Neverejné"
+        pristupnost = vykaz.get("pristupnostDat", "")
+        if pristupnost and pristupnost.lower().startswith("neverejn"):
+            logger.info(f"[RUZ_API] Výkaz {vykaz.get('id')} rok {year}: pristupnostDat={pristupnost} — preskakujem")
+            continue
+
         obsah = vykaz.get("obsah", {})
         tabs = obsah.get("tabulky", [])
 
