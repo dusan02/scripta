@@ -26,19 +26,30 @@ export default function LandingPage() {
           .how-arrow { display: none !important; }
           .footer-cols { flex-direction: column !important; gap: 32px !important; }
           .footer-links { gap: 24px !important; }
-          .hero-stats { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 24px 16px !important; }
+          .hero-stats { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px 12px !important; }
           .pricing-guarantee { flex-direction: column !important; gap: 16px !important; text-align: center !important; }
           .cta-card { padding: 40px 24px !important; }
-          .section-pad { padding-top: 60px !important; padding-bottom: 60px !important; padding-left: 16px !important; padding-right: 16px !important; }
-          .hero-pad { padding-top: 160px !important; padding-bottom: 60px !important; }
+          .section-pad { padding-top: 56px !important; padding-bottom: 56px !important; padding-left: 16px !important; padding-right: 16px !important; }
+          .hero-pad { padding-top: 140px !important; padding-bottom: 48px !important; }
           .hero-cta { flex-direction: column !important; gap: 12px !important; }
           .hero-cta a { width: 100% !important; text-align: center !important; }
-          .report-includes-grid { grid-template-columns: 1fr 1fr !important; gap: 20px 16px !important; }
+          .report-includes-grid { grid-template-columns: 1fr 1fr !important; gap: 16px 12px !important; }
           .pricing-grid { grid-template-columns: 1fr !important; }
           .features-grid { grid-template-columns: 1fr !important; }
           .registries-grid { grid-template-columns: 1fr !important; }
           .target-grid { grid-template-columns: 1fr !important; }
           .footer-bottom { justify-content: center !important; text-align: center !important; }
+          .report-includes-card { padding: 16px !important; }
+          .pricing-includes-grid { grid-template-columns: 1fr 1fr !important; gap: 16px 12px !important; }
+          .pricing-includes-card { padding: 24px 16px !important; }
+        }
+        @media (max-width: 480px) {
+          .report-includes-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+          .pricing-includes-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .hero-stats { grid-template-columns: 1fr 1fr !important; gap: 16px 12px !important; }
+          .hero-stats .hero-stat-num { font-size: 22px !important; }
+          .section-pad { padding-top: 48px !important; padding-bottom: 48px !important; }
+          .hero-pad { padding-top: 120px !important; padding-bottom: 40px !important; }
         }
       `}</style>
       <LandingNav />

@@ -12,7 +12,7 @@ export default function TargetSection() {
         <p style={{ fontSize: 15, color: "var(--text-secondary)", maxWidth: 580, margin: "0 auto" }}>{t("home.targetSubtitle")}</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }} className="target-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }} className="target-grid">
         {[
           { icon: "🏢", title: t("home.target1Title"), desc: t("home.target1Desc") },
           { icon: "⚖️", title: t("home.target2Title"), desc: t("home.target2Desc") },

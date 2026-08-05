@@ -15,9 +15,9 @@ export default function PricingSection() {
         </div>
 
         {/* Čo obsahuje každý report */}
-        <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "36px 28px", marginBottom: 44 }}>
+        <div className="pricing-includes-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "36px 28px", marginBottom: 44 }}>
           <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 28, textAlign: "center" }}>{t("pricing.coObsahuje")}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 report-includes-grid" style={{ gap: "24px 20px" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 pricing-includes-grid" style={{ gap: "24px 20px" }}>
             {REPORT_INCLUDES_KEYS.map((key) => (
               <div key={key} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                 <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, fontSize: 13 }}>✓</span>
