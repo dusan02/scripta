@@ -445,15 +445,15 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
     fig.update_layout(
         polar=dict(
             radialaxis=dict(visible=True, range=[0, 100], tickvals=[20,40,60,80,100], gridcolor=COLORS['grid'], linecolor=COLORS['grid'], angle=45, tickangle=45),
-            angularaxis=dict(gridcolor=COLORS['grid'], linecolor=COLORS['grid'], tickfont=dict(size=11, color=COLORS['text_light'], family=COLORS['font_family']))
+            angularaxis=dict(gridcolor=COLORS['grid'], linecolor=COLORS['grid'], tickfont=dict(size=14, color=COLORS['text'], family=COLORS['font_family']))
         ),
         showlegend=False,
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=100, r=100, t=60, b=90 if annotations else 60),
+        margin=dict(l=120, r=120, t=60, b=90 if annotations else 60),
         annotations=annotations,
     )
-    return _to_base64(fig, 700, 620)
+    return _to_base64(fig, 760, 660)
 
 def generate_debt_donut(stmt, lang="sk") -> str:
     if not stmt: return ""

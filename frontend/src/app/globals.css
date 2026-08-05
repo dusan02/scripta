@@ -23,9 +23,9 @@
     --light-accent-border: #c3dcd0;
     --light-accent-button-text: #ffffff;
 
-    --light-success: #16a34a;
-    --light-success-bg: rgba(22, 163, 74, 0.08);
-    --light-success-text: #15803d;
+    --light-success: #5b9279;
+    --light-success-bg: rgba(91, 146, 121, 0.08);
+    --light-success-text: #4a7d64;
     --light-danger: #ef4444;
     --light-danger-bg: rgba(239, 68, 68, 0.06);
     --light-danger-text: #dc2626;
@@ -59,9 +59,9 @@
     --dark-accent-border: rgba(123, 176, 149, 0.30);
     --dark-accent-button-text: #ffffff;
 
-    --dark-success: #4ade80;
-    --dark-success-bg: rgba(74, 222, 128, 0.10);
-    --dark-success-text: #86efac;
+    --dark-success: #7bb095;
+    --dark-success-bg: rgba(123, 176, 149, 0.10);
+    --dark-success-text: #9bc4af;
     --dark-danger: #f87171;
     --dark-danger-bg: rgba(248, 113, 113, 0.06);
     --dark-danger-text: #fca5a5;

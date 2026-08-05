@@ -1026,9 +1026,9 @@ export default function ReportDetailPage() {
                           <div className="w-16 h-[3px] bg-slate-200 rounded-full"></div>
                           <div className="w-10 h-[3px] bg-slate-200 rounded-full"></div>
                         </div>
-                        <div className="w-14 h-4 bg-emerald-50 border border-emerald-200 rounded-sm flex items-center px-1 gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                          <div className="w-6 h-1.5 bg-emerald-200 rounded-full"></div>
+                        <div className="w-14 h-4 rounded-sm flex items-center px-1 gap-1" style={{ background: "var(--success-bg)", border: "1px solid var(--success-border, var(--success))" }}>
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--success)" }}></div>
+                          <div className="w-6 h-1.5 rounded-full" style={{ background: "var(--success-bg)", border: "1px solid var(--success)" }}></div>
                         </div>
                       </div>
                       <div className="w-full border-t border-slate-200 pt-3">
