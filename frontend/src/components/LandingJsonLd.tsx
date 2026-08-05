@@ -9,7 +9,7 @@ const landingJsonLd = {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description:
-        "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy z 25+ štátnych registrov SR. AI manažérske zhrnutie, mapa rizík podvodu, predikcia úpadku, alert na štátne pohľadávky, audítorský posudok a timeline právnych rizík v jednom PDF.",
+        "Automatizovaný Business Risk Report — finančné, právne a forenzné riziko firmy z 25+ štátnych registrov SR. Automatizované manažérske zhrnutie, mapa rizík podvodu, predikcia úpadku, alert na štátne pohľadávky, audítorský posudok a timeline právnych rizík v jednom PDF.",
       url: "https://verifa.sk",
       offers: [
         {
@@ -44,11 +44,11 @@ const landingJsonLd = {
       areaServed: { "@type": "Country", name: "Slovensko" },
       serviceType: "Due Diligence, Forenzný audit, Finančná analýza",
       description:
-        "Automatizovaný Business Risk Report s AI manažérskym zhrnutím, mapou rizík podvodu, predikciou úpadku, alertom na štátne pohľadávky, audítorským posudkom a timeline právnych rizík.",
+        "Automatizovaný Business Risk Report s automatizovaným manažérskym zhrnutím, mapou rizík podvodu, predikciou úpadku, alertom na štátne pohľadávky, audítorským posudkom a timeline právnych rizík.",
       hasOfferCatalog: {
         "@type": "OfferCatalog",
         itemListElement: [
-          { "@type": "Offer", itemOffered: { "@type": "Service", name: "AI Manažérske zhrnutie" } },
+          { "@type": "Offer", itemOffered: { "@type": "Service", name: "Automatizované manažérske zhrnutie" } },
           { "@type": "Offer", itemOffered: { "@type": "Service", name: "Mapa rizík podvodu (fraud heatmap)" } },
           { "@type": "Offer", itemOffered: { "@type": "Service", name: "Predikcia úpadku (insolvency score)" } },
           { "@type": "Offer", itemOffered: { "@type": "Service", name: "Alert na štátne pohľadávky" } },
@@ -65,7 +65,7 @@ const landingJsonLd = {
           name: "Čo je Verifa.sk Business Risk Report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Verifa.sk Business Risk Report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z 25+ verejných registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s AI manažérskym zhrnutím, mapou rizík podvodu, predikciou úpadku a záverečným Verifa Score.",
+            text: "Verifa.sk Business Risk Report je automatizovaný forenzný dokument, ktorý zhromažďuje dáta z 25+ verejných registrov Slovenskej republiky, vrátane ORSR, insolvenčných registrov, DPH registrov a RÚZ finančných výkazov. Výsledkom je profesionálny PDF report s automatizovaným manažérskym zhrnutím, mapou rizík podvodu, predikciou úpadku a záverečným Verifa Score.",
           },
         },
         {
@@ -89,15 +89,15 @@ const landingJsonLd = {
           name: "Ako rýchlo dostanem report?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Report sa generuje automatizovane prostredníctvom headless prehliadača a AI analýzy. Väčšina reportov je hotových do niekoľkých minút od zadania IČO.",
+            text: "Report sa generuje automatizovane prostredníctvom headless prehliadača a analytickej engine. Väčšina reportov je hotových do niekoľkých minút od zadania IČO.",
           },
         },
         {
           "@type": "Question",
-          name: "Obsahuje report AI posudok firmy?",
+          name: "Obsahuje report automatizovaný posudok firmy?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Áno, každý report obsahuje AI generované manažérske zhrnutie v prirodzenom jazyku, ktoré identifikuje kľúčové riziká a odporúčania. Tento posudok je priamo vložiteľný do spisu alebo správy pre klienta — vhodné pre právnikov, notárov a účtovníkov.",
+            text: "Áno, každý report obsahuje automatizované manažérske zhrnutie v prirodzenom jazyku, ktoré identifikuje kľúčové riziká a odporúčania. Tento posudok je priamo vložiteľný do spisu alebo správy pre klienta — vhodné pre právnikov, notárov a účtovníkov.",
           },
         },
         {
