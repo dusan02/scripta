@@ -34,6 +34,12 @@ export function sanitizeFilename(filename: string): string {
   clean = clean.replace(/[\/\\]/g, "");
   // Remove quotes (they break Content-Disposition parsing)
   clean = clean.replace(/["']/g, "");
+  // Remove non-ASCII characters — Content-Disposition header requires
+  // ByteString (latin1), so characters >255 cause TypeError in Next.js.
+  // Use RFC 5987 filename* encoding for non-ASCII names if needed.
+  clean = clean.replace(/[^\x20-\x7e]/g, "");
+  // Collapse multiple spaces/hyphens
+  clean = clean.replace(/\s+/g, " ").trim();
   // Truncate to 200 chars
   if (clean.length > 200) clean = clean.slice(0, 200);
   // Fallback if empty after sanitization
