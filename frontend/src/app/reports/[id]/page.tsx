@@ -728,26 +728,6 @@ export default function ReportDetailPage() {
   return (
     <div className="max-w-[1000px] mx-auto px-4 sm:px-6 animate-fade-in" style={{ minHeight: "calc(100vh - 56px)" }}>
 
-      {/* ── "Report sa stále generuje" banner pre userov ktorí sa vrátili na stránku ── */}
-      {report && !isFinished && report.status !== "CANCELLED" && (
-        <div
-          className="mt-4 mb-2 px-4 py-2.5 rounded-lg flex items-center gap-2 text-sm"
-          style={{
-            background: "rgba(59, 130, 246, 0.1)",
-            border: "1px solid rgba(59, 130, 246, 0.3)",
-            color: "#93c5fd",
-          }}
-        >
-          <svg className="animate-spin w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-            <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-          <span>
-            {t("report.staleGeneruje") || "Váš report sa stále generuje. Môžete pokračovať v práci — automaticky sa aktualizuje."}
-          </span>
-        </div>
-      )}
-
       {/* ── TOP SECTION: Report header ── */}
       <section
         className="flex flex-col items-center justify-center px-2 pt-6 pb-5"

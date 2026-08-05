@@ -1016,10 +1016,12 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     # 5. Auditor opinion
     auditor_sev = "none"
     auditor_details = []
+    has_any_audit = False
 
     for stmt in (stmts or []):
         ao = getattr(stmt, 'auditorOpinion', None)
         if ao:
+            has_any_audit = True
             op = getattr(ao, 'opinionType', '').lower() if getattr(ao, 'opinionType', None) else ''
             if 'adverse' in op or 'záporn' in op or 'odmietnut' in op:
                 auditor_sev = "critical"
@@ -1038,6 +1040,12 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
                 if auditor_sev == "none":
                     auditor_sev = "medium"
                 auditor_details.append(i18n_strings.get("heatmap_going_concern_narrative", "{year}: Going Concern (narrative)").format(year=stmt.year))
+
+    # Ak firma má výkazy ale žiadny audit — penalizuj v heatmap ako "medium" (upozornenie)
+    if auditor_sev == "none" and stmts and not has_any_audit:
+        auditor_sev = "medium"
+        auditor_details.append(i18n_strings.get("heatmap_no_audit", "Chýba audítorský posudok za všetky roky"))
+
     _add("fraud_cat_auditor", auditor_sev, len(auditor_details), auditor_details[:3])
 
     # 6. Legal registries (from verdict evidence)
@@ -1209,7 +1217,29 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
             _weakness(i18n_strings.get("sw_all_losses", "Strata vo všetkých rokoch"),
                       i18n_strings.get("sw_source_financials", ""))
 
+        # Pokles zisku o >50 % YoY — významný red flag aj pri kladnom zisku
+        if len(stmts) >= 2:
+            sorted_desc = sorted(stmts, key=lambda s: s.year, reverse=True)
+            curr_profit = getattr(sorted_desc[0], 'netProfitLoss', None)
+            prev_profit = getattr(sorted_desc[1], 'netProfitLoss', None)
+            if curr_profit is not None and prev_profit is not None and prev_profit > 0:
+                profit_drop_pct = ((prev_profit - curr_profit) / prev_profit) * 100
+                if profit_drop_pct > 50:
+                    _weakness(f"{i18n_strings.get('sw_profit_drop', 'Výrazný pokles zisku')}: -{profit_drop_pct:.0f}% YoY",
+                              i18n_strings.get("sw_source_financials", ""))
+
     # 6. From auditor opinion
+    # Ak firma nemá žiadny audit vôbec — pridaj slabú stránku
+    if stmts:
+        has_any_audit_sw = any(
+            getattr(stmt, 'auditorOpinion', None) and
+            getattr(stmt.auditorOpinion, 'opinionType', '') and
+            getattr(stmt.auditorOpinion, 'opinionType', '').lower() != 'null'
+            for stmt in stmts
+        )
+        if not has_any_audit_sw:
+            _weakness(i18n_strings.get("sw_no_audit", "Chýba audítorský posudok za všetky roky"),
+                      i18n_strings.get("sw_source_auditor", ""))
     if stmts:
         sorted_stmts_desc = sorted(stmts, key=lambda s: s.year, reverse=True)
         latest_year = sorted_stmts_desc[0].year

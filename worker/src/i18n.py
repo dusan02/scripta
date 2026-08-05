@@ -706,6 +706,7 @@ I18N_STRINGS = {
         "heatmap_net_loss": "Čistá strata",
         "heatmap_going_concern_auditor": "{year}: Going Concern (auditor)",
         "heatmap_going_concern_narrative": "{year}: Going Concern (naratív)",
+        "heatmap_no_audit": "Chýba audítorský posudok za všetky roky",
         "sw_going_concern_doubt": "Going Concern pochybnosti",
 
         # Strengths & Weaknesses
@@ -730,6 +731,8 @@ I18N_STRINGS = {
         "sw_negative_cf": "Záporný prevádzkový cash flow",
         "sw_all_profitable": "Ziskovosť vo všetkých rokoch",
         "sw_all_losses": "Strata vo všetkých rokoch",
+        "sw_profit_drop": "Výrazný pokles zisku",
+        "sw_no_audit": "Chýba audítorský posudok za všetky roky",
         "sw_auditor_clean": "Audítorský posudok bez výhrad",
         "sw_auditor_adverse": "Záporný/odmietnutý audítorský posudok",
         "sw_auditor_qualified": "Audítorský posudok s výhradami",
@@ -1468,6 +1471,7 @@ I18N_STRINGS = {
         "heatmap_net_loss": "Net loss",
         "heatmap_going_concern_auditor": "{year}: Going Concern (auditor)",
         "heatmap_going_concern_narrative": "{year}: Going Concern (narrative)",
+        "heatmap_no_audit": "No auditor opinion for any year",
         "sw_going_concern_doubt": "Going Concern doubts",
 
         # Strengths & Weaknesses
@@ -1492,6 +1496,8 @@ I18N_STRINGS = {
         "sw_negative_cf": "Negative operating cash flow",
         "sw_all_profitable": "Profitable in all years",
         "sw_all_losses": "Loss in all years",
+        "sw_profit_drop": "Significant profit decline",
+        "sw_no_audit": "No auditor opinion for any year",
         "sw_auditor_clean": "Unqualified auditor opinion",
         "sw_auditor_adverse": "Adverse/disclaimer auditor opinion",
         "sw_auditor_qualified": "Qualified auditor opinion",
@@ -2230,6 +2236,7 @@ I18N_STRINGS = {
         "heatmap_net_loss": "Nettoverlust",
         "heatmap_going_concern_auditor": "{year}: Going Concern (Prüfer)",
         "heatmap_going_concern_narrative": "{year}: Going Concern (Narrativ)",
+        "heatmap_no_audit": "Kein Auditor-Bericht für alle Jahre",
         "sw_going_concern_doubt": "Going Concern Zweifel",
 
         # Strengths & Weaknesses
@@ -2254,6 +2261,8 @@ I18N_STRINGS = {
         "sw_negative_cf": "Negativer operativer Cash Flow",
         "sw_all_profitable": "Gewinn in allen Jahren",
         "sw_all_losses": "Verlust in allen Jahren",
+        "sw_profit_drop": "Signifikanter Gewinnrückgang",
+        "sw_no_audit": "Kein Auditor-Bericht für alle Jahre",
         "sw_auditor_clean": "Bestätigter Auditor-Bericht",
         "sw_auditor_adverse": "Adverse/Disclaimer Auditor-Bericht",
         "sw_auditor_qualified": "Eingeschränkter Auditor-Bericht",
