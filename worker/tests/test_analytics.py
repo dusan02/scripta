@@ -56,6 +56,38 @@ def _stmt(**kwargs):
         monthsInPeriod=12,
         staffCosts=None,
         statementType="SK_GAAP",
+        # Extended fields (template 699)
+        nonCurrentAssets=None,
+        intangibleAssets=None,
+        tangibleAssets=None,
+        ltFinancialAssets=None,
+        ltReceivables=None,
+        stFinancialAssets=None,
+        deferredAssets=None,
+        shareCapital=None,
+        sharePremium=None,
+        otherCapitalFunds=None,
+        statutoryReserveFunds=None,
+        otherProfitFunds=None,
+        retainedEarnings=None,
+        retainedProfit=None,
+        accumulatedLoss=None,
+        currentYearProfit=None,
+        ltReserves=None,
+        stReserves=None,
+        stBankLoans=None,
+        stFinancialAssistance=None,
+        operatingCosts=None,
+        materialConsumption=None,
+        servicesCosts=None,
+        wageCosts=None,
+        taxesFees=None,
+        financialResult=None,
+        profitBeforeTax=None,
+        incomeTax=None,
+        profitTransfer=None,
+        statementDate=None,
+        approvalDate=None,
     )
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
@@ -252,6 +284,383 @@ class TestComputeFinancialRatios:
         # EBITDA = 200k + 50k + 100k = 350k
         assert r["ebitda"] == 350_000
         assert r["ebitda_margin_pct"] == 35.0
+
+    # ── Nové ukazovatele (Krok 2) ──────────────────────────────────────────────
+
+    def test_equity_ratio(self):
+        """Equity Ratio = equity / totalAssets * 100."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            longTermLiabilities=200_000,
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["equity_ratio_pct"] == 60.0  # 600k / 1M * 100
+
+    def test_equity_ratio_negative_equity(self):
+        """Záporné imanie → záporný equity ratio."""
+        s = _stmt(
+            totalAssets=500_000,
+            equity=-100_000,
+            shortTermLiabilities=600_000,
+            netProfitLoss=-50_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["equity_ratio_pct"] == -20.0  # -100k / 500k * 100
+
+    def test_interest_coverage_normal(self):
+        """Interest Coverage = EBIT / |interest|."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=150_000,
+            interestExpense=50_000,
+            profitBeforeTax=200_000,
+        )
+        r = compute_financial_ratios(s)
+        # EBIT = profitBeforeTax + |interest| = 200k + 50k = 250k
+        # IC = 250k / 50k = 5.0
+        assert r["interest_coverage"] == 5.0
+
+    def test_interest_coverage_no_interest(self):
+        """Firma bez úrokov → interest_coverage = None (nie 0, nie inf)."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=150_000,
+            interestExpense=0,
+            profitBeforeTax=150_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["interest_coverage"] is None
+
+    def test_interest_coverage_negative_interest(self):
+        """Úroky uložené ako záporné (náklady) → berieme absolútnu hodnotu."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=150_000,
+            interestExpense=-50_000,
+            profitBeforeTax=200_000,
+        )
+        r = compute_financial_ratios(s)
+        # EBIT = 200k + |-50k| = 250k; IC = 250k / 50k = 5.0
+        assert r["interest_coverage"] == 5.0
+
+    def test_dio_with_cogs(self):
+        """DIO = (inventory / operatingCosts) * 365."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            inventory=200_000,
+            operatingCosts=1_000_000,
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        # DIO = (200k / 1M) * 365 = 73
+        assert r["dio_days"] == 73.0
+
+    def test_dio_zero_inventory(self):
+        """Žiadne zásoby → DIO = 0 (nie None)."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            inventory=0,
+            operatingCosts=1_000_000,
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["dio_days"] == 0
+
+    def test_dio_no_cogs(self):
+        """IT firma: operatingCosts = 0, materialConsumption = 0, inventory > 0 → DIO = None."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            inventory=10_000,
+            operatingCosts=0,
+            materialConsumption=0,
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["dio_days"] is None
+
+    def test_dio_fallback_to_material_consumption(self):
+        """Ak operatingCosts chýba alebo je 0, fallback na materialConsumption."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            inventory=100_000,
+            operatingCosts=None,
+            materialConsumption=500_000,
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        # DIO = (100k / 500k) * 365 = 73
+        assert r["dio_days"] == 73.0
+
+    def test_ccc_full_cycle(self):
+        """CCC = DSO + DIO - DPO."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=3_650_000,  # pre jednoduchý DSO/DPO výpočet
+            inventory=100_000,
+            operatingCosts=500_000,
+            tradeReceivables=100_000,   # DSO = 10
+            tradePayables=100_000,      # DPO = 10
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        # DSO = (100k / 3650k) * 365 = 10
+        # DIO = (100k / 500k) * 365 = 73
+        # DPO = (100k / 3650k) * 365 = 10
+        # CCC = 10 + 73 - 10 = 73
+        assert r["dso_days"] == 10.0
+        assert r["dio_days"] == 73.0
+        assert r["dpo_days"] == 10.0
+        assert r["ccc_days"] == 73.0
+
+    def test_ccc_missing_dio(self):
+        """Ak DIO chýba (None), CCC = None."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=3_650_000,
+            inventory=10_000,
+            operatingCosts=0,
+            materialConsumption=0,
+            tradeReceivables=100_000,
+            tradePayables=100_000,
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["dio_days"] is None
+        assert r["ccc_days"] is None
+
+    def test_asset_turnover(self):
+        """Asset Turnover = revenue / totalAssets."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_500_000,
+            netProfitLoss=100_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["asset_turnover"] == 2.5
+
+    def test_asset_turnover_short_period(self):
+        """Asset Turnover by mal byť anualizovaný pri skrátenom období."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=1_250_000,  # 6-month period
+            netProfitLoss=50_000,
+            monthsInPeriod=6,
+        )
+        r = compute_financial_ratios(s)
+        # annualized_revenue = 1.25M * (12/6) = 2.5M
+        # asset_turnover = 2.5M / 1M = 2.5
+        assert r["asset_turnover"] == 2.5
+
+    def test_intangible_tangible_ratio(self):
+        """Podiel nehmotného a hmotného majetku na celkových aktívach."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            netProfitLoss=50_000,
+            intangibleAssets=50_000,
+            tangibleAssets=700_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["intangible_asset_ratio_pct"] == 5.0   # 50k / 1M * 100
+        assert r["tangible_asset_ratio_pct"] == 70.0    # 700k / 1M * 100
+
+    def test_retained_earnings_ratio(self):
+        """Nerozdelený zisk / vlastné imanie * 100."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=500_000,
+            shortTermLiabilities=200_000,
+            netProfitLoss=50_000,
+            retainedEarnings=200_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["retained_earnings_ratio_pct"] == 40.0  # 200k / 500k * 100
+
+    def test_retained_earnings_ratio_negative_equity(self):
+        """Záporné imanie → retained_earnings_ratio = None."""
+        s = _stmt(
+            totalAssets=500_000,
+            equity=-100_000,
+            shortTermLiabilities=600_000,
+            netProfitLoss=-50_000,
+            retainedEarnings=50_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["retained_earnings_ratio_pct"] is None
+
+    def test_share_capital_ratio(self):
+        """Základné imanie / vlastné imanie * 100."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=500_000,
+            shortTermLiabilities=200_000,
+            netProfitLoss=50_000,
+            shareCapital=300_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["share_capital_ratio_pct"] == 60.0  # 300k / 500k * 100
+
+    def test_reserves_ratio(self):
+        """(LT + ST rezervy) / celkové záväzky * 100."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=500_000,
+            shortTermLiabilities=300_000,
+            longTermLiabilities=200_000,
+            netProfitLoss=50_000,
+            ltReserves=50_000,
+            stReserves=50_000,
+        )
+        r = compute_financial_ratios(s)
+        # total_liabilities = 300k + 200k = 500k
+        # reserves = 50k + 50k = 100k
+        # ratio = 100k / 500k * 100 = 20.0
+        assert r["reserves_ratio_pct"] == 20.0
+
+    def test_reserves_ratio_no_reserves(self):
+        """Žiadne rezervy → reserves_ratio = None."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=500_000,
+            shortTermLiabilities=300_000,
+            longTermLiabilities=200_000,
+            netProfitLoss=50_000,
+            ltReserves=0,
+            stReserves=0,
+        )
+        r = compute_financial_ratios(s)
+        assert r["reserves_ratio_pct"] is None
+
+    def test_effective_tax_rate(self):
+        """Daň / zisk_pred_zdanenim * 100."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=160_000,
+            profitBeforeTax=200_000,
+            incomeTax=40_000,
+        )
+        r = compute_financial_ratios(s)
+        assert r["effective_tax_rate_pct"] == 20.0  # 40k / 200k * 100
+
+    def test_effective_tax_rate_loss(self):
+        """Strata (profitBeforeTax < 0) → effective_tax_rate = None."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=-50_000,
+            profitBeforeTax=-50_000,
+            incomeTax=0,
+        )
+        r = compute_financial_ratios(s)
+        assert r["effective_tax_rate_pct"] is None
+
+    def test_ebit_calculation(self):
+        """EBIT = profitBeforeTax + |interest|."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=150_000,
+            interestExpense=50_000,
+            profitBeforeTax=200_000,
+        )
+        r = compute_financial_ratios(s)
+        # EBIT = 200k + 50k = 250k
+        assert r["ebit"] == 250_000
+
+    def test_ebit_fallback_without_profit_before_tax(self):
+        """Ak profitBeforeTax chýba, EBIT = net_profit + |interest| + incomeTax."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=150_000,
+            interestExpense=50_000,
+            incomeTax=50_000,
+        )
+        r = compute_financial_ratios(s)
+        # EBIT = 150k + 50k + 50k = 250k
+        assert r["ebit"] == 250_000
+
+    def test_extended_fields_all_none(self):
+        """Starý stmt bez extended polí → nové ukazovatele = None, existujúce fungujú."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            netProfitLoss=100_000,
+            interestExpense=50_000,
+            tradeReceivables=100_000,
+            tradePayables=100_000,
+            inventory=50_000,
+        )
+        r = compute_financial_ratios(s)
+        # Existujúce fungujú
+        assert r["current_ratio"] == 2.5
+        assert r["dso_days"] is not None
+        # Nové = None (bez extended fields)
+        assert r["dio_days"] is None
+        assert r["ccc_days"] is None
+        assert r["intangible_asset_ratio_pct"] is None
+        assert r["tangible_asset_ratio_pct"] is None
+        assert r["retained_earnings_ratio_pct"] is None
+        assert r["share_capital_ratio_pct"] is None
+        assert r["reserves_ratio_pct"] is None
+        assert r["effective_tax_rate_pct"] is None
+        # Interest Coverage funguje aj bez extended (používa interestExpense)
+        assert r["interest_coverage"] is not None
+        # Equity Ratio funguje aj bez extended (používa equity/totalAssets)
+        assert r["equity_ratio_pct"] == 60.0
+        # Asset Turnover funguje aj bez extended
+        assert r["asset_turnover"] == 2.0
 
 
 # ── compute_altman_z_score ────────────────────────────────────────────────────

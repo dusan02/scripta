@@ -806,3 +806,189 @@ class TestFlatDataFormat:
         assert metrics is not None
         assert metrics.celkove_aktiva == 1_000_000
         assert metrics.vlastne_imanie_celkom == 600_000
+
+
+# ── Extended fields extraction (template 699) ──────────────────────────────────
+
+class TestExtendedFieldsExtraction:
+    """Testy pre extrakciu nových polí z template 699 pomocou reálneho fixture."""
+
+    @pytest.fixture
+    def meggle_metrics(self):
+        """Načíta Meggle fixture a parsne ho do FinancialMetrics."""
+        import json
+        from pathlib import Path
+        from src.ruz_parser import _parse_single_vykaz
+
+        fixture_path = Path(__file__).parent / "fixtures" / "meggle_31329519_2023_vykaz_9178640.json"
+        if not fixture_path.exists():
+            pytest.skip(f"Fixture not found: {fixture_path}")
+        with open(fixture_path, "r", encoding="utf-8") as f:
+            vykaz = json.load(f)
+        return _parse_single_vykaz(vykaz, "31329519")
+
+    def test_meggle_basic_fields(self, meggle_metrics):
+        """Základné polia sa správne extrahovali."""
+        assert meggle_metrics is not None
+        assert meggle_metrics.rok_zavierky == 2023
+        assert meggle_metrics.celkove_aktiva == 117_814_205
+        assert meggle_metrics.vlastne_imanie_celkom == 64_757_795
+        assert meggle_metrics.trzby_z_hlavnej_cinnosti == 266_277_331
+
+    def test_meggle_asset_composition(self, meggle_metrics):
+        """Štruktúra aktív — neobežný, nehmotný, hmotný majetok."""
+        assert meggle_metrics.neobezny_majetok == 63_560_154
+        assert meggle_metrics.dlhodoby_nehmotny_majetok == 402_792
+        assert meggle_metrics.dlhodoby_hmotny_majetok == 62_544_245
+        assert meggle_metrics.dlhodoby_financny_majetok == 613_117
+        assert meggle_metrics.obezny_majetok == 53_890_486
+        assert meggle_metrics.casove_rozlisenie_aktiv == 363_565
+
+    def test_meggle_asset_composition_sum(self, meggle_metrics):
+        """Súčet komponentov aktív = celkové aktíva (bilančná rovnica aktív)."""
+        total = (
+            (meggle_metrics.neobezny_majetok or 0) +
+            (meggle_metrics.obezny_majetok or 0) +
+            (meggle_metrics.casove_rozlisenie_aktiv or 0)
+        )
+        assert total == meggle_metrics.celkove_aktiva
+
+    def test_meggle_equity_composition(self, meggle_metrics):
+        """Štruktúra vlastného imania — základné imanie, fondy, nerozdelený zisk."""
+        assert meggle_metrics.zakladne_imanie == 30_748_000
+        assert meggle_metrics.ostatne_kapitalove_fondy == 81_636
+        assert meggle_metrics.zakonne_rezervne_fondy == 2_791_230
+        assert meggle_metrics.ostatne_fondy_zo_zisku == 17_591
+        assert meggle_metrics.vysledok_minuly_rokov == 15_479_825
+        assert meggle_metrics.nerozdeleny_zisk == 15_479_825
+        assert meggle_metrics.vysledok_beziaceho_roka == 15_639_513
+
+    def test_meggle_equity_composition_sum(self, meggle_metrics):
+        """Súčet komponentov vlastného imania = celkové vlastné imanie."""
+        total = (
+            (meggle_metrics.zakladne_imanie or 0) +
+            (meggle_metrics.emisione_azio or 0) +
+            (meggle_metrics.ostatne_kapitalove_fondy or 0) +
+            (meggle_metrics.zakonne_rezervne_fondy or 0) +
+            (meggle_metrics.ostatne_fondy_zo_zisku or 0) +
+            (meggle_metrics.vysledok_minuly_rokov or 0) +
+            (meggle_metrics.vysledok_beziaceho_roka or 0)
+        )
+        assert total == meggle_metrics.vlastne_imanie_celkom
+
+    def test_meggle_reserves(self, meggle_metrics):
+        """Dlhodobé a krátkodobé rezervy."""
+        assert meggle_metrics.dlhodobe_rezervy == 1_623_907
+        assert meggle_metrics.kratkodobe_rezervy == 4_297_350
+
+    def test_meggle_income_statement_detail(self, meggle_metrics):
+        """Detail výsledovky — náklady, spotreba, služby, mzdy, dane."""
+        assert meggle_metrics.naklady_na_hosp_cinnost == 246_492_614
+        assert meggle_metrics.spotreba_materialu == 167_768_087
+        assert meggle_metrics.sluzby == 26_443_694
+        assert meggle_metrics.mzdove_naklady == 11_913_567
+        assert meggle_metrics.dane_a_poplatky == 228_285
+        assert meggle_metrics.odpisy == 4_652_556
+
+    def test_meggle_profit_chain(self, meggle_metrics):
+        """Reťazec zisku: fin. výsledok → pred zdanením → daň → po zdanení."""
+        assert meggle_metrics.vysledok_z_fin_cinnosti == -908_697
+        assert meggle_metrics.zisk_pred_zdanenim == 19_964_177
+        assert meggle_metrics.dan_z_prijmu == 4_324_664
+        assert meggle_metrics.zisk_alebo_strata_po_zdaneni == 15_639_513
+        # Matematická kontrola: pred zdanením - daň = po zdanení
+        assert meggle_metrics.zisk_pred_zdanenim - meggle_metrics.dan_z_prijmu == meggle_metrics.zisk_alebo_strata_po_zdaneni
+
+    def test_meggle_forensic_signals(self, meggle_metrics):
+        """Forenzné signály — dátum zostavenia a schválenia závierky."""
+        assert meggle_metrics.datum_zostavenia == "2024-05-13"
+        assert meggle_metrics.datum_schvalenia == "2024-05-16"
+
+    def test_meggle_none_fields(self, meggle_metrics):
+        """Polia, ktoré Meggle nemá, by mali byť None (nie 0)."""
+        assert meggle_metrics.emisione_azio is None
+        assert meggle_metrics.neuhradena_strata is None
+        assert meggle_metrics.dlhodobe_pohladavky is None
+        assert meggle_metrics.bezne_bankove_uvery is None
+        assert meggle_metrics.prevod_podielov_spolocnikom is None
+
+
+# ── Template 699 guard ─────────────────────────────────────────────────────────
+
+class TestTemplate699Guard:
+    """Testy pre template 699 guard — non-699 templates preskakujú extended polia."""
+
+    def _make_flat_aktiv(self, total_assets):
+        """Flat aktív: 74 riadkov × 4 stĺpce [Brutto, Korekcia, Netto2, Netto3]."""
+        data = [0] * (74 * 4)
+        # ROW_TOTAL_ASSETS = 1, offset 0 → index 0 × 4 cols
+        data[0] = total_assets  # Brutto
+        data[2] = total_assets  # Netto2 (current)
+        return data
+
+    def _make_flat_pasiv(self, equity_value):
+        """Flat pasív: 67 riadkov × 2 stĺpce [Bežné, Predchádzajúce]."""
+        data = [0] * (67 * 2)
+        # ROW_TOTAL_EQUITY = 80, offset 79 → index 1 × 2 cols = [2:4]
+        data[2] = equity_value
+        return data
+
+    def test_template_699_processes_normally(self):
+        """Template 699 by mala byť spracovaná normálne s extended poliami."""
+        aktiv_flat = self._make_flat_aktiv(1_000_000)
+        pasiv_flat = self._make_flat_pasiv(600_000)
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "data": aktiv_flat},
+            {"nazov": {"sk": "Strana pasív"}, "data": pasiv_flat},
+        ]
+        titulna = {
+            "obdobieOd": "2023-01-01",
+            "obdobieDo": "2023-12-31",
+            "pocetZamestnancov": 100,
+            "konsolidovana": False,
+        }
+        metrics = parse_tables_to_metrics(tables, titulna, "12345678", id_sablony=699)
+        assert metrics is not None
+        assert metrics.celkove_aktiva == 1_000_000
+        assert metrics.vlastne_imanie_celkom == 600_000
+
+    def test_template_684_skips_extended_fields(self):
+        """Konsolidovaná závierka (template 684) — základné polia OK, extended = None."""
+        aktiv_flat = self._make_flat_aktiv(1_000_000)
+        pasiv_flat = self._make_flat_pasiv(600_000)
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "data": aktiv_flat},
+            {"nazov": {"sk": "Strana pasív"}, "data": pasiv_flat},
+        ]
+        titulna = {
+            "obdobieOd": "2023-01-01",
+            "obdobieDo": "2023-12-31",
+            "pocetZamestnancov": 100,
+            "konsolidovana": True,
+        }
+        metrics = parse_tables_to_metrics(tables, titulna, "12345678", id_sablony=684)
+        # Parser nevracia None — základné polia sa spracujú
+        assert metrics is not None
+        assert metrics.celkove_aktiva == 1_000_000
+        # Extended polia by mali byť None (guard ich preskočil)
+        assert metrics.neobezny_majetok is None
+        assert metrics.zakladne_imanie is None
+        assert metrics.naklady_na_hosp_cinnost is None
+
+    def test_no_template_id_processes_normally(self):
+        """Ak idSablony chýba (None), parser by mal fungovať (backwards compat)."""
+        aktiv_flat = self._make_flat_aktiv(1_000_000)
+        pasiv_flat = self._make_flat_pasiv(600_000)
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "data": aktiv_flat},
+            {"nazov": {"sk": "Strana pasív"}, "data": pasiv_flat},
+        ]
+        titulna = {
+            "obdobieOd": "2023-01-01",
+            "obdobieDo": "2023-12-31",
+            "pocetZamestnancov": 100,
+            "konsolidovana": False,
+        }
+        metrics = parse_tables_to_metrics(tables, titulna, "12345678", id_sablony=None)
+        assert metrics is not None
+        assert metrics.celkove_aktiva == 1_000_000

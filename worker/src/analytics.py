@@ -352,6 +352,21 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         trade_receivables = _get(stmt, 'tradeReceivables', 0) or 0
         trade_payables = _get(stmt, 'tradePayables', 0) or 0
 
+        # ── Extended fields (template 699 — asset/equity composition) ──
+        non_current_assets = _get(stmt, 'nonCurrentAssets', None)
+        intangible_assets = _get(stmt, 'intangibleAssets', None)
+        tangible_assets = _get(stmt, 'tangibleAssets', None)
+        share_capital = _get(stmt, 'shareCapital', None)
+        retained_earnings = _get(stmt, 'retainedEarnings', None)
+        current_year_profit = _get(stmt, 'currentYearProfit', None)
+        lt_reserves = _get(stmt, 'ltReserves', None)
+        st_reserves = _get(stmt, 'stReserves', None)
+        operating_costs = _get(stmt, 'operatingCosts', None)  # Náklady na hosp. činnosť spolu (r.10)
+        material_consumption = _get(stmt, 'materialConsumption', None)  # Spotreba materiálu (r.12)
+        profit_before_tax = _get(stmt, 'profitBeforeTax', None)  # Zisk pred zdanenim (r.56)
+        financial_result = _get(stmt, 'financialResult', None)  # Výsledok z fin. činnosti (r.55)
+        income_tax = _get(stmt, 'incomeTax', None)
+
         # Total liabilities: shortTerm + longTerm ak dostupné, inak bilančná rovnica
         computed_liabilities = total_assets - equity
         if short_liabilities > 0 or long_liabilities > 0 or computed_liabilities < 0:
@@ -372,6 +387,9 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         # Záporné vlastné imanie (predĺženie) → D/E je nedefinované (None). Explicitný flag,
         # aby najhorší prípad nezostal skrytý v tabuľke ukazovateľov.
         ratios["negative_equity"] = equity < 0
+        # Equity Ratio (samofinancovací pomer) — % aktív financovaných vlastným kapitálom.
+        # Na rozdiel od D/E je zrozumiteľnejší pre nefinanciera.
+        ratios["equity_ratio_pct"] = _safe_pct(equity, total_assets) if total_assets > 0 else None
 
         # ── Rentabilita ──
         ratios["net_profit_margin_pct"] = _safe_pct(net_profit, revenue)
@@ -384,13 +402,31 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         else:
             ratios["roe_pct"] = None
 
-        # ── EBITDA (approx: net_profit + interest + depreciation) ──
+        # ── EBIT & EBITDA ──
+        # EBIT = zisk_pred_zdanenim + |úroky| (ak máme profit_before_tax z RUZ)
+        # Fallback: net_profit + |úroky| (ak profit_before_tax chýba)
+        ebit = None
+        if profit_before_tax is not None:
+            ebit = profit_before_tax + abs(interest)
+        elif net_profit is not None:
+            ebit = net_profit + abs(interest) + (_get(stmt, 'incomeTax', 0) or 0)
+        ratios["ebit"] = round(ebit, 0) if ebit is not None else None
+
+        # EBITDA (approx: net_profit + interest + depreciation)
         # Náklady na úroky (interest) môžu byť v DB uložené ako záporné — prirátavame absolútnu hodnotu.
         ratios["ebitda"] = round(net_profit + abs(interest) + depreciation, 0)
         if ratios["ebitda"] is not None and revenue > 0:
             ratios["ebitda_margin_pct"] = round((ratios["ebitda"] / revenue) * 100, 2)
         else:
             ratios["ebitda_margin_pct"] = None
+
+        # ── Interest Coverage Ratio (Krytie úrokov) ──
+        # EBIT / |úroky|. Kritický ukazovateľ pre bankrot-predikciu.
+        # Ak úroky = 0 → firma nemá externé financovanie → None (nie 0, nie infinity).
+        if ebit is not None and abs(interest) > 0:
+            ratios["interest_coverage"] = round(ebit / abs(interest), 2)
+        else:
+            ratios["interest_coverage"] = None
 
         # ── Cash Flow divergencia ──
         # Ak je operatingCashFlow None (nedostupné v RÚZ), vrátiť None — nie 0.0
@@ -399,6 +435,80 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         # ── Dni obratu ── (anualizované tržby pre korektnosť pri skrátených obdobiach)
         ratios["dso_days"] = round((trade_receivables / annualized_revenue) * 365, 0) if annualized_revenue > 0 and trade_receivables > 0 else None
         ratios["dpo_days"] = round((trade_payables / annualized_revenue) * 365, 0) if annualized_revenue > 0 and trade_payables > 0 else None
+
+        # ── DIO (Days Inventory Outstanding) ──
+        # (Zásoby / COGS) × 365. Pre IT/služobné firmy s COGS ≈ 0 → None (nie delenie nulou).
+        # COGS proxy: operating_costs (r.10 = náklady na hosp. činnosť spolu) alebo material_consumption (r.12).
+        # Pre služobné firmy je material_consumption často 0 aj keď operating_costs > 0 (služby, osobné náklady).
+        # Používame operating_costs ako prvý fallback (komplexnejší), material_consumption ako druhý.
+        cogs_proxy = None
+        if operating_costs is not None and operating_costs > 0:
+            cogs_proxy = operating_costs
+        elif material_consumption is not None and material_consumption > 0:
+            cogs_proxy = material_consumption
+        # Anualizácia COGS pre skrátené obdobia
+        if cogs_proxy is not None and months_in_period > 0 and months_in_period != 12:
+            cogs_proxy = cogs_proxy * (12 / months_in_period)
+        if cogs_proxy is not None and cogs_proxy > 0 and inventory is not None and inventory > 0:
+            ratios["dio_days"] = round((inventory / cogs_proxy) * 365, 0)
+        elif inventory is not None and inventory == 0:
+            ratios["dio_days"] = 0  # Žiadne zásoby → 0 dní
+        else:
+            ratios["dio_days"] = None
+
+        # ── Cash Conversion Cycle (CCC) ──
+        # CCC = DSO + DIO − DPO. Kompletný cyklus hotovosti.
+        # Ak je hociktorý komponent None, CCC je None (nemožno spoľahlivo vypočítať).
+        dso = ratios.get("dso_days")
+        dio = ratios.get("dio_days")
+        dpo = ratios.get("dpo_days")
+        if dso is not None and dio is not None and dpo is not None:
+            ratios["ccc_days"] = round(dso + dio - dpo, 0)
+        else:
+            ratios["ccc_days"] = None
+
+        # ── Asset Turnover (Obrat aktív) ──
+        # Tržby / Celkové aktíva. Efektivita využitia majetku.
+        ratios["asset_turnover"] = _safe_div(annualized_revenue, total_assets)
+
+        # ── Asset Structure ──
+        # Podiel nehmotného a hmotného majetku na celkových aktívach.
+        if intangible_assets is not None and total_assets > 0:
+            ratios["intangible_asset_ratio_pct"] = round((intangible_assets / total_assets) * 100, 2)
+        else:
+            ratios["intangible_asset_ratio_pct"] = None
+        if tangible_assets is not None and total_assets > 0:
+            ratios["tangible_asset_ratio_pct"] = round((tangible_assets / total_assets) * 100, 2)
+        else:
+            ratios["tangible_asset_ratio_pct"] = None
+
+        # ── Equity Composition ──
+        # Nerozdelený zisk / vlastné imanie — ukazuje, či firma reinvestuje alebo vypláca.
+        # Vysoký podiel = organická tvorba hodnôt; nízky = nafúknutý základný kapitál bez reinvestície.
+        if retained_earnings is not None and equity > 0:
+            ratios["retained_earnings_ratio_pct"] = round((retained_earnings / equity) * 100, 2)
+        else:
+            ratios["retained_earnings_ratio_pct"] = None
+        # Základné imanie / vlastné imanie — ak je blízko 100%, firma nereinwestuje zisk.
+        if share_capital is not None and equity > 0:
+            ratios["share_capital_ratio_pct"] = round((share_capital / equity) * 100, 2)
+        else:
+            ratios["share_capital_ratio_pct"] = None
+
+        # ── Reserves Ratio ──
+        # (LT + ST rezervy) / celkové záväzky. Ukazuje, ako veľmi sa firma chráni pred rizikami.
+        total_reserves = (lt_reserves or 0) + (st_reserves or 0)
+        if total_reserves > 0 and total_liabilities > 0:
+            ratios["reserves_ratio_pct"] = round((total_reserves / total_liabilities) * 100, 2)
+        else:
+            ratios["reserves_ratio_pct"] = None
+
+        # ── Effective Tax Rate ──
+        # Daň / zisk pred zdanením. Odchýlka od sadzby (15/21%) signalizuje daňové optimalizácie.
+        if income_tax is not None and profit_before_tax is not None and profit_before_tax > 0:
+            ratios["effective_tax_rate_pct"] = round((income_tax / profit_before_tax) * 100, 2)
+        else:
+            ratios["effective_tax_rate_pct"] = None
 
         return ratios
     except Exception:

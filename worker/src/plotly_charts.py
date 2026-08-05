@@ -562,3 +562,117 @@ def generate_rpe_chart(statements, lang="sk") -> str:
     fig.update_layout(**layout)
     fig.update_xaxes(tickmode='array', tickvals=list(range(len(years))), ticktext=years, type='category')
     return _to_base64(fig, 600, 280)
+
+
+def generate_asset_composition_donut(stmt, lang="sk") -> str:
+    """Donut chart: štruktúra aktív (neobežný vs obežný vs časové rozlíšenie).
+
+    Rozklad celkových aktív na:
+    - Dlhodobý nehmotný majetok
+    - Dlhodobý hmotný majetok
+    - Dlhodobý finančný majetok
+    - Obežný majetok
+    - Časové rozlíšenie
+    """
+    if not stmt:
+        return ""
+    i = get_i18n_strings(lang)
+    intangible = _to_float(getattr(stmt, 'intangibleAssets', None))
+    tangible = _to_float(getattr(stmt, 'tangibleAssets', None))
+    lt_financial = _to_float(getattr(stmt, 'ltFinancialAssets', None))
+    current = _to_float(getattr(stmt, 'currentAssets', None))
+    deferred = _to_float(getattr(stmt, 'deferredAssets', None))
+
+    labels_all = [
+        i.get('asset_intangible', 'Nehmotný majetok'),
+        i.get('asset_tangible', 'Hmotný majetok'),
+        i.get('asset_lt_financial', 'Dlhodobý fin. majetok'),
+        i.get('asset_current', 'Obežný majetok'),
+        i.get('asset_deferred', 'Časové rozlíšenie'),
+    ]
+    values_all = [intangible, tangible, lt_financial, current, deferred]
+    colors_all = [COLORS['blue_light'], COLORS['blue'], COLORS['blue_dark'], COLORS['green'], COLORS['slate_light']]
+
+    filtered = [(l, v, c) for l, v, c in zip(labels_all, values_all, colors_all) if v > 0]
+    if len(filtered) < 2:
+        return ""
+    labels, values, colors = zip(*filtered)
+
+    fig = go.Figure(data=[go.Pie(
+        labels=labels, values=values, hole=.5,
+        marker=dict(colors=colors, line=dict(color='#ffffff', width=2)),
+        textinfo='percent',
+        texttemplate='%{percent:.1%}',
+        textfont=dict(size=14, color='#ffffff', family=COLORS['font_family'], weight='bold'),
+        insidetextorientation='horizontal'
+    )])
+
+    fig.update_layout(
+        showlegend=True,
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02,
+                    font=dict(size=11, color=COLORS['text_light'])),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=140, t=10, b=10)
+    )
+    return _to_base64(fig, 600, 360)
+
+
+def generate_equity_composition_donut(stmt, lang="sk") -> str:
+    """Donut chart: štruktúra vlastného imania.
+
+    Rozklad vlastného imania na:
+    - Základné imanie
+    - Kapitálové fondy + rezervné fondy
+    - Nerozdelený zisk minulých rokov
+    - Výsledok hospodárenia bežného roka
+    """
+    if not stmt:
+        return ""
+    i = get_i18n_strings(lang)
+    share_capital = _to_float(getattr(stmt, 'shareCapital', None))
+    other_funds = (
+        _to_float(getattr(stmt, 'sharePremium', None)) +
+        _to_float(getattr(stmt, 'otherCapitalFunds', None)) +
+        _to_float(getattr(stmt, 'statutoryReserveFunds', None)) +
+        _to_float(getattr(stmt, 'otherProfitFunds', None))
+    )
+    retained = _to_float(getattr(stmt, 'retainedProfit', None))
+    # Ak je neuhradená strata, odčítame ju od nerozdeleného zisku
+    accumulated_loss = _to_float(getattr(stmt, 'accumulatedLoss', None))
+    if accumulated_loss > 0 and retained > 0:
+        retained = max(0, retained - accumulated_loss)
+    current_year = _to_float(getattr(stmt, 'currentYearProfit', None))
+
+    labels_all = [
+        i.get('equity_share_capital', 'Základné imanie'),
+        i.get('equity_funds', 'Kapitálové a rezervné fondy'),
+        i.get('equity_retained', 'Nerozdelený zisk'),
+        i.get('equity_current_year', 'Výsledok bežného roka'),
+    ]
+    values_all = [share_capital, other_funds, retained, current_year]
+    colors_all = [COLORS['blue'], COLORS['blue_light'], COLORS['green'], COLORS['green_light']]
+
+    filtered = [(l, v, c) for l, v, c in zip(labels_all, values_all, colors_all) if v > 0]
+    if len(filtered) < 2:
+        return ""
+    labels, values, colors = zip(*filtered)
+
+    fig = go.Figure(data=[go.Pie(
+        labels=labels, values=values, hole=.5,
+        marker=dict(colors=colors, line=dict(color='#ffffff', width=2)),
+        textinfo='percent',
+        texttemplate='%{percent:.1%}',
+        textfont=dict(size=14, color='#ffffff', family=COLORS['font_family'], weight='bold'),
+        insidetextorientation='horizontal'
+    )])
+
+    fig.update_layout(
+        showlegend=True,
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02,
+                    font=dict(size=11, color=COLORS['text_light'])),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=10, r=140, t=10, b=10)
+    )
+    return _to_base64(fig, 600, 360)

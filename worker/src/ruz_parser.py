@@ -37,39 +37,64 @@ logger = logging.getLogger(__name__)
 
 # Strana aktív (table 0)
 ROW_TOTAL_ASSETS = 1
+ROW_NON_CURRENT_ASSETS = 2      # Neobežný majetok (r.03 + r.11 + r.21)
+ROW_INTANGIBLE_ASSETS = 3       # Dlhodobý nehmotný majetok súčet
+ROW_TANGIBLE_ASSETS = 11        # Dlhodobý hmotný majetok súčet
+ROW_LT_FINANCIAL_ASSETS = 21    # Dlhodobý finančný majetok súčet
 ROW_CURRENT_ASSETS = 33
 ROW_INVENTORY = 34
+ROW_LT_RECEIVABLES = 41         # Dlhodobé pohľadávky súčet
 ROW_TRADE_RECEIVABLES_TOTAL = 53  # Krátkodobé pohľadávky súčet
 ROW_TRADE_RECEIVABLES = 54        # Pohľadávky z obchodného styku súčet
+ROW_ST_FINANCIAL_ASSETS = 66    # Krátkodobý finančný majetok súčet
 ROW_FINANCIAL_ACCOUNTS = 71       # Finančné účty
 ROW_CASH = 72                     # Peniaze
+ROW_DEFERRED_ASSETS = 74        # Časové rozlíšenie (aktív)
 
 # Strana pasív (table 1)
 ROW_TOTAL_EQUITY = 80
+ROW_SHARE_CAPITAL = 81          # Základné imanie súčet
+ROW_SHARE_PREMIUM = 85          # Emisné ážio
+ROW_OTHER_CAPITAL_FUNDS = 86    # Ostatné kapitálové fondy
+ROW_STATUTORY_RESERVES = 87     # Zákonné rezervné fondy
+ROW_OTHER_PROFIT_FUNDS = 90     # Ostatné fondy zo zisku
+ROW_RETAINED_EARNINGS = 97      # Výsledok hosp. minulých rokov (súčet)
+ROW_RETAINED_PROFIT = 98        # Nerozdelený zisk minulých rokov
+ROW_ACCUMULATED_LOSS = 99       # Neuhradená strata minulých rokov
+ROW_CURRENT_YEAR_PROFIT = 100   # Výsledok hosp. za úč. obdobie po zdanení
 ROW_TOTAL_LIABILITIES = 101
 ROW_LT_LIABILITIES = 102
+ROW_LT_RESERVES = 118           # Dlhodobé rezervy
 ROW_LT_BANK_LOANS = 121
 ROW_ST_LIABILITIES = 122
 ROW_TRADE_PAYABLES = 123
-ROW_RESERVES = 141  # Rezervy a iné záväzky (mimo LT/ST)
+ROW_ST_RESERVES = 136           # Krátkodobé rezervy
 ROW_EMPLOYEE_LIAB = 131
 ROW_SOCIAL_INS_LIAB = 132
 ROW_TAX_LIAB = 133
 ROW_ST_BANK_LOANS = 139
+ROW_ST_FINANCIAL_ASSIST = 140   # Krátkodobé finančné výpomoci
+ROW_RESERVES = 141  # Časové rozlíšenie (pasív)
 
 # Výkaz ziskov a strát (table 2)
 ROW_NET_REVENUE = 1
-ROW_OPERATING_INCOME = 2
+ROW_OPERATING_INCOME = 2        # Výnosy z hosp. činnosti spolu
 ROW_COST_OF_GOODS_SOLD = 10   # Náklady na predaný tovar a služby (COGS)
+ROW_MATERIAL_CONSUMPTION = 12  # Spotreba materiálu, energie
+ROW_SERVICES = 14              # Služby
 ROW_PERSONNEL_COSTS = 15
+ROW_WAGE_COSTS = 16            # Mzdové náklady (podmnožina osobných)
+ROW_TAXES_FEES = 20            # Dane a poplatky
 ROW_DEPRECIATION = 21
 ROW_OPERATING_PROFIT = 27
 ROW_VALUE_ADDED = 28
 ROW_FINANCIAL_INCOME = 29
 ROW_FINANCIAL_EXPENSES = 45
+ROW_FINANCIAL_RESULT = 55      # Výsledok hosp. z fin. činnosti
 ROW_INTEREST_EXPENSE = 49
 ROW_PROFIT_BEFORE_TAX = 56
 ROW_INCOME_TAX = 57
+ROW_PROFIT_TRANSFER = 60       # Prevod podielov na výsledku spoločníkom
 ROW_NET_PROFIT = 61
 
 # Offsets to convert cisloRiadku → data[] index
@@ -349,6 +374,7 @@ def parse_tables_to_metrics(
     tables: list[dict],
     titulna_strana: dict,
     ico: str,
+    id_sablony: Optional[int] = None,
 ) -> Optional[FinancialMetrics]:
     """Parse RÚZ JSON tables into FinancialMetrics.
 
@@ -356,12 +382,24 @@ def parse_tables_to_metrics(
         tables: List of table dicts from obsah.tabulky (across all výkazy for one závierka)
         titulna_strana: obsah.titulnaStrana dict
         ico: Company IČO
+        id_sablony: RÚZ template ID (699 = standard SK GAAP). If provided and not 699,
+            extended fields (asset/equity composition) are skipped to avoid row-index mismatch.
 
     Returns:
         FinancialMetrics if parsing succeeds, None otherwise
     """
     if not tables:
         return None
+
+    # Template guard: šablóna 699 je jediná s overeným row mappingom.
+    # Konsolidované závierky (684) a iné šablóny majú odlišné číslovanie riadkov.
+    # Pre ne preskočíme extrakciu nových polí (asset/equity composition).
+    extended_fields_ok = (id_sablony is None or id_sablony == 699)
+    if not extended_fields_ok:
+        logger.warning(
+            f"[RUZ_PARSER] IČO {ico}: neznáma šablóna {id_sablony} — "
+            "preskakujem extrakciu rozšírených polí (asset/equity composition)"
+        )
 
     # Identify table indices by name
     tab_map = _identify_tables(tables)
@@ -444,6 +482,23 @@ def parse_tables_to_metrics(
     peniaze = _get_activ_value(ordered, ROW_CASH)
     pohladavky = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES)
 
+    # ── Asset composition (extended fields — only for template 699) ──
+    neobezny_majetok = None
+    dlhodoby_nehmotny_majetok = None
+    dlhodoby_hmotny_majetok = None
+    dlhodoby_financny_majetok = None
+    dlhodobe_pohladavky = None
+    kratkodoby_financny_majetok = None
+    casove_rozlisenie_aktiv = None
+    if extended_fields_ok:
+        neobezny_majetok = _get_activ_value(ordered, ROW_NON_CURRENT_ASSETS)
+        dlhodoby_nehmotny_majetok = _get_activ_value(ordered, ROW_INTANGIBLE_ASSETS)
+        dlhodoby_hmotny_majetok = _get_activ_value(ordered, ROW_TANGIBLE_ASSETS)
+        dlhodoby_financny_majetok = _get_activ_value(ordered, ROW_LT_FINANCIAL_ASSETS)
+        dlhodobe_pohladavky = _get_activ_value(ordered, ROW_LT_RECEIVABLES)
+        kratkodoby_financny_majetok = _get_activ_value(ordered, ROW_ST_FINANCIAL_ASSETS)
+        casove_rozlisenie_aktiv = _get_activ_value(ordered, ROW_DEFERRED_ASSETS)
+
     # Balance sheet — pasív
     vlastne_imanie = _get_pasiv_value(ordered, ROW_TOTAL_EQUITY)
     celkove_cudzie_zdroje = _get_pasiv_value(ordered, ROW_TOTAL_LIABILITIES)
@@ -454,12 +509,62 @@ def parse_tables_to_metrics(
     zavazky_sp = _get_pasiv_value(ordered, ROW_SOCIAL_INS_LIAB)
     danove_zavazky = _get_pasiv_value(ordered, ROW_TAX_LIAB)
 
+    # ── Equity composition + reserves (extended fields — only for template 699) ──
+    zakladne_imanie = None
+    emisione_azio = None
+    ostatne_kapitalove_fondy = None
+    zakonne_rezervne_fondy = None
+    ostatne_fondy_zo_zisku = None
+    vysledok_minuly_rokov = None
+    nerozdeleny_zisk = None
+    neuhradena_strata = None
+    vysledok_beziaceho_roka = None
+    dlhodobe_rezervy = None
+    kratkodobe_rezervy = None
+    bezne_bankove_uvery = None
+    kratkodobe_financne_vypomoci = None
+    if extended_fields_ok:
+        zakladne_imanie = _get_pasiv_value(ordered, ROW_SHARE_CAPITAL)
+        emisione_azio = _get_pasiv_value(ordered, ROW_SHARE_PREMIUM)
+        ostatne_kapitalove_fondy = _get_pasiv_value(ordered, ROW_OTHER_CAPITAL_FUNDS)
+        zakonne_rezervne_fondy = _get_pasiv_value(ordered, ROW_STATUTORY_RESERVES)
+        ostatne_fondy_zo_zisku = _get_pasiv_value(ordered, ROW_OTHER_PROFIT_FUNDS)
+        vysledok_minuly_rokov = _get_pasiv_value(ordered, ROW_RETAINED_EARNINGS)
+        nerozdeleny_zisk = _get_pasiv_value(ordered, ROW_RETAINED_PROFIT)
+        neuhradena_strata = _get_pasiv_value(ordered, ROW_ACCUMULATED_LOSS)
+        vysledok_beziaceho_roka = _get_pasiv_value(ordered, ROW_CURRENT_YEAR_PROFIT)
+        dlhodobe_rezervy = _get_pasiv_value(ordered, ROW_LT_RESERVES)
+        kratkodobe_rezervy = _get_pasiv_value(ordered, ROW_ST_RESERVES)
+        bezne_bankove_uvery = _get_pasiv_value(ordered, ROW_ST_BANK_LOANS)
+        kratkodobe_financne_vypomoci = _get_pasiv_value(ordered, ROW_ST_FINANCIAL_ASSIST)
+
     # Income statement
     trzby = _get_income_value(ordered, ROW_NET_REVENUE) if has_income else None
     osobne_naklady = _get_income_value(ordered, ROW_PERSONNEL_COSTS) if has_income else None
     odpisy = _get_income_value(ordered, ROW_DEPRECIATION) if has_income else None
     uroky = _get_income_value(ordered, ROW_INTEREST_EXPENSE) if has_income else None
     zisk_po_zdaneni = _get_income_value(ordered, ROW_NET_PROFIT) if has_income else None
+
+    # ── Income statement detail (extended fields — only for template 699) ──
+    naklady_na_hosp_cinnost = None
+    spotreba_materialu = None
+    sluzby = None
+    mzdove_naklady = None
+    dane_a_poplatky = None
+    vysledok_z_fin_cinnosti = None
+    zisk_pred_zdanenim = None
+    dan_z_prijmu_val = None
+    prevod_podielov_spolocnikom = None
+    if extended_fields_ok and has_income:
+        naklady_na_hosp_cinnost = _get_income_value(ordered, ROW_COST_OF_GOODS_SOLD)
+        spotreba_materialu = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION)
+        sluzby = _get_income_value(ordered, ROW_SERVICES)
+        mzdove_naklady = _get_income_value(ordered, ROW_WAGE_COSTS)
+        dane_a_poplatky = _get_income_value(ordered, ROW_TAXES_FEES)
+        vysledok_z_fin_cinnosti = _get_income_value(ordered, ROW_FINANCIAL_RESULT)
+        zisk_pred_zdanenim = _get_income_value(ordered, ROW_PROFIT_BEFORE_TAX)
+        dan_z_prijmu_val = _get_income_value(ordered, ROW_INCOME_TAX)
+        prevod_podielov_spolocnikom = _get_income_value(ordered, ROW_PROFIT_TRANSFER)
 
     # If revenue is None, try operating income total as fallback
     if trzby is None and has_income:
@@ -496,6 +601,38 @@ def parse_tables_to_metrics(
         uroky = uroky * unit_multiplier if uroky is not None else None
         zisk_po_zdaneni = zisk_po_zdaneni * unit_multiplier if zisk_po_zdaneni is not None else None
         hruba_marza = hruba_marza * unit_multiplier if hruba_marza is not None else None
+        # Extended asset composition
+        neobezny_majetok = neobezny_majetok * unit_multiplier if neobezny_majetok is not None else None
+        dlhodoby_nehmotny_majetok = dlhodoby_nehmotny_majetok * unit_multiplier if dlhodoby_nehmotny_majetok is not None else None
+        dlhodoby_hmotny_majetok = dlhodoby_hmotny_majetok * unit_multiplier if dlhodoby_hmotny_majetok is not None else None
+        dlhodoby_financny_majetok = dlhodoby_financny_majetok * unit_multiplier if dlhodoby_financny_majetok is not None else None
+        dlhodobe_pohladavky = dlhodobe_pohladavky * unit_multiplier if dlhodobe_pohladavky is not None else None
+        kratkodoby_financny_majetok = kratkodoby_financny_majetok * unit_multiplier if kratkodoby_financny_majetok is not None else None
+        casove_rozlisenie_aktiv = casove_rozlisenie_aktiv * unit_multiplier if casove_rozlisenie_aktiv is not None else None
+        # Extended equity composition + reserves
+        zakladne_imanie = zakladne_imanie * unit_multiplier if zakladne_imanie is not None else None
+        emisione_azio = emisione_azio * unit_multiplier if emisione_azio is not None else None
+        ostatne_kapitalove_fondy = ostatne_kapitalove_fondy * unit_multiplier if ostatne_kapitalove_fondy is not None else None
+        zakonne_rezervne_fondy = zakonne_rezervne_fondy * unit_multiplier if zakonne_rezervne_fondy is not None else None
+        ostatne_fondy_zo_zisku = ostatne_fondy_zo_zisku * unit_multiplier if ostatne_fondy_zo_zisku is not None else None
+        vysledok_minuly_rokov = vysledok_minuly_rokov * unit_multiplier if vysledok_minuly_rokov is not None else None
+        nerozdeleny_zisk = nerozdeleny_zisk * unit_multiplier if nerozdeleny_zisk is not None else None
+        neuhradena_strata = neuhradena_strata * unit_multiplier if neuhradena_strata is not None else None
+        vysledok_beziaceho_roka = vysledok_beziaceho_roka * unit_multiplier if vysledok_beziaceho_roka is not None else None
+        dlhodobe_rezervy = dlhodobe_rezervy * unit_multiplier if dlhodobe_rezervy is not None else None
+        kratkodobe_rezervy = kratkodobe_rezervy * unit_multiplier if kratkodobe_rezervy is not None else None
+        bezne_bankove_uvery = bezne_bankove_uvery * unit_multiplier if bezne_bankove_uvery is not None else None
+        kratkodobe_financne_vypomoci = kratkodobe_financne_vypomoci * unit_multiplier if kratkodobe_financne_vypomoci is not None else None
+        # Extended income statement
+        naklady_na_hosp_cinnost = naklady_na_hosp_cinnost * unit_multiplier if naklady_na_hosp_cinnost is not None else None
+        spotreba_materialu = spotreba_materialu * unit_multiplier if spotreba_materialu is not None else None
+        sluzby = sluzby * unit_multiplier if sluzby is not None else None
+        mzdove_naklady = mzdove_naklady * unit_multiplier if mzdove_naklady is not None else None
+        dane_a_poplatky = dane_a_poplatky * unit_multiplier if dane_a_poplatky is not None else None
+        vysledok_z_fin_cinnosti = vysledok_z_fin_cinnosti * unit_multiplier if vysledok_z_fin_cinnosti is not None else None
+        zisk_pred_zdanenim = zisk_pred_zdanenim * unit_multiplier if zisk_pred_zdanenim is not None else None
+        dan_z_prijmu_val = dan_z_prijmu_val * unit_multiplier if dan_z_prijmu_val is not None else None
+        prevod_podielov_spolocnikom = prevod_podielov_spolocnikom * unit_multiplier if prevod_podielov_spolocnikom is not None else None
 
     # ── Estimate operating CF (indirect method) using current + previous period ──
     # Previous period values are available in the same závierka JSON (Netto3 / Predchádzajúce columns)
@@ -522,6 +659,10 @@ def parse_tables_to_metrics(
     )
     if estimated_ocf is not None:
         logger.debug(f"[RUZ_PARSER] IČO {ico} rok {year}: estimated OCF = {estimated_ocf:.0f} (indirect method)")
+
+    # ── Datum zostavenia závierky (forenzný signál) ──
+    datum_zostavenia = titulna_strana.get("datumZostavenia") or titulna_strana.get("datumZostaveniaK")
+    datum_schvalenia = titulna_strana.get("datumSchvalenia")
 
     # Build FinancialMetrics
     metrics = FinancialMetrics(
@@ -552,6 +693,38 @@ def parse_tables_to_metrics(
         typ_zavierky="SK_GAAP",
         pocet_mesiacov_obdobia=months,
         is_consolidated=konsolidovana,
+        # ── Extended fields (template 699 only) ──
+        neobezny_majetok=neobezny_majetok,
+        dlhodoby_nehmotny_majetok=dlhodoby_nehmotny_majetok,
+        dlhodoby_hmotny_majetok=dlhodoby_hmotny_majetok,
+        dlhodoby_financny_majetok=dlhodoby_financny_majetok,
+        dlhodobe_pohladavky=dlhodobe_pohladavky,
+        kratkodoby_financny_majetok=kratkodoby_financny_majetok,
+        casove_rozlisenie_aktiv=casove_rozlisenie_aktiv,
+        zakladne_imanie=zakladne_imanie,
+        emisione_azio=emisione_azio,
+        ostatne_kapitalove_fondy=ostatne_kapitalove_fondy,
+        zakonne_rezervne_fondy=zakonne_rezervne_fondy,
+        ostatne_fondy_zo_zisku=ostatne_fondy_zo_zisku,
+        vysledok_minuly_rokov=vysledok_minuly_rokov,
+        nerozdeleny_zisk=nerozdeleny_zisk,
+        neuhradena_strata=neuhradena_strata,
+        vysledok_beziaceho_roka=vysledok_beziaceho_roka,
+        dlhodobe_rezervy=dlhodobe_rezervy,
+        kratkodobe_rezervy=kratkodobe_rezervy,
+        bezne_bankove_uvery=bezne_bankove_uvery,
+        kratkodobe_financne_vypomoci=kratkodobe_financne_vypomoci,
+        naklady_na_hosp_cinnost=naklady_na_hosp_cinnost,
+        spotreba_materialu=spotreba_materialu,
+        sluzby=sluzby,
+        mzdove_naklady=mzdove_naklady,
+        dane_a_poplatky=dane_a_poplatky,
+        vysledok_z_fin_cinnosti=vysledok_z_fin_cinnosti,
+        zisk_pred_zdanenim=zisk_pred_zdanenim,
+        dan_z_prijmu=dan_z_prijmu_val,
+        prevod_podielov_spolocnikom=prevod_podielov_spolocnikom,
+        datum_zostavenia=datum_zostavenia,
+        datum_schvalenia=datum_schvalenia,
     )
 
     # Sanity checks
@@ -578,11 +751,12 @@ def _parse_single_vykaz(vykaz: dict, ico: str) -> Optional[FinancialMetrics]:
     obsah = vykaz.get("obsah", {})
     tables = obsah.get("tabulky", [])
     titulna = obsah.get("titulnaStrana", {})
+    id_sablony = vykaz.get("idSablony")
 
     if not tables:
         return None
 
-    return parse_tables_to_metrics(tables, titulna, ico)
+    return parse_tables_to_metrics(tables, titulna, ico, id_sablony=id_sablony)
 
 
 def parse_zavierka_to_metrics(
@@ -605,19 +779,23 @@ def parse_zavierka_to_metrics(
     """
     all_tables = []
     ts = titulna_strana or {}
+    id_sablony: Optional[int] = None
 
     for vykaz in vykazy:
         obsah = vykaz.get("obsah", {})
         tables = obsah.get("tabulky", [])
         if tables:
             all_tables.extend(tables)
+            # Capture idSablony from the first výkaz that has tables
+            if id_sablony is None:
+                id_sablony = vykaz.get("idSablony")
         if not ts:
             ts = obsah.get("titulnaStrana", {})
 
     if not all_tables:
         return None
 
-    return parse_tables_to_metrics(all_tables, ts, ico)
+    return parse_tables_to_metrics(all_tables, ts, ico, id_sablony=id_sablony)
 
 
 def metrics_to_extraction(

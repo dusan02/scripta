@@ -27,7 +27,9 @@ from src.plotly_charts import (
     generate_ratios_trend_chart,
     generate_radar_chart,
     generate_employee_chart,
-    generate_rpe_chart
+    generate_rpe_chart,
+    generate_asset_composition_donut,
+    generate_equity_composition_donut
 )
 from src.analytics import (
     compute_altman_z_score,
@@ -1979,6 +1981,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "liquidity_chart_base64": liquidity_chart_base64,
         "employee_chart_base64": employee_chart_base64,
         "rpe_chart_base64": rpe_chart_base64,
+        "asset_composition_chart_base64": asset_composition_chart_base64,
+        "equity_composition_chart_base64": equity_composition_chart_base64,
+        "statement_delay_days": statement_delay_days,
         "qr_base64": qr_base64,
         "valid_until": valid_until,
         "confidence_score": confidence_score,
