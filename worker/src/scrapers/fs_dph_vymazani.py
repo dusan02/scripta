@@ -40,9 +40,11 @@ class FsDphVymazaniScraper(FinancnaSpravaBase):
                     "Ak je subjekt aktuálne registrovaný pre DPH (viď FS_DPH_REGISTROVANI), "
                     "tento záznam je iba historický a neznamená aktuálny problém."
                 )
+                # Tento zoznam je vždy historický (vymazaní = už vyriešené)
+                # Použi INFO namiesto POZOR, aby sa nezobrazoval ako kritický nález
                 if formatted:
-                    return f"POZOR: Subjekt (IČO: {search_term}) je v zozname vymazaných platiteľov DPH.\n" + "\n\n".join(formatted) + historical_note
-                return f"POZOR: Subjekt (IČO: {search_term}) je v zozname vymazaných platiteľov DPH (detaily v PDF).{historical_note}"
+                    return f"INFO: Subjekt (IČO: {search_term}) má historický záznam v zozname vymazaných platiteľov DPH.\n" + "\n\n".join(formatted) + historical_note
+                return f"INFO: Subjekt (IČO: {search_term}) má historický záznam v zozname vymazaných platiteľov DPH (detaily v PDF).{historical_note}"
 
             return f"Subjekt (IČO: {search_term}) nájdený bez zistených záznamov o vymazaní z registrácie DPH."
 

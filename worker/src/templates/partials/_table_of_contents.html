@@ -9,7 +9,7 @@
             {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
             {% set is_critical_type = source.source_type in ["EXECUTOR", "REGISTER_UPADCOV", "SUDY", "ORSR_LIKVIDACIA", "ORSR_KONKURZ"] %}
             {% set is_failed = source.status != "SUCCESS" and source.status != "UNAVAILABLE" %}
-            {% if (has_pozor and not source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG", "CRZ", "RPVS", "UVO", "REGISTER_UZ", "ROZHODNUTIA"]) or is_critical_type %}
+            {% if (has_pozor and not source.source_type in ["FS_DPH_REGISTROVANI", "FS_DPH_VYMAZANI", "FS_DAN_PRIJMOV_REG", "CRZ", "RPVS", "UVO", "REGISTER_UZ", "ROZHODNUTIA"]) or is_critical_type %}
                 {% if source.status == "SUCCESS" and has_pozor %}
                     {% set _ = critical_sources.append(source) %}
                 {% elif is_critical_type and source.status == "SUCCESS" and has_pozor %}
@@ -45,7 +45,7 @@
     <div class="grid grid-cols-2 gap-1.5 mb-2">
         {% for source in cat_sources %}
         {% if source.source_type != "REGISTER_UZ" %}
-        {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ", "FS_DPH_REGISTROVANI", "ROZHODNUTIA"] %}
+        {% set is_info = source.source_type in ["CRZ", "RPVS", "UVO", "REGISTER_UZ", "FS_DPH_REGISTROVANI", "FS_DPH_VYMAZANI", "ROZHODNUTIA"] %}
         {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
         {% set is_fs_info = source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
         

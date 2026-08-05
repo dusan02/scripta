@@ -254,20 +254,30 @@ def generate_cashflow_chart(statements, lang="sk") -> str:
     fcf = [_sanitize_value(s.financingCashFlow) for s in statements]
     cash = [_sanitize_value(s.cashAndEquivalents) for s in statements]
 
+    def _fmt_m(v):
+        if v is None or v == 0: return ""
+        if abs(v) >= 1: return f'{v:.1f}M'
+        return f'{v:.2f}M'
+
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color=COLORS['green']))
-    fig.add_trace(go.Bar(x=years, y=icf, name=i.get('chart_investing_cf', 'Investičný CF'), marker_color=COLORS['red']))
-    fig.add_trace(go.Bar(x=years, y=fcf, name=i.get('chart_financing_cf', 'Finančný CF'), marker_color=COLORS['blue']))
-    
+    fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color=COLORS['green'],
+                         text=[_fmt_m(v) for v in ocf], textposition='outside', textfont=dict(size=9, color=COLORS['green'])))
+    fig.add_trace(go.Bar(x=years, y=icf, name=i.get('chart_investing_cf', 'Investičný CF'), marker_color=COLORS['red'],
+                         text=[_fmt_m(v) for v in icf], textposition='outside', textfont=dict(size=9, color=COLORS['red'])))
+    fig.add_trace(go.Bar(x=years, y=fcf, name=i.get('chart_financing_cf', 'Finančný CF'), marker_color=COLORS['blue'],
+                         text=[_fmt_m(v) for v in fcf], textposition='outside', textfont=dict(size=9, color=COLORS['blue'])))
+
     fig.add_trace(go.Scatter(
-        x=years, y=cash, name=i.get('chart_cash_equivalents', 'Cash & ekvivalenty'), mode='lines+markers',
-        line=dict(color=COLORS['slate'], width=2, dash='dash'), marker=dict(size=8, symbol='diamond')
+        x=years, y=cash, name=i.get('chart_cash_equivalents', 'Cash & ekvivalenty'), mode='lines+markers+text',
+        line=dict(color=COLORS['slate'], width=2, dash='dash'), marker=dict(size=8, symbol='diamond'),
+        text=[_fmt_m(v) for v in cash], textposition='top center', textfont=dict(size=9, color=COLORS['slate'])
     ))
 
     layout = get_base_layout(i.get('chart_cashflow_liquidity', 'Peňažné toky a likvidita'))
     layout['barmode'] = 'relative'
+    layout['margin'] = dict(l=50, r=40, t=55, b=60, pad=5)
     fig.update_layout(**layout)
-    return _to_base64(fig, 800, 350)
+    return _to_base64(fig, 800, 380)
 
 def generate_liquidity_chart(statements, lang="sk") -> str:
     if not statements or len(statements) < 2: return ""
@@ -494,14 +504,26 @@ def generate_debt_donut(stmt, lang="sk") -> str:
 
 
 def generate_employee_chart(statements, lang="sk") -> str:
-    """Vývoj počtu zamestnancov v čase."""
+    """Vývoj počtu zamestnancov v čase.
+
+    Ak employeeCount chýba (RÚZ JSON parser neposkytuje počet zamestnancov),
+    odhadne sa z osobných nákladov (staffCosts / 18000).
+    """
     statements = _prepare_statements(statements)
-    valid = [s for s in statements if getattr(s, 'employeeCount', None)]
+    valid = []
+    for s in statements:
+        emp = getattr(s, 'employeeCount', None)
+        if not emp:
+            staff = getattr(s, 'staffCosts', None)
+            if staff and staff > 0:
+                emp = max(1, round(staff / 18000))
+        if emp:
+            valid.append((s, emp))
     if len(valid) < 2:
         return ""
     i = get_i18n_strings(lang)
-    years = [str(s.year) for s in valid]
-    counts = [s.employeeCount for s in valid]
+    years = [str(s.year) for s, _ in valid]
+    counts = [emp for _, emp in valid]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -526,14 +548,26 @@ def generate_employee_chart(statements, lang="sk") -> str:
 
 
 def generate_rpe_chart(statements, lang="sk") -> str:
-    """Vývoj tržieb na zamestnanca v čase."""
+    """Vývoj tržieb na zamestnanca v čase.
+
+    Ak employeeCount chýba, odhadne sa z osobných nákladov (staffCosts / 18000).
+    """
     statements = _prepare_statements(statements)
-    valid = [s for s in statements if getattr(s, 'employeeCount', None) and getattr(s, 'mainActivityRevenue', None)]
+    valid = []
+    for s in statements:
+        emp = getattr(s, 'employeeCount', None)
+        if not emp:
+            staff = getattr(s, 'staffCosts', None)
+            if staff and staff > 0:
+                emp = max(1, round(staff / 18000))
+        rev = getattr(s, 'mainActivityRevenue', None)
+        if emp and rev:
+            valid.append((s, emp, rev))
     if len(valid) < 2:
         return ""
     i = get_i18n_strings(lang)
-    years = [str(s.year) for s in valid]
-    rpe = [_sanitize_value(s.mainActivityRevenue / s.employeeCount) for s in valid]
+    years = [str(s.year) for s, _, _ in valid]
+    rpe = [_sanitize_value(rev / emp) for _, emp, rev in valid]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
