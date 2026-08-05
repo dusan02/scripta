@@ -1235,6 +1235,20 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             p4_raw = max(0, p4_raw - 4)
             p4_flags.append("Tržby klesajú 3 roky po sebe (−4 body)")
 
+    # YoY penalizácia: ak posledný rok vykazuje prudký pokles, neutralizuj CAGR
+    if rev_trend and len(rev_trend) >= 1:
+        last_rev_yoy = rev_trend[-1].get("growth_percent")
+        if last_rev_yoy is not None and last_rev_yoy < -10:
+            p4_raw = max(0, p4_raw - 5)
+            p4_flags.append(f"YoY tržby −{abs(last_rev_yoy):.1f}% v poslednom roku (−5 bodov)")
+
+    profit_trend = trends.get("profit_trend", [])
+    if profit_trend and len(profit_trend) >= 1:
+        last_profit_yoy = profit_trend[-1].get("growth_percent")
+        if last_profit_yoy is not None and last_profit_yoy < -50:
+            p4_raw = max(0, p4_raw - 3)
+            p4_flags.append(f"YoY zisk −{abs(last_profit_yoy):.1f}% v poslednom roku (−3 body)")
+
     p4_raw = max(0, min(15, p4_raw))
     p4_score = int(round((p4_raw / 15.0) * nace_w["P4"]))
     pillars.append(ScorecardPillar(

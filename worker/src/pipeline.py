@@ -1005,11 +1005,9 @@ def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str],
                         sent_end = text.find('.', kw_pos + len(kw))
                         sent_end = sent_end + 1 if sent_end != -1 else min(len(text), kw_pos + 200)
                         sentence = text[sent_start:sent_end].strip()
-                        replacement = (
-                            f" [Pozn.: Verejné registre ({reg_name}) neobsahujú záznam o dlhu — "
-                            f"údaj o sume bol automaticky odstránený ako halucinácia LLM.]"
-                        )
-                        text = text[:sent_start] + replacement + text[sent_end:]
+                        # Remove the hallucinated sentence entirely — do NOT leave
+                        # internal debug notes in the client-facing text
+                        text = text[:sent_start] + text[sent_end:]
                         modified = True
                         break  # Don't search for more occurrences of this keyword
                     kw_pos = text_lower.find(kw_lower, kw_pos + 1)
@@ -1037,8 +1035,7 @@ def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str],
                                     f"justification near '{kw}' (registry {reg_name} is CLEAN) — sanitizing"
                                 )
                                 item['evidence'] = (
-                                    f"[Pozn.: Register {reg_name} je CLEAN — pôvodný text obsahoval "
-                                    f"halucinovaný údaj o dlhu, ktorý bol automaticky odstránený.]"
+                                    f"Verejné registre ({reg_name}) neobsahujú záznam o dlhu."
                                 )
                                 item['impact'] = 'NEUTRAL'
                                 modified = True

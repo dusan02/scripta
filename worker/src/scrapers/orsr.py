@@ -295,6 +295,7 @@ class OrsrScraper(BaseScraper):
         try:
             text = await page.inner_text("body")
             persons.extend(self._parse_persons_from_section(text, "Štatutárny orgán", "statutar"))
+            persons.extend(self._parse_persons_from_section(text, "Dozorná rada", "dozorna_rada"))
             persons.extend(self._parse_persons_from_section(text, "Spoločníci", "spolocnik"))
             if persons:
                 logger.info(f"[{self.source_type}] Extrahovaných {len(persons)} osôb z ORSR výpisu.")
@@ -366,6 +367,9 @@ class OrsrScraper(BaseScraper):
 
         def _is_human_name(line: str) -> bool:
             """Validuje či riadok vyzerá ako reálne meno fyzickej osoby (nie štát, firma ani štrukturálny text ORSR)."""
+            # Odstrániť role sufixy po " - " (napr. "Ivan Kollárik - Predseda predstavenstva")
+            if " - " in line:
+                line = line.split(" - ")[0].strip()
             lowered = line.lower().strip()
             # Nesmie obsahovať dvojbodku (štrukturálne labely)
             if ":" in lowered:
@@ -410,8 +414,10 @@ class OrsrScraper(BaseScraper):
             if not _is_human_name(line):
                 i += 1
                 continue
+            # Odstrániť role sufixy pre čisté meno (napr. "Ivan Kollárik - Predseda predstavenstva")
+            name_part = line.split(" - ")[0].strip() if " - " in line else line
             # Rozdeliť na slová
-            words = line.split()
+            words = name_part.split()
             # Odstrániť tituly
             name_words = [w for w in words if w.lower().rstrip(".,") not in ACADEMIC_TITLES]
             if len(name_words) < 2:
