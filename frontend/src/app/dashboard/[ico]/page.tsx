@@ -72,7 +72,7 @@ export default async function DashboardPage({
       {/* Sleek Gradient Background Accent */}
       <div className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-emerald-900/20 to-transparent pointer-events-none" />
       
-      <main className="max-w-6xl mx-auto px-6 py-16 relative z-10">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-16 relative z-10">
         <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-3 mb-2">

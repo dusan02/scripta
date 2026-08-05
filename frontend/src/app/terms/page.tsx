@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "80px 24px" }}>
+    <div className="content-page" style={{ maxWidth: 800, margin: "0 auto", padding: "80px 24px" }}>
       <h1 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 32 }}>
         Podmienky používania
       </h1>

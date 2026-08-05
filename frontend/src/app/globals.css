@@ -734,3 +734,11 @@ textarea:focus-visible {
 @media (hover: none) {
   .report-includes-card:hover { transform: none; }
 }
+
+/* ── Mobile responsive: content pages (slovnik, privacy, terms, dpa) ── */
+@media (max-width: 768px) {
+  .content-page { padding-top: 80px !important; padding-bottom: 48px !important; padding-left: 16px !important; padding-right: 16px !important; }
+  .content-page h1 { font-size: 24px !important; }
+  .content-page h2 { font-size: 18px !important; }
+  .content-card { padding: 20px 16px !important; }
+}

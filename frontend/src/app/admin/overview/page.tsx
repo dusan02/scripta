@@ -147,8 +147,8 @@ function AdminOverviewContent() {
       {/* Recent reports */}
       <div className="mb-8">
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.posledneReporty")}</h2>
-        <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-          <table className="w-full" style={{ fontSize: 14 }}>
+        <div className="card overflow-x-auto" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+          <table className="w-full" style={{ fontSize: 14, minWidth: 600 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-muted)" }}>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.firma")}</th>
@@ -194,8 +194,8 @@ function AdminOverviewContent() {
       {/* Recent users */}
       <div>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.posledniPouzivatelia")}</h2>
-        <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-          <table className="w-full" style={{ fontSize: 14 }}>
+        <div className="card overflow-x-auto" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+          <table className="w-full" style={{ fontSize: 14, minWidth: 600 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-muted)" }}>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>{t("admin.email")}</th>

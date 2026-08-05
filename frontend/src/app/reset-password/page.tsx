@@ -60,7 +60,7 @@ function ResetPasswordForm() {
       <div
         className="scale-in"
         style={{
-          padding: "32px",
+          padding: "28px 20px",
           width: "100%",
           boxSizing: "border-box",
           background: "var(--surface)",

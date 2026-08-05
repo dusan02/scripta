@@ -123,7 +123,7 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "120px 24px 80px" }}>
+      <div className="content-page" style={{ maxWidth: 800, margin: "0 auto", padding: "120px 24px 80px" }}>
         <Link
           href="/slovnik"
           style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, color: "var(--text-muted)", textDecoration: "none", marginBottom: 24 }}

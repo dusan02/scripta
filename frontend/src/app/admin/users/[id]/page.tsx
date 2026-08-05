@@ -184,8 +184,8 @@ function AdminUserDetailContent({ params }: { params: { id: string } }) {
         {/* Transaction history */}
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>História transakcií</h2>
-          <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-            <table className="w-full" style={{ fontSize: 13 }}>
+          <div className="card overflow-x-auto" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+            <table className="w-full" style={{ fontSize: 13, minWidth: 500 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-muted)" }}>
                   <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 600 }}>Dátum</th>
@@ -229,8 +229,8 @@ function AdminUserDetailContent({ params }: { params: { id: string } }) {
         {/* Credit batches */}
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.kreditoveBatche")}</h2>
-          <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-            <table className="w-full" style={{ fontSize: 13 }}>
+          <div className="card overflow-x-auto" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+            <table className="w-full" style={{ fontSize: 13, minWidth: 500 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-muted)" }}>
                   <th style={{ textAlign: "left", padding: "10px 12px", fontWeight: 600 }}>Zdroj</th>
@@ -274,8 +274,8 @@ function AdminUserDetailContent({ params }: { params: { id: string } }) {
       {/* Reports */}
       <div style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("admin.reportyPouzivatela")}</h2>
-        <div className="card" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-          <table className="w-full" style={{ fontSize: 14 }}>
+        <div className="card overflow-x-auto" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+          <table className="w-full" style={{ fontSize: 14, minWidth: 600 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-muted)" }}>
                 <th style={{ textAlign: "left", padding: "12px 16px", fontWeight: 600 }}>Firma</th>

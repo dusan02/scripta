@@ -186,8 +186,8 @@ function AdminFeedbackContent() {
           </p>
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-xs">
+        <div className="card overflow-x-auto overflow-hidden">
+          <table className="w-full text-xs" style={{ minWidth: 700 }}>
             <thead>
               <tr style={{ background: "var(--bg-muted)" }}>
                 <th className="px-4 py-3 text-left font-semibold" style={{ color: "var(--text)" }}>

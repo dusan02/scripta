@@ -51,7 +51,7 @@ function LoginForm() {
       <div
         className="scale-in"
         style={{
-          padding: "40px 32px",
+          padding: "32px 20px",
           width: "100%",
           boxSizing: "border-box",
           background: "var(--surface)",

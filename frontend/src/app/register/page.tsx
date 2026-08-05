@@ -72,7 +72,7 @@ export default function RegisterPage() {
         <div
           className="scale-in"
           style={{
-            padding: "40px 32px",
+            padding: "32px 20px",
             background: "var(--surface)",
             borderRadius: "16px",
             boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)",
@@ -117,7 +117,7 @@ export default function RegisterPage() {
       <div
         className="scale-in"
         style={{
-          padding: "32px",
+          padding: "28px 20px",
           width: "100%",
           boxSizing: "border-box",
           background: "var(--surface)",

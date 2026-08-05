@@ -17,7 +17,7 @@ export default function GlossaryPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "120px 24px 80px" }}>
+      <div className="content-page" style={{ maxWidth: 900, margin: "0 auto", padding: "120px 24px 80px" }}>
         <h1 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 16 }}>
           Slovník pojmov
         </h1>

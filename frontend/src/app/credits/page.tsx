@@ -179,7 +179,7 @@ export default function CreditsPage() {
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
         {/* Remaining — most prominent */}
         <div className="card p-5 flex flex-col items-center text-center" style={{ borderColor: "var(--accent)", borderWidth: 2 }}>
           <div className="flex-1 flex flex-col justify-end mb-3 w-full">

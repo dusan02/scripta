@@ -125,7 +125,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ORSR Extract Type */}
-      <div className="card p-6 mb-6">
+      <div className="card p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
@@ -187,7 +187,7 @@ export default function SettingsPage() {
       </div>
 
       {/* CRZ Date From */}
-      <div className="card p-6 mb-6">
+      <div className="card p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
@@ -222,7 +222,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Rozhodnutia Year Range */}
-      <div className="card p-6 mb-6">
+      <div className="card p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
@@ -265,7 +265,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Vestník Date From */}
-      <div className="card p-6 mb-6">
+      <div className="card p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
@@ -300,7 +300,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Default Registries */}
-      <div className="card p-6 mb-6">
+      <div className="card p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
@@ -326,7 +326,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Report Language */}
-      <div className="card p-6 mb-6">
+      <div className="card p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">
@@ -370,7 +370,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Attachments Config */}
-      <div className="card p-6 mb-6">
+      <div className="card p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-sm font-semibold mb-1 text-[var(--text)]">

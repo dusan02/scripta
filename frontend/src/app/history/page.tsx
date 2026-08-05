@@ -237,7 +237,7 @@ export default function HistoryPage() {
   }, [router, t]);
 
   return (
-    <div className="page pt-8 pb-16">
+    <div className="page pt-8 pb-16 max-w-[1200px] mx-auto px-4 sm:px-6">
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center justify-between">
