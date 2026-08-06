@@ -760,6 +760,8 @@ async def _scrape_html_tables(
         return None
 
     # Fetch HTML pages for each table (aktív, pasív, PnL)
+    # Use Slovak names matching _identify_tables in ruz_parser.py
+    _HTML_TABLE_NAMES = {"aktiv": "Strana aktív", "pasiv": "Strana pasív", "income": "Výkaz ziskov a strát"}
     all_tables = []
     for tab_key, tab_id in _HTML_TABLE_IDS.items():
         url = f"{_RUZ_BASE}/domain/financialreport/show/{vykaz_id}/{tab_id}"
@@ -771,7 +773,7 @@ async def _scrape_html_tables(
             data = _parse_html_table_to_data(r.text, _HTML_DATA_COLS[tab_key])
             if data:
                 table_dict = {
-                    'nazov': {'sk': tab_key, 'en': tab_key},
+                    'nazov': {'sk': _HTML_TABLE_NAMES[tab_key], 'en': tab_key},
                     'data': data,
                 }
                 all_tables.append(table_dict)
