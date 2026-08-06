@@ -671,6 +671,9 @@ async def _playwright_fallback(
 _HTML_TABLE_IDS = {"aktiv": 550, "pasiv": 551, "income": 552}
 # Number of data columns per table type (matches RÚZ JSON API format)
 _HTML_DATA_COLS = {"aktiv": 4, "pasiv": 2, "income": 2}
+# Row offset per table type — data[i] corresponds to cisloRiadku = (i + offset)
+# Must match _ACTIV_OFFSET, _PASIV_OFFSET, _INCOME_OFFSET in ruz_parser.py
+_HTML_OFFSETS = {"aktiv": 1, "pasiv": 79, "income": 1}
 
 
 def _parse_sk_number(s: str) -> Optional[float]:
@@ -685,10 +688,10 @@ def _parse_sk_number(s: str) -> Optional[float]:
         return None
 
 
-def _parse_html_table_to_data(html: str, data_cols: int) -> list[list]:
+def _parse_html_table_to_data(html: str, data_cols: int, offset: int = 1) -> list[list]:
     """Parse HTML <table> from RÚZ show page into 'data' format matching JSON API.
 
-    Returns list of [val1, val2, ...] lists, indexed by (cisloRiadku - 1).
+    Returns list of [val1, val2, ...] lists, indexed by (cisloRiadku - offset).
     Empty rows are filled with [None] * data_cols to preserve indexing.
     """
     import re
@@ -717,9 +720,10 @@ def _parse_html_table_to_data(html: str, data_cols: int) -> list[list]:
         if row_num > max_row:
             max_row = row_num
 
-    # Convert to list indexed by (row_num - 1)
+    # Convert to list indexed by (row_num - offset)
+    # data[0] corresponds to cisloRiadku = offset
     data = []
-    for i in range(1, max_row + 1):
+    for i in range(offset, max_row + 1):
         if i in row_map:
             data.append(row_map[i])
         else:
@@ -770,7 +774,7 @@ async def _scrape_html_tables(
             if r.status_code != 200:
                 logger.debug(f"[RUZ_HTML] {tab_key} ({tab_id}): HTTP {r.status_code}")
                 continue
-            data = _parse_html_table_to_data(r.text, _HTML_DATA_COLS[tab_key])
+            data = _parse_html_table_to_data(r.text, _HTML_DATA_COLS[tab_key], _HTML_OFFSETS[tab_key])
             if data:
                 table_dict = {
                     'nazov': {'sk': _HTML_TABLE_NAMES[tab_key], 'en': tab_key},
