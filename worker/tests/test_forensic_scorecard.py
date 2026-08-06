@@ -129,8 +129,10 @@ class TestHardStop:
         assert result.hard_stop is True
         assert result.total_score == 0
         assert result.risk_category == "C"
-        assert len(result.pillars) == 1
+        # Hard stop zobrazí všetky piliere (P1=0, ostatné normálne)
+        assert len(result.pillars) >= 5
         assert "HARD STOP" in result.pillars[0].detail
+        assert result.pillars[0].score == 0
 
     def test_likvidacia_hard_stop(self):
         company = _healthy_company_dict()
