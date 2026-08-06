@@ -1251,6 +1251,22 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
                     _weakness(f"{i18n_strings.get('sw_profit_drop', 'Výrazný pokles zisku')}: -{profit_drop_pct:.0f}% YoY",
                               i18n_strings.get("sw_source_financials", ""))
 
+        # Current ratio < 1.0 — krátkodobé záväzky prevyšujú obežný majetok
+        latest_ratios_sw = compute_financial_ratios(latest) if latest else {}
+        current_ratio = latest_ratios_sw.get('current_ratio')
+        if current_ratio is not None and current_ratio < 1.0:
+            _weakness(f"{i18n_strings.get('sw_low_liquidity', 'Nízka likvidita')}: Current ratio = {current_ratio:.2f}",
+                      i18n_strings.get("sw_source_financials", ""))
+
+        # Negatívny pracovný kapitál (current assets - short-term liabilities < 0)
+        current_assets_sw = getattr(latest, 'currentAssets', None)
+        st_liab_sw = getattr(latest, 'shortTermLiabilities', None)
+        if current_assets_sw is not None and st_liab_sw is not None:
+            working_capital = float(current_assets_sw) - float(st_liab_sw)
+            if working_capital < 0:
+                _weakness(f"{i18n_strings.get('sw_negative_wc', 'Negatívny pracovný kapitál')}: {working_capital/1e6:.1f} mil. €",
+                          i18n_strings.get("sw_source_financials", ""))
+
     # 6. From auditor opinion
     # Ak firma nemá žiadny audit vôbec — pridaj slabú stránku
     if stmts:
@@ -2336,7 +2352,7 @@ th {{ text-align: left; padding: 6px 10px; color: #64748b; font-size: 11px; }}
 
 {audit_text}
 <p class="note">Zdroj: Register účtovných závierok (registeruz.sk) — údaje extrahované z IFRS PDF závierky pomocou automatizovanej analýzy textu. Štruktúrované HTML tabuľky nie sú dostupné pre IFRS účtovné jednotky.</p>
-<p class="note">EBITDA = Čistý zisk + Náklady na úroky + Odpisy. Zaokrúhlenie na celé tisíce môže spôsobiť drobné odchýlky vo výpočte.</p>
+<p class="note">EBITDA = Čistý zisk + Daň z príjmov + Náklady na úroky + Odpisy. Zaokrúhlenie na celé tisíce môže spôsobiť drobné odchýlky vo výpočte.</p>
 </body></html>"""
 
         await render_pdf_via_playwright(html_content, target_path, ico)

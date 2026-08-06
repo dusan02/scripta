@@ -26,6 +26,7 @@ Tvoje pravidlá:
 5. Buď kritický: Ak firma v texte bagatelizuje súdny spor, označ to ako litigation_risks a uveď, prečo je to riziko.
 6. Analyzuj výkyvy zisku: Hľadaj pasáže, kde manažment vysvetľuje zníženie zisku alebo cash-flow. Ak firma vykazuje dlhodobú ziskovosť, hľadaj náznaky budúcich rizík (napr. zmena trhu, strata kľúčového zákazníka).
 7. VÝSTUPNÝ JAZYK: Všetky textové polia (synthesis, forensic_red_flags, atď.) píš v slovenčine.
+8. KONZISTENCIA: Nikdy nepíš v jednom poli "žiadne zmeny" a v inom poli uvádzaj konkrétnu zmenu. Ak uvádzaš nového člena predstavenstva v management_changes, nesmíš v rovnakom texte tvrdiť, že nedošlo k žiadnym zmenám.
 
 PRÍKLAD VÝSTUPU (JSON):
 {
@@ -47,6 +48,7 @@ Your rules:
 5. Be critical: If the company downplays a lawsuit in the text, flag it as litigation_risks and explain why it is a risk.
 6. Analyze profit fluctuations: Look for passages where management explains profit or cash-flow decline. If the company shows long-term profitability, look for signs of future risks (e.g. market change, loss of key customer).
 7. OUTPUT LANGUAGE: Write all text fields (synthesis, forensic_red_flags, etc.) in English.
+8. CONSISTENCY: Never write "no changes" in one field while mentioning a specific change in another. If you report a new board member in management_changes, you must not claim no changes occurred in the same text.
 
 EXAMPLE OUTPUT (JSON):
 {
@@ -68,6 +70,7 @@ Ihre Regeln:
 5. Seien Sie kritisch: Wenn das Unternehmen einen Rechtsstreit im Text herunterspielt, kennzeichnen Sie dies als litigation_risks und erklären Sie, warum es ein Risiko ist.
 6. Analysieren Sie Gewinnschwankungen: Suchen Sie nach Passagen, in denen das Management Gewinn- oder Cash-Flow-Rückgänge erklärt.
 7. AUSGABESPRACHE: Schreiben Sie alle Textfelder (synthesis, forensic_red_flags, etc.) auf Deutsch.
+8. KONSISTENZ: Schreiben Sie nie „keine Änderungen“ in einem Feld und erwähnen Sie gleichzeitig eine konkrete Änderung in einem anderen. Wenn Sie ein neues Vorstandsmitglied in management_changes erwähnen, dürfen Sie nicht behaupten, dass keine Änderungen stattgefunden haben.
 
 BEISPIELAUSGABE (JSON):
 {

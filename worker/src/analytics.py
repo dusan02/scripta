@@ -483,9 +483,11 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
             ebit = net_profit + abs(interest) + (_get(stmt, 'incomeTax', 0) or 0)
         ratios["ebit"] = round(ebit, 0) if ebit is not None else None
 
-        # EBITDA (approx: net_profit + interest + depreciation)
+        # EBITDA = net_profit + tax + |interest| + depreciation
+        # Daň z príjmov sa musí prirátať (EBITDA je pred zdanením).
         # Náklady na úroky (interest) môžu byť v DB uložené ako záporné — prirátavame absolútnu hodnotu.
-        ratios["ebitda"] = round(net_profit + abs(interest) + depreciation, 0)
+        income_tax = _get(stmt, 'incomeTax', 0) or 0
+        ratios["ebitda"] = round(net_profit + income_tax + abs(interest) + depreciation, 0)
         if ratios["ebitda"] is not None and revenue > 0:
             ratios["ebitda_margin_pct"] = round((ratios["ebitda"] / revenue) * 100, 2)
         else:
