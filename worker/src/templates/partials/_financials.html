@@ -527,6 +527,105 @@
     </div>
     {% endif %}
 
+    {# ════════════════════════════════════════════════════════════════════ #}
+    {# ── FUNDAMENTÁLNA ANALÝZA (medzi YoY tabuľkou a grafmi zamestnancov) ── #}
+    {# ════════════════════════════════════════════════════════════════════ #}
+    {% if asset_composition_chart_base64 or equity_composition_chart_base64 or latest_ratios.effective_tax_rate_pct is defined or latest_stmt.statementDate %}
+    <div class="mt-4 mb-4" style="page-break-inside: avoid; break-inside: avoid;">
+
+        {# ── Forenzný signál: Dátum zostavenia závierky (najprv) ── #}
+        {% if latest_stmt.statementDate %}
+        {% set stmt_date = latest_stmt.statementDate %}
+        {% set period_end_month = latest_stmt.monthsInPeriod or 12 %}
+        {% set delay_days = statement_delay_days or 0 %}
+        <div class="mb-3 p-3 rounded-lg border {% if delay_days > 180 %}border-rose-200 bg-rose-50{% elif delay_days > 120 %}border-amber-200 bg-amber-50{% else %}border-slate-200 bg-slate-50{% endif %}" style="page-break-inside: avoid; break-inside: avoid;">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                    {% if delay_days > 180 %}
+                    <svg class="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.487 0l5.5 9.78c.75 1.33-.213 2.99-1.742 2.99H4.5c-1.53 0-2.493-1.66-1.743-2.99l5.5-9.78zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                    {% elif delay_days > 120 %}
+                    <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                    {% else %}
+                    <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    {% endif %}
+                </div>
+                <div class="flex-1">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{{ i18n.statement_timing }}</p>
+                    <div class="flex flex-wrap gap-3 text-[11px]">
+                        <span class="text-slate-600"><strong>{{ i18n.statement_date }}:</strong> {{ stmt_date }}</span>
+                        {% if latest_stmt.approvalDate %}
+                        <span class="text-slate-600"><strong>{{ i18n.approval_date }}:</strong> {{ latest_stmt.approvalDate }}</span>
+                        {% endif %}
+                        {% if delay_days > 0 %}
+                        <span class="font-bold {% if delay_days > 180 %}text-rose-600{% elif delay_days > 120 %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ delay_days }} {{ i18n.statement_delay_days }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-[10px] mt-1 {% if delay_days > 180 %}text-rose-600{% elif delay_days > 120 %}text-amber-700{% else %}text-slate-500{% endif %}">
+                        {% if delay_days > 180 %}{{ i18n.statement_delay_critical }}{% elif delay_days > 120 %}{{ i18n.statement_delay_warning }}{% else %}{{ i18n.statement_delay_normal }}{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Donut grafy: Štruktúra aktív + Štruktúra vlastného imania ── #}
+        {% if asset_composition_chart_base64 or equity_composition_chart_base64 %}
+        <div class="grid grid-cols-2 gap-4 mb-3">
+            {% if asset_composition_chart_base64 %}
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.asset_structure }}</p>
+                <img src="data:image/png;base64,{{ asset_composition_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 200px;" alt="{{ i18n.asset_structure }}">
+            </div>
+            {% endif %}
+            {% if equity_composition_chart_base64 %}
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.equity_structure }}</p>
+                <img src="data:image/png;base64,{{ equity_composition_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 200px;" alt="{{ i18n.equity_structure }}">
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# ── Karta: Pokročilé ukazovatele (rezervy, daň, obrat) ── #}
+        {% set has_advanced = false %}
+        {% if latest_ratios.reserves_ratio_pct is defined and latest_ratios.reserves_ratio_pct is not none %}{% set has_advanced = true %}{% endif %}
+        {% if latest_ratios.effective_tax_rate_pct is defined and latest_ratios.effective_tax_rate_pct is not none %}{% set has_advanced = true %}{% endif %}
+        {% if latest_ratios.asset_turnover is defined and latest_ratios.asset_turnover is not none %}{% set has_advanced = true %}{% endif %}
+        {% if latest_ratios.retained_earnings_ratio_pct is defined and latest_ratios.retained_earnings_ratio_pct is not none %}{% set has_advanced = true %}{% endif %}
+        {% if has_advanced %}
+        <div class="p-3 bg-white rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+            <div class="grid grid-cols-4 gap-3">
+                {% if latest_ratios.asset_turnover is defined and latest_ratios.asset_turnover is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.asset_turnover }}</p>
+                    <p class="text-base font-black text-slate-800">{{ "%.2f"|format(latest_ratios.asset_turnover) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">×</span></p>
+                </div>
+                {% endif %}
+                {% if latest_ratios.retained_earnings_ratio_pct is defined and latest_ratios.retained_earnings_ratio_pct is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.retained_earnings_ratio }}</p>
+                    <p class="text-base font-black {% if latest_ratios.retained_earnings_ratio_pct < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ latest_ratios.retained_earnings_ratio_pct }}%</p>
+                </div>
+                {% endif %}
+                {% if latest_ratios.reserves_ratio_pct is defined and latest_ratios.reserves_ratio_pct is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.reserves_ratio }}</p>
+                    <p class="text-base font-black text-slate-800">{{ latest_ratios.reserves_ratio_pct }}%</p>
+                </div>
+                {% endif %}
+                {% if latest_ratios.effective_tax_rate_pct is defined and latest_ratios.effective_tax_rate_pct is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.effective_tax_rate }}</p>
+                    <p class="text-base font-black {% if latest_ratios.effective_tax_rate_pct > 25 %}text-rose-600{% elif latest_ratios.effective_tax_rate_pct < 15 %}text-amber-600{% else %}text-slate-800{% endif %}">{{ latest_ratios.effective_tax_rate_pct }}%</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
     {# ── GRAFY: Zamestnanci a Tržby/zamestnanec v čase ── #}
     {% if employee_chart_base64 or rpe_chart_base64 %}
     <div class="mb-4 grid grid-cols-2 gap-4">
@@ -1102,107 +1201,6 @@
                 </div>
             </div>
         </div>
-
-        {# ════════════════════════════════════════════════════════════════════ #}
-        {# ── FUNDAMENTÁLNA ANALÝZA (full-width sekcia pod dvojstĺpcovým layoutom) ── #}
-        {# ════════════════════════════════════════════════════════════════════ #}
-        {% if asset_composition_chart_base64 or equity_composition_chart_base64 or latest_ratios.effective_tax_rate_pct is defined or latest_stmt.statementDate %}
-        <div class="mt-5 pt-4 border-t border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
-            <h3 class="subsection-title mb-3 text-slate-700">{{ i18n.fundamental_analysis }}</h3>
-
-            <div class="grid grid-cols-2 gap-4">
-                {# ── Štruktúra aktív (donut) ── #}
-                {% if asset_composition_chart_base64 %}
-                <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.asset_structure }}</p>
-                    <img src="data:image/png;base64,{{ asset_composition_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 240px;" alt="{{ i18n.asset_structure }}">
-                </div>
-                {% endif %}
-
-                {# ── Štruktúra vlastného imania (donut) ── #}
-                {% if equity_composition_chart_base64 %}
-                <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.equity_structure }}</p>
-                    <img src="data:image/png;base64,{{ equity_composition_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 240px;" alt="{{ i18n.equity_structure }}">
-                </div>
-                {% endif %}
-            </div>
-
-            {# ── Karta: Pokročilé ukazovatele (rezervy, daň, obrat) ── #}
-            {% set has_advanced = false %}
-            {% if latest_ratios.reserves_ratio_pct is defined and latest_ratios.reserves_ratio_pct is not none %}{% set has_advanced = true %}{% endif %}
-            {% if latest_ratios.effective_tax_rate_pct is defined and latest_ratios.effective_tax_rate_pct is not none %}{% set has_advanced = true %}{% endif %}
-            {% if latest_ratios.asset_turnover is defined and latest_ratios.asset_turnover is not none %}{% set has_advanced = true %}{% endif %}
-            {% if latest_ratios.retained_earnings_ratio_pct is defined and latest_ratios.retained_earnings_ratio_pct is not none %}{% set has_advanced = true %}{% endif %}
-            {% if has_advanced %}
-            <div class="mt-3 p-3 bg-white rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
-                <div class="grid grid-cols-4 gap-3">
-                    {% if latest_ratios.asset_turnover is defined and latest_ratios.asset_turnover is not none %}
-                    <div class="text-center">
-                        <p class="report-label text-slate-400">{{ i18n.asset_turnover }}</p>
-                        <p class="text-base font-black text-slate-800">{{ "%.2f"|format(latest_ratios.asset_turnover) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">×</span></p>
-                    </div>
-                    {% endif %}
-                    {% if latest_ratios.retained_earnings_ratio_pct is defined and latest_ratios.retained_earnings_ratio_pct is not none %}
-                    <div class="text-center">
-                        <p class="report-label text-slate-400">{{ i18n.retained_earnings_ratio }}</p>
-                        <p class="text-base font-black {% if latest_ratios.retained_earnings_ratio_pct < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ latest_ratios.retained_earnings_ratio_pct }}%</p>
-                    </div>
-                    {% endif %}
-                    {% if latest_ratios.reserves_ratio_pct is defined and latest_ratios.reserves_ratio_pct is not none %}
-                    <div class="text-center">
-                        <p class="report-label text-slate-400">{{ i18n.reserves_ratio }}</p>
-                        <p class="text-base font-black text-slate-800">{{ latest_ratios.reserves_ratio_pct }}%</p>
-                    </div>
-                    {% endif %}
-                    {% if latest_ratios.effective_tax_rate_pct is defined and latest_ratios.effective_tax_rate_pct is not none %}
-                    <div class="text-center">
-                        <p class="report-label text-slate-400">{{ i18n.effective_tax_rate }}</p>
-                        <p class="text-base font-black {% if latest_ratios.effective_tax_rate_pct > 25 %}text-rose-600{% elif latest_ratios.effective_tax_rate_pct < 15 %}text-amber-600{% else %}text-slate-800{% endif %}">{{ latest_ratios.effective_tax_rate_pct }}%</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            {# ── Forenzný signál: Dátum zostavenia závierky ── #}
-            {% if latest_stmt.statementDate %}
-            {% set stmt_date = latest_stmt.statementDate %}
-            {# Výpočet oneskorenia: dátum zostavenia - koniec obdobia (31.12. alebo monthsInPeriod) #}
-            {% set period_end_month = latest_stmt.monthsInPeriod or 12 %}
-            {% set delay_days = statement_delay_days or 0 %}
-            <div class="mt-3 p-3 rounded-lg border {% if delay_days > 180 %}border-rose-200 bg-rose-50{% elif delay_days > 120 %}border-amber-200 bg-amber-50{% else %}border-slate-200 bg-slate-50{% endif %}" style="page-break-inside: avoid; break-inside: avoid;">
-                <div class="flex items-start gap-3">
-                    <div class="flex-shrink-0">
-                        {% if delay_days > 180 %}
-                        <svg class="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.487 0l5.5 9.78c.75 1.33-.213 2.99-1.742 2.99H4.5c-1.53 0-2.493-1.66-1.743-2.99l5.5-9.78zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                        {% elif delay_days > 120 %}
-                        <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
-                        {% else %}
-                        <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                        {% endif %}
-                    </div>
-                    <div class="flex-1">
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{{ i18n.statement_timing }}</p>
-                        <div class="flex flex-wrap gap-3 text-[11px]">
-                            <span class="text-slate-600"><strong>{{ i18n.statement_date }}:</strong> {{ stmt_date }}</span>
-                            {% if latest_stmt.approvalDate %}
-                            <span class="text-slate-600"><strong>{{ i18n.approval_date }}:</strong> {{ latest_stmt.approvalDate }}</span>
-                            {% endif %}
-                            {% if delay_days > 0 %}
-                            <span class="font-bold {% if delay_days > 180 %}text-rose-600{% elif delay_days > 120 %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ delay_days }} {{ i18n.statement_delay_days }}</span>
-                            {% endif %}
-                        </div>
-                        <p class="text-[10px] mt-1 {% if delay_days > 180 %}text-rose-600{% elif delay_days > 120 %}text-amber-700{% else %}text-slate-500{% endif %}">
-                            {% if delay_days > 180 %}{{ i18n.statement_delay_critical }}{% elif delay_days > 120 %}{{ i18n.statement_delay_warning }}{% else %}{{ i18n.statement_delay_normal }}{% endif %}
-                        </p>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-        </div>
-        {% endif %}
 
     {% else %}
     </div><!-- Close CF wrapper when no financial ratios -->
