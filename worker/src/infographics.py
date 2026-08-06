@@ -559,7 +559,7 @@ def _matplotlib_waterfall(steps, title, lang="sk"):
     x_labels = [s['name'].replace('<br>', '\n') for s in steps]
     n = len(steps)
 
-    fig, ax = plt.subplots(figsize=(8, 3.5), dpi=150)
+    fig, ax = plt.subplots(figsize=(8, 4), dpi=150)
     fig.patch.set_alpha(0)
     ax.set_facecolor('none')
 
@@ -596,7 +596,7 @@ def _matplotlib_waterfall(steps, title, lang="sk"):
                 color='#94a3b8', linewidth=0.8, linestyle='--')
 
     ax.set_xticks(x_pos)
-    ax.set_xticklabels(x_labels, fontsize=9, color='#64748b')
+    ax.set_xticklabels(x_labels, fontsize=8, color='#64748b', rotation=30, ha='right')
     ax.set_title(title, fontsize=13, color='#0f172a', fontweight='bold', pad=10)
     ax.tick_params(axis='y', labelsize=9, colors='#64748b')
     from matplotlib.ticker import FuncFormatter
