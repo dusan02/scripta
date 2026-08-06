@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { glossaryTerms } from "@/lib/glossary";
-import { VALID_LANGS, localizePath } from "@/lib/i18n";
+import { VALID_LANGS, localizePath, HREFLANG_MAP } from "@/lib/i18n";
 
 export const revalidate = 3600; // Regenerate every hour
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: path === "/" ? 1.0 : 0.8,
       alternates: {
         languages: Object.fromEntries(
-          VALID_LANGS.map((l) => [l, `${BASE_URL}${localizePath(path, l)}`])
+          VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
         ),
       },
     }));
@@ -43,7 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
       alternates: {
         languages: Object.fromEntries(
-          VALID_LANGS.map((l) => [l, `${BASE_URL}${localizePath(path, l)}`])
+          VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
         ),
       },
     }));
@@ -78,7 +78,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
         alternates: {
           languages: Object.fromEntries(
-            VALID_LANGS.map((l) => [l, `${BASE_URL}${localizePath(path, l)}`])
+            VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
           ),
         },
       }));

@@ -3,28 +3,35 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 const VALID_LANGS = ["sk", "en", "de", "cz", "hu", "pl"];
-// SK is default (no URL prefix). Other langs get /cs/, /en/, etc.
-const LANG_PREFIXES = ["en", "de", "cz", "hu", "pl"];
+// SK is default (no URL prefix). Other langs get /cs/, /en/, /de/, /hu/, /pl/
+// Note: cz uses /cs/ URL prefix (ISO 639-1), but internal Lang is "cz"
+const URL_PREFIXES: Record<string, string> = {
+  en: "en",
+  de: "de",
+  cs: "cz", // URL /cs/ → lang cz
+  hu: "hu",
+  pl: "pl",
+};
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
   // --- Step 1: Extract language from URL prefix ---
-  // /cs/pricing → rewrite to /pricing with x-verifa-lang: cs
-  // /cs → rewrite to / with x-verifa-lang: cs
+  // /cs/pricing → rewrite to /pricing with x-verifa-lang: cz
+  // /cs → rewrite to / with x-verifa-lang: cz
   let detectedLang: string | null = null;
   let realPath = pathname;
 
-  for (const lang of LANG_PREFIXES) {
-    if (pathname === `/${lang}`) {
+  for (const [urlPrefix, lang] of Object.entries(URL_PREFIXES)) {
+    if (pathname === `/${urlPrefix}`) {
       detectedLang = lang;
       realPath = "/";
       break;
     }
-    if (pathname.startsWith(`/${lang}/`)) {
+    if (pathname.startsWith(`/${urlPrefix}/`)) {
       detectedLang = lang;
-      realPath = pathname.slice(`/${lang}`.length); // strip /cs prefix
+      realPath = pathname.slice(`/${urlPrefix}`.length); // strip prefix
       break;
     }
   }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lang, VALID_LANGS, translations } from "./i18n";
+import { Lang, VALID_LANGS, translations, HREFLANG_MAP } from "./i18n";
 
 const BASE_URL = "https://verifa.sk";
 
@@ -218,10 +218,12 @@ export function getHreflangAlternates(path: string = "/"): Record<string, string
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   const result: Record<string, string> = {};
   for (const lang of VALID_LANGS) {
+    const hreflang = HREFLANG_MAP[lang]; // cz → cs (ISO 639-1)
     if (lang === "sk") {
-      result[lang] = `${BASE_URL}${cleanPath}`;
+      result[hreflang] = `${BASE_URL}${cleanPath}`;
     } else {
-      result[lang] = `${BASE_URL}/${lang}${cleanPath === "/" ? "" : cleanPath}`;
+      const prefix = lang === "cz" ? "cs" : lang;
+      result[hreflang] = `${BASE_URL}/${prefix}${cleanPath === "/" ? "" : cleanPath}`;
     }
   }
   // x-default points to SK (no prefix)

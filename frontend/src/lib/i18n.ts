@@ -11,21 +11,51 @@ export const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: "pl", label: "Polski", flag: "🇵🇱" },
 ];
 
-/** Non-SK languages get a URL prefix: /cs/, /en/, /de/, /hu/, /pl/ */
-const LANG_PREFIXES = ["en", "de", "cz", "hu", "pl"];
+/** URL prefix per language. cz → "cs" (ISO 639-1), others match. */
+const URL_PREFIX_MAP: Record<Lang, string> = {
+  sk: "sk",
+  en: "en",
+  de: "de",
+  cz: "cs",
+  hu: "hu",
+  pl: "pl",
+};
+
+/** Reverse map: URL prefix → Lang */
+const URL_TO_LANG: Record<string, Lang> = {
+  en: "en",
+  de: "de",
+  cs: "cz",
+  hu: "hu",
+  pl: "pl",
+};
+
+/** Non-SK URL prefixes used in paths */
+const URL_PREFIXES = ["en", "de", "cs", "hu", "pl"];
+
+/** hreflang code per language (ISO 639-1) */
+export const HREFLANG_MAP: Record<Lang, string> = {
+  sk: "sk",
+  en: "en",
+  de: "de",
+  cz: "cs",
+  hu: "hu",
+  pl: "pl",
+};
 
 /** Add language prefix to a path: "/pricing" + "cz" → "/cs/pricing" */
 export function localizePath(path: string, lang: Lang): string {
   if (lang === "sk") return path;
-  if (path === "/") return `/${lang}`;
-  return `/${lang}${path}`;
+  const prefix = URL_PREFIX_MAP[lang];
+  if (path === "/") return `/${prefix}`;
+  return `/${prefix}${path}`;
 }
 
-/** Strip language prefix from a path: "/cs/pricing" → "/pricing" */
+/** Strip language prefix from a path: "/cs/pricing" → "/pricing", lang: "cz" */
 export function delocalizePath(path: string): { path: string; lang: Lang | null } {
-  for (const l of LANG_PREFIXES) {
-    if (path === `/${l}`) return { path: "/", lang: l as Lang };
-    if (path.startsWith(`/${l}/`)) return { path: path.slice(`/${l}`.length), lang: l as Lang };
+  for (const prefix of URL_PREFIXES) {
+    if (path === `/${prefix}`) return { path: "/", lang: URL_TO_LANG[prefix] };
+    if (path.startsWith(`/${prefix}/`)) return { path: path.slice(`/${prefix}`.length), lang: URL_TO_LANG[prefix] };
   }
   return { path, lang: null };
 }
