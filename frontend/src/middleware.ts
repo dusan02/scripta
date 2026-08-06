@@ -13,13 +13,15 @@ export async function middleware(req: NextRequest) {
   let response: NextResponse | null = null;
 
   if (langParam && VALID_LANGS.includes(langParam)) {
-    // Set cookie for SSR language detection
+    // Set cookie in response for future requests
     const res = NextResponse.next();
     res.cookies.set("verifa-lang", langParam, {
       maxAge: 60 * 60 * 24 * 365, // 1 year
       path: "/",
       sameSite: "lax",
     });
+    // Also set cookie in request headers so generateMetadata sees it in this same request
+    req.cookies.set("verifa-lang", langParam);
     response = res;
   }
 
