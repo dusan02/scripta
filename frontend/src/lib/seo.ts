@@ -190,6 +190,21 @@ export function getLangFromCookie(cookieHeader: string | null | undefined): Lang
   return "sk";
 }
 
+/**
+ * Get language from request headers — checks x-verifa-lang header first
+ * (set by middleware from ?lang=xx), then falls back to cookie.
+ */
+export function getLangFromHeaders(headers: Headers): Lang {
+  // Check custom header set by middleware (from ?lang=xx)
+  const langHeader = headers.get("x-verifa-lang");
+  if (langHeader && VALID_LANGS.includes(langHeader as Lang)) {
+    return langHeader as Lang;
+  }
+  // Fall back to cookie
+  const cookie = headers.get("cookie") || "";
+  return getLangFromCookie(cookie);
+}
+
 export function getHtmlLang(lang: Lang): string {
   return HTML_LANG_MAP[lang];
 }

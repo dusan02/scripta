@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,7 +18,7 @@ import OfflineIndicator from "@/components/OfflineIndicator";
 import CookieBanner from "@/components/CookieBanner";
 import AuthProvider from "@/components/AuthProvider";
 import SkipToContent from "@/components/SkipToContent";
-import { getLangFromCookie, getHtmlLang, generateGlobalMetadata, getLocalizedJsonLd } from "@/lib/seo";
+import { getLangFromHeaders, getHtmlLang, generateGlobalMetadata, getLocalizedJsonLd } from "@/lib/seo";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -27,8 +27,8 @@ export const viewport: Viewport = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const cookieStore = await cookies();
-  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const h = await headers();
+  const lang = getLangFromHeaders(h);
   return generateGlobalMetadata(lang);
 }
 
@@ -51,8 +51,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const h = await headers();
+  const lang = getLangFromHeaders(h);
   const htmlLang = getHtmlLang(lang);
   const jsonLd = getLocalizedJsonLd(lang);
 

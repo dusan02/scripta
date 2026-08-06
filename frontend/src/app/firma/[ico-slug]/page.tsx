@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
 import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable } from "@/components/firma-ui";
@@ -15,7 +15,7 @@ import { fmtEUR, num } from "@/lib/format";
 import { calcTrend } from "@/lib/trend";
 import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
-import { getLangFromCookie, generateFirmaMetadata } from "@/lib/seo";
+import { getLangFromHeaders, generateFirmaMetadata } from "@/lib/seo";
 
 export const dynamicParams = true;
 export const revalidate = 86400;
@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const company = await getCompanyData(parsed.ico);
   if (!company) return {};
 
-  const cookieStore = await cookies();
-  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const h = await headers();
+  const lang = getLangFromHeaders(h);
   const name = company.name || `IČO ${company.ico}`;
 
   return generateFirmaMetadata(name, company.ico, company.city || null, lang);

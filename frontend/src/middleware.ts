@@ -20,8 +20,9 @@ export async function middleware(req: NextRequest) {
       path: "/",
       sameSite: "lax",
     });
-    // Also set cookie in request headers so generateMetadata sees it in this same request
-    req.cookies.set("verifa-lang", langParam);
+    // Set custom request header so generateMetadata sees the language in this same request
+    // (cookies set in middleware response are not visible to Server Components in the same request)
+    res.headers.set("x-verifa-lang", langParam);
     response = res;
   }
 

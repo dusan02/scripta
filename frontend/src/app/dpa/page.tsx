@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { getLangFromCookie, generatePageMetadata } from "@/lib/seo";
+import { headers } from "next/headers";
+import { getLangFromHeaders, generatePageMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const cookieStore = await cookies();
-  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const h = await headers();
+  const lang = getLangFromHeaders(h);
   const meta = generatePageMetadata("dpa", lang);
   return { ...meta, robots: { index: false, follow: false } };
 }

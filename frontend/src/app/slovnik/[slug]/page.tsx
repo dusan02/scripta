@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { glossaryTerms, getGlossaryTerm } from "@/lib/glossary";
-import { getLangFromCookie, getHreflangAlternates, getOgLocale } from "@/lib/seo";
+import { getLangFromHeaders, getHreflangAlternates, getOgLocale } from "@/lib/seo";
 
 export function generateStaticParams() {
   return glossaryTerms.map((term) => ({ slug: term.slug }));
@@ -16,8 +16,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return { title: "Pojem nenájdený" };
   }
 
-  const cookieStore = await cookies();
-  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const h = await headers();
+  const lang = getLangFromHeaders(h);
   const path = `/slovnik/${term.slug}`;
 
   return {

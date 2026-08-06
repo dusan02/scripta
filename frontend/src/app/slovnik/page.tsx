@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { getGlossaryTermsByCategory, glossaryTerms } from "@/lib/glossary";
-import { getLangFromCookie, generatePageMetadata } from "@/lib/seo";
+import { getLangFromHeaders, generatePageMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const cookieStore = await cookies();
-  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const h = await headers();
+  const lang = getLangFromHeaders(h);
   return generatePageMetadata("slovnik", lang);
 }
 
