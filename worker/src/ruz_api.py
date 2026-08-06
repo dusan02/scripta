@@ -754,7 +754,14 @@ async def _process_zavierka(
             logger.warning(f"[RUZ_API] JSON parser vrátil prázdne metrics pre IČO {ico} rok {year} — sidecar sa neukladá, LLM extrakcia sa použije")
 
     if downloaded_pdfs:
-        suffix = "notes" if extracted_tables else ""
+        # PDF sa označí ako "notes" len ak máme reálne tabuľky s dátami.
+        # Ak extracted_tables obsahuje len hlavičku (prázdne tabuľky z API),
+        # PDF je primárny zdroj finančných dát — nesmie sa skipnúť v pipeline.
+        has_real_tables = any(
+            tab.get("data") for vt in all_vykazy
+            for tab in vt.get("obsah", {}).get("tabulky", [])
+        )
+        suffix = "notes" if has_real_tables else ""
         pdf_path = _merge_pdfs(downloaded_pdfs, ftype, year, ico, index, out_path, suffix=suffix)
         saved_files.append(pdf_path)
 
