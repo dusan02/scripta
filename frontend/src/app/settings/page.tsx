@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import RegistryGrid from "@/components/RegistryGrid";
 import { DEFAULT_SELECTED_SOURCES, ENABLED_SOURCES } from "@/lib/sources";
 import { useT } from "@/components/LanguageProvider";
+import { LANGUAGES } from "@/lib/i18n";
 import toast from "react-hot-toast";
 
 export default function SettingsPage() {
@@ -342,11 +343,7 @@ export default function SettingsPage() {
           <div className="h-10 rounded-lg animate-pulse bg-[var(--bg-muted)]" />
         ) : (
           <div className="flex flex-col gap-2">
-            {[
-              { code: "sk", label: "Slovenčina", flag: "🇸🇰" },
-              { code: "en", label: "English", flag: "🇬🇧" },
-              { code: "de", label: "Deutsch", flag: "🇩🇪" },
-            ].map((lang) => (
+            {LANGUAGES.map((lang) => (
               <label
                 key={lang.code}
                 className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${reportLanguage === lang.code ? "bg-[var(--bg-muted)] border border-[var(--accent)]" : "border border-[var(--border)]"}`}
