@@ -31,6 +31,7 @@ interface Report {
   birthDate?: string | null;
   selectedSources?: string[];
   createdAt: string;
+  updatedAt?: string | null;
   completedAt?: string | null;
   resultUrl?: string | null;
   aiStatus?: string | null;
@@ -291,6 +292,7 @@ function PhaseProgress({
   etaCountdown,
   locale,
   startedAt,
+  serverUpdatedAt,
 }: {
   sourcesCompleted: number;
   sourcesTotal: number;
@@ -299,6 +301,7 @@ function PhaseProgress({
   etaCountdown: number | null;
   locale: string;
   startedAt: number;
+  serverUpdatedAt?: string | null;
 }) {
   const t = useT();
   const phaseLabel = getPhaseLabel(aiStatus, t);
@@ -347,13 +350,19 @@ function PhaseProgress({
   const displayRef = useRef(_initialProgress);
   useEffect(() => { displayRef.current = displayProgress; }, [displayProgress]);
 
-  // Reset timer when AI status changes
+  // Use server-side updatedAt as the reference for AI status timing.
+  // This ensures progress is consistent across page refreshes and tab
+  // suspensions — the server timestamp doesn't change when the browser
+  // sleeps, so elapsed time is always accurate.
   useEffect(() => {
     if (aiStatus !== aiStatusRef.current) {
       aiStatusRef.current = aiStatus ?? null;
-      aiStatusStartedRef.current = Date.now();
+      // Use server updatedAt (when the status was last set) instead of
+      // Date.now() — this survives refreshes and mobile tab suspension.
+      const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : Date.now();
+      aiStatusStartedRef.current = serverTs;
     }
-  }, [aiStatus]);
+  }, [aiStatus, serverUpdatedAt]);
 
   useEffect(() => {
     if (isTerminal) {
@@ -947,6 +956,7 @@ export default function ReportDetailPage() {
               etaCountdown={etaCountdown}
               locale={locale}
               startedAt={new Date(report.createdAt).getTime()}
+              serverUpdatedAt={report.updatedAt}
             />
             {report.sources.some(s => s.status === "FAILED" || s.status === "UNAVAILABLE") && (
               <div className="max-w-2xl mx-auto mt-4 w-full">

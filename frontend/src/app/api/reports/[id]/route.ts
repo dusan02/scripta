@@ -60,6 +60,7 @@ export async function GET(
       companyName: resolvedCompanyName,
       selectedSources: report.selectedSources,
       createdAt: report.createdAt,
+      updatedAt: report.updatedAt,
       completedAt: report.completedAt,
       resultUrl: report.resultUrl,
       aiStatus: report.aiStatus,
