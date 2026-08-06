@@ -1366,6 +1366,15 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     i18n_strings = get_i18n_strings(report_language)
     verdict = company.auditVerdict
     if company.financialStatements:
+        # Filter out empty statements (RÚZ sometimes returns a header record
+        # with all-zero values when a filing exists but has no financial data).
+        # Such records create misleading "0,00" columns in tables and gaps in charts.
+        def _is_empty_stmt(s):
+            ta = _to_float(getattr(s, 'totalAssets', None) or 0)
+            rev = _to_float(getattr(s, 'mainActivityRevenue', None) or 0)
+            eq = _to_float(getattr(s, 'equity', None) or 0)
+            return ta == 0 and rev == 0 and eq == 0
+        company.financialStatements = [s for s in company.financialStatements if not _is_empty_stmt(s)]
         company.financialStatements = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
     stmts = company.financialStatements
     # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
