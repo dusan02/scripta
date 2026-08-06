@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { useLang } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
+import { LANGUAGES } from "@/lib/i18n";
 
 interface AuthPageShellProps {
   children: ReactNode;
@@ -37,24 +38,24 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
 
       {/* Language Switcher */}
       <div style={{ position: "absolute", top: 24, right: 24, zIndex: 20, display: "flex", gap: "8px" }}>
-        {(["sk", "en", "de"] as const).map((l) => (
+        {LANGUAGES.map((l) => (
           <button
-            key={l}
-            onClick={() => setLang(l)}
+            key={l.code}
+            onClick={() => setLang(l.code)}
             style={{
               padding: "6px 10px",
               borderRadius: "6px",
-              background: lang === l ? "var(--accent)" : "rgba(255, 255, 255, 0.8)",
-              color: lang === l ? "#fff" : "#374151",
+              background: lang === l.code ? "var(--accent)" : "rgba(255, 255, 255, 0.8)",
+              color: lang === l.code ? "#fff" : "#374151",
               border: "1px solid",
-              borderColor: lang === l ? "var(--accent)" : "#D1D5DB",
+              borderColor: lang === l.code ? "var(--accent)" : "#D1D5DB",
               fontSize: "13px",
               fontWeight: 500,
               cursor: "pointer",
               transition: "all 0.2s",
             }}
           >
-            {l.toUpperCase()}
+            {l.code.toUpperCase()}
           </button>
         ))}
       </div>

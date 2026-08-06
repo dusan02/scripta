@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { Lang, translate } from "@/lib/i18n";
+import { Lang, translate, VALID_LANGS } from "@/lib/i18n";
 
 type LanguageContextValue = {
   lang: Lang;
@@ -18,7 +18,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Lang | null;
-    if (stored === "sk" || stored === "en" || stored === "de") {
+    if (stored && VALID_LANGS.includes(stored)) {
       setLangState(stored);
     }
   }, []);

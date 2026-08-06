@@ -2,15 +2,15 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { translations, translate, Lang } from "../i18n";
 
-const LANGS: Lang[] = ["sk", "en", "de"];
+const LANGS: Lang[] = ["sk", "en", "de", "cz", "hu", "pl"];
 
 describe("i18n key completeness", () => {
   it("all languages have the same set of keys", () => {
     const skKeys = Object.keys(translations.sk).sort();
-    const enKeys = Object.keys(translations.en).sort();
-    const deKeys = Object.keys(translations.de).sort();
-    assert.deepEqual(skKeys, enKeys, "en keys mismatch");
-    assert.deepEqual(skKeys, deKeys, "de keys mismatch");
+    for (const lang of LANGS) {
+      const langKeys = Object.keys(translations[lang]).sort();
+      assert.deepEqual(skKeys, langKeys, `${lang} keys mismatch`);
+    }
   });
 
   it("has a reasonable number of keys (>= 500)", () => {
