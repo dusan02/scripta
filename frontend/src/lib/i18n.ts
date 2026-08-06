@@ -4703,7 +4703,7 @@ const pl: Dict = {
 
 export const translations: Record<Lang, Dict> = { sk, en, de, cz, hu, pl };
 
-const VALID_LANGS: Lang[] = ["sk", "en", "de", "cz", "hu", "pl"];
+export const VALID_LANGS: Lang[] = ["sk", "en", "de", "cz", "hu", "pl"];
 
 export function normalizeLang(lang: string | null | undefined): Lang {
   if (lang && VALID_LANGS.includes(lang as Lang)) return lang as Lang;

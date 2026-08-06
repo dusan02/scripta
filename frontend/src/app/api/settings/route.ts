@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { SOURCE_IDS } from "@/lib/sources";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { VALID_LANGS } from "@/lib/i18n";
 
 export async function GET(req: NextRequest) {
   try {
@@ -126,9 +127,9 @@ export async function PATCH(req: NextRequest) {
 
     if (reportLanguage !== undefined) {
       const normalizedLang = typeof reportLanguage === "string" ? reportLanguage.toLowerCase() : null;
-      if (!normalizedLang || !["sk", "en", "de"].includes(normalizedLang)) {
+      if (!normalizedLang || !VALID_LANGS.includes(normalizedLang as any)) {
         return NextResponse.json(
-          { error: "reportLanguage must be 'sk', 'en', or 'de'" },
+          { error: `reportLanguage must be one of: ${VALID_LANGS.join(", ")}` },
           { status: 400 }
         );
       }
