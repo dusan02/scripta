@@ -142,6 +142,28 @@ export async function POST(req: NextRequest) {
 
     let { ico, sources } = parseResult.data;
 
+    // ── Deduplikácia: ak už beží report pre rovnaké IČO (mladší ako 2 min), vráť existujúci.
+    // Chráni pred dvojklikom, refreshom, alebo dvomi tabmi — žiadny kredit sa nemrhá.
+    if (ico) {
+      const existing = await prisma.reportRequest.findFirst({
+        where: {
+          userId: user.id,
+          ico,
+          status: { in: ["PENDING", "PROCESSING"] },
+          createdAt: { gt: new Date(Date.now() - 2 * 60 * 1000) },
+          deletedAt: null,
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { reportRequestId: existing.id, deduplicated: true },
+          { status: 200 }
+        );
+      }
+    }
+
     // PREFILTRUJ zdroje podľa user settings (defaultSources z DB)
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
