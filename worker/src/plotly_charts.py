@@ -84,7 +84,7 @@ def _prepare_statements(statements):
 # Numeric fields that may arrive as Decimal from Prisma after Float→Decimal migration
 _NUMERIC_CHART_FIELDS = (
     "mainActivityRevenue", "grossProfit", "netProfitLoss", "staffCosts",
-    "depreciation", "interestExpense", "operatingCashFlow",
+    "depreciation", "interestExpense", "incomeTax", "operatingCashFlow",
     "investingCashFlow", "financingCashFlow",
     "currentAssets", "inventory", "cashAndEquivalents", "tradeReceivables",
     "totalAssets", "equity", "shortTermLiabilities", "longTermLiabilities",
@@ -222,7 +222,7 @@ def generate_pnl_chart(statements, lang="sk") -> str:
     years = [str(s.year) for s in statements]
     revenues = [_sanitize_value(s.mainActivityRevenue) for s in statements]
     gross = [_sanitize_value(s.grossProfit) for s in statements]
-    ebitda = [_sanitize_value(s.netProfitLoss) + _sanitize_value(s.incomeTax) + abs(_sanitize_value(s.interestExpense)) + _sanitize_value(s.depreciation) for s in statements]
+    ebitda = [_sanitize_value(s.netProfitLoss) + _sanitize_value(getattr(s, 'incomeTax', None)) + abs(_sanitize_value(s.interestExpense)) + _sanitize_value(s.depreciation) for s in statements]
     net = [_sanitize_value(s.netProfitLoss) for s in statements]
 
     fig = go.Figure()

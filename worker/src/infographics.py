@@ -38,7 +38,7 @@ def _to_float(val):
 # Numeric attributes on FinancialMetrics that may arrive as Decimal from Prisma
 _NUMERIC_STMT_FIELDS = (
     "mainActivityRevenue", "grossProfit", "netProfitLoss", "staffCosts",
-    "depreciation", "interestExpense", "operatingCashFlow",
+    "depreciation", "interestExpense", "incomeTax", "operatingCashFlow",
     "currentAssets", "inventory", "cashAndEquivalents", "tradeReceivables",
     "totalAssets", "equity", "shortTermLiabilities", "longTermLiabilities",
     "tradePayables", "year",
