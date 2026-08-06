@@ -565,6 +565,15 @@ class OrsrScraper(BaseScraper):
                 context = await self.browser.new_context()
                 page = await context.new_page()
 
+            # Strip <img> tags to prevent network requests during PDF rendering
+            # ORSR HTML contains status icons that trigger network fetches
+            from bs4 import BeautifulSoup as _BS
+            body_soup = _BS(html, "lxml")
+            for img in body_soup.find_all("img"):
+                img.decompose()
+            body_html = body_soup.find("body") or body_soup
+            body_inner = body_html.decode_contents()
+
             # Inject CSS for proper print formatting
             styled_html = f"""<html><head><meta charset="utf-8">
 <style>
@@ -574,10 +583,10 @@ td {{ padding: 2px 4px; vertical-align: top; }}
 .tl {{ font-weight: bold; white-space: nowrap; }}
 .ra {{ }}
 a {{ color: black; text-decoration: none; }}
-img {{ display: none; }}
-</style></head><body>{html.split('<body>', 1)[-1].rsplit('</body>', 1)[0] if '<body>' in html else html}</body></html>"""
+</style></head><body>{body_inner}</body></html>"""
 
-            await page.set_content(styled_html, wait_until="domcontentloaded")
+            # "commit" = don't wait for network — we already stripped all external resources
+            await page.set_content(styled_html, wait_until="commit")
             await page.pdf(
                 path=str(output_path),
                 format="A4",
