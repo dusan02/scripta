@@ -128,7 +128,6 @@ services:
       APP_ENV: ${APP_ENV:-production}
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
-      PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:?WORKER_SECRET must be set}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -172,7 +171,6 @@ services:
       APP_ENV: ${APP_ENV:-production}
       RESULTS_DIR: /app/results
       TZ: Europe/Bratislava
-      PLAYWRIGHT_HEADLESS: "false"
       PLAYWRIGHT_TIMEOUT: "60000"
       WORKER_SECRET: ${WORKER_SECRET:?WORKER_SECRET must be set}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
