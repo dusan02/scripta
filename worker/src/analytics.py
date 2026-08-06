@@ -835,7 +835,7 @@ def compute_beneish_m_score(statements: list) -> dict:
     is_manipulator = m > -1.78
 
     if is_manipulator:
-        flags.append(f"Beneish M-score = {m:.3f} — PRAVDEPODOBNÝ manipulátor (M > -1.78)")
+        flags.append(f"Beneish M-score = {m:.3f} — Vyššie riziko (M > -1.78)")
     else:
         flags.append(f"Beneish M-score = {m:.3f} — Bez znám manipulácie (M ≤ -1.78)")
 

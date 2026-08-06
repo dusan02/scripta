@@ -521,7 +521,7 @@ def _translate_flag(flag: str, i18n_strings: dict) -> str:
     m = _re.match(r"Neutralizované kritériá \(chýbajúce dáta\): (.+)", flag)
     if m: return i18n_strings.get("flag_piotroski_neutral", flag).format(criteria=m.group(1))
     # Beneish M-score
-    m = _re.match(r"Beneish M-score = (-?[\d.]+) — PRAVDEPODOBNÝ manipulátor", flag)
+    m = _re.match(r"Beneish M-score = (-?[\d.]+) — Vyššie riziko", flag)
     if m: return i18n_strings.get("flag_beneish_manipulator", flag).format(val=m.group(1))
     m = _re.match(r"Beneish M-score = (-?[\d.]+) — Bez znám manipulácie", flag)
     if m: return i18n_strings.get("flag_beneish_clean", flag).format(val=m.group(1))
