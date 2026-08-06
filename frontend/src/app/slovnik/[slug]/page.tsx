@@ -1,29 +1,37 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { glossaryTerms, getGlossaryTerm } from "@/lib/glossary";
+import { getLangFromCookie, getHreflangAlternates, getOgLocale } from "@/lib/seo";
 
 export function generateStaticParams() {
   return glossaryTerms.map((term) => ({ slug: term.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const term = getGlossaryTerm(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const term = getGlossaryTerm(slug);
   if (!term) {
-    return {
-      title: "Pojem nenájdený",
-    };
+    return { title: "Pojem nenájdený" };
   }
+
+  const cookieStore = await cookies();
+  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const path = `/slovnik/${term.slug}`;
+
   return {
     title: `${term.title} — vysvetlenie`,
     description: term.shortDescription,
     alternates: {
-      canonical: `https://verifa.sk/slovnik/${term.slug}`,
+      canonical: `https://verifa.sk${path}`,
+      languages: getHreflangAlternates(path),
     },
     openGraph: {
       title: `${term.title} — vysvetlenie | Verifa.sk`,
       description: term.shortDescription,
       type: "article",
+      locale: getOgLocale(lang),
     },
   };
 }

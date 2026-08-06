@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { getGlossaryTermsByCategory, glossaryTerms } from "@/lib/glossary";
+import { getLangFromCookie, generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Slovník pojmov | Verifa.sk",
-  description:
-    "Slovník kľúčových pojmov z oblasti risk assessmentu, finančnej analýzy a štátnych registrov — Altman Z-Score, Piotroski F-Score, ORSR, RPVS, Register úpadcov a ďalšie.",
-  alternates: {
-    canonical: "https://verifa.sk/slovnik",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  return generatePageMetadata("slovnik", lang);
+}
 
 export default function GlossaryPage() {
   const grouped = getGlossaryTermsByCategory();

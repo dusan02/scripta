@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { getLangFromCookie, generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Cenník",
-  description: "Vyberte si balíček reportov na Verifa.sk — od jednorazového reportu po mesačné predplatné.",
-  alternates: {
-    canonical: "https://verifa.sk/pricing",
-  },
-  openGraph: {
-    title: "Cenník | Verifa.sk",
-    description: "Vyberte si balíček reportov na Verifa.sk — od jednorazového reportu po mesačné predplatné.",
-    url: "https://verifa.sk/pricing",
-    type: "website",
-    locale: "sk_SK",
-    siteName: "Verifa.sk",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  return generatePageMetadata("pricing", lang);
+}
 
 export default function PricingLayout({
   children,

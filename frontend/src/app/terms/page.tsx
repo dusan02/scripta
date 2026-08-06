@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { getLangFromCookie, generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Podmienky používania | Verifa.sk",
-  description: "Podmienky používania služby Verifa.sk",
-  robots: { index: false, follow: false },
-  alternates: {
-    canonical: "https://verifa.sk/terms",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const meta = generatePageMetadata("terms", lang);
+  return { ...meta, robots: { index: false, follow: false } };
+}
 
 export default function TermsPage() {
   return (

@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { getLangFromCookie, generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Ochrana osobných údajov | Verifa.sk",
-  description:
-    "Zásady ochrany osobných údajov služby Verifa.sk v súlade s GDPR. Informácie o spracúvaní údajov, právach používateľov a technických opatreniach.",
-  robots: { index: true, follow: true },
-  alternates: {
-    canonical: "https://verifa.sk/privacy",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  return generatePageMetadata("privacy", lang);
+}
 
 export default function PrivacyPage() {
   return (

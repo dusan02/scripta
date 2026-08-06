@@ -13,10 +13,11 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 const STORAGE_KEY = "verifa-lang";
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("sk");
+export function LanguageProvider({ children, initialLang = "sk" }: { children: ReactNode; initialLang?: Lang }) {
+  const [lang, setLangState] = useState<Lang>(initialLang);
 
   useEffect(() => {
+    // On client: prefer localStorage over server-provided initial
     const stored = localStorage.getItem(STORAGE_KEY) as Lang | null;
     if (stored && VALID_LANGS.includes(stored)) {
       setLangState(stored);
@@ -27,6 +28,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLangState(next);
     localStorage.setItem(STORAGE_KEY, next);
     document.documentElement.lang = next;
+    // Also set cookie for SSR
+    document.cookie = `verifa-lang=${next}; max-age=${60 * 60 * 24 * 365}; path=/; samesite=lax`;
   }, []);
 
   const t = useCallback(

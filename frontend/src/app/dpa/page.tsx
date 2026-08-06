@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { getLangFromCookie, generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Dohoda o spracúvaní osobných údajov (DPA) | Verifa.sk",
-  description: "Dohoda o spracúvaní osobných údajov medzi Verifa.sk a zákazníkom",
-  robots: { index: false, follow: false },
-  alternates: {
-    canonical: "https://verifa.sk/dpa",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
+  const meta = generatePageMetadata("dpa", lang);
+  return { ...meta, robots: { index: false, follow: false } };
+}
 
 export default function DpaPage() {
   return (

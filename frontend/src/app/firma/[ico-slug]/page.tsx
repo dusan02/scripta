@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
 import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable } from "@/components/firma-ui";
@@ -14,6 +15,7 @@ import { fmtEUR, num } from "@/lib/format";
 import { calcTrend } from "@/lib/trend";
 import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
+import { getLangFromCookie, generateFirmaMetadata } from "@/lib/seo";
 
 export const dynamicParams = true;
 export const revalidate = 86400;
@@ -28,23 +30,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const company = await getCompanyData(parsed.ico);
   if (!company) return {};
 
+  const cookieStore = await cookies();
+  const lang = getLangFromCookie(cookieStore.get("verifa-lang")?.value);
   const name = company.name || `IČO ${company.ico}`;
-  const slug = slugify(company.name);
-  const canonicalUrl = `https://verifa.sk/firma/${company.ico}`;
-  const title = `${name} (${company.ico}) – Finančné dáta, zisk, súvaha`;
-  const description = `${name} (${company.ico})${company.city ? `, ${company.city}` : ""} — účtovné závierky, tržby, zisk, aktíva, Altman Z-skóre a rizikový profil z 26 Registrov SR.`;
 
-  return {
-    title, description,
-    alternates: { canonical: canonicalUrl },
-    openGraph: {
-      title, description, url: canonicalUrl, type: "website",
-      locale: "sk_SK", siteName: "Verifa.sk",
-      images: [{ url: "/logo-verifa.png", width: 1200, height: 630, alt: `${name} — Verifa.sk` }],
-    },
-    twitter: { card: "summary_large_image", title, description },
-    robots: { index: true, follow: true },
-  };
+  return generateFirmaMetadata(name, company.ico, company.city || null, lang);
 }
 
 export default async function CompanyPage({ params }: Params) {
