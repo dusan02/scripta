@@ -290,7 +290,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                 if "neexistuje" in msg or "neplatné ičo" in msg:
                     _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} — {orsr_result.status_message}")
                     await update_report_status(task.report_request_id, "FAILED")
-                    await update_report_ai_status(task.report_request_id, "failed.orsr_not_found")
+                    await update_report_ai_status(task.report_request_id, "failed.orsr_not_found", 0)
                     return
 
             # ── Retry failed/unavailable scrapers (exponential backoff with jitter) ──
