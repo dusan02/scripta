@@ -23,7 +23,7 @@ chown -R 1001:1001 ./worker/results 2>/dev/null || true
 
 # ─── 3. Run DB migration ───────────────────────────────────
 echo "[3/6] Running DB migration..."
-docker compose exec -T -e HOME=/tmp frontend node /app/node_modules/prisma/build/index.js migrate deploy
+docker compose exec -T -e HOME=/tmp -u root frontend node /app/node_modules/prisma/build/index.js migrate deploy
 
 # ─── 4. Reload nginx ───────────────────────────────────────
 echo "[4/6] Reloading nginx..."
