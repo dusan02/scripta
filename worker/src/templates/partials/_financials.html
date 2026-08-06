@@ -158,6 +158,10 @@
 </div>
 {% endif %}
 
+{# ── FINANČNÝ POSUDOK — nadpis nad KPI kartami ── #}
+<h2 id="financny_posudok" class="section-title">{{ i18n.financial_assessment }}</h2>
+<p class="report-body-sm text-slate-600 mb-3">{{ i18n.analytical_assessment_desc }}</p>
+
 {# ── KPI SNAPSHOT: Rýchle kľúčové metriky hneď za Scorecard ── #}
 {% if latest_ratios and latest_stmt %}
 <div class="mb-4" style="page-break-inside: avoid; break-inside: avoid;">
@@ -244,11 +248,8 @@
 </div>
 {% endif %}
 
-{# ── FINANČNÝ POSUDOK (moved from bottom, now between Scorecard and Insolvency) ── #}
+{# ── FINANČNÝ POSUDOK — warnings a auditor opinion (nadpis je vyššie, nad KPI) ── #}
 <div class="mb-6">
-    <h2 id="financny_posudok" class="section-title">{{ i18n.financial_assessment }}</h2>
-    <p class="report-body-sm text-slate-600 mb-3">{{ i18n.analytical_assessment_desc }}</p>
-
     {% if latest_ratios and latest_ratios.negative_equity %}
     <div class="mb-3 p-3 rounded-lg border-l-4 border-rose-500 bg-rose-50 flex items-start gap-3">
         <span class="text-rose-500 text-lg flex-shrink-0">⚠</span>
