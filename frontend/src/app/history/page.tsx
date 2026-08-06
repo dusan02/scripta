@@ -18,6 +18,7 @@ import {
   SpinnerIcon,
   ArrowLeftIcon,
   SearchIcon,
+  StopIcon,
 } from "@/components/icons";
 
 interface ReportSource {
@@ -71,7 +72,8 @@ export default function HistoryPage() {
   const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [modal, setModal] = useState<{ type: "single" | "all" | "bulk"; reportId?: string; subject?: string } | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [modal, setModal] = useState<{ type: "single" | "all" | "bulk" | "cancel"; reportId?: string; subject?: string } | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [fadingId, setFadingId] = useState<string | null>(null);
@@ -148,6 +150,12 @@ export default function HistoryPage() {
     setModal({ type: "single", reportId, subject });
   }, []);
 
+  const handleCancel = useCallback((e: React.MouseEvent, reportId: string, subject: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setModal({ type: "cancel", reportId, subject });
+  }, []);
+
   const confirmDelete = useCallback(async () => {
     if (!modal) return;
     if (modal.type === "all") {
@@ -200,6 +208,26 @@ export default function HistoryPage() {
     }
     setModal(null);
   }, [modal, fetchReports, selectedIds]);
+
+  const confirmCancel = useCallback(async () => {
+    if (!modal?.reportId) return;
+    setCancellingId(modal.reportId);
+    try {
+      const res = await fetch(`/api/reports/${modal.reportId}/cancel`, { method: "POST" });
+      if (res.ok) {
+        toast.success(t("history.zrusitReport"));
+        fetchReports();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || t("history.chybaMazania"));
+      }
+    } catch {
+      toast.error(t("history.chybaMazania"));
+    } finally {
+      setCancellingId(null);
+      setModal(null);
+    }
+  }, [modal, fetchReports, t]);
 
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
@@ -550,6 +578,17 @@ export default function HistoryPage() {
                             <FileDownloadIcon size={14} />
                           </button>
                         )}
+                        {(report.status === "PENDING" || report.status === "PROCESSING") && (
+                          <button
+                            onClick={(e) => handleCancel(e, report.id, report.companyName || report.ico || identifier)}
+                            disabled={cancellingId === report.id}
+                            title={t("history.zrusitReport")}
+                            className="action-btn p-1.5 rounded-md"
+                            style={{ color: "var(--warning)" }}
+                          >
+                            {cancellingId === report.id ? <SpinnerIcon size={14} /> : <StopIcon size={14} />}
+                          </button>
+                        )}
                         <button
                           onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                           disabled={deletingId === report.id}
@@ -620,6 +659,17 @@ export default function HistoryPage() {
                         >
                           {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
                         </button>
+                        {(report.status === "PENDING" || report.status === "PROCESSING") && (
+                          <button
+                            onClick={(e) => handleCancel(e, report.id, report.companyName || report.ico || identifier)}
+                            disabled={cancellingId === report.id}
+                            title={t("history.zrusitReport")}
+                            className="action-btn"
+                            style={{ color: "var(--warning)" }}
+                          >
+                            {cancellingId === report.id ? <SpinnerIcon size={16} /> : <StopIcon size={16} />}
+                          </button>
+                        )}
                         <button
                           onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
                           disabled={deletingId === report.id}
@@ -664,9 +714,23 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* Confirm modal */}
+      {/* Cancel modal — pre prebiehajúce reporty */}
       <ConfirmModal
-        open={!!modal}
+        open={modal?.type === "cancel"}
+        title={t("history.zrusitReportOtaznik")}
+        subject={modal?.subject}
+        message={t("history.zrusitReportMsg")}
+        confirmLabel={t("history.ano")}
+        cancelLabel={t("history.nie")}
+        onConfirm={confirmCancel}
+        onCancel={() => setModal(null)}
+        loading={cancellingId !== null}
+        variant="warning"
+      />
+
+      {/* Delete confirm modal */}
+      <ConfirmModal
+        open={!!modal && modal.type !== "cancel"}
         title={
           modal?.type === "all" ? t("history.vymazatVsetkyOtaznik")
           : modal?.type === "bulk" ? `${t("history.vymazatVybrane")}? (${selectedIds.size})`

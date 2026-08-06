@@ -13,6 +13,7 @@ interface ConfirmModalProps {
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
+  variant?: "danger" | "warning";
 }
 
 export default function ConfirmModal({
@@ -25,6 +26,7 @@ export default function ConfirmModal({
   onConfirm,
   onCancel,
   loading = false,
+  variant = "danger",
 }: ConfirmModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -62,11 +64,17 @@ export default function ConfirmModal({
         <div className="flex items-center gap-3 mb-4">
           <div
             className="flex items-center justify-center rounded-full flex-shrink-0"
-            style={{ width: 40, height: 40, background: "var(--danger-bg)" }}
+            style={{ width: 40, height: 40, background: variant === "warning" ? "var(--warning-bg)" : "var(--danger-bg)" }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "var(--danger)" }}>
-              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            {variant === "warning" ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "var(--warning)" }}>
+                <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: "var(--danger)" }}>
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
@@ -98,7 +106,7 @@ export default function ConfirmModal({
             onClick={onConfirm}
             disabled={loading}
             className="px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2"
-            style={{ background: "var(--danger)", color: "var(--accent-button-text)", border: "none" }}
+            style={{ background: variant === "warning" ? "var(--warning)" : "var(--danger)", color: "var(--accent-button-text)", border: "none" }}
           >
             {loading && (
               <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
