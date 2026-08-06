@@ -1267,6 +1267,32 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
                 _weakness(f"{i18n_strings.get('sw_negative_wc', 'Negatívny pracovný kapitál')}: {working_capital/1e6:.1f} mil. €",
                           i18n_strings.get("sw_source_financials", ""))
 
+        # Kriticky nízka hotovosť (< 5 000 EUR pri krátkodobých záväzkoch > 100 000 EUR)
+        cash_sw = getattr(latest, 'cashAndEquivalents', None)
+        if cash_sw is not None and st_liab_sw is not None:
+            if float(cash_sw) < 5000 and float(st_liab_sw) > 100000:
+                _weakness(f"{i18n_strings.get('sw_low_cash', 'Kriticky nízka hotovosť')}: {int(float(cash_sw)):,} €".replace(",", " "),
+                          i18n_strings.get("sw_source_financials", ""))
+
+        # Pokles tržieb o > 30 % YoY (nielen najnovší rok — kontrola všetkých rokov)
+        if len(stmts) >= 2:
+            sorted_rev = sorted(stmts, key=lambda s: s.year)
+            for i in range(1, len(sorted_rev)):
+                curr_rev = getattr(sorted_rev[i], 'mainActivityRevenue', None)
+                prev_rev = getattr(sorted_rev[i-1], 'mainActivityRevenue', None)
+                if curr_rev is not None and prev_rev is not None and prev_rev > 0:
+                    rev_drop = ((prev_rev - curr_rev) / prev_rev) * 100
+                    if rev_drop > 30:
+                        _weakness(f"{i18n_strings.get('sw_revenue_drop', 'Výrazný pokles tržieb')}: -{rev_drop:.0f}% ({sorted_rev[i-1].year}→{sorted_rev[i].year})",
+                                  i18n_strings.get("sw_source_financials", ""))
+                        break  # len jeden záznam aj keď viac rokov pokles
+
+        # Negatívna hrubá marža v najnovšom roku
+        gross_sw = getattr(latest, 'grossProfit', None)
+        if gross_sw is not None and float(gross_sw) < 0:
+            _weakness(f"{i18n_strings.get('sw_negative_gross', 'Záporná hrubá marža')}: {float(gross_sw)/1e6:.2f} mil. €",
+                      i18n_strings.get("sw_source_financials", ""))
+
     # 6. From auditor opinion
     # Ak firma nemá žiadny audit vôbec — pridaj slabú stránku
     if stmts:
@@ -2034,8 +2060,18 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         for st_type in ("SP_DLZNICI", "FINANCNA_SPRAVA"):
             src = source_map.get(st_type)
             if src:
+                # Only set has_record=True if scraper succeeded AND findings
+                # don't contain "no records" phrases. A FAILED scraper (timeout,
+                # network error) must NOT be interpreted as "company is in the
+                # debtor list" — that creates false positives.
+                src_status = getattr(src, 'status', 'SUCCESS')
                 findings = (src.findings or "").upper()
-                has_record = "ŽIADNY ZÁZNAM" not in findings and "NENAŠLI SA ŽIADNE ZÁZNAMY" not in findings and "NENAŠLI ŽIADNE" not in findings
+                if src_status != 'SUCCESS':
+                    has_record = False
+                else:
+                    has_record = ("ŽIADNY ZÁZNAM" not in findings
+                                  and "NENAŠLI SA ŽIADNE ZÁZNAMY" not in findings
+                                  and "NENAŠLI ŽIADNE" not in findings)
                 _scraper_results[st_type] = {"has_record": has_record}
     _state_liabilities_alert = compute_state_liabilities_alert(_stmts_as_dicts, scraper_results=_scraper_results)
     _state_liabilities_alert = _translate_state_liabilities_alert(_state_liabilities_alert, i18n_strings)
