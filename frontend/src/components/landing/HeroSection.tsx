@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
+import { localizePath } from "@/lib/i18n";
 
 export default function HeroSection() {
   const t = useT();
+  const { lang } = useLang();
 
   return (
     <section className="relative overflow-hidden pt-28 pb-20 hero-pad">
@@ -26,7 +28,7 @@ export default function HeroSection() {
 
         <div className="mb-4">
           <Link
-            href="/register"
+            href={localizePath("/register", lang)}
             className="inline-block px-8 py-4 rounded-xl no-underline font-bold text-[16px] transition-all hover:opacity-90"
             style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--shadow-lg)" }}
           >

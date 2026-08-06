@@ -1,5 +1,7 @@
 export type Lang = "sk" | "en" | "de" | "cz" | "hu" | "pl";
 
+export const VALID_LANGS: Lang[] = ["sk", "en", "de", "cz", "hu", "pl"];
+
 export const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: "sk", label: "Slovenčina", flag: "🇸🇰" },
   { code: "cz", label: "Čeština", flag: "🇨🇿" },
@@ -8,6 +10,25 @@ export const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: "hu", label: "Magyar", flag: "🇭🇺" },
   { code: "pl", label: "Polski", flag: "🇵🇱" },
 ];
+
+/** Non-SK languages get a URL prefix: /cs/, /en/, /de/, /hu/, /pl/ */
+const LANG_PREFIXES = ["en", "de", "cz", "hu", "pl"];
+
+/** Add language prefix to a path: "/pricing" + "cz" → "/cs/pricing" */
+export function localizePath(path: string, lang: Lang): string {
+  if (lang === "sk") return path;
+  if (path === "/") return `/${lang}`;
+  return `/${lang}${path}`;
+}
+
+/** Strip language prefix from a path: "/cs/pricing" → "/pricing" */
+export function delocalizePath(path: string): { path: string; lang: Lang | null } {
+  for (const l of LANG_PREFIXES) {
+    if (path === `/${l}`) return { path: "/", lang: l as Lang };
+    if (path.startsWith(`/${l}/`)) return { path: path.slice(`/${l}`.length), lang: l as Lang };
+  }
+  return { path, lang: null };
+}
 
 export const LOCALE_MAP: Record<Lang, string> = {
   sk: "sk-SK",
@@ -4972,8 +4993,6 @@ const pl: Dict = {
 
 
 export const translations: Record<Lang, Dict> = { sk, en, de, cz, hu, pl };
-
-export const VALID_LANGS: Lang[] = ["sk", "en", "de", "cz", "hu", "pl"];
 
 export function normalizeLang(lang: string | null | undefined): Lang {
   if (lang && VALID_LANGS.includes(lang as Lang)) return lang as Lang;

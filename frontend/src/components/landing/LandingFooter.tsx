@@ -3,16 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
+import { localizePath, delocalizePath } from "@/lib/i18n";
 
 export default function LandingFooter() {
   const t = useT();
+  const { lang } = useLang();
   const pathname = usePathname();
-  const isLanding = pathname === "/";
+  const { path: realPath } = delocalizePath(pathname);
+  const isLanding = realPath === "/";
   const navHref = (hash: string) => {
     if (isLanding) return hash;
-    return `/${hash}`;
+    return `${localizePath("/", lang)}${hash}`;
   };
+  const lhref = (path: string) => localizePath(path, lang);
 
   return (
     <footer style={{ borderTop: "1px solid var(--border)", padding: "40px 24px" }} className="section-pad">
@@ -36,16 +40,16 @@ export default function LandingFooter() {
               <a href={navHref("#registre")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navRegistries")}</a>
               <a href={navHref("#ukazka")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.reporty")}</a>
               <a href={navHref("#pricing")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
-              <Link href="/slovnik" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerGlossary")}</Link>
+              <Link href={lhref("/slovnik")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerGlossary")}</Link>
             </div>
           </div>
           <div>
             <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>{t("home.footerLegal")}</h4>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <a href="/terms" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</a>
-              <a href="/privacy" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerPrivacy")}</a>
-              <a href="/dpa" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>DPA</a>
-              <a href="/documents" style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</a>
+              <Link href={lhref("/terms")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</Link>
+              <Link href={lhref("/privacy")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerPrivacy")}</Link>
+              <Link href={lhref("/dpa")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>DPA</Link>
+              <Link href={lhref("/documents")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</Link>
             </div>
           </div>
         </div>

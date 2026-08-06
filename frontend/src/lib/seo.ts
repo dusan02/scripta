@@ -213,22 +213,36 @@ export function getOgLocale(lang: Lang): string {
   return LOCALE_MAP[lang];
 }
 
-/** Generate hreflang alternates for a given path */
+/** Generate hreflang alternates for a given path using URL prefixes */
 export function getHreflangAlternates(path: string = "/"): Record<string, string> {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   const result: Record<string, string> = {};
   for (const lang of VALID_LANGS) {
-    result[lang] = `${BASE_URL}${cleanPath}?lang=${lang}`;
+    if (lang === "sk") {
+      result[lang] = `${BASE_URL}${cleanPath}`;
+    } else {
+      result[lang] = `${BASE_URL}/${lang}${cleanPath === "/" ? "" : cleanPath}`;
+    }
   }
-  // Also add x-default pointing to SK
+  // x-default points to SK (no prefix)
   result["x-default"] = `${BASE_URL}${cleanPath}`;
   return result;
+}
+
+/** Get the canonical URL for a given path and language */
+export function getCanonicalUrl(path: string, lang: Lang): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (lang === "sk") {
+    return `${BASE_URL}${cleanPath}`;
+  }
+  return `${BASE_URL}/${lang}${cleanPath === "/" ? "" : cleanPath}`;
 }
 
 /** Generate localized global metadata */
 export function generateGlobalMetadata(lang: Lang, canonicalPath: string = "/"): Metadata {
   const seo = SEO_DATA[lang];
   const alternates = getHreflangAlternates(canonicalPath);
+  const canonical = getCanonicalUrl(canonicalPath, lang);
 
   return {
     metadataBase: new URL(BASE_URL),
@@ -265,7 +279,7 @@ export function generateGlobalMetadata(lang: Lang, canonicalPath: string = "/"):
       images: ["/logo-verifa.png"],
     },
     alternates: {
-      canonical: `${BASE_URL}${canonicalPath}`,
+      canonical,
       languages: alternates,
     },
   };
@@ -278,6 +292,7 @@ export function generatePageMetadata(page: string, lang: Lang): Metadata {
 
   const seo = SEO_DATA[lang];
   const alternates = getHreflangAlternates(`/${page}`);
+  const canonical = getCanonicalUrl(`/${page}`, lang);
 
   return {
     title: pageSeo.title,
@@ -297,7 +312,7 @@ export function generatePageMetadata(page: string, lang: Lang): Metadata {
       description: pageSeo.description,
     },
     alternates: {
-      canonical: `${BASE_URL}/${page}`,
+      canonical,
       languages: alternates,
     },
   };
@@ -315,12 +330,9 @@ export function generateFirmaMetadata(name: string, ico: string, city: string | 
     .replace("{ico}", ico)
     .replace("{city}", cityPart);
 
-  const canonicalUrl = `https://verifa.sk/firma/${ico}`;
-  const alternates: Record<string, string> = {};
-  for (const l of VALID_LANGS) {
-    alternates[l] = `${canonicalUrl}?lang=${l}`;
-  }
-  alternates["x-default"] = canonicalUrl;
+  const firmaPath = `/firma/${ico}`;
+  const canonicalUrl = getCanonicalUrl(firmaPath, lang);
+  const alternates = getHreflangAlternates(firmaPath);
 
   return {
     title,

@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
+import { localizePath } from "@/lib/i18n";
 
 export default function StickyCta() {
   const t = useT();
+  const { lang } = useLang();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function StickyCta() {
           </span>
         </div>
         <Link
-          href="/register"
+          href={localizePath("/register", lang)}
           className="flex-shrink-0 px-5 py-2.5 rounded-lg no-underline font-bold text-sm transition-all hover:opacity-90"
           style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
         >

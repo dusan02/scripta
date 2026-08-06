@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useLang } from "@/components/LanguageProvider";
-import { LANGUAGES } from "@/lib/i18n";
+import { LANGUAGES, localizePath, delocalizePath, Lang } from "@/lib/i18n";
 
 export default function LanguageSwitcher() {
   const { lang, setLang } = useLang();
+  const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -20,6 +23,17 @@ export default function LanguageSwitcher() {
   }, []);
 
   const current = LANGUAGES.find((l) => l.code === lang)!;
+
+  function switchTo(nextLang: Lang) {
+    setLang(nextLang);
+    setOpen(false);
+
+    // Navigate to the localized URL
+    // Strip existing lang prefix from current pathname, then add new one
+    const { path: realPath } = delocalizePath(pathname);
+    const newPath = localizePath(realPath, nextLang);
+    router.push(newPath);
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -53,10 +67,7 @@ export default function LanguageSwitcher() {
           {LANGUAGES.map((l) => (
             <button
               key={l.code}
-              onClick={() => {
-                setLang(l.code);
-                setOpen(false);
-              }}
+              onClick={() => switchTo(l.code)}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left"
               style={{
                 background: l.code === lang ? "var(--accent-light)" : "transparent",

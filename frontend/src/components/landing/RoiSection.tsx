@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
+import { localizePath } from "@/lib/i18n";
 
 const PACKAGES = [
   { id: "1x", reports: 1, totalPrice: 14, perReport: 14.0 },
@@ -14,6 +15,7 @@ const VERIFA_MINUTES = 8;
 
 export default function RoiSection() {
   const t = useT();
+  const { lang } = useLang();
   const [hours, setHours] = useState(2.5);
   const [rate, setRate] = useState(35);
   const [pkgIdx, setPkgIdx] = useState(1); // default 10× — best value
@@ -188,7 +190,7 @@ export default function RoiSection() {
 
       <div className="text-center mt-8">
         <Link
-          href="/register"
+          href={localizePath("/register", lang)}
           className="inline-block px-8 py-4 rounded-xl no-underline font-bold text-[16px] transition-all hover:opacity-90"
           style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--shadow-lg)" }}
         >

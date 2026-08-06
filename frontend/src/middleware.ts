@@ -3,39 +3,74 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 const VALID_LANGS = ["sk", "en", "de", "cz", "hu", "pl"];
+// SK is default (no URL prefix). Other langs get /cs/, /en/, etc.
+const LANG_PREFIXES = ["en", "de", "cz", "hu", "pl"];
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  // Language detection: ?lang=xx → set cookie, strip query param
-  const langParam = searchParams.get("lang");
-  let response: NextResponse | null = null;
+  // --- Step 1: Extract language from URL prefix ---
+  // /cs/pricing → rewrite to /pricing with x-verifa-lang: cs
+  // /cs → rewrite to / with x-verifa-lang: cs
+  let detectedLang: string | null = null;
+  let realPath = pathname;
 
-  if (langParam && VALID_LANGS.includes(langParam)) {
-    // Set cookie in response for future requests
-    const res = NextResponse.next();
-    res.cookies.set("verifa-lang", langParam, {
+  for (const lang of LANG_PREFIXES) {
+    if (pathname === `/${lang}`) {
+      detectedLang = lang;
+      realPath = "/";
+      break;
+    }
+    if (pathname.startsWith(`/${lang}/`)) {
+      detectedLang = lang;
+      realPath = pathname.slice(`/${lang}`.length); // strip /cs prefix
+      break;
+    }
+  }
+
+  // --- Step 2: Also check ?lang=xx for backwards compatibility ---
+  const langParam = searchParams.get("lang");
+  if (!detectedLang && langParam && VALID_LANGS.includes(langParam)) {
+    detectedLang = langParam;
+  }
+
+  // --- Step 3: Build response with lang header + cookie ---
+  let langResponse: NextResponse | null = null;
+  if (detectedLang) {
+    if (realPath !== pathname) {
+      // URL prefix detected → rewrite to real path
+      const url = req.nextUrl.clone();
+      url.pathname = realPath;
+      // Remove ?lang= from query if present (avoid duplicate)
+      url.searchParams.delete("lang");
+      langResponse = NextResponse.rewrite(url);
+    } else {
+      // ?lang= detected → no rewrite needed, just pass through
+      langResponse = NextResponse.next();
+    }
+    langResponse.headers.set("x-verifa-lang", detectedLang);
+    langResponse.cookies.set("verifa-lang", detectedLang, {
       maxAge: 60 * 60 * 24 * 365, // 1 year
       path: "/",
       sameSite: "lax",
     });
-    // Set custom request header so generateMetadata sees the language in this same request
-    // (cookies set in middleware response are not visible to Server Components in the same request)
-    res.headers.set("x-verifa-lang", langParam);
-    response = res;
   }
 
+  // --- Step 4: Auth checks (on realPath, not the prefixed path) ---
   // Root: authenticated users → /dashboard, unauthenticated → landing page
-  if (pathname === "/") {
+  if (realPath === "/") {
     if (token?.id) {
       const dashUrl = new URL("/dashboard", req.url);
-      if (response) {
-        return NextResponse.redirect(dashUrl, { headers: response.headers });
+      if (langResponse) {
+        // Preserve lang header in redirect
+        const redirect = NextResponse.redirect(dashUrl);
+        redirect.headers.set("x-verifa-lang", detectedLang || "sk");
+        return redirect;
       }
       return NextResponse.redirect(dashUrl);
     }
-    return response || NextResponse.next();
+    return langResponse || NextResponse.next();
   }
 
   // Protected routes: unauthenticated → /login
@@ -49,16 +84,16 @@ export async function middleware(req: NextRequest) {
     "/credits",
   ];
   const isProtected = protectedRoutes.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
+    (route) => realPath === route || realPath.startsWith(route + "/")
   );
 
   if (isProtected && !token?.id) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    loginUrl.searchParams.set("callbackUrl", realPath);
     return NextResponse.redirect(loginUrl);
   }
 
-  return response || NextResponse.next();
+  return langResponse || NextResponse.next();
 }
 
 export const config = {
@@ -69,6 +104,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, icon.svg, logo-verifa.png (favicon files)
+     * - robots.txt, sitemap.xml
      */
     "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|logo-verifa.png|robots.txt|sitemap.xml).*)",
   ],

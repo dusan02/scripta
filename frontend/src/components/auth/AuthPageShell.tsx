@@ -2,9 +2,10 @@
 
 import { ReactNode } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { useLang } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
-import { LANGUAGES } from "@/lib/i18n";
+import { LANGUAGES, localizePath, delocalizePath, Lang } from "@/lib/i18n";
 
 interface AuthPageShellProps {
   children: ReactNode;
@@ -16,6 +17,15 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { lang, setLang, t } = useLang();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function switchTo(nextLang: Lang) {
+    setLang(nextLang);
+    const { path: realPath } = delocalizePath(pathname);
+    const newPath = localizePath(realPath, nextLang);
+    router.push(newPath);
+  }
 
   return (
     <div
@@ -41,7 +51,7 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
         {LANGUAGES.map((l) => (
           <button
             key={l.code}
-            onClick={() => setLang(l.code)}
+            onClick={() => switchTo(l.code)}
             style={{
               padding: "6px 10px",
               borderRadius: "6px",
@@ -64,7 +74,7 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
         {/* Back button */}
         <div style={{ marginBottom: "16px" }}>
           <Link
-            href="/"
+            href={localizePath("/", lang)}
             style={{
               display: "inline-flex",
               alignItems: "center",

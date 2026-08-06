@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useScrollLock, useScrolled, useHideOnScroll } from "@/components/useNav";
 import { HamburgerButton, MobileMenuBackdrop } from "@/components/NavShared";
 import { useState } from "react";
+import { localizePath, delocalizePath } from "@/lib/i18n";
 
 const NAV_ITEMS = [
   { hash: "#obsah", key: "home.navFeatures" },
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
 
 export default function LandingNav() {
   const t = useT();
+  const { lang } = useLang();
   const pathname = usePathname();
   const scrolled = useScrolled(20);
   const authBarVisible = useHideOnScroll(100);
@@ -26,12 +28,16 @@ export default function LandingNav() {
   useScrollLock(mobileMenuOpen);
 
   // On the landing page, hash links scroll to sections.
-  // On other pages (e.g. /reports), link to landing page sections or /reports directly.
-  const isLanding = pathname === "/";
+  // On other pages, link to landing page sections with lang prefix.
+  const { path: realPath } = delocalizePath(pathname);
+  const isLanding = realPath === "/";
   const navHref = (hash: string) => {
     if (isLanding) return hash;
-    return `/${hash}`;
+    return `${localizePath("/", lang)}${hash}`;
   };
+
+  // Localized link helper
+  const lhref = (path: string) => localizePath(path, lang);
 
   return (
     <nav
@@ -44,7 +50,7 @@ export default function LandingNav() {
       <div className="max-w-[1200px] mx-auto px-4 flex items-center justify-between h-16">
         {/* Left: Logo + desktop nav links */}
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center no-underline">
+          <Link href={lhref("/")} className="flex items-center no-underline">
             <Logo size="sm" />
           </Link>
 
@@ -69,14 +75,14 @@ export default function LandingNav() {
             <ThemeToggle size="md" />
             <LanguageSwitcher />
             <Link
-              href="/register"
+              href={lhref("/register")}
               className="inline-flex items-center h-9 px-4 rounded-lg text-sm font-medium border transition-all hover:opacity-80"
               style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
             >
               {t("home.navRegister")}
             </Link>
             <Link
-              href="/login"
+              href={lhref("/login")}
               className="inline-flex items-center h-9 px-5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
               style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
             >
@@ -106,14 +112,14 @@ export default function LandingNav() {
         }}
       >
         <Link
-          href="/register"
+          href={lhref("/register")}
           className="flex-1 text-center text-sm font-semibold leading-10 h-10 rounded-lg border transition-all hover:opacity-80"
           style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
         >
           {t("home.navRegister")}
         </Link>
         <Link
-          href="/login"
+          href={lhref("/login")}
           className="flex-1 text-center text-sm font-semibold leading-10 h-10 rounded-lg transition-all hover:opacity-90"
           style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
         >
