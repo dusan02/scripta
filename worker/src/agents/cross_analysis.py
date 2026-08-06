@@ -24,6 +24,12 @@ Dostávaš všetky dáta firmy v JSON formáte: finančné výkazy (kľúčové 
 **REGISTRY FINDINGS — KRITICKÉ:**
 V `registryFindings` nájdeš nálezy z registrov (NCRZP, Finančná správa, SP dlžníci, atď.). Ak je subjekt v zozname dlžníkov (NCRZP, SP, Finančná správa), MUSÍŠ to výslovne spomenúť v executive_summary ako prvé riziko. Napríklad: "Subjekt je v zozname dlžníkov NCRZP — to je kritické riziko pre právnikov a banky."
 
+**UNVERIFIED REGISTRY STATUS — ZABRÁN HALUCINÁCIÁM:**
+V `registryStatusSummary` nájdeš pre každý register jeden z troch stavov:
+- `CLEAN` — scraper úspešne overil, subjekt nie je v zozname. Môžeš písať "čistý register".
+- `RECORD_FOUND` — scraper našiel záznam. MUSÍŠ ho spomenúť ako riziko.
+- `UNVERIFIED` — scraper zlyhal (timeout, chyba). NEMÔŽEŠ tvrdiť že register je "čistý" alebo že firma je "spoľahlivý daňový subjekt". Namiesto toho napíš: "Register X sa nepodarilo overiť (technický problém)".
+
 {COMMON_BUT_PATTERNS['sk']}
 
 **PRAVIDLÁ:**
@@ -39,6 +45,12 @@ You receive all company data in JSON format: financial statements (key metrics i
 1. EXECUTIVE SUMMARY — Cross-correlation analysis. NOT fact summarization. Find contradictions and anomalies.
 2. KEY RISK — The biggest threat to the company in one sentence.
 
+**UNVERIFIED REGISTRY STATUS — PREVENT HALLUCINATIONS:**
+In `registryStatusSummary` you will find one of three states for each registry:
+- `CLEAN` — scraper successfully verified, subject is not in the list. You may write "clean registry".
+- `RECORD_FOUND` — scraper found a record. You MUST mention it as a risk.
+- `UNVERIFIED` — scraper failed (timeout, error). You CANNOT claim the registry is "clean" or that the company is a "reliable tax subject". Instead write: "Registry X could not be verified (technical issue)".
+
 {COMMON_BUT_PATTERNS['en']}
 
 **RULES:**
@@ -53,6 +65,12 @@ Sie erhalten alle Unternehmensdaten im JSON-Format: Jahresabschlüsse (Schlüsse
 **IHRE AUFGABE:**
 1. EXECUTIVE SUMMARY — Kreuzkorrelationsanalyse. KEINE Faktenzusammenfassung. Finden Sie Widersprüche und Anomalien.
 2. KEY RISK — Die größte Bedrohung für das Unternehmen in einem Satz.
+
+**UNVERIFIED REGISTRY STATUS — HALLUZINATIONEN VERHINDERN:**
+In `registryStatusSummary` finden Sie für jedes Register einen von drei Zuständen:
+- `CLEAN` — Scraper erfolgreich verifiziert, Subjekt nicht in der Liste. Sie dürfen "sauberes Register" schreiben.
+- `RECORD_FOUND` — Scraper hat einen Eintrag gefunden. Sie MÜSSEN es als Risiko erwähnen.
+- `UNVERIFIED` — Scraper fehlgeschlagen (Timeout, Fehler). Sie DÜRFEN NICHT behaupten, das Register sei "sauber" oder die Firma sei ein "zuverlässiger Steuerpflichtiger". Schreiben Sie stattdessen: "Register X konnte nicht verifiziert werden (technisches Problem)".
 
 {COMMON_BUT_PATTERNS['de']}
 

@@ -704,6 +704,13 @@ async def run_and_save_audit_verdict(
             src_status = getattr(src, 'status', 'UNKNOWN')
             src_findings = getattr(src, 'findings', None) or ""
             if src_status != "SUCCESS":
+                # FAILED/UNAVAILABLE scrapery sa nezahrnú do findings,
+                # ale zaznamenaj ich do status summary aby LLM nehalucinoval
+                # že sú "čisté" keď sa fakt neoverili.
+                registry_status_summary.append(
+                    f"{src_type}: UNVERIFIED (scraper zlyhal — dáta sa nepodarilo overiť, "
+                    f"NIE je to 'čistý register', NEZÁVERUJ že subjekt nie je dlžník)"
+                )
                 continue
             registry_findings.append({
                 "source_type": src_type,
