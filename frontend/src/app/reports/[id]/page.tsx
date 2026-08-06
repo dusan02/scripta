@@ -535,9 +535,16 @@ export default function ReportDetailPage() {
     return () => clearInterval(timer);
   }, [report, isFinished, fetchReport]);
 
-  // Cancel countdown timer (8 seconds window)
+  // Cancel countdown timer — iba ak je report mladší než 15s
   useEffect(() => {
-    if (isFinished || cancelling) return;
+    if (isFinished || cancelling || !report?.createdAt) return;
+    const ageSec = (Date.now() - new Date(report.createdAt).getTime()) / 1000;
+    if (ageSec >= 15) {
+      setCancelCountdown(0);
+      return;
+    }
+    // Nastav countdown na zostávajúci čas
+    setCancelCountdown(Math.max(0, Math.ceil(15 - ageSec)));
     const timer = setInterval(() => {
       setCancelCountdown(prev => {
         if (prev <= 1) {
@@ -548,7 +555,7 @@ export default function ReportDetailPage() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isFinished, cancelling]);
+  }, [isFinished, cancelling, report?.createdAt]);
 
   const handleCancel = async () => {
     if (!report) return;
@@ -719,7 +726,10 @@ export default function ReportDetailPage() {
   const canRetryFailed = report.status === "FAILED";
   const canRetryPartial = report.status === "PARTIAL";
   const canRetry = canRetryFailed || canRetryPartial;
-  const canCancel = !isFinished && cancelCountdown > 0 && report.status !== "CANCELLED";
+  // Storno iba krátko po vytvorení (15s okno), aby užívateľ mohol zrušiť
+  // predtým než sa začnú míňať tokeny na agentov. Nie pri otvorení starého reportu.
+  const reportAgeSec = report.createdAt ? (Date.now() - new Date(report.createdAt).getTime()) / 1000 : Infinity;
+  const canCancel = !isFinished && cancelCountdown > 0 && report.status !== "CANCELLED" && reportAgeSec < 15;
 
   const score = report.verifaScore ?? 100;
   const scoreColor = score < 50 ? "var(--danger)" : score < 80 ? "var(--warning)" : "var(--success)";
