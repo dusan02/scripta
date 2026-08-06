@@ -664,6 +664,130 @@ async def _playwright_fallback(
     return saved_files
 
 
+# ── HTML table scraper (fallback when JSON API returns empty tables) ──────────
+
+# URL pattern: /domain/financialreport/show/{vykaz_id}/{table_id}
+# table_id: 0=titulná, 550=aktív, 551=pasív, 552=PnL
+_HTML_TABLE_IDS = {"aktiv": 550, "pasiv": 551, "income": 552}
+# Number of data columns per table type (matches RÚZ JSON API format)
+_HTML_DATA_COLS = {"aktiv": 4, "pasiv": 2, "income": 2}
+
+
+def _parse_sk_number(s: str) -> Optional[float]:
+    """Parse Slovak-formatted number: '59 833 603' → 59833603.0, '' → None."""
+    if not s or s.strip() == '':
+        return None
+    cleaned = s.replace('\xa0', ' ').replace(' ', '').replace('\u00a0', '')
+    cleaned = cleaned.replace(',', '.')  # decimal comma → dot
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _parse_html_table_to_data(html: str, data_cols: int) -> list[list]:
+    """Parse HTML <table> from RÚZ show page into 'data' format matching JSON API.
+
+    Returns list of [val1, val2, ...] lists, indexed by (cisloRiadku - 1).
+    Empty rows are filled with [None] * data_cols to preserve indexing.
+    """
+    import re
+    trs = re.findall(r'<tr[^>]*>(.*?)</tr>', html, re.DOTALL | re.IGNORECASE)
+    # Build dict: cisloRiadku → [values]
+    row_map = {}
+    max_row = 0
+    for tr in trs:
+        cells = re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', tr, re.DOTALL | re.IGNORECASE)
+        texts = [re.sub(r'<[^>]+>', '', c).strip() for c in cells]
+        if len(texts) < 4:
+            continue
+        cislo = texts[2]
+        if not cislo.isdigit():
+            continue
+        row_num = int(cislo)
+        # Data columns start after oznacenie, text, cisloRiadku (index 3+)
+        data_values = []
+        for i in range(data_cols):
+            idx = 3 + i
+            if idx < len(texts):
+                data_values.append(_parse_sk_number(texts[idx]))
+            else:
+                data_values.append(None)
+        row_map[row_num] = data_values
+        if row_num > max_row:
+            max_row = row_num
+
+    # Convert to list indexed by (row_num - 1)
+    data = []
+    for i in range(1, max_row + 1):
+        if i in row_map:
+            data.append(row_map[i])
+        else:
+            data.append([None] * data_cols)
+    return data
+
+
+async def _scrape_html_tables(
+    client: httpx.AsyncClient,
+    vykazy: list[dict],
+    ico: str,
+) -> Optional["FinancialMetrics"]:
+    """Scrape HTML tables from RÚZ show pages when JSON API returns empty tables.
+
+    Fetches /domain/financialreport/show/{vykaz_id}/{550|551|552} and parses
+    the HTML <table> into the same 'data' format as JSON API, then feeds into
+    parse_tables_to_metrics.
+    """
+    from src.ruz_parser import parse_tables_to_metrics, FinancialMetrics
+
+    # Collect titulnaStrana from first výkaz
+    ts = {}
+    for v in vykazy:
+        obsah = v.get("obsah", {})
+        if obsah.get("titulnaStrana"):
+            ts = obsah["titulnaStrana"]
+            break
+
+    # Find the main výkaz ID (the one with tabuľky, even if empty)
+    vykaz_id = None
+    id_sablony = None
+    for v in vykazy:
+        if v.get("obsah", {}).get("tabulky"):
+            vykaz_id = v.get("id")
+            id_sablony = v.get("idSablony")
+            break
+    if not vykaz_id:
+        return None
+
+    # Fetch HTML pages for each table (aktív, pasív, PnL)
+    all_tables = []
+    for tab_key, tab_id in _HTML_TABLE_IDS.items():
+        url = f"{_RUZ_BASE}/domain/financialreport/show/{vykaz_id}/{tab_id}"
+        try:
+            r = await client.get(url, timeout=15)
+            if r.status_code != 200:
+                logger.debug(f"[RUZ_HTML] {tab_key} ({tab_id}): HTTP {r.status_code}")
+                continue
+            data = _parse_html_table_to_data(r.text, _HTML_DATA_COLS[tab_key])
+            if data:
+                table_dict = {
+                    'nazov': {'sk': tab_key, 'en': tab_key},
+                    'data': data,
+                }
+                all_tables.append(table_dict)
+                logger.debug(f"[RUZ_HTML] {tab_key} ({tab_id}): {len(data)} rows parsed")
+            else:
+                logger.debug(f"[RUZ_HTML] {tab_key} ({tab_id}): 0 rows")
+        except Exception as e:
+            logger.warning(f"[RUZ_HTML] {tab_key} ({tab_id}): {e}")
+
+    if not all_tables:
+        return None
+
+    # Use existing parser to convert data → FinancialMetrics
+    return parse_tables_to_metrics(all_tables, ts, ico, id_sablony=id_sablony)
+
+
 async def _process_zavierka(
     client: httpx.AsyncClient,
     z: dict,
@@ -735,10 +859,22 @@ async def _process_zavierka(
         try:
             from src.ruz_parser import parse_zavierka_to_metrics, save_metrics_sidecar
             parsed_metrics = parse_zavierka_to_metrics(all_vykazy, ico)
-            if parsed_metrics:
+            if parsed_metrics and parsed_metrics.celkove_aktiva is not None:
                 logger.info(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — metrics extracted (assets={parsed_metrics.celkove_aktiva}, revenue={parsed_metrics.trzby_z_hlavnej_cinnosti})")
             else:
-                logger.debug(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — no tables found for parsing")
+                # ── HTML fallback: JSON API returned empty tables ──
+                # RÚZ sometimes returns table structures with 0 rows in JSON API,
+                # but the HTML page (show/{id}/550,551,552) has full data.
+                # Scrape HTML tables before falling back to expensive PDF+LLM.
+                logger.info(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — empty tables, trying HTML scrape")
+                try:
+                    parsed_metrics = await _scrape_html_tables(client, all_vykazy, ico)
+                    if parsed_metrics and parsed_metrics.celkove_aktiva is not None:
+                        logger.info(f"[RUZ_API] HTML scrape: IČO {ico} rok {year} — metrics extracted (assets={parsed_metrics.celkove_aktiva}, revenue={parsed_metrics.trzby_z_hlavnej_cinnosti})")
+                    else:
+                        logger.warning(f"[RUZ_API] HTML scrape: IČO {ico} rok {year} — no data found, will use PDF+LLM fallback")
+                except Exception as html_err:
+                    logger.warning(f"[RUZ_API] HTML scrape failed for IČO {ico} rok {year}: {html_err}")
         except Exception as e:
             logger.warning(f"[RUZ_API] JSON parser failed for IČO {ico} rok {year}: {e}")
 
