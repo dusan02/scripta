@@ -65,6 +65,57 @@ REGELN:
 - Kostenposten sind IMMER positiv (absoluter Wert). Klammern (1500) = 1500.
 - Wenn der Wert weder im Ausweis noch im Anhang gefunden wird, null zurückgeben und found_in='not_found'."""
 
+_STAFF_COSTS_PROMPT_CZ = """Jsi Targeted Forensic Searcher @ Verifa.sk. Tvou JEDINOU úlohou je detailní vyhľadávanie a kvantifikace osobních/personálních nákladů (staff costs / employee benefits) v účetní závěrce, kde standardní extrakce selhala.
+
+Hledej tyto názvy položek (zkus všechny):
+- Slovensky: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"
+- Anglicky: "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs", "Personnel costs", "Labor costs"
+
+KRITICKÉ: Výkaz zisku a ztráty může být prezentován PODLE FUNKCE (by function), ne podle druhu (by nature). V takovém případě:
+1. Výkaz zisku a ztráty NEBUDE mít samostatný řádek pro osobní náklady — budou skryté v "Cost of sales", "Administrative expenses", "Selling expenses".
+2. V takovém případě HLEDEJ V POZNÁMKÁCH (Notes) — konkrétně v poznámce o zaměstnaneckých dávkách / employee benefits / staff costs disclosure.
+3. Poznámky typicky obsahují tabulku s rozkladem: "Wages and salaries" + "Social security contributions" + "Other staff costs" = Total. Sčítej všechny složky.
+
+PRAVIDLA:
+- Všechny hodnoty extrahuj V EURADECH. Pokud tabulka uvádí "v tisících EUR", vynásob 1000. Pokud "v milionech EUR", vynásob 1 000 000.
+- Extrahuj hodnotu pro AKTUÁLNÍ účetní období (první sloupec dat / current year).
+- Nákladové položky VŽDY extrahuj jako KLADNÁ čísla (absolutní hodnota). Závorky (1500) = 1500.
+- Pokud hodnotu nenajdeš ani ve výkazu ani v poznámkách, vrať null a found_in='not_found'."""
+
+_STAFF_COSTS_PROMPT_HU = f"""Ön a Verifa.sk cégnél működő Célzott Forenzikus Kutató. EGYETLEN feladata a személyi jellegű ráfordítások / munkavállalói juttatások keresése és számszerűsítése a pénzügyi kimutatásokban ott, ahol a fő kinyerési folyamat sikertelen volt.
+
+Keresse ezeket a tételneveket (próbálja meg mindegyiket):
+- Angol: "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs", "Personnel costs", "Labor costs"
+- Szlovák: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"
+
+FONTOS FIGYELMEZTETÉS: Az eredménykimutatás KÖLTSÉGFUNKCIÓ szerint is bemutatható, nemcsak költségnem szerint. Ebben az esetben:
+1. Az eredménykimutatásban NEM szerepel külön "Személyi jellegű ráfordítások" tétel — azok az "Értékesítés közvetlen költségei", "Adminisztrációs költségek", "Értékesítési költségek" sorokba vannak beépítve.
+2. Ebben az esetben NÉZZEN KÖRBE A MEGJEGYZÉSEKBEN (mellékletben) — kifejezetten a munkavállalói juttatásokra / személyi jellegű ráfordításokra vonatkozó kiegészítő megjegyzésben.
+3. A megjegyzések általában egy részletező táblázatot tartalmaznak: "Bérek és juttatások" + "Társadalombiztosítási járulékok" + "Egyéb személyi jellegű ráfordítások" = Összesen. Összegbe foglalja az összes komponenst.
+
+SZABÁLYOK:
+- Minden értéket EUR-ban nyerjen ki. Ha a táblázat azt írja, hogy "ezer EUR-ban", szorozza meg 1000-rel. Ha "millió EUR-ban", szorozza meg 1 000 000-ral.
+- A JELENLEGI elszámolási időszakra (első adatoszlop / aktuális év) vonatkozó értéket nyerje ki.
+- A költségelemek MINDIG pozitívak (abszolút érték). Zárójelek (1500) = 1500.
+- Ha az értéket sem a kimutatásban, sem a megjegyzésekben nem találja, adjon vissza null értéket, és a found_in='not_found' értéket állítsa be."""
+
+_STAFF_COSTS_PROMPT_PL = """Jste cílený forenzní vyhledávač ve společnosti Verifa.sk. Vaším JEDINÝM úkolem je vyhledat a vyčíslit osobní náklady / zaměstnanecké požitky v účetní závěrce, kde hlavní extrakce selhala.
+
+Hledejte tyto názvy položek (vyzkoušejte všechny):
+- Anglicky: "Staff costs", "Employee benefits expense", "Wages and salaries", "Salaries and wages", "Employee costs", "Personnel costs", "Labor costs"
+- Slovensky: "Osobné náklady", "Mzdové náklady", "Personálne náklady", "Náklady na zamestnancov", "Zamestnanecké dávky", "Mzdové a osobné náklady"
+
+KRITICKÉ: Výkaz zisků a ztrát může být prezentován PODLE FUNKCE, nikoli podle druhu. V takovém případě:
+1. Výkaz zisků a ztrát nebude obsahovat samostatný řádek "Osobní náklady" – ty jsou skryty v položkách "Náklady vynaložené na dosažení výnosů" / "Náklady na prodané zboží", "Administrativní náklady", "Prodejní náklady".
+2. V takovém případě HLEDEJTE V PŘÍLOZE – konkrétně v poznámce týkající se zaměstnaneckých požitků / osobních nákladů.
+3. Přílohy obvykle obsahují rozpisovou tabulku: "Mzdové náklady" + "Náklady na sociální zabezpečení" + "Ostatní osobní náklady" = Celkem. Sečtěte všechny složky.
+
+PRAVIDLA:
+- Extrahujte všechny hodnoty v EUR. Pokud tabulka uvádí "v tisících EUR", vynásobte 1000. Pokud "v milionech EUR", vynásobte 1 000 000.
+- Extrahujte hodnotu za AKTUÁLNÍ účetní období (první datový sloupec / aktuální rok).
+- Nákladové položky jsou VŽDY kladné (absolutní hodnota). Závorky (1500) = 1500.
+- Pokud hodnotu nemůžete najít ve výkazu ani v příloze, vraťte hodnotu null a found_in='not_found'."""
+
 
 async def extract_staff_costs_focused(file_path: str, model: str = settings.model_ifrs, report_language: str = "sk") -> Optional[float]:
     """
@@ -77,6 +128,9 @@ async def extract_staff_costs_focused(file_path: str, model: str = settings.mode
         "sk": _STAFF_COSTS_PROMPT_SK,
         "en": _STAFF_COSTS_PROMPT_EN,
         "de": _STAFF_COSTS_PROMPT_DE,
+        "cz": _STAFF_COSTS_PROMPT_CZ,
+        "hu": _STAFF_COSTS_PROMPT_HU,
+        "pl": _STAFF_COSTS_PROMPT_PL,
     }
     system_prompt = prompts.get(report_language, _STAFF_COSTS_PROMPT_SK)
 

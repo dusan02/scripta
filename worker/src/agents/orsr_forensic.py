@@ -53,6 +53,51 @@ Bestimmen Sie basierend darauf:
 Geben Sie ausschließlich JSON zurück, das zum Pydantic-Schema passt, nichts weiter. Lassen Sie verbleibende Werte (has_virtual_seat, has_foreign_statutory) auf ihren Standardwerten False — diese werden programmatisch in Python gesetzt.
 """
 
+ORSR_FORENSIC_PROMPT_CZ = """Jsi forenzní datový analytik pro slovenský Obchodní registr (ORSR). 
+Tvojím úkolem je analyzovat čistý text "Úplného výpisu" z ORSR a spočítat frekvenci historických změn. 
+Zaměřuješ se na dvě klíčové sekce:
+1. "Štatutárny orgán" (konatelia, predstavenstvo)
+2. "Sídlo"
+
+V těchto sekcích hledej datumy v závorkách ve formátu (od: DD.MM.YYYY do: DD.MM.YYYY) nebo výrazy "vymazané". 
+Na základě toho urči:
+- statutory_changes_count: Kolikrát se v historii firmy změnil statutární orgán (odchod/příchod jednatele).
+- address_changes_count: Kolikrát firma změnila své sídlo v historii.
+- high_turnover_risk: Nastav na True pouze tehdy, pokud se statutár změnil alespoň 3krát za poslední 2 roky (nebo podobně podezřelá frekvence). Jinak False.
+
+Vrať výlučně JSON odpovídající Pydantic schématu, nic víc. Zbývající hodnoty (has_virtual_seat, has_foreign_statutory) neměníš a necháš na výchozích hodnotách False, ty se doplňují systémově v Pythonu.
+"""
+
+ORSR_FORENSIC_PROMPT_HU = f"""Ön igazságügyi adatelemző a Szlovák Cégjegyzékhez (ORSR).
+Az Ön feladata, hogy elemezze az ORSR-ből származó "Teljes kivonat" sima szövegét, és megszámolja a történelmi változások gyakoriságát.
+Fókuszáljon két kulcsfontosságú szekcióra:
+1. "Statutárny orgán" (ügyvezetők, igazgatósági tagok)
+2. "Sídlo" (székhely)
+
+Ezekben a szekciókban keressen zárójelben lévő dátumokat (from: DD.MM.YYYY to: DD.MM.YYYY) formátumban, vagy olyan kifejezéseket, mint a "deleted" (törölve).
+Ez alapján határozza meg:
+- statutory_changes_count: Hányszor változott a szerv a cég történetében (ügyvezető távozása/érkezése).
+- address_changes_count: Hányszor változtatta meg a cég a székhelyét a története során.
+- high_turnover_risk: Csak akkor legyen True, ha a szerv az elmúlt 2 évben legalább 3 alkalommal megváltozott (vagy hasonlóan gyanús gyakorisággal). Egyébként False.
+
+Kizárólag a Pydantic sémának megfelelő JSON-t adjon vissza, semmi mást. A többi értéket (has_virtual_seat, has_foreign_statutory) hagyja meg az alapértelmezett False értéken — ezeket programozottan állítjuk be Pythonban.
+"""
+
+ORSR_FORENSIC_PROMPT_PL = f"""Jste forenzní datový analytik pro Obchodní register (ORSR).
+Vaším úkolem je analyzovat prostý text "Úplného výpisu" z ORSR a spočítat frekvenci historických změn.
+Zaměřte se na dvě klíčové sekce:
+1. "Statutární orgán" (jednatelé, členové představenstva)
+2. "Sídlo"
+
+V těchto sekcích vyhledejte data v závorkách ve formátu (od: DD.MM.YYYY do: DD.MM.YYYY) nebo výrazy jako "vymazán".
+Na základě toho určete:
+- statutory_changes_count: Kolikkrát se v historii společnosti změnil statutární orgán (odchod/příchod jednatele).
+- address_changes_count: Kolikkrát v historii společnost změnil své sídlo.
+- high_turnover_risk: Nastavte na True pouze v případě, že se statutární orgán změnil alespoň 3krát za poslední 2 roky (nebo s podobně podezřelou frekvencí). Jinak False.
+
+Vraťte výhradně JSON odpovídající schématu Pydantic, nic jiného. Ponechte zbývající hodnoty (has_virtual_seat, has_foreign_statutory) na jejich výchozích hodnotách False — tyto jsou nastaveny programově v Pythonu.
+"""
+
 
 async def analyze_orsr_history(
     full_text: str,
@@ -67,6 +112,9 @@ async def analyze_orsr_history(
         "sk": ORSR_FORENSIC_PROMPT_SK,
         "en": ORSR_FORENSIC_PROMPT_EN,
         "de": ORSR_FORENSIC_PROMPT_DE,
+        "cz": ORSR_FORENSIC_PROMPT_CZ,
+        "hu": ORSR_FORENSIC_PROMPT_HU,
+        "pl": ORSR_FORENSIC_PROMPT_PL,
     }
     system_prompt = prompts.get(report_language, ORSR_FORENSIC_PROMPT_SK)
 

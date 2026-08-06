@@ -59,6 +59,212 @@ e) ALTMAN Z″ vs SEKTOR: Z″ zeigt graue Zone, ABER Firma in niedrigmarginen N
 f) SAUBERE REGISTER vs NEGATIVE TRENDS: Saubere Register, ABER finanzielle Trends sinken.
 g) AUDIT vs OHNE AUDIT: Hoher Umsatz ohne Audit — begrenzte Glaubwürdigkeit.
 h) WEISSE PFERDE: Häufige Geschäftsführerwechsel + virtuelle Adresse + ausländischer Statutar = KRITISCHER RED FLAG.''',
+    'pl': '''**KRÍŽOVÁ ANALÝZA – VZORCE „ALE“ (MUSIA SA APLIKOVAŤ):**
+   Vaša analýza nesmie byť len súhrnom faktov. Musíte aktívne hľadať protiklady a napätia medzi ukazovateľmi. Použite vzorec „X je pozitívne, ALE Y to komplikuje, čo môže znamenať Z“. Tieto závery majú najvyššiu hodnotu, pretože prepájajú viacero zdrojov údajov.
+
+   Konkrétne vzorce, ktoré MUSÍTE skontrolovať a v prípade nálezu zohľadniť v poli executive_summary:
+
+   a) LIKVIDITA vs POHĽADÁVKY: „Spoločnosť má vynikajúcu likviditu (bežná likvidita > 2), ALE pohľadávky rastú rýchlejšie ako tržby za posledné 2 roky. To môže znamenat, že spoločnosť predáva na úver, ale zákazníci neplatia – kvalita aktív sa zhoršuje.“
+
+   b) EBITDA vs MARŽA: „EBITDA medziročne rastie, ALE čistá marža klesá. Rast EBITDA je hnuteľný vyšším obratom, nie efektivitou – spoločnosť zarába menej na každom eure výnosov.“
+
+   c) ZISK vs CASH FLOW: „Spoločnosť vykazuje vysoký čistý zisk, ALE prevádzkový cash flow je záporný alebo oveľa nižší. To môže znamenať, že zisk je len papierový – peniaze v skutočnosti neprichádzajú alebo sú viazané v rastúcich pohľadávkach či zásobách.“
+
+   d) RAST TRŽIEB vs ZÁVÄZKY: „Tržby rastú, ALE krátkodobé záväzky rastú ešte rýchlejšie. Rast je financovaný dlhom, nie vlastným imaním – ak tržby klesnú, spoločnosť môže čeliť kríze likvidity.“
+
+   e) ALTMAN Z″ vs ODVETVIE: „Altman Z″ indikuje šedú zónu, ALE spoločnosť pôsobí v odvetví NACE 46 (veľkoobchod), kde sú vysoký pomer D/E a nízke marže štrukturálne normálne. Skóre môže byť mierne zavádzajúce.“
+
+   f) KONCENTRÁCIA vs DIVERZIFIKÁCIA: „Finančná situácia spoločnosti je vynikajúca, ALE ak poznámky alebo textové údaje ukazujú vysokú závislosť od jediného zákazníka alebo dodávateľa, ide o strategické riziko – strata jedného partnera môže znamenať kolaps.“
+
+   g) ČISTÉ REGISTRE vs NEGATÍVNE TRENDY: „Spoločnosť má čisté registre (žiadne exekúcie, žiaden konkurz), ALE finančné trendy ukazujú klesajúce vlastné imanie a rastúce straty – právna integrita nie je zárukou finančnej stability.“
+
+   h) AUDIT vs BEZ AUDITU: „Spoločnosť nemá audit, ALE vykazuje vysoké tržby a zisk. Bez nezávislého overenia nie je možné potvrdiť správnosť týchto čísiel – dôveryhodnosť účtovnej závierky je obmedzená.“
+
+   Tieto vzorce nie sú vyčerpávajúce – aktívne hľadajte ĎALŠIE rozpory v konkrétnych údajoch spoločnosti. Čím viac krížových prepojení nájdete, tým vyššia je kvalita hodnotenia.''',
+    'hu': '''**KRESZTALÁZIS – „DE” MINTÁK (KÖTELEZŐ ALKALMAZNI):**
+   Elemzésének nem szabad csupán tényösszegzésnek lennie. Aktívan keresnie kell az ellentmondásokat és feszültségeket a mutatók között. Használja az „X pozitív, DE Y árnyalja, ami Z-t jelentheti” mintát. Ezeknek a következtetéseknek van a legnagyobb értékük, mivel több adatforrást kapcsolnak össze.
+
+   Olyan specifikus minták, amelyeket KÖTELEZŐ ellenőriznie és visszatükröznie az executive_summary részben, ha előfordulnak:
+
+   a) LIKVIDITÁS vs KÖVETELÉSEK: „A vállalat likviditása kiváló (Current Ratio > 2), DE a követelések gyorsabban nőnek, mint az árbevétel az elmúlt 2 évben. Ez azt jelentheti, hogy a cég hitelre értékesít, de az ügyfelek nem fizetnek — az eszközök minősége romlik.”
+
+   b) EBITDA vs ÁRRÉS: „Az EBITDA évről évre nő, DE a nettó árrés csökken. Az EBITDA növekedését a magasabb forgalom és nem a hatékonyság hajtja — a vállalat minden egyes euró árbevétel után kevesebbet keres.”
+
+   c) NYERESÉG vs CASH FLOW: „A vállalat magas nettó nyereséget mutat, DE a működési cash flow negatív vagy lényegesen alacsonyabb. Ez azt jelentheti, hogy a nyereség csak papíron létezik — a pénz valójában nem érkezik be, vagy a növekvő követelésekben, illetve készletekben van lekötve.”
+
+   d) ÁRBEVÉTEL-NÖVEKEDÉS vs KÖTELEZETTSÉGEK: „Az árbevétel nő, DE a rövid lejáratú kötelezettségek még gyorsabban nőnek. A növekedést hitelből és nem saját tőkéből finanszírozzák — ha az árbevétel csökken, a vállalat likviditási válsággal nézhet szembe.”
+
+   e) ALTMAN Z″ vs SZEKTOR: „Az Altman Z″ szürke zónát mutat, DE a vállalat a NACE 46 (nagykereskedelem) ágazatban működik, ahol a magas tőkeáttétel (D/E) és az alacsony árrés strukturálisan normális. Az eredmény enyhén félrevezető lehet.”
+
+   f) KONCENTRÁCIÓ vs DIVERZIFIKÁCIÓ: „A vállalat pénzügyileg kiváló, DE ha a kiegészítő melléklet vagy a szöveges adatok nagy függőséget mutatnak egyetlen vevőtől vagy beszállítótól, az stratégiai kockázatot jelent — egyetlen partner elvesztése is összeomlást okozhat.”
+
+   g) TISZTA NYILVÁNTARTÁSOK vs NEGATÍV TRENDEK: „A vállalat tiszta a nyilvántartásokban (nincs végrehajtás, nincs csőd), DE a pénzügyi trendek csökkenő saját tőkét és növekedő veszteségeket mutatnak — a jogi integritás nem garancia a pénzügyi stabilitásra.”
+
+   h) AUDIT vs AUDIT HIÁNYA: „A vállalatnak nincs auditja, DE magas árbevételt és nyereséget mutat. Független ellenőrzés nélkül nem lehet megerősíteni ezen adatok helytállóságát — a pénzügyi kimutatások hitelessége korlátozott.”
+
+   Ezek a minták nem teljes körűek — aktívan keressen MÁS ellentmondásokat is a vállalat konkrét adataiban. Minél több keresztkapcsolatot talál, annál magasabb lesz az értékelés minősége.''',
+    'cz': '''**KŘÍŽOVÁ ANALÝZA — VZORY "ale" (MUSÍŠ APLIKOVAT):**
+   Tvá analýza nesmí být jen sumarizace faktů. Musíš aktivně hledat rozpory a napětí mezi indikátory. Používej vzor "X je pozitivní, ale Y to komplikuje, což může znamenat Z". Tyto závěry mají největší hodnotu, protože spojují více datových zdrojů.
+
+   Konkrétní vzory, které MUSÍŠ zkontrolovat a v případě nalezení je reflektovat v executive_summary:
+
+   a) LIKVIDITA vs POHLEDÁVKY: "Firma má výbornou likviditu (Current Ratio > 2), ale pohledávky rostou rychleji než tržby za poslední 2 roky. To může znamenat, že firma prodává na fakturu, ale zákazníci neplatí — kvalita aktiv se zhoršuje."
+
+   b) EBITDA vs MARŽE: "EBITDA roste meziročně, ale čistá marže klesá. Rost EBITDA je tedy poháněn vyšším obratem, ne efektivitou — firma vydělává méně na každé euro tržeb."
+
+   c) ZISK vs CASH FLOW: "Firma vykazuje vysoký čistý zisk, ale provozní cash flow je záporný nebo mnohem nižší. To může znamenat, že zisk je papírový — peníze reálně nepřicházejí, případně se vážou v rostoucích pohledávkách nebo zásobách."
+
+   d) RŮST TRŽEB vs ZÁVAZKY: "Tržby rostou, ale krátkodobé závazky rostou ještě rychleji. Růst je tedy financován z dluhu, ne z vlastních zdrojů — při poklesu tržeb může firma čelit likviditní krizi."
+
+   e) ALTMAN Z″ vs SEKTOR: "Altman Z″ indikuje šedou zónu, ale firma působí v NACE 46 (velkoobchod), kde je vysoké D/E a nízká marže strukturálně normální. Skóre může být mírně zavádějící."
+
+   f) KONCENTRACE vs DIVERZIFIKACE: "Firma je výborná finančně, ale pokud z poznámek nebo narativních dat vyplývá vysoká závislost na jednom odběrateli nebo dodavateli, je to strategické riziko — ztráta jednoho partnera může znamenat kolaps."
+
+   g) POZITIVNÍ REGISTRY vs NEGATIVNÍ TRENDY: "V registrech je firma čistá (žádné exekuce, žádný konkurz), ale finanční trendy ukazují pokles vlastního jmění a rostoucí ztráty — právní bezúhonnost není garancí finanční stability."
+
+   h) AUDIT vs BEZ AUDITU: "Firma nemá audit, ale vykazuje vysoké tržby a zisk. Bez nezávislého ověření není možné potvrdit věrnost těchto čísel — důvěryhodnost závěrky je omezená."
+
+   Tyto vzory nejsou vyčerpávající — aktivně hledej TAKÉ další rozpory v konkrétních datech firmy. Čím více křížových souvislostí najdeš, tím vyšší kvalita posudku.
+
+   DŮLEŽITÉ: V finálním textu používej "ale" malými písmeny (ne "ALE"). "ALE" velkými písmeny zní nepřirozeně a roboticky. NIKDY nepoužívej "ALE" velkými písmeny v textu — vždy jen "ale" na začátku věty nebo uprostřed věty. Například správně: "Firma je zisková, ale tržby klesají." Nesprávně: "Firma je zisková, ALE tržby klesají."''',
+    'pl': '''**CROSS-ANALYSIS — "BUT" PATTERNS (MUST APPLY):**
+   Vaša analýza nesmie byť len súhrnom faktov. Musíte aktívne hľadať protiklady a napätia medzi ukazovateľmi. Použite vzorec „X je pozitívne, ALE Y to komplikuje, čo môže znamenať Z“. Tieto závery majú najvyššiu hodnotu, pretože prepájajú viaceré zdroje údajov.
+
+   Špecifické vzorce, ktoré MUSÍTE skontrolovať a zohľadniť v poli executive_summary, ak ich nájdete:
+
+   a) LIQUIDITY vs RECEIVABLES: „Spoločnosť má vynikajúcu likviditu (bežná likvidita > 2), ALE pohľadávky rastú rýchlejšie ako tržby za posledné 2 roky. To môže znamenať, že spoločnosť predáva na úver, ale zákazníci neplatia – kvalita aktív sa zhoršuje.“
+
+   b) EBITDA vs MARGIN: „EBITDA medziročne rastie, ALE čistá marža klesá. Rast EBITDA je hnaný vyšším obratom, nie efektivitou – spoločnosť zarába menej na každom eure výnosov.“
+
+   c) PROFIT vs CASH FLOW: „Spoločnosť vykazuje vysoký čistý zisk, ALE prevádzkový cash flow je záporný alebo oveľa nižší. To môže znamenať, že zisk je len papierový – peniaze v skutočnosti neprichádzajú alebo sú viazané v rastúcich pohľadávkach či zásobách.“
+
+   d) REVENUE GROWTH vs LIABILITIES: „Tržby rastú, ALE krátkodobé záväzky rastú ešte rýchlejšie. Rast je financovaný dlhom, nie vlastným imaním – ak tržby klesnú, spoločnosť môže čeliť kríze likvidity.“
+
+   e) ALTMAN Z″ vs SECTOR: „Altman Z″ indikuje sivú zónu, ALE spoločnosť pôsobí v odvetví NACE 46 (veľkoobchod), kde sú vysoký pomer dlhu k vlastnému imaniu a nízke marže štrukturálne normálne. Skóre môže byť mierne zavádzajúce.“
+
+   f) CONCENTRATION vs DIVERSIFICATION: „Spoločnosť je finančne vynikajúca, ALE ak poznámky k účtovnej závierke alebo slovné dáta ukazujú vysokú závislosť od jediného zákazníka alebo dodávateľa, ide o strategické riziko – strata jedného partnera by mohla znamenať kolaps.“
+
+   g) CLEAN REGISTRIES vs NEGATIVE TRENDS: „Spoločnosť má čisté registre (žiadne exekúcie, žiaden konkurz), ALE finančné trendy ukazujú klesajúce vlastné imanie a rastúce straty – právna bezúhonnosť nie je zárukou finančnej stability.“
+
+   h) AUDIT vs NO AUDIT: „Spoločnosť nemá audit, ALE vykazuje vysoké tržby a zisk. Bez nezávislého overenia nie je možné potvrdiť správnosť týchto údajov – dôveryhodnosť účtovnej závierky je obmedzená.“
+
+   Tieto vzorce nie sú vyčerpávajúce – aktívne hľadajte INÉ protiklady v špecifických údajoch spoločnosti. Čím viac krížových prepojení nájdete, tým vyššia je kvalita hodnotenia.''',
+    'hu': '''```markdown
+**KERESZTANALÍZIS – „DE” MINTÁK (KÖTELEZŐ ALKALMAZNI):**
+   Az elemzés nem lehet csupán a tények összefoglalása. Aktívan keresnie kell az ellentmondásokat és a mutatók közötti feszültségeket. Használja az „Az X pozitív, DE az Y ezt bonyolítja, ami Z-t jelentheti” mintát. Ezeknek a következtetéseknek van a legnagyobb értéke, mivel több adatforrást kötnek össze.
+
+   Konkrét minták, amelyeket KÖTELEZŐ ellenőrizni, és ha előfordulnak, tükrözni az executive_summary részben:
+
+   a) LIKVIDITÁS vs KÖVETELÉSEK: „A vállalat likviditása kiváló (Current Ratio > 2), DE a követelések gyorsabban nőnek, mint az árbevétel az elmúlt 2 évben. Ez azt jelentheti, hogy a cég hitelre értékesít, de az ügyfelek nem fizetnek – az eszközök minősége romlik.”
+
+   b) EBITDA vs ÁRRÉS: „Az EBITDAévről évre nő, DE a nettó árrés csökken. Az EBITDA növekedését a magasabb forgási sebesség hajtja, nem a hatékonyság – a vállalat minden egyes euró árbevételen keveset keres.”
+
+   c) NYERESÉG vs CASH FLOW: „A vállalat magas nettó nyereséget mutat, DE a üzemi cash flow negatív vagy sokkal alacsonyabb. Ez azt jelentheti, hogy a nyereség papíron létezik – a pénz valójában nem érkezik be, vagy a növekvő követelésekben, illetve készletekben van lekötve.”
+
+   d) ÁRBEVÉTEL-NÖVEKEDÉS vs KÖTELEZETTSÉGEK: „Az árbevétel nő, DE a rövid lejáratú kötelezettségek még gyorsabban nőnek. A növekedést adósságból finanszírozzák, nem saját tőkéből – ha az árbevétel csökken, a vállalat likviditási válsággal nézhet szembe.”
+
+   e) ALTMAN Z″ vs SZEKTOR: „Az Altman Z″ szürke zónát jelez, DE a vállalat a NACE 46 (nagykereskedelem) ágazatban működik, ahol a magas D/E és az alacsony árrés strukturálisan normális. Az eredmény enyhén félrevezető lehet.”
+
+   f) KONCENTRÁCIÓ vs DIVERZIFIKÁCIÓ: „A vállalat pénzügyileg kiváló, DE ha a megjegyzések vagy a szöveges adatok egyetlen vevőtől vagy szállítótól való erős függőséget mutatnak, az stratégiai kockázat – egyetlen partner elvesztése az összeomlást jelentheti.”
+
+   g) TISZTA NYILVÁNTARTÁSOK vs NEGATÍV TRENDEK: „A vállalat tiszta a nyilvántartásokban (nincs végrehajtási eljárás, nincs csőd), DE a pénzügyi trendek csökkenő saját tőkét és növekvő veszteségeket mutatnak – a jogi integritás nem garancia a pénzügyi stabilitásra.”
+
+   h) AUDIT vs NINCS AUDIT: „A vállalatnak nincs auditja, DE magas árbevételt és nyereséget mutat. Független ellenőrzés nélkül nem lehet megerősíteni e számok helyességét – a pénzügyi kimutatások hitelessége korlátozott.”
+
+   Ezek a minták nem teljes körűek – aktívan keresse a VÁLLALAT EGYEDI ADATAIBAN LÉVŐ EGYÉB ellentmondásokat. Minél több keresztkapcsolatot talál, annál magasabb minőségű az értékelés.
+```''',
+    'cz': '''**KŘÍŽOVÁ ANALÝZA — VZORY "ale" (MUSÍŠ APLIKOVAT):**
+   Tvá analýza nesmí být jen sumarizace faktů. Musíš aktivně hledat rozpory a napětí mezi indikátory. Používej vzor "X je pozitivní, ale Y to komplikuje, což může znamenat Z". Tyto závěry mají největší hodnotu, protože spojují vícero datových zdrojů.
+
+   Konkrétní vzory, které MUSÍŠ zkontrolovat a v případě nalezení je reflektovat v executive_summary:
+
+   a) LIKVIDITA vs POHLEDÁVKY: "Firma má výbornou likviditu (Current Ratio > 2), ale pohledávky rostou rychleji než tržby za poslední 2 roky. To může znamenat, že firma prodává na fakturu, ale zákazníci neplaví — kvalita aktiv se zhoršuje."
+
+   b) EBITDA vs MARŽE: "EBITDA roste meziročně, ale čistá marže klesá. Růst EBITDA je tedy poháněný vyšším obratem, ne efektivitou — firma zaráží méně na každé euro tržeb."
+
+   c) ZISK vs CASH FLOW: "Firma vykazuje vysoký čistý zisk, ale provozní cash flow je záporný nebo mnohem nižší. To může znamenat, že zisk je papírový — peníze reálně nepřicházejí, případně se vážou v rostoucích pohledávkách nebo zásobách."
+
+   d) RŮST TRŽEB vs ZÁVAZKY: "Tržby rostou, ale krátkodobé závazky rostou ještě rychleji. Růst je tedy financovaný z dluhu, ne z vlastních zdrojů — při poklesu tržeb může firma facingovat likviditní krizi."
+
+   e) ALTMAN Z″ vs SEKTOR: "Altman Z″ indikuje šedou zónu, ale firma působí v NACE 46 (velkoobchod), kde je vysoké D/E a nízká marže strukturálně normální. Skóre může být mírně zavádějící."
+
+   f) KONCENTRACE vs DIVERZIFIKACE: "Firma je výborná finančně, ale pokud z poznámek nebo narativních dat vyplývá vysoká závislost na jednom odběrateli nebo dodavateli, je to strategické riziko — ztráta jednoho partnera může znamenat kolaps."
+
+   g) POZITIVNÍ REGISTRY vs NEGATIVNÍ TRENDY: "V registrech je firma čistá (žádné exekuce, žádný konkurz), ale finanční trendy ukazují pokles vlastního jmění a rostoucí ztráty — právní bezúhonnost není garancí finanční stability."
+
+   h) AUDIT vs BEZ AUDITU: "Firma nemá audit, ale vykazuje vysoké tržby a zisk. Bez nezávislého ověření není možné potvrdit věrnost těchto čísel — důvěryhodnost závěrky je obmezená."
+
+   Tyto vzory nejsou vyčerpávající — aktivně hledej TAKÉ další rozpory v konkrétních datech firmy. Čím víc křížových souvislostí najdeš, tím vyšší kvalita posudku.
+
+   DŮLEŽITÉ: V finálním textu používej "ale" malými písmeny (ne "ALE"). "ALE" velkými písmeny zní nepřirozeně a roboticky. NIKDY nepoužívej "ALE" velkými písmeny v textu — vždy jen "ale" na začátku věty nebo uprostřed věty. Například správně: "Firma je zisková, ale tržby klesají." Nesprávně: "Firma je zisková, ALE tržby klesají."''',
+    'pl': '''**KRIŹOVÁ ANALÝZA – VZORCE „ALE“ (MUSIA SA POUŽIŤ):**
+   Vaša analýza nesmie byť len súhrnom faktov. Musíte aktívne hľadať protiklady a napätie medzi ukazovateľmi. Použite vzorec „X je pozitívne, ALE Y to komplikuje, čo môže znamenať Z“. Tieto závery majú najvyššiu hodnotu, pretože prepájajú viaceré zdroje údajov.
+
+   Konkrétne vzorce, ktoré MUSÍTE skontrolovať a zohľadniť v dokumente executive_summary, ak sa nájdu:
+
+   a) LIKVIDITA vs POHĽADÁVKY: „Spoločnosť má vynikajúcu likviditu (bežná likvidita > 2), ALE pohľadávky rastú rýchlejšie ako tržby za posledné 2 roky. To môže znamenat, že spoločnosť predáva na úver, ale zákazníci neplatia – kvalita aktív sa zhoršuje.“
+
+   b) EBITDA vs MARŽA: „EBITDA medziročne rastie, ALE čistá marža klesá. Rast EBITDA je hnaný vyšším obratom, nie efektivitou – spoločnosť zarába menej na každom eure výnosov.“
+
+   c) ZISK vs CASH FLOW: „Spoločnosť vykazuje vysoký čistý zisk, ALE prevádzkový cash flow je záporný alebo oveľa nižší. To môže znamenať, že zisk je len papierový – peniaze v skutočnosti neprichádzajú alebo sú viazané v rastúcich pohľadávkach či zásobách.“
+
+   d) RAST TRŽIEB vs ZÁVÄZKY: „Tržby rastú, ALE krátkodobé záväzky rastú ešte rýchlejšie. Rast je financovaný dlhom, nie vlastným imaním – ak tržby klesnú, spoločnosť môže čeliť kríze likvidity.“
+
+   e) ALTMAN Z″ vs ODVETVIE: „Altman Z″ indikuje šedú zónu, ALE spoločnosť pôsobí v odvetví NACE 46 (veľkoobchod), kde sú vysoké zadlženie a nízke marže štrukturálne normálne. Skóre môže byť mierne zavádzajúce.“
+
+   f) KONCENTRÁCIA vs DIVERZIFIKÁCIA: „Spoločnosť je finančne vynikajúca, ALE ak poznámky k účtovnej závierke alebo textové dáta ukazujú vysokú závislosť od jedného zákazníka či dodávateľa, ide o strategické riziko – strata jedného partnera by mohla znamenať kolaps.“
+
+   g) ČISTÉ REGISTRE vs NEGATÍVNE TRENDY: „Spoločnosť je v the registroch čistá (žiadne exekúcie, žiadny konkurz), ALE finančné trendy ukazujú klesajúce vlastné imanie a rastúce straty – právna integrita nie je zárukou finančnej stability.“
+
+   h) AUDIT vs BEZ AUDITU: „Spoločnosť nemá audit, ALE vykazuje vysoké tržby a zisk. Bez nezávislého overenia nie je možné potvrdiť správnosť týchto údajov – dôveryhodnosť účtovnej závierky je obmedzená.“
+
+   Tieto vzorce nie sú vyčerpávajúce – aktívne hľadajte INÉ protiklady v špecifických údajoch spoločnosti. Čím viac vzájomných prepojení nájdete, tým vyššia je kvalita hodnotenia.''',
+    'hu': '''**KOSZORÚS ELEMZÉS – „DE” MINTÁK (KÖTELEZŐEN ALKALMAZANDÓ):**
+   Az elemzés nem lehet csupán tények összefoglalása. Aktívan keresnie kell az ellentmondásokat és a feszültségeket a mutatók között. Használja az „X pozitív, DE Y árnyalja a képet, ami Z-t jelenthet” mintát. Ezeknek a következtetéseknek van a legnagyobb értéke, mivel több adatforrást kötnek össze.
+
+   Specifikus minták, amelyeket KÖTELEZŐ ellenőrizni és visszatükrözni az executive_summary részben, ha előfordulnak:
+
+   a) LIKVIDITÁS vs KÖVETELÉSEK: „A vállalat likviditása kiváló (Current Ratio > 2), DE a követelések gyorsabban nőnek, mint az árbevétel az elmúlt 2 évben. Ez azt jelentheti, hogy a vállalat hitelre értékesít, de az ügyfelek nem fizetnek — az eszközök minősége romlik.”
+
+   b) EBITDA vs ÁRRÉS: „Az EBITDA évről évre növekszik, DE a nettó árrés csökken. Az EBITDA növekedését a nagyobb forgalom hajtja, nem a hatékonyság — a vállalat kevesebbet keres minden egyes eurónyi árbevételen.”
+
+   c) NYERESÉG vs CASH FLOW: „A vállalat magas nettó nyereséget mutat, DE az üzemi cash flow negatív vagy sokkal alacsonyabb. Ez azt jelentheti, hogy a nyereség csak papíron létezik — a pénz valójában nem érkezik be, vagy a növekvő követelésekben, illetve készletekben van lekötve.”
+
+   d) ÁRBEVÉTEL-NÖVEKEDÉS vs KÖTELEZETTSÉGEK: „Az árbevétel növekszik, DE a rövid lejáratú kötelezettségek még gyorsabban nőnek. A növekedést adósságból finanszírozzák, nem saját tőkéből — ha az árbevétel visszaesik, a vállalat likviditási válsággal nézhet szembe.”
+
+   e) ALTMAN Z″ vs SZEKTOR: „Az Altman Z″ szürke zónát mutat, DE a vállalat NACE 46 (nagykereskedelem) ágazatban működik, ahol a magas eladósodottság és az alacsony árrés strukturálisan normális. Az eredmény enyhén félrevezető lehet.”
+
+   f) KONCENTRÁCIÓ vs DIVERZIFIKÁCIÓ: „A vállalat pénzügyileg kiváló, DE ha a megjegyzések vagy a szöveges adatok magas függőséget mutatnak egyetlen ügyféltől vagy beszállítótól, az stratégiai kockázatot jelent — egyetlen partner elvesztése összeomlást okozhat.”
+
+   g) TISZTA NYILVÁNTARTÁSOK vs NEGATÍV TRENDEK: „A vállalat nyilvántartásai tiszták (nincs végrehajtás, nincs csőd), DE a pénzügyi trendek csökkenő saját tőkét és növekvő veszteségeket mutatnak — a jogi tisztaság nem garancia a pénzügyi stabilitásra.”
+
+   h) AUDIT vs NINCS AUDIT: „A vállalatnak nincs auditja, DE magas árbevételt és nyereséget mutat. Független ellenőrzés nélkül nem lehet megerősíteni ezen adatok helytállóságát — a pénzügyi kimutatások hitelessége korlátozott.”
+
+   Ezek a minták nem teljes körűek — aktívan keressen MÁS ellentmondásokat is a vállalat egyedi adataiban. Minél több keresztkapcsolatot talál, annál magasabb minőségű lesz az értékelés.''',
+    'cz': '''**KŘÍŽOVÁ ANALÝZA — VZORY "ale" (MUSÍŠ APLIKOVAT):**
+   Tvá analýza nesmí být jen sumarizace faktů. Musíš aktivně hledat rozpory a napětí mezi indikátory. Používej vzor "X je pozitivní, ale Y to komplikuje, což může znamenat Z". Tyto závěry mají největší hodnotu, protože spojují vícero datových zdrojů.
+
+   Konkrétní vzory, které MUSÍŠ zkontrolovat a v případě nalezení je reflektovat v executive_summary:
+
+   a) LIKVIDITA vs POHLEDÁVKY: "Firma má výbornou likviditu (Current Ratio > 2), ale pohledávky rostou rychleji než tržby za poslední 2 roky. To může znamenat, že firma prodává na fakturu, ale zákazníci neplatí — kvalita aktiv se zhoršuje."
+
+   b) EBITDA vs MARŽE: "EBITDA roste meziročně, ale čistá marže klesá. Rast EBITDA je teda poháňaný vyšším obratem, nie efektivitou — firma vydělává méně na každé euro tržeb."
+
+   c) ZISK vs CASH FLOW: "Firma vykazuje vysoký čistý zisk, ale provozní cash flow je záporný nebo mnohem nižší. To může znamenat, že zisk je papírový — peníze reálně nepřicházejí, případně se vážou v rostoucích pohledávkách nebo zásobách."
+
+   d) RAST TRŽIEB vs ZÁVÄZKY: "Tržby rostou, ale krátkodobé závazky rostou ještě rychleji. Růst je tedy financován z dluhu, ne z vlastních zdrojů — při poklesu tržeb může firma facingovať likviditní krizi."
+
+   e) ALTMAN Z″ vs SEKTOR: "Altman Z″ indikuje šedou zónu, ale firma působí v NACE 46 (velkoobchod), kde je vysoké D/E a nízká marže strukturálně normální. Skóre může být mírně zavádějící."
+
+   f) KONCENTRÁCIA vs DIVERZIFIKÁCIA: "Firma je finančně výborná, ale pokud z poznámek nebo narativních dat vyplývá vysoká závislost na jednom odběrateli nebo dodavateli, je to strategické riziko — ztráta jednoho partnera může znamenat kolaps."
+
+   g) POZITÍVNE REGISTRE vs NEGATÍVNE TRENDY: "V registrech je firma čistá (žádné exekuce, žádný konkurz), ale finanční trendy ukazují pokles vlastního kapitálu a rostoucí ztráty — právní bezúhonnost není garancí finanční stability."
+
+   h) AUDIT vs BEZ AUDITU: "Firma nemá audit, ale vykazuje vysoké tržby a zisk. Bez nezávislého ověření není možné potvrdit věrnost těchto čísel — důvěryhodnost závěrky je obmezená."
+
+   Tieto vzory nie sú vyčerpávajúce — aktívne hľadaj AJ ďalšie rozpory v konkrétnych dátach firmy. Čím viac krížových súvislostí nájdeš, tým vyššia kvalita posudku.
+
+   DÔLEŽITÉ: V finálnom texte používaj "ale" malými písmenami (nie "ALE"). "ALE" veľkými písmenami znie neprirodzene a roboticky. NIKDY nepoužívaj "ALE" veľkými písmenami v texte — vždy len "ale" na začiatku vety alebo v strede vety. Napríklad správne: "Firma je zisková, ale tržby klesajú." Nesprávne: "Firma je zisková, ALE tržby klesajú."''',
 }
 
 COMMON_FORENSIC_RULES = {
@@ -80,6 +286,27 @@ COMMON_FORENSIC_RULES = {
 8. UMSATZ VS VERMÖGEN: Bei Produktionsunternehmen mit hohem Umsatz ist es üblich, dass der Jahresumsatz das Gesamtvermögen übersteigt.
 9. VERALTETER GOING CONCERN: Wenn frühere Jahre einen Going-Concern-Vermerk hatten, das aktuellste Jahr jedoch uneingeschränkt ("ohne Vorbehalt") ist, wurde das Problem gelöst. Bestrafen Sie das Unternehmen nicht für veraltete Probleme.
 10. WEISSE PFERDE UND ORSR-ANOMALIEN: Wenn das Unternehmen eine hohe Häufigkeit von Geschäftsführerwechseln zeigt, müssen Sie dies als KRITISCHEN RED FLAG betrachten. AUSNAHME: Bei großen Unternehmen (Umsatz > 10.000.000 EUR oder > 50 Mitarbeiter) ist eine häufige Rotation des Managements normal, KEIN White-Horse-Risiko. In diesem Fall ignorieren Sie die Anomalie.''',
+    'cz': '''```text
+5. Zlaté klece (Riziko tunelování): Ak vidíš rast tržieb, ale výrazný pokles hotovosti a rast záväzkov voči prepojeným osobám, uprav skóre smerom nadol v rámci svojho limitu. POZOR: Při mezinárodních korporacích (skupiny jako Hyundai, Volkswagen, Siemens atd.) jsou transakce se spřízněnými osobami ŠTANDARDNÝ vnútro-skupinový tok (transfer pricing, zdieľané služby). Tieto transakcie nepenalizuj a neznižuj za ne skóre. Nepoužívaj termín "riziko tunelovania" pre takéto bežné operácie. Namiesto toho použi neutrálnejší opis: "vysoká miera transakcií so spriaznenými osobami". Termín "tunelovanie" rezervuj len pre prípady, kde je jasný dôkaz neštandardných cenových podmienok alebo odtoku prostriedkov bez hospodárskeho opodstatnenia.
+6. CHÝBAJÚCE CASH FLOW DÁTA: Na Slovensku mnoho firiem nepodáva štruktúrovaný výkaz Cash Flow do RÚZ (často je súčasťou poznámok v PDF). Ak v dátach vidíš `operatingCashFlow: null` nebo `operatingCashFlow: 0` při firmě, která má kladné tržby a zisk, NEPovažuj to za forenzný red flag ani znak tunelovania. Nulový nebo chybějící cash flow v dátach znamená "dáta neboli k dispozícii v štruktúrovanej forme", NIE "firma má nulový cash flow". Spomeň to ako obmedzenie dát, nie ako riziko firmy.
+7. SEKTOROVÉ KONTEXTY (NACE): Při hodnocení zohledni NACE kód firmy. Velkoobchod a maloobchod (NACE 46, 47) má štrukturálne nízke marže (0.5–3%) a vysoké D/E ratio (5–20), pretože ide o "prietokový" biznis s vysokým obratom a záväzkami voči dodávateľom. To, čo by u výrobnej firmy znamenalo kritický stres, je pre veľkoobchod normálne. Nepenalizuj firmy v týchto segmentoch za vysoké D/E alebo nízke marže, ak sú ziskové a majú stabilný obrat.
+8. TRŽBY VS AKTÍVA: U výrobných firiem s vysokým obratom (automobilový priemysel, veľkoobchod) je bežné, že ročné tržby prevyšujú celkové aktíva. Tržby reprezentujú prietok (flow) za rok, aktíva sú stav (stock) k jednému dňu. Nepovažuj to za anomáliu ani nezrovnalost.
+9. ZASTARANÝ GOING CONCERN: Ak mali výkazy z minulých rokov audítorskú výhradu (napr. Going Concern), ale ten najnovší rok (posledný dostupný) je "bez výhrad" (unqualified), znamená to, že problém bol vyriešený. Nepenalizuj firmu a nevytváraj kritické riziko za zastarané problémy z minulosti.
+10. BIELE KONE A ORSR ANOMÁLIE (ORSR Forensics): V `companyEvents` (alebo v metadátach) môžeš nájsť udalosť typu `FORENSIC_ANALYSIS` s titlom "Riziko Bieleho koňa (ORSR Anomálie)" nebo podobně. Ak spoločnosť vykazuje vysokú frekvenciu zmien konateľov (napr. >2 zmeny) v kombinácii s virtuálnym sídlom a/alebo zahraničným štatutárom, MUSÍŠ to považovať za KRITICKÝ RED FLAG. VÝNIMKA: Ak ide o veľkú spoločnosť (tržby > 10 000 000 EUR alebo > 50 zamestnancov), časté zmeny štatutárov sú štandardnou korporátnou rotáciou manažmentu, NIE rizikom bieleho koňa. V takom prípade túto anomáliu ignoruj a nepenalizuj. Ak výnimka neplatí, výrazne zníž `llm_score_adjustment` (napr. -10 bodov) a vo `final_verdict` explicitne varuj pred extrémnym rizikom podvodu a tzv. "bieleho koňa". Tieto anomálie spomeň aj v `executive_summary`.''',
+    'hu': '''```text
+5. Zlaté klece (riziko tunelování): Pokud zaznamenáte růst tržeb, ale současně významný pokles hotovosti a růst závazků vůči spřízněným osobám, snižte skóre v rámci svého limitu směrem dolů. POZNÁMKA: U mezinárodních korporací (skupiny jako Hyundai, Volkswagen, Siemens atd.) jsou transakce se spřízněnými osobami STANDARDNÍM vnitroskupinovým tokem (transferové ceny, sdílené služby). Tyto transakce netrestejte a nesnižujte kvůli nim skóre. Pro takové rutinní operace nepoužívejte termín „riziko tunelování“. Místo toho použijte neutrálnější popis: „vysoká míra transakcí se spřízněnými osobami“. Termín „tunelování“ vyhraďte pouze pro případy, kdy existují jasné důkazy o nestandardních cenových podmínkách nebo vyvádění majetku bez ekonomického opodstatnění.
+6. CHYBĚJÍCÍ ÚDAJE O CASH FLOW: Na Slovensku mnoho společností nepodává strukturovaný výkaz Cash Flow do RÚZ (často je součástí poznámek v PDF). Pokud u společnosti s kladnými tržbami a ziskem vidíte `operatingCashFlow: null` nebo `operatingCashFlow: 0`, nepovažujte to za forenzní varovný signál (red flag) ani za známku tunelování. Nulové nebo chybějící cash flow v datech znamená „data nebyla k dispozici ve strukturované formě“, NIKOLI „společnost má nulové cash flow“. Zmiňte to jako datové omezení, nikoli jako riziko společnosti.
+7. SEKTOROVÉ SOUVISLOSTI (NACE): Při hodnocení zohledněte kód NACE společnosti. Velkoobchod a maloobchod (NACE 46, 47) mají strukturálně nízké marže (0,5–3 %) a vysoké poměry D/E (5–20), protože jde o „průtočný“ byznys s vysokým obratem a závazky vůči dodavatelům. To, co by pro výrobní společnost znamenalo kritický stres, je pro velkoobchod normální. Netrestejte společnosti v těchto segmentech za vysoké D/E nebo nízké marže, pokud jsou ziskové a mají stabilní obrat.
+8. TRŽBY VS AKTIVA: U výrobních společností s vysokým obratem (automotive, velkoobchod) je běžné, že roční tržby převyšují celková aktiva. Tržby představují tok za rok, aktiva jsou stav v jednom konkrétním okamžiku. Nepovažujte to za anomálii ani nesrovnalost.
+9. ZASTARALÉ TRVÁNÍ ZA SPOLEČNOSTI (GOING CONCERN): Pokud účetní závěrky z předchozích let obsahovaly výhradu auditora (např. Going Concern), ale nejnovější rok je „bez výhrad“ (clean), znamená to, že problém byl vyřešen. Netrestejte společnost a nevytvářejte kritické riziko kvůli zastaralým problémům z minulosti.
+10. BÍLÉ KONĚ A ANOMÁLIE V ORSR (Forenzní analýza ORSR): V položce `companyEvents` (nebo v metadatech) můžete nalézt událost typu `FORENSIC_ANALYSIS` s názvem „Riziko bílého koně (anomálie v ORSR)“ nebo podobným. Pokud společnost vykazuje vysokou četnost změn jednatelů/ředitelů (např. >2 změny) v kombinaci s virtuální adresou a/nebo zahraničním statutárním zástupcem, MUSÍTE to považovat za KRITICKÝ VAROVNÝ SIGNÁL (CRITICAL RED FLAG). VÝJIMKA: Pokud se jedná o velkou společnost (tržby > 10 000 000 EUR nebo > 50 zaměstnanců), jsou časté změny jednatelů standardní rotací podnikového managementu, NIKOLI rizikem bílého koně. V takovém případě tuto anomálii ignorujte a netrestejte ji. Pokud se výjimka neuplatní, výrazně snižte hodnotu `llm_score_adjustment` (např. o -10 bodů) a v položce `final_verdict` výslovně varujte před extrémním rizikem podvodu a takzvaným „bílým koněm“. Tyto anomálie zmiňte také v části `executive_summary`.''',
+    'pl': '''```text
+5. Złote klatki (ryzyko wyprowadzania majątku / tunelowania): Jeśli zauważysz wzrost przychodów przy jednoczesnym znacznym spadku gotówki oraz wzroście zobowiązań wobec powiązanych podmiotów, obniż ocenę w ramach swojego limitu. UWAGA: W przypadku międzynarodowych korporacji (grup takich jak Hyundai, Volkswagen, Siemens itp.) transakcje między podmiotami powiązanymi stanowią STANDARDOWY przepływ wewnątrzgrupowy (ceny transferowe, usługi wspólne). Nie należy karać za takie transakcje ani obniżać z tego powodu oceny. Nie używaj terminu „ryzyko tunelowania” w odniesieniu do takich rutynowych operacji. Zamiast tego zastosuj bardziej neutralny opis: „wysoki poziom transakcji z podmiotami powiązanymi”. Termin „tunelowanie” należy rezerwować wyłącznie dla przypadków, w których istnieją wyraźne dowody na niestandardowe warunki cenowe lub wybebeszanie majątku bez uzasadnienia gospodarczego.
+6. BRAK DANYCH DOTYCZĄCYCH CASH FLOW: Na Słowacji wiele firm nie składa strukturalnego sprawozdania z przepływów pieniężnych (Cash Flow) do RÚZ (często stanowi ono część informacji dodatkowej w formacie PDF). Jeśli widzisz `operatingCashFlow: null` lub `operatingCashFlow: 0` dla firmy generującej dodatnie przychody i zysk, NIE uznawaj tego za sygnał ostrzegawczy (red flag) o charakterze śledczym ani za oznakę tunelowania. Zerowy lub brakujący przepływ pieniężny w danych oznacza, że „dane nie były dostępne w formie strukturalnej”, a NIE, że „firma ma zerowy przepływ pieniężny”. Należy to traktować jako ograniczenie dostępności danych, a nie ryzyko związane z przedsiębiorstwem.
+7. KONTEKSTY BRANŻOWE (NACE): Podczas oceny należy wziąć pod uwagę kod NACE spółki. Handel hurtowy i detaliczny (NACE 46, 47) charakteryzują się strukturalnie niskimi marżami (0,5–3%) oraz wysokimi wskaźnikami zadłużenia ogólnego D/E (5–20), ponieważ jest to działalność typu „przepływowego” o wysokim obrocie i zobowiązaniach wobec dostawców. To, co w przypadku firmy produkcyjnej oznaczałoby kryzys, dla hurtowni jest stanem normalnym. Nie należy karać firm z tych segmentów za wysoki wskaźnik D/E lub niskie marže, o ile są rentowne i charakteryzują się stabilnym obrotem.
+8. PRZYCHODY A AKTYWA: W przypadku firm produkcyjnych o wysokich obrotach (motoryzacja, handel hurtowy) powszechną sytuacją jest, że roczne przychody przewyższają aktywa ogółem. Przychody reprezentują strumień w ujęciu rocznym, natomiast aktywa stanowią stan zasobów w określonym punkcie w czasie. Nie należy traktować tego jako anomalii lub rozbieżności.
+9. NIEAKTUALNA KLAUZULA CONTINGENCY / GOING CONCERN: Jeśli sprawozdania finansowe z poprzednich lat zawierały zastrzeżenia audytora (np. Going Concern), ale najnowszy rok jest „bez zastrzeżeń” (czysta opinia), oznacza to, że problem został rozwiązany. Nie należy karać spółki ani tworzyć krytycznego ryzyka z powodu nieaktualnych problemów z przeszłości.
+10. SŁUPY I ANOMALIE W ORSR (Forensics ORSR): W sekcji `companyEvents` (lub w metadanych) możesz napotkać zdarzenie typu `FORENSIC_ANALYSIS` zatytułowane „White Horse Risk (ORSR Anomaly)” lub podobne. Jeśli spółka wykazuje dużą częstotliwość zmian dyrektorów (np. >2 zmiany) połączoną z adresem wirtualnym i/lub zagranicznym organem reprezentującym, MUSISZ uznać to za KRYTYCZNY SYGNAŁ OSTRZEGAWCZY (CRITICAL RED FLAG). WYJATEK: Jeśli jest to duża firma (przychody > 10 000 000 EUR lub > 50 pracowników), częste zmiany dyrektorów stanowią standardową rotację w zarządzie korporacji, a NIE ryzyko związane ze słupami. W takim przypadku należy zignorować tę anomalię i nie nakładać kar. Jeśli wyjątek nie ma zastosowania, należy istotnie obniżyć wartość `llm_score_adjustment` (np. o -10 punktów), a w sekcji `final_verdict` wyraźnie ostrzec przed skrajnym ryzykiem oszustwa i tzw. „słupem”. Wspomniane anomalie należy również uwzględnić w sekcji `executive_summary`.''',
 }
 
 COMMON_TEXT_QUALITY_RULES = {
@@ -128,4 +355,52 @@ COMMON_TEXT_QUALITY_RULES = {
 - MITARBEITERZAHL: Verwenden Sie immer die exakte Mitarbeiterzahl aus den Daten (`pocet_zamestnancov`, `priemernyPocetZamestnancov`). Schreiben Sie nicht "mehr als 1000 Mitarbeiter", wenn der exakte Wert z. B. 1.292 ist. Formulieren Sie: "Die durchschnittliche Mitarbeiterzahl betrug 1.292."
 - DIVIDENDEN: Dividendenzahlungen oder Gewinnausschüttungen an Eigentümer sind KEIN automatisches negatives Liquiditätssignal. Es handelt sich um die standardmäßige Ausschüttung des ausgewiesenen Gewinns. Nennen Sie sie nur als negativen Liquiditätsfaktor, wenn die Dividenden das verfügbare Bargeld deutlich übersteigen oder den Working Capital Druck ausüben. Andernfalls formulieren Sie neutral: "Das Unternehmen zahlte Dividenden in Höhe von 70 Mio. EUR aus dem ausgewiesenen Gewinn."
 - KURZE ZEITRÄUME (< 12 Monate): Bei `monthsInPeriod` < 12 nicht als negativen Trend interpretieren.''',
+    'cz': '''- VŽDY používej správnou slovenštinu: "dlužník" (nie "dižnik"), "dlužníků" (nie "dižnikov"), "dlužníci" (nie "dižníci").
+- SPRÁVNÉ NÁZVY INSTITUCÍ: "Dôvera" (nie "Dövera"), "VšZP" (nie "VSZP"), "Dôvera — zdravotná poisťovňa" (nie "Dövera"). NIKDY nepoužívej přehlásku "ö" v slovenských názvech — na Slovensku se píše "Dôvera", nie "Dövera". V seznamech dlužníků vždy piš "Dôvera — dlužníci" (nie "Dôveradižníci", "Dôvera-dižníci", "Dövera-dlžníci").
+- SPRÁVNÉ DÉLKY V PRÁVNÍCH TERMÍNECH: "súdov" (nie "südov"), "rozhodnutia súdov" (nie "rozhodnutia südov"), "Register" (nie "Registier"), "Register dane z príjmov" (nie "Registier daň z príjmov").
+- ŽÁDNÉ ANGLICKÉ FRAGMENTY: V slovenském textu NIKDY nepoužívej anglická slova nebo fragmenty jako "Human ex", "Human resources", "Employee costs". Vždy použij slovenský ekvivalent: "Osobné náklady", "Personálne náklady", "Mzdové náklady". Ak píšeš nadpis sekce, musí být celý po slovensky.
+- SPRÁVNÝ PŘEKLEP "FIRMA": Vždy piš "Firma" (nie "Fimra"). Zkontroluj si překlepy v slovech, která se často zaměňují: "Firma nemá" (nie "Fimra nemá").
+- SPRÁVNÉ DÉLKY: "existence" (nie "existence"), "operativní" (nie "operativnej"), "administrativní" (nie "administrativnej"), "disciplíně" (nie "discipline"), "finanční" (nie "financné"), "jsou" (nie "su").
+- POMLČKY: Místo spojovníku "-" s mezerami používej dlouhou pomlčku (en-dash "–"), např. "354A, 355A – /391A/" nie "354A, 355A - /391A/".
+- V textu NIKDY neuváděj historické názvy společností z registrů (CRZ, UVO). Vždy použij aktuální oficiální názv společnosti. Různé historické formy názvu (např. "KIA Motors Slovakia" vs "Kia Slovakia") při stejném IČO jsou tá istá společnost — neupozorňuj na ně jako na nezrovnalost.
+- V executive_summary a key_risk MUSÍŠ reflektovat významné meziroční změny z `analyza_trendov.revenue_trend`. Ak tržby poklesly o více než 5% YoY, výslovně to spomeň mezi riziky nebo upozorněními. Nepíš o "dlouhodobé ziskovosti" ak existuje významný pokles tržieb v posledním roce.
+- Ak tržby převyšují aktiva (běžné při výrobných firmách s vysokým obratem), výslovně vysvětli, že tržby jsou prietok za rok zatial čo aktíva jsou stav k jednomu dni — nie je to anomálie.
+- NIKDY nepoužívej LaTeX syntax v textu. Nepoužívej znak "$" pro matematické vzorce. Místo "E/D=1.69" piš "E/D = 1,69" (s mezerami a slovenskou desetinnou čárkou). Místo "Z''=8.47" piš "Z'' = 8,47". Nepoužívej "\\prime", "^{...}", ani jiné LaTeX příkazy.
+- Čísla v textu vždy formátuj se slovenskou desetinnou čárkou (1,69 nie 1.69) a mezerou jako oddělovačem tisíců (1 000 000 nie 1000000).
+- NADMĚRNÝ ODPOČET DPH: Při exportně orientovaných výrobných společnostech (automobilový průmysl, elektronika) je pravidelný a vysoký nadmerný odpočet DPH úplně standardní a legální jev. Firma nakupuje komponenty s DPH, ale vyváží hotové výrobky do zahraničí so 0 % sadzbou DPH, čo prirodzene vedie k nadmernému odpočtu. Nepovažuj to za daňové riziko ani red flag.
+- ALTMAN Z'' PRO VELKOOBCHOD/DISTRIBUCI: Ak firma má nízkou čistou marži (< 2 %) a vysoké obchodní závazky vůči dodavatelům, Altman Z''-Score může indikovat falešné riziko úpadku aj u stabilních distribučních lídrů. Přidej upozornění: "Metodika Altman Z'' nie je plne optimalizovaná pre nízkomaržový veľkoobchodný model s vysokým podielom obchodných záväzkov, preto môže indikovať falošné riziko úpadku aj u stabilných distribučných lídrov."
+- ZÁLOŽNÍ PRÁVA NA OBCHODNÍ PODÍL: Ak v NCRZP vidíš záložné právo na obchodný podiel od banky (např. UniCredit Bank, Tatra banka, Slovenská sporiteľňa), je to štandardné zabezpečenie prevádzkových úverov, nie známka platobnej neschopnosti. Neoznačuj to jako kritické riziko.
+- REŠTRUKTURALIZÁCIA Z ORSR: Ak v ORSR výpise (sekce "Ďalšie právne skutočnosti") vidíš zmínku o reštrukturalizácii, konkurze nebo odpustení dlhů — aj keď už skončila — MUSÍŠ to spomenúť v posudku. Například: "Spoločnosť v rokoch 2022–2023 prešla formálnou reštrukturalizáciou, ktorá bola súdom úspešne ukončená." NIKDY nepíš "nemá záznamy o reštrukturalizácii" ak ORSR jasne uvádza, že prebehla. RKR (Register konkurzov a reštrukturalizácií) zobrazuje len aktuálne prebiehajúce konania — ak už skončilo, RKR ho nezobrazí, ale to neznamená, že sa nikdy nekonal.
+- POČET ZAMESTNANCŮ: Ak jsou v datech dostupné přesné čísla (`pocet_zamestnancov`, `priemernyPocetZamestnancov`), vždy je použi přesně — nepíš "více než 1000 zaměstnanců" ak je přesná hodnota např. 1 292. Formuluj: "Priemerný počet zamestnancov dosiahol 1 292."
+- DIVIDENDY: Výplata dividend nebo rozdělení zisku vlastníkům NENÍ automaticky negativní vliv na likviditu. Je to standardní rozdělení vykázaného zisku. Jako negativní faktor pro likviditu ju uvádaj len vtedy, ak dividendy výrazne presahujú disponibilnú hotovosť alebo vytvárajú tlak na pracovný kapitál. Inak ju formuluj neutrálne: "Spoločnosť vyplatila dividendy 70 mil. EUR z vykázaného zisku."
+- KRÁTKÉ OBDOBÍ (< 12 měsíců): Ak v datech vidíš `monthsInPeriod` s hodnotou menší než 12, NEinterpretuj pokles tržieb nebo zisku oproti predchádzajúcemu 12-mesačnému obdobiu jako negativní trend. Pokles z 3-mesačného obdobia oproti 12-mesačnému je matematický dôsledok kratšieho obdobia, nie zhoršenie podnikania. V executive_summary výslovne spomeň, že jde o skrátené účtovné období (např. "Závierka za rok 2024 pokrýva len 3 mesiace, preto nie je porovnateľná s predchádzajúcimi plnými rokmi"). V Pilieri 4 (Rast & Trendová sila) neupravuj skóre nadol za pokles tržieb, ak je období kratšie než 11 měsíců.''',
+    'hu': '''- Vždy píšte v správnej slovenčine.
+- Namiesto spojovníka "-" s medzerami používajte en-dash ("–").
+- NIKDY nespomínajte historické názvy spoločností z registrov (CRZ, ÚVO). Vždy používajte aktuálny oficiálny názov spoločnosti. Rôzne historické formy názvu (napr. „KIA Motors Slovakia“ vs „Kia Slovakia“) pre to isté IČO predstavujú tú istú spoločnosť – neoznačujte ich ako nesrovnalosti.
+- V položkách `executive_summary` a `key_risk` MUSÍTE zohľadniť významné medziročné zmeny z premennej `analyza_trendov.revenue_trend`. Ak tržby medziročne klesli o viac ako 5 %, explicitne to uveďte medzi rizikami alebo varovaniami. Nepíšte o „dlhodobej ziskovosti“, ak v poslednom roku nastal výrazný pokles tržieb.
+- Ak tržby presahujú aktíva (bežné v strojárstve a výrobe s vysokým obratom), explicitne vysvetlite, že tržby predstavujú tok (flow) za rok, zatiaľ čo aktíva predstavujú stav (stock) v jednom časovom bode – nejde o anomáliu.
+- NIKDY nepoužívajte syntax LaTeXu v texte. Nepoužívajte znak „$“ pre matematické vzorce. Namiesto „E/D=1.69“ napíšte „E/D = 1.69“ (s medzerami). Namiesto „Z''=8.47“ napíšte „Z'' = 8.47“. Nepoužívajte príkazy „\\prime“, „^{...}“ ani iné príkazy LaTeXu.
+- Formátujte čísla s desatinnou bodkou (1.69 nie 1,69) a medzerou ako oddeľovačom tisícov (1,000,000 nie 1000000).
+- NADMERNÝ ODPOČET DPH: Pre exportne orientované výrobné spoločnosti (automobilový priemysel, elektrotechnika) je pravidelný a vysoký nadmerný odpočet DPH úplne štandardný a legálny. Spoločnosť nakupuje komponenty s DPH, avšak hotové výrobky vyváža s 0% sadzbou DPH, čo prirodzene vedie k nadmernému odpočtu. Nepovažujte to za daňové riziko ani varovný signál.
+- ALTMANOV Z'' PRE VEĽKOOBCHOD/DISTRIBÚCIU: Ak má spoločnosť nízku čistú maržu (< 2 %) a vysoké záväzky voči dodávateľom, Altmanov Z''-skóre môže indikovať falošné riziko insolvencie aj v prípade stabilných distribučných lídrov. Pridajte poznámku: „Metodológia Altmanovho Z'' nie je plne optimalizovaná pre nízkomaržové veľkoobchodné modely s vysokým podielom obchodných záväzkov, takže môže indikovať falošné riziko insolvencie aj pri stabilných distribučných lídroch.“
+- ZÁLOHY NA MAJETOK (PLEDGES ON EQUITY): Ak v Notárskom registri záložných práv (NCRZP) zaznamenáte záložné právo na obchodný podiel od banky (napr. UniCredit Bank, Tatra banka, Slovenská sporiteľňa), ide o štandardné zabezpečenie prevádzkových úverov, nie o znak insolvencie. Neoznačujte to ako kritické riziko.
+- RESTRUKTURALIZÁCIA Z ORSR: Ak výpis z ORSR (sekcia „Ostatné právne skutočnosti“) uvádza reštrukturalizáciu, konkurz alebo oddlženie – aj keď sú už ukončené – MUSÍTE to spomenúť v hodnotení. Napríklad: „Spoločnosť prešla v rokoch 2022–2023 formálnou reštrukturalizáciou, ktorú súd úspešne ukončil.“ NIKDY nepíšte „nemá žiadne záznamy o reštrukturalizácii“, ak ORSR jasne uvádza, že k nej došlo. Register úpadcov a reštrukturalizácií zobrazuje iba aktuálne prebiehajúce konania – ak sa skončilo, register ho už nezobrazuje, čo však neznamená, že k nemu nikdy nedošlo.
+- POČET ZAMESTNANCOV: Ak sú v údajoch k dispozícii presné počty zamestnancov (`pocet_zamestnancov`, `priemernyPocetZamestnancov`), vždy ich používajte presne. Nepíšte „viac ako 1000 zamestnancov“, ak je presná hodnota 1 292. Formulujte: „Priemerný počet zamestnancov dosiahol 1 292.“
+- DIVIDENDY: Výplata dividend alebo rozdelenie zisku vlastníkom NIE JE automaticky negatívnym signálom likvidity. Ide o štandardnú distribúciu vykázaného zisku. Spomeňte to ako negatívny faktor likvidity iba vtedy, ak dividendy výrazne prevyšujú dostupné peňažné prostriedky alebo vytvárajú tlak na pracovný kapitál. V opačnom prípade to popíšte neutrálne: „Spoločnosť vyplatila dividendy vo výške 70 miliónov EUR z vykázaného zisku.“
+- KRÁTKE OBDOBIA (< 12 mesiacov): Ak má parameter `monthsInPeriod` hodnotu menšiu ako 12, NEINTERPRETUJTE pokles tržieb alebo zisku v porovnaní s predchádzajúcim 12-mesačným obdobím ako negatívny trend. Pokles z 3-mesačného obdobia v porovnaní s 12-mesačným je matematickým dôsledkom kratšieho obdobia, nie zhoršením podnikania. V položke `executive_summary` explicitne uveďte, že ide o skrátené účtovné obdobie (napr. „Účtovná závierka za rok 2024 pokrýva iba 3 mesiace, preto nie je porovnateľná s predchádzajúcimi celými rokmi“). V Pilieri 4 (Rast a sila trendu) neznižujte skóre za pokles tržieb, ak je obdobie kratšie ako 11 mesiacov.''',
+    'pl': '''```text
+- Vždy píšte v správnej slovenčine.
+- Namiesto spojovníka "-" s medzerami používajte pomlčku ("–").
+- NIKDY nespomínajte historické názvy spoločností z registrov (CRZ, UVO). Vždy používajte aktuálny oficiálny názov spoločnosti. Rôzne historické formy názvu (napr. "KIA Motors Slovakia" vs "Kia Slovakia") pre to isté IČO predstavujú tú istú spoločnosť – neoznačujte ich ako nesrovnalosti.
+- V sekciách executive_summary a key_risk MUSíte zohľadniť významné medziročné zmeny z `analyza_trendov.revenue_trend`. Ak tržby klesli medziročne o viac ako 5 %, výslovne to uveďte medzi rizikami alebo varovaniami. Nepíšte o „dlhodobej ziskovosti“, ak v poslednom roku došlo k významnému poklesu tržieb.
+- Ak tržby prevyšujú aktíva (bežné vo výrobe s vysokou obrátkovosťou), výslovne vysvetlite, že tržby predstavujú tok za rok, zatiaľ čo aktíva predstavujú stav k jednému konkrétnemu bodu v čase – nejde o anomáliu.
+- NIKDY nepoužívajte syntax LaTeX v texte. Nepoužívajte znak "$" pre matematické vzorce. Namiesto "E/D=1.69" napíšte "E/D = 1.69" (s medzerami). Namiesto "Z''=8.47" napíšte "Z'' = 8.47". Nepoužívajte "\\prime", "^{...}" ani iné príkazy LaTeX.
+- Formátujte čísla s desatinnou bodkou (1.69 namiesto 1,69) a medzerou ako oddeľovačom tisícov (1 000 000 namiesto 1000000).
+- NADMERNÝ ODPOČET DPH: Pre exportne orientované výrobné spoločnosti (automotive, elektronika) je pravidelný a vysoký nadmerný odpočet DPH úplne štandardný a legálny. Spoločnosť nakupuje komponenty s DPH, ale hotové výrobky vyváža s 0 % sadzbou DPH, čo prirodzene vedie k nadmernému odpočtu. Nepovažujte to za daňové riziko ani varovný signál.
+- ALTMANOV Z'' PRE VELKOOBCHOD/DISTRIBÚCIU: Ak má spoločnosť nízku čistú maržu (< 2 %) a vysoké záväzky voči dodávateľom, Altmanov Z''-skóre môže signalizovať falošné riziko insolvencie aj pre stabilných distribučných lídrov. Pridajte poznámku: "Metodika Altman Z'' nie je plne optimalizovaná pre nízkomaržové veľkoobchodné modely s vysokým podielom obchodných záväzkov, takže môže indikovať falošné riziko insolvencie aj pre stabilných lídrov v oblasti distribúcie."
+- ZÁLOHY NA VLASTNÉ IMANIE: Ak v registri NCRZP vidíte záložné právo na obchodný podiel/akcie od banky (napr. UniCredit Bank, Tatra banka, Slovenská sporiteľňa), ide o štandardné zabezpečenie prevádzkových úverov, nie o znak insolvencie. Neoznačujte to ako kritické riziko.
+- RESTRUKTURALIZÁCIA Z ORSR: Ak výpis z ORSR (sekcia "Ostatné právne skutočnosti") uvádza reštrukturalizáciu, konkurz alebo oddlženie – aj keď sú už ukončené – MUSÍTE to spomenúť v hodnotení. Napríklad: "Spoločnosť prešla formálnou reštrukturalizáciou v rokoch 2022–2023, ktorú súd úspešne ukončil." NIKDY nepíšte "nemá žiadne záznamy o reštrukturalizácii", ak ORSR jasne uvádza, že k nej došlo. Register úpadcov a reštrukturalizácií zobrazuje iba aktuálne prebiehajúce konania – ak sa skončilo, register ho už nezobrazuje, čo však neznamená, že sa nikdy nestalo.
+- POČET ZAMESTNANCOV: Ak sú v údajoch k dispozícii presné počty zamestnancov (`pocet_zamestnancov`, `priemernyPocetZamestnancov`), vždy ich používajte presne. Nepíšte "viac ako 1000 zamestnancov", ak je presná hodnota 1 292. Formulujte: "Priemerný počet zamestnancov dosiahol 1 292."
+- DIVIDENDY: Vyplácanie dividend alebo rozdelenie zisku vlastníkom NIE JE automaticky negatívnym signálom likvidity. Ide o štandardnú distribúciu vykázaného zisku. Spomeňte to ako negatívny faktor likvidity iba vtedy, ak dividendy výrazne prevyšujú dostupné peňažné prostriedky alebo vyvíjajú tlak na pracovný kapitál. V opačnom prípade to popíšte neutrálne: "Spoločnosť vyplatila dividendy vo výške 70 miliónov EUR z vykázaného zisku."
+- KRÁTKE OBDOBIA (< 12 mesiacov): Ak vidíte `monthsInPeriod` s hodnotou menšou ako 12, NEVYVODZUJTE pokles tržieb alebo zisku v porovnaní s predchádzajúcim 12-mesačným obdobím ako negatívny trend. Pokles z 3-mesačného obdobia v porovnaní s 12-mesačným je matematickým dôsledkom kratšieho obdobia, nie zhoršením podnikania. V sekcii executive_summary výslovne uveďte, že ide o skrátené účtovné obdobie (napr. "Účtovná závierka za rok 2024 pokrýva iba 3 mesiace, preto nie je porovnateľná s predchádzajúcimi celými rokmi"). V pilieri 4 (Rast a sila trendov) neznižujte skóre za pokles tržieb, ak je obdobie kratšie ako 11 mesiacov.''',
 }
