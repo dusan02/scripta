@@ -298,9 +298,10 @@ class OrsrScraper(BaseScraper):
         """Extract company name from detail page HTML.
 
         Looks for 'Obchodné meno:' label in table rows.
+        In Úplný výpis, cell after label contains all historical names concatenated.
+        We take only the first name (before first '(od:' marker).
         """
         soup = BeautifulSoup(html, "lxml")
-        # Find all table rows
         for table in soup.find_all("table"):
             for row in table.find_all("tr"):
                 cells = row.find_all("td")
@@ -309,7 +310,10 @@ class OrsrScraper(BaseScraper):
                     if "obchodné meno" in text and i + 1 < len(cells):
                         name_val = cells[i + 1].get_text(strip=True)
                         if name_val:
-                            return self._clean_company_name(name_val)
+                            # Take only the first name before (od: ...) marker
+                            # Úplný výpis has: "CurrentName(od: date)OldName(od: date2 do: date3)"
+                            first_name = re.split(r'\s*\(od:', name_val, maxsplit=1)[0].strip()
+                            return self._clean_company_name(first_name)
         return None
 
     def _extract_company_name_from_search(self, html: str, ico: str) -> Optional[str]:
@@ -544,25 +548,42 @@ class OrsrScraper(BaseScraper):
     # ── PDF generation ───────────────────────────────────────────────
 
     async def _html_to_pdf(self, html: str, output_path: Path, ico: str) -> int:
-        """Generate PDF from ORSR HTML using Playwright (single page, no browser context overhead).
+        """Generate PDF from ORSR HTML using Playwright set_content (no navigation).
 
-        Since ORSR HTML is static, we can use a lightweight Playwright page just for PDF rendering.
-        This is faster than full scraping because we skip navigation, form filling, and waits.
+        Uses the existing browser context directly — no stealth JS, proxy, or UA rotation
+        overhead from _get_page(). Just set_content + print to PDF.
         """
-        # Use the existing _get_page infrastructure for PDF generation
+        import os
         page = None
+        context = None
         try:
-            page = await self._get_page(block_images=False)
-            # Set content directly — no network navigation needed
-            await page.set_content(html, wait_until="domcontentloaded")
+            # Use browser directly — skip _get_page() overhead (stealth, proxy, UA rotation)
+            if self.browser is None:
+                # Fallback: if no browser injected, use _get_page
+                page = await self._get_page(block_images=False)
+            else:
+                context = await self.browser.new_context()
+                page = await context.new_page()
+
+            # Inject CSS for proper print formatting
+            styled_html = f"""<html><head><meta charset="utf-8">
+<style>
+body {{ font-family: 'Arial', sans-serif; font-size: 11px; }}
+table {{ width: 100%; border-collapse: collapse; }}
+td {{ padding: 2px 4px; vertical-align: top; }}
+.tl {{ font-weight: bold; white-space: nowrap; }}
+.ra {{ }}
+a {{ color: black; text-decoration: none; }}
+img {{ display: none; }}
+</style></head><body>{html.split('<body>', 1)[-1].rsplit('</body>', 1)[0] if '<body>' in html else html}</body></html>"""
+
+            await page.set_content(styled_html, wait_until="domcontentloaded")
             await page.pdf(
                 path=str(output_path),
                 format="A4",
                 print_background=True,
                 margin={"top": "10mm", "bottom": "10mm", "left": "10mm", "right": "10mm"},
             )
-            # Validate PDF
-            import os
             file_size = os.path.getsize(output_path)
             if file_size < 1000:
                 logger.warning(f"[{self.source_type}] PDF je podozrivo malé ({file_size}B).")
@@ -575,5 +596,10 @@ class OrsrScraper(BaseScraper):
             if page:
                 try:
                     await page.close()
+                except Exception:
+                    pass
+            if context:
+                try:
+                    await context.close()
                 except Exception:
                     pass
