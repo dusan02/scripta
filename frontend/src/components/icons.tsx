@@ -67,6 +67,14 @@ export function LogOutIcon(props: IconProps) {
   );
 }
 
+export function HomeIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 9.5L12 3l9 6.5V20a2 2 0 01-2 2h-4v-7h-6v7H5a2 2 0 01-2-2V9.5z" />
+    </svg>
+  );
+}
+
 export function SearchIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

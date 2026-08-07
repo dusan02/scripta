@@ -73,6 +73,7 @@ type Dict = Record<string, string>;
 
 const sk: Dict = {
   // ── NavBar ──
+  "nav.landing": "Domov",
   "nav.overenie": "Overenie",
   "nav.historia": "História",
   "nav.nastavenia": "Nastavenia",
@@ -967,6 +968,7 @@ const sk: Dict = {
 
 const en: Dict = {
   // ── NavBar ──
+  "nav.landing": "Home",
   "nav.overenie": "Verification",
   "nav.historia": "History",
   "nav.nastavenia": "Settings",
@@ -1861,6 +1863,7 @@ const en: Dict = {
 
 const de: Dict = {
   // ── NavBar ──
+  "nav.landing": "Startseite",
   "nav.overenie": "Prüfung",
   "nav.historia": "Verlauf",
   "nav.nastavenia": "Einstellungen",
@@ -2754,6 +2757,7 @@ const de: Dict = {
 };
 
 const cz: Dict = {
+  "nav.landing": "Domů",
   "nav.overenie": "Overení",
   "nav.historia": "Historie",
   "nav.nastavenia": "Nastavení",
@@ -3640,6 +3644,7 @@ const hu: Dict = {
   "docs.dpaDesc": "Személyes adatok feldolgozására vonatkozó megállapodás a Verifa.sk és az ügyfél között a GDPR 28. cikke szerint.",
   "docs.zobrazit": "Megtekintés",
   "docs.spatDomov": "Vissza a főoldalra",
+  "nav.landing": "Főoldal",
   "nav.overenie": "Ellenőrzés",
   "nav.historia": "Előzmények",
   "nav.nastavenia": "Beállítások",
@@ -4438,6 +4443,7 @@ const pl: Dict = {
   "docs.dpaDesc": "Umowa powierzenia przetwarzania danych osobowych pomiędzy Verifa.sk a klientem zgodnie z art. 28 RODO.",
   "docs.zobrazit": "Wyświetl",
   "docs.spatDomov": "Powrót do strony głównej",
+  "nav.landing": "Strona główna",
   "nav.overenie": "Weryfikacja",
   "nav.historia": "Historia",
   "nav.nastavenia": "Ustawienia",

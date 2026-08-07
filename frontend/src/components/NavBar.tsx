@@ -18,9 +18,11 @@ import {
   SettingsIcon,
   MailIcon,
   CheckIcon,
+  HomeIcon,
 } from "@/components/icons";
 
 const NAV_ITEMS = [
+  { href: "/", key: "nav.landing", icon: HomeIcon },
   { href: "/dashboard", key: "nav.overenie", icon: SearchIcon },
   { href: "/history", key: "nav.historia", icon: ClockIcon },
   { href: "/credits", key: "nav.kredity", icon: CreditCardIcon },
