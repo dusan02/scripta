@@ -604,7 +604,8 @@ def parse_tables_to_metrics(
         spotreba_materialu = _fix_thousands(spotreba_materialu, trzby, "spotreba_materialu")
         sluzby = _fix_thousands(sluzby, trzby, "sluzby")
         mzdove_naklady = _fix_thousands(mzdove_naklady, trzby, "mzdove_naklady")
-        dane_a_poplatky = _fix_thousands(dane_a_poplatky, trzby, "dane_a_poplatky")
+        # dane_a_poplatky je prirodzene malá hodnota (typicky 0.05-0.5% tržieb)
+        # — heuristika < 0.1% by falošne označila legitímne hodnoty za tisíce EUR
         zisk_pred_zdanenim = _fix_thousands(zisk_pred_zdanenim, trzby, "zisk_pred_zdanenim")
 
     # ── Apply unit multiplier (EUR vs tisíce EUR) ──

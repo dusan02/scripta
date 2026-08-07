@@ -557,6 +557,31 @@ def _sanitize_verdict_text(text: str) -> str:
     return text
 
 
+def _apply_orsr_override(
+    wh_dismissed: bool,
+    scorecard,
+    deterministic_score: int,
+    ico: str,
+) -> tuple[int, int]:
+    """
+    ORSR Management Anomaly override.
+
+    Ak LLM (Chief Auditor) nastaví white_horse_risk_dismissed=True,
+    zrušíme ORSR forenznú penalizáciu z deterministic_score.
+
+    Vráti (wh_refund, updated_deterministic_score).
+    """
+    wh_refund = 0
+    if wh_dismissed and scorecard is not None:
+        for p in scorecard.pillars:
+            if "ORSR" in p.name and p.score < 0:
+                wh_refund += abs(p.score)
+                logger.info(f"[MGMT ANOMALY OVERRIDE] IČO {ico}: LLM dismissed mgmt anomaly risk — refunding {abs(p.score)}b ORSR penalty")
+        if wh_refund > 0:
+            deterministic_score = min(100, deterministic_score + wh_refund)
+    return wh_refund, deterministic_score
+
+
 async def run_and_save_audit_verdict(
     ico: str,
     force: bool = False,
@@ -905,14 +930,9 @@ async def run_and_save_audit_verdict(
         # Ak LLM (Chief Auditor) nastaví white_horse_risk_dismissed=True,
         # zrušíme ORSR forenznú penalizáciu z deterministic_score.
         wh_dismissed = getattr(verdict, "white_horse_risk_dismissed", False)
-        wh_refund = 0
-        if wh_dismissed and scorecard is not None:
-            for p in scorecard.pillars:
-                if "ORSR" in p.name and p.score < 0:
-                    wh_refund += abs(p.score)
-                    logger.info(f"[MGMT ANOMALY OVERRIDE] IČO {ico}: LLM dismissed mgmt anomaly risk — refunding {abs(p.score)}b ORSR penalty")
-            if wh_refund > 0:
-                deterministic_score = min(100, deterministic_score + wh_refund)
+        wh_refund, deterministic_score = _apply_orsr_override(
+            wh_dismissed, scorecard, deterministic_score, ico
+        )
 
         logger.info(
             f"Ukladám AuditVerdict pre IČO {ico}: "

@@ -29,6 +29,7 @@ from src.pipeline import (
     _strip_hallucinated_debts,
     _build_fallback_verdict,
     _remaining_eta,
+    _apply_orsr_override,
 )
 
 
@@ -475,3 +476,240 @@ class TestRemainingEta:
         t_start = time.perf_counter()
         eta = _remaining_eta(t_start, baseline=0)
         assert eta == 5
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# _apply_orsr_override — ORSR Management Anomaly override
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestApplyOrsrOverride:
+    """Testuje ORSR override logiku — ak LLM dismissne mgmt anomaly risk,
+    refundujeme ORSR penalizáciu z deterministic_score."""
+
+    def _scorecard_with_orsr_penalty(self, penalty: int = -15):
+        """Vytvorí scorecard s ORSR pilierom ktorý má negatívne skóre."""
+        return ScorecardResult(
+            total_score=50,
+            risk_category="B",
+            hard_stop=False,
+            pillars=[
+                ScorecardPillar(name="Platobná schopnosť", score=20, max_score=30, detail="OK", flags=[]),
+                ScorecardPillar(name="ORSR Management Anomaly", score=penalty, max_score=0, detail="Anomália v štruktúre vedenia", flags=[]),
+            ],
+        )
+
+    def test_wh_dismissed_refunds_orsr_penalty(self):
+        """Ak wh_dismissed=True a ORSR pilier má negatívne skóre, refunduje sa."""
+        scorecard = self._scorecard_with_orsr_penalty(penalty=-15)
+        wh_refund, new_score = _apply_orsr_override(True, scorecard, 50, "12345678")
+        assert wh_refund == 15
+        assert new_score == 65  # 50 + 15
+
+    def test_wh_not_dismissed_no_refund(self):
+        """Ak wh_dismissed=False, žiadny refund."""
+        scorecard = self._scorecard_with_orsr_penalty(penalty=-15)
+        wh_refund, new_score = _apply_orsr_override(False, scorecard, 50, "12345678")
+        assert wh_refund == 0
+        assert new_score == 50
+
+    def test_no_orsr_pillar_no_refund(self):
+        """Ak neexistuje ORSR pilier, žiadny refund aj keď wh_dismissed=True."""
+        scorecard = ScorecardResult(
+            total_score=50,
+            risk_category="B",
+            hard_stop=False,
+            pillars=[
+                ScorecardPillar(name="Platobná schopnosť", score=20, max_score=30, detail="OK", flags=[]),
+            ],
+        )
+        wh_refund, new_score = _apply_orsr_override(True, scorecard, 50, "12345678")
+        assert wh_refund == 0
+        assert new_score == 50
+
+    def test_orsr_pillar_positive_no_refund(self):
+        """Ak ORSR pilier má pozitívne skóre (žiadna penalizácia), žiadny refund."""
+        scorecard = ScorecardResult(
+            total_score=50,
+            risk_category="B",
+            hard_stop=False,
+            pillars=[
+                ScorecardPillar(name="ORSR Management Anomaly", score=5, max_score=10, detail="OK", flags=[]),
+            ],
+        )
+        wh_refund, new_score = _apply_orsr_override(True, scorecard, 50, "12345678")
+        assert wh_refund == 0
+        assert new_score == 50
+
+    def test_score_capped_at_100(self):
+        """Ak by refund presiahol 100, skóre sa capne na 100."""
+        scorecard = self._scorecard_with_orsr_penalty(penalty=-30)
+        wh_refund, new_score = _apply_orsr_override(True, scorecard, 85, "12345678")
+        assert wh_refund == 30
+        assert new_score == 100  # 85 + 30 = 115, cap na 100
+
+    def test_no_scorecard_no_refund(self):
+        """Ak scorecard je None, žiadny refund."""
+        wh_refund, new_score = _apply_orsr_override(True, None, 50, "12345678")
+        assert wh_refund == 0
+        assert new_score == 50
+
+    def test_multiple_orsr_pillars_all_refunded(self):
+        """Ak existuje viacero ORSR pilierov s negatívnym skóre, refundujú sa všetky."""
+        scorecard = ScorecardResult(
+            total_score=40,
+            risk_category="B",
+            hard_stop=False,
+            pillars=[
+                ScorecardPillar(name="ORSR Anomaly 1", score=-10, max_score=0, detail="A", flags=[]),
+                ScorecardPillar(name="ORSR Anomaly 2", score=-5, max_score=0, detail="B", flags=[]),
+            ],
+        )
+        wh_refund, new_score = _apply_orsr_override(True, scorecard, 40, "12345678")
+        assert wh_refund == 15  # 10 + 5
+        assert new_score == 55  # 40 + 15
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# _strip_hallucinated_debts — integračné testy s rôznymi registrami
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestStripHallucinatedDebtsIntegration:
+    """Integračné testy pre anti-hallucináciu naprieč rôznymi registrami."""
+
+    def test_financna_sprava_clean_strips_tax_debt(self):
+        """FINANCNA_SPRAVA CLEAN + daňový dlh v texte → odstráni."""
+        payload = {
+            "finalVerdict": "Firma má daňové nedoplatky 500 000 EUR voči finančná správa. Zisk je kladný.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["FINANCNA_SPRAVA: CLEAN"], "12345678")
+        assert "500 000 EUR" not in result["finalVerdict"]
+        assert "finančná správa" not in result["finalVerdict"].lower()
+        assert "Zisk je kladný" in result["finalVerdict"]
+
+    def test_dovera_clean_strips_insurance_debt(self):
+        """DOVERA_DLZNICI CLEAN + Dôvera dlh v texte → odstráni."""
+        payload = {
+            "finalVerdict": "Dlh 160 000 € voči dôvera poisťovni. Firma je stabilná.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["DOVERA_DLZNICI: CLEAN"], "12345678")
+        assert "160 000 €" not in result["finalVerdict"]
+        assert "dôvera" not in result["finalVerdict"].lower()
+        assert "Firma je stabilná" in result["finalVerdict"]
+
+    def test_vszp_clean_strips_debt(self):
+        """VšZP CLEAN + VšZP dlh v texte → odstráni."""
+        payload = {
+            "finalVerdict": "Dlh 80 000 EUR voči všzp. Firma je zisková.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["VSZP_DLZNICI: CLEAN"], "12345678")
+        assert "80 000 EUR" not in result["finalVerdict"]
+        assert "všzp" not in result["finalVerdict"].lower()
+
+    def test_poverenia_clean_strips_execution_debt(self):
+        """POVERENIA CLEAN + exekúcia s sumou v texte → odstráni."""
+        payload = {
+            "finalVerdict": "Exekúcia v hodnote 25 000 € voči firme. Firma je zisková.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["POVERENIA: CLEAN"], "12345678")
+        assert "25 000 €" not in result["finalVerdict"]
+        assert "Exekúcia" not in result["finalVerdict"]
+
+    def test_has_debt_registry_not_stripped(self):
+        """Ak register má HAS_DEBT (nie CLEAN), text sa nemení."""
+        payload = {
+            "finalVerdict": "Dlh 500 000 EUR voči sociálna poisťovňa. Firma je stabilná.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["SP_DLZNICI: HAS_DEBT"], "12345678")
+        assert result["finalVerdict"] == payload["finalVerdict"]
+
+    def test_mixed_clean_and_has_debt(self):
+        """Zmix CLEAN a HAS_DEBT — len CLEAN registre sa strippujú."""
+        payload = {
+            "finalVerdict": "Dlh 100 000 EUR voči sociálna poisťovňa. Dlh 50 000 € voči dôvera. Zisk.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(
+            payload,
+            ["SP_DLZNICI: HAS_DEBT", "DOVERA_DLZNICI: CLEAN"],
+            "12345678",
+        )
+        # SP dlh zostáva (HAS_DEBT), Dôvera dlh sa strippuje (CLEAN)
+        assert "100 000 EUR" in result["finalVerdict"]
+        assert "50 000 €" not in result["finalVerdict"]
+        assert "Zisk" in result["finalVerdict"]
+
+    def test_no_eur_amount_no_stripping(self):
+        """CLEAN register ale bez EUR sumy v texte — žiadna zmena."""
+        payload = {
+            "finalVerdict": "Firma má dlh voči finančná správa. Zisk je kladný.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["FINANCNA_SPRAVA: CLEAN"], "12345678")
+        assert result["finalVerdict"] == payload["finalVerdict"]
+
+    def test_eur_amount_far_from_keyword_not_stripped(self):
+        """EUR suma viac ako 200 znakov od keywordu — nesedí window, nemá strippovať."""
+        # "finančná správa" na začiatku, EUR suma > 200 znakov ďalej
+        padding = "x" * 250
+        payload = {
+            "finalVerdict": f"finančná správa je čistá. {padding} Dlh 500 000 EUR inde.",
+            "executiveSummary": "",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["FINANCNA_SPRAVA: CLEAN"], "12345678")
+        # EUR suma je príliš ďaleko od keywordu — nemá byť strippnutá
+        assert "500 000 EUR" in result["finalVerdict"]
+
+    def test_justification_evidence_item_sanitized(self):
+        """Justification (JSON array) s halucinovaným dlhom sa sanitizuje."""
+        items = [
+            {
+                "claim": "Dlh voči Dôvera poisťovni",
+                "evidence": "Dôvera hlási dlh 160 000 €",
+                "impact": "CRITICAL",
+                "source": "Dôvera register",
+            }
+        ]
+        payload = {
+            "finalVerdict": "",
+            "executiveSummary": "",
+            "keyRisk": "",
+            "justification": json.dumps(items, ensure_ascii=False),
+        }
+        result = _strip_hallucinated_debts(payload, ["DOVERA_DLZNICI: CLEAN"], "12345678")
+        parsed = json.loads(result["justification"])
+        assert parsed[0]["impact"] == "NEUTRAL"
+        assert "neobsahujú záznam" in parsed[0]["evidence"].lower() or "halucin" in parsed[0]["evidence"].lower()
+
+    def test_executive_summary_also_stripped(self):
+        """Executive summary sa tiež strippuje."""
+        payload = {
+            "finalVerdict": "",
+            "executiveSummary": "Dlh 200 000 EUR voči sociálna poisťovňa je problém. Zisk je kladný.",
+            "keyRisk": "",
+        }
+        result = _strip_hallucinated_debts(payload, ["SP_DLZNICI: CLEAN"], "12345678")
+        assert "200 000 EUR" not in result["executiveSummary"]
+        assert "Zisk je kladný" in result["executiveSummary"]
+
+    def test_key_risk_also_stripped(self):
+        """Key risk sa tiež strippuje."""
+        payload = {
+            "finalVerdict": "",
+            "executiveSummary": "",
+            "keyRisk": "Riziko: dlh 300 000 EUR voči sociálna poisťovňa.",
+        }
+        result = _strip_hallucinated_debts(payload, ["SP_DLZNICI: CLEAN"], "12345678")
+        assert "300 000 EUR" not in result["keyRisk"]

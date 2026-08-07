@@ -1,5 +1,5 @@
 """
-Unit testy pre report_generator.py — formátovanie a heatmap logika.
+Unit testy pre report_generator.py — formátovanie, heatmap logika a rendering.
 
 Pokrýva:
 - format_currency: formátovanie EUR (mil., tis., jednotky, None, invalid)
@@ -11,6 +11,7 @@ Pokrýva:
 - compute_fraud_heatmap: agregácia varovných indikátorov do heatmap gridu
 - compute_insolvency_score: výpočet insolventného skóre
 - _translate_flag: preklad flagov cez i18n
+- render_html_report: smoke test — rendering HTML z context dict (bez DB)
 """
 
 import json
@@ -28,6 +29,8 @@ from src.report_generator import (
     compute_fraud_heatmap,
     compute_insolvency_score,
     _translate_flag,
+    render_html_report,
+    get_i18n_strings,
 )
 
 
@@ -330,3 +333,194 @@ class TestTranslateFlag:
         i18n = {}
         result = _translate_flag("Unknown flag text", i18n)
         assert result == "Unknown flag text" or result is not None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# render_html_report — smoke testy (bez DB, len rendering z context dict)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _minimal_context(**overrides):
+    """Vytvorí minimálny context dict pre render_html_report.
+    Všetky kľúče majú bezpečné default hodnoty (None, [], {}, "")."""
+    i18n = get_i18n_strings("sk")
+    # Mock verdict — template pristupuje k verdict.verifaScore, verdict.finalVerdict, atď.
+    mock_verdict = SimpleNamespace(
+        verifaScore=65,
+        riskCategory="A",
+        finalVerdict="Firma vykazuje stabilné finančné zdravie.",
+        executiveSummary="Stabilná firma s kladným ziskom.",
+        keyRisk="Žiadne kritické riziká.",
+        debtExposureRating=None,
+        llmAnalysisStatus="LLM_ANALYZED",
+        llmScoreAdjustment=0,
+        justification="[]",
+        scorecardBreakdown=None,
+    )
+    ctx = {
+        "company": SimpleNamespace(ico="12345678", nazov="Test s.r.o.", name="Test s.r.o.", auditVerdict=mock_verdict, financialStatements=[]),
+        "verdict": mock_verdict,
+        "evidence_list": [],
+        "latest_stmt": None,
+        "stmts_sorted": [],
+        "stmts": [],
+        "ebitda_by_year": {},
+        "latest_ratios": None,
+        "gross_profit_estimated": False,
+        "gross_profit_all_estimated": False,
+        "estimated_gp_years": [],
+        "cashflow_estimated": False,
+        "has_cashflow_data": False,
+        "nace_code": "",
+        "nace_text": "",
+        "employee_count": None,
+        "employee_count_estimated": False,
+        "vestnik_events": [],
+        "chart_image_base64": "",
+        "balance_chart_base64": "",
+        "pnl_chart_base64": "",
+        "cashflow_chart_base64": "",
+        "altman_chart_base64": "",
+        "logo_base64": "",
+        "start_pages_map": {},
+        "total_pages": 0,
+        "generated_at": "2024-01-01",
+        "counts": SimpleNamespace(SUCCESS=0, WARNING=0, INFO=0, UNAVAILABLE=0, FAILED=0, PARTIAL=0, SKIPPED=0),
+        "grouped_sources": {},
+        "labels": {},
+        "scorecard_breakdown": [],
+        "algorithmic_total": 65,
+        "hard_stop": False,
+        "altman_scores": [],
+        "is_financial_institution": False,
+        "is_startup": False,
+        "startup_info": None,
+        "has_mixed_consolidation": False,
+        "has_non_standard_months": False,
+        "has_short_history": False,
+        "piotroski_score": None,
+        "piotroski_flags": [],
+        "beneish_m_score": None,
+        "beneish_is_manipulator": False,
+        "beneish_flags": [],
+        "yoy_revenue_growth": [],
+        "yoy_profit_growth": [],
+        "trend_ratios": {},
+        "ratios_chart_base64": "",
+        "radar_chart_base64": "",
+        "auditor_opinion": None,
+        "gauge_end_x": 0,
+        "gauge_end_y": 0,
+        "gauge_large_arc": 0,
+        "cf_waterfall_base64": "",
+        "bs_infographic_base64": "",
+        "pl_infographic_base64": "",
+        "liquidity_chart_base64": "",
+        "employee_chart_base64": "",
+        "rpe_chart_base64": "",
+        "asset_composition_chart_base64": "",
+        "equity_composition_chart_base64": "",
+        "statement_delay_days": None,
+        "qr_base64": "",
+        "valid_until": "",
+        "confidence_score": 0,
+        "confidence_factors": [],
+        "company_city": "",
+        "company_founded_year": None,
+        "revenue_per_employee": None,
+        "report_language": "sk",
+        "i18n": i18n,
+        "insolvency_score": None,
+        "fraud_heatmap": {"categories": [], "has_data": False},
+        "strengths_weaknesses": {"strengths": [], "weaknesses": []},
+        "state_liabilities_alert": None,
+        "rpe_alert": None,
+        "yoy_table": [],
+    }
+    ctx.update(overrides)
+    return ctx
+
+
+class TestRenderHtmlReport:
+    """Smoke testy pre render_html_report — overujú že rendering nezhavaruje."""
+
+    def test_minimal_context_renders_html(self):
+        """Minimálny context (žiadne dáta) by mal vyrenderovať HTML bez chyby."""
+        ctx = _minimal_context()
+        html = render_html_report(ctx)
+        assert isinstance(html, str)
+        assert len(html) > 1000  # HTML by malo mať nejaký obsah
+        assert "<html" in html.lower() or "<!doctype" in html.lower()
+
+    def test_html_contains_company_name(self):
+        """HTML by malo obsahovať názov firmy."""
+        ctx = _minimal_context(company={"ico": "12345678", "nazov": "Test s.r.o.", "auditVerdict": None})
+        html = render_html_report(ctx)
+        assert "Test s.r.o." in html or "12345678" in html
+
+    def test_html_contains_ico(self):
+        """HTML by malo obsahovať IČO."""
+        ctx = _minimal_context()
+        html = render_html_report(ctx)
+        assert "12345678" in html
+
+    def test_html_with_hard_stop(self):
+        """Hard stop scenario by mal vyrenderovať bez chyby."""
+        ctx = _minimal_context(hard_stop=True)
+        html = render_html_report(ctx)
+        assert isinstance(html, str)
+        assert len(html) > 1000
+
+    def test_html_with_scorecard_breakdown(self):
+        """Scorecard breakdown by mal vyrenderovať bez chyby."""
+        ctx = _minimal_context(
+            scorecard_breakdown=[
+                {"name": "Platobná schopnosť", "score": 20, "max_score": 30, "detail": "OK"},
+                {"name": "Finančné zdravie", "score": 15, "max_score": 25, "detail": "Stabilné"},
+            ],
+            algorithmic_total=65,
+        )
+        html = render_html_report(ctx)
+        assert isinstance(html, str)
+        assert "Platobná schopnosť" in html or "65" in html
+
+    def test_html_english_language(self):
+        """EN jazyk by mal vyrenderovať bez chyby."""
+        i18n = get_i18n_strings("en")
+        ctx = _minimal_context(report_language="en", i18n=i18n)
+        html = render_html_report(ctx)
+        assert isinstance(html, str)
+        assert len(html) > 1000
+
+    def test_html_german_language(self):
+        """DE jazyk by mal vyrenderovať bez chyby."""
+        i18n = get_i18n_strings("de")
+        ctx = _minimal_context(report_language="de", i18n=i18n)
+        html = render_html_report(ctx)
+        assert isinstance(html, str)
+        assert len(html) > 1000
+
+    def test_html_with_charts(self):
+        """Context s chart base64 by mal vyrenderovať bez chyby (charts sa zobrazia len keď existuje latest_stmt)."""
+        ctx = _minimal_context(
+            cashflow_chart_base64="data:image/png;base64,iVBORw0KGgo=",
+            altman_chart_base64="data:image/png;base64,iVBORw0KGgo=",
+            ratios_chart_base64="data:image/png;base64,iVBORw0KGgo=",
+        )
+        html = render_html_report(ctx)
+        assert isinstance(html, str)
+        assert len(html) > 1000  # Rendering nezhavaroval
+
+    def test_html_with_fraud_heatmap(self):
+        """Fraud heatmap s kategóriami by mal vyrenderovať bez chyby."""
+        ctx = _minimal_context(
+            fraud_heatmap={
+                "categories": [
+                    {"label": "Obchodný vestník", "severity": "critical", "count": 2, "color": "#dc2626", "bg": "#fef2f2", "details": ["event1"]},
+                    {"label": "Forenzná analýza", "severity": "none", "count": 0, "color": "#94a3b8", "bg": "#f8fafc", "details": []},
+                ],
+                "has_data": True,
+            },
+        )
+        html = render_html_report(ctx)
+        assert isinstance(html, str)
+        assert "Obchodný vestník" in html or "vestník" in html.lower()
