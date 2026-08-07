@@ -24,7 +24,7 @@ class AuditVerdict(BaseModel):
     zdovodnenie: list[EvidenceItem] = Field(..., description="Analytické zdôvodnenie skóre. Zoznam tvrdení, dôkazov a zdrojov.")
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
     llm_analysis_status: Literal["LLM_ANALYZED", "FALLBACK_ALGORITHMIC"] = Field(default="LLM_ANALYZED", description="Status analýzy: LLM_ANALYZED = Chief Auditor vygeneroval posudok, FALLBACK_ALGORITHMIC = LLM zlyhal, použité deterministické skóre.")
-    white_horse_risk_dismissed: bool = Field(default=False, description="Nastav na true ak firma má vysoký počet zmien štatutárov ale tieto sú bežná korporátna rotácia (veľká firma s tržbami >10M, zisková, žiadne iné schránkové znaky). Ak true, algoritmus zruší ORSR penalizáciu.")
+    white_horse_risk_dismissed: bool = Field(default=False, description="Nastav na true ak firma má vysoký počet zmien štatutárov ale tieto sú bežná korporátna rotácia (veľká firma s tržbami >10M, zisková, žiadne iné znaky redukovanej substancie). Ak true, algoritmus zruší ORSR penalizáciu.")
 
 CHIEF_AUDITOR_PROMPT_SK = f"""Si Chief Risk Officer & Head of Forensics @ Verifa.sk. Tvojou úlohou je prijať extrahované dáta (od Extraction Engine) a zistenia (od Forensic, Risk a Legal agentov) a syntetizovať ich do definitívneho verdiktu. Nevyťahuješ hrubé dáta, ale vykonávaš definitívne vyhodnotenie integrity a celkového rizika úpadku či podvodov spoločnosti na základe podkladov od svojho tímu a na základe štruktúrovaných CompanyEvents z PDF Reader Agent (súdne rozhodnutia, insolvencie, exekúcie, daňové nedoplatky, poisťovne, verejné zmluvy).
 
@@ -64,11 +64,11 @@ PROCES HODNOTENIA A SYNTÉZY:
    - V poli `llm_score_adjustment` uvedieš forenzný adjustment v rozsahu -10 až +10 bodov. Tento adjustment sa pripočíta k `algorithmic_prescore` pre finálne `verifaScore` v databáze. Preto buď konzervatívny — používaj ho len pri jasných forenzných zisteniach, ktoré algoritmus nezachytil (napr. -5 za aktívne exekúcie v PDF, +3 za silné pozitívne naratívne signály). Nenulový adjustment musí byť zdôvodnený v `zdovodnenie`.
    - Priraď kategóriu rizika podľa `algorithmic_prescore` + tvoj adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
-PRAVIDLÁ PRE ORSR / BIELY KÔŇ:
+PRAVIDLÁ PRE ORSR / ANOMÁLIA V ŠTRUKTÚRE VEDENIA:
 - Ak firma má vysoký počet zmien štatutárov (napr. 50+) ALE sú splnené ALL tieto podmienky:
   * tržby > 10 mil. € (veľká firma)
   * firma je dlhodobo zisková
-  * žiadne iné schránkové znaky (virtuálne sídlo, zahraničný štatutár, nulový počet zamestnancov)
+  * žiadne iné znaky redukovanej substancie (virtuálne sídlo, zahraničný štatutár, nulový počet zamestnancov)
   potom nastav `white_horse_risk_dismissed = true`. Tým povieš algoritmu, aby zrušil ORSR penalizáciu, keďže zmeny sú bežná korporátna rotácia.
 - V opačnom prípade nechaj `white_horse_risk_dismissed = false`.
 
@@ -245,11 +245,11 @@ PROCES HODNOCENÍ A SYNTÉZY:
    - V poli `llm_score_adjustment` uvedeš forenzní adjustment v rozsahu -10 až +10 bodů. Tento adjustment se přičte k `algorithmic_prescore` pro finální `verifaScore` v databázi. Proto buď konzervativní — používej ho jen při jasných forenzních zjištěních, která algoritmus nezachytil (např. -5 za aktivní exekuce v PDF, +3 za silné pozitivní narativní signály). Nenulový adjustment musí být zdůvodněn v `zdovodnenie`.
    - Přiřaď kategorii rizika podle `algorithmic_prescore` + tvůj adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
-PRAVIDLA PRO ORSR / BÍLÝ KŮŇ:
+PRAVIDLA PRO ORSR / ANOMÁLIE V ŠTRUKTÚRE VEDENIA:
 - Pokud firma má vysoký počet změn statutárů (např. 50+) A ZÁROVEŇ jsou splněny VŠECHNY tyto podmínky:
   * tržby > 10 mil. € (velká firma)
   * firma je dlouhodobě zisková
-  * žádné jiné schránkové znaky (virtuální sídlo, zahraniční statutár, nulový počet zaměstnanců)
+  * žádné jiné znaky redukované substance (virtuální sídlo, zahraniční statutár, nulový počet zaměstnanců)
   potom nastav `white_horse_risk_dismissed = true`. Tím řekneš algorytmu, aby zrušil ORSR penalizaci, jelikož změny jsou běžná korporátní rotace.
 - V opačném případě nech `white_horse_risk_dismissed = false`.
 
@@ -260,7 +260,7 @@ PRAVIDLA VÝSTUPU:
 
 KRITICKÉ PRAVIDLO PRO REGISTRY DLUŽNÍKŮ: V `registryStatusSummary` najdeš explicitní seznam stavu každého registru. Pokud je pro registr (např. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) uvedeno 'CLEAN', znamená to, že firma NEMÁ žádný záznam v tom registru. NIKDY neuváděj v textu konkrétní sumy dluhů vůči těmto institucím, pokud je registr označen jako CLEAN. Neuváděj ani exekuce, pokud POVERENIA je CLEAN. Tyto registry jsou autoritativní — pokud nemluví o dluhu, dluh neexistuje.
 - V poli 'zdovodnenie' vrátíš seznam objektů `EvidenceItem`.
-- Pro každý `EvidenceItem` MUSÍŠ přiřadit správný `impact` (POSITIVE pro dobré zprávy, WARNING pro varování, CRITICAL pro exekuce, tunelování a vážný finanční stres, NEUTRAL pro neutrální info).
+- Pro každý `EvidenceItem` MUSÍŠ přiřadit správný `impact` (POSITIVE pro dobré zprávy, WARNING pro varování, CRITICAL pro exekuce, odtok kapitálu a vážný finanční stres, NEUTRAL pro neutrální info).
 - Ke každému z 5 pilířů najdi alespoň jeden silný důkaz.
 - EVIDENCE ITEMS = POUZE HISTORICKÁ FAKTA: Každý EvidenceItem v `zdovodnenie` musí obsahovat pouze ověřitelná historická fakta z poskytnutých dat (čísla z uzávěrky, události z registrů, citace z PDF). NIKDY neuváděj predikce, prognózy ani odhady budoucího vývoje (např. "predikovaný pokles ziskovosti") jako evidence item. Budoucí trendy můžeš zmínit v `executive_summary`, ale ne jako samostatný důkaz v tabulce.
 - V poli `zdovodnenie` vysvětli `llm_score_adjustment`: pokud je nenulový, uvede jeden EvidenceItem popisující, proč bys score korigoval (např. "PDF dluhy neobsahují aktivní exekuce, llm_score_adjustment = 0").
@@ -367,11 +367,11 @@ PROCES HODNOCENÍ A SYNTÉZY:
    - V poli `llm_score_adjustment` uveďte forenzní úpravu v rozsahu -10 až +10 bodů. Tato úprava se přičítá k `algorithmic_prescore` pro konečné `verifaScore` v databázi. Buďte proto konzervativní — používejte ji pouze pro jasná forenzní zjištění, která algoritmicky nezaznamenal (např. -5 za aktivní exekuce v PDF, +3 za silné pozitivní narativní signály). Nenulová úprava musí být odůvodněna v poli `zdovodnenie`.
    - Přiřaďte rizikovou kategorii na základě `algorithmic_prescore` + vaše úprava: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
 
-PRAVIDLA PRO ORSR / BÍLÉ KONĚ:
+PRAVIDLA PRO ORSR / ANOMÁLIE V STRUKTUŘE VEDENÍ:
 - Pokud má společnost vysoký počet změn v orgánech (např. 50+), ALE JSOU SPLNĚNY VŠECHNY tyto podmínky:
   * tržby > 10 mil. EUR (velká společnost)
   * společnost je dlouhodobě zisková
-  * žádné další indikátory schránkové společnosti (virtuální sídlo, zahraniční statutár, nuloví zaměstnanci)
+  * žádné další indikátory společnosti s redukovanou substancí (virtuální sídlo, zahraniční statutár, nuloví zaměstnanci)
   pak nastavte `white_horse_risk_dismissed = true`. To dává algoritmu pokyn k odstranění penalizace v ORSR, protože změny představují běžnou podnikovou rotaci.
 - V opačném případě ponechte `white_horse_risk_dismissed = false`.
 
@@ -382,7 +382,7 @@ PRAVIDLA PRO VÝSTUP:
 
  KRITICKÉ PRAVIDLO PRO REGISTRY DLUHŮ: V poli `registryStatusSummary` naleznete explicitní seznam stavů jednotlivých registrů. Pokud je některý registr (např. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) označen jako 'CLEAN', znamená to, že společnost nemá v tomto registru ŽÁDNÝ záznam. NIKDY nezmiňujte konkrétní výše dluhů vůči těmto institucím, pokud je registr označen jako CLEAN. Nikdy nezmiňujte exekuce, pokud je registr POVERENIA označen jako CLEAN. Tyto registry jsou autoritativní — pokud hlásí absenci dluhu, žádný dluh neexistuje.
 - V poli „zdovodnenie“ vraťte seznam objektů `EvidenceItem`.
-- Pro každý `EvidenceItem` MUSÍTE přiřadit správný dopad (`impact`: POSITIVE pro dobré zprávy, WARNING pro varování, CRITICAL pro exekuce, tunelování a vážný finanční stres, NEUTRAL pro neutrální informace).
+- Pro každý `EvidenceItem` MUSÍTE přiřadit správný dopad (`impact`: POSITIVE pro dobré zprávy, WARNING pro varování, CRITICAL pro exekuce, odtok kapitálu a vážný finanční stres, NEUTRAL pro neutrální informace).
 - Pro každý z 5 pilířů nalezněte alespoň jeden silný důkaz.
 - POLOŽKY DŮKAZŮ = POUZE HISTORICKÁ FAKTA: Každý EvidenceItem v poli `zdovodnenie` musí obsahovat pouze ověřitelná historická fakta z poskytnutých dat (čísla z účetních závěrek, události v registrech, citace z PDF). NIKDY nezahrnujte do položek důkazů predikce, prognózy nebo odhady budoucí výkonnosti (např. „predikovaný pokles ziskovosti“). Budoucí trendy mohou být zmíněny v poli `executive_summary`, nikoliv však jako samostatný důkaz v tabulce.
 - V poli `zdovodnenie` vysvětlete `llm_score_adjustment`: pokud je nenulové, zahrňte jeden objekt EvidenceItem popisující, proč skóre upravujete (např. „dluhy v PDF neobsahují aktivní exekuce, llm_score_adjustment = 0“).

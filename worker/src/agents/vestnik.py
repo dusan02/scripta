@@ -21,8 +21,8 @@ class VestnikEventItem(VestnikExtraction):
 
 class VestnikBatchResult(BaseModel):
     events: List[VestnikEventItem] = Field(default_factory=list, description="Analýza každého eventu.")
-    cross_event_pattern: str = Field(default="", description="Ak vidíš vzorec naprieč eventami (napr. 3 zmeny konateľa za 2 roky + virtuálne sídlo = biely kôň), popíš ho tu. Ak žiadny vzorec, vráť prázdny string.")
-    white_horse_risk: bool = Field(default=False, description="True ak kombinácia eventov indikuje schránkovú firmu (biely kôň).")
+    cross_event_pattern: str = Field(default="", description="Ak vidíš vzorec naprieč eventami (napr. 3 zmeny konateľa za 2 roky + virtuálne sídlo = anomália v štruktúre vedenia), popíš ho tu. Ak žiadny vzorec, vráť prázdny string.")
+    white_horse_risk: bool = Field(default=False, description="True ak kombinácia eventov indikuje spoločnosť s redukovanou substanciou (anomália v štruktúre vedenia).")
 
 VESTNIK_SYSTEM_PROMPT_SK = """Si Legal & Compliance Intelligence Officer @ Verifa.sk. Tvojou úlohou je kontinuálny sken Obchodného vestníka a verejných registrov a analyzovať text z Obchodného vestníka na identifikáciu právnych a existenčných udalostí, ktoré môžu okamžite ohroziť bonitu protistrany.
 Pravidlá:
@@ -82,11 +82,11 @@ Tvojí úlohou je analyzovat VŠECHNY eventy naraz a:
 
 1. Pro každý event uvedený vstupem (podle source_index) vytvor VestnikEventItem s typ_udalosti, rizikovost, zhrnutie a red_flags.
 2. NAJDI VZORCE napříč eventy — to je klíčové! Podívej se na všechny eventy spolu a hledej:
-   - 3+ změny konatele za krátké období (1-2 roky) = znak bílého koně
+   - 3+ změny konatele za krátké období (1-2 roky) = znak anomálie v struktuře vedení
    - Změna sídla + změna konatele + konkurzní podání v krátkém čase
    - Opakované exekuce = chronická platební neschopnost
    - Restrukturalizace následovaná změnou vlastnictví
-3. Pokud najdeš takový vzorec, vyplň cross_event_pattern a nastav white_horse_risk=True (jen pokud to skutečně indikuje schránkovou firmu).
+3. Pokud najdeš takový vzorec, vyplň cross_event_pattern a nastav white_horse_risk=True (jen pokud to skutečně indikuje společnost s redukovanou substancí).
 4. Pokud nenajdeš žádný vzorec, cross_event_pattern nech prázdný a white_horse_risk=False.
 
 Pravidla pro rizikovost:
@@ -116,11 +116,11 @@ Az Ön feladata az ÖSSZES esemény együttes elemzése, az alábbiak szerint:
 
 1. A bemenet minden egyes eseményéhez (source_index szerint) hozzon létre egy VestnikEventItemet a typ_udalosti, rizikovost, zhrnutie és red_flags mezőkkel.
 2. KERESSEN ESEMÉNYEK KÖZÖtti MINTÁZATOKat — ez kritikus fontosságú! Vizsgálja meg az összes eseményt együtt, és keresse a következőket:
-   - 3+ ügyvezetőváltás rövid időn belül (1-2 év) = stróman indikátor
+   - 3+ ügyvezetőváltás rövid időn belül (1-2 év) = vezetési struktúra anomália indikátor
    - Címváltozás + ügyvezetőváltás + csődeljárási kérelmezés rövid idő alatt
    - Ismételt végrehajtási eljárások = krónikus fizetésképtelenség
    - Restrukturálás, amelyet tulajdonosváltás követ
-3. Ha ilyen mintázatot talál, töltse ki a cross_event_pattern mezőt, és állítsa a white_horse_risk=True értéket (csak akkor, ha az valóban kagylócégre utal).
+3. Ha ilyen mintázatot talál, töltse ki a cross_event_pattern mezőt, és állítsa a white_horse_risk=True értéket (csak akkor, ha az valóban csökkentett szubsztanciájú cégre utal).
 4. Ha nem talál mintázatot, hagyja üresen a cross_event_pattern mezőt, és állítsa be a white_horse_risk=False értéket.
 
 Kockázati szintek szabályai:
@@ -150,11 +150,11 @@ Twoim zadaniem jest przeanalizowanie WSZYSTKICH zdarzeń łącznie oraz:
 
 1. Dla każdego zdarzenia na wejściu (według source_index) należy utworzyć obiekt VestnikEventItem zawierający pola: typ_udalosti, rizikovost, zhrnutie oraz red_flags.
 2. ZNAJDŹ WZORCE MIĘDZY ZDARZENIAMI — jest to kluczowe! Przeanalizuj wszystkie zdarzenia łącznie i poszukaj:
-   - 3 lub więcej zmian dyrektorów w krótkim okresie (1-2 lata) = wskaźnik słupa (białego konia)
+   - 3 lub więcej zmian dyrektorów w krótkim okresie (1-2 lata) = wskaźnik anomalii w strukturze zarządu
    - Zmiana adresu + zmiana dyrektora + zgłoszenie upadłości w krótkim czasie
    - Powtarzające się postępowania egzekucyjne = przewlekła niewypłacalność
    - Restrukturyzacja po której następuje zmiana własnościowa
-3. W przypadku wykrycia takiego wzorca należy wypełnić pole cross_event_pattern i ustawić white_horse_risk=True (wyłącznie wtedy, gdy faktycznie wskazuje to na spółkę wydmuszkę).
+3. W przypadku wykrycia takiego wzorca należy wypełnić pole cross_event_pattern i ustawić white_horse_risk=True (wyłącznie wtedy, gdy faktycznie wskazuje to na spółkę o zredukowanej substancji).
 4. Jeśli nie znaleziono żadnego wzorca, pozostaw pole cross_event_pattern puste i ustaw white_horse_risk=False.
 
 Zasady dotyczące poziomu ryzyka:
@@ -203,11 +203,11 @@ Tvojou úlohou je analyzovať VŠETKY eventy naraz a:
 
 1. Pre každý event uvedený vstupom (podľa source_index) vytvor VestnikEventItem s typ_udalosti, rizikovost, zhrnutie a red_flags.
 2. NÁJDI VZORCE naprieč eventami — to je kľúčové! Pozri sa na všetky eventy spolu a hľadaj:
-   - 3+ zmeny konateľa za krátke obdobie (1-2 roky) = znak bieleho koňa
+   - 3+ zmeny konateľa za krátke obdobie (1-2 roky) = znak anomálie v štruktúre vedenia
    - Zmena sídla + zmena konateľa + konkurzné podanie v krátkom čase
    - Opakované exekúcie = chronická platobná neschopnosť
    - Reštrukturalizácia následovaná zmenou vlastníctva
-3. Ak nájdeš taký vzorec, vyplň cross_event_pattern a nastav white_horse_risk=True (len ak to skutočne indikuje schránkovú firmu).
+3. Ak nájdeš taký vzorec, vyplň cross_event_pattern a nastav white_horse_risk=True (len ak to skutočne indikuje spoločnosť s redukovanou substanciou).
 4. Ak nenájdeš žiadny vzorec, cross_event_pattern nechaj prázdny a white_horse_risk=False.
 
 Pravidlá pre rizikovost:
@@ -224,11 +224,11 @@ Your task is to analyze ALL events together and:
 
 1. For each event in the input (by source_index), create a VestnikEventItem with typ_udalosti, rizikovost, zhrnutie and red_flags.
 2. FIND CROSS-EVENT PATTERNS — this is critical! Look at all events together and look for:
-   - 3+ director changes in a short period (1-2 years) = white horse indicator
+   - 3+ director changes in a short period (1-2 years) = management structure anomaly indicator
    - Address change + director change + bankruptcy filing in a short time
    - Repeated enforcement actions = chronic insolvency
    - Restructuring followed by ownership change
-3. If you find such a pattern, fill cross_event_pattern and set white_horse_risk=True (only if it truly indicates a shell company).
+3. If you find such a pattern, fill cross_event_pattern and set white_horse_risk=True (only if it truly indicates a company with reduced substance).
 4. If no pattern found, leave cross_event_pattern empty and white_horse_risk=False.
 
 Risk level rules:
@@ -246,11 +246,11 @@ Ihre Aufgabe ist es, ALLE Ereignisse zusammen zu analysieren und:
 
 1. Für jedes Ereignis im Eingabe (nach source_index), erstellen Sie ein VestnikEventItem mit typ_udalosti, rizikovost, zhrnutie und red_flags.
 2. FINDEN SIE ÜBERGREIFENDE MUSTER — dies ist entscheidend! Betrachten Sie alle Ereignisse zusammen und suchen Sie nach:
-   - 3+ Geschäftsführerwechsel in einem kurzen Zeitraum (1-2 Jahre) = White-Horse-Indikator
+   - 3+ Geschäftsführerwechsel in einem kurzen Zeitraum (1-2 Jahre) = Indikator für Anomalie in der Geschäftsführung
    - Adressänderung + Geschäftsführerwechsel + Konkursantrag in kurzer Zeit
    - Wiederholte Zwangsvollstreckungen = chronische Insolvenz
    - Restrukturierung gefolgt von Eigentümerwechsel
-3. Wenn Sie ein solches Muster finden, füllen Sie cross_event_pattern aus und setzen Sie white_horse_risk=True (nur wenn es tatsächlich auf eine Briefkastenfirma hinweist).
+3. Wenn Sie ein solches Muster finden, füllen Sie cross_event_pattern aus und setzen Sie white_horse_risk=True (nur wenn es tatsächlich auf ein Unternehmen mit reduzierter Substanz hinweist).
 4. Wenn kein Muster gefunden wurde, lassen Sie cross_event_pattern leer und white_horse_risk=False.
 
 Risikostufen-Regeln:
@@ -270,7 +270,7 @@ async def extract_vestnik_events_batch(
     """
     Batch spracovanie všetkých vestník eventov v jednom LLM calle.
     Namiesto N sériových volaní urobí 1 volanie, ktoré vidí všetky eventy naraz
-    a dokáže detegovať cross-event vzorce (white horse, chronická insolvencia).
+    a dokáže detegovať cross-event vzorce (anomália v štruktúre vedenia, chronická insolvencia).
     """
     if not events:
         return VestnikBatchResult()

@@ -147,10 +147,11 @@ def estimate_missing_cash_flow(stmts: list) -> bool:
 #
 # Interpretácia: Z'' > 2.6 = Bezpečná zóna | 1.1–2.6 = Šedá zóna | < 1.1 = Núdzová zóna
 
-# ── Forenzný indikátor (Biely Kôň) ───────────────────────────────────────────
+# ── Forenzný indikátor (Anomália v štruktúre vedenia) ────────────────────────
 def compute_white_horse_indicator(statements: list) -> dict:
     """
-    Vyhodnotí riziko 'Bieleho koňa' (Schránkovej firmy) na základe histórie metrík:
+    Vyhodnotí riziko anomálie v štruktúre vedenia (spoločnosti s redukovanou substanciou)
+    na základe histórie metrík:
     osobné náklady, pohľadávky, záväzky vs tržby a aktíva.
     Očakáva zoznam výkazov utriedený od najstaršieho po najnovší.
     """
@@ -191,12 +192,12 @@ def compute_white_horse_indicator(statements: list) -> dict:
     if revenue > 100000 and consistently_zero_staff and assets > 0 and not has_ifrs:
         score_penalty += 15
         rev_formatted = f"{revenue:,.0f}".replace(",", " ")
-        flags.append(f"Vysoké tržby ({rev_formatted} €), ale dlhodobo NULOVÉ mzdové náklady (silný znak schránkovej firmy)")
+        flags.append(f"Vysoké tržby ({rev_formatted} €), ale dlhodobo NULOVÉ mzdové náklady (silný znak spoločnosti s redukovanou substanciou)")
         
-    # Znak fiktívneho účtovníctva: Pohľadávky tvoria viac ako 90% celkových aktív
+    # Znak redukovanej substancie: Pohľadávky tvoria viac ako 90% celkových aktív
     if assets > 0 and (receivables / assets) > 0.9:
         score_penalty += 10
-        flags.append(f"Pohľadávky z OS tvoria >90% majetku (extrémne riziko nevykonateľných fiktívnych faktúr)")
+        flags.append(f"Pohľadávky z OS tvoria >90% majetku (extrémne riziko nevykonateľných pohľadávok)")
         
     return {
         "penalty": score_penalty,
@@ -755,7 +756,7 @@ def compute_piotroski_f_score(statements: list) -> dict:
 def compute_beneish_m_score(statements: list) -> dict:
     """
     Vypočíta Beneish M-score — detekcia manipulácie s výkazníctvom (earnings manipulation).
-    M > -1.78 = pravdepodobný manipulátor.
+    M > -1.78 = indikácia manipulácie s výkazníctvom.
     Očakáva chronologicky zoradené statements (min. 2 roky).
     """
     if not statements or len(statements) < 2:
@@ -1340,8 +1341,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         wh = compute_white_horse_indicator(sorted(financial_statements, key=_get_year))
         if wh["penalty"] > 0:
             pillars.append(ScorecardPillar(
-                name="Forenzný indikátor: Biely Kôň", score=-wh["penalty"], max_score=0,
-                detail="Boli detekované kritické znaky schránkovej firmy.", flags=wh["flags"]
+                name="Forenzný indikátor: Anomália v štruktúre vedenia", score=-wh["penalty"], max_score=0,
+                detail="Boli detekované kritické znaky spoločnosti s redukovanou substanciou.", flags=wh["flags"]
             ))
             total_score = max(0, total_score - wh["penalty"])
 
@@ -1665,7 +1666,7 @@ def compute_state_liabilities_alert(statements: list, scraper_results: dict = No
                 "value": sp,
                 "severity": "CRITICAL",
                 "message": f"KRITICKÉ: Firma je v registri dlžníkov SP a súvaha ukazuje záväzky {_fmt(sp)} (rok {year}). "
-                           f"Môže zakladať trestnú zodpovednosť štatutára (§278 TZ SR).",
+                           f"Môže súvisieť s povinnosťami štatutára podľa §278 TZ SR.",
             })
             has_critical = True
         elif sp > 20_000 and not _sp_in_registry:
@@ -1735,7 +1736,7 @@ def compute_state_liabilities_alert(statements: list, scraper_results: dict = No
     return {"alerts": alerts, "has_critical": has_critical}
 
 
-# ── Revenue per Employee — detekcia schránkovej štruktúry ────────────────────
+# ── Revenue per Employee — detekcia redukovanej substancie ────────────────────
 
 def compute_revenue_per_employee_alert(statements: list) -> dict:
     """

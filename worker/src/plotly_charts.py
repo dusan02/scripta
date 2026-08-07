@@ -392,7 +392,7 @@ def generate_radar_chart(pillars: list, lang="sk") -> str:
         "Ziskovosť, Stabilita a Cash Flow": "pillar_profitability",
         "Rast & Trendová sila": "pillar_growth",
         "Právna bezúhonnosť": "pillar_legal",
-        "Forenzný indikátor: Biely Kôň": "pillar_forensic",
+        "Forenzný indikátor: Anomália v štruktúre vedenia": "pillar_forensic",
         "Data Quality Multiplier": "pillar_dq",
     }
     labels = []

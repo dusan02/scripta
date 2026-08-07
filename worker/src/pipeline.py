@@ -899,7 +899,7 @@ async def run_and_save_audit_verdict(
         deterministic_score = scorecard.total_score if scorecard is not None else verdict.verifa_score
         llm_adj = getattr(verdict, "llm_score_adjustment", 0) or 0
 
-        # ── ORSR White Horse override ──────────────────────────────────────────
+        # ── ORSR Management Anomaly override ────────────────────────────────────
         # Ak LLM (Chief Auditor) nastaví white_horse_risk_dismissed=True,
         # zrušíme ORSR forenznú penalizáciu z deterministic_score.
         wh_dismissed = getattr(verdict, "white_horse_risk_dismissed", False)
@@ -908,7 +908,7 @@ async def run_and_save_audit_verdict(
             for p in scorecard.pillars:
                 if "ORSR" in p.name and p.score < 0:
                     wh_refund += abs(p.score)
-                    logger.info(f"[WHITE HORSE OVERRIDE] IČO {ico}: LLM dismissed white horse risk — refunding {abs(p.score)}b ORSR penalty")
+                    logger.info(f"[MGMT ANOMALY OVERRIDE] IČO {ico}: LLM dismissed mgmt anomaly risk — refunding {abs(p.score)}b ORSR penalty")
             if wh_refund > 0:
                 deterministic_score = min(100, deterministic_score + wh_refund)
 
@@ -948,7 +948,7 @@ async def run_and_save_audit_verdict(
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
 
-        # ── Deterministická anti-halucinácia: odstráň fiktívne dlhy z verdict textu ──
+        # ── Deterministická anti-halucinácia: odstráň neoveriteľné dlhy z verdict textu ──
         # Ak LLM spomenie konkrétne sumy dlhov voči registrom, ktoré sú CLEAN,
         # tieto pasáže nahradíme varovaním o halucinácii.
         verdict_payload = _strip_hallucinated_debts(verdict_payload, registry_status_summary, ico)
@@ -1393,14 +1393,14 @@ async def process_company(
                     source="OBCHODNY_VESTNIK",
                     event_type="WHITE_HORSE_PATTERN",
                     severity="CRITICAL",
-                    title="Vzorec schránkovej firmy (biely kôň) detekovaný",
+                    title="Vzorec spoločnosti s redukovanou substanciou detekovaný",
                     description=ov_result["cross_event_pattern"],
                     event_date=None,
                     amount=None,
                     metadata={"detection_method": "vestnik_batch_cross_analysis"},
                 )
                 await append_company_event_to_db(ico, white_horse_event)
-                logger.warning(f"[Vestník] IČO {ico}: White horse pattern uložený do DB ako CRITICAL CompanyEvent")
+                logger.warning(f"[Vestník] IČO {ico}: Mgmt anomaly pattern uložený do DB ako CRITICAL CompanyEvent")
         except Exception as e:
             logger.error(f"Chyba pri spracovaní Vestníka: {e}", exc_info=True)
 

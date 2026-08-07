@@ -454,7 +454,7 @@ _PILLAR_NAME_MAP = {
     "Ziskovosť, Stabilita a Cash Flow": "pillar_profitability",
     "Rast & Trendová sila": "pillar_growth",
     "Právna bezúhonnosť": "pillar_legal",
-    "Forenzný indikátor: Biely Kôň": "pillar_forensic",
+    "Forenzný indikátor: Anomália v štruktúre vedenia": "pillar_forensic",
     "Data Quality Multiplier": "pillar_dq",
     "Cash Flow / DSO Stress": "pillar_cf_dso",
     "ORSR Forenzná penalizácia": "pillar_orsr_forensic",
@@ -928,7 +928,7 @@ def _translate_auditor_op(o_raw, i18n_strings):
 
 def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     """
-    Aggregate red flags from multiple sources into a heatmap grid.
+    Aggregate warning indicators from multiple sources into a heatmap grid.
     Categories: vestnik, forensic, narrative, notes, auditor, legal, financial.
     Each category gets a severity level (none/low/medium/high/critical) and flag count.
     """

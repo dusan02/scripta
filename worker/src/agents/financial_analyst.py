@@ -28,7 +28,7 @@ KRÍTICKÉ PRAVIDLÁ PRE ČÍSELNÉ HODNOTY:
 - Ak narazíš na tabuľku s dvoma stĺpcami dát (rok X a rok X-1), extrahuj prioritne stĺpec pre rok X (aktuálne účtovné obdobie).
 - Aj keď sa jedná o malú s.r.o. (Mikro účtovná jednotka) a dokument nemá hlavičku IFRS, MUSÍŠ extrahovať hodnoty do príslušných polí (Tržby, Zisk, Aktíva...). Neodmietaj extrakciu len preto, že to nie je IFRS!
 - Malé firmy (Úč MUJ) NEPOTREBUJÚ audítora. Ak v dokumente nie je správa audítora, nastav `nazor_auditora` VŽDY na 'Bez výhrad' a nevykazuj žiadne výhrady ani going concern riziká.
-- Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, vráť null. NIKDY nedoplňuj nulu pre chýbajúce cash flow dáta — nula znamená "firmá má nulový cash flow", čo je forenzný red flag, kým null znamená "dáta neboli k dispozícii".
+- Malé firmy často nevykazujú "čisté peňažné toky z prevádzkovej činnosti" (Cash flow). Ak tento údaj v dokumente (Súvahe/Výkaze) nenájdeš, vráť null. NIKDY nedoplňuj nulu pre chýbajúce cash flow dáta — nula znamená "firmá má nulový cash flow", čo je forenzný varovný indikátor, kým null znamená "dáta neboli k dispozícii".
 
 PRAVIDLÁ PRE NOVÉ POLIA A FORENZNÉ INDIKÁTORY:
 - `dlhodobe_zavazky` (Long-term liabilities): Hľadaj v Pasívach: "Dlhodobé záväzky", "Long-term borrowings", "Non-current liabilities", "Bonds payable", "Long-term loans".

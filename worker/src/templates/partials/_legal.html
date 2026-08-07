@@ -42,7 +42,7 @@
                 <div class="flex justify-between items-start">
                     <div>
                         <p class="font-semibold text-slate-800 text-xs">{{ event.eventType }}</p>
-                        <p class="report-caption text-slate-500 leading-tight">{{ event.summary.split('\nRed Flags: ')[0][:120] }}</p>
+                        <p class="report-caption text-slate-500 leading-tight">{{ event.summary.split('\nVarovné indikátory: ')[0][:120] }}</p>
                     </div>
                     <span class="report-caption text-slate-400 flex-shrink-0 ml-2">{{ event.publishedAt.strftime('%d.%m.%Y') }}</span>
                 </div>
@@ -62,7 +62,7 @@
                 <h3 class="subsection-title-sm text-slate-800">{{ event.eventType }}</h3>
                 <span class="report-caption text-slate-500">{{ event.publishedAt.strftime('%d.%m.%Y') }}</span>
             </div>
-            <p class="report-body-sm text-slate-700">{{ event.summary.split('\nRed Flags: ')[0] }}</p>
+            <p class="report-body-sm text-slate-700">{{ event.summary.split('\nVarovné indikátory: ')[0] }}</p>
         </div>
     {% endfor %}
     </div>

@@ -66,7 +66,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
         # Batch spracovanie — jeden LLM call pre všetky eventy naraz.
         # Namiesto N sériových volaní urobíme 1 volanie, ktoré vidí všetky eventy
-        # a dokáže detegovať cross-event vzorce (white horse, chronická insolvencia).
+        # a dokáže detegovať cross-event vzorce (management structure anomaly, chronická insolvencia).
         analyzed_events = []
         batch_result = VestnikBatchResult()
         if found_events:
@@ -249,14 +249,14 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
                                 "companyIco": ico,
                                 "eventType": analysis.typ_udalosti,
                                 "severityLevel": analysis.rizikovost,
-                                "summary": analysis.zhrnutie + "\nRed Flags: " + ", ".join(analysis.red_flags),
+                                "summary": analysis.zhrnutie + "\nVarovné indikátory: " + ", ".join(analysis.red_flags),
                                 "publishedAt": pub_date,
                                 "sourceId": source_id,
                             },
                             "update": {
                                 "eventType": analysis.typ_udalosti,
                                 "severityLevel": analysis.rizikovost,
-                                "summary": analysis.zhrnutie + "\nRed Flags: " + ", ".join(analysis.red_flags),
+                                "summary": analysis.zhrnutie + "\nVarovné indikátory: " + ", ".join(analysis.red_flags),
                                 "publishedAt": pub_date,
                             },
                         }
@@ -266,7 +266,7 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
                         "companyIco": ico,
                         "eventType": analysis.typ_udalosti,
                         "severityLevel": analysis.rizikovost,
-                        "summary": analysis.zhrnutie + "\nRed Flags: " + ", ".join(analysis.red_flags),
+                        "summary": analysis.zhrnutie + "\nVarovné indikátory: " + ", ".join(analysis.red_flags),
                         "publishedAt": pub_date,
                         "sourceId": source_id,
                     })
