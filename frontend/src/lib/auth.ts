@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { addCreditBatch } from "@/lib/credits";
 import { rateLimitByKey } from "@/lib/rateLimit";
+import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/sanitize";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -215,6 +217,30 @@ export const authOptions: NextAuthOptions = {
           await addCreditBatch(newUser.id, 1, "trial");
           token.id = newUser.id;
           token.tokenVersion = newUser.tokenVersion;
+
+          // Send admin notification about new OAuth registration
+          try {
+            await sendEmail({
+              to: "info@verifa.sk",
+              subject: `[Verifa.sk] Nová registrácia — ${user.email} (OAuth: ${account.provider})`,
+              text:
+                `Nový používateľ sa zaregistroval cez ${account.provider}.\n\n` +
+                `E-mail: ${user.email}\n` +
+                `Meno: ${user.name || "—"}\n` +
+                `ID: ${newUser.id}\n` +
+                `Čas: ${new Date().toISOString()}\n\n` +
+                `Účet bol automaticky overený cez OAuth.`,
+              html:
+                `<h2>Nová registrácia (OAuth: ${account.provider})</h2>` +
+                `<p><strong>E-mail:</strong> ${escapeHtml(user.email!)}</p>` +
+                `<p><strong>Meno:</strong> ${escapeHtml(user.name || "—")}</p>` +
+                `<p><strong>ID:</strong> ${escapeHtml(newUser.id)}</p>` +
+                `<p><strong>Čas:</strong> ${escapeHtml(new Date().toISOString())}</p>` +
+                `<p style="color: #52525b;">Účet bol automaticky overený cez OAuth.</p>`,
+            });
+          } catch (emailErr) {
+            console.error("[auth] Failed to send admin OAuth registration notification", emailErr);
+          }
         } catch (createErr: any) {
           // P2002 = unique constraint violation (user already exists)
           if (createErr?.code !== "P2002") throw createErr;
