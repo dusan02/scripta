@@ -69,13 +69,16 @@ export async function loginAPIAs(
 
   // NextAuth returns a 302 redirect on success. The session cookie is in
   // the Set-Cookie header of the redirect response.
+  // On HTTPS (production) the cookie is prefixed with __Secure-
   const setCookie = res.headers()["set-cookie"] || "";
-  const sessionCookie = setCookie.match(/next-auth\.session-token=([^;]+)/);
+  const sessionCookie = setCookie.match(/(?:__Secure-)?next-auth\.session-token=([^;]+)/);
   if (!sessionCookie) {
     throw new Error(`Login failed for ${email} — no session cookie returned (status: ${res.status()})`);
   }
+  // Use the same cookie name that was set by the server
+  const cookieName = setCookie.match(/(__Secure-)?next-auth\.session-token=/)?.[0]?.replace("=", "") || "next-auth.session-token";
   return {
-    Cookie: `next-auth.session-token=${sessionCookie[1]}`,
+    Cookie: `${cookieName}=${sessionCookie[1]}`,
   };
 }
 
