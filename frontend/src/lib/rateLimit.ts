@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Redis } from "ioredis";
 
 interface RateLimitOptions {
   windowMs: number;
@@ -90,10 +89,10 @@ async function redisRateLimit(key: string, options: RateLimitOptions): Promise<R
 // Uses the same Redis instance as the worker (Arq broker).
 // Effective across all frontend instances unlike in-memory.
 
-let _localRedis: Redis | null = null;
+let _localRedis: any = null;
 let _localRedisInitFailed = false;
 
-function getLocalRedis(): Redis | null {
+async function getLocalRedis(): Promise<any> {
   if (_localRedisInitFailed) return null;
   if (_localRedis) return _localRedis;
 
@@ -104,13 +103,17 @@ function getLocalRedis(): Redis | null {
   }
 
   try {
+    // Dynamic import — ioredis uses Node.js built-ins (net, dns, tls) that
+    // can't be bundled by Next.js webpack. Loading it at runtime avoids
+    // the build-time bundling issue.
+    const { Redis } = await import("ioredis");
     _localRedis = new Redis(redisUrl, {
       maxRetriesPerRequest: 1,
       enableOfflineQueue: false,
       lazyConnect: false,
       connectTimeout: 2000,
     });
-    _localRedis.on("error", (err) => {
+    _localRedis.on("error", (err: Error) => {
       console.error("[rateLimit] Local Redis error:", err.message);
     });
     return _localRedis;
@@ -122,7 +125,7 @@ function getLocalRedis(): Redis | null {
 }
 
 async function localRedisRateLimit(key: string, options: RateLimitOptions): Promise<RateLimitResult> {
-  const redis = getLocalRedis();
+  const redis = await getLocalRedis();
   if (!redis) {
     return memRateLimit(key, options);
   }

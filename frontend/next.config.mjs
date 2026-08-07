@@ -5,21 +5,9 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   experimental: {
-    // ioredis uses Node.js built-ins (net, dns, tls) that can't be bundled for the browser.
-    // Keep it as an external server-side module.
+    // ioredis is loaded via dynamic import() in rateLimit.ts to avoid
+    // webpack bundling issues with Node.js built-ins (net, dns, tls).
     serverComponentsExternalPackages: ['ioredis'],
-  },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // ioredis is server-only — don't bundle it for the browser
-      config.resolve.fallback = {
-        ...(config.resolve.fallback || {}),
-        dns: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
   },
   async headers() {
     return [
