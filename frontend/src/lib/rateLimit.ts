@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Redis } from "ioredis";
 
 interface RateLimitOptions {
   windowMs: number;
@@ -85,6 +86,65 @@ async function redisRateLimit(key: string, options: RateLimitOptions): Promise<R
   return { allowed: true, remaining: options.maxRequests - count, resetTime };
 }
 
+// ── Local Redis fallback (when Upstash not configured) ─────────────────────────
+// Uses the same Redis instance as the worker (Arq broker).
+// Effective across all frontend instances unlike in-memory.
+
+let _localRedis: Redis | null = null;
+let _localRedisInitFailed = false;
+
+function getLocalRedis(): Redis | null {
+  if (_localRedisInitFailed) return null;
+  if (_localRedis) return _localRedis;
+
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    _localRedisInitFailed = true;
+    return null;
+  }
+
+  try {
+    _localRedis = new Redis(redisUrl, {
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      lazyConnect: false,
+      connectTimeout: 2000,
+    });
+    _localRedis.on("error", (err) => {
+      console.error("[rateLimit] Local Redis error:", err.message);
+    });
+    return _localRedis;
+  } catch (err) {
+    console.warn("[rateLimit] Failed to init local Redis:", err);
+    _localRedisInitFailed = true;
+    return null;
+  }
+}
+
+async function localRedisRateLimit(key: string, options: RateLimitOptions): Promise<RateLimitResult> {
+  const redis = getLocalRedis();
+  if (!redis) {
+    return memRateLimit(key, options);
+  }
+
+  const resetTime = Date.now() + options.windowMs;
+  const redisKey = `ratelimit:${key}`;
+
+  try {
+    const count = await redis.incr(redisKey);
+    if (count === 1) {
+      await redis.expire(redisKey, Math.ceil(options.windowMs / 1000));
+    }
+    if (count > options.maxRequests) {
+      return { allowed: false, remaining: 0, resetTime };
+    }
+    return { allowed: true, remaining: options.maxRequests - count, resetTime };
+  } catch (err) {
+    console.error("[rateLimit] Local Redis failed — falling back to in-memory:", err);
+    return memRateLimit(key, options);
+  }
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 export async function rateLimit(
@@ -102,19 +162,13 @@ export async function rateLimit(
       return await redisRateLimit(key, options);
     } catch (err) {
       console.error("[rateLimit] Upstash Redis failed — failing open:", err);
-      // Fail open: allow the request but log the error.
-      // Blocking all requests when Redis is down would lock out every user.
       return { allowed: true, remaining: options.maxRequests - 1, resetTime: Date.now() + options.windowMs };
     }
   }
 
-  // Upstash not configured — fail open with in-memory fallback.
-  // In-memory is per-instance (ineffective in multi-instance deployments),
-  // but blocking all requests when Redis is not configured would lock out users.
-  if (process.env.NODE_ENV === "production") {
-    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback (per-instance, not effective in multi-instance deployments)");
-  }
-  return memRateLimit(key, options);
+  // Upstash not configured — try local Redis (same instance as worker),
+  // then fall back to in-memory if Redis is unavailable.
+  return localRedisRateLimit(key, options);
 }
 
 export function rateLimitResponse(result: RateLimitResult) {
@@ -146,8 +200,7 @@ export async function rateLimitByKey(
     }
   }
 
-  if (process.env.NODE_ENV === "production") {
-    console.warn("[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured — using in-memory fallback (per-instance, not effective in multi-instance deployments)");
-  }
-  return memRateLimit(rateLimitKey, options);
+  // Upstash not configured — try local Redis (same instance as worker),
+  // then fall back to in-memory if Redis is unavailable.
+  return localRedisRateLimit(rateLimitKey, options);
 }

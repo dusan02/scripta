@@ -606,7 +606,8 @@ def parse_tables_to_metrics(
         mzdove_naklady = _fix_thousands(mzdove_naklady, trzby, "mzdove_naklady")
         # dane_a_poplatky je prirodzene malá hodnota (typicky 0.05-0.5% tržieb)
         # — heuristika < 0.1% by falošne označila legitímne hodnoty za tisíce EUR
-        zisk_pred_zdanenim = _fix_thousands(zisk_pred_zdanenim, trzby, "zisk_pred_zdanenim")
+        # zisk_pred_zdanenim môže byť legitímne < 0.1% tržieb pre low-margin firmy
+        # (retail, komodity) — rovnaký falošný pozitív ako dane_a_poplatky
 
     # ── Apply unit multiplier (EUR vs tisíce EUR) ──
     if unit_multiplier != 1.0:
