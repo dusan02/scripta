@@ -523,7 +523,16 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         if cogs_proxy is not None and months_in_period > 0 and months_in_period != 12:
             cogs_proxy = cogs_proxy * (12 / months_in_period)
         if cogs_proxy is not None and cogs_proxy > 0 and inventory is not None and inventory > 0:
-            ratios["dio_days"] = round((inventory / cogs_proxy) * 365, 0)
+            _dio = round((inventory / cogs_proxy) * 365, 0)
+            # Sanity clamp: DIO > 730 dní (2 roky zásob) je ekonomicky nemožné —
+            # takmer isto chyba v zdrojových dátach (napr. COGS v tisícoch EUR).
+            if _dio > 730:
+                logger.warning(
+                    f"DIO {_dio} dní je nepravdepodobné (inventory={inventory}, cogs_proxy={cogs_proxy}) — nastavujem None"
+                )
+                ratios["dio_days"] = None
+            else:
+                ratios["dio_days"] = _dio
         elif inventory is not None and inventory == 0:
             ratios["dio_days"] = 0  # Žiadne zásoby → 0 dní
         else:
@@ -536,7 +545,15 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         dio = ratios.get("dio_days")
         dpo = ratios.get("dpo_days")
         if dso is not None and dio is not None and dpo is not None:
-            ratios["ccc_days"] = round(dso + dio - dpo, 0)
+            _ccc = round(dso + dio - dpo, 0)
+            # Sanity clamp: |CCC| > 1095 dní (3 roky) je nezmysel — chyba vstupných dát
+            if abs(_ccc) > 1095:
+                logger.warning(
+                    f"CCC {_ccc} dní je nepravdepodobné (dso={dso}, dio={dio}, dpo={dpo}) — nastavujem None"
+                )
+                ratios["ccc_days"] = None
+            else:
+                ratios["ccc_days"] = _ccc
         else:
             ratios["ccc_days"] = None
 

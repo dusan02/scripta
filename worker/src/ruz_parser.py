@@ -581,6 +581,28 @@ def parse_tables_to_metrics(
             # Fallback: Pridaná hodnota (proxy pre hrubú maržu v SK GAAP)
             hruba_marza = _get_income_value(ordered, ROW_VALUE_ADDED)
 
+    # ── Per-field unit sanity check ──
+    # RÚZ JSON občas vracia detailné P&L riadky (spotreba materiálu, náklady na hosp.
+    # činnosť) v tisícoch EUR, zatiaľ čo súhrnné riadky (tržby) sú v EUR — alebo naopak.
+    # Heuristika: pri tržbách > 100M € je spotreba materiálu < 0.1% tržieb ekonomicky
+    # nemožná → hodnota je takmer isto v tisícoch → ×1000.
+    # Overené na KIA (35876832): 2025 spotreba=5 459 634 → ×1000 = 5.46B (76% tržieb ✓)
+    def _fix_thousands(val: Optional[float], ref: Optional[float], field_name: str) -> Optional[float]:
+        if val is None or ref is None or ref <= 100_000_000:
+            return val
+        if 0 < val < ref * 0.001 and val * 1000 <= ref * 2:
+            logger.warning(
+                f"[RUZ_PARSER] IČO {ico}: {field_name}={val:.0f} je podozrivo malá "
+                f"voči tržbám {ref:.0f} — pravdepodobne tisíce EUR, násobím ×1000"
+            )
+            return val * 1000
+        return val
+
+    if has_income and trzby is not None:
+        naklady_na_hosp_cinnost = _fix_thousands(naklady_na_hosp_cinnost, trzby, "naklady_na_hosp_cinnost")
+        spotreba_materialu = _fix_thousands(spotreba_materialu, trzby, "spotreba_materialu")
+        sluzby = _fix_thousands(sluzby, trzby, "sluzby")
+
     # ── Apply unit multiplier (EUR vs tisíce EUR) ──
     if unit_multiplier != 1.0:
         celkove_aktiva = celkove_aktiva * unit_multiplier if celkove_aktiva is not None else None

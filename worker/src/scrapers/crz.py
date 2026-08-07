@@ -53,6 +53,21 @@ class CrzScraper(BaseScraper):
                     all_rows_html,
                 )
 
+            # Normalizuj dátumové bunky (1. stĺpec): '28.\nJúl\n2026' → '28. Júl 2026' na jednom riadku.
+            # Bez tohto sa pri PDF text extrakcii mesiac stráca ('28. 2026') a AI z neho číta zle.
+            await page.evaluate("""() => {
+                const rows = document.querySelectorAll('table tbody tr');
+                for (const tr of rows) {
+                    const td = tr.querySelector('td');
+                    if (!td) continue;
+                    // Spoj textový obsah do jedného riadku a nastav nowrap
+                    const txt = td.innerText.replace(/\\s+/g, ' ').trim();
+                    td.textContent = txt;
+                    td.style.whiteSpace = 'nowrap';
+                    td.style.minWidth = '90px';
+                }
+            }""")
+
             pdf_output = output_dir / f"crz_{ico}.pdf"
             try:
                 await self._generate_clean_pdf(
