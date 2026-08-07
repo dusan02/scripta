@@ -430,7 +430,7 @@ class TestWhiteHorsePenalty:
         company = _healthy_company_dict(stmts=stmts)
         trends = compute_financial_trends(stmts)
         result = compute_forensic_scorecard(company, trends)
-        wh = [p for p in result.pillars if "Biely Kôň" in p.name]
+        wh = [p for p in result.pillars if "Anomália" in p.name or "Biely" in p.name]
         assert len(wh) == 1
         assert wh[0].score < 0  # negative penalty
 
@@ -438,7 +438,7 @@ class TestWhiteHorsePenalty:
         company = _healthy_company_dict()
         trends = _healthy_trends()
         result = compute_forensic_scorecard(company, trends)
-        wh = [p for p in result.pillars if "Biely Kôň" in p.name]
+        wh = [p for p in result.pillars if "Anomália" in p.name or "Biely" in p.name]
         assert len(wh) == 0
 
 

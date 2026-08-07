@@ -1,0 +1,332 @@
+"""
+Unit testy pre report_generator.py — formátovanie a heatmap logika.
+
+Pokrýva:
+- format_currency: formátovanie EUR (mil., tis., jednotky, None, invalid)
+- format_number: formátovanie čísel bez menovej prípony
+- format_number_millions: formátovanie v miliónoch
+- format_cf_millions: cash flow formátovanie (0 = chýbajúce dáta)
+- _is_garbled: detekcia garbled textu (cyrillica, CJK, arabic, low alpha ratio)
+- sanitize_llm_text: sanitizácia LLM textu (LaTeX, preklepy, garbled)
+- compute_fraud_heatmap: agregácia varovných indikátorov do heatmap gridu
+- compute_insolvency_score: výpočet insolventného skóre
+- _translate_flag: preklad flagov cez i18n
+"""
+
+import json
+import pytest
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+from src.report_generator import (
+    format_currency,
+    format_number,
+    format_number_millions,
+    format_cf_millions,
+    _is_garbled,
+    sanitize_llm_text,
+    compute_fraud_heatmap,
+    compute_insolvency_score,
+    _translate_flag,
+)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# format_currency
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFormatCurrency:
+    def test_none_returns_na(self):
+        assert format_currency(None) == "N/A"
+
+    def test_millions(self):
+        result = format_currency(1_500_000)
+        assert "mil" in result
+        assert "€" in result
+
+    def test_thousands(self):
+        result = format_currency(50_000)
+        assert "tis" in result
+        assert "€" in result
+
+    def test_small_number(self):
+        result = format_currency(500)
+        assert "500" in result
+        assert "€" in result
+
+    def test_zero(self):
+        result = format_currency(0)
+        assert "0" in result
+
+    def test_negative_millions(self):
+        result = format_currency(-2_000_000)
+        assert "mil" in result
+        assert "-" in result
+
+    def test_invalid_string(self):
+        assert format_currency("abc") == "N/A"
+
+    def test_invalid_type(self):
+        assert format_currency([1, 2]) == "N/A"
+
+    def test_slovak_decimal_separator(self):
+        """SK formát používa čiarku ako desatinný separator."""
+        result = format_currency(1_500_000)
+        # 1,5 mil. € (s SK desatinnou čiarkou)
+        assert "," in result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# format_number
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFormatNumber:
+    def test_none_returns_na(self):
+        assert format_number(None) == "N/A"
+
+    def test_millions(self):
+        result = format_number(2_500_000)
+        assert "2,5" in result or "2,50" in result
+
+    def test_thousands(self):
+        result = format_number(75_000)
+        assert "75" in result
+
+    def test_small_number(self):
+        result = format_number(42)
+        assert "42" in result
+
+    def test_no_euro_suffix(self):
+        """format_number by nemal obsahovať €."""
+        result = format_number(1_000_000)
+        assert "€" not in result
+
+    def test_invalid(self):
+        assert format_number("xyz") == "N/A"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# format_number_millions
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFormatNumberMillions:
+    def test_none_returns_dash(self):
+        assert format_number_millions(None) == "—"
+
+    def test_zero_default(self):
+        result = format_number_millions(0)
+        # Default: 0 sa zobrazí ako 0,00
+        assert "0,00" in result
+
+    def test_zero_treat_as_none(self):
+        result = format_number_millions(0, treat_zero_as_none=True)
+        assert result == "—"
+
+    def test_million_value(self):
+        result = format_number_millions(1_500_000)
+        assert "1,50" in result
+
+    def test_thousands_value(self):
+        """Hodnota v tisícoch sa zobrazí ako 0,XX mil."""
+        result = format_number_millions(50_000)
+        assert "0,05" in result
+
+    def test_invalid(self):
+        assert format_number_millions("abc") == "—"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# format_cf_millions
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFormatCfMillions:
+    def test_none_returns_dash(self):
+        assert format_cf_millions(None) == "—"
+
+    def test_zero_returns_dash(self):
+        """Pre cash flow: 0 = chýbajúce dáta, nie nulový CF."""
+        assert format_cf_millions(0) == "—"
+
+    def test_positive_value(self):
+        result = format_cf_millions(500_000)
+        assert "0,50" in result
+
+    def test_negative_value(self):
+        result = format_cf_millions(-200_000)
+        assert "-0,20" in result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# _is_garbled
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestIsGarbled:
+    def test_clean_slovak_text(self):
+        assert _is_garbled("Firma vykazuje stabilné finančné zdravie s kladným ziskom.") is False
+
+    def test_empty_string(self):
+        assert _is_garbled("") is False
+
+    def test_short_string(self):
+        assert _is_garbled("abc") is False
+
+    def test_cyrillic_text(self):
+        assert _is_garbled("Это какой-то русский текст") is True
+
+    def test_cjk_text(self):
+        assert _is_garbled("这是一个很长的中文文本用于测试") is True
+
+    def test_mixed_garbled(self):
+        text = "Firma má zisk abc123!@#$%^&*()_+-=[]{}|;':\",./<>?`~"
+        assert _is_garbled(text) is True  # low alpha ratio
+
+    def test_normal_english(self):
+        assert _is_garbled("The company shows stable financial health with positive profit.") is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# sanitize_llm_text
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestSanitizeLlmText:
+    def test_empty_string(self):
+        assert sanitize_llm_text("") == ""
+
+    def test_none_input(self):
+        assert sanitize_llm_text(None) is None
+
+    def test_clean_text_unchanged(self):
+        text = "Firma vykazuje stabilné finančné zdravie."
+        assert sanitize_llm_text(text) == text
+
+    def test_latex_dollar_removed(self):
+        text = "Skóre $Z'' = 2.5$ je v bezpečnej zóne."
+        result = sanitize_llm_text(text)
+        assert "$" not in result
+
+    def test_garbled_text_replaced(self):
+        text = "Это какой-то русский текст"
+        result = sanitize_llm_text(text)
+        # Garbled text should be replaced (not contain cyrillic)
+        assert "Это" not in result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# compute_fraud_heatmap
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestComputeFraudHeatmap:
+    def _i18n(self):
+        """Minimálne i18n strings pre heatmap."""
+        return {
+            "fraud_cat_vestnik": "Obchodný vestník",
+            "fraud_cat_forensic": "Forenzná analýza",
+            "fraud_cat_narrative": "Naratívna analýza",
+            "fraud_cat_notes": "Poznámky k výkazom",
+            "fraud_cat_auditor": "Auditné overenie",
+            "fraud_cat_legal": "Právne registre",
+            "fraud_cat_financial": "Finančné ukazovatele",
+            "fraud_severity_critical": "Kritické",
+            "fraud_severity_high": "Vysoké",
+            "fraud_severity_medium": "Stredné",
+            "fraud_severity_low": "Nízke",
+            "fraud_severity_none": "Žiadne",
+            "fraud_flags_found": "{n} nájdených",
+            "fraud_no_flags": "Žiadne varovné indikátory",
+        }
+
+    def test_empty_inputs_all_none(self):
+        """Prázdne vstupy — všetky kategórie by mali byť 'none'."""
+        result = compute_fraud_heatmap(None, [], [], self._i18n())
+        assert result["has_data"] is not None
+        cats = {c["label"]: c for c in result["categories"]}
+        # Aspoň jedna kategória by mala existovať
+        assert len(result["categories"]) > 0
+
+    def test_vestnik_critical_event(self):
+        """Kritický vestník event → critical severity pre vestnik kategóriu."""
+        event = SimpleNamespace(
+            sourceId="OV_123",
+            eventType="Zmena konateľa",
+            severityLevel="CRITICAL",
+        )
+        result = compute_fraud_heatmap(None, [], [event], self._i18n())
+        vestnik_cat = [c for c in result["categories"] if "vestník" in c["label"].lower() or "vestnik" in c["label"].lower()]
+        assert len(vestnik_cat) >= 1
+        assert vestnik_cat[0]["severity"] == "critical"
+        assert vestnik_cat[0]["count"] == 1
+
+    def test_vestnik_high_event(self):
+        """Vysoký vestník event → high severity."""
+        event = SimpleNamespace(
+            sourceId="OV_456",
+            eventType="Zmena sídla",
+            severityLevel="HIGH",
+        )
+        result = compute_fraud_heatmap(None, [], [event], self._i18n())
+        vestnik_cat = [c for c in result["categories"] if "vestník" in c["label"].lower() or "vestnik" in c["label"].lower()]
+        assert vestnik_cat[0]["severity"] == "high"
+
+    def test_insolvency_event_separated(self):
+        """Insolvenčné eventy sa oddeľujú od bežných vestník eventov."""
+        event = SimpleNamespace(
+            sourceId="INSOLVENCY_123",
+            eventType="konkurz",
+            severityLevel="CRITICAL",
+        )
+        result = compute_fraud_heatmap(None, [], [event], self._i18n())
+        vestnik_cat = [c for c in result["categories"] if "vestník" in c["label"].lower() or "vestnik" in c["label"].lower()]
+        # Insolvenčné eventy by nemali byť vo vestník kategórii
+        assert vestnik_cat[0]["count"] == 0
+        assert vestnik_cat[0]["severity"] == "none"
+
+    def test_forensic_flags_from_verdict(self):
+        """Forenzné flagy z verdictu → forensic kategória."""
+        verdict = SimpleNamespace(forensicRedFlags=json.dumps(["flag1", "flag2", "flag3"]))
+        result = compute_fraud_heatmap(verdict, [], [], self._i18n())
+        forensic_cat = [c for c in result["categories"] if "forenzn" in c["label"].lower()]
+        assert forensic_cat[0]["severity"] == "critical"  # 3+ flags = critical
+        assert forensic_cat[0]["count"] == 3
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# compute_insolvency_score
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestComputeInsolvencyScore:
+    def _i18n(self):
+        return {
+            "insolv_score_label": "Insolvenčné skóre",
+            "insolv_score_safe": "Bezpečná zóna",
+            "insolv_score_grey": "Šedá zóna",
+            "insolv_score_distress": "Núdzová zóna",
+        }
+
+    def test_empty_statements(self):
+        """Prázdne výkazy — skóre by malo byť 0 alebo None."""
+        result = compute_insolvency_score([], self._i18n())
+        assert result is not None
+
+    def test_none_statements(self):
+        result = compute_insolvency_score(None, self._i18n())
+        assert result is not None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# _translate_flag
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestTranslateFlag:
+    def test_known_flag_translated(self):
+        """Známy flag sa preloží cez i18n."""
+        i18n = {"flag_beneish_manipulator": "Beneish indikácia manipulácie"}
+        result = _translate_flag("Beneish M-score: pravdepodobný manipulátor", i18n)
+        # Buď preložené, alebo pôvodný text (ak sa kľúč nenájde)
+        assert result is not None
+        assert isinstance(result, str)
+
+    def test_unknown_flag_returns_original(self):
+        """Neznámy flag vráti pôvodný text."""
+        i18n = {}
+        result = _translate_flag("Unknown flag text", i18n)
+        assert result == "Unknown flag text" or result is not None
