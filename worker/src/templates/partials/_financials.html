@@ -480,7 +480,7 @@
 
     {# ── YoY SÚHRNNÁ TABUĽKA ── #}
     {% if yoy_table and yoy_table.rows|length > 0 %}
-    <div class="mb-3">
+    <div class="mb-3" style="page-break-before: always; break-before: page;">
         <h3 class="subsection-title-sm mb-1.5">{{ i18n.yoy_key_indicators }}</h3>
         <p class="report-caption mb-2">{{ i18n.values_in_millions }}</p>
         <div class="overflow-x-auto">
@@ -629,7 +629,7 @@
 
     {# ── GRAFY: Zamestnanci a Tržby/zamestnanec v čase ── #}
     {% if employee_chart_base64 or rpe_chart_base64 %}
-    <div class="mb-4 grid grid-cols-2 gap-4">
+    <div class="mb-4 grid grid-cols-2 gap-4" style="page-break-inside: avoid; break-inside: avoid;">
         {% if employee_chart_base64 %}
         <div>
             <img src="data:image/png;base64,{{ employee_chart_base64 }}" alt="{{ i18n.chart_employee_count }}" class="w-full h-auto">
