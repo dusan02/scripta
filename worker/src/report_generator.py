@@ -1495,11 +1495,13 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Zoradené výkazy pre tabuľky (od najstaršieho)
     stmts_sorted = sorted(stmts, key=lambda s: s.year) if stmts else []
 
-    # Pridaj EBITDA do každého výkazu pre historickú tabuľku P&L
+    # EBITDA pre každý rok (pre historickú tabuľku P&L)
+    # Prisma model neumožňuje arbitrary attributes, takže použijeme dict
+    ebitda_by_year = {}
     for s in stmts_sorted:
         ratios_s = compute_financial_ratios(s)
         if ratios_s.get("ebitda") is not None:
-            s.ebitda = ratios_s["ebitda"]
+            ebitda_by_year[s.year] = ratios_s["ebitda"]
 
     # Najnovšie finančné pomery pre karty v reporte
     latest_ratios = {}
@@ -2090,6 +2092,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "evidence_list": evidence_list,
         "latest_stmt": latest_stmt,
         "stmts_sorted": stmts_sorted,
+        "ebitda_by_year": ebitda_by_year,
         "latest_ratios": latest_ratios,
         "gross_profit_estimated": gross_profit_estimated,
         "gross_profit_all_estimated": gross_profit_all_estimated,
