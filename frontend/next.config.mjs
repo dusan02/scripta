@@ -4,6 +4,11 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  experimental: {
+    // ioredis uses Node.js built-ins (net, dns, tls) that can't be bundled for the browser.
+    // Keep it as an external server-side module.
+    serverComponentsExternalPackages: ['ioredis'],
+  },
   async headers() {
     return [
       {
