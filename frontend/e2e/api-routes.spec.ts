@@ -11,10 +11,27 @@
  * Prerequisites:
  * - Running dev server with seeded test database
  * - TEST_USER_A and TEST_USER_B exist with credits
+ *
+ * Note: Auth headers are cached per describe block to avoid hitting the
+ * NextAuth rate limit (10 logins / 15 min per email).
  */
 
 import { test, expect } from "@playwright/test";
 import { loginAPIAs, TEST_USER_A, TEST_USER_B } from "./helpers";
+
+// Cache auth headers across tests to avoid rate limiting (10 logins / 15 min)
+let _authA: Record<string, string> | null = null;
+let _authB: Record<string, string> | null = null;
+
+async function authA(request: import("@playwright/test").APIRequestContext) {
+  if (!_authA) _authA = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+  return _authA;
+}
+
+async function authB(request: import("@playwright/test").APIRequestContext) {
+  if (!_authB) _authB = await loginAPIAs(request, TEST_USER_B.email, TEST_USER_B.password);
+  return _authB;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // /api/reports/[id]/cancel — authorization & IDOR
@@ -29,7 +46,7 @@ test.describe("POST /api/reports/[id]/cancel — auth & IDOR", () => {
   });
 
   test("non-existent report returns 404", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.post("/api/reports/nonexistent-id/cancel", {
       headers: { ...auth, "Content-Type": "application/json" },
     });
@@ -38,14 +55,14 @@ test.describe("POST /api/reports/[id]/cancel — auth & IDOR", () => {
 
   test("IDOR — user B cannot cancel user A's report", async ({ request }) => {
     // First, get user A's reports
-    const authA = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
-    const reportsRes = await request.get("/api/reports", { headers: authA });
+    const a = await authA(request);
+    const reportsRes = await request.get("/api/reports", { headers: a });
     const reports = await reportsRes.json();
     if (reports.reports && reports.reports.length > 0) {
       const reportId = reports.reports[0].id;
-      const authB = await loginAPIAs(request, TEST_USER_B.email, TEST_USER_B.password);
+      const b = await authB(request);
       const res = await request.post(`/api/reports/${reportId}/cancel`, {
-        headers: { ...authB, "Content-Type": "application/json" },
+        headers: { ...b, "Content-Type": "application/json" },
       });
       // Should be 403 (Forbidden) — user B doesn't own this report
       expect([403, 422]).toContain(res.status());
@@ -64,7 +81,7 @@ test.describe("GET /api/watched-companies — auth", () => {
   });
 
   test("authenticated returns 200 with watched array", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.get("/api/watched-companies", { headers: auth });
     expect(res.status()).toBe(200);
     const body = await res.json();
@@ -83,7 +100,7 @@ test.describe("POST /api/watched-companies — validation", () => {
   });
 
   test("invalid IČO (not 8 digits) returns 400", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.post("/api/watched-companies", {
       headers: { ...auth, "Content-Type": "application/json" },
       data: { companyId: "123" },
@@ -92,7 +109,7 @@ test.describe("POST /api/watched-companies — validation", () => {
   });
 
   test("invalid IČO (letters) returns 400", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.post("/api/watched-companies", {
       headers: { ...auth, "Content-Type": "application/json" },
       data: { companyId: "abcdefgh" },
@@ -101,7 +118,7 @@ test.describe("POST /api/watched-companies — validation", () => {
   });
 
   test("missing companyId returns 400", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.post("/api/watched-companies", {
       headers: { ...auth, "Content-Type": "application/json" },
       data: { note: "test" },
@@ -110,7 +127,7 @@ test.describe("POST /api/watched-companies — validation", () => {
   });
 
   test("note over 500 chars returns 400", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.post("/api/watched-companies", {
       headers: { ...auth, "Content-Type": "application/json" },
       data: { companyId: "12345678", note: "x".repeat(501) },
@@ -119,7 +136,7 @@ test.describe("POST /api/watched-companies — validation", () => {
   });
 
   test("valid IČO creates or restores watch entry", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.post("/api/watched-companies", {
       headers: { ...auth, "Content-Type": "application/json" },
       data: { companyId: "12345678", note: "E2E test watch" },
@@ -144,7 +161,7 @@ test.describe("DELETE /api/watched-companies/[id] — IDOR", () => {
   });
 
   test("non-existent watch returns 404", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.delete("/api/watched-companies/nonexistent-id", {
       headers: auth,
     });
@@ -164,7 +181,7 @@ test.describe("GET /api/admin/users/[id] — admin access", () => {
 
   test("non-admin user gets 403", async ({ request }) => {
     // TEST_USER_A is a regular user, not admin
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.get("/api/admin/users/fake-id", { headers: auth });
     // Should be 403 (Forbidden) — non-admin cannot access admin endpoints
     expect([403, 404]).toContain(res.status());
@@ -177,13 +194,13 @@ test.describe("GET /api/admin/users/[id] — admin access", () => {
 
 test.describe("GET /api/reports/[id] — IDOR", () => {
   test("user B cannot read user A's report", async ({ request }) => {
-    const authA = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
-    const reportsRes = await request.get("/api/reports", { headers: authA });
+    const a = await authA(request);
+    const reportsRes = await request.get("/api/reports", { headers: a });
     const reports = await reportsRes.json();
     if (reports.reports && reports.reports.length > 0) {
       const reportId = reports.reports[0].id;
-      const authB = await loginAPIAs(request, TEST_USER_B.email, TEST_USER_B.password);
-      const res = await request.get(`/api/reports/${reportId}`, { headers: authB });
+      const b = await authB(request);
+      const res = await request.get(`/api/reports/${reportId}`, { headers: b });
       // Should be 403 or 404 — user B doesn't own this report
       expect([403, 404]).toContain(res.status());
     }
@@ -201,7 +218,7 @@ test.describe("GET /api/alert-events — auth", () => {
   });
 
   test("authenticated returns 200", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.get("/api/alert-events", { headers: auth });
     expect(res.status()).toBe(200);
   });
@@ -218,7 +235,7 @@ test.describe("GET /api/messages/unread — auth", () => {
   });
 
   test("authenticated returns 200", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.get("/api/messages/unread", { headers: auth });
     expect(res.status()).toBe(200);
   });
@@ -235,7 +252,7 @@ test.describe("GET /api/settings/account — auth", () => {
   });
 
   test("authenticated returns 200", async ({ request }) => {
-    const auth = await loginAPIAs(request, TEST_USER_A.email, TEST_USER_A.password);
+    const auth = await authA(request);
     const res = await request.get("/api/settings/account", { headers: auth });
     expect(res.status()).toBe(200);
   });
