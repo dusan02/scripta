@@ -689,7 +689,7 @@ I18N_STRINGS = {
         "insolvency_no_data": "Nedostatok dát",
 
         # Fraud risk heatmap
-        "fraud_heatmap_title": "Mapa rizík podvodu",
+        "fraud_heatmap_title": "Mapa rizík",
         "fraud_heatmap_desc": "Agregácia red flags z viacerých zdrojov do prehľadnej teplotnej mapy.",
         "fraud_cat_vestnik": "Obchodný vestník",
         "fraud_cat_forensic": "Forenzná analýza",
@@ -1464,7 +1464,7 @@ I18N_STRINGS = {
         "insolvency_no_data": "Insufficient data",
 
         # Fraud risk heatmap
-        "fraud_heatmap_title": "Fraud Risk Heatmap",
+        "fraud_heatmap_title": "Risk Map",
         "fraud_heatmap_desc": "Aggregation of red flags from multiple sources into a visual heatmap.",
         "fraud_cat_vestnik": "Commercial Bulletin",
         "fraud_cat_forensic": "Forensic Analysis",
@@ -2239,7 +2239,7 @@ I18N_STRINGS = {
         "insolvency_no_data": "Unzureichende Daten",
 
         # Fraud risk heatmap
-        "fraud_heatmap_title": "Betrugsrisiko-Heatmap",
+        "fraud_heatmap_title": "Risikokarte",
         "fraud_heatmap_desc": "Aggregation von Red Flags aus mehreren Quellen in einer visuellen Heatmap.",
         "fraud_cat_vestnik": "Handelsblatt",
         "fraud_cat_forensic": "Forensische Analyse",
@@ -2952,7 +2952,7 @@ I18N_STRINGS = {
     "insolvency_years_loss": "{n} roky strata",
     "insolvency_years_profit": "{n} roky profit",
     "insolvency_no_data": "Nedostatek dat",
-    "fraud_heatmap_title": "Mapa rizik podvodu",
+    "fraud_heatmap_title": "Mapa rizik",
     "fraud_heatmap_desc": "Agregace red flags z více zdrojů do přehledné teplotní mapy.",
     "fraud_cat_vestnik": "Obchodní věstník",
     "fraud_cat_forensic": "Forenzní analýza",
@@ -3657,7 +3657,7 @@ I18N_STRINGS = {
     "insolvency_years_loss": "{n} év veszteség",
     "insolvency_years_profit": "{n} év nyereség",
     "insolvency_no_data": "Elégtelen adat",
-    "fraud_heatmap_title": "Csalási kockázati hőtérkép",
+    "fraud_heatmap_title": "Kockázati térkép",
     "fraud_heatmap_desc": "Több forrásból származó figyelmeztető jelek összesítése egy vizuális hőtérképen.",
     "fraud_cat_vestnik": "Cégközlöny",
     "fraud_cat_forensic": "Forenzikus elemzés",
@@ -4362,7 +4362,7 @@ I18N_STRINGS = {
     "insolvency_years_loss": "{n} lat strat",
     "insolvency_years_profit": "{n} lat zysków",
     "insolvency_no_data": "Niewystarczające dane",
-    "fraud_heatmap_title": "Mapa ryzyka nadużyć",
+    "fraud_heatmap_title": "Mapa ryzyk",
     "fraud_heatmap_desc": "Agregacja sygnałów ostrzegawczych z wielu źródeł na wizualnej mapie ryzyka.",
     "fraud_cat_vestnik": "Dziennik Urzędowy",
     "fraud_cat_forensic": "Analiza śledcza",
