@@ -1427,7 +1427,12 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                        "investingCashFlow", "financingCashFlow",
                        "currentAssets", "inventory", "cashAndEquivalents", "tradeReceivables",
                        "totalAssets", "equity", "shortTermLiabilities", "longTermLiabilities",
-                       "tradePayables"):
+                       "tradePayables",
+                       "materialConsumption", "servicesCosts", "operatingCosts",
+                       "wageCosts", "taxesFees", "profitBeforeTax", "financialResult",
+                       "incomeTax", "shareCapital", "retainedEarnings", "currentYearProfit",
+                       "nonCurrentAssets", "intangibleAssets", "tangibleAssets",
+                       "ltReserves", "stReserves"):
             val = getattr(stmt, field, None)
             if val is not None:
                 setattr(stmt, field, _to_float(val))
