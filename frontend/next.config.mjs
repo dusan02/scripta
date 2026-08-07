@@ -4,11 +4,6 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
-  experimental: {
-    // ioredis is loaded via dynamic import() in rateLimit.ts to avoid
-    // webpack bundling issues with Node.js built-ins (net, dns, tls).
-    serverComponentsExternalPackages: ['ioredis'],
-  },
   async headers() {
     return [
       {

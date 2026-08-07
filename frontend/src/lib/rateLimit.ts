@@ -103,11 +103,11 @@ async function getLocalRedis(): Promise<any> {
   }
 
   try {
-    // Dynamic import — ioredis uses Node.js built-ins (net, dns, tls) that
-    // can't be bundled by Next.js webpack. Loading it at runtime avoids
-    // the build-time bundling issue.
-    const { Redis } = await import("ioredis");
-    _localRedis = new Redis(redisUrl, {
+    // Use eval-based require to hide ioredis from webpack's static analysis.
+    // ioredis uses Node.js built-ins (net, dns, tls) that can't be bundled.
+    // Next.js 14's serverComponentsExternalPackages doesn't cover API routes.
+    const ioredis = (eval("require") as NodeRequire)("ioredis");
+    _localRedis = new ioredis.Redis(redisUrl, {
       maxRetriesPerRequest: 1,
       enableOfflineQueue: false,
       lazyConnect: false,
