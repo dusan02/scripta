@@ -13,8 +13,29 @@ from ..models import ScrapedSource
 logger = logging.getLogger(__name__)
 
 
+def _fix_mojibake(text: str) -> str:
+    """Opraví double-encoded UTF-8 text z ISU API.
+
+    ISU API vracia text, ktorý bol pôvodne UTF-8, ale bol interpretovaný
+    ako Windows-1250 a znova encodovaný do UTF-8.
+    Príklad: 'MĂˇ' → 'Má', 'zamestnĂˇvateÄľa' → 'zamestnávateľa'
+
+    Fix: encode do cp1250 (získame pôvodné UTF-8 bajty), decode ako UTF-8.
+    """
+    if not text:
+        return text
+    try:
+        # Ak text obsahuje mojibake znaky (Ă, Äľ, ÄŚ, aspoĹ#), skús opraviť
+        if any(m in text for m in ('Ăˇ', 'Ă˝', 'Äľ', 'ÄŚ', 'ÄŤ', 'Ĺ#', 'Ĺˇ', 'ĹĽ', 'ÄŽ')):
+            return text.encode('cp1250').decode('utf-8', errors='replace')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
+    return text
+
+
 def _clean_zvyraznenie(text: str) -> str:
     """Vyčistí highlight snippet z ISU API:
+    - opraví mojibake (double-encoded UTF-8)
     - odstráni HTML tagy (<span class="highlight-substring">...)
     - odstráni ECLI kódy
     - odstráni nadbytočné prázdne riadky
@@ -22,6 +43,8 @@ def _clean_zvyraznenie(text: str) -> str:
     """
     if not text:
         return ""
+    # Oprav mojibake (ISU API vracia double-encoded text)
+    text = _fix_mojibake(text)
     # Odstráni HTML tagy
     text = re.sub(r'<[^>]+>', '', text)
     # Odstráni ECLI kódy (ECLI:SK:OSTT:2026:... alebo ECLI: ECLI:SK:...)

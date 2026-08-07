@@ -200,12 +200,13 @@ class PdfGeneratorMixin:
 
         await page.add_style_tag(content="""
             @page { size: A3 landscape; margin: 0.5cm; }
-            body { margin: 0 !important; padding: 0 !important; }
+            body { margin: 0 !important; padding: 0 !important; font-family: 'DejaVu Sans', 'Liberation Sans', 'Arial', 'sans-serif' !important; }
             table {
                 width: 100% !important;
                 font-size: 11px !important;
                 table-layout: auto !important;
                 border-collapse: collapse !important;
+                font-family: 'DejaVu Sans', 'Liberation Sans', 'Arial', 'sans-serif' !important;
             }
             th { background: #f3f4f6 !important; font-weight: 600 !important; }
             td, th { padding: 3px 6px !important; word-break: normal !important; white-space: normal !important; overflow-wrap: break-word !important; text-align: left !important; }
