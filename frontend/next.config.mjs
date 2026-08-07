@@ -9,6 +9,18 @@ const nextConfig = {
     // Keep it as an external server-side module.
     serverComponentsExternalPackages: ['ioredis'],
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // ioredis is server-only — don't bundle it for the browser
+      config.resolve.fallback = {
+        ...(config.resolve.fallback || {}),
+        dns: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
+  },
   async headers() {
     return [
       {
