@@ -223,6 +223,25 @@ class PdfGeneratorMixin:
             margin={"top": "0.5cm", "bottom": "0.5cm", "left": "0.5cm", "right": "0.5cm"},
             prefer_css_page_size=False,
         )
+
+        # Validácia: PDF musí existovať, mať aspoň 1 stranu a obsahovať text
+        if not output_path.exists() or output_path.stat().st_size < 500:
+            logger.error(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF je podozrivo malé alebo neexistuje: {output_path}")
+            raise RuntimeError(f"PDF validation failed: file too small or missing")
+        try:
+            from PyPDF2 import PdfReader
+            reader = PdfReader(str(output_path))
+            if len(reader.pages) == 0:
+                logger.error(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF má 0 strán: {output_path}")
+                raise RuntimeError(f"PDF validation failed: 0 pages")
+            extracted = reader.pages[0].extract_text() or ""
+            if len(extracted.strip()) < 10:
+                logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF obsahuje málo textu ({len(extracted.strip())} chars): {output_path}")
+        except RuntimeError:
+            raise
+        except Exception as pdf_err:
+            logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF validácia zlyhala (non-fatal): {pdf_err}")
+
         logger.info(f"[{getattr(self, 'source_type', 'UNKNOWN')}] PDF vygenerované: {output_path}")
 
 

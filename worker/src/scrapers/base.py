@@ -23,6 +23,46 @@ from .mixins import PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, 
 logger = logging.getLogger(__name__)
 
 
+# ── Circuit breaker per source type ──────────────────────────────────
+# Ak API/register zlyhá N krát za sebou, označí sa ako "open" a ďalšie
+# reporty ho preskočia (UNAVAILABLE) až do cooldownu.
+_CIRCUIT_FAILURES: dict[str, int] = {}
+_CIRCUIT_OPEN_UNTIL: dict[str, float] = {}
+_CIRCUIT_THRESHOLD = 3       # po 3 po sebe idúcich zlyhaniach sa otvorí
+_CIRCUIT_COOLDOWN = 300      # 5 minút cooldown
+
+
+def circuit_is_open(source_type: str) -> bool:
+    """Vráti True ak je circuit breaker otvorený (register/API je nedostupný)."""
+    import time as _time
+    open_until = _CIRCUIT_OPEN_UNTIL.get(source_type, 0)
+    if _time.monotonic() < open_until:
+        return True
+    # Cooldown vypršal — reset
+    if source_type in _CIRCUIT_OPEN_UNTIL:
+        del _CIRCUIT_OPEN_UNTIL[source_type]
+        _CIRCUIT_FAILURES[source_type] = 0
+    return False
+
+
+def circuit_record_success(source_type: str) -> None:
+    """Reset counter po úspechu."""
+    _CIRCUIT_FAILURES[source_type] = 0
+    _CIRCUIT_OPEN_UNTIL.pop(source_type, None)
+
+
+def circuit_record_failure(source_type: str) -> None:
+    """Inkrement failure counter, otvor circuit ak dosiahnutý threshold."""
+    import time as _time
+    _CIRCUIT_FAILURES[source_type] = _CIRCUIT_FAILURES.get(source_type, 0) + 1
+    if _CIRCUIT_FAILURES[source_type] >= _CIRCUIT_THRESHOLD:
+        _CIRCUIT_OPEN_UNTIL[source_type] = _time.monotonic() + _CIRCUIT_COOLDOWN
+        logger.warning(
+            f"[CircuitBreaker] {source_type} otvorený na {_CIRCUIT_COOLDOWN}s "
+            f"po {_CIRCUIT_FAILURES[source_type]} po sebe idúcich zlyhaniach."
+        )
+
+
 class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, CaptchaSolverMixin, ABC):
     """
     Base class for all register scrapers.
@@ -127,13 +167,14 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
 
     async def _dismiss_cookie_banner(self, page: Page) -> None:
         """Skúsi zavrieť cookie banner ak existuje — bežné na slovenských štátnych portáloch.
-        Nezlyhá ak banner nie je prítomný."""
+        Nezlyhá ak banner nie je prítomný. Loguje warning ak žiadny selector nezabral."""
         cookie_selectors = [
             "button:has-text('Povoliť všetko')",
             "button:has-text('Súhlasím')",
             "button:has-text('Rozumiem')",
             "button:has-text('Accept all')",
             "button:has-text('Prijať všetko')",
+            "button:has-text('Akceptovať všetky cookies')",
             "button:has-text('OK')",
             "#cookie-accept",
             ".cookie-banner button",
@@ -142,12 +183,13 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         for selector in cookie_selectors:
             try:
                 btn = page.locator(selector).first
-                await btn.wait_for(state="visible", timeout=1500)
+                await btn.wait_for(state="visible", timeout=3000)
                 await btn.click()
                 logger.debug(f"[{self.source_type}] Cookie banner zatvorený: {selector}")
                 return
             except Exception:
                 continue
+        logger.debug(f"[{self.source_type}] Cookie banner sa nenašiel (žiadny selector nezabral).")
 
     def _make_result(
         self,

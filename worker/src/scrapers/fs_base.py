@@ -634,19 +634,21 @@ class FinancnaSpravaBase(BaseScraper):
             except Exception as e:
                 logger.info(f"[{self.source_type}] href download zlyhal ({e}), skúšam click + download...")
 
-            # Stratégia 2: Klik na export link, zachytí download z page alebo popupu
+            # Stratégia 2: Klik na export link, zachytí download
+            # Fix: Eliminovaná race condition — expect_download čaká samostatne,
+            # popup sa zatvára až po stiahnutí (nie vo vnorenom context manageri).
             try:
                 async with page.expect_download(timeout=30000) as download_info:
-                    async with page.context.expect_page(timeout=10000) as popup_info:
-                        await export_link.click()
-                    popup = await popup_info.value
-                    logger.info(f"[{self.source_type}] PDF popup otvorený — čakám na download.")
+                    await export_link.click()
                 download = await download_info.value
                 await download.save_as(str(output_path))
-                try:
-                    await popup.close()
-                except Exception:
-                    pass
+                # Zatvor prípadný popup (otvoril sa vedľa downloadu)
+                for p in page.context.pages:
+                    if p != page and not p.is_closed():
+                        try:
+                            await p.close()
+                        except Exception:
+                            pass
                 if output_path.exists() and output_path.stat().st_size > 0:
                     logger.info(f"[{self.source_type}] PDF uložené (download, {output_path.stat().st_size} bytes).")
                     return True

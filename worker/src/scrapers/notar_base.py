@@ -41,6 +41,9 @@ class NotarBaseScraper(BaseScraper):
             await self._safe_goto(page, self.base_url)
             logger.info(f"[{self.source_type}] Stránka načítaná: {self.base_url}")
 
+            # Zavri cookie banner ak sa zobrazil
+            await self._dismiss_cookie_banner(page)
+
             # Vyplniť IČO — skúšame CSS selektor (spoľahlivý), potom placeholder, potom get_by_role
             ico_filled = False
             for selector in [

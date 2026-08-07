@@ -216,7 +216,14 @@ class ZrsrScraper(BaseScraper):
                                 logger.info(f"[{self.source_type}] Retry: vrátim sa na výsledky a skúsim znova.")
                                 await page.go_back(timeout=15000)
                                 await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                                await page.wait_for_timeout(1500)
+                                # Počkaj na detail link namiesto fixed sleep
+                                try:
+                                    await page.wait_for_selector(
+                                        "a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']",
+                                        timeout=5000,
+                                    )
+                                except PlaywrightTimeoutError:
+                                    pass
                                 continue
                             else:
                                 logger.error(f"[{self.source_type}] 'Odkaz je neplatný' aj po {max_detail_retries} pokusoch.")
@@ -236,7 +243,7 @@ class ZrsrScraper(BaseScraper):
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Chyba pri klikaní na detail (attempt {detail_attempt+1}): {e}")
                 if detail_attempt < max_detail_retries - 1:
-                    await page.wait_for_timeout(2000)
+                    await page.wait_for_load_state("domcontentloaded", timeout=10000)
                     continue
                 break
 
@@ -284,7 +291,7 @@ class ZrsrScraper(BaseScraper):
                 if await widget.count() == 0:
                     logger.warning(f"[{self.source_type}] Altcha widget sa nenašiel (pokus {attempt+1}/3).")
                     if attempt < 2:
-                        await page.wait_for_timeout(2000)
+                        await page.wait_for_load_state("domcontentloaded", timeout=5000)
                     continue
 
                 # Skús 1: Klik na label 'Nie som robot' (najspoľahlivejšie)
@@ -321,7 +328,7 @@ class ZrsrScraper(BaseScraper):
             except Exception as e:
                 logger.warning(f"[{self.source_type}] Altcha attempt {attempt+1}/3 zlyhal: {e}")
                 if attempt < 2:
-                    await page.wait_for_timeout(2000)
+                    await page.wait_for_load_state("domcontentloaded", timeout=5000)
 
         logger.error(f"[{self.source_type}] Altcha sa nepodarila vyriešiť po 3 pokusoch.")
         return False

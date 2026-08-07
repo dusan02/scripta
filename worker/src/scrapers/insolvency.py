@@ -93,8 +93,8 @@ class InsolvencyScraper(BaseScraper):
                                 await page.wait_for_load_state("domcontentloaded", timeout=15000)
                             except PlaywrightTimeoutError:
                                 pass
-                except Exception:
-                    pass
+                except Exception as fallback_err:
+                    logger.debug(f"[{self.source_type}] Lupa fallback zlyhal: {fallback_err}")
                     
             except PlaywrightTimeoutError:
                 raise ScraperUnavailableError("Timeout pri vyhľadávaní v Registri úpadcov.")
@@ -130,8 +130,8 @@ class InsolvencyScraper(BaseScraper):
             if page:
                 try:
                     await page.close()
-                except Exception:
-                    pass
+                except Exception as close_err:
+                    logger.debug(f"[{self.source_type}] Page close zlyhal: {close_err}")
 
     async def _process_results(
         self,

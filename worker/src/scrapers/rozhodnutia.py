@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -5,12 +6,18 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
 
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
+import httpx
+from playwright.async_api import Page
 
 from .base import BaseScraper, ScraperUnavailableError
 from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
+
+_API_URL = "https://obcan.justice.sk/pilot/api/ress-isu-service/v1/rozhodnutie"
+_API_TIMEOUT = 30
+_API_RETRIES = 2
+_API_RETRY_DELAY = 2.0
 
 
 def _fix_mojibake(text: str) -> str:
@@ -68,32 +75,76 @@ class RozhodnutiaScraper(BaseScraper):
     _title = "Rozhodnutia súdov"
     _BASE_URL = "https://www.justice.gov.sk/sudy-a-rozhodnutia/sudy/rozhodnutia/"
 
+    async def _fetch_api(self, ico: str) -> dict:
+        """Stiahne rozhodnutia z ISU API cez httpx s retry logikou."""
+        params = {
+            "page": 1,
+            "size": 50,
+            "sortDirection": "DESC",
+            "sortProperty": "datum_vydania_rozhodnutia",
+            "query": ico,
+        }
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; Verifa/1.0)"}
+
+        for attempt in range(_API_RETRIES + 1):
+            try:
+                async with httpx.AsyncClient(
+                    timeout=_API_TIMEOUT, headers=headers, follow_redirects=True
+                ) as client:
+                    resp = await client.get(_API_URL, params=params)
+
+                    if resp.status_code == 200:
+                        try:
+                            return resp.json()
+                        except json.JSONDecodeError:
+                            logger.error(f"[{self.source_type}] Neplatný JSON z API (attempt {attempt + 1})")
+                            if attempt < _API_RETRIES:
+                                await asyncio.sleep(_API_RETRY_DELAY * (attempt + 1))
+                                continue
+                            return {}
+
+                    # Retryable errors
+                    if resp.status_code >= 500 or resp.status_code == 429:
+                        if attempt < _API_RETRIES:
+                            delay = _API_RETRY_DELAY * (attempt + 1)
+                            if resp.status_code == 429:
+                                delay *= 3
+                            logger.warning(
+                                f"[{self.source_type}] API HTTP {resp.status_code} (attempt {attempt + 1}), retry za {delay}s"
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+
+                    logger.error(f"[{self.source_type}] API HTTP {resp.status_code}: {resp.text[:200]}")
+                    return {}
+
+            except httpx.TimeoutException:
+                logger.warning(f"[{self.source_type}] API timeout (attempt {attempt + 1})")
+                if attempt < _API_RETRIES:
+                    await asyncio.sleep(_API_RETRY_DELAY * (attempt + 1))
+                    continue
+                raise ScraperUnavailableError("ISU API timeout")
+
+            except httpx.HTTPError as e:
+                logger.warning(f"[{self.source_type}] API network error (attempt {attempt + 1}): {e}")
+                if attempt < _API_RETRIES:
+                    await asyncio.sleep(_API_RETRY_DELAY * (attempt + 1))
+                    continue
+                raise ScraperUnavailableError(f"ISU API network error: {e}")
+
+        return {}
+
     async def run(
         self, *, ico: str, output_dir: Path, rozhodnutia_date_from: Optional[str] = None, **kwargs
     ) -> ScrapedSource:
-        page: Optional[Page] = None
         try:
             logger.info(f"[{self.source_type}] Start IČO={ico}")
 
             cutoff_date = self._get_cutoff_date(rozhodnutia_date_from)
             logger.info(f"[{self.source_type}] Cutoff date: {cutoff_date}")
 
-            # Priamy API prístup
-            api_url = f"https://obcan.justice.sk/pilot/api/ress-isu-service/v1/rozhodnutie?page=1&size=50&sortDirection=DESC&sortProperty=datum_vydania_rozhodnutia&query={ico}"
-            logger.info(f"[{self.source_type}] Fetching API {api_url}")
-
-            page = await self._get_page(block_images=False)
-            await self._safe_goto(page, api_url)
-            
-            # Extrahuje text z body (bude to JSON stringified v prehliadači)
-            json_text = await page.evaluate("() => document.body.innerText")
-            
-            try:
-                data = json.loads(json_text)
-            except json.JSONDecodeError:
-                logger.error(f"[{self.source_type}] Neplatný JSON z API: {json_text[:200]}")
-                data = {}
-
+            # Fetch API cez httpx (bez Playwright)
+            data = await self._fetch_api(ico)
             decisions = data.get("rozhodnutieList", [])
             
             if not decisions:
@@ -175,15 +226,25 @@ class RozhodnutiaScraper(BaseScraper):
             '''
             
             pdf_path = output_dir / f"{self.source_type}_{ico}.pdf"
-            await page.set_content(html_content)
-            
-            await page.pdf(
-                path=str(pdf_path),
-                format="A4",
-                print_background=True,
-                margin={"top": "1cm", "bottom": "1cm", "left": "1cm", "right": "1cm"},
-            )
-            
+
+            # PDF generovanie cez Playwright set_content (bez navigácie)
+            page: Optional[Page] = None
+            try:
+                page = await self._get_page(block_images=False)
+                await page.set_content(html_content, wait_until="domcontentloaded")
+                await page.pdf(
+                    path=str(pdf_path),
+                    format="A4",
+                    print_background=True,
+                    margin={"top": "1cm", "bottom": "1cm", "left": "1cm", "right": "1cm"},
+                )
+            finally:
+                if page:
+                    try:
+                        await page.close()
+                    except Exception as close_err:
+                        logger.debug(f"[{self.source_type}] Page close zlyhal: {close_err}")
+
             logger.info(f"[{self.source_type}] PDF vygenerované: {pdf_path}")
 
             return self._make_result(
@@ -203,12 +264,6 @@ class RozhodnutiaScraper(BaseScraper):
                 status="FAILED",
                 status_message=f"Interná chyba scrapera: {str(e)}"
             )
-        finally:
-            if page:
-                try:
-                    await page.close()
-                except Exception:
-                    pass
 
     def _get_cutoff_date(self, date_str: Optional[str]) -> date:
         if date_str:

@@ -61,6 +61,9 @@ class SpDlzniciScraper(BaseScraper):
                     )
                 break
 
+            # Zavri cookie banner ak sa zobrazil
+            await self._dismiss_cookie_banner(page)
+
             # Vyplniť IČO — presný CSS selector #edit-ico--2 (Drupal form)
             ico_input = page.locator('#edit-ico--2, input[name="ico"]')
             try:

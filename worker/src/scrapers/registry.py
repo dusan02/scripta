@@ -140,6 +140,22 @@ async def run_scrapers(
     results_by_source: Dict[str, ScrapedSource] = {}
 
     async def run_one(source_type: str, **extra_kwargs) -> ScrapedSource:
+        # Circuit breaker — ak register/API je nedostupný, preskoč
+        from .base import circuit_is_open, circuit_record_success, circuit_record_failure
+        if circuit_is_open(source_type):
+            logger.info(f"[CircuitBreaker] {source_type} je otvorený — preskakujem.")
+            result = ScrapedSource(
+                source_type=source_type,
+                status="UNAVAILABLE",
+                status_message=f"Register {source_type} je dočasne nedostupný (circuit breaker).",
+            )
+            if on_source_done:
+                try:
+                    on_source_done(result)
+                except Exception:
+                    pass
+            return result
+
         scraper_cls = get_scraper(source_type)
         scraper = scraper_cls(browser=browser)
         is_fs = source_type in _FS_SOURCE_TYPES
@@ -196,6 +212,11 @@ async def run_scrapers(
                     sem.release()
             elapsed = time.perf_counter() - _t_start
             status = result.status if result else "UNKNOWN"
+            # Circuit breaker — zaznamenaj výsledok
+            if status == "SUCCESS":
+                circuit_record_success(source_type)
+            elif status in ("FAILED", "UNAVAILABLE"):
+                circuit_record_failure(source_type)
             findings = result.findings or result.status_message or "" if result else ""
             log_scraper_result(source_type, status, findings, elapsed)
             if on_source_done and result:
