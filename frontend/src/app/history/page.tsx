@@ -19,6 +19,7 @@ import {
   ArrowLeftIcon,
   SearchIcon,
   StopIcon,
+  RestoreIcon,
 } from "@/components/icons";
 
 interface ReportSource {
@@ -73,12 +74,15 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [modal, setModal] = useState<{ type: "single" | "all" | "bulk" | "cancel"; reportId?: string; subject?: string } | null>(null);
+  const [modal, setModal] = useState<{ type: "single" | "all" | "bulk" | "cancel" | "restore" | "permanent"; reportId?: string; subject?: string } | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [fadingId, setFadingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"reports" | "trash">("reports");
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [permanentlyDeletingId, setPermanentlyDeletingId] = useState<string | null>(null);
 
-  const hasActiveFilters = search || statusFilter !== "ALL" || dateFrom || dateTo;
+  const hasActiveFilters = search || (activeTab === "reports" && statusFilter !== "ALL") || dateFrom || dateTo;
 
   const toggleSort = useCallback((field: string) => {
     if (sortBy === field) {
@@ -124,6 +128,7 @@ export default function HistoryPage() {
       params.set("sortOrder", sortOrder);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
+      if (activeTab === "trash") params.set("trashed", "true");
 
       const res = await fetch(`/api/reports?${params.toString()}`);
       const data = await res.json();
@@ -137,7 +142,7 @@ export default function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, search, statusFilter, sortBy, sortOrder, dateFrom, dateTo]);
+  }, [page, limit, search, statusFilter, sortBy, sortOrder, dateFrom, dateTo, activeTab]);
 
   useEffect(() => {
     const debounce = setTimeout(fetchReports, 300);
@@ -229,6 +234,61 @@ export default function HistoryPage() {
     }
   }, [modal, fetchReports, t]);
 
+  const handleRestore = useCallback((e: React.MouseEvent, reportId: string, subject: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setModal({ type: "restore", reportId, subject });
+  }, []);
+
+  const handlePermanentDelete = useCallback((e: React.MouseEvent, reportId: string, subject: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setModal({ type: "permanent", reportId, subject });
+  }, []);
+
+  const confirmRestore = useCallback(async () => {
+    if (!modal?.reportId) return;
+    setRestoringId(modal.reportId);
+    try {
+      const res = await fetch(`/api/reports/${modal.reportId}`, { method: "PATCH" });
+      if (res.ok) {
+        toast.success(t("history.reportObnoveny"));
+        fetchReports();
+      } else {
+        toast.error(t("history.chybaObnovy"));
+      }
+    } catch {
+      toast.error(t("history.chybaObnovy"));
+    } finally {
+      setRestoringId(null);
+      setModal(null);
+    }
+  }, [modal, fetchReports, t]);
+
+  const confirmPermanentDelete = useCallback(async () => {
+    if (!modal?.reportId) return;
+    setFadingId(modal.reportId);
+    setPermanentlyDeletingId(modal.reportId);
+    try {
+      const res = await fetch(`/api/reports/${modal.reportId}`, { method: "DELETE" });
+      if (res.ok) {
+        setTimeout(() => {
+          setFadingId(null);
+          fetchReports();
+        }, 300);
+      } else {
+        setFadingId(null);
+        toast.error(t("history.chybaTrvalehoMazania"));
+      }
+    } catch {
+      toast.error(t("history.chybaTrvalehoMazania"));
+      setFadingId(null);
+    } finally {
+      setPermanentlyDeletingId(null);
+      setModal(null);
+    }
+  }, [modal, fetchReports, t]);
+
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [creditsModalMsg, setCreditsModalMsg] = useState("");
@@ -279,24 +339,28 @@ export default function HistoryPage() {
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            {selectedIds.size > 0 && (
-              <button
-                onClick={() => setModal({ type: "bulk" })}
-                disabled={deletingAll}
-                className="text-xs font-medium transition-colors hover:text-red-500"
-                style={{ color: "var(--danger-text)" }}
-              >
-                {t("history.vymazatVybrane")} ({selectedIds.size})
-              </button>
+            {activeTab === "reports" && (
+              <>
+                {selectedIds.size > 0 && (
+                  <button
+                    onClick={() => setModal({ type: "bulk" })}
+                    disabled={deletingAll}
+                    className="text-xs font-medium transition-colors hover:text-red-500"
+                    style={{ color: "var(--danger-text)" }}
+                  >
+                    {t("history.vymazatVybrane")} ({selectedIds.size})
+                  </button>
+                )}
+                <button
+                  onClick={() => setModal({ type: "all" })}
+                  disabled={deletingAll}
+                  className="text-xs font-medium transition-colors hover:text-red-500"
+                  style={{ color: "var(--danger-text)" }}
+                >
+                  {deletingAll ? t("history.mazem") : t("history.vymazatVsetko")}
+                </button>
+              </>
             )}
-            <button
-              onClick={() => setModal({ type: "all" })}
-              disabled={deletingAll}
-              className="text-xs font-medium transition-colors hover:text-red-500"
-              style={{ color: "var(--danger-text)" }}
-            >
-              {deletingAll ? t("history.mazem") : t("history.vymazatVsetko")}
-            </button>
           </div>
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-center mt-3 hidden md:block" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
@@ -305,6 +369,31 @@ export default function HistoryPage() {
         <h1 className="text-xl font-bold tracking-tight mt-3 md:hidden" style={{ color: "var(--text)", letterSpacing: "-0.02em" }}>
           {t("history.historiaReportov")}
         </h1>
+      </div>
+
+      {/* Tabs: Reports / Trash */}
+      <div className="flex items-center gap-1 mb-4 border-b" style={{ borderColor: "var(--border)" }}>
+        <button
+          onClick={() => { setActiveTab("reports"); setPage(1); setSelectedIds(new Set()); }}
+          className="px-4 py-2 text-sm font-medium transition-colors relative"
+          style={{
+            color: activeTab === "reports" ? "var(--accent)" : "var(--text-muted)",
+            borderBottom: activeTab === "reports" ? "2px solid var(--accent)" : "2px solid transparent",
+          }}
+        >
+          {t("history.reporty")}
+        </button>
+        <button
+          onClick={() => { setActiveTab("trash"); setPage(1); setSelectedIds(new Set()); }}
+          className="px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5"
+          style={{
+            color: activeTab === "trash" ? "var(--accent)" : "var(--text-muted)",
+            borderBottom: activeTab === "trash" ? "2px solid var(--accent)" : "2px solid transparent",
+          }}
+        >
+          <TrashIcon size={14} />
+          {t("history.kos")}
+        </button>
       </div>
 
       {/* Filters */}
@@ -346,7 +435,8 @@ export default function HistoryPage() {
             title={t("history.doDátumu")}
           />
         </div>
-        {/* Status filter chips — wrap on new line, full width */}
+        {/* Status filter chips — wrap on new line, full width (hidden in trash) */}
+        {activeTab === "reports" && (
         <div className="flex gap-1.5 flex-wrap">
           {STATUS_FILTERS.map((f) => (
             <button
@@ -363,6 +453,7 @@ export default function HistoryPage() {
             </button>
           ))}
         </div>
+        )}
       </div>
 
       {/* Results count */}
@@ -387,12 +478,13 @@ export default function HistoryPage() {
         <div
           className="hidden md:grid px-4 py-2.5 text-[10px] font-medium uppercase tracking-wider gap-3 sticky top-0 z-10"
           style={{
-            gridTemplateColumns: "32px 200px minmax(0, 1fr) 130px",
+            gridTemplateColumns: activeTab === "trash" ? "200px minmax(0, 1fr) 130px" : "32px 200px minmax(0, 1fr) 130px",
             background: "var(--bg-subtle)",
             borderBottom: "1px solid var(--border)",
             color: "var(--text-muted)",
           }}
         >
+          {activeTab === "reports" && (
           <span className="flex items-center justify-center">
             <input
               type="checkbox"
@@ -402,6 +494,7 @@ export default function HistoryPage() {
               style={{ accentColor: "var(--accent)" }}
             />
           </span>
+          )}
           <button
             onClick={() => toggleSort("companyName")}
             className="text-center flex items-center justify-center gap-1 hover:opacity-80 transition-opacity"
@@ -458,11 +551,15 @@ export default function HistoryPage() {
             ))
           ) : reports.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 fade-in">
-              <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>{hasActiveFilters ? "🔍" : "📋"}</div>
+              <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>
+                {activeTab === "trash" ? "🗑️" : hasActiveFilters ? "🔍" : "📋"}
+              </div>
               <p className="text-base font-semibold mb-2" style={{ color: "var(--text)" }}>
-                {hasActiveFilters ? t("history.ziadneVysledky") : t("history.ziadneNenasli")}
+                {activeTab === "trash"
+                  ? t("history.kosPrazdny")
+                  : hasActiveFilters ? t("history.ziadneVysledky") : t("history.ziadneNenasli")}
               </p>
-              {hasActiveFilters ? (
+              {activeTab === "trash" ? null : hasActiveFilters ? (
                 <button
                   onClick={clearFilters}
                   className="btn-primary mt-4"
@@ -505,8 +602,9 @@ export default function HistoryPage() {
                   {/* Desktop row */}
                   <div
                     className="hidden md:grid items-center px-4 py-3 transition-colors duration-100 gap-3 hover:bg-[var(--bg-muted)]"
-                    style={{ gridTemplateColumns: "32px 200px minmax(0, 1fr) 130px" }}
+                    style={{ gridTemplateColumns: activeTab === "trash" ? "200px minmax(0, 1fr) 130px" : "32px 200px minmax(0, 1fr) 130px" }}
                   >
+                    {activeTab === "reports" && (
                     <span className="flex items-center justify-center" onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSelect(report.id); }}>
                       <input
                         type="checkbox"
@@ -517,6 +615,7 @@ export default function HistoryPage() {
                         style={{ accentColor: "var(--accent)" }}
                       />
                     </span>
+                    )}
                     <div className="flex flex-col items-center gap-1 min-w-0">
                       <span className="text-base flex-shrink-0">
                         {report.targetType === "COMPANY" ? "🏢" : "👤"}
@@ -559,45 +658,70 @@ export default function HistoryPage() {
                       </span>
                       <StatusBadge status={report.status} size="sm" />
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => handleSearchAgain(e, report)}
-                          disabled={retryingId === report.id}
-                          title={t("history.spustitHladanie")}
-                          className="action-btn action-btn-retry p-1.5 rounded-md"
-                          style={{ color: "var(--info-text)" }}
-                        >
-                          {retryingId === report.id ? <SpinnerIcon size={14} /> : <RefreshIcon size={14} />}
-                        </button>
-                        {canDownload && (
-                          <button
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
-                            title={t("history.stiahnutPdf")}
-                            className="action-btn action-btn-download p-1.5 rounded-md"
-                            style={{ color: "var(--accent)" }}
-                          >
-                            <FileDownloadIcon size={14} />
-                          </button>
+                        {activeTab === "trash" ? (
+                          <>
+                            <button
+                              onClick={(e) => handleRestore(e, report.id, report.companyName || report.ico || identifier)}
+                              disabled={restoringId === report.id}
+                              title={t("history.obnovit")}
+                              className="action-btn p-1.5 rounded-md"
+                              style={{ color: "var(--accent)" }}
+                            >
+                              {restoringId === report.id ? <SpinnerIcon size={14} /> : <RestoreIcon size={14} />}
+                            </button>
+                            <button
+                              onClick={(e) => handlePermanentDelete(e, report.id, report.companyName || report.ico || identifier)}
+                              disabled={permanentlyDeletingId === report.id}
+                              title={t("history.trvaleVymazat")}
+                              className="action-btn action-btn-delete p-1.5 rounded-md"
+                              style={{ color: "var(--danger-text)" }}
+                            >
+                              {permanentlyDeletingId === report.id ? <SpinnerIcon size={14} /> : <TrashIcon size={14} />}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => handleSearchAgain(e, report)}
+                              disabled={retryingId === report.id}
+                              title={t("history.spustitHladanie")}
+                              className="action-btn action-btn-retry p-1.5 rounded-md"
+                              style={{ color: "var(--info-text)" }}
+                            >
+                              {retryingId === report.id ? <SpinnerIcon size={14} /> : <RefreshIcon size={14} />}
+                            </button>
+                            {canDownload && (
+                              <button
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
+                                title={t("history.stiahnutPdf")}
+                                className="action-btn action-btn-download p-1.5 rounded-md"
+                                style={{ color: "var(--accent)" }}
+                              >
+                                <FileDownloadIcon size={14} />
+                              </button>
+                            )}
+                            {(report.status === "PENDING" || report.status === "PROCESSING") && (
+                              <button
+                                onClick={(e) => handleCancel(e, report.id, report.companyName || report.ico || identifier)}
+                                disabled={cancellingId === report.id}
+                                title={t("history.zrusitReport")}
+                                className="action-btn p-1.5 rounded-md"
+                                style={{ color: "var(--warning)" }}
+                              >
+                                {cancellingId === report.id ? <SpinnerIcon size={14} /> : <StopIcon size={14} />}
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
+                              disabled={deletingId === report.id}
+                              title={t("history.vymazat")}
+                              className="action-btn action-btn-delete p-1.5 rounded-md"
+                              style={{ color: "var(--danger-text)" }}
+                            >
+                              {deletingId === report.id ? <SpinnerIcon size={14} /> : <TrashIcon size={14} />}
+                            </button>
+                          </>
                         )}
-                        {(report.status === "PENDING" || report.status === "PROCESSING") && (
-                          <button
-                            onClick={(e) => handleCancel(e, report.id, report.companyName || report.ico || identifier)}
-                            disabled={cancellingId === report.id}
-                            title={t("history.zrusitReport")}
-                            className="action-btn p-1.5 rounded-md"
-                            style={{ color: "var(--warning)" }}
-                          >
-                            {cancellingId === report.id ? <SpinnerIcon size={14} /> : <StopIcon size={14} />}
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
-                          disabled={deletingId === report.id}
-                          title={t("history.vymazat")}
-                          className="action-btn action-btn-delete p-1.5 rounded-md"
-                          style={{ color: "var(--danger-text)" }}
-                        >
-                          {deletingId === report.id ? <SpinnerIcon size={14} /> : <TrashIcon size={14} />}
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -650,35 +774,60 @@ export default function HistoryPage() {
                         <SourceBadges sources={report.sources} />
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={(e) => handleSearchAgain(e, report)}
-                          disabled={retryingId === report.id}
-                          title={t("history.spustitHladanie")}
-                          className="action-btn action-btn-retry"
-                          style={{ color: "var(--info-text)" }}
-                        >
-                          {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
-                        </button>
-                        {(report.status === "PENDING" || report.status === "PROCESSING") && (
-                          <button
-                            onClick={(e) => handleCancel(e, report.id, report.companyName || report.ico || identifier)}
-                            disabled={cancellingId === report.id}
-                            title={t("history.zrusitReport")}
-                            className="action-btn"
-                            style={{ color: "var(--warning)" }}
-                          >
-                            {cancellingId === report.id ? <SpinnerIcon size={16} /> : <StopIcon size={16} />}
-                          </button>
+                        {activeTab === "trash" ? (
+                          <>
+                            <button
+                              onClick={(e) => handleRestore(e, report.id, report.companyName || report.ico || identifier)}
+                              disabled={restoringId === report.id}
+                              title={t("history.obnovit")}
+                              className="action-btn"
+                              style={{ color: "var(--accent)" }}
+                            >
+                              {restoringId === report.id ? <SpinnerIcon size={16} /> : <RestoreIcon size={16} />}
+                            </button>
+                            <button
+                              onClick={(e) => handlePermanentDelete(e, report.id, report.companyName || report.ico || identifier)}
+                              disabled={permanentlyDeletingId === report.id}
+                              title={t("history.trvaleVymazat")}
+                              className="action-btn action-btn-delete"
+                              style={{ color: "var(--danger-text)" }}
+                            >
+                              {permanentlyDeletingId === report.id ? <SpinnerIcon size={16} /> : <TrashIcon size={16} />}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => handleSearchAgain(e, report)}
+                              disabled={retryingId === report.id}
+                              title={t("history.spustitHladanie")}
+                              className="action-btn action-btn-retry"
+                              style={{ color: "var(--info-text)" }}
+                            >
+                              {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
+                            </button>
+                            {(report.status === "PENDING" || report.status === "PROCESSING") && (
+                              <button
+                                onClick={(e) => handleCancel(e, report.id, report.companyName || report.ico || identifier)}
+                                disabled={cancellingId === report.id}
+                                title={t("history.zrusitReport")}
+                                className="action-btn"
+                                style={{ color: "var(--warning)" }}
+                              >
+                                {cancellingId === report.id ? <SpinnerIcon size={16} /> : <StopIcon size={16} />}
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
+                              disabled={deletingId === report.id}
+                              title={t("history.vymazat")}
+                              className="action-btn action-btn-delete"
+                              style={{ color: "var(--danger-text)" }}
+                            >
+                              {deletingId === report.id ? <SpinnerIcon size={16} /> : <TrashIcon size={16} />}
+                            </button>
+                          </>
                         )}
-                        <button
-                          onClick={(e) => handleDelete(e, report.id, report.companyName || report.ico || identifier)}
-                          disabled={deletingId === report.id}
-                          title={t("history.vymazat")}
-                          className="action-btn action-btn-delete"
-                          style={{ color: "var(--danger-text)" }}
-                        >
-                          {deletingId === report.id ? <SpinnerIcon size={16} /> : <TrashIcon size={16} />}
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -734,17 +883,31 @@ export default function HistoryPage() {
         title={
           modal?.type === "all" ? t("history.vymazatVsetkyOtaznik")
           : modal?.type === "bulk" ? `${t("history.vymazatVybrane")}? (${selectedIds.size})`
+          : modal?.type === "restore" ? t("history.obnovitReportOtaznik")
+          : modal?.type === "permanent" ? t("history.trvaleVymazatOtaznik")
           : t("history.vymazatReportOtaznik")
         }
         subject={modal?.subject}
         message={
-          modal?.type === "all" || modal?.type === "bulk" ? t("history.nedaVratit") : t("history.reportVymazany")
+          modal?.type === "all" || modal?.type === "bulk" ? t("history.nedaVratit")
+          : modal?.type === "permanent" ? t("history.vymazatNenavratne")
+          : modal?.type === "restore" ? ""
+          : t("history.reportVymazany")
         }
-        confirmLabel={t("history.vymazat")}
+        confirmLabel={
+          modal?.type === "restore" ? t("history.obnovit")
+          : modal?.type === "permanent" ? t("history.trvaleVymazat")
+          : t("history.vymazat")
+        }
         cancelLabel={t("history.zrusit")}
-        onConfirm={confirmDelete}
+        onConfirm={
+          modal?.type === "restore" ? confirmRestore
+          : modal?.type === "permanent" ? confirmPermanentDelete
+          : modal?.type === "cancel" ? confirmCancel
+          : confirmDelete
+        }
         onCancel={() => setModal(null)}
-        loading={deletingId !== null || deletingAll}
+        loading={deletingId !== null || deletingAll || restoringId !== null || permanentlyDeletingId !== null}
       />
 
       {/* Credits modal — shown when user has insufficient credits */}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -79,6 +80,94 @@ export async function GET(
     });
   } catch (error) {
     console.error("GET /api/reports/[id] error", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+// ── RESTORE: Undo soft-delete (move report back from trash) ──
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const report = await prisma.reportRequest.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!report) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    }
+
+    if (report.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!report.deletedAt) {
+      return NextResponse.json({ error: "Report is not in trash" }, { status: 400 });
+    }
+
+    await prisma.reportRequest.update({
+      where: { id: params.id },
+      data: { deletedAt: null },
+    });
+
+    revalidatePath("/history");
+    revalidatePath("/dashboard");
+    return NextResponse.json({ restored: true });
+  } catch (error) {
+    console.error("PATCH /api/reports/[id] error", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+// ── PERMANENT DELETE: Hard-delete from DB (only works on trashed reports) ──
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const report = await prisma.reportRequest.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!report) {
+      return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    }
+
+    if (report.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!report.deletedAt) {
+      return NextResponse.json(
+        { error: "Report must be in trash before permanent deletion" },
+        { status: 400 }
+      );
+    }
+
+    // Delete report sources first (cascade), then the report
+    await prisma.reportSource.deleteMany({
+      where: { reportRequestId: params.id },
+    });
+    await prisma.reportRequest.delete({
+      where: { id: params.id },
+    });
+
+    revalidatePath("/history");
+    revalidatePath("/dashboard");
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    console.error("DELETE /api/reports/[id] error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -24,8 +24,14 @@ export async function GET(req: NextRequest) {
     const sortOrder = searchParams.get("sortOrder") ?? "desc";
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
+    const trashed = searchParams.get("trashed") === "true";
 
-    const where: Record<string, unknown> = { userId: user.id, deletedAt: null };
+    const where: Record<string, unknown> = { userId: user.id };
+    if (trashed) {
+      where.deletedAt = { not: null };
+    } else {
+      where.deletedAt = null;
+    }
     // Date range filter (replaces hardcoded 30-day cutoff when provided)
     if (dateFrom || dateTo) {
       const dateFilter: Record<string, unknown> = {};
