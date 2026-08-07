@@ -21,16 +21,20 @@ def _fix_mojibake(text: str) -> str:
     Príklad: 'MĂˇ' → 'Má', 'zamestnĂˇvateÄľa' → 'zamestnávateľa'
 
     Fix: encode do cp1250 (získame pôvodné UTF-8 bajty), decode ako UTF-8.
+
+    Dôležité: Fix sa aplikuje LEN ak text obsahuje 'Ă' — znak ktorý
+    nikdy nie je v správnom slovenskom texte. Niektoré záznamy (napr.
+    BILLA) API vracia správne UTF-8 a fix by ich pokazil.
     """
     if not text:
         return text
+    # 'Ă' (U+0102) je signatúra double-encodingu — nikdy nie v správnom texte
+    if 'Ă' not in text:
+        return text
     try:
-        # Ak text obsahuje mojibake znaky (Ă, Äľ, ÄŚ, aspoĹ#), skús opraviť
-        if any(m in text for m in ('Ăˇ', 'Ă˝', 'Äľ', 'ÄŚ', 'ÄŤ', 'Ĺ#', 'Ĺˇ', 'ĹĽ', 'ÄŽ')):
-            return text.encode('cp1250').decode('utf-8', errors='replace')
+        return text.encode('cp1250').decode('utf-8', errors='replace')
     except (UnicodeEncodeError, UnicodeDecodeError):
-        pass
-    return text
+        return text
 
 
 def _clean_zvyraznenie(text: str) -> str:
