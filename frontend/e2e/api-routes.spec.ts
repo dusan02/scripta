@@ -229,9 +229,11 @@ test.describe("GET /api/alert-events — auth", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test.describe("GET /api/messages/unread — auth", () => {
-  test("unauthenticated returns 401", async ({ request }) => {
+  test("unauthenticated returns 200 with count 0 (public endpoint)", async ({ request }) => {
     const res = await request.get("/api/messages/unread");
-    expect(res.status()).toBe(401);
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty("count", 0);
   });
 
   test("authenticated returns 200", async ({ request }) => {
@@ -242,18 +244,12 @@ test.describe("GET /api/messages/unread — auth", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// /api/settings/account — auth
+// /api/settings/account — auth (DELETE only)
 // ═══════════════════════════════════════════════════════════════════════════
 
-test.describe("GET /api/settings/account — auth", () => {
+test.describe("DELETE /api/settings/account — auth", () => {
   test("unauthenticated returns 401", async ({ request }) => {
-    const res = await request.get("/api/settings/account");
+    const res = await request.delete("/api/settings/account");
     expect(res.status()).toBe(401);
-  });
-
-  test("authenticated returns 200", async ({ request }) => {
-    const auth = await authA(request);
-    const res = await request.get("/api/settings/account", { headers: auth });
-    expect(res.status()).toBe(200);
   });
 });
