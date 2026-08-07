@@ -75,6 +75,8 @@ COPY --from=builder /app/node_modules/cluster-key-slot ./node_modules/cluster-ke
 COPY --from=builder /app/node_modules/redis-errors ./node_modules/redis-errors
 COPY --from=builder /app/node_modules/standard-as-callback ./node_modules/standard-as-callback
 COPY --from=builder /app/node_modules/denque ./node_modules/denque
+COPY --from=builder /app/node_modules/debug ./node_modules/debug
+COPY --from=builder /app/node_modules/ms ./node_modules/ms
 
 USER nextjs
 
