@@ -590,7 +590,8 @@ def parse_tables_to_metrics(
     def _fix_thousands(val: Optional[float], ref: Optional[float], field_name: str) -> Optional[float]:
         if val is None or ref is None or ref <= 100_000_000:
             return val
-        if 0 < val < ref * 0.001 and val * 1000 <= ref * 2:
+        # Handle both positive and negative values (e.g. profitBeforeTax can be negative)
+        if 0 < abs(val) < ref * 0.001 and abs(val) * 1000 <= ref * 2:
             logger.warning(
                 f"[RUZ_PARSER] IČO {ico}: {field_name}={val:.0f} je podozrivo malá "
                 f"voči tržbám {ref:.0f} — pravdepodobne tisíce EUR, násobím ×1000"
@@ -602,6 +603,9 @@ def parse_tables_to_metrics(
         naklady_na_hosp_cinnost = _fix_thousands(naklady_na_hosp_cinnost, trzby, "naklady_na_hosp_cinnost")
         spotreba_materialu = _fix_thousands(spotreba_materialu, trzby, "spotreba_materialu")
         sluzby = _fix_thousands(sluzby, trzby, "sluzby")
+        mzdove_naklady = _fix_thousands(mzdove_naklady, trzby, "mzdove_naklady")
+        dane_a_poplatky = _fix_thousands(dane_a_poplatky, trzby, "dane_a_poplatky")
+        zisk_pred_zdanenim = _fix_thousands(zisk_pred_zdanenim, trzby, "zisk_pred_zdanenim")
 
     # ── Apply unit multiplier (EUR vs tisíce EUR) ──
     if unit_multiplier != 1.0:

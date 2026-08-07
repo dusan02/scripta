@@ -1436,19 +1436,29 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         sanitize_cash_flow_fields(stmt)
     # Fallback: ak grossProfit chýba (extrakcia zlyhala), dopočítaj hrubú maržu
     # Používa sa pre IFRS/SK GAAP by-function výkazy kde gross profit nie je explicitne uvedený
-    # Výpočet: revenue - (staffCosts + depreciation + interestExpense) ≈ approx gross margin
-    # Vyžaduje všetky 3 nákladové položky — ak niektorá chýba, fallback sa nevykoná
+    # Výpočet: revenue - (materialConsumption + servicesCosts + staffCosts + depreciation + interestExpense)
+    # Pozn.: stará verzia používala len staff+dep+interest, čo pre výrobné firmy s vysokým
+    # podielom materiálu dávalo hrubú maržu ~80% tržieb (nezmysel). Pridávame material a services.
     gross_profit_estimated = False
     estimated_gp_years = set()
 
     for stmt in (stmts or []):
         if getattr(stmt, 'grossProfit', None) is None:
             revenue = getattr(stmt, 'mainActivityRevenue', None)
+            material = getattr(stmt, 'materialConsumption', None)
+            services = getattr(stmt, 'servicesCosts', None)
             staff = getattr(stmt, 'staffCosts', None)
             depreciation = getattr(stmt, 'depreciation', None)
             interest = getattr(stmt, 'interestExpense', None)
-            if revenue and revenue > 0 and staff is not None and depreciation is not None and interest is not None:
-                estimated = revenue - staff - depreciation - interest
+            if revenue and revenue > 0 and staff is not None and depreciation is not None:
+                costs = staff + depreciation
+                if material is not None:
+                    costs += material
+                if services is not None:
+                    costs += services
+                if interest is not None:
+                    costs += interest
+                estimated = revenue - costs
                 # Sanity check: fallback nesmie byť záporný ani > 100% tržieb
                 if 0 < estimated <= revenue:
                     stmt.grossProfit = estimated

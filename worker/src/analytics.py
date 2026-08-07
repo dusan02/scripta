@@ -1,8 +1,11 @@
 import json as _json
+import logging
 import unicodedata
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import List, Dict, Any, Optional, Union
+
+logger = logging.getLogger(__name__)
 
 
 def _get(obj: Any, attr: str, default: Any = None) -> Any:
@@ -601,7 +604,8 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
             ratios["effective_tax_rate_pct"] = None
 
         return ratios
-    except Exception:
+    except Exception as e:
+        logger.error(f"compute_financial_ratios failed: {e}", exc_info=True)
         return {}
 
 
