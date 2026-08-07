@@ -16,9 +16,11 @@ interface CreditsData {
   totalCredits: number;
   rolloverCredits?: number;
   planName: string | null;
+  isSubscription: boolean;
   daysRemaining: number | null;
   periodStart: string | null;
   periodEnd: string | null;
+  periodStartLabel: string | null;
 }
 
 function formatDate(iso: string | null, locale: string): string {
@@ -81,7 +83,7 @@ export default function CreditsPage() {
     }
   }, []);
 
-  useEffect(() => {
+  const fetchCredits = useCallback(() => {
     fetch("/api/credits/plan")
       .then((r) => {
         if (!r.ok) {
@@ -97,6 +99,19 @@ export default function CreditsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchCredits();
+    // Poll every 30s — credits change when reports complete/fail
+    const interval = setInterval(fetchCredits, 30000);
+    // Refresh on window focus (returning from report page)
+    const onFocus = () => fetchCredits();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [fetchCredits]);
 
   if (loading) {
     return (
@@ -139,6 +154,7 @@ export default function CreditsPage() {
   const planLabel = data.planName
     ? data.planName.charAt(0).toUpperCase() + data.planName.slice(1)
     : null;
+  const isSubscription = data.isSubscription;
 
   return (
     <div className="max-w-[700px] mx-auto px-4 sm:px-6 pt-8 pb-8 animate-fade-in">
@@ -155,8 +171,8 @@ export default function CreditsPage() {
         </p>
       </div>
 
-      {/* Progress bar */}
-      {data.totalCredits > 0 && (
+      {/* Progress bar — only for subscription users with a fixed monthly quota */}
+      {isSubscription && data.totalCredits > 0 && (
         <div className="mb-8">
           <div className="flex justify-between items-baseline mb-2">
             <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
@@ -177,6 +193,14 @@ export default function CreditsPage() {
           </div>
         </div>
       )}
+
+      {/* Monthly usage summary — shown for all users */}
+      <div className="text-center mb-6 text-sm" style={{ color: "var(--text-muted)" }}>
+        {t("plan.odDatumu", { date: data.periodStartLabel || periodStart })}:{" "}
+        <strong style={{ color: "var(--text)" }}>{data.usedThisMonth}</strong> {t("plan.pouzitych")},{" "}
+        <strong style={{ color: "var(--success)" }}>{data.successfulReports}</strong> {t("plan.uspesneShort")},{" "}
+        <strong style={{ color: "var(--danger)" }}>{data.failedReports}</strong> {t("plan.neuspesneShort")}
+      </div>
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
@@ -244,20 +268,20 @@ export default function CreditsPage() {
           </span>
         </div>
 
-        {/* Total purchased */}
+        {/* Total purchased / Monthly quota */}
         <div className="card p-5 flex flex-col items-center text-center">
           <div className="flex-1 flex flex-col justify-end mb-3 w-full">
             <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
-              {Array.from({ length: Math.min(data.totalCredits, 40) }).map((_, i) => (
+              {Array.from({ length: Math.min(isSubscription ? data.totalCredits : data.remaining, 40) }).map((_, i) => (
                 <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
               ))}
             </div>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>
-            {data.totalCredits}
+            {isSubscription ? data.totalCredits : data.remaining}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            {t("plan.celkovyPausal")}
+            {isSubscription ? t("plan.celkovyPausal") : t("plan.zostava")}
           </span>
         </div>
       </div>

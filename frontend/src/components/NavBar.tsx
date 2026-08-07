@@ -59,11 +59,16 @@ export default function NavBar() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    fetch("/api/credits")
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setCreditsUsed(data.usedThisMonth); })
-      .catch(() => {});
-  }, [session?.user?.id]);
+    const fetchCredits = () => {
+      fetch("/api/credits")
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setCreditsUsed(data.usedThisMonth); })
+        .catch(() => {});
+    };
+    fetchCredits();
+    const interval = setInterval(fetchCredits, 30000);
+    return () => clearInterval(interval);
+  }, [session?.user?.id, pathname]);
 
   useEffect(() => {
     if (!session?.user?.id) return;

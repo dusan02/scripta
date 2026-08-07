@@ -59,12 +59,16 @@ export async function GET(req: NextRequest) {
     // report creation is blocked.
     const remaining = validBatches._sum.remaining ?? 0;
     const rolloverCredits = rolloverBatches._sum.remaining ?? 0;
-    // totalCredits = current balance + all-time successful reports.
-    // Only COMPLETED/PARTIAL reports consumed credits permanently — FAILED and
-    // CANCELLED reports were refunded, so their credits are already in `remaining`.
-    // NOTE: This assumes 1 report = 1 credit. If variable credit costs are
-    // introduced (e.g. CRE reports costing 5 credits), this will undercount.
-    const totalCredits = remaining + successfulReportsAllTime;
+
+    // Determine if user is on a subscription plan
+    const isSubscription = !!userPlan?.planName && userPlan.planName !== "start";
+
+    // totalCredits: different meaning for subscription vs PAYG
+    // - Subscription: monthly quota (remaining + usedThisMonth = what they started with this month)
+    // - PAYG: just remaining credits (no fixed quota — they buy what they need)
+    const totalCredits = isSubscription
+      ? remaining + usedThisMonth
+      : remaining;
 
     let daysRemaining: number | null = null;
     if (userPlan?.planRenewalDate) {
@@ -72,7 +76,14 @@ export async function GET(req: NextRequest) {
       daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     }
 
-    return NextResponse.json({
+    // Format period start label: "01. 01. 2026" style
+    const periodStartLabel = new Intl.DateTimeFormat("sk-SK", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(startOfMonth);
+
+    const res = NextResponse.json({
       totalReports,
       usedThisMonth,
       successfulReports,
@@ -81,6 +92,7 @@ export async function GET(req: NextRequest) {
       totalCredits,
       rolloverCredits,
       planName: userPlan?.planName ?? null,
+      isSubscription,
       daysRemaining,
       recentReports: recentReports.map((r) => ({
         id: r.id,
@@ -91,7 +103,11 @@ export async function GET(req: NextRequest) {
       })),
       periodStart: startOfMonth.toISOString(),
       periodEnd: endOfMonth.toISOString(),
+      periodStartLabel,
     });
+    // Prevent browser/proxy caching — credits change frequently
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    return res;
   } catch (error) {
     console.error("GET /api/credits/plan error", error);
     return NextResponse.json(

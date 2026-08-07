@@ -21,7 +21,9 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ usedThisMonth: count });
+    const res = NextResponse.json({ usedThisMonth: count });
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    return res;
   } catch {
     return NextResponse.json({ error: "Failed to fetch credits" }, { status: 500 });
   }
