@@ -861,7 +861,7 @@ async def run_and_save_audit_verdict(
                         "company_data": json.loads(auditor_input_json),
                         "draft_verdict": json.loads(draft_json),
                         "cross_analysis_summary": cross_summary,
-                        "instruction": "Refine the draft verdict. Improve logical flow, remove repetitions, deepen analysis of hidden connections, and make recommendations more specific and actionable. Keep all factual numbers unchanged.",
+                        "instruction": "Refine the draft verdict. Improve logical flow, remove repetitions, deepen analysis of hidden connections, and make recommendations more specific and actionable. Keep all factual numbers unchanged. CRITICAL: Keep all {{PLACEHOLDER}} tags (like {{REVENUE}}, {{OCF}}, {{ALTMAN_Z}}) exactly as they are — do NOT replace them with numbers.",
                     }, ensure_ascii=False, default=str)
                     logger.info(f"Chief Auditor 2-pass (refine): {len(refine_input)} chars")
                     refined = await safe_llm_call(
@@ -973,11 +973,29 @@ async def run_and_save_audit_verdict(
         # ── Deterministická injekcia placeholderov z DB ──
         # LLM generuje text s {{PLACEHOLDER}} tagmi, my ich nahradíme presnými hodnotami.
         # Toto eliminuje halucináciu čísel a dangling fragmenty.
+        _stmts_for_ph = company_dict.get("financialStatements", [])
+        _trends_for_ph = company_dict.get("analyza_trendov", {})
+        # Extrahuj počet zmien štatutárov z CompanyEvents (FORENSIC_ANALYSIS event)
+        _statutar_count = None
+        for _ev in (company_dict.get("companyEvents") or []):
+            if isinstance(_ev, dict) and _ev.get("eventType") == "FORENSIC_ANALYSIS":
+                _meta = _ev.get("metadata") or {}
+                _statutar_count = _meta.get("statutory_changes_count")
+                break
         _metric_placeholders = build_metric_placeholders(
-            stmts=company_dict.get("financialStatements", []),
-            trends=company_dict.get("analyza_trendov", {}),
+            stmts=_stmts_for_ph,
+            trends=_trends_for_ph,
             company_name=company_dict.get("name", ""),
-            statutar_changes=len(company_dict.get("vestnikEvents", [])) if company_dict.get("vestnikEvents") else None,
+            statutar_changes=_statutar_count,
+        )
+        _ph_count = len(_metric_placeholders)
+        _es_raw = verdict_payload.get('executiveSummary', '') or ''
+        _es_has_placeholders = '{{' in _es_raw
+        logger.info(
+            f"[{report_request_id}] inject_metrics: placeholders={_ph_count}, "
+            f"stmts={len(_stmts_for_ph)}, statutar={_statutar_count}, "
+            f"es_has_placeholders={_es_has_placeholders}, "
+            f"es_sample={_es_raw[:120]!r}"
         )
         if _metric_placeholders:
             for _vfield in ('executiveSummary', 'keyRisk', 'finalVerdict'):
@@ -1143,9 +1161,10 @@ def build_metric_placeholders(
     if not stmts:
         return {}
 
-    # Najnovší a predošlí rok
-    latest = stmts[-1]
-    prev = stmts[-2] if len(stmts) >= 2 else {}
+    # Zoradiť podľa roku (najstarší → najnovší) — bezpečné pre akékoľvek poradie vstupu
+    sorted_stmts = sorted(stmts, key=lambda s: s.get("year", 0) or 0)
+    latest = sorted_stmts[-1]
+    prev = sorted_stmts[-2] if len(sorted_stmts) >= 2 else {}
 
     # ── Finančné hodnoty (najnovší rok) ──
     ph: dict[str, str] = {}
