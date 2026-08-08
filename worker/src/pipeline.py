@@ -980,6 +980,26 @@ async def run_and_save_audit_verdict(
                     _vtext = _pat.sub(_repl, _vtext)
                 verdict_payload[_vfield] = _vtext
 
+        # ── Anti-halucinácia pre evidence_list (justification) ──
+        # Zdôvodnenie obsahuje "tvrdenie" a "dokaz" polia, ktoré LLM generuje.
+        # Očistíme ich rovnakými patternmi.
+        _just = verdict_payload.get('justification')
+        if _just and isinstance(_just, str):
+            try:
+                _just_list = json.loads(_just)
+                for _item in _just_list:
+                    if not isinstance(_item, dict):
+                        continue
+                    for _ifield in ('tvrdenie', 'dokaz', 'claim', 'evidence'):
+                        _itext = _item.get(_ifield, "")
+                        if _itext and isinstance(_itext, str):
+                            for _pat, _repl in _METRIC_PATTERNS:
+                                _itext = _pat.sub(_repl, _itext)
+                            _item[_ifield] = _itext
+                verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         # ── Deterministická anti-halucinácia: odstráň neoveriteľné dlhy z verdict textu ──
         # Ak LLM spomenie konkrétne sumy dlhov voči registrom, ktoré sú CLEAN,
         # tieto pasáže nahradíme varovaním o halucinácii.
@@ -1032,6 +1052,10 @@ _METRIC_PATTERNS = [
     (re.compile(r'(D/E)\s+[^.]{0,30}?\d[\d.,]*', re.IGNORECASE), r'\1'),
     # "stúpli o 7,23 %" / "klesli o 5,2 %" → "stúpli" / "klesli"
     (re.compile(r'(stúpl[aiy]?|klesl[aiy]?|vzrástl[aiy]?|poklesl[aiy]?)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # "z 42,83% v roku 2021 na 10,18% v roku 2025" → "" (čisté percento bez kľúčového slova)
+    (re.compile(r'z\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}\s+na\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}', re.IGNORECASE), ''),
+    # "pokles o 19,24 %" / "rast o 13,49 %" → "pokles" / "rast"
+    (re.compile(r'(pokles|nárast|rast|zmena)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
     # ── Cleanup: dangling particles po odstránení čísel ──
     # "z  na" → "" (leftover po "z X EUR na Y EUR")
     (re.compile(r'\s+z\s+na\s+', re.IGNORECASE), ' '),
