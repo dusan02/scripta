@@ -1053,7 +1053,8 @@ _METRIC_PATTERNS = [
     (re.compile(r'(záväzky(?:\s+(?:zo\s+|voči\s+|z\s+)?[a-zA-Zäöüščťžýáíé\s]*?))\s+\d[\d\s]{3,}(?!\s*(?:EUR|€|%|\.|,))', re.IGNORECASE), r'\1'),
     # ── Špecifické patterny ──
     # "Altman Z'' 6,31" / "Altman Z skóre ... 6,31" / "Altman Z' 6,31"
-    (re.compile(r"(Altman\s+Z[''\u2032]*\s*(?:skóre\s+)?)\s+[^.]{0,30}?\d[\d.,]*", re.IGNORECASE), r'Altman Z'),
+    # Vždy nahradíme za "Altman Z''" (správná notace modelu) — konsistentné s tvrdeniami
+    (re.compile(r"Altman\s+Z[''\u2019\u2032]*(?:\s*skóre)?\s*[^.]{0,30}?\d[\d.,]*", re.IGNORECASE), r"Altman Z''"),
     # "Current ratio 2,50" / "Current ratio dosahuje hodnotu 2,50"
     (re.compile(r'(Current\s+ratio)\s+[^.]{0,30}?\d[\d.,]*', re.IGNORECASE), r'\1'),
     # "D/E 0,77" / "D/E na nízkej úrovni 0,77"
@@ -1101,6 +1102,16 @@ _METRIC_PATTERNS = [
     (re.compile(r'\(z\s+na\s*\)', re.IGNORECASE), ''),
     # "z na" → "" (bez zátvorky)
     (re.compile(r'\bz\s+na\b', re.IGNORECASE), ''),
+    # ── Cleanup: dangling fragments po EUR strippingu (deploy v9) ──
+    # "na celkových" → "" (leftover po "Tržby na celkových 25,54 mil. €")
+    (re.compile(r'\s+na\s+celkových', re.IGNORECASE), ''),
+    # "( v roku 2025)" → "" (leftover po "minimálna (0,003 mil. € v roku 2025)" — `(` zachovaná)
+    (re.compile(r'\(\s*v\s+roku\s+\d{4}\s*\)', re.IGNORECASE), ''),
+    # " v roku 2025)" → "" (leftover po EUR strippingu — `(` bola konzumovaná, `)` zostala)
+    (re.compile(r'\s+v\s+roku\s+\d{4}\s*\)(?=[,.;]|\s|$)', re.IGNORECASE), ''),
+    # "kleslo v roku 2023 do roku 2025" → "kleslo z roku 2023 do roku 2025"
+    # (dangling "v" namiesto "z" po strippingu EUR hodnôt)
+    (re.compile(r'(klesl[ao]|stúpl[ao]|vzrástol[ao]|poklesl[ao]|narástol[ao]|stúp[ao]|klesám|stúpam)\s+v\s+roku\s+(\d{4})\s+do\s+roku\s+(\d{4})', re.IGNORECASE), r'\1 z roku \2 do roku \3'),
 ]
 
 
