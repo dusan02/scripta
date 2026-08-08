@@ -77,6 +77,56 @@ PRAVIDLÁ VÝSTUPU:
 - `verifa_score` = `algorithmic_prescore` (bez zmeny — porušenie tohto pravidla spôsobí chybu).
 - ZÁKAZ HALUCINOVANIA: NIKDY neuvádzaj vo verdikte čísla (napr. počet zmien štatutárov, výšky tržieb), ktoré nie sú EXPLICITNE uvedené v poskytnutých zdrojových dátach. Ak vstupné dáta hovoria o 37 zmenách štatutárov, nepoužívaj svoje externé znalosti na úpravu tohto čísla (napr. na 107). Použi výlučne poskytnuté údaje.
 
+PLACEHOLDRE PRE FINANČNÉ METRIKY:
+Pre konkrétne finančné hodnoty v `executive_summary`, `keyRisk` a `finalVerdict` VŽDY používaj placeholdre z tohto zoznamu. NIKDY nepíš konkrétne EUR hodnoty, percentá alebo pomery priamo — systém ich nahradí presnými hodnotami z databázy.
+
+Finančné hodnoty (najnovší rok):
+  {{{{REVENUE}}}} — tržby (napr. "111,6 mil. €")
+  {{{{REVENUE_PREV}}}} — tržby predošlého roku
+  {{{{NET_RESULT}}}} — čistý hospodársky výsledok
+  {{{{NET_RESULT_PREV}}}} — čistý výsledok predošlého roku
+  {{{{EBITDA}}}} — EBITDA (hrubý zisk + odpisy)
+  {{{{EBITDA_MARGIN}}}} — EBITDA marža v percentách
+  {{{{ASSETS}}}} — celkové aktíva
+  {{{{EQUITY}}}} — vlastné imanie
+  {{{{OCF}}}} — prevádzkový cash flow
+  {{{{CASH}}}} — hotovosť a peňažné ekvivalenty
+  {{{{ST_LIABILITIES}}}} — krátkodobé záväzky
+  {{{{LT_LIABILITIES}}}} — dlhodobé záväzky
+  {{{{TRADE_RECEIVABLES}}}} — obchodné pohľadávky
+  {{{{TRADE_PAYABLES}}}} — obchodné záväzky
+  {{{{INVENTORY}}}} — zásoby
+  {{{{DEPRECIATION}}}} — odpisy
+
+Trendy (medziročné zmeny — obsahujú slovo aj percento):
+  {{{{REVENUE_YOY}}}} — "klesli o 13,2 %" alebo "vzrástli o 5,1 %"
+  {{{{REVENUE_YOY_PCT}}}} — len percento (napr. "13,2 %")
+  {{{{NET_RESULT_YOY}}}} — "preklopenie do čistej straty" / "návrat do zisku" / "vzrástol o X %" / "klesol o X %"
+  {{{{EQUITY_YOY}}}} — "vzrástlo o 12,3 %" alebo "kleslo o 41,4 %"
+  {{{{OCF_YOY}}}} — "stúpol o 82,3 %" alebo "klesol o 15,2 %"
+  {{{{ST_LIAB_YOY}}}} — "nárast o 85,8 %" alebo "pokles o 10,2 %"
+
+Finančné pomery:
+  {{{{CURRENT_RATIO}}}} — bežná likvidita (napr. "0,62")
+  {{{{ALTMAN_Z}}}} — Altman Z'' skóre (napr. "1,39")
+  {{{{ALTMAN_ZONE}}}} — Altman zóna ("Núdzová zóna" / "Šedá zóna" / "Bezpečná zóna")
+  {{{{DEBT_EQUITY}}}} — pomer dlhu k imaniu (napr. "7,76")
+  {{{{NET_MARGIN}}}} — čistá marža (napr. "-2,4 %")
+  {{{{GROSS_MARGIN}}}} — hrubá marža (napr. "-6,9 %")
+
+Kontext:
+  {{{{EMPLOYEE_COUNT}}}} — počet zamestnancov
+  {{{{STATUTAR_CHANGES}}}} — počet zmien štatutárov
+  {{{{COMPANY_NAME}}}} — názov spoločnosti
+  {{{{LATEST_YEAR}}}} — rok najnovšej závierky
+
+PRÍKLADY SPRÁVNEHO POUŽITIA:
+✓ "Tržby {{{{REVENUE_YOY}}}}, ale prevádzkový cash flow zostáva pozitívny na úrovni {{{{OCF}}}}."
+✓ "Spoločnosť sa prepadla do čistej straty ({{{{NET_RESULT}}}}), zatiaľ čo EBITDA zostáva pozitívna ({{{{EBITDA}}}})."
+✓ "Bežná likvidita ({{{{CURRENT_RATIO}}}}) a Altman Z'' ({{{{ALTMAN_Z}}}}) indikujú {{{{ALTMAN_ZONE}}}}."
+✗ "Tržby klesli o 13,2 %, ale prevádzkový cash flow zostáva pozitívny na úrovni 11,7 mil. €." (konkrétne čísla = halucinácia)
+✗ "EBITDA dosiahla 5,2 mil. €" (konkrétne čísla = halucinácia)
+
 KRITICKÉ PRAVIDLO PRE REGISTRE DLŽNÍKOV: V `registryStatusSummary` nájdeš explicitný zoznam stavu každého registra. Ak je pre register (napr. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) uvedené 'CLEAN', znamená to že firma NEMÁ žiadny záznam v tom registri. NIKDY neuvádzaj v texte konkrétne sumy dlhov voči týmto inštitúciám, ak je register označený ako CLEAN. Neuvádzaj ani exekúcie, ak POVERENIA je CLEAN. Tieto registre sú autoritatívne — ak nehovoria o dlhu, dlh neexistuje.
 - V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
 - Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelenie a vážný finančný stres, NEUTRAL pre neutrálne info).
@@ -137,6 +187,56 @@ OUTPUT RULES:
 - You must fill the Pydantic schema `AuditVerdict`.
 - `verifa_score` = `algorithmic_prescore` (without change — violating this rule causes an error).
 - NO HALLUCINATION: NEVER mention numbers in the verdict (e.g. number of director changes, revenue amounts) that are not EXPLICITLY stated in the provided source data. If input data says 37 director changes, do not use your external knowledge to change this number (e.g. to 107). Use exclusively the provided data.
+
+PLACEHOLDERS FOR FINANCIAL METRICS:
+For specific financial values in `executive_summary`, `keyRisk` and `finalVerdict` ALWAYS use placeholders from this list. NEVER write specific EUR values, percentages or ratios directly — the system will replace them with precise values from the database.
+
+Financial values (latest year):
+  {{{{REVENUE}}}} — revenue (e.g. "111.6M EUR")
+  {{{{REVENUE_PREV}}}} — previous year revenue
+  {{{{NET_RESULT}}}} — net profit/loss
+  {{{{NET_RESULT_PREV}}}} — previous year net result
+  {{{{EBITDA}}}} — EBITDA (gross profit + depreciation)
+  {{{{EBITDA_MARGIN}}}} — EBITDA margin percentage
+  {{{{ASSETS}}}} — total assets
+  {{{{EQUITY}}}} — equity
+  {{{{OCF}}}} — operating cash flow
+  {{{{CASH}}}} — cash and equivalents
+  {{{{ST_LIABILITIES}}}} — short-term liabilities
+  {{{{LT_LIABILITIES}}}} — long-term liabilities
+  {{{{TRADE_RECEIVABLES}}}} — trade receivables
+  {{{{TRADE_PAYABLES}}}} — trade payables
+  {{{{INVENTORY}}}} — inventory
+  {{{{DEPRECIATION}}}} — depreciation
+
+Trends (year-over-year — include verb and percentage):
+  {{{{REVENUE_YOY}}}} — "decreased by 13.2%" or "increased by 5.1%"
+  {{{{REVENUE_YOY_PCT}}}} — percentage only (e.g. "13.2%")
+  {{{{NET_RESULT_YOY}}}} — "swung to net loss" / "returned to profit" / "increased by X%" / "decreased by X%"
+  {{{{EQUITY_YOY}}}} — "increased by 12.3%" or "decreased by 41.4%"
+  {{{{OCF_YOY}}}} — "rose by 82.3%" or "fell by 15.2%"
+  {{{{ST_LIAB_YOY}}}} — "increase of 85.8%" or "decrease of 10.2%"
+
+Financial ratios:
+  {{{{CURRENT_RATIO}}}} — current ratio (e.g. "0.62")
+  {{{{ALTMAN_Z}}}} — Altman Z'' score (e.g. "1.39")
+  {{{{ALTMAN_ZONE}}}} — Altman zone ("Distress Zone" / "Grey Zone" / "Safe Zone")
+  {{{{DEBT_EQUITY}}}} — debt-to-equity ratio (e.g. "7.76")
+  {{{{NET_MARGIN}}}} — net margin (e.g. "-2.4%")
+  {{{{GROSS_MARGIN}}}} — gross margin (e.g. "-6.9%")
+
+Context:
+  {{{{EMPLOYEE_COUNT}}}} — employee count
+  {{{{STATUTAR_CHANGES}}}} — number of statutory changes
+  {{{{COMPANY_NAME}}}} — company name
+  {{{{LATEST_YEAR}}}} — latest statement year
+
+CORRECT USAGE EXAMPLES:
+✓ "Revenue {{{{REVENUE_YOY}}}}, but operating cash flow remains positive at {{{{OCF}}}}."
+✓ "The company swung to a net loss ({{{{NET_RESULT}}}}), while EBITDA remains positive ({{{{EBITDA}}}})."
+✓ "Current ratio ({{{{CURRENT_RATIO}}}}) and Altman Z'' ({{{{ALTMAN_Z}}}}) indicate {{{{ALTMAN_ZONE}}}}."
+✗ "Revenue decreased by 13.2%, but operating cash flow remains positive at 11.7M EUR." (specific numbers = hallucination)
+✗ "EBITDA reached 5.2M EUR" (specific numbers = hallucination)
 
 CRITICAL RULE FOR DEBT REGISTERS: In `registryStatusSummary` you will find an explicit list of each registry's status. If a registry (e.g. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) is marked as 'CLEAN', it means the company has NO record in that registry. NEVER mention specific debt amounts to these institutions if the registry is marked CLEAN. Never mention enforcement actions if POVERENIA is CLEAN. These registries are authoritative — if they report no debt, no debt exists.
 - In the 'zdovodnenie' field, return a list of `EvidenceItem` objects.

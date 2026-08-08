@@ -970,6 +970,36 @@ async def run_and_save_audit_verdict(
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
 
+        # ── Deterministická injekcia placeholderov z DB ──
+        # LLM generuje text s {{PLACEHOLDER}} tagmi, my ich nahradíme presnými hodnotami.
+        # Toto eliminuje halucináciu čísel a dangling fragmenty.
+        _metric_placeholders = build_metric_placeholders(
+            stmts=company_dict.get("financialStatements", []),
+            trends=company_dict.get("analyza_trendov", {}),
+            company_name=company_dict.get("name", ""),
+            statutar_changes=len(company_dict.get("vestnikEvents", [])) if company_dict.get("vestnikEvents") else None,
+        )
+        if _metric_placeholders:
+            for _vfield in ('executiveSummary', 'keyRisk', 'finalVerdict'):
+                _vtext = verdict_payload.get(_vfield, "")
+                if _vtext and isinstance(_vtext, str):
+                    verdict_payload[_vfield] = inject_metrics(_vtext, _metric_placeholders)
+            # Injektuj aj do justification evidence items
+            _just = verdict_payload.get('justification')
+            if _just and isinstance(_just, str):
+                try:
+                    _just_list = json.loads(_just)
+                    for _item in _just_list:
+                        if not isinstance(_item, dict):
+                            continue
+                        for _ifield in ('tvrdenie', 'dokaz', 'claim', 'evidence'):
+                            _itext = _item.get(_ifield, "")
+                            if _itext and isinstance(_itext, str):
+                                _item[_ifield] = inject_metrics(_itext, _metric_placeholders)
+                    verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
         # ── Anti-halucinácia: očisť verdict texty od konkrétnych finančných metrík ──
         # Rovnaké _METRIC_PATTERNS ako pri narrative — LLM nesmie vypisovať
         # konkrétne EUR hodnoty, percentá, indexy v executiveSummary/keyRisk.
@@ -1010,144 +1040,299 @@ async def run_and_save_audit_verdict(
         logger.error(f"Chyba pri generovaní AuditVerdict pre IČO {ico}: {e}", exc_info=True)
 
 
-# ── Anti-halucinácia pre naratívne texty ──────────────────────────────────
-# LLM narrative agent môže z výročnej správy extrahovať konkrétne finančné
-# metriky (EBITDA, zisk, tržby), ktoré sa líšia od deterministických výpočtov
-# v reporte (iná metodika, iné úpravy). Tieto hodnoty nahradzujeme kvalitatívnym
-# vyjadrením, aby v reporte neboli konfliktné čísla.
+# ── Deterministická injekcia finančných metrík do LLM textov ──────────────
+# LLM generuje text s placeholdermi ({{REVENUE}}, {{OCF}}, atď.).
+# Táto funkcia nahradí placeholdre presnými hodnotami z DB.
+# Eliminuje halucináciu čísel a dangling fragmenty po regex cleanup.
+
+def _format_eur(value: Optional[float]) -> str:
+    """Naformátuje EUR hodnotu: 111607748 → '111,6 mil. €', -2686224 → '-2,7 mil. €'."""
+    if value is None:
+        return "N/A"
+    v = float(value)
+    abs_v = abs(v)
+    sign = "-" if v < 0 else ""
+    if abs_v >= 1_000_000:
+        num = f"{abs_v / 1_000_000:.1f}".replace(".", ",")
+        return f"{sign}{num} mil. €"
+    elif abs_v >= 1_000:
+        return f"{sign}{abs_v / 1_000:.0f} tis. €"
+    else:
+        return f"{sign}{abs_v:.0f} €"
+
+
+def _format_ratio(value: Optional[float]) -> str:
+    """Naformátuje pomer: 0.62 → '0,62' (slovenská čiarka)."""
+    if value is None:
+        return "N/A"
+    return f"{float(value):.2f}".replace(".", ",")
+
+
+def _format_pct(value: Optional[float]) -> str:
+    """Naformátuje percento: 13.24 → '13,2 %' (slovenská čiarka, 1 desatinné)."""
+    if value is None:
+        return "N/A"
+    return f"{float(value):.1f} %".replace(".", ",")
+
+
+def _format_count(value: Optional[float]) -> str:
+    """Naformátuje počet: 1292 → '1 292' (medzera ako oddeľovač tisícov)."""
+    if value is None:
+        return "N/A"
+    v = int(float(value))
+    return f"{v:,}".replace(",", " ")
+
+
+def _yoy_text(curr: Optional[float], prev: Optional[float], verb_pos: str, verb_neg: str) -> str:
+    """Vypočíta YoY zmenu a vráti text s slovesom: 'klesli o 13,2 %' / 'vzrástli o 5,1 %'.
+    verb_pos = sloveso pre rast ('vzrástli', 'stúpol', 'vzrástlo')
+    verb_neg = sloveso pre pokles ('klesli', 'klesol', 'kleslo')
+    """
+    if curr is None or prev is None or prev == 0:
+        return "N/A"
+    pct = ((float(curr) - float(prev)) / abs(float(prev))) * 100
+    if pct >= 0:
+        return f"{verb_pos} o {_format_pct(pct)}"
+    else:
+        return f"{verb_neg} o {_format_pct(abs(pct))}"
+
+
+def _altman_zone(z_score: Optional[float]) -> str:
+    if z_score is None:
+        return "N/A"
+    z = float(z_score)
+    if z < 1.1:
+        return "Núdzová zóna"
+    elif z < 2.6:
+        return "Šedá zóna"
+    else:
+        return "Bezpečná zóna"
+
+
+def _compute_ebitda(stmt: dict) -> Optional[float]:
+    """Aproximácia EBITDA = hrubý zisk + odpisy (alebo prevádzkový zisk + odpisy)."""
+    gross = stmt.get("grossProfit")
+    depreciation = stmt.get("depreciation")
+    if gross is not None and depreciation is not None:
+        return float(gross) + float(depreciation)
+    # Fallback: net profit + interest + depreciation (ak nemáme gross profit)
+    net = stmt.get("netProfitLoss")
+    interest = stmt.get("interestExpense") or 0
+    if net is not None and depreciation is not None:
+        return float(net) + float(interest) + float(depreciation)
+    return None
+
+
+def build_metric_placeholders(
+    stmts: list[dict],
+    trends: Optional[dict] = None,
+    company_name: str = "",
+    statutar_changes: Optional[int] = None,
+) -> dict[str, str]:
+    """Postaví slovník placeholder → formátovaná hodnota z DB dát.
+
+    Args:
+        stmts: Zoznam financial statement dictov (zoradené od najstaršieho).
+        trends: Voliteľné, analyza_trendov dict (pre Altman Z, ratios).
+        company_name: Názov spoločnosti.
+        statutar_changes: Počet zmien štatutárov (z ORSR).
+
+    Returns:
+        Dict placeholder → str hodnota (napr. {"{{REVENUE}}": "111,6 mil. €", ...})
+    """
+    if not stmts:
+        return {}
+
+    # Najnovší a predošlí rok
+    latest = stmts[-1]
+    prev = stmts[-2] if len(stmts) >= 2 else {}
+
+    # ── Finančné hodnoty (najnovší rok) ──
+    ph: dict[str, str] = {}
+    ph["{{REVENUE}}"] = _format_eur(latest.get("mainActivityRevenue"))
+    ph["{{REVENUE_PREV}}"] = _format_eur(prev.get("mainActivityRevenue"))
+    ph["{{NET_RESULT}}"] = _format_eur(latest.get("netProfitLoss"))
+    ph["{{NET_RESULT_PREV}}"] = _format_eur(prev.get("netProfitLoss"))
+    ph["{{ASSETS}}"] = _format_eur(latest.get("totalAssets"))
+    ph["{{EQUITY}}"] = _format_eur(latest.get("equity"))
+    ph["{{OCF}}"] = _format_eur(latest.get("operatingCashFlow"))
+    ph["{{CASH}}"] = _format_eur(latest.get("cashAndEquivalents"))
+    ph["{{ST_LIABILITIES}}"] = _format_eur(latest.get("shortTermLiabilities"))
+    ph["{{LT_LIABILITIES}}"] = _format_eur(latest.get("longTermLiabilities"))
+    ph["{{TRADE_RECEIVABLES}}"] = _format_eur(latest.get("tradeReceivables"))
+    ph["{{TRADE_PAYABLES}}"] = _format_eur(latest.get("tradePayables"))
+    ph["{{INVENTORY}}"] = _format_eur(latest.get("inventory"))
+    ph["{{DEPRECIATION}}"] = _format_eur(latest.get("depreciation"))
+
+    # ── EBITDA ──
+    ebitda = _compute_ebitda(latest)
+    ph["{{EBITDA}}"] = _format_eur(ebitda)
+    revenue = latest.get("mainActivityRevenue")
+    if ebitda is not None and revenue and float(revenue) > 0:
+        ph["{{EBITDA_MARGIN}}"] = _format_pct((float(ebitda) / float(revenue)) * 100)
+    else:
+        ph["{{EBITDA_MARGIN}}"] = "N/A"
+
+    # ── Trendy (YoY) ──
+    ph["{{REVENUE_YOY}}"] = _yoy_text(
+        latest.get("mainActivityRevenue"), prev.get("mainActivityRevenue"),
+        "vzrástli", "klesli"
+    )
+    ph["{{REVENUE_YOY_PCT}}"] = _format_pct(
+        ((float(latest.get("mainActivityRevenue", 0) or 0) - float(prev.get("mainActivityRevenue", 0) or 0))
+         / abs(float(prev.get("mainActivityRevenue", 0) or 1))) * 100
+    ) if prev.get("mainActivityRevenue") else "N/A"
+    ph["{{EQUITY_YOY}}"] = _yoy_text(
+        latest.get("equity"), prev.get("equity"),
+        "vzrástlo", "kleslo"
+    )
+    ph["{{OCF_YOY}}"] = _yoy_text(
+        latest.get("operatingCashFlow"), prev.get("operatingCashFlow"),
+        "stúpol", "klesol"
+    )
+    ph["{{ST_LIAB_YOY}}"] = _yoy_text(
+        latest.get("shortTermLiabilities"), prev.get("shortTermLiabilities"),
+        "nárast o", "pokles o"
+    ).replace("nárast o ", "nárast o ").replace("pokles o ", "pokles o ")
+    # ST_LIAB_YOY: "nárast o 85,8 %" alebo "pokles o 10,2 %" (bez slovesa, len smer)
+    if latest.get("shortTermLiabilities") is not None and prev.get("shortTermLiabilities") is not None:
+        _st_curr = float(latest["shortTermLiabilities"])
+        _st_prev = float(prev["shortTermLiabilities"])
+        if _st_prev != 0:
+            _st_pct = ((_st_curr - _st_prev) / abs(_st_prev)) * 100
+            ph["{{ST_LIAB_YOY}}"] = f"nárast o {_format_pct(_st_pct)}" if _st_pct >= 0 else f"pokles o {_format_pct(abs(_st_pct))}"
+        else:
+            ph["{{ST_LIAB_YOY}}"] = "N/A"
+    else:
+        ph["{{ST_LIAB_YOY}}"] = "N/A"
+
+    # ── NET_RESULT_YOY: špeciálny prípad (zisk→strata = "preklopenie do straty") ──
+    _net_curr = latest.get("netProfitLoss")
+    _net_prev = prev.get("netProfitLoss")
+    if _net_curr is not None and _net_prev is not None:
+        if float(_net_prev) > 0 and float(_net_curr) < 0:
+            ph["{{NET_RESULT_YOY}}"] = "preklopenie do čistej straty"
+        elif float(_net_prev) < 0 and float(_net_curr) >= 0:
+            ph["{{NET_RESULT_YOY}}"] = "návrat do zisku"
+        else:
+            ph["{{NET_RESULT_YOY}}"] = _yoy_text(_net_curr, _net_prev, "vzrástol", "klesol")
+    else:
+        ph["{{NET_RESULT_YOY}}"] = "N/A"
+
+    # ── Finančné pomery ──
+    # Current ratio = currentAssets / shortTermLiabilities
+    _ca = latest.get("currentAssets")
+    _stl = latest.get("shortTermLiabilities")
+    if _ca is not None and _stl is not None and float(_stl) > 0:
+        ph["{{CURRENT_RATIO}}"] = _format_ratio(float(_ca) / float(_stl))
+    else:
+        ph["{{CURRENT_RATIO}}"] = "N/A"
+
+    # Altman Z z trends (ak je k dispozícii)
+    if trends:
+        all_z = trends.get("altman_z_scores") or []
+        if all_z:
+            last_z = all_z[-1]
+            z_score = last_z.get("z_score")
+            ph["{{ALTMAN_Z}}"] = _format_ratio(z_score)
+            ph["{{ALTMAN_ZONE}}"] = _altman_zone(z_score)
+        else:
+            ph["{{ALTMAN_Z}}"] = "N/A"
+            ph["{{ALTMAN_ZONE}}"] = "N/A"
+    else:
+        ph["{{ALTMAN_Z}}"] = "N/A"
+        ph["{{ALTMAN_ZONE}}"] = "N/A"
+
+    # D/E = (ST + LT liabilities) / equity
+    _eq = latest.get("equity")
+    if _eq is not None and float(_eq) > 0:
+        _total_liab = float(latest.get("shortTermLiabilities", 0) or 0) + float(latest.get("longTermLiabilities", 0) or 0)
+        ph["{{DEBT_EQUITY}}"] = _format_ratio(_total_liab / float(_eq))
+    else:
+        ph["{{DEBT_EQUITY}}"] = "N/A"
+
+    # Net margin = netProfitLoss / revenue
+    if _net_curr is not None and revenue and float(revenue) > 0:
+        ph["{{NET_MARGIN}}"] = _format_pct((float(_net_curr) / float(revenue)) * 100)
+    else:
+        ph["{{NET_MARGIN}}"] = "N/A"
+
+    # Gross margin = grossProfit / revenue
+    _gp = latest.get("grossProfit")
+    if _gp is not None and revenue and float(revenue) > 0:
+        ph["{{GROSS_MARGIN}}"] = _format_pct((float(_gp) / float(revenue)) * 100)
+    else:
+        ph["{{GROSS_MARGIN}}"] = "N/A"
+
+    # ── Kontext ──
+    ph["{{EMPLOYEE_COUNT}}"] = _format_count(latest.get("employeeCount"))
+    ph["{{STATUTAR_CHANGES}}"] = str(statutar_changes) if statutar_changes is not None else "N/A"
+    ph["{{COMPANY_NAME}}"] = company_name or "N/A"
+    ph["{{LATEST_YEAR}}"] = str(latest.get("year", "")) if latest.get("year") else "N/A"
+
+    return ph
+
+
+def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
+    """Nahradí placeholdre v texte deterministickými hodnotami z DB.
+
+    Args:
+        text: Text s placeholdermi (napr. "Tržby {{REVENUE_YOY}}...").
+        placeholders: Dict z build_metric_placeholders().
+
+    Returns:
+        Text s nahradenými placeholdermi.
+    """
+    if not text or not placeholders:
+        return text
+    for placeholder, value in placeholders.items():
+        text = text.replace(placeholder, value)
+    return text
+
+
+# ── Anti-halucinácia: fallback pre prípady, keď LLM ignoruje placeholder pravidlo ──
+# Primárna ochrana je cez placeholder systém (build_metric_placeholders + inject_metrics).
+# Tieto patterns zachytávajú prípady, keď LLM napriek inštrukciám napíše konkrétne čísla.
+# Zjednodušené z 58 patterns na ~15 — väčšina dangling cleanup už nie je potrebná,
+# lebo placeholdre nezanechávajú dangling fragmenty.
 _METRIC_PATTERNS = [
-    # ── Patterny s "miliónov/mil./mld." prponou ──
-    # "EBITDA 103 miliónov EUR" / "EBITDA 103 mil. €" / "EBITDA 103 miliónov"
-    (re.compile(r'(EBITDA)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
-    # "zisk 56 miliónov EUR" / "čistý zisk 56 mil. €"
-    (re.compile(r'((?:čistý\s+)?zisk)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
-    # "tržby 7 miliárd EUR" / "tržby 7 mld. €"
-    (re.compile(r'(tržby)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
-    # "vlastné imanie 4,7 mil. EUR" / "vlastné imanie 2,05 mil. EUR"
-    (re.compile(r'(vlastné\s+imanie)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
-    # "hotovosti 4,46 mil. EUR" / "pohľadávkach 4,46 mil. EUR"
-    (re.compile(r'(hotovost[ei]?|pohľadávka[ch]?)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
-    # "na úroveň 25,5 mil. EUR" → "na úroveň"
-    (re.compile(r'\s+na\s+úroveň\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), ''),
-    # "osobných nákladov (1,88 mil. EUR)" → "osobných nákladov"
-    (re.compile(r'\(?\s*\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?\)?', re.IGNORECASE), ''),
-    # "ROE 17%" / "ROE 17,39%"
-    (re.compile(r'(ROE)\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
-    # "marža 6,68%" / "EBITDA marža 6,68%"
-    (re.compile(r'((?:EBITDA\s+)?marž[ae])\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
-    # ── Surové EUR hodnoty (bez mil./mld. prpony) ──
-    # Odstráni akékoľvek číslo s EUR/€ prponou, bez ohľadu na predchádzajúce slovo.
-    # "1 132 711 EUR" / "15 593 EUR" / "−26 361 EUR" / "44 586 EUR"
+    # ── Raw EUR hodnoty (LLM ignoroval placeholder pravidlo) ──
+    # "103 miliónov EUR" / "103 mil. €" / "103 miliónov"
+    (re.compile(r'\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), ''),
+    # "1 132 711 EUR" / "15 593 EUR" / "−26 361 EUR"
     (re.compile(r'[−-]?\d[\d\s]{2,}\s*(?:EUR|€)', re.IGNORECASE), ''),
-    # "na 1 132 711 EUR" → odstráni aj "na" pred číslom
-    (re.compile(r'\s+na\s+[−-]?\d[\d\s]{2,}\s*(?:EUR|€)', re.IGNORECASE), ''),
-    # ── Percentá po finančných kľúčových slovách (s textom medzi) ──
-    # "CAGR ... 34,41 %" / "CAGR tržieb dosahuje 34,41 %"
-    (re.compile(r'(CAGR)\s+[^%]{0,40}?\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
-    # "vlastné imanie ... 71,86 %" / "vlastné imanie medziročne vzrástlo o 71,86 %"
-    (re.compile(r'(vlastné\s+imanie)\s+[^%]{0,40}?\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
-    # "tržby ... 7,23 %" (YoY rast/pokles)
-    (re.compile(r'(tržb[ya])\s+[^%]{0,30}?\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
-    # ── Raw čísla po "záväzky" (bez EUR prpony) ──
-    # "záväzky zo sociálneho poistenia 13 401" / "záväzky voči zamestnancom 22 139"
-    (re.compile(r'(záväzky(?:\s+(?:zo\s+|voči\s+|z\s+)?[a-zA-Zäöüščťžýáíé\s]*?))\s+\d[\d\s]{3,}(?!\s*(?:EUR|€|%|\.|,))', re.IGNORECASE), r'\1'),
-    # ── Špecifické patterny ──
-    # "Altman Z'' 6,31" / "Altman Z skóre ... 6,31" / "Altman Z' 6,31"
-    # Vždy nahradíme za "Altman Z''" (správná notace modelu) — konsistentné s tvrdeniami
+    # ── Raw percentá (LLM ignoroval placeholder pravidlo) ──
+    # "17,39%" / "13,2 %" / "o 19,24 %"
+    (re.compile(r'\d[\d.,]*\s*%', re.IGNORECASE), ''),
+    # ── Raw finančné pomery (LLM ignoroval placeholder pravidlo) ──
+    # "Altman Z'' 6,31" / "Altman Z skóre ... 6,31"
     (re.compile(r"Altman\s+Z[''\u2019\u2032]*(?:\s*skóre)?\s*[^.]{0,30}?\d[\d.,]*", re.IGNORECASE), r"Altman Z''"),
-    # "Current ratio 2,50" / "Current ratio dosahuje hodnotu 2,50"
-    (re.compile(r'(Current\s+ratio)\s+[^.]{0,30}?\d[\d.,]*', re.IGNORECASE), r'\1'),
-    # "D/E 0,77" / "D/E na nízkej úrovni 0,77"
-    (re.compile(r'(D/E)\s+[^.]{0,30}?\d[\d.,]*', re.IGNORECASE), r'\1'),
-    # "stúpli o 7,23 %" / "klesli o 5,2 %" → "stúpli" / "klesli"
-    (re.compile(r'(stúpl[aiy]?|klesl[aiy]?|vzrástl[aiy]?|poklesl[aiy]?)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
-    # "z 42,83% v roku 2021 na 10,18% v roku 2025" → "" (čisté percento bez kľúčového slova)
-    (re.compile(r'z\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}\s+na\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}', re.IGNORECASE), ''),
-    # "pokles o 19,24 %" / "rast o 13,49 %" / "poklese o 19,24%" → "pokles" / "rast"
-    (re.compile(r'(pokles|nárast|rast|zmena|poklese|náraste)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
-    # "pokles tržieb o 19,24%" → "pokles tržieb"
-    (re.compile(r'(pokles|nárast|rast)\s+(tržieb|tržb[yea])\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1 \2'),
-    # "poklesov (o 20,54% v roku 2023 a o 18,63% v roku 2024)" → "poklesov"
-    (re.compile(r'(poklesov|nárastov|rastov|poklesy|nárasty|rasty)\s+\(?\s*o\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}\s+a\s+o\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}\)?', re.IGNORECASE), r'\1'),
-    # "oživenie o 10,84% na úroveň" → "oživenie"
-    (re.compile(r'(oživenie|zotavenie|rast|nárast)\s+o\s+\d[\d.,]*\s*%\s+na\s+úroveň', re.IGNORECASE), r'\1'),
-    # "prepade čistého zisku o 96,47% v roku 2024" → "prepade čistého zisku"
-    (re.compile(r'(prepade|poklese|náraste|raste)\s+(čistého\s+)?zisku\s+o\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}', re.IGNORECASE), r'\1 \2zisku'),
-    # ── Cleanup: dangling particles po odstránení čísel ──
-    # "z  na" → "" (leftover po "z X EUR na Y EUR")
-    (re.compile(r'\s+z\s+na\s+', re.IGNORECASE), ' '),
-    # "na , a" → ", a" (leftover po "na X EUR, a")
-    (re.compile(r'\s+na\s+,', re.IGNORECASE), ','),
-    # "z  " → " " (leftover po "z X EUR")
-    (re.compile(r'\s+z\s+(?=[,.]|\s+(?:na|a|ale|pri|v|s)\b)', re.IGNORECASE), ' '),
-    # "zo v roku 2022 na v roku 2025" → "z roku 2022 do roku 2025" (dangling po EUR strippingu)
-    (re.compile(r'\s+zo\s+v\s+roku\s+(\d{4})\s+na\s+v\s+roku\s+(\d{4})', re.IGNORECASE), r' z roku \1 do roku \2'),
-    # "na hodnotu v roku" → "v roku" (dangling "na hodnotu" po strippingu hodnoty)
-    (re.compile(r'\s+na\s+hodnotu\s+v\s+roku', re.IGNORECASE), ' v roku'),
-    # "klesá v roku 2022 na v roku 2025" → "klesá" (dangling po EUR strippingu)
-    (re.compile(r'\s+klesá\s+v\s+roku\s+\d{4}\s+na\s+v\s+roku\s+\d{4}', re.IGNORECASE), ' klesá'),
-    # "zo v roku" → "z roku" (dangling "zo v" po strippingu)
-    (re.compile(r'\s+zo\s+v\s+roku', re.IGNORECASE), ' z roku'),
-    # "na v roku" → "do roku" (dangling "na v" po strippingu)
-    (re.compile(r'\s+na\s+v\s+roku', re.IGNORECASE), ' do roku'),
+    # "Current ratio 2,50" / "D/E 0,77"
+    (re.compile(r'(Current\s+ratio|D/E)\s+[^.]{0,30}?\d[\d.,]*', re.IGNORECASE), r'\1'),
+    # ── Raw čísla po "záväzky" (bez EUR) ──
+    (re.compile(r'(záväzky(?:\s+(?:zo\s+|voči\s+|z\s+)?[a-zA-Zäöüščťžýáíé\s]*?))\s+\d[\d\s]{3,}(?!\s*(?:EUR|€|%|\.|,))', re.IGNORECASE), r'\1'),
+    # ── Základný cleanup (zachovať — funguje aj pre naratívy) ──
     # "()" → "" (leftover po "(−26 361 EUR)")
     (re.compile(r'\(\s*\)'), ''),
     # "  " → " " (double spaces)
     (re.compile(r'  +'), ' '),
     # " ," → "," a " ." → "." (medzera pred bodkou/čiarkou)
     (re.compile(r'\s+([,.])'), r'\1'),
-    # " % ," → "% ," (medzera pred %)
-    (re.compile(r'\s+%', re.IGNORECASE), '%'),
-    # "(z na )" → "" (leftover po "z X na Y")
-    (re.compile(r'\(z\s+na\s*\)', re.IGNORECASE), ''),
-    # "z na" → "" (bez zátvorky)
-    (re.compile(r'\bz\s+na\b', re.IGNORECASE), ''),
-    # ── Cleanup: dangling fragments po EUR strippingu (deploy v9) ──
-    # "na celkových" → "" (leftover po "Tržby na celkových 25,54 mil. €")
-    (re.compile(r'\s+na\s+celkových', re.IGNORECASE), ''),
-    # "( v roku 2025)" → "" (leftover po "minimálna (0,003 mil. € v roku 2025)" — `(` zachovaná)
-    (re.compile(r'\(\s*v\s+roku\s+\d{4}\s*\)', re.IGNORECASE), ''),
-    # " v roku 2025)" → "" (leftover po EUR strippingu — `(` bola konzumovaná, `)` zostala)
-    (re.compile(r'\s+v\s+roku\s+\d{4}\s*\)(?=[,.;]|\s|$)', re.IGNORECASE), ''),
-    # "kleslo v roku 2023 do roku 2025" → "kleslo z roku 2023 do roku 2025"
-    # (dangling "v" namiesto "z" po strippingu EUR hodnôt)
-    (re.compile(r'(klesl[ao]|stúpl[ao]|vzrástol[ao]|poklesl[ao]|narástol[ao]|stúp[ao]|klesám|stúpam)\s+v\s+roku\s+(\d{4})\s+do\s+roku\s+(\d{4})', re.IGNORECASE), r'\1 z roku \2 do roku \3'),
-    # ── Cleanup: dangling "na" po EUR strippingu (deploy v9b) ──
-    # "vzrástli na, ale" → "vzrástli, ale" (leftover po "na X mil. €")
-    # "Tržby na a vlastné" → "Tržby a vlastné" (leftover "na" pred spojkou)
-    (re.compile(r'\s+na(?=\s*[,.;]|\s+(?:ale|a|avšak|pričom|čo|ktor|v|s|na)\b)', re.IGNORECASE), ''),
-    # "rastú ešte rýchlejšie (" → "rastú ešte rýchlejšie" (dangling "(" po EUR strippingu)
-    (re.compile(r'\(\s*(?=[,.;]|\s+(?:ale|a|avšak|To|to|Toto|toto|Zisk|zisk|Peniaze|peniaze|Tento|tento)\b)', re.IGNORECASE), ''),
-    # "záporný (-" → "záporný" (dangling "(-" bez čísla)
-    (re.compile(r'\(-\s*(?=[,.;]|\s|$)', re.IGNORECASE), ''),
-    # "dosiahlo." → odstrániť dangling "dosiahlo." na konci vety bez predmetu
-    (re.compile(r'\s+dosiahlo\s*\.', re.IGNORECASE), '.'),
-    # ── Cleanup: dangling verbs/predicates po EUR strippingu (deploy v9c) ──
-    # "tržby. Firma" → "tržby. Firma" (OK — "tržby" končí vetu, bodka je legit)
-    # "stúpli . Tento" → "stúpli. Tento" (medzera pred bodkou — cleanup)
+    # " ." → "." (medzera pred bodkou)
     (re.compile(r'\s+\.'), '.'),
-    # "zisk za rok 2025 je, ale" → "zisk za rok 2025 je, ale" → "zisk za rok 2025, ale"
-    # "je" bez predmetu pred čiarkou = dangling
-    (re.compile(r'\s+je(?=\s*,\s*(?:ale|a|avšak|pričom)\b)', re.IGNORECASE), ''),
-    # "je – kvôli" → " kvôli" (dangling "je –" bez hodnoty)
-    (re.compile(r'\s+je\s+[–-]\s+', re.IGNORECASE), ' '),
-    # ── Cleanup: dangling fragments z Heineken reportu (deploy v9d) ──
-    # "na úrovni" → "" (leftover po "na úroveň X mil. €" — "úroveň" sa zmení na "úrovni" pri páde)
+    # ── Dangling cleanup (pre naratívy, ktoré stále používajú starý formát) ──
+    # "na úrovni" → "" (leftover po "na úroveň X mil. €")
     (re.compile(r'\s+na\s+úrovni(?=\s*[,.;]|\s+(?:ale|a|avšak|pričom|čo|ktor|v|s|na|firma|spoločnosť|prevádzkový)\b)', re.IGNORECASE), ''),
-    # "(nárast , čo" → ", čo" (leftover "(nárast X mil. €, čo" — zátvorka + nárast bez hodnoty)
-    (re.compile(r'\(\s*nárast\s*,', re.IGNORECASE), ','),
-    # "nárast ," → "," (dangling "nárast" bez hodnoty pred čiarkou)
-    (re.compile(r'\s+nárast\s*,(?=\s*(?:čo|a|ale|pričom)\b)', re.IGNORECASE), ','),
-    # "dosiahol, zatiaľ čo" → ", zatiaľ čo" (dangling "dosiahol" bez hodnoty)
-    (re.compile(r'\s+dosiahol\s*,\s*(?=(?:zatiaľ|čo|pričom|ale|a)\b)', re.IGNORECASE), ', '),
+    (re.compile(r'\s+na\s+úrovni\s*$', re.IGNORECASE), ''),
+    (re.compile(r'\s+na\s+úrovni\s*\.', re.IGNORECASE), '.'),
     # "nad predstavuje" → "predstavuje" (leftover "nad X mil. € predstavuje")
     (re.compile(r'\s+nad\s+(?=(?:predstavuje|ukazuje|svedčí|indikuje)\b)', re.IGNORECASE), ' '),
-    # "vysoko pozitívny na úrovni" → "vysoko pozitívny" (dangling "na úrovni" bez hodnoty)
-    (re.compile(r'\s+na\s+úrovni\s*$', re.IGNORECASE), ''),
-    # "hotovosti" na konci vety bez hodnoty → odstrániť dangling kontext
-    # "na úrovni." → "." (na konci vety)
-    (re.compile(r'\s+na\s+úrovni\s*\.', re.IGNORECASE), '.'),
+    # "dosiahol, zatiaľ čo" → ", zatiaľ čo" (dangling "dosiahol" bez hodnoty)
+    (re.compile(r'\s+dosiahol\s*,\s*(?=(?:zatiaľ|čo|pričom|ale|a)\b)', re.IGNORECASE), ', '),
+    # "nárast ," → "," (dangling "nárast" bez hodnoty)
+    (re.compile(r'\s+nárast\s*,(?=\s*(?:čo|a|ale|pričom)\b)', re.IGNORECASE), ','),
 ]
+
 
 
 def _strip_narrative_financial_metrics(narrative) -> None:
