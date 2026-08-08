@@ -7,7 +7,7 @@ from pathlib import Path
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
-from .base import BaseScraper, ScraperUnavailableError
+from .base import BaseScraper, ScraperUnavailableError, ContentCheckError, retry_async, retry_async_call
 from ..config import settings
 from ..models import ScrapedSource
 
@@ -32,40 +32,48 @@ class SpDlzniciScraper(BaseScraper):
     source_type = "SP_DLZNICI"
     base_url = "https://socpoist.sk/nastroje-sluzby/zoznam-dlznikov"
 
+    async def _navigate_sp(self, page: Page) -> Page:
+        """Naviguje na SP stránku s content check — retry cez retry_async.
+        Raises ContentCheckError ak 'Server je nedostupný' (retry sa pokúsi znova).
+        Raises ScraperUnavailableError pri perzistentnom timeoute."""
+        await page.goto(self.base_url, timeout=30000, wait_until='commit')
+        await page.wait_for_load_state('domcontentloaded', timeout=30000)
+        logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
+        # Content check: "Server je nedostupný" = retry
+        body_text = await page.inner_text("body")
+        if "Server je nedostupný" in body_text:
+            raise ContentCheckError(
+                "SP — 'Server je nedostupný'",
+                result=self._make_result(
+                    status="UNAVAILABLE",
+                    status_message="Sociálna poisťovňa — nemám prístup.",
+                ),
+            )
+        return page
+
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
         async def _scrape(page: Page) -> ScrapedSource:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
-            # Unified retry: 3 pokusy, exponential backoff s jitterom
-            max_attempts = settings.scraper_retries + 1  # 3
-            for nav_attempt in range(1, max_attempts + 1):
-                try:
-                    await page.goto(self.base_url, timeout=30000, wait_until='commit')
-                    await page.wait_for_load_state('domcontentloaded', timeout=30000)
-                except (PlaywrightTimeoutError, PlaywrightError) as e:
-                    if nav_attempt < max_attempts:
-                        wait = settings.scraper_retry_delay * (2 ** (nav_attempt - 1)) * random.uniform(0.7, 1.3)
-                        logger.warning(f"[{self.source_type}] SP nedostupná (attempt {nav_attempt}/{max_attempts}): {e} — retry o {wait:.1f}s")
-                        await asyncio.sleep(wait)
-                        continue
-                    raise ScraperUnavailableError(f"SP nedostupná: {e}")
-                logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
-
-                # Skontrolovať či nás zablokovali
-                body_text = await page.inner_text("body")
-                if "Server je nedostupný" in body_text:
-                    if nav_attempt < max_attempts:
-                        wait = settings.scraper_retry_delay * (2 ** (nav_attempt - 1)) * random.uniform(0.7, 1.3)
-                        logger.warning(f"[{self.source_type}] SP — 'Server je nedostupný' (attempt {nav_attempt}/{max_attempts}). Retry o {wait:.1f}s.")
-                        await asyncio.sleep(wait)
-                        continue
-                    logger.error(f"[{self.source_type}] SP — nedostupné aj po {max_attempts} pokusoch.")
-                    return self._make_result(
-                        status="UNAVAILABLE",
-                        status_message="Sociálna poisťovňa — nemám prístup.",
-                    )
-                break
+            # Unified retry s content check — 3 pokusy, exponential backoff s jitterom
+            # retry_async_call:
+            #   - pri ContentCheckError s result → vráti result (UNAVAILABLE)
+            #   - pri perzistentnom timeoute → raise ScraperUnavailableError
+            try:
+                nav_result = await retry_async_call(
+                    self._navigate_sp, page,
+                    source_type=self.source_type,
+                    max_attempts=settings.scraper_retries + 1,
+                )
+            except ScraperUnavailableError:
+                return self._make_result(
+                    status="UNAVAILABLE",
+                    status_message="Sociálna poisťovňa — nedostupná po viacerých pokusoch.",
+                )
+            # Ak retry vrátil ScrapedSource (z ContentCheckError), je to UNAVAILABLE
+            if isinstance(nav_result, ScrapedSource):
+                return nav_result
 
             # Zavri cookie banner ak sa zobrazil
             await self._dismiss_cookie_banner(page)

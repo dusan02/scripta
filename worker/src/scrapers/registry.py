@@ -349,4 +349,7 @@ async def run_scrapers(
                 logger.warning(f"on_source_done callback zlyhal pre {source}: {cb_err}")
 
     # Vrátime v pôvodnom poradí
+    # Log retry metrics súhrn (ak nejaké retrye nastali)
+    from .base import log_retry_metrics
+    log_retry_metrics()
     return [results_by_source[s] for s in sources]

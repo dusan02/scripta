@@ -1,12 +1,13 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Callable, Awaitable, TypeVar
+from typing import Optional, Callable, Awaitable, TypeVar, Any
 import asyncio
 import functools
 import logging
 import random
 import re
+import time
 
 from playwright.async_api import Page, Browser, async_playwright, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
 
@@ -27,12 +28,47 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
+# ── Retry metrics ─────────────────────────────────────────────────────
+# Jednoduché in-memory countery pre observability. Dostupné cez get_retry_metrics().
+_RETRY_METRICS: dict[str, dict[str, int]] = {}
+
+
+def _record_retry_metric(source_type: str, key: str) -> None:
+    """Zaznamená retry event do in-memory counterov."""
+    if source_type not in _RETRY_METRICS:
+        _RETRY_METRICS[source_type] = {
+            "attempts": 0, "retries": 0, "recoveries": 0,
+            "exhausted": 0, "permanent_skips": 0,
+        }
+    _RETRY_METRICS[source_type][key] = _RETRY_METRICS[source_type].get(key, 0) + 1
+
+
+def get_retry_metrics() -> dict[str, dict[str, int]]:
+    """Vráti snapshot retry metrík pre všetky source types."""
+    return dict(_RETRY_METRICS)
+
+
+def log_retry_metrics() -> None:
+    """Zaloguje súhrn retry metrík (volaj na konci pipeline alebo periodicke)."""
+    for src, m in _RETRY_METRICS.items():
+        if m["retries"] > 0 or m["exhausted"] > 0:
+            logger.info(
+                f"[RetryMetrics] {src}: attempts={m['attempts']} "
+                f"retries={m['retries']} recoveries={m['recoveries']} "
+                f"exhausted={m['exhausted']} permanent_skips={m['permanent_skips']}"
+            )
+
+
 # ── Unified retry helper ──────────────────────────────────────────────
 # Zjednotená retry logika pre všetky scrapery. Nahradza ad-hoc implementácie
 # v SP, ORSR, FS, Dovera, ZRSR, Rozhodnutia.
 # Použitie:
 #   1. Ako dekorátor: @retry_async(source_type="SP_DLZNICI")
 #   2. Ako helper:    await retry_async_call(my_func, source_type="ORSR")
+#
+# Pokročilé features:
+#   - content_check: callback(page) -> bool, ak vráti False = retry (pre "Server je nedostupný")
+#   - on_retry: callback(attempt) -> None, volá sa pred sleep (pre FS fresh-page pattern)
 
 # Exceptiony ktoré sa NEmajú retryovať (permanent errors)
 _PERMANENT_EXCEPTIONS = (
@@ -68,6 +104,15 @@ def _is_transient_error(exc: Exception) -> bool:
     return True
 
 
+class ContentCheckError(Exception):
+    """Raised when content check fails (e.g. 'Server je nedostupný' in page body).
+    Táto chyba je vždy transient — content sa môže zmeniť pri retry."""
+
+    def __init__(self, message: str, result: Any = None):
+        super().__init__(message)
+        self.result = result  # voliteľný result ktorý sa má vrátiť pri exhaust
+
+
 def retry_async(
     *,
     source_type: str = "",
@@ -75,15 +120,18 @@ def retry_async(
     base_delay: float = None,
     jitter: float = 0.3,
     transient_only: bool = True,
+    on_retry: Optional[Callable[[int], Awaitable[None]]] = None,
 ):
     """Dekorátor pre async funkcie s exponential backoff + jitter.
 
     Args:
-        source_type: Pre logovanie (napr. "SP_DLZNICI")
+        source_type: Pre logovanie a metrics (napr. "SP_DLZNICI")
         max_attempts: Počet pokusov (default: settings.scraper_retries + 1 = 3)
         base_delay: Base delay v sekundách (default: settings.scraper_retry_delay = 1.5)
         jitter: ±fraction pre anti-thundering-herd (0.3 = ±30%)
         transient_only: Ak True, retryuje len transient errors (nie ValueError etc.)
+        on_retry: Async callback volaný pred sleep (pre FS fresh-page pattern).
+                  Dostáva attempt číslo (1-based).
     """
     attempts = max_attempts or (settings.scraper_retries + 1)
     delay = base_delay or settings.scraper_retry_delay
@@ -93,22 +141,41 @@ def retry_async(
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> T:
             last_exc: Optional[Exception] = None
+            _record_retry_metric(label, "attempts")
             for attempt in range(1, attempts + 1):
                 try:
-                    return await func(*args, **kwargs)
+                    result = await func(*args, **kwargs)
+                    if attempt > 1:
+                        _record_retry_metric(label, "recoveries")
+                    return result
                 except Exception as exc:
                     last_exc = exc
-                    if transient_only and not _is_transient_error(exc):
+                    # ContentCheckError = vždy transient (content sa môže zmeniť)
+                    if isinstance(exc, ContentCheckError):
+                        pass
+                    elif transient_only and not _is_transient_error(exc):
+                        _record_retry_metric(label, "permanent_skips")
                         raise
                     if attempt >= attempts:
                         break
+                    _record_retry_metric(label, "retries")
                     # Exponential backoff: delay * 2^(attempt-1) * (1 ± jitter)
                     wait = delay * (2 ** (attempt - 1)) * random.uniform(1 - jitter, 1 + jitter)
                     logger.warning(
                         f"[{label}] {func.__name__} attempt {attempt}/{attempts} "
                         f"failed: {type(exc).__name__}: {exc} — retry in {wait:.1f}s"
                     )
+                    # on_retry callback (napr. FS: close page → create fresh page)
+                    if on_retry:
+                        try:
+                            await on_retry(attempt)
+                        except Exception as cb_err:
+                            logger.warning(f"[{label}] on_retry callback failed: {cb_err}")
                     await asyncio.sleep(wait)
+            _record_retry_metric(label, "exhausted")
+            # Ak ContentCheckError mal result, vráť ho (pre SP "Server nedostupný")
+            if isinstance(last_exc, ContentCheckError) and last_exc.result is not None:
+                return last_exc.result
             raise ScraperUnavailableError(
                 f"[{label}] {func.__name__} failed after {attempts} attempts: {last_exc}"
             )
@@ -122,6 +189,9 @@ async def retry_async_call(
     source_type: str = "",
     max_attempts: int = None,
     base_delay: float = None,
+    jitter: float = 0.3,
+    transient_only: bool = True,
+    on_retry: Optional[Callable[[int], Awaitable[None]]] = None,
     **kwargs,
 ) -> T:
     """Helper pre one-off retry volania (bez dekorátora)."""
@@ -129,6 +199,9 @@ async def retry_async_call(
         source_type=source_type,
         max_attempts=max_attempts,
         base_delay=base_delay,
+        jitter=jitter,
+        transient_only=transient_only,
+        on_retry=on_retry,
     )(func)
     return await decorated(*args, **kwargs)
 

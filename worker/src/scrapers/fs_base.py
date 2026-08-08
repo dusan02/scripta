@@ -8,7 +8,7 @@ from typing import Optional
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
-from .base import BaseScraper, ScraperUnavailableError
+from .base import BaseScraper, ScraperUnavailableError, retry_async_call
 from ..config import settings
 from ..models import ScrapedSource
 
@@ -66,40 +66,45 @@ class FinancnaSpravaBase(BaseScraper):
         """FS server občas zasekne konkrétne spojenie (page), zatiaľ čo iné fungujú.
         Preto pri timeoute zatvoríme zaseknutú page a retryneme na čerstvej page
         (= čerstvé spojenie), ktorá zvyčajne prejde do 1s.
-        Používa unified exponential backoff s jitterom.
+        Používa retry_async s on_retry callback pre fresh-page pattern.
         Vracia funkčnú page (môže byť iná než vstupná)."""
-        import random as _rand
-        attempts = (retries or settings.scraper_retries + 2) + 1  # FS je flaky — viac pokusov (5)
-        last_error: Optional[Exception] = None
-        for attempt in range(1, attempts + 1):
+        # State: aktuálna page (može sa zmeniť pri retry cez on_retry)
+        state = {"page": page}
+
+        async def _goto_attempt() -> Page:
+            """Naviguje state["page"] na URL. on_retry aktualizuje state["page"] pred retry."""
+            current = state["page"]
+            await current.goto(url, timeout=7000, wait_until="commit")
             try:
-                await page.goto(url, timeout=7000, wait_until="commit")
-                # Po commit počkáme na DOM, ale s krátkym limitom — obsah už beží
-                try:
-                    await page.wait_for_load_state("domcontentloaded", timeout=8000)
-                except PlaywrightTimeoutError:
-                    pass
-                return page
-            except (PlaywrightTimeoutError, PlaywrightError) as e:
-                last_error = e
-                if attempt >= attempts:
-                    break
-                # Exponential backoff s jitterom (unified)
-                delay = settings.scraper_retry_delay * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
-                logger.warning(f"[{self.source_type}] goto attempt {attempt}/{attempts} failed: {e} — čerstvá page, retry o {delay:.1f}s")
-                # Zatvoríme zaseknutú page a vytvoríme čerstvú (nové spojenie)
-                try:
-                    await page.close()
-                except Exception:
-                    pass
-                await asyncio.sleep(delay)
-                page = await self._get_page()
-        # All retries exhausted — close the last retry page to avoid leak
+                await current.wait_for_load_state("domcontentloaded", timeout=8000)
+            except PlaywrightTimeoutError:
+                pass
+            return current
+
+        async def _on_retry(attempt: int) -> None:
+            """Close zaseknutú page a vytvor čerstvú (nové spojenie)."""
+            old_page = state["page"]
+            try:
+                await old_page.close()
+            except Exception:
+                pass
+            state["page"] = await self._get_page()
+
+        attempts = (retries or settings.scraper_retries + 2) + 1  # FS je flaky — 5 pokusov
         try:
-            await page.close()
-        except Exception:
-            pass
-        raise ScraperUnavailableError(f"Register {url} unreachable after {attempts} attempts: {last_error}")
+            return await retry_async_call(
+                _goto_attempt,
+                source_type=self.source_type,
+                max_attempts=attempts,
+                on_retry=_on_retry,
+            )
+        except ScraperUnavailableError:
+            # All retries exhausted — close the last page to avoid leak
+            try:
+                await state["page"].close()
+            except Exception:
+                pass
+            raise
 
     # Zoznam textov indikujúcich prázdny výsledok — zdieľané medzi run() a _extract_findings()
     EMPTY_MARKERS: list[str] = [
