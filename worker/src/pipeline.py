@@ -1054,8 +1054,10 @@ _METRIC_PATTERNS = [
     (re.compile(r'(stúpl[aiy]?|klesl[aiy]?|vzrástl[aiy]?|poklesl[aiy]?)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
     # "z 42,83% v roku 2021 na 10,18% v roku 2025" → "" (čisté percento bez kľúčového slova)
     (re.compile(r'z\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}\s+na\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}', re.IGNORECASE), ''),
-    # "pokles o 19,24 %" / "rast o 13,49 %" → "pokles" / "rast"
-    (re.compile(r'(pokles|nárast|rast|zmena)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # "pokles o 19,24 %" / "rast o 13,49 %" / "poklese o 19,24%" → "pokles" / "rast"
+    (re.compile(r'(pokles|nárast|rast|zmena|poklese|náraste)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # "pokles tržieb o 19,24%" → "pokles tržieb"
+    (re.compile(r'(pokles|nárast|rast)\s+(tržieb|tržb[yea])\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1 \2'),
     # ── Cleanup: dangling particles po odstránení čísel ──
     # "z  na" → "" (leftover po "z X EUR na Y EUR")
     (re.compile(r'\s+z\s+na\s+', re.IGNORECASE), ' '),
@@ -1063,6 +1065,16 @@ _METRIC_PATTERNS = [
     (re.compile(r'\s+na\s+,', re.IGNORECASE), ','),
     # "z  " → " " (leftover po "z X EUR")
     (re.compile(r'\s+z\s+(?=[,.]|\s+(?:na|a|ale|pri|v|s)\b)', re.IGNORECASE), ' '),
+    # "zo v roku 2022 na v roku 2025" → "z roku 2022 do roku 2025" (dangling po EUR strippingu)
+    (re.compile(r'\s+zo\s+v\s+roku\s+(\d{4})\s+na\s+v\s+roku\s+(\d{4})', re.IGNORECASE), r' z roku \1 do roku \2'),
+    # "na hodnotu v roku" → "v roku" (dangling "na hodnotu" po strippingu hodnoty)
+    (re.compile(r'\s+na\s+hodnotu\s+v\s+roku', re.IGNORECASE), ' v roku'),
+    # "klesá v roku 2022 na v roku 2025" → "klesá" (dangling po EUR strippingu)
+    (re.compile(r'\s+klesá\s+v\s+roku\s+\d{4}\s+na\s+v\s+roku\s+\d{4}', re.IGNORECASE), ' klesá'),
+    # "zo v roku" → "z roku" (dangling "zo v" po strippingu)
+    (re.compile(r'\s+zo\s+v\s+roku', re.IGNORECASE), ' z roku'),
+    # "na v roku" → "do roku" (dangling "na v" po strippingu)
+    (re.compile(r'\s+na\s+v\s+roku', re.IGNORECASE), ' do roku'),
     # "()" → "" (leftover po "(−26 361 EUR)")
     (re.compile(r'\(\s*\)'), ''),
     # "  " → " " (double spaces)
