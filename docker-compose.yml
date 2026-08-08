@@ -70,6 +70,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       RESULTS_DIR: /app/results
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
+      INBOUND_EMAIL_DOMAIN: ${INBOUND_EMAIL_DOMAIN:-inbound.resend.app}
       EMAIL_FROM: ${EMAIL_FROM:-Verifa.sk <noreply@verifa.sk>}
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
