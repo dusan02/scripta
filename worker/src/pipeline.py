@@ -997,6 +997,40 @@ async def run_and_save_audit_verdict(
             f"es_has_placeholders={_es_has_placeholders}, "
             f"es_sample={_es_raw[:120]!r}"
         )
+        # ── Anti-halucinácia: očisť verdict texty od konkrétnych finančných metrík ──
+        # KRITICKÉ: Toto musí bežať PRED inject_metrics! Inak by odstránilo nahradené
+        # hodnoty z placeholderov (napr. "klesli o 13,2 %" → "klesli o").
+        # Regex beží na raw LLM texte (s {{PLACEHOLDER}} tagmi), ktorý neobsahuje čísla.
+        for _vfield in ('executiveSummary', 'keyRisk', 'finalVerdict'):
+            _vtext = verdict_payload.get(_vfield, "")
+            if _vtext and isinstance(_vtext, str):
+                for _pat, _repl in _METRIC_PATTERNS:
+                    _vtext = _pat.sub(_repl, _vtext)
+                verdict_payload[_vfield] = _vtext
+
+        # ── Anti-halucinácia pre evidence_list (justification) ──
+        # Zdôvodnenie obsahuje "tvrdenie" a "dokaz" polia, ktoré LLM generuje.
+        # Očistíme ich rovnakými patternmi — PRED inject_metrics.
+        _just = verdict_payload.get('justification')
+        if _just and isinstance(_just, str):
+            try:
+                _just_list = json.loads(_just)
+                for _item in _just_list:
+                    if not isinstance(_item, dict):
+                        continue
+                    for _ifield in ('tvrdenie', 'dokaz', 'claim', 'evidence'):
+                        _itext = _item.get(_ifield, "")
+                        if _itext and isinstance(_itext, str):
+                            for _pat, _repl in _METRIC_PATTERNS:
+                                _itext = _pat.sub(_repl, _itext)
+                            _item[_ifield] = _itext
+                verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # ── Deterministická injekcia placeholderov z DB ──
+        # Nahradí {{PLACEHOLDER}} tagy presnými hodnotami z DB.
+        # Beží PO regex cleanup — takže nahradené hodnoty nie sú ovplyvnené regexom.
         if _metric_placeholders:
             for _vfield in ('executiveSummary', 'keyRisk', 'finalVerdict'):
                 _vtext = verdict_payload.get(_vfield, "")
@@ -1017,36 +1051,6 @@ async def run_and_save_audit_verdict(
                     verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
                     pass
-
-        # ── Anti-halucinácia: očisť verdict texty od konkrétnych finančných metrík ──
-        # Rovnaké _METRIC_PATTERNS ako pri narrative — LLM nesmie vypisovať
-        # konkrétne EUR hodnoty, percentá, indexy v executiveSummary/keyRisk.
-        for _vfield in ('executiveSummary', 'keyRisk', 'finalVerdict'):
-            _vtext = verdict_payload.get(_vfield, "")
-            if _vtext and isinstance(_vtext, str):
-                for _pat, _repl in _METRIC_PATTERNS:
-                    _vtext = _pat.sub(_repl, _vtext)
-                verdict_payload[_vfield] = _vtext
-
-        # ── Anti-halucinácia pre evidence_list (justification) ──
-        # Zdôvodnenie obsahuje "tvrdenie" a "dokaz" polia, ktoré LLM generuje.
-        # Očistíme ich rovnakými patternmi.
-        _just = verdict_payload.get('justification')
-        if _just and isinstance(_just, str):
-            try:
-                _just_list = json.loads(_just)
-                for _item in _just_list:
-                    if not isinstance(_item, dict):
-                        continue
-                    for _ifield in ('tvrdenie', 'dokaz', 'claim', 'evidence'):
-                        _itext = _item.get(_ifield, "")
-                        if _itext and isinstance(_itext, str):
-                            for _pat, _repl in _METRIC_PATTERNS:
-                                _itext = _pat.sub(_repl, _itext)
-                            _item[_ifield] = _itext
-                verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
-            except (json.JSONDecodeError, TypeError):
-                pass
 
         # ── Deterministická anti-halucinácia: odstráň neoveriteľné dlhy z verdict textu ──
         # Ak LLM spomenie konkrétne sumy dlhov voči registrom, ktoré sú CLEAN,
