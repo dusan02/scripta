@@ -569,7 +569,11 @@ class TableExtractorMixin:
             if not rows_data:
                 return None
 
-            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov {source_name}."]
+            _src = getattr(self, 'source_type', source_name)
+            if _src == "NCRZP":
+                parts = [f"POZOR: Subjekt (IČO: {ico}) je evidovaný v registri {source_name}."]
+            else:
+                parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov {source_name}."]
             if field_map:
                 for row in rows_data:
                     for label, val in row.items():
@@ -603,7 +607,11 @@ class TableExtractorMixin:
                     hdr = ""
                 headers.append(hdr)
 
-            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov {source_name}."]
+            _src = getattr(self, 'source_type', source_name)
+            if _src == "NCRZP":
+                parts = [f"POZOR: Subjekt (IČO: {ico}) je evidovaný v registri {source_name}."]
+            else:
+                parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov {source_name}."]
 
             for i in range(min(count, 5)):
                 cells = rows.nth(i).locator("td")

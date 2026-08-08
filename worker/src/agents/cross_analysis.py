@@ -22,7 +22,7 @@ Dostávaš všetky dáta firmy v JSON formáte: finančné výkazy (kľúčové 
 2. KEY RISK — Najväčšia hrozba firmy v jednej vete.
 
 **REGISTRY FINDINGS — KRITICKÉ:**
-V `registryFindings` nájdeš nálezy z registrov (NCRZP, Finančná správa, SP dlžníci, atď.). Ak je subjekt v zozname dlžníkov (NCRZP, SP, Finančná správa), MUSÍŠ to výslovne spomenúť v executive_summary ako prvé riziko. Napríklad: "Subjekt je v zozname dlžníkov NCRZP — to je kritické riziko pre právnikov a banky."
+V `registryFindings` nájdeš nálezy z registrov (NCRZP, Finančná správa, SP dlžníci, atď.). Ak je subjekt v zozname dlžníkov (SP, Finančná správa, VšZP, Dôvera, Union), MUSÍŠ to výslovne spomenúť v executive_summary ako prvé riziko. NCRZP je register ZÁLOŽNÝCH PRÁV, nie register dlžníkov — záložné právo je štandardné zabezpečenie úveru, nie znak platobnej neschopnosti. Pri NCRZP náleze použi formuláciu "evidované záložné právo", NIKDY "v zozname dlžníkov".
 
 **UNVERIFIED REGISTRY STATUS — ZABRÁN HALUCINÁCIÁM:**
 V `registryStatusSummary` nájdeš pre každý register jeden z troch stavov:
