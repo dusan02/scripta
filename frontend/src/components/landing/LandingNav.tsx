@@ -28,12 +28,14 @@ export default function LandingNav() {
   useScrollLock(mobileMenuOpen);
 
   // On the landing page, hash links scroll to sections.
-  // On other pages, link to landing page sections with lang prefix.
+  // On other pages, link to /landing sections with lang prefix.
+  // Note: we use /landing (not /) because middleware redirects / to /dashboard
+  // for authenticated users, which would break hash navigation.
   const { path: realPath } = delocalizePath(pathname);
-  const isLanding = realPath === "/";
+  const isLanding = realPath === "/" || realPath === "/landing";
   const navHref = (hash: string) => {
     if (isLanding) return hash;
-    return `${localizePath("/", lang)}${hash}`;
+    return `${localizePath("/landing", lang)}${hash}`;
   };
 
   // Localized link helper
