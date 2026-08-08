@@ -1,9 +1,11 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable, Awaitable, TypeVar
 import asyncio
+import functools
 import logging
+import random
 import re
 
 from playwright.async_api import Page, Browser, async_playwright, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
@@ -21,6 +23,114 @@ from .exceptions import ScraperUnavailableError, ScraperInputError
 from .mixins import PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, CaptchaSolverMixin
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+# ── Unified retry helper ──────────────────────────────────────────────
+# Zjednotená retry logika pre všetky scrapery. Nahradza ad-hoc implementácie
+# v SP, ORSR, FS, Dovera, ZRSR, Rozhodnutia.
+# Použitie:
+#   1. Ako dekorátor: @retry_async(source_type="SP_DLZNICI")
+#   2. Ako helper:    await retry_async_call(my_func, source_type="ORSR")
+
+# Exceptiony ktoré sa NEmajú retryovať (permanent errors)
+_PERMANENT_EXCEPTIONS = (
+    ScraperInputError,
+    ValueError,
+    KeyError,
+    AttributeError,
+    KeyboardInterrupt,
+    asyncio.CancelledError,
+)
+
+
+def _is_transient_error(exc: Exception) -> bool:
+    """Vráti True ak je chyba transient (network/timeout/server) — retry má zmysel."""
+    if isinstance(exc, _PERMANENT_EXCEPTIONS):
+        return False
+    # Playwright timeout/error = transient
+    if isinstance(exc, (PlaywrightTimeout, PlaywrightError)):
+        return True
+    # asyncio timeout = transient
+    if isinstance(exc, asyncio.TimeoutError):
+        return True
+    # httpx/network errors = transient
+    exc_name = type(exc).__name__
+    if exc_name in ("TimeoutException", "ConnectError", "ConnectTimeout",
+                    "ReadTimeout", "WriteTimeout", "PoolTimeout",
+                    "RemoteProtocolError", "HTTPStatusError"):
+        return True
+    # ScraperUnavailableError = transient (register down)
+    if isinstance(exc, ScraperUnavailableError):
+        return True
+    # Default: retry (safe side — lepšie skúsiť znova ako vzdať sa)
+    return True
+
+
+def retry_async(
+    *,
+    source_type: str = "",
+    max_attempts: int = None,
+    base_delay: float = None,
+    jitter: float = 0.3,
+    transient_only: bool = True,
+):
+    """Dekorátor pre async funkcie s exponential backoff + jitter.
+
+    Args:
+        source_type: Pre logovanie (napr. "SP_DLZNICI")
+        max_attempts: Počet pokusov (default: settings.scraper_retries + 1 = 3)
+        base_delay: Base delay v sekundách (default: settings.scraper_retry_delay = 1.5)
+        jitter: ±fraction pre anti-thundering-herd (0.3 = ±30%)
+        transient_only: Ak True, retryuje len transient errors (nie ValueError etc.)
+    """
+    attempts = max_attempts or (settings.scraper_retries + 1)
+    delay = base_delay or settings.scraper_retry_delay
+    label = source_type or "scraper"
+
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs) -> T:
+            last_exc: Optional[Exception] = None
+            for attempt in range(1, attempts + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as exc:
+                    last_exc = exc
+                    if transient_only and not _is_transient_error(exc):
+                        raise
+                    if attempt >= attempts:
+                        break
+                    # Exponential backoff: delay * 2^(attempt-1) * (1 ± jitter)
+                    wait = delay * (2 ** (attempt - 1)) * random.uniform(1 - jitter, 1 + jitter)
+                    logger.warning(
+                        f"[{label}] {func.__name__} attempt {attempt}/{attempts} "
+                        f"failed: {type(exc).__name__}: {exc} — retry in {wait:.1f}s"
+                    )
+                    await asyncio.sleep(wait)
+            raise ScraperUnavailableError(
+                f"[{label}] {func.__name__} failed after {attempts} attempts: {last_exc}"
+            )
+        return wrapper
+    return decorator
+
+
+async def retry_async_call(
+    func: Callable[..., Awaitable[T]],
+    *args,
+    source_type: str = "",
+    max_attempts: int = None,
+    base_delay: float = None,
+    **kwargs,
+) -> T:
+    """Helper pre one-off retry volania (bez dekorátora)."""
+    decorated = retry_async(
+        source_type=source_type,
+        max_attempts=max_attempts,
+        base_delay=base_delay,
+    )(func)
+    return await decorated(*args, **kwargs)
 
 
 # ── Circuit breaker per source type ──────────────────────────────────
@@ -146,24 +256,29 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
                 await self._playwright.stop()
 
     async def _safe_goto(self, page: Page, url: str, retries: int = None) -> None:
-        """Go to URL with retry; mark as UNAVAILABLE on persistent failures.
+        """Go to URL with unified retry; mark as UNAVAILABLE on persistent failures.
 
-        Timeouty nastavené na 20s goto + 10s domcontentloaded — slovenské štátne registre
-        (ORSR, ZRSR, VšZP) často odpovedajú 5-15s, pôvodných 10s+5s bolo príliš agresívnych.
+        Používa exponential backoff s jitterom zo unified retry helpera.
+        Timeouty: 20s goto + 10s domcontentloaded — slovenské štátne registre
+        (ORSR, ZRSR, VšZP) často odpovedajú 5-15s.
         """
-        if retries is None:
-            retries = settings.scraper_retries
+        attempts = (retries or settings.scraper_retries) + 1
+        delay = settings.scraper_retry_delay
         last_error: Optional[Exception] = None
-        for attempt in range(retries + 1):
+        for attempt in range(1, attempts + 1):
             try:
                 await page.goto(url, timeout=20000, wait_until="domcontentloaded")
                 return
             except Exception as e:
                 last_error = e
-                delay = settings.scraper_retry_delay * (attempt + 1) * 2
-                logger.warning(f"[{self.source_type}] goto attempt {attempt + 1}/{retries + 1} failed: {type(e).__name__}: {e} — retrying in {delay}s")
-                await asyncio.sleep(delay)
-        raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
+                if not _is_transient_error(e):
+                    raise
+                if attempt >= attempts:
+                    break
+                wait = delay * (2 ** (attempt - 1)) * random.uniform(0.7, 1.3)
+                logger.warning(f"[{self.source_type}] goto attempt {attempt}/{attempts} failed: {type(e).__name__}: {e} — retry in {wait:.1f}s")
+                await asyncio.sleep(wait)
+        raise ScraperUnavailableError(f"Register {url} unreachable after {attempts} attempts: {last_error}")
 
     async def _dismiss_cookie_banner(self, page: Page) -> None:
         """Skúsi zavrieť cookie banner ak existuje — bežné na slovenských štátnych portáloch.

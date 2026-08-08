@@ -66,11 +66,12 @@ class FinancnaSpravaBase(BaseScraper):
         """FS server občas zasekne konkrétne spojenie (page), zatiaľ čo iné fungujú.
         Preto pri timeoute zatvoríme zaseknutú page a retryneme na čerstvej page
         (= čerstvé spojenie), ktorá zvyčajne prejde do 1s.
+        Používa unified exponential backoff s jitterom.
         Vracia funkčnú page (môže byť iná než vstupná)."""
-        if retries is None:
-            retries = settings.scraper_retries + 2  # FS je flaky — viac pokusov
+        import random as _rand
+        attempts = (retries or settings.scraper_retries + 2) + 1  # FS je flaky — viac pokusov (5)
         last_error: Optional[Exception] = None
-        for attempt in range(retries + 1):
+        for attempt in range(1, attempts + 1):
             try:
                 await page.goto(url, timeout=7000, wait_until="commit")
                 # Po commit počkáme na DOM, ale s krátkym limitom — obsah už beží
@@ -81,22 +82,24 @@ class FinancnaSpravaBase(BaseScraper):
                 return page
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 last_error = e
-                delay = settings.scraper_retry_delay * (attempt + 1)
-                logger.warning(f"[{self.source_type}] goto attempt {attempt + 1}/{retries + 1} failed: {e} — čerstvá page, retry o {delay}s")
+                if attempt >= attempts:
+                    break
+                # Exponential backoff s jitterom (unified)
+                delay = settings.scraper_retry_delay * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
+                logger.warning(f"[{self.source_type}] goto attempt {attempt}/{attempts} failed: {e} — čerstvá page, retry o {delay:.1f}s")
                 # Zatvoríme zaseknutú page a vytvoríme čerstvú (nové spojenie)
-                if attempt < retries:
-                    try:
-                        await page.close()
-                    except Exception:
-                        pass
-                    await asyncio.sleep(delay)
-                    page = await self._get_page()
+                try:
+                    await page.close()
+                except Exception:
+                    pass
+                await asyncio.sleep(delay)
+                page = await self._get_page()
         # All retries exhausted — close the last retry page to avoid leak
         try:
             await page.close()
         except Exception:
             pass
-        raise ScraperUnavailableError(f"Register {url} unreachable after {retries + 1} attempts: {last_error}")
+        raise ScraperUnavailableError(f"Register {url} unreachable after {attempts} attempts: {last_error}")
 
     # Zoznam textov indikujúcich prázdny výsledok — zdieľané medzi run() a _extract_findings()
     EMPTY_MARKERS: list[str] = [

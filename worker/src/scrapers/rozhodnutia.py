@@ -76,7 +76,8 @@ class RozhodnutiaScraper(BaseScraper):
     _BASE_URL = "https://www.justice.gov.sk/sudy-a-rozhodnutia/sudy/rozhodnutia/"
 
     async def _fetch_api(self, ico: str) -> dict:
-        """Stiahne rozhodnutia z ISU API cez httpx s retry logikou."""
+        """Stiahne rozhodnutia z ISU API cez httpx s unified retry logikou."""
+        import random as _rand
         params = {
             "page": 1,
             "size": 50,
@@ -86,7 +87,8 @@ class RozhodnutiaScraper(BaseScraper):
         }
         headers = {"User-Agent": "Mozilla/5.0 (compatible; Verifa/1.0)"}
 
-        for attempt in range(_API_RETRIES + 1):
+        attempts = _API_RETRIES + 1  # 3 pokusy
+        for attempt in range(1, attempts + 1):
             try:
                 async with httpx.AsyncClient(
                     timeout=_API_TIMEOUT, headers=headers, follow_redirects=True
@@ -97,20 +99,21 @@ class RozhodnutiaScraper(BaseScraper):
                         try:
                             return resp.json()
                         except json.JSONDecodeError:
-                            logger.error(f"[{self.source_type}] Neplatný JSON z API (attempt {attempt + 1})")
-                            if attempt < _API_RETRIES:
-                                await asyncio.sleep(_API_RETRY_DELAY * (attempt + 1))
+                            logger.error(f"[{self.source_type}] Neplatný JSON z API (attempt {attempt}/{attempts})")
+                            if attempt < attempts:
+                                delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
+                                await asyncio.sleep(delay)
                                 continue
                             return {}
 
                     # Retryable errors
                     if resp.status_code >= 500 or resp.status_code == 429:
-                        if attempt < _API_RETRIES:
-                            delay = _API_RETRY_DELAY * (attempt + 1)
+                        if attempt < attempts:
+                            delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
                             if resp.status_code == 429:
                                 delay *= 3
                             logger.warning(
-                                f"[{self.source_type}] API HTTP {resp.status_code} (attempt {attempt + 1}), retry za {delay}s"
+                                f"[{self.source_type}] API HTTP {resp.status_code} (attempt {attempt}/{attempts}), retry za {delay:.1f}s"
                             )
                             await asyncio.sleep(delay)
                             continue
@@ -119,16 +122,18 @@ class RozhodnutiaScraper(BaseScraper):
                     return {}
 
             except httpx.TimeoutException:
-                logger.warning(f"[{self.source_type}] API timeout (attempt {attempt + 1})")
-                if attempt < _API_RETRIES:
-                    await asyncio.sleep(_API_RETRY_DELAY * (attempt + 1))
+                logger.warning(f"[{self.source_type}] API timeout (attempt {attempt}/{attempts})")
+                if attempt < attempts:
+                    delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
+                    await asyncio.sleep(delay)
                     continue
                 raise ScraperUnavailableError("ISU API timeout")
 
             except httpx.HTTPError as e:
-                logger.warning(f"[{self.source_type}] API network error (attempt {attempt + 1}): {e}")
-                if attempt < _API_RETRIES:
-                    await asyncio.sleep(_API_RETRY_DELAY * (attempt + 1))
+                logger.warning(f"[{self.source_type}] API network error (attempt {attempt}/{attempts}): {e}")
+                if attempt < attempts:
+                    delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
+                    await asyncio.sleep(delay)
                     continue
                 raise ScraperUnavailableError(f"ISU API network error: {e}")
 

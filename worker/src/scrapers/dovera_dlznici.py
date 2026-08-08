@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import logging
+import random
 import re
 from pathlib import Path
 from typing import Literal, Optional
@@ -8,13 +9,14 @@ from typing import Literal, Optional
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
 from .base import BaseScraper, ScraperUnavailableError
+from ..config import settings
 from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
 
 _SCRAPER_TIMEOUT = 90  # max seconds for entire scraper attempt
 _MAX_RETRIES = 3
-_RETRY_DELAY = 5  # seconds between retries
+_RETRY_DELAY = settings.scraper_retry_delay  # unified: 1.5s base (exponential below)
 
 
 class DoveraDlzniciScraper(BaseScraper):
@@ -102,7 +104,7 @@ class DoveraDlzniciScraper(BaseScraper):
             await self._generate_clean_pdf(page, pdf_output, title="Zoznam dlžníkov Dôvera")
             return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message=f"Subjekt {ico} je v zozname dlžníkov Dôvery.", findings=findings)
 
-        # Wrap with retry + overall timeout per attempt
+        # Wrap with unified retry + overall timeout per attempt
         last_result = None
         for attempt in range(1, _MAX_RETRIES + 1):
             try:
@@ -123,7 +125,9 @@ class DoveraDlzniciScraper(BaseScraper):
                 last_result = self._make_result(status="FAILED", status_message=f"Dôvera: chyba ({attempt}. pokus).")
 
             if attempt < _MAX_RETRIES:
-                await asyncio.sleep(_RETRY_DELAY)
+                # Exponential backoff s jitterom (unified)
+                delay = _RETRY_DELAY * (2 ** (attempt - 1)) * random.uniform(0.7, 1.3)
+                await asyncio.sleep(delay)
 
         # All retries exhausted — return UNAVAILABLE with user-friendly message
         logger.error(f"[{self.source_type}] Všetky {_MAX_RETRIES} pokusy zlyhali pre IČO {ico}")
