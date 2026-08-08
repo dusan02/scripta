@@ -861,22 +861,46 @@ async def _process_zavierka(
     # ── Direct JSON parsing for SK GAAP (non-consolidated) ──
     # Eliminates LLM hallucinations by extracting metrics from structured JSON.
     parsed_metrics = None
+    _json_parser_failed = False
     if not konsolidovana and all_vykazy:
         try:
             from src.ruz_parser import parse_zavierka_to_metrics, save_metrics_sidecar
             parsed_metrics = parse_zavierka_to_metrics(all_vykazy, ico)
             if parsed_metrics and parsed_metrics.celkove_aktiva is not None:
-                logger.info(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — metrics extracted (assets={parsed_metrics.celkove_aktiva}, revenue={parsed_metrics.trzby_z_hlavnej_cinnosti})")
+                # Sanity check: equity > assets * 2 je účtovne nemožné (súvaha sa
+                # nevyrovnáva). RÚZ JSON môže vrátiť nekonzistentné jednotky medzi
+                # tabuľkami aktív a pasív (aktíva v tisícoch EUR, pasíva v EUR).
+                # V takom prípade JSON dáta nie sú dôveryhodné — skúsime HTML scrape.
+                _equity = parsed_metrics.vlastne_imanie_celkom
+                _assets = parsed_metrics.celkove_aktiva
+                if _equity is not None and _assets is not None and _assets > 0 and _equity > _assets * 2:
+                    logger.warning(
+                        f"[RUZ_API] IČO {ico} rok {year}: JSON parser vrátil nekonzistentné dáta "
+                        f"(equity={_equity:.0f} >> assets={_assets:.0f}) — skúšam HTML scrape fallback"
+                    )
+                    _json_parser_failed = True
+                else:
+                    logger.info(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — metrics extracted (assets={parsed_metrics.celkove_aktiva}, revenue={parsed_metrics.trzby_z_hlavnej_cinnosti})")
             else:
-                # ── HTML fallback: JSON API returned empty tables ──
+                _json_parser_failed = True
+
+            if _json_parser_failed:
+                # ── HTML fallback: JSON API returned empty or inconsistent tables ──
                 # RÚZ sometimes returns table structures with 0 rows in JSON API,
-                # but the HTML page (show/{id}/550,551,552) has full data.
-                # Scrape HTML tables before falling back to expensive PDF+LLM.
-                logger.info(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — empty tables, trying HTML scrape")
+                # or nekonzistentné jednotky medzi aktívami a pasívami.
+                # HTML page (show/{id}/550,551,552) may have full, consistent data.
+                logger.info(f"[RUZ_API] JSON parser: IČO {ico} rok {year} — empty/inconsistent tables, trying HTML scrape")
                 try:
-                    parsed_metrics = await _scrape_html_tables(client, all_vykazy, ico)
-                    if parsed_metrics and parsed_metrics.celkove_aktiva is not None:
-                        logger.info(f"[RUZ_API] HTML scrape: IČO {ico} rok {year} — metrics extracted (assets={parsed_metrics.celkove_aktiva}, revenue={parsed_metrics.trzby_z_hlavnej_cinnosti})")
+                    _html_metrics = await _scrape_html_tables(client, all_vykazy, ico)
+                    if _html_metrics and _html_metrics.celkove_aktiva is not None:
+                        # Rovnaký sanity check pre HTML scrape výsledok
+                        _h_equity = _html_metrics.vlastne_imanie_celkom
+                        _h_assets = _html_metrics.celkove_aktiva
+                        if _h_equity is not None and _h_assets is not None and _h_assets > 0 and _h_equity > _h_assets * 2:
+                            logger.warning(f"[RUZ_API] HTML scrape: IČO {ico} rok {year} — tiež nekonzistentné (equity={_h_equity:.0f} >> assets={_h_assets:.0f}), použijem PDF+LLM fallback")
+                        else:
+                            parsed_metrics = _html_metrics
+                            logger.info(f"[RUZ_API] HTML scrape: IČO {ico} rok {year} — metrics extracted (assets={parsed_metrics.celkove_aktiva}, revenue={parsed_metrics.trzby_z_hlavnej_cinnosti})")
                     else:
                         logger.warning(f"[RUZ_API] HTML scrape: IČO {ico} rok {year} — no data found, will use PDF+LLM fallback")
                 except Exception as html_err:

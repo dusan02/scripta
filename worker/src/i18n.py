@@ -81,6 +81,7 @@ I18N_STRINGS = {
         "yoy_depreciation": "Odpisy",
         "yoy_interest_expense": "Úrokové náklady",
         "yoy_income_tax": "Daň z príjmov",
+        "yoy_profit_before_tax": "Zisk pred zdanením",
 
         # P&L
         "pnl_statement": "Výkaz ziskov a strát",
@@ -415,7 +416,7 @@ I18N_STRINGS = {
         "conf_registries_all": "Všetky registre dostupné",
         "conf_registries_partial": "Čiastočne dostupné registre ({pct}%)",
         "conf_registries_limited": "Obmedzené registre ({pct}%)",
-        "conf_registries_none": "Žiadne zdroje dát",
+        "conf_registries_none": "Žiadne PDF prílohy z registrov",
         "conf_llm_ok": "Systémová analýza dokončená",
         "conf_llm_missing": "Systémová analýza nedostupná (fallback)",
 
@@ -861,6 +862,7 @@ I18N_STRINGS = {
         "yoy_depreciation": "Depreciation",
         "yoy_interest_expense": "Interest expense",
         "yoy_income_tax": "Income tax",
+        "yoy_profit_before_tax": "Profit before tax",
 
         # P&L
         "pnl_statement": "Profit & Loss Statement",
@@ -1192,7 +1194,7 @@ I18N_STRINGS = {
         "conf_registries_all": "All registries available",
         "conf_registries_partial": "Partially available registries ({pct}%)",
         "conf_registries_limited": "Limited registries ({pct}%)",
-        "conf_registries_none": "No data sources",
+        "conf_registries_none": "No PDF registry attachments",
         "conf_llm_ok": "System analysis completed",
         "conf_llm_missing": "System analysis unavailable (fallback)",
 
@@ -1636,6 +1638,7 @@ I18N_STRINGS = {
         "yoy_depreciation": "Abschreibungen",
         "yoy_interest_expense": "Zinsaufwand",
         "yoy_income_tax": "Einkommensteuer",
+        "yoy_profit_before_tax": "Gewinn vor Steuern",
 
         # P&L
         "pnl_statement": "Gewinn- und Verlustrechnung",
@@ -1967,7 +1970,7 @@ I18N_STRINGS = {
         "conf_registries_all": "Alle Register verfügbar",
         "conf_registries_partial": "Teilweise verfügbare Register ({pct}%)",
         "conf_registries_limited": "Eingeschränkte Register ({pct}%)",
-        "conf_registries_none": "Keine Datenquellen",
+        "conf_registries_none": "Keine PDF-Registeranhänge",
         "conf_llm_ok": "Systemanalyse abgeschlossen",
         "conf_llm_missing": "Systemanalyse nicht verfügbar (Fallback)",
 
@@ -2403,6 +2406,7 @@ I18N_STRINGS = {
     "yoy_depreciation": "Odpisy",
     "yoy_interest_expense": "Úrokové náklady",
     "yoy_income_tax": "Daň z příjmů",
+    "yoy_profit_before_tax": "Zisk před zdanením",
     "pnl_statement": "Výkaz zisků a ztrát",
     "revenue_main": "Tržby z hlavní činnosti",
     "total_revenue": "Celkové tržby",
@@ -2708,7 +2712,7 @@ I18N_STRINGS = {
     "conf_registries_all": "Všechny registry dostupné",
     "conf_registries_partial": "Částečně dostupné registry ({pct}%)",
     "conf_registries_limited": "Obmezené registry ({pct}%)",
-    "conf_registries_none": "Žádné zdroje dat",
+    "conf_registries_none": "Žádné PDF přílohy z registrů",
     "conf_llm_ok": "Systémová analýza dokončena",
     "conf_llm_missing": "Systémová analýza nedostupná (fallback)",
     "fallback_claim": "Algoritmické hodnocení (5-pilířový model)",
@@ -3108,6 +3112,7 @@ I18N_STRINGS = {
     "yoy_depreciation": "Értékcsökkenési leírás",
     "yoy_interest_expense": "Kamatráfordítások",
     "yoy_income_tax": "Nyereségadó",
+    "yoy_profit_before_tax": "Adó előtti nyereség",
     "pnl_statement": "Eredménykimutatás",
     "revenue_main": "Főtevékenység árbevétele",
     "total_revenue": "Összes árbevétel",
@@ -3413,7 +3418,7 @@ I18N_STRINGS = {
     "conf_registries_all": "Minden nyilvántartás elérhető",
     "conf_registries_partial": "Részben elérhető nyilvántartások ({pct}%)",
     "conf_registries_limited": "Korlátozott nyilvántartások ({pct}%)",
-    "conf_registries_none": "Nincsenek adatforrások",
+    "conf_registries_none": "Nincsenek PDF mellékletek a nyilvántartásokból",
     "conf_llm_ok": "Rendszerelemzés befejezve",
     "conf_llm_missing": "Rendszerelemzés nem érhető el (tartalék módszer)",
     "fallback_claim": "Algoritmikus értékelés (5 pilléres modell)",
@@ -3813,6 +3818,7 @@ I18N_STRINGS = {
     "yoy_depreciation": "Odpisy",
     "yoy_interest_expense": "Nákladové úroky",
     "yoy_income_tax": "Daň z příjmů",
+    "yoy_profit_before_tax": "Zisk před zdanením",
     "pnl_statement": "Výkaz zisku a ztráty",
     "revenue_main": "Výnosy z hlavní činnosti",
     "total_revenue": "Výnosy celkem",
@@ -4118,7 +4124,7 @@ I18N_STRINGS = {
     "conf_registries_all": "Wszystkie rejestry dostępne",
     "conf_registries_partial": "Częściowo dostępne rejestry ({pct}%)",
     "conf_registries_limited": "Ograniczone rejestry ({pct}%)",
-    "conf_registries_none": "Brak źródeł danych",
+    "conf_registries_none": "Brak załączników PDF z rejestrów",
     "conf_llm_ok": "Analiza systemowa zakończona",
     "conf_llm_missing": "Analiza systemowa niedostępna (zapasowa)",
     "fallback_claim": "Ocena algorytmiczna (model 5 filarów)",

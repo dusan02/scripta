@@ -828,8 +828,12 @@ def compute_insolvency_score(stmts, i18n_strings):
     # Consecutive losses: up to 25 points
     score += min(25, loss_years * 10)
     # Altman declining: up to 10 points
+    # Bug fix: ak je trend "declining" (slope < 0) ale posledný rok stúpol,
+    # altman_decline = 0 a pôvodný kód pridal 0 bodov — napriek tomu, že PDF
+    # zobrazoval "↓ Klesajúci" ako negatívny trend. Minimálna penalizácia 2 body
+    # zabezpečuje konzistenciu medzi zobrazeným trendom a skóre.
     if altman_trend == "declining":
-        score += min(10, altman_decline * 5)
+        score += min(10, max(2, altman_decline * 5))
 
     # Bonus reduction for consistent profitability
     if profit_years >= 3:
@@ -858,24 +862,30 @@ def compute_insolvency_score(stmts, i18n_strings):
 
     trends = []
     if any(e is not None for e in equities):
+        # Bug fix: _trend() vracia consecutive roky v SMERE trendu (growing AJ declining).
+        # Detail text musí zodpovedať smeru — "rastúci" pre growing, "klesajúci" pre declining.
+        _eq_detail_key = "insolvency_years_growing" if eq_trend == "growing" else "insolvency_years_decline"
         trends.append({
             "label": i18n_strings.get("insolvency_equity_trend"),
             "direction": trend_label_map.get(eq_trend, eq_trend),
-            "detail": i18n_strings.get("insolvency_years_decline", "").format(n=eq_decline_years) if eq_decline_years > 0 else "",
+            "detail": i18n_strings.get(_eq_detail_key, "").format(n=eq_decline_years) if eq_decline_years > 0 else "",
             "is_negative": eq_trend == "declining",
         })
     if any(r is not None for r in revenues):
+        _rev_detail_key = "insolvency_years_growing" if rev_trend == "growing" else "insolvency_years_decline"
         trends.append({
             "label": i18n_strings.get("insolvency_revenue_trend"),
             "direction": trend_label_map.get(rev_trend, rev_trend),
-            "detail": i18n_strings.get("insolvency_years_decline", "").format(n=rev_decline_years) if rev_decline_years > 0 else "",
+            "detail": i18n_strings.get(_rev_detail_key, "").format(n=rev_decline_years) if rev_decline_years > 0 else "",
             "is_negative": rev_trend == "declining",
         })
     if debt_ratios:
+        # Pre zadlženosť: growing = zlé (is_negative=True), declining = dobré
+        _debt_detail_key = "insolvency_years_growing" if debt_trend == "growing" else "insolvency_years_decline"
         trends.append({
             "label": i18n_strings.get("insolvency_debt_trend"),
             "direction": trend_label_map.get(debt_trend, debt_trend),
-            "detail": i18n_strings.get("insolvency_years_growing", "").format(n=debt_grow_years) if debt_grow_years > 0 else "",
+            "detail": i18n_strings.get(_debt_detail_key, "").format(n=debt_grow_years) if debt_grow_years > 0 else "",
             "is_negative": debt_trend == "growing",
         })
     if any(p is not None for p in profits):
@@ -2257,7 +2267,7 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
     return pdf_path
 
 async def generate_forensic_pdf_report(
-    ico: str, 
+    ico: str,
     sources: Optional[list] = None,
     start_pages_map: Optional[dict] = None,
     total_pages: int = 0,
@@ -2268,6 +2278,22 @@ async def generate_forensic_pdf_report(
 ):
     logger.info(f"Generujem HTML/PDF report pre IČO: {ico} (report_language={report_language})")
     db = get_db()
+
+    # Fallback: ak generated_at alebo total_pages chýbajú (napr. pri priamom volaní
+    # bez PdfCompiler), doplníme rozumné defaulty, aby cover page nezobrazovala
+    # prázdne hodnoty ("Vygenerované: " / "Počet strán: 0").
+    if not generated_at:
+        from datetime import datetime
+        try:
+            from zoneinfo import ZoneInfo
+            generated_at = datetime.now(ZoneInfo("Europe/Bratislava")).strftime("%d.%m.%Y %H:%M:%S")
+        except Exception:
+            generated_at = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+        logger.warning(f"[REPORT] generated_at bol prázdny — fallback na {generated_at}")
+    if total_pages <= 0:
+        # Odhad: cover page (7-8) + divider (1) + zdroje (0 ak žiadne)
+        total_pages = 8
+        logger.warning(f"[REPORT] total_pages bol 0 — fallback na {total_pages}")
 
     try:
         company = await db.company.find_unique(

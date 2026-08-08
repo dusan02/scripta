@@ -980,6 +980,64 @@ async def run_and_save_audit_verdict(
         logger.error(f"Chyba pri generovaní AuditVerdict pre IČO {ico}: {e}", exc_info=True)
 
 
+# ── Anti-halucinácia pre naratívne texty ──────────────────────────────────
+# LLM narrative agent môže z výročnej správy extrahovať konkrétne finančné
+# metriky (EBITDA, zisk, tržby), ktoré sa líšia od deterministických výpočtov
+# v reporte (iná metodika, iné úpravy). Tieto hodnoty nahradzujeme kvalitatívnym
+# vyjadrením, aby v reporte neboli konfliktné čísla.
+_METRIC_PATTERNS = [
+    # "EBITDA 103 miliónov EUR" / "EBITDA 103 mil. €" / "EBITDA 103 miliónov"
+    (re.compile(r'(EBITDA)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
+    # "zisk 56 miliónov EUR" / "čistý zisk 56 mil. €"
+    (re.compile(r'((?:čistý\s+)?zisk)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
+    # "tržby 7 miliárd EUR" / "tržby 7 mld. €"
+    (re.compile(r'(tržby)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
+    # "ROE 17%" / "ROE 17,39%"
+    (re.compile(r'(ROE)\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # "marža 6,68%" / "EBITDA marža 6,68%"
+    (re.compile(r'((?:EBITDA\s+)?marž[ae])\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+]
+
+
+def _strip_narrative_financial_metrics(narrative) -> None:
+    """
+    Očistí naratívne textové polia od konkrétnych finančných metrík.
+    Pôsobí in-place na NarrativeRiskAnalysis objekte.
+    """
+    text_fields = [
+        'synthesis', 'management_changes', 'litigation_risks',
+        'planned_investments', 'profitability_explanation',
+    ]
+    modified = False
+    for field in text_fields:
+        val = getattr(narrative, field, None)
+        if not val or not isinstance(val, str):
+            continue
+        original = val
+        for pattern, replacement in _METRIC_PATTERNS:
+            val = pattern.sub(replacement, val)
+        if val != original:
+            setattr(narrative, field, val)
+            modified = True
+    # forensic_red_flags je list[str]
+    flags = getattr(narrative, 'forensic_red_flags', None)
+    if flags and isinstance(flags, list):
+        new_flags = []
+        for flag in flags:
+            if not isinstance(flag, str):
+                new_flags.append(flag)
+                continue
+            original = flag
+            for pattern, replacement in _METRIC_PATTERNS:
+                flag = pattern.sub(replacement, flag)
+            new_flags.append(flag)
+        if new_flags != flags:
+            narrative.forensic_red_flags = new_flags
+            modified = True
+    if modified:
+        logger.info(f"[NARRATIVE] Očistené konkrétne finančné metriky z naratívneho textu")
+
+
 def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str], ico: str) -> dict:
     """
     Deterministická anti-halucinácia: skenuje verdict text pre konkrétne EUR sumy
@@ -1331,6 +1389,7 @@ async def process_company(
                     report_language=report_language,
                 )
                 if narrative:
+                    _strip_narrative_financial_metrics(narrative)
                     logger.info(f"[NARRATIVE OK] {file_name} → DB uložené")
                     await save_narrative_to_db(ico, narrative_year, narrative)
                 else:

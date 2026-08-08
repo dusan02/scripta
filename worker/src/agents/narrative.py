@@ -27,6 +27,7 @@ Tvoje pravidlá:
 6. Analyzuj výkyvy zisku: Hľadaj pasáže, kde manažment vysvetľuje zníženie zisku alebo cash-flow. Ak firma vykazuje dlhodobú ziskovosť, hľadaj náznaky budúcich rizík (napr. zmena trhu, strata kľúčového zákazníka).
 7. VÝSTUPNÝ JAZYK: Všetky textové polia (synthesis, forensic_red_flags, atď.) píš v slovenčine.
 8. KONZISTENCIA: Nikdy nepíš v jednom poli "žiadne zmeny" a v inom poli uvádzaj konkrétnu zmenu. Ak uvádzaš nového člena predstavenstva v management_changes, nesmíš v rovnakom texte tvrdiť, že nedošlo k žiadnym zmenám.
+9. FINANČNÉ METRIKY: Neuvádzaj konkrétne číselné hodnoty finančných metrík (EBITDA, čistý zisk, tržby, marže, ROE) v textových poliach. Tieto sa vypočítavajú deterministicky v reporte a sa môžu líšiť od hodnôt vo výročnej správe (iná metodika, iné úpravy). Namiesto toho používaj kvalitatívne vyjadrenia (napr. "silná ziskovosť", "pokles tržieb", "pozitívne finančné výsledky", "stabilná EBITDA").
 
 PRÍKLAD VÝSTUPU (JSON):
 {
@@ -49,6 +50,7 @@ Your rules:
 6. Analyze profit fluctuations: Look for passages where management explains profit or cash-flow decline. If the company shows long-term profitability, look for signs of future risks (e.g. market change, loss of key customer).
 7. OUTPUT LANGUAGE: Write all text fields (synthesis, forensic_red_flags, etc.) in English.
 8. CONSISTENCY: Never write "no changes" in one field while mentioning a specific change in another. If you report a new board member in management_changes, you must not claim no changes occurred in the same text.
+9. FINANCIAL METRICS: Do not state specific numerical values of financial metrics (EBITDA, net profit, revenue, margins, ROE) in text fields. These are computed deterministically in the report and may differ from annual report values (different methodology, different adjustments). Use qualitative statements instead (e.g. "strong profitability", "revenue decline", "positive financial results", "stable EBITDA").
 
 EXAMPLE OUTPUT (JSON):
 {
@@ -71,6 +73,7 @@ Ihre Regeln:
 6. Analysieren Sie Gewinnschwankungen: Suchen Sie nach Passagen, in denen das Management Gewinn- oder Cash-Flow-Rückgänge erklärt.
 7. AUSGABESPRACHE: Schreiben Sie alle Textfelder (synthesis, forensic_red_flags, etc.) auf Deutsch.
 8. KONSISTENZ: Schreiben Sie nie „keine Änderungen“ in einem Feld und erwähnen Sie gleichzeitig eine konkrete Änderung in einem anderen. Wenn Sie ein neues Vorstandsmitglied in management_changes erwähnen, dürfen Sie nicht behaupten, dass keine Änderungen stattgefunden haben.
+9. FINANZKENNZAHLEN: Geben Sie keine konkreten Zahlenwerte von Finanzkennzahlen (EBITDA, Reingewinn, Umsatz, Margen, ROE) in Textfeldern an. Diese werden deterministisch im Bericht berechnet und können sich von den Werten im Geschäftsbericht unterscheiden (andere Methodik, andere Anpassungen). Verwenden Sie stattdessen qualitative Aussagen (z.B. „starke Rentabilität“, „Umsatzrückgang“, „positive finanzielle Ergebnisse“, „stabile EBITDA“).
 
 BEISPIELAUSGABE (JSON):
 {
@@ -93,6 +96,7 @@ Tvá pravidla:
 6. Analyzuj výkyvy zisku: Hledej pasáže, kde management vysvětluje snížení zisku nebo cash-flow. Pokud firma vykazuje dlouhodobou ziskovost, hledej náznaky budoucích rizik (např. změna trhu, ztráta klíčového zákazníka).
 7. VÝSTUPNÍ JAZYK: Všechny textová pole (synthesis, forensic_red_flags, atd.) piš v češtině.
 8. KONZISTENCE: Nikdy nepiš v jednom poli "žádné změny" a v jiném poli uváděj konkrétní změnu. Pokud uvádíš nového člena představenstva v management_changes, nesmíš v stejném textu tvrdit, že nedošlo k žádným změnám.
+9. FINANČNÍ METRIKY: Neuváděj konkrétní číselné hodnoty finančních metrik (EBITDA, čistý zisk, tržby, marže, ROE) v textových polích. Tyto se počítají deterministicky v reportu a mohou se lišit od hodnot ve výroční zprávě (jiná metodika, jiné úpravy). Místo toho používej kvalitativní vyjádření (např. "silná ziskovost", "pokles tržeb", "pozitivní finanční výsledky", "stabilní EBITDA").
 
 PŘÍKLAD VÝSTUPU (JSON):
 {

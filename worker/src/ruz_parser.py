@@ -606,8 +606,16 @@ def parse_tables_to_metrics(
         mzdove_naklady = _fix_thousands(mzdove_naklady, trzby, "mzdove_naklady")
         # dane_a_poplatky je prirodzene malá hodnota (typicky 0.05-0.5% tržieb)
         # — heuristika < 0.1% by falošne označila legitímne hodnoty za tisíce EUR
-        # zisk_pred_zdanenim môže byť legitímne < 0.1% tržieb pre low-margin firmy
-        # (retail, komodity) — rovnaký falošný pozitív ako dane_a_poplatky
+        # zisk_pred_zdanenim, dan_z_prijmu a uroky: pre veľké firmy (>100M € tržby)
+        # je hodnota < 0.1% tržieb takmer isto v tisícoch EUR. Heuristika
+        # abs(val)*1000 <= ref*2 zabraňuje falošným pozitívam (napr. pre low-margin
+        # firmy s reálne malým PBT by ×1000 prevýšilo tržby).
+        # Bug: bez tejto opravy vznikal mismatch jednotiek — PBT v tisícoch EUR,
+        # ale dan_z_prijmu v EUR → efektívna daňová sadzba 24 087% namiesto 24%.
+        zisk_pred_zdanenim = _fix_thousands(zisk_pred_zdanenim, trzby, "zisk_pred_zdanenim")
+        dan_z_prijmu_val = _fix_thousands(dan_z_prijmu_val, trzby, "dan_z_prijmu")
+        uroky = _fix_thousands(uroky, trzby, "uroky")
+        vysledok_z_fin_cinnosti = _fix_thousands(vysledok_z_fin_cinnosti, trzby, "vysledok_z_fin_cinnosti")
 
     # ── Apply unit multiplier (EUR vs tisíce EUR) ──
     if unit_multiplier != 1.0:

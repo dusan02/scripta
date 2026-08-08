@@ -464,7 +464,15 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         ratios["negative_equity"] = equity < 0
         # Equity Ratio (samofinancovací pomer) — % aktív financovaných vlastným kapitálom.
         # Na rozdiel od D/E je zrozumiteľnejší pre nefinanciera.
-        ratios["equity_ratio_pct"] = _safe_pct(equity, total_assets) if total_assets > 0 else None
+        # Sanitizácia: ak equity > total_assets (účtovne nemožné — súvaha sa nevyrovnáva),
+        # equity ratio je nonsensical. Typicky ide o chybu v RÚZ dátach (nekonzistentné
+        # jednotky alebo chýbajúce položky aktív). Namiesto 3477% zobrazujeme None.
+        if total_assets > 0 and equity > total_assets:
+            ratios["equity_ratio_pct"] = None
+            ratios["balance_sheet_anomaly"] = True
+        else:
+            ratios["equity_ratio_pct"] = _safe_pct(equity, total_assets) if total_assets > 0 else None
+            ratios["balance_sheet_anomaly"] = False
 
         # ── Rentabilita ──
         ratios["net_profit_margin_pct"] = _safe_pct(net_profit, revenue)
@@ -490,8 +498,14 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         # EBITDA = net_profit + tax + |interest| + depreciation
         # Daň z príjmov sa musí prirátať (EBITDA je pred zdanením).
         # Náklady na úroky (interest) môžu byť v DB uložené ako záporné — prirátavame absolútnu hodnotu.
+        # Bug fix: ak netProfitLoss chýba (None), EBITDA nie je 0 — je neznáma (None).
+        # Bez tejto ochrany by EBITDA = 0+0+0+0 = 0, čo je mätúce pre firmy s tržbami.
         income_tax = _get(stmt, 'incomeTax', 0) or 0
-        ratios["ebitda"] = round(net_profit + income_tax + abs(interest) + depreciation, 0)
+        _net_profit_raw = _get(stmt, 'netProfitLoss', None)
+        if _net_profit_raw is not None:
+            ratios["ebitda"] = round(net_profit + income_tax + abs(interest) + depreciation, 0)
+        else:
+            ratios["ebitda"] = None
         if ratios["ebitda"] is not None and revenue > 0:
             ratios["ebitda_margin_pct"] = round((ratios["ebitda"] / revenue) * 100, 2)
         else:
@@ -1876,6 +1890,7 @@ def compute_yoy_summary_table(statements: list, i18n_strings: dict = None) -> di
         ("yoy_depreciation", "depreciation", "cost"),
         ("yoy_interest_expense", "interestExpense", "cost"),
         ("yoy_income_tax", "incomeTax", "cost"),
+        ("yoy_profit_before_tax", "profitBeforeTax", "profit"),
     ]
 
     rows = []
