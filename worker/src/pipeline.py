@@ -1122,6 +1122,15 @@ _METRIC_PATTERNS = [
     (re.compile(r'\(-\s*(?=[,.;]|\s|$)', re.IGNORECASE), ''),
     # "dosiahlo." → odstrániť dangling "dosiahlo." na konci vety bez predmetu
     (re.compile(r'\s+dosiahlo\s*\.', re.IGNORECASE), '.'),
+    # ── Cleanup: dangling verbs/predicates po EUR strippingu (deploy v9c) ──
+    # "tržby. Firma" → "tržby. Firma" (OK — "tržby" končí vetu, bodka je legit)
+    # "stúpli . Tento" → "stúpli. Tento" (medzera pred bodkou — cleanup)
+    (re.compile(r'\s+\.'), '.'),
+    # "zisk za rok 2025 je, ale" → "zisk za rok 2025 je, ale" → "zisk za rok 2025, ale"
+    # "je" bez predmetu pred čiarkou = dangling
+    (re.compile(r'\s+je(?=\s*,\s*(?:ale|a|avšak|pričom)\b)', re.IGNORECASE), ''),
+    # "je – kvôli" → " kvôli" (dangling "je –" bez hodnoty)
+    (re.compile(r'\s+je\s+[–-]\s+', re.IGNORECASE), ' '),
 ]
 
 
