@@ -1023,6 +1023,14 @@ _METRIC_PATTERNS = [
     (re.compile(r'((?:čistý\s+)?zisk)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
     # "tržby 7 miliárd EUR" / "tržby 7 mld. €"
     (re.compile(r'(tržby)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
+    # "vlastné imanie 4,7 mil. EUR" / "vlastné imanie 2,05 mil. EUR"
+    (re.compile(r'(vlastné\s+imanie)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
+    # "hotovosti 4,46 mil. EUR" / "pohľadávkach 4,46 mil. EUR"
+    (re.compile(r'(hotovost[ei]?|pohľadávka[ch]?)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
+    # "na úroveň 25,5 mil. EUR" → "na úroveň"
+    (re.compile(r'\s+na\s+úroveň\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), ''),
+    # "osobných nákladov (1,88 mil. EUR)" → "osobných nákladov"
+    (re.compile(r'\(?\s*\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?\)?', re.IGNORECASE), ''),
     # "ROE 17%" / "ROE 17,39%"
     (re.compile(r'(ROE)\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
     # "marža 6,68%" / "EBITDA marža 6,68%"
@@ -1058,6 +1066,12 @@ _METRIC_PATTERNS = [
     (re.compile(r'(pokles|nárast|rast|zmena|poklese|náraste)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
     # "pokles tržieb o 19,24%" → "pokles tržieb"
     (re.compile(r'(pokles|nárast|rast)\s+(tržieb|tržb[yea])\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1 \2'),
+    # "poklesov (o 20,54% v roku 2023 a o 18,63% v roku 2024)" → "poklesov"
+    (re.compile(r'(poklesov|nárastov|rastov|poklesy|nárasty|rasty)\s+\(?\s*o\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}\s+a\s+o\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}\)?', re.IGNORECASE), r'\1'),
+    # "oživenie o 10,84% na úroveň" → "oživenie"
+    (re.compile(r'(oživenie|zotavenie|rast|nárast)\s+o\s+\d[\d.,]*\s*%\s+na\s+úroveň', re.IGNORECASE), r'\1'),
+    # "prepade čistého zisku o 96,47% v roku 2024" → "prepade čistého zisku"
+    (re.compile(r'(prepade|poklese|náraste|raste)\s+(čistého\s+)?zisku\s+o\s+\d[\d.,]*\s*%\s*v\s+roku\s+\d{4}', re.IGNORECASE), r'\1 \2zisku'),
     # ── Cleanup: dangling particles po odstránení čísel ──
     # "z  na" → "" (leftover po "z X EUR na Y EUR")
     (re.compile(r'\s+z\s+na\s+', re.IGNORECASE), ' '),
