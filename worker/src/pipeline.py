@@ -986,6 +986,7 @@ async def run_and_save_audit_verdict(
 # v reporte (iná metodika, iné úpravy). Tieto hodnoty nahradzujeme kvalitatívnym
 # vyjadrením, aby v reporte neboli konfliktné čísla.
 _METRIC_PATTERNS = [
+    # ── Patterny s "miliónov/mil./mld." prponou ──
     # "EBITDA 103 miliónov EUR" / "EBITDA 103 mil. €" / "EBITDA 103 miliónov"
     (re.compile(r'(EBITDA)\s+\d[\d\s.,]*\s*(?:miliónov[a]?|mil\.|mld\.|miliárd[a]?)\s*(?:EUR|€|Eur)?', re.IGNORECASE), r'\1'),
     # "zisk 56 miliónov EUR" / "čistý zisk 56 mil. €"
@@ -996,6 +997,50 @@ _METRIC_PATTERNS = [
     (re.compile(r'(ROE)\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
     # "marža 6,68%" / "EBITDA marža 6,68%"
     (re.compile(r'((?:EBITDA\s+)?marž[ae])\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # ── Surové EUR hodnoty (bez mil./mld. prpony) ──
+    # Odstráni akékoľvek číslo s EUR/€ prponou, bez ohľadu na predchádzajúce slovo.
+    # "1 132 711 EUR" / "15 593 EUR" / "−26 361 EUR" / "44 586 EUR"
+    (re.compile(r'[−-]?\d[\d\s]{2,}\s*(?:EUR|€)', re.IGNORECASE), ''),
+    # "na 1 132 711 EUR" → odstráni aj "na" pred číslom
+    (re.compile(r'\s+na\s+[−-]?\d[\d\s]{2,}\s*(?:EUR|€)', re.IGNORECASE), ''),
+    # ── Percentá po finančných kľúčových slovách (s textom medzi) ──
+    # "CAGR ... 34,41 %" / "CAGR tržieb dosahuje 34,41 %"
+    (re.compile(r'(CAGR)\s+[^%]{0,40}?\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # "vlastné imanie ... 71,86 %" / "vlastné imanie medziročne vzrástlo o 71,86 %"
+    (re.compile(r'(vlastné\s+imanie)\s+[^%]{0,40}?\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # "tržby ... 7,23 %" (YoY rast/pokles)
+    (re.compile(r'(tržb[ya])\s+[^%]{0,30}?\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # ── Raw čísla po "záväzky" (bez EUR prpony) ──
+    # "záväzky zo sociálneho poistenia 13 401" / "záväzky voči zamestnancom 22 139"
+    (re.compile(r'(záväzky(?:\s+(?:zo\s+|voči\s+|z\s+)?[a-zA-Zäöüščťžýáíé\s]*?))\s+\d[\d\s]{3,}(?!\s*(?:EUR|€|%|\.|,))', re.IGNORECASE), r'\1'),
+    # ── Špecifické patterny ──
+    # "Altman Z'' 6,31" / "Altman Z skóre ... 6,31" / "Altman Z' 6,31"
+    (re.compile(r"(Altman\s+Z[''\u2032]*\s*(?:skóre\s+)?)\s+[^.]{0,30}?\d[\d.,]*", re.IGNORECASE), r'Altman Z'),
+    # "Current ratio 2,50" / "Current ratio dosahuje hodnotu 2,50"
+    (re.compile(r'(Current\s+ratio)\s+[^.]{0,30}?\d[\d.,]*', re.IGNORECASE), r'\1'),
+    # "D/E 0,77" / "D/E na nízkej úrovni 0,77"
+    (re.compile(r'(D/E)\s+[^.]{0,30}?\d[\d.,]*', re.IGNORECASE), r'\1'),
+    # "stúpli o 7,23 %" / "klesli o 5,2 %" → "stúpli" / "klesli"
+    (re.compile(r'(stúpl[aiy]?|klesl[aiy]?|vzrástl[aiy]?|poklesl[aiy]?)\s+o\s+\d[\d.,]*\s*%', re.IGNORECASE), r'\1'),
+    # ── Cleanup: dangling particles po odstránení čísel ──
+    # "z  na" → "" (leftover po "z X EUR na Y EUR")
+    (re.compile(r'\s+z\s+na\s+', re.IGNORECASE), ' '),
+    # "na , a" → ", a" (leftover po "na X EUR, a")
+    (re.compile(r'\s+na\s+,', re.IGNORECASE), ','),
+    # "z  " → " " (leftover po "z X EUR")
+    (re.compile(r'\s+z\s+(?=[,.]|\s+(?:na|a|ale|pri|v|s)\b)', re.IGNORECASE), ' '),
+    # "()" → "" (leftover po "(−26 361 EUR)")
+    (re.compile(r'\(\s*\)'), ''),
+    # "  " → " " (double spaces)
+    (re.compile(r'  +'), ' '),
+    # " ," → "," a " ." → "." (medzera pred bodkou/čiarkou)
+    (re.compile(r'\s+([,.])'), r'\1'),
+    # " % ," → "% ," (medzera pred %)
+    (re.compile(r'\s+%', re.IGNORECASE), '%'),
+    # "(z na )" → "" (leftover po "z X na Y")
+    (re.compile(r'\(z\s+na\s*\)', re.IGNORECASE), ''),
+    # "z na" → "" (bez zátvorky)
+    (re.compile(r'\bz\s+na\b', re.IGNORECASE), ''),
 ]
 
 

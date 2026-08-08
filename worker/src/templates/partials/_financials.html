@@ -728,6 +728,11 @@
         <p class="report-body-sm text-amber-800 font-medium">{{ i18n.warning_non_standard_months }}</p>
     </div>
     {% endif %}
+    {% if has_balance_imbalance %}
+    <div class="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="report-body-sm text-amber-800 font-medium">{{ i18n.warning_balance_imbalance }}</p>
+    </div>
+    {% endif %}
     {% if balance_chart_base64 %}
     <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3 mt-2">
         <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="{{ i18n.balance_chart_alt }}" class="max-w-full h-auto" style="height: 160px;">
@@ -794,7 +799,15 @@
             {% set eq = stmt.equity if stmt.equity is defined else none %}
             {% set stl = stmt.shortTermLiabilities if stmt.shortTermLiabilities is defined else none %}
             {% set ltl = stmt.longTermLiabilities if stmt.longTermLiabilities is defined else none %}
+            {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
+            {# Súvaha sa musí vyrovnať: Aktíva = Pasíva.
+               Preferujeme totalAssets (ak je dostupné), aby sa zabránilo rounding rozdielom
+               medzi individuálne zaokrúhlenými komponentmi a raw súčtom. #}
             {% set total_liab = (eq or 0) + (stl or 0) + (ltl or 0) if (eq is not none or stl is not none or ltl is not none) else none %}
+            {% if ta is not none and total_liab is not none and (ta - total_liab)|abs < 5000 %}
+            {# Ak je rozdiel < 5k €, ide o rounding artefakt — zobraz totalAssets #}
+            {% set total_liab = ta %}
+            {% endif %}
             <td class="py-0.5 px-2 text-right font-bold" style="color: #94a3b8;">{% if total_liab is not none %}{{ total_liab | format_number_millions }}{% else %}—{% endif %}</td>
             {% endfor %}
             </tr>

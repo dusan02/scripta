@@ -86,7 +86,11 @@ _CF_FIELDS = ("operatingCashFlow", "investingCashFlow", "financingCashFlow")
 
 def sanitize_cash_flow_fields(stmt: Union[Dict[str, Any], Any]) -> None:
     """Konvertuje 0 → None pre cash flow polia. Funguje na dict aj Prisma objektoch.
-    Volá sa in-place (modifikuje vstup)."""
+    Volá sa in-place (modifikuje vstup).
+
+    Bonus: sanity check pre investičný a finančný CF — ak abs(CF) > totalAssets,
+    ide o podozrivú LLM extrakciu (napr. 450k investičný CF pri 220k aktívach).
+    V takom prípade nastavíme na None."""
     for cf_field in _CF_FIELDS:
         if isinstance(stmt, dict):
             if stmt.get(cf_field) == 0:
@@ -94,6 +98,19 @@ def sanitize_cash_flow_fields(stmt: Union[Dict[str, Any], Any]) -> None:
         else:
             if getattr(stmt, cf_field, None) == 0:
                 setattr(stmt, cf_field, None)
+    # Sanity check: investičný/finančný CF > totalAssets je podozrivý
+    _total_assets = _get(stmt, 'totalAssets', None)
+    if _total_assets and _total_assets > 0:
+        for cf_field in ('investingCashFlow', 'financingCashFlow'):
+            _cf_val = _get(stmt, cf_field, None)
+            if _cf_val is not None and abs(float(_cf_val)) > float(_total_assets):
+                # Pridaj len log, ale neprepisuj — môže to byť legitímne (predaj majetku)
+                # Namiesto toho prepíšeme len extrémne prípady (> 1.5× totalAssets)
+                if abs(float(_cf_val)) > float(_total_assets) * 1.5:
+                    if isinstance(stmt, dict):
+                        stmt[cf_field] = None
+                    else:
+                        setattr(stmt, cf_field, None)
 
 
 def estimate_missing_cash_flow(stmts: list) -> bool:
@@ -1837,6 +1854,10 @@ def compute_yoy_summary_table(statements: list, i18n_strings: dict = None) -> di
 
     def _pct(curr, prev) -> Optional[float]:
         if curr is None or prev is None or prev == 0:
+            return None
+        # Materiality threshold: ak obe hodnoty sú < 1000 €, YoY % je nezmyselné
+        # (napr. 100→263 EUR = +163%, ale obe sa zobrazujú ako 0,00 mil. €)
+        if abs(curr) < 1000 and abs(prev) < 1000:
             return None
         return round(((curr - prev) / abs(prev)) * 100, 1)
 

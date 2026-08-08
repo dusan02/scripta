@@ -3,6 +3,31 @@ Internationalization strings for PDF report generation.
 Supports: sk (Slovak), en (English), de (German).
 """
 
+
+def sk_plural_roky(n: int) -> str:
+    """Slovak pluralization for 'rok' (year).
+    1 → 'rok', 2-4 → 'roky', 5+ → 'rokov', 0 → 'rokov'.
+    """
+    if n == 1:
+        return "rok"
+    elif 2 <= n <= 4:
+        return "roky"
+    else:
+        return "rokov"
+
+
+def sk_plural_najdene(n: int) -> str:
+    """Slovak pluralization for 'nájdené' (found).
+    1 → 'nájdené', 2-4 → 'nájdené', 5+ → 'nájdených', 0 → 'nájdených'.
+    """
+    if n == 1:
+        return "nájdené"
+    elif 2 <= n <= 4:
+        return "nájdené"
+    else:
+        return "nájdených"
+
+
 I18N_STRINGS = {
     "sk": {
         # Cover page
@@ -50,6 +75,7 @@ I18N_STRINGS = {
         "employees": "zamestnancov",
         "warning_mixed_consolidation": "Upozornenie: Mix individuálnych a konsolidovaných závierok — YoY porovnanie môže byť skreslené.",
         "warning_non_standard_months": "Upozornenie: Niektoré obdobia nezodpovedajú 12 mesiacom. Porovnanie môže byť skreslené.",
+        "warning_balance_imbalance": "Upozornenie: Súvaha nie je vyrovnaná — aktíva sa nezhodujú s pasívami. Dáta z RÚZ môžu byť neúplné (chýbajúce kategórie záväzkov).",
         "chart_unavailable_short_history": "Graf vývoja nie je k dispozícii — firma má len 1 účtovnú závierku. Trendové grafy vyžadujú minimálne 2 roky dát.",
         "values_in_millions": "Hodnoty v mil. € — zdroj: RÚZ",
         "col_item": "Položka",
@@ -831,6 +857,7 @@ I18N_STRINGS = {
         "employees": "employees",
         "warning_mixed_consolidation": "Warning: Mix of individual and consolidated statements — YoY comparison may be skewed.",
         "warning_non_standard_months": "Warning: Some periods do not cover 12 months. Comparison may be skewed.",
+        "warning_balance_imbalance": "Warning: Balance sheet is not balanced — assets do not match liabilities. RÚZ data may be incomplete (missing liability categories).",
         "chart_unavailable_short_history": "Development chart unavailable — company has only 1 financial statement. Trend charts require at least 2 years of data.",
         "values_in_millions": "Values in €M — source: RÚZ",
         "col_item": "Item",
@@ -1607,6 +1634,7 @@ I18N_STRINGS = {
         "employees": "Mitarbeiter",
         "warning_mixed_consolidation": "Warnung: Mix aus Einzel- und Konzernabschlüssen — YoY-Vergleich kann verzerrt sein.",
         "warning_non_standard_months": "Warnung: Einige Perioden umfassen nicht 12 Monate. Vergleich kann verzerrt sein.",
+        "warning_balance_imbalance": "Warnung: Bilanz nicht ausgeglichen — Aktiva stimmen nicht mit Passiva überein. RÚZ-Daten können unvollständig sein (fehlende Verbindlichkeitskategorien).",
         "chart_unavailable_short_history": "Entwicklungsdiagramm nicht verfügbar — Unternehmen hat nur 1 Jahresabschluss. Trenddiagramme erfordern mindestens 2 Jahre Daten.",
         "values_in_millions": "Werte in Mio. € — Quelle: RÚZ",
         "col_item": "Posten",
@@ -2375,6 +2403,7 @@ I18N_STRINGS = {
     "employees": "zaměstnanců",
     "warning_mixed_consolidation": "Upozornění: Mix individuálních a konsolidovaných závěrek — YoY porovnání může být zkresleno.",
     "warning_non_standard_months": "Upozornění: Některá období neodpovídají 12 měsícům. Porovnání může být zkresleno.",
+    "warning_balance_imbalance": "Upozornění: Rozvaha není vyrovnaná — aktiva se neshodují s pasivy. Data z RÚZ mohou být neúplná (chybějící kategorie závazků).",
     "chart_unavailable_short_history": "Graf vývoje není k dispozici — firma má jen 1 účetní závěrku. Trendové grafy vyžadují minimálně 2 roky dat.",
     "values_in_millions": "Hodnoty v mil. € — zdroj: RÚZ",
     "col_item": "Položka",
@@ -3081,6 +3110,7 @@ I18N_STRINGS = {
     "employees": "munkavállalók",
     "warning_mixed_consolidation": "Figyelmeztetés: Egyedi és konszolidált kimutatások keveréke – az éves (YoY) összehasonlítás torzulhat.",
     "warning_non_standard_months": "Figyelmeztetés: Bizonyos időszakok nem fedik le a 12 hónapot. Az összehasonlítás torzulhat.",
+    "warning_balance_imbalance": "Figyelmeztetés: A mérleg nincs egyensúlyban — az eszközök nem egyeznek a forrásokkal. A RÚZ adatai hiányosak lehetnek (hiányzó kötelezettség-kategóriák).",
     "chart_unavailable_short_history": "A fejlődési diagram nem érhető el – a vállalatnak csak 1 pénzügyi kimutatása van. A trenddiagramokhoz legalább 2 év adata szükséges.",
     "values_in_millions": "Értékek millió euróban (€M) – forrás: RÚZ",
     "col_item": "Tétel",
@@ -3787,6 +3817,7 @@ I18N_STRINGS = {
     "employees": "pracownicy",
     "warning_mixed_consolidation": "Ostrzeżenie: Mieszanka sprawozdań jednostkowych i skonsolidowanych – porównanie r/r może być zaburzone.",
     "warning_non_standard_months": "Ostrzeżenie: Niektóre okresy nie obejmują 12 miesięcy. Porównanie może być zaburzone.",
+    "warning_balance_imbalance": "Ostrzeżenie: Bilans nie jest zrównoważony — aktywa nie zgadzają się z pasywami. Dane z RÚZ mogą być niekompletne (brakujące kategorie zobowiązań).",
     "chart_unavailable_short_history": "Wykres rozwoju niedostępny – spółka ma tylko 1 sprawozdanie finansowe. Wykresy trendów wymagają danych z co najmniej 2 lat.",
     "values_in_millions": "Wartości w mln € – źródło: RÚZ",
     "col_item": "Pozycja",

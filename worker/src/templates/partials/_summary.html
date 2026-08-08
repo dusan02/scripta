@@ -81,7 +81,7 @@
                 <p class="report-caption font-medium" style="color: {{ cat.color }};">{{ cat.label }}</p>
                 <p class="report-caption" style="color: {{ cat.color }};">{{ cat.severity_label }}</p>
                 {% if cat.count > 0 %}
-                <p class="report-caption text-slate-400">{{ i18n.fraud_flags_found.replace('{n}', cat.count|string) }}</p>
+                <p class="report-caption text-slate-400">{{ cat.count_label }}</p>
                 {% else %}
                 <p class="report-caption text-slate-400">{{ i18n.fraud_no_flags }}</p>
                 {% endif %}

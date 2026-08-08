@@ -13,7 +13,7 @@ from xml.sax.saxutils import escape as xml_escape
 
 from playwright.async_api import async_playwright
 from jinja2 import Environment, FileSystemLoader
-from src.i18n import get_i18n_strings
+from src.i18n import get_i18n_strings, sk_plural_roky, sk_plural_najdene
 from src.db_client import get_db
 from src.infographics import generate_pl_infographic, generate_balance_sheet_infographic, generate_cashflow_waterfall
 
@@ -259,6 +259,8 @@ def format_findings(source, i18n=None) -> str:
     raw = re.sub(r'^Chyba pri generovaní PDF[^:]*:\s*Page\.\w+:\s*', 'Register dočasne nedostupný — ', raw)
     # FS scraper — link not found means the state portal changed its layout
     raw = re.sub(r'^Nepodarilo sa nájsť link\s*["„].*["„]\.', 'Register nedostupný — štátny portál zmenil layout.', raw)
+    # Semafor queue timeout — scraper čakal príliš dlho na semafor
+    raw = re.sub(r'Scraper čakal príliš dlho na semafor \(\d+s\)\.?', 'Register dočasne nedostupný — prekročený časový limit.', raw)
     raw = sanitize_llm_text(raw)
 
     # ── Comprehensive scraper findings translation ──
@@ -860,6 +862,31 @@ def compute_insolvency_score(stmts, i18n_strings):
         "growing": i18n_strings.get("insolvency_growing"),
     }
 
+    def _trend_detail(detail_key: str, n: int, lang: str = "sk") -> str:
+        """Vráti detail text trendu so správnou pluralizáciou 'rok/roky/rokov'."""
+        if n <= 0:
+            return ""
+        tmpl = i18n_strings.get(detail_key, "")
+        if not tmpl:
+            return ""
+        # Slovak pluralization: nahraď "roky" za "rok/roky/rokov" podľa n
+        if lang == "sk":
+            roky = sk_plural_roky(n)
+            # Pattern: "{n} roky rastúci" → f"{n} {roky} rastúci"
+            return tmpl.replace("{n} roky", f"{n} {roky}", 1)
+        return tmpl.format(n=n)
+
+    _lang = "sk"  # default
+    if "insolvency_low" in i18n_strings:
+        # Detekcia jazyka z existujúcich kľúčov
+        if i18n_strings.get("insolvency_low", "").lower().startswith("low"):
+            _lang = "en"
+        elif i18n_strings.get("insolvency_low", "").lower().startswith("nied"):
+            _lang = "de"
+        elif i18n_strings.get("insolvency_low", "").lower().startswith("níz"):
+            _lang = "cs"
+        elif i18n_strings.get("insolvency_low", "").lower().startswith("alac"):
+            _lang = "hu"
     trends = []
     if any(e is not None for e in equities):
         # Bug fix: _trend() vracia consecutive roky v SMERE trendu (growing AJ declining).
@@ -868,7 +895,7 @@ def compute_insolvency_score(stmts, i18n_strings):
         trends.append({
             "label": i18n_strings.get("insolvency_equity_trend"),
             "direction": trend_label_map.get(eq_trend, eq_trend),
-            "detail": i18n_strings.get(_eq_detail_key, "").format(n=eq_decline_years) if eq_decline_years > 0 else "",
+            "detail": _trend_detail(_eq_detail_key, eq_decline_years, _lang),
             "is_negative": eq_trend == "declining",
         })
     if any(r is not None for r in revenues):
@@ -876,7 +903,7 @@ def compute_insolvency_score(stmts, i18n_strings):
         trends.append({
             "label": i18n_strings.get("insolvency_revenue_trend"),
             "direction": trend_label_map.get(rev_trend, rev_trend),
-            "detail": i18n_strings.get(_rev_detail_key, "").format(n=rev_decline_years) if rev_decline_years > 0 else "",
+            "detail": _trend_detail(_rev_detail_key, rev_decline_years, _lang),
             "is_negative": rev_trend == "declining",
         })
     if debt_ratios:
@@ -885,7 +912,7 @@ def compute_insolvency_score(stmts, i18n_strings):
         trends.append({
             "label": i18n_strings.get("insolvency_debt_trend"),
             "direction": trend_label_map.get(debt_trend, debt_trend),
-            "detail": i18n_strings.get(_debt_detail_key, "").format(n=debt_grow_years) if debt_grow_years > 0 else "",
+            "detail": _trend_detail(_debt_detail_key, debt_grow_years, _lang),
             "is_negative": debt_trend == "growing",
         })
     if any(p is not None for p in profits):
@@ -893,14 +920,14 @@ def compute_insolvency_score(stmts, i18n_strings):
             trends.append({
                 "label": i18n_strings.get("insolvency_profit_trend"),
                 "direction": i18n_strings.get("insolvency_declining"),
-                "detail": i18n_strings.get("insolvency_years_loss", "").format(n=loss_years),
+                "detail": _trend_detail("insolvency_years_loss", loss_years, _lang),
                 "is_negative": True,
             })
         else:
             trends.append({
                 "label": i18n_strings.get("insolvency_profit_trend"),
                 "direction": trend_label_map.get(profit_trend, profit_trend),
-                "detail": i18n_strings.get("insolvency_years_profit", "").format(n=profit_years),
+                "detail": _trend_detail("insolvency_years_profit", profit_years, _lang),
                 "is_negative": profit_trend == "declining",
             })
     if len(altman_values) >= 2:
@@ -953,6 +980,14 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             "none": ("fraud_severity_none", "#94a3b8", "#f8fafc"),
         }
         label_key, color, bg = sev_map.get(severity, sev_map["none"])
+        # Slovak pluralization pre "nájdených" → "nájdené" pre 1-4
+        count_label = i18n_strings.get("fraud_flags_found", "{n} nájdených")
+        if count > 0:
+            # Skúsime detekovať jazyk a aplikovať SK pluralizáciu
+            if "nájdených" in count_label:
+                count_label = f"{count} {sk_plural_najdene(count)}"
+            else:
+                count_label = count_label.replace("{n}", str(count))
         categories.append({
             "label": i18n_strings.get(cat_key, cat_key),
             "severity": severity,
@@ -960,6 +995,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             "color": color,
             "bg": bg,
             "count": count,
+            "count_label": count_label,
             "details": details or [],
         })
 
@@ -1457,6 +1493,25 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     gross_profit_estimated = False
     estimated_gp_years = set()
 
+    # Sanity check: ak LLM extrahoval zápornú hrubú maržu, ale EBITDA je kladná,
+    # ide o chybu extrakcie (LLM pravdepodobne vzal "výsledok z hospodárskej činnosti"
+    # namiesto skutočného gross profit). Hrubá marža by mala byť > EBITDA.
+    # V takom prípade nastavíme grossProfit na None a použijeme fallback výpočet.
+    for stmt in (stmts or []):
+        gp = getattr(stmt, 'grossProfit', None)
+        if gp is not None and gp < 0:
+            revenue = getattr(stmt, 'mainActivityRevenue', None) or 0
+            depreciation = getattr(stmt, 'depreciation', None) or 0
+            net_profit = getattr(stmt, 'netProfitLoss', None)
+            # EBITDA ≈ netProfit + interest + tax + depreciation (hrubý odhad)
+            # Ak je EBITDA kladná (alebo netProfit + depreciation > 0), záporná hrubá marža je podozrivá
+            ebitda_proxy = (net_profit or 0) + depreciation
+            if ebitda_proxy > 0 and revenue > 0:
+                # Hrubá marža by mala byť >= EBITDA (lebo EBITDA = GP - opex + dep)
+                # Ak je GP < 0 a EBITDA > 0, ide o extrakčnú chybu
+                setattr(stmt, 'grossProfit', None)
+                stmt._gross_profit_invalidated = True
+
     for stmt in (stmts or []):
         if getattr(stmt, 'grossProfit', None) is None:
             revenue = getattr(stmt, 'mainActivityRevenue', None)
@@ -1558,17 +1613,33 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     balance_chart_base64 = ""
     has_mixed_consolidation = False
     has_non_standard_months = False
-    
+    has_balance_imbalance = False
+
     if stmts:
         is_cons_set = set(getattr(s, 'isConsolidated', False) for s in stmts)
         if len(is_cons_set) > 1:
             has_mixed_consolidation = True
-            
+
         for s in stmts:
             months = getattr(s, 'monthsInPeriod', 12)
             if months is not None and months != 12:
                 has_non_standard_months = True
                 break
+
+        # Detekcia súvahovej nevyrovnanosti: |Aktíva - (Equity + STL + LTL)| > 5% aktív
+        for s in stmts:
+            ta = _to_float(getattr(s, 'totalAssets', None))
+            eq = _to_float(getattr(s, 'equity', None))
+            stl = _to_float(getattr(s, 'shortTermLiabilities', None))
+            ltl = _to_float(getattr(s, 'longTermLiabilities', None))
+            if ta and ta > 0 and eq is not None and stl is not None and ltl is not None:
+                total_liab = eq + stl + ltl
+                imbalance = abs(ta - total_liab)
+                if imbalance > ta * 0.05:  # > 5% of total assets = significant
+                    has_balance_imbalance = True
+                    logger.warning(f"[BALANCE] Súvaha nevyrovnaná pre rok {getattr(s, 'year', '?')}: "
+                                   f"Aktíva={ta:.0f} vs Pasíva={total_liab:.0f} (diff={imbalance:.0f})")
+                    break
 
     has_short_history = bool(stmts) and len(stmts) < 2
 
@@ -2151,6 +2222,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "has_mixed_consolidation": has_mixed_consolidation,
         "has_non_standard_months": has_non_standard_months,
         "has_short_history": has_short_history,
+        "has_balance_imbalance": has_balance_imbalance,
         "piotroski_score": piotroski_result.get("score"),
         "piotroski_flags": piotroski_result.get("flags", []),
         "beneish_m_score": beneish_m_score,
