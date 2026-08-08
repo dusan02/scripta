@@ -44,6 +44,7 @@ Pravidlá:
 - Neporovnávaj presné formátovanie (medzery, čiarky). Porovnávaj hodnoty.
 - Ak verdikt spomína "bez záznamu" a v zdrojoch naozaj nie sú dáta, je to OK.
 - Slovenčina vo všetkých textoch.
+- PLACEHOLDRE: Text môže obsahovať {{PLACEHOLDER}} tagy (napr. {{REVENUE}}, {{OCF}}, {{ALTMAN_Z}}). Tieto tagy NIE SÚ chyba — sú intenčné a systém ich nahradí presnými hodnotami z DB. NEoznačuj ich ako discrepancy.
 
 QUALITY_SCORE výpočet (0-100):
 - Začni od 100.
@@ -76,6 +77,7 @@ Rules:
 - Don't compare exact formatting (spaces, commas). Compare values.
 - If verdict mentions "no records" and source data indeed has none, that's OK.
 - English in all texts.
+- PLACEHOLDERS: Text may contain {{PLACEHOLDER}} tags (e.g. {{REVENUE}}, {{OCF}}, {{ALTMAN_Z}}). These tags are NOT errors — they are intentional and the system will replace them with precise values from DB. Do NOT flag them as discrepancies.
 
 QUALITY_SCORE calculation (0-100):
 - Start from 100.

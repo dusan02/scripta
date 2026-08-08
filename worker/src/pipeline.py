@@ -992,7 +992,7 @@ async def run_and_save_audit_verdict(
         _es_raw = verdict_payload.get('executiveSummary', '') or ''
         _es_has_placeholders = '{{' in _es_raw
         logger.info(
-            f"[{report_request_id}] inject_metrics: placeholders={_ph_count}, "
+            f"[{ico}] inject_metrics: placeholders={_ph_count}, "
             f"stmts={len(_stmts_for_ph)}, statutar={_statutar_count}, "
             f"es_has_placeholders={_es_has_placeholders}, "
             f"es_sample={_es_raw[:120]!r}"
