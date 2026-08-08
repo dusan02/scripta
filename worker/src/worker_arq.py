@@ -11,6 +11,9 @@ import sentry_sdk
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("arq_worker")
 
+# Utlmiť aiohttp.access health check noise (GET /health každých 10s)
+logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
+
 # Sentry DSN init
 sentry_dsn = os.getenv("SENTRY_DSN")
 if sentry_dsn:

@@ -482,6 +482,20 @@ def parse_tables_to_metrics(
     peniaze = _get_activ_value(ordered, ROW_CASH)
     pohladavky = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES)
 
+    # ── Cash fallback: ak riadok 72 (Peniaze) je 0 alebo None, skús alternatívne riadky ──
+    # Niektoré firmy (najmä veľké akciové spoločnosti) vykazujú hotovosť na riadku 71
+    # (Finančné účty) alebo 66 (Krátkodobý finančný majetok súčet) namiesto 72.
+    if not peniaze or peniaze == 0:
+        _alt_cash = _get_activ_value(ordered, ROW_FINANCIAL_ACCOUNTS)  # riadok 71
+        if _alt_cash and _alt_cash > 0:
+            logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: cash fallback riadok 71 (Finančné účty) = {_alt_cash}")
+            peniaze = _alt_cash
+        else:
+            _alt_cash2 = _get_activ_value(ordered, ROW_ST_FINANCIAL_ASSETS)  # riadok 66
+            if _alt_cash2 and _alt_cash2 > 0:
+                logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: cash fallback riadok 66 (Krátkodobý fin. majetok) = {_alt_cash2}")
+                peniaze = _alt_cash2
+
     # ── Asset composition (extended fields — only for template 699) ──
     neobezny_majetok = None
     dlhodoby_nehmotny_majetok = None

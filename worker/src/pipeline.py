@@ -1131,6 +1131,22 @@ _METRIC_PATTERNS = [
     (re.compile(r'\s+je(?=\s*,\s*(?:ale|a|avšak|pričom)\b)', re.IGNORECASE), ''),
     # "je – kvôli" → " kvôli" (dangling "je –" bez hodnoty)
     (re.compile(r'\s+je\s+[–-]\s+', re.IGNORECASE), ' '),
+    # ── Cleanup: dangling fragments z Heineken reportu (deploy v9d) ──
+    # "na úrovni" → "" (leftover po "na úroveň X mil. €" — "úroveň" sa zmení na "úrovni" pri páde)
+    (re.compile(r'\s+na\s+úrovni(?=\s*[,.;]|\s+(?:ale|a|avšak|pričom|čo|ktor|v|s|na|firma|spoločnosť|prevádzkový)\b)', re.IGNORECASE), ''),
+    # "(nárast , čo" → ", čo" (leftover "(nárast X mil. €, čo" — zátvorka + nárast bez hodnoty)
+    (re.compile(r'\(\s*nárast\s*,', re.IGNORECASE), ','),
+    # "nárast ," → "," (dangling "nárast" bez hodnoty pred čiarkou)
+    (re.compile(r'\s+nárast\s*,(?=\s*(?:čo|a|ale|pričom)\b)', re.IGNORECASE), ','),
+    # "dosiahol, zatiaľ čo" → ", zatiaľ čo" (dangling "dosiahol" bez hodnoty)
+    (re.compile(r'\s+dosiahol\s*,\s*(?=(?:zatiaľ|čo|pričom|ale|a)\b)', re.IGNORECASE), ', '),
+    # "nad predstavuje" → "predstavuje" (leftover "nad X mil. € predstavuje")
+    (re.compile(r'\s+nad\s+(?=(?:predstavuje|ukazuje|svedčí|indikuje)\b)', re.IGNORECASE), ' '),
+    # "vysoko pozitívny na úrovni" → "vysoko pozitívny" (dangling "na úrovni" bez hodnoty)
+    (re.compile(r'\s+na\s+úrovni\s*$', re.IGNORECASE), ''),
+    # "hotovosti" na konci vety bez hodnoty → odstrániť dangling kontext
+    # "na úrovni." → "." (na konci vety)
+    (re.compile(r'\s+na\s+úrovni\s*\.', re.IGNORECASE), '.'),
 ]
 
 

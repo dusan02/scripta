@@ -371,6 +371,17 @@ async def _execute_report_inner(task: ReportTask) -> None:
             if still_failed:
                 _log.warning(f"[{_rid}] Scrapery stále zlyhané po {retry_pass + 1} retry passoch ({_retry_elapsed:.0f}s): {still_failed}")
 
+            # Pipeline-level retry metrics summary
+            _initial_failed = sum(1 for s in sources if s.status in ("FAILED", "UNAVAILABLE"))
+            _final_success = sum(1 for s in sources if s.status == "SUCCESS")
+            if retry_pass > 0 or _initial_failed > 0:
+                _recovered = sum(1 for s in sources if s.status == "SUCCESS") - (len(sources) - _initial_failed)
+                _log.info(
+                    f"[{_rid}] Pipeline retry summary: passes={retry_pass + 1}, "
+                    f"initial_failed={_initial_failed}, recovered={max(0, _recovered)}, "
+                    f"still_failed={len(still_failed)}, elapsed={_retry_elapsed:.0f}s"
+                )
+
             await upsert_report_sources(task.report_request_id, sources)
 
             # Reset retry metrics pre ďalší report

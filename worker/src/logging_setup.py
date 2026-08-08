@@ -62,3 +62,5 @@ def setup_logging(level: int = logging.INFO) -> None:
     logging.getLogger("google_genai").setLevel(logging.WARNING)
     # asyncio: "Future exception was never retrieved" spam
     logging.getLogger("asyncio").setLevel(logging.WARNING)
+    # aiohttp.access: health check logy každých 10s = noise
+    logging.getLogger("aiohttp.access").setLevel(logging.WARNING)

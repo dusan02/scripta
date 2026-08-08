@@ -1144,7 +1144,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
         altman = altman_result.get('z_score')
         if altman is not None and float(altman) < 1.1:
             fin_sev = "critical"
-            fin_details.append(i18n_strings.get("heatmap_altman_distress", "Altman Z'' = {val} (Krizóna)").format(val=f"{altman:.2f}"))
+            fin_details.append(i18n_strings.get("heatmap_altman_distress", "Altman Z'' = {val} (Núdzová zóna)").format(val=f"{altman:.2f}"))
         elif altman is not None and float(altman) < 2.6:
             if fin_sev == "none":
                 fin_sev = "medium"
