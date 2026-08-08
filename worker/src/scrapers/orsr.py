@@ -9,7 +9,7 @@ from typing import Optional
 import httpx
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper, ScraperUnavailableError
+from .base import BaseScraper, ScraperUnavailableError, TransientHTTPError, retry_async_call
 from ..models import ScrapedSource, PersonInfo, ACADEMIC_TITLES, ZIP_RE
 
 logger = logging.getLogger(__name__)
@@ -167,33 +167,26 @@ class OrsrScraper(BaseScraper):
 
     async def _fetch_with_retry(self, client: httpx.AsyncClient, url: str) -> str:
         """Fetch URL with unified retry on transient errors (timeout, 5xx, 429).
-        Používa exponential backoff s jitterom z unified retry helpera."""
-        import random as _rand
-        attempts = _HTTP_RETRIES + 1  # 3 pokusy
-        for attempt in range(1, attempts + 1):
-            try:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    return resp.content.decode(_ORSR_ENCODING, errors="replace")
-                if resp.status_code >= 500 or resp.status_code == 429:
-                    if attempt < attempts:
-                        # Exponential backoff s jitterom; 3x delay pre 429 (rate limit)
-                        delay = _HTTP_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
-                        if resp.status_code == 429:
-                            delay *= 3
-                        logger.warning(f"[{self.source_type}] HTTP {resp.status_code} (attempt {attempt}/{attempts}), retry za {delay:.1f}s")
-                        await asyncio.sleep(delay)
-                        continue
-                resp.raise_for_status()
+        Používa retry_async_call z unified retry helpera."""
+        async def _do_fetch() -> str:
+            resp = await client.get(url)
+            if resp.status_code == 200:
                 return resp.content.decode(_ORSR_ENCODING, errors="replace")
-            except httpx.TimeoutException:
-                if attempt < attempts:
-                    delay = _HTTP_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
-                    logger.warning(f"[{self.source_type}] Timeout (attempt {attempt}/{attempts}), retry za {delay:.1f}s")
-                    await asyncio.sleep(delay)
-                    continue
-                raise
-        raise httpx.HTTPError(f"Failed after {attempts} attempts: {url}")
+            if resp.status_code >= 500 or resp.status_code == 429:
+                raise TransientHTTPError(
+                    f"HTTP {resp.status_code}",
+                    status_code=resp.status_code,
+                    rate_limited=(resp.status_code == 429),
+                )
+            resp.raise_for_status()
+            return resp.content.decode(_ORSR_ENCODING, errors="replace")
+
+        return await retry_async_call(
+            _do_fetch,
+            source_type=self.source_type,
+            max_attempts=_HTTP_RETRIES + 1,
+            base_delay=_HTTP_RETRY_DELAY,
+        )
 
     async def _fetch_search_page(self, client: httpx.AsyncClient, ico: str) -> str:
         """Fetch the search results page for given IČO."""

@@ -9,7 +9,7 @@ from typing import Optional
 import httpx
 from playwright.async_api import Page
 
-from .base import BaseScraper, ScraperUnavailableError
+from .base import BaseScraper, ScraperUnavailableError, TransientHTTPError, retry_async_call
 from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
@@ -76,8 +76,7 @@ class RozhodnutiaScraper(BaseScraper):
     _BASE_URL = "https://www.justice.gov.sk/sudy-a-rozhodnutia/sudy/rozhodnutia/"
 
     async def _fetch_api(self, ico: str) -> dict:
-        """Stiahne rozhodnutia z ISU API cez httpx s unified retry logikou."""
-        import random as _rand
+        """Stiahne rozhodnutia z ISU API cez httpx s unified retry_async."""
         params = {
             "page": 1,
             "size": 50,
@@ -87,57 +86,40 @@ class RozhodnutiaScraper(BaseScraper):
         }
         headers = {"User-Agent": "Mozilla/5.0 (compatible; Verifa/1.0)"}
 
-        attempts = _API_RETRIES + 1  # 3 pokusy
-        for attempt in range(1, attempts + 1):
-            try:
-                async with httpx.AsyncClient(
-                    timeout=_API_TIMEOUT, headers=headers, follow_redirects=True
-                ) as client:
-                    resp = await client.get(_API_URL, params=params)
+        async def _do_fetch() -> dict:
+            async with httpx.AsyncClient(
+                timeout=_API_TIMEOUT, headers=headers, follow_redirects=True
+            ) as client:
+                resp = await client.get(_API_URL, params=params)
 
-                    if resp.status_code == 200:
-                        try:
-                            return resp.json()
-                        except json.JSONDecodeError:
-                            logger.error(f"[{self.source_type}] Neplatný JSON z API (attempt {attempt}/{attempts})")
-                            if attempt < attempts:
-                                delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
-                                await asyncio.sleep(delay)
-                                continue
-                            return {}
+                if resp.status_code == 200:
+                    try:
+                        return resp.json()
+                    except json.JSONDecodeError:
+                        # Neplatný JSON = transient (server môže vrátiť chybovú stránku)
+                        raise TransientHTTPError("Neplatný JSON z ISU API")
 
-                    # Retryable errors
-                    if resp.status_code >= 500 or resp.status_code == 429:
-                        if attempt < attempts:
-                            delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
-                            if resp.status_code == 429:
-                                delay *= 3
-                            logger.warning(
-                                f"[{self.source_type}] API HTTP {resp.status_code} (attempt {attempt}/{attempts}), retry za {delay:.1f}s"
-                            )
-                            await asyncio.sleep(delay)
-                            continue
+                if resp.status_code >= 500 or resp.status_code == 429:
+                    raise TransientHTTPError(
+                        f"API HTTP {resp.status_code}",
+                        status_code=resp.status_code,
+                        rate_limited=(resp.status_code == 429),
+                    )
 
-                    logger.error(f"[{self.source_type}] API HTTP {resp.status_code}: {resp.text[:200]}")
-                    return {}
+                # 4xx = permanent, ne-retryujeme
+                logger.error(f"[{self.source_type}] API HTTP {resp.status_code}: {resp.text[:200]}")
+                return {}
 
-            except httpx.TimeoutException:
-                logger.warning(f"[{self.source_type}] API timeout (attempt {attempt}/{attempts})")
-                if attempt < attempts:
-                    delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
-                    await asyncio.sleep(delay)
-                    continue
-                raise ScraperUnavailableError("ISU API timeout")
-
-            except httpx.HTTPError as e:
-                logger.warning(f"[{self.source_type}] API network error (attempt {attempt}/{attempts}): {e}")
-                if attempt < attempts:
-                    delay = _API_RETRY_DELAY * (2 ** (attempt - 1)) * _rand.uniform(0.7, 1.3)
-                    await asyncio.sleep(delay)
-                    continue
-                raise ScraperUnavailableError(f"ISU API network error: {e}")
-
-        return {}
+        try:
+            return await retry_async_call(
+                _do_fetch,
+                source_type=self.source_type,
+                max_attempts=_API_RETRIES + 1,
+                base_delay=_API_RETRY_DELAY,
+            )
+        except ScraperUnavailableError as e:
+            logger.error(f"[{self.source_type}] API exhausted: {e}")
+            return {}
 
     async def run(
         self, *, ico: str, output_dir: Path, rozhodnutia_date_from: Optional[str] = None, **kwargs

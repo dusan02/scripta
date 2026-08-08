@@ -1,14 +1,13 @@
 from __future__ import annotations
 import asyncio
 import logging
-import random
 import re
 from pathlib import Path
 from typing import Literal, Optional
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
-from .base import BaseScraper, ScraperUnavailableError
+from .base import BaseScraper, ScraperUnavailableError, retry_async_call
 from ..config import settings
 from ..models import ScrapedSource
 
@@ -104,37 +103,31 @@ class DoveraDlzniciScraper(BaseScraper):
             await self._generate_clean_pdf(page, pdf_output, title="Zoznam dlžníkov Dôvera")
             return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message=f"Subjekt {ico} je v zozname dlžníkov Dôvery.", findings=findings)
 
-        # Wrap with unified retry + overall timeout per attempt
-        last_result = None
-        for attempt in range(1, _MAX_RETRIES + 1):
-            try:
-                result = await asyncio.wait_for(
-                    self._run_debtor_scraper(_scrape, unavailable_msg="Register Dôvery je nedostupný"),
-                    timeout=_SCRAPER_TIMEOUT,
-                )
-                # If we got a SUCCESS (even with fallback PDF), return it
-                if result.status == "SUCCESS":
-                    return result
-                last_result = result
-                logger.warning(f"[{self.source_type}] Pokus {attempt}/{_MAX_RETRIES} vrátil {result.status}, skúšam znova...")
-            except asyncio.TimeoutError:
-                logger.warning(f"[{self.source_type}] Timeout pokus {attempt}/{_MAX_RETRIES} ({_SCRAPER_TIMEOUT}s)")
-                last_result = self._make_result(status="FAILED", status_message=f"Dôvera: prekročený timeout ({attempt}. pokus).")
-            except Exception as e:
-                logger.warning(f"[{self.source_type}] Chyba pokus {attempt}/{_MAX_RETRIES}: {e}")
-                last_result = self._make_result(status="FAILED", status_message=f"Dôvera: chyba ({attempt}. pokus).")
+        # Wrap with unified retry_async_call + overall timeout per attempt
+        async def _do_scrape() -> ScrapedSource:
+            result = await asyncio.wait_for(
+                self._run_debtor_scraper(_scrape, unavailable_msg="Register Dôvery je nedostupný"),
+                timeout=_SCRAPER_TIMEOUT,
+            )
+            if result.status == "SUCCESS":
+                return result
+            # Non-success = retryable (register môže vrátiť chybu, ktorá prejde pri retry)
+            raise ScraperUnavailableError(f"Dôvera: pokus vrátil {result.status}")
 
-            if attempt < _MAX_RETRIES:
-                # Exponential backoff s jitterom (unified)
-                delay = _RETRY_DELAY * (2 ** (attempt - 1)) * random.uniform(0.7, 1.3)
-                await asyncio.sleep(delay)
-
-        # All retries exhausted — return UNAVAILABLE with user-friendly message
-        logger.error(f"[{self.source_type}] Všetky {_MAX_RETRIES} pokusy zlyhali pre IČO {ico}")
-        return self._make_result(
-            status="UNAVAILABLE",
-            status_message="Dôvera: dočasne nedostupné — skúste vygenerovať report znovu.",
-        )
+        try:
+            return await retry_async_call(
+                _do_scrape,
+                source_type=self.source_type,
+                max_attempts=_MAX_RETRIES,
+                base_delay=_RETRY_DELAY,
+            )
+        except ScraperUnavailableError:
+            # All retries exhausted — return UNAVAILABLE with user-friendly message
+            logger.error(f"[{self.source_type}] Všetky {_MAX_RETRIES} pokusy zlyhali pre IČO {ico}")
+            return self._make_result(
+                status="UNAVAILABLE",
+                status_message="Dôvera: dočasne nedostupné — skúste vygenerovať report znovu.",
+            )
 
     async def _try_click(self, page: Page, role: Literal["button", "link"], name: str, timeout: int = 3000) -> bool:
         try:

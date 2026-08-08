@@ -49,7 +49,8 @@ def get_retry_metrics() -> dict[str, dict[str, int]]:
 
 
 def log_retry_metrics() -> None:
-    """Zaloguje súhrn retry metrík (volaj na konci pipeline alebo periodicke)."""
+    """Zaloguje súhrn retry metrík (volaj na konci pipeline alebo periodicke).
+    Loguje do štandardného loggera (ktorý sa už persistuje do súboru v produkcii)."""
     for src, m in _RETRY_METRICS.items():
         if m["retries"] > 0 or m["exhausted"] > 0:
             logger.info(
@@ -57,6 +58,11 @@ def log_retry_metrics() -> None:
                 f"retries={m['retries']} recoveries={m['recoveries']} "
                 f"exhausted={m['exhausted']} permanent_skips={m['permanent_skips']}"
             )
+
+
+def reset_retry_metrics() -> None:
+    """Reset metrics po dokončení reportu (volaj z main.py po pipeline)."""
+    _RETRY_METRICS.clear()
 
 
 # ── Unified retry helper ──────────────────────────────────────────────
@@ -100,6 +106,9 @@ def _is_transient_error(exc: Exception) -> bool:
     # ScraperUnavailableError = transient (register down)
     if isinstance(exc, ScraperUnavailableError):
         return True
+    # ContentCheckError / TransientHTTPError = transient
+    if isinstance(exc, (ContentCheckError, TransientHTTPError)):
+        return True
     # Default: retry (safe side — lepšie skúsiť znova ako vzdať sa)
     return True
 
@@ -111,6 +120,17 @@ class ContentCheckError(Exception):
     def __init__(self, message: str, result: Any = None):
         super().__init__(message)
         self.result = result  # voliteľný result ktorý sa má vrátiť pri exhaust
+
+
+class TransientHTTPError(Exception):
+    """Raised for transient HTTP errors (5xx, 429) — retry má zmysel.
+    Používa sa v httpx-based scraperoch (ORSR, Rozhodnutia) kde retry_async
+    nevidí HTTP status code, len exception."""
+
+    def __init__(self, message: str, status_code: int = 0, rate_limited: bool = False):
+        super().__init__(message)
+        self.status_code = status_code
+        self.rate_limited = rate_limited
 
 
 def retry_async(
@@ -161,6 +181,9 @@ def retry_async(
                     _record_retry_metric(label, "retries")
                     # Exponential backoff: delay * 2^(attempt-1) * (1 ± jitter)
                     wait = delay * (2 ** (attempt - 1)) * random.uniform(1 - jitter, 1 + jitter)
+                    # Rate-limited (429)? 3x delay
+                    if isinstance(exc, TransientHTTPError) and exc.rate_limited:
+                        wait *= 3
                     logger.warning(
                         f"[{label}] {func.__name__} attempt {attempt}/{attempts} "
                         f"failed: {type(exc).__name__}: {exc} — retry in {wait:.1f}s"

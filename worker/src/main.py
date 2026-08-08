@@ -373,6 +373,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
             await upsert_report_sources(task.report_request_id, sources)
 
+            # Reset retry metrics pre ďalší report
+            from src.scrapers.base import reset_retry_metrics
+            reset_retry_metrics()
+
         _log.info(f"[{_rid}] Scraper lock released")
 
         company_name = _extract_company_name(sources, task.target_type)
