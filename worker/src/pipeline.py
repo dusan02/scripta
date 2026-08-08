@@ -970,6 +970,16 @@ async def run_and_save_audit_verdict(
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
 
+        # ── Anti-halucinácia: očisť verdict texty od konkrétnych finančných metrík ──
+        # Rovnaké _METRIC_PATTERNS ako pri narrative — LLM nesmie vypisovať
+        # konkrétne EUR hodnoty, percentá, indexy v executiveSummary/keyRisk.
+        for _vfield in ('executiveSummary', 'keyRisk', 'finalVerdict'):
+            _vtext = verdict_payload.get(_vfield, "")
+            if _vtext and isinstance(_vtext, str):
+                for _pat, _repl in _METRIC_PATTERNS:
+                    _vtext = _pat.sub(_repl, _vtext)
+                verdict_payload[_vfield] = _vtext
+
         # ── Deterministická anti-halucinácia: odstráň neoveriteľné dlhy z verdict textu ──
         # Ak LLM spomenie konkrétne sumy dlhov voči registrom, ktoré sú CLEAN,
         # tieto pasáže nahradíme varovaním o halucinácii.
