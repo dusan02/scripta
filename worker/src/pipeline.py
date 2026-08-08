@@ -1112,6 +1112,16 @@ _METRIC_PATTERNS = [
     # "kleslo v roku 2023 do roku 2025" → "kleslo z roku 2023 do roku 2025"
     # (dangling "v" namiesto "z" po strippingu EUR hodnôt)
     (re.compile(r'(klesl[ao]|stúpl[ao]|vzrástol[ao]|poklesl[ao]|narástol[ao]|stúp[ao]|klesám|stúpam)\s+v\s+roku\s+(\d{4})\s+do\s+roku\s+(\d{4})', re.IGNORECASE), r'\1 z roku \2 do roku \3'),
+    # ── Cleanup: dangling "na" po EUR strippingu (deploy v9b) ──
+    # "vzrástli na, ale" → "vzrástli, ale" (leftover po "na X mil. €")
+    # "Tržby na a vlastné" → "Tržby a vlastné" (leftover "na" pred spojkou)
+    (re.compile(r'\s+na(?=\s*[,.;]|\s+(?:ale|a|avšak|pričom|čo|ktor|v|s|na)\b)', re.IGNORECASE), ''),
+    # "rastú ešte rýchlejšie (" → "rastú ešte rýchlejšie" (dangling "(" po EUR strippingu)
+    (re.compile(r'\(\s*(?=[,.;]|\s+(?:ale|a|avšak|To|to|Toto|toto|Zisk|zisk|Peniaze|peniaze|Tento|tento)\b)', re.IGNORECASE), ''),
+    # "záporný (-" → "záporný" (dangling "(-" bez čísla)
+    (re.compile(r'\(-\s*(?=[,.;]|\s|$)', re.IGNORECASE), ''),
+    # "dosiahlo." → odstrániť dangling "dosiahlo." na konci vety bez predmetu
+    (re.compile(r'\s+dosiahlo\s*\.', re.IGNORECASE), '.'),
 ]
 
 
