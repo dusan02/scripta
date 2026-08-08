@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, getReplyToAddress } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
@@ -83,11 +83,9 @@ export async function POST(req: NextRequest) {
 
     // Poslať e-mail na info@verifa.sk s reply-to obsahujúcim userId používateľa
     try {
-      const inboundDomain = process.env.INBOUND_EMAIL_DOMAIN || "inbound.resend.app";
-      const replyTo = `reply+${user.id}@${inboundDomain}`;
       await sendEmail({
         to: "info@verifa.sk",
-        replyTo,
+        replyTo: getReplyToAddress(user.id),
         subject: `[Verifa.sk] ${title.trim()}`,
         text: `Od: ${user.email}\n\n${message.trim()}`,
         html: `<p><strong>Od:</strong> ${escapeHtml(user.email)}</p><p><strong>Predmet:</strong> ${escapeHtml(title.trim())}</p><hr><p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>`,
@@ -133,6 +131,41 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("PATCH /api/messages error", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const messageId = url.searchParams.get("id");
+
+    if (!messageId) {
+      return NextResponse.json({ error: "Message ID required" }, { status: 400 });
+    }
+
+    // Soft-delete — len správy patriace používateľovi alebo broadcast
+    const result = await prisma.userMessage.updateMany({
+      where: {
+        id: messageId,
+        OR: [{ userId: user.id }, { userId: null }],
+        deletedAt: null,
+      },
+      data: { deletedAt: new Date() },
+    });
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /api/messages error", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

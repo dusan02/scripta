@@ -70,6 +70,7 @@ function AdminMessagesContent() {
   const [composeBody, setComposeBody] = useState("");
   const [composeType, setComposeType] = useState("ANNOUNCEMENT");
   const [composeTarget, setComposeTarget] = useState("");
+  const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
@@ -92,6 +93,25 @@ function AdminMessagesContent() {
     fetchMessages();
   }, [filter]);
 
+  const resetCompose = () => {
+    setShowCompose(false);
+    setComposeTitle("");
+    setComposeBody("");
+    setComposeTarget("");
+    setComposeType("ANNOUNCEMENT");
+    setReplyToMessageId(null);
+  };
+
+  const startReply = (msg: AdminMessage) => {
+    const replyTitle = msg.title.startsWith("Re:") ? msg.title : `Re: ${msg.title}`;
+    setComposeTitle(replyTitle);
+    setComposeBody("");
+    setComposeType("REPLY");
+    setReplyToMessageId(msg.id);
+    setComposeTarget(msg.senderId || "");
+    setShowCompose(true);
+  };
+
   const sendMessage = async () => {
     if (!composeTitle.trim() || !composeBody.trim()) return;
     setSending(true);
@@ -104,14 +124,12 @@ function AdminMessagesContent() {
           message: composeBody,
           type: composeType,
           targetUserId: composeTarget.trim() || null,
+          replyToMessageId: replyToMessageId || undefined,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        setComposeTitle("");
-        setComposeBody("");
-        setComposeTarget("");
-        setShowCompose(false);
+        resetCompose();
         fetchMessages();
         if (data.emailSkipped) {
           setStatusMsg(t("admin.emailNeposlany"));
@@ -161,7 +179,7 @@ function AdminMessagesContent() {
           </p>
         </div>
         <button
-          onClick={() => setShowCompose(!showCompose)}
+          onClick={() => { resetCompose(); setShowCompose(!showCompose); }}
           className="px-4 py-2 rounded-lg text-sm font-semibold"
           style={{
             background: "var(--accent)",
@@ -192,7 +210,7 @@ function AdminMessagesContent() {
       {showCompose && (
         <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
           <h2 className="text-sm font-bold mb-4" style={{ color: "var(--text)" }}>
-            Poslať správu používateľom
+            {replyToMessageId ? "Odpovedať používateľovi" : "Poslať správu používateľom"}
           </h2>
           <div className="flex flex-col gap-4">
             <div>
@@ -210,15 +228,12 @@ function AdminMessagesContent() {
             </div>
             <div>
               <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>
-                Cieľový používateľ (User ID — prázdne = broadcast všetkým)
+                Cieľový používateľ (email — prázdne = broadcast všetkým)
               </label>
-              <input
-                type="text"
+              <UserSearchInput
                 value={composeTarget}
-                onChange={(e) => setComposeTarget(e.target.value)}
+                onChange={setComposeTarget}
                 placeholder={t("admin.zanechajtePrazdne")}
-                className="w-full px-3 py-2 rounded-lg text-sm border"
-                style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
               />
             </div>
             <div>
@@ -342,12 +357,103 @@ function AdminMessagesContent() {
               <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--text)" }}>
                 {msg.title}
               </h3>
-              <p className="text-xs whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+              <p className="text-xs whitespace-pre-wrap mb-2" style={{ color: "var(--text-secondary)" }}>
                 {msg.body}
               </p>
+              {filter === "inbox" && msg.type === "USER" && msg.senderId && (
+                <button
+                  onClick={() => startReply(msg)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg"
+                  style={{
+                    background: "var(--accent-light)",
+                    color: "var(--accent)",
+                    border: "1px solid var(--accent-border)",
+                    cursor: "pointer",
+                  }}
+                >
+                  ↩ Odpovedať
+                </button>
+              )}
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// User search input with email autocomplete — searches users by email via admin API
+function UserSearchInput({ value, onChange, placeholder }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const [results, setResults] = useState<{ id: string; email: string; name: string | null }[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [searchTimer, setSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  const search = (query: string) => {
+    onChange(query);
+    if (searchTimer) clearTimeout(searchTimer);
+    if (!query.trim() || query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/messages?search=${encodeURIComponent(query.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          setResults(data.users || []);
+          setShowResults(true);
+        }
+      } catch {}
+    }, 300);
+    setSearchTimer(timer);
+  };
+
+  const selectUser = (user: { id: string; email: string }) => {
+    onChange(user.id);
+    setShowResults(false);
+    setResults([]);
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => search(e.target.value)}
+        onFocus={() => { if (results.length > 0) setShowResults(true); }}
+        onBlur={() => setTimeout(() => setShowResults(false), 200)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 rounded-lg text-sm border"
+        style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+      />
+      {showResults && results.length > 0 && (
+        <div
+          className="absolute left-0 right-0 z-50 mt-1 rounded-lg shadow-lg overflow-hidden max-h-60 overflow-y-auto"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        >
+          {results.map((user) => (
+            <button
+              key={user.id}
+              onMouseDown={() => selectUser(user)}
+              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-muted)]"
+              style={{ color: "var(--text)", border: "none", background: "transparent", cursor: "pointer" }}
+            >
+              <span className="font-medium">{user.email}</span>
+              {user.name && (
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>— {user.name}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {value && !value.includes("@") && results.length === 0 && value.length >= 2 && (
+        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+          Zadajte email pre vyhľadanie používateľa
+        </p>
       )}
     </div>
   );

@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { logAdminAction } from "@/lib/audit";
-import { sendEmail, emailShell } from "@/lib/email";
+import { sendEmail, emailShell, getReplyToAddress } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 
 // GET — list all USER messages + all messages for admin
+//       ?search=email → search users by email (for compose target lookup)
 export async function GET(req: NextRequest) {
   try {
     const [, error] = await requireAdmin(req);
@@ -13,6 +14,20 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
     const filter = url.searchParams.get("filter") || "inbox";
+    const search = url.searchParams.get("search");
+
+    // User search by email (for compose target autocomplete)
+    if (search) {
+      const users = await prisma.user.findMany({
+        where: {
+          email: { contains: search.toLowerCase(), mode: "insensitive" },
+          deletedAt: null,
+        },
+        select: { id: true, email: true, name: true },
+        take: 10,
+      });
+      return NextResponse.json({ users });
+    }
 
     let where: Record<string, unknown> = { deletedAt: null };
     if (filter === "inbox") {
@@ -46,7 +61,7 @@ export async function POST(req: NextRequest) {
     if (error) return error;
 
     const body = await req.json();
-    const { title, message, type, targetUserId } = body;
+    const { title, message, type, targetUserId, replyToMessageId } = body;
 
     if (!title?.trim() || !message?.trim()) {
       return NextResponse.json(
@@ -55,14 +70,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const msgType = (type || "ANNOUNCEMENT") as "ANNOUNCEMENT" | "REPLY" | "SYSTEM";
+    // If replying to a specific user message, extract userId from it
+    let resolvedTargetUserId = targetUserId || null;
+    if (replyToMessageId && !resolvedTargetUserId) {
+      const originalMsg = await prisma.userMessage.findUnique({
+        where: { id: replyToMessageId },
+        select: { senderId: true, type: true },
+      });
+      if (originalMsg?.senderId && originalMsg.type === "USER") {
+        resolvedTargetUserId = originalMsg.senderId;
+      }
+    }
+
+    const msgType = (type || (replyToMessageId ? "REPLY" : "ANNOUNCEMENT")) as "ANNOUNCEMENT" | "REPLY" | "SYSTEM";
 
     // If targetUserId is provided, send to specific user; otherwise broadcast (userId = null)
     const msg = await prisma.userMessage.create({
       data: {
         type: msgType,
         senderId: adminUser.id,
-        userId: targetUserId || null,
+        userId: resolvedTargetUserId,
         title: title.trim().slice(0, 200),
         body: message.trim().slice(0, 5000),
       },
@@ -70,9 +97,9 @@ export async function POST(req: NextRequest) {
 
     // If targeted, send email notification
     let emailSkipped = false;
-    if (targetUserId) {
+    if (resolvedTargetUserId) {
       const targetUser = await prisma.user.findUnique({
-        where: { id: targetUserId },
+        where: { id: resolvedTargetUserId },
         select: { email: true, emailBounced: true, deletedAt: true },
       });
       if (!targetUser) {
@@ -88,8 +115,9 @@ export async function POST(req: NextRequest) {
             text: message.trim(),
             html: emailShell(`
               <p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>
-              <p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk.</p>
+              <p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk. Môžete odpovedať priamo na tento e-mail.</p>
             `),
+            replyTo: getReplyToAddress(resolvedTargetUserId),
           });
         } catch (emailErr) {
           console.error("Failed to send email to user", emailErr);
@@ -119,10 +147,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await logAdminAction(adminUser.id, "MESSAGE_SEND", targetUserId || null, {
+    await logAdminAction(adminUser.id, "MESSAGE_SEND", resolvedTargetUserId || null, {
       messageId: msg.id,
       type: msgType,
-      broadcast: !targetUserId,
+      broadcast: !resolvedTargetUserId,
+      replyTo: replyToMessageId || null,
       emailSkipped,
     }, req);
 

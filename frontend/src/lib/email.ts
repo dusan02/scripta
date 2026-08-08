@@ -3,6 +3,16 @@ import { emailShell, emailButton, emailButtonStyle } from "@/lib/emailTemplates"
 
 export { emailShell, emailButton, emailButtonStyle };
 
+/**
+ * Generate a reply-to address that encodes the userId for inbound email routing.
+ * When admin replies from their email client, Resend forwards to /api/email/inbound
+ * which extracts the userId and creates a REPLY message in the user's inbox.
+ */
+export function getReplyToAddress(userId: string): string {
+  const inboundDomain = process.env.INBOUND_EMAIL_DOMAIN || "inbound.resend.app";
+  return `reply+${userId}@${inboundDomain}`;
+}
+
 type SendEmailParams = {
   to: string;
   subject: string;
