@@ -1100,7 +1100,20 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
 
     equity_to_debt = last_z.get("components", {}).get("x4_equity_to_debt", None)
     debt_to_equity = last_ratios.get("debt_to_equity", None)
-    if equity_to_debt is None:
+    # Pre finančné inštitúcie Altman Z'' vracia N/A (bez komponentov),
+    # ale vlastné imanie môže byť kladné — overíme priamo z DB dát.
+    if is_financial_inst:
+        _eq = _get(sorted_stmts_raw[-1], "equity", None)
+        if _eq is not None and _eq > 0:
+            p1_raw += 12
+            de_str = f"{debt_to_equity:.2f}" if debt_to_equity is not None else "N/A"
+            p1_flags.append(f"Vlastné imanie: kladné (D/E = {de_str})")
+        elif _eq is not None and _eq < 0:
+            p1_flags.append(f"Vlastné imanie: ZÁPORNÉ — predĺženie")
+        else:
+            p1_raw += 6
+            p1_flags.append("Vlastné imanie: N/A")
+    elif equity_to_debt is None:
         p1_raw += 6
         p1_flags.append("Vlastné imanie: N/A")
     elif equity_to_debt > 0:
@@ -1240,9 +1253,18 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             p3_flags.append(f"Penalizácia: {consecutive_losses} roky strata")
 
         # Cash Flow (max 15)
+        # Finančné inštitúcie (banky, poisťovne): záporný prevádzkový CF je štandardný
+        # — vyplýva z financovania úverového portfólia a IFRS vykazovania.
+        # Neutralizujeme CF penalizáciu rovnako ako Altman Z a Current Ratio.
         op_cf_raw = _get(sorted_stmts_raw[-1], "operatingCashFlow", None)
         rev = _get(sorted_stmts_raw[-1], "mainActivityRevenue", 0) or 0
-        if op_cf_raw is not None:
+        if is_financial_inst:
+            p3_raw += 12  # neutrálne — CF sa nehodnotí pre banky/poisťovne
+            if op_cf_raw is not None and op_cf_raw < 0:
+                p3_flags.append(f"Cash Flow: N/A — finančná inštitúcia (záporný CF je štandardný pre bankový sektor)")
+            else:
+                p3_flags.append(f"Cash Flow: N/A — finančná inštitúcia (CF sa nehodnotí)")
+        elif op_cf_raw is not None:
             op_cf = op_cf_raw
             if op_cf > 0:
                 p3_raw += 7
@@ -1256,13 +1278,15 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         else:
             p3_raw += 7
             p3_flags.append("Cash Flow: N/A")
-            
-        cf_ratio = last_ratios.get("cashflow_to_profit")
-        if cf_ratio is not None and profitable_years > 0 and cf_ratio < 0:
-            p3_raw = max(0, p3_raw - 5)
-            p3_flags.append(f"⚠ Divergencia CF/Zisk: Záporný CF pri zisku")
-        elif cf_ratio is not None and profitable_years > 0 and 0 < cf_ratio < 1:
-            p3_flags.append(f"Pozn.: CF/Zisk = {cf_ratio:.1f}× — prevádzkové peňažné toky nepokrývajú čistý zisk v plnej miere (možný vplyv zmien pracovného kapitálu alebo odpisov)")
+
+        # CF/Zisk divergencia — len pre nefinančné inštitúcie
+        if not is_financial_inst:
+            cf_ratio = last_ratios.get("cashflow_to_profit")
+            if cf_ratio is not None and profitable_years > 0 and cf_ratio < 0:
+                p3_raw = max(0, p3_raw - 5)
+                p3_flags.append(f"⚠ Divergencia CF/Zisk: Záporný CF pri zisku")
+            elif cf_ratio is not None and profitable_years > 0 and 0 < cf_ratio < 1:
+                p3_flags.append(f"Pozn.: CF/Zisk = {cf_ratio:.1f}× — prevádzkové peňažné toky nepokrývajú čistý zisk v plnej miere (možný vplyv zmien pracovného kapitálu alebo odpisov)")
 
     p3_raw = max(0, min(30, p3_raw))
     p3_score = int(round((p3_raw / 30.0) * nace_w["P3"]))

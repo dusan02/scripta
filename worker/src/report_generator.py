@@ -270,6 +270,11 @@ def format_findings(source, i18n=None) -> str:
     # ── Fix double-dots from sentence concatenation artefacts ──
     raw = re.sub(r'\.\s*\.', '. ', raw).strip()
 
+    # ── Fix merged words from newline-joined findings ──
+    # Scraper findings sú joinované s \n, ale HTML rendering zrazí newlines.
+    # Nahradíme \n za " | " aby slová nezliepali (napr. "NCRZP.Číslo:" → "NCRZP. | Číslo:").
+    raw = re.sub(r'\n+', ' | ', raw).strip()
+
     # ── Append manual lookup URL for failed/unavailable sources ──
     if source.status in ("FAILED", "UNAVAILABLE"):
         url = _MANUAL_LOOKUP_URLS.get(source.source_type)
