@@ -2311,15 +2311,21 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
             except Exception:
                 pass
             await page.emulate_media(media="print")
-            await page.pdf(
-                path=pdf_path,
-                format="A4",
-                margin={"top": "12mm", "bottom": "18mm", "left": "0mm", "right": "0mm"},
-                print_background=True,
-                display_header_footer=False,
-                prefer_css_page_size=True,
-                timeout=120000,
-            )
+            try:
+                await asyncio.wait_for(
+                    page.pdf(
+                        path=pdf_path,
+                        format="A4",
+                        margin={"top": "12mm", "bottom": "18mm", "left": "0mm", "right": "0mm"},
+                        print_background=True,
+                        display_header_footer=False,
+                        prefer_css_page_size=True,
+                    ),
+                    timeout=120,
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"Playwright page.pdf() timeout (120s) — HTML pravdepodobne príliš veľký")
+                raise
         finally:
             # Explicit page close prevents resource leaks if PDF generation throws
             try:
