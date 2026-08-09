@@ -104,9 +104,37 @@ def _gemini_uploaded_file(client: genai.Client, file_path: str):
 # ── Token cost accumulator ────────────────────────────────────────────
 _token_stats: dict[str, dict] = {}
 
+# ── Fallback tracker (per-report) ─────────────────────────────────────
+_fallback_events: list[dict] = []
+
 def reset_token_stats() -> None:
     """Reset accumulator na začiatku nového reportu."""
     _token_stats.clear()
+    _fallback_events.clear()
+
+def record_fallback(label: str, original_model: str, fallback_model: str, reason: str) -> None:
+    """Zaznamená fallback udalosť pre neskoršie varovanie v reporte."""
+    from src.log_helpers import get_correlation_id
+    cid = get_correlation_id() or "-"
+    event = {
+        "label": label,
+        "original_model": original_model,
+        "fallback_model": fallback_model,
+        "reason": reason,
+    }
+    _fallback_events.append(event)
+    logger.warning(
+        f"[{cid}] MODEL FALLBACK: {label} {original_model} → {fallback_model} ({reason})"
+    )
+
+def get_fallback_events() -> list[dict]:
+    """Vráti zoznam fallback udalostí pre aktuálny report."""
+    return list(_fallback_events)
+
+def get_critical_fallbacks() -> list[dict]:
+    """Vráti fallbacky kritických agentov (Chief, Cross-Analysis, QA) — tie ovplyvňujú kvalitu obsahu."""
+    critical_keywords = ("Chief", "Cross-Analysis", "Report QA")
+    return [e for e in _fallback_events if any(k in e["label"] for k in critical_keywords)]
 
 def _log_tokens(model: str, usage, label: str) -> None:
     """Zaloguje spotrebu tokenov a odhadnuté náklady pre jedno LLM volanie."""

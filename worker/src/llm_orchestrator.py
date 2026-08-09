@@ -4,7 +4,7 @@ import time
 
 from src.config import settings
 from src.log_helpers import log_llm_retry, get_correlation_id
-from src.agents.shared import _mark_gemini_key_failed, _mark_last_key_failed
+from src.agents.shared import _mark_gemini_key_failed, _mark_last_key_failed, record_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -108,11 +108,17 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             _log_failed_call_cost(model, label, "error")
             raise
 
-    # Fallback 1: model_fallback (flash-lite)
-    for fb_model in (_FALLBACK_MODEL, _FALLBACK_MODEL_2):
-        if model == fb_model:
+    # Fallback: kritickí agenti (Chief, Cross-Analysis, QA) najprv na flash (kvalita),
+    # extractori na flash-lite (náklad). Druhý fallback je vždy slabší model.
+    _original_model = model
+    _critical_keywords = ("Chief", "Cross-Analysis", "Report QA")
+    _is_critical = any(k in label for k in _critical_keywords)
+    _fallback_chain = (_FALLBACK_MODEL_2, _FALLBACK_MODEL) if _is_critical else (_FALLBACK_MODEL, _FALLBACK_MODEL_2)
+    for fb_model in _fallback_chain:
+        if model == fb_model or _original_model == fb_model:
             continue
         logger.warning(f"[{get_correlation_id() or '-'}] LLM FALLBACK: {label} model={model} → {fb_model}")
+        record_fallback(label, _original_model, fb_model, "503/timeout")
         kwargs["model"] = fb_model
         try:
             result = await asyncio.wait_for(func(*args, **kwargs), timeout=_timeout)

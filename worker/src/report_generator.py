@@ -16,6 +16,7 @@ from jinja2 import Environment, FileSystemLoader
 from src.i18n import get_i18n_strings, sk_plural_roky, sk_plural_najdene
 from src.db_client import get_db
 from src.infographics import generate_pl_infographic, generate_balance_sheet_infographic, generate_cashflow_waterfall
+from src.agents.shared import get_critical_fallbacks
 
 from src.plotly_charts import (
     generate_financial_chart,
@@ -2184,6 +2185,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     _rpe_alert = compute_revenue_per_employee_alert(_stmts_as_dicts)
     _yoy_table = compute_yoy_summary_table(_stmts_as_dicts, i18n_strings=i18n_strings)
 
+    # Fallbacky kritických agentov — varovanie v reporte ak Chief/QA bežal na slabšom modeli
+    _critical_fallbacks = get_critical_fallbacks()
+
     return {
         "company": company,
         "verdict": verdict,
@@ -2263,6 +2267,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "state_liabilities_alert": _state_liabilities_alert,
         "rpe_alert": _rpe_alert,
         "yoy_table": _yoy_table,
+        "critical_fallbacks": _critical_fallbacks,
     }
 
 def render_html_report(context: dict) -> str:

@@ -107,3 +107,18 @@
         </div>
     </div>
 </div>
+
+{% if critical_fallbacks and critical_fallbacks|length > 0 %}
+<div class="mx-auto max-w-2xl mt-3 bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-900">
+    <div class="flex items-start gap-2">
+        <span class="text-amber-600 font-bold text-sm flex-shrink-0">⚠</span>
+        <div>
+            <p class="font-semibold mb-1">Upozornenie o kvalite analýzy</p>
+            <p class="leading-relaxed">
+                Kritický analytický agent bežal na núdzovom modeli ({{ critical_fallbacks[0].fallback_model }}) namiesto {{ critical_fallbacks[0].original_model }}.
+                Obsah reportu môže obsahovať nepresnosti. Odporúčame preveriť kľúčové nálezy.
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
