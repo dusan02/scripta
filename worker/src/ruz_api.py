@@ -84,14 +84,27 @@ def _year_from_period(period: str) -> str:
 
 
 def _dedup_by_period(items: list[dict], max_count: int) -> list[dict]:
-    """Vyber unikátne obdobia (top max_count), zoradené najnovšie prvé."""
-    seen: set[str] = set()
+    """Vyber unikátne obdobia (top max_count), zoradené najnovšie prvé.
+
+    Pre každé obdobie preferuje konsolidovanú závierku (IFRS) nad
+    nekonsolidovanou (SK_GAAP) — banky a veľké firmy majú často
+    prázdne nekonsolidované tabuľky, ale plné konsolidované IFRS.
+    """
+    seen: set[str] = {}
     result = []
     for item in items:
         p = _period_from_dict(item)
         if p not in seen:
-            seen.add(p)
+            seen[p] = item
             result.append(item)
+        else:
+            # Prefer konsolidovaná (IFRS) over nekonsolidovaná (SK_GAAP)
+            existing = seen[p]
+            if item.get("konsolidovana", False) and not existing.get("konsolidovana", False):
+                # Replace with consolidated version
+                idx = result.index(existing)
+                result[idx] = item
+                seen[p] = item
         if len(result) >= max_count:
             break
     return result
