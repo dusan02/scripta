@@ -279,10 +279,13 @@ def _is_financial_institution(stmt: Any) -> bool:
     - equity je kladné (solventná inštitúcia)
     - totalAssets > 10M (významná inštitúcia, nie malá firma s chýbajúcimi dátami)
 
-    Výnimka: banky majú často výrazné cashAndEquivalents (hotovostné rezervy),
-    ktoré sa mapujú do currentAssets. Preto ak shortTermLiabilities = 0
-    a leverage > 80%, považujeme to za finančnú inštitúciu aj napriek
-    vyššiemu currentAssets.
+    Výnimka: banky a poisťovne majú často výrazné cashAndEquivalents
+    (hotovostné rezervy, pohľadávky), ktoré sa mapujú do currentAssets.
+    Preto ak shortTermLiabilities ≈ 0 a leverage > 50%, považujeme to za
+    finančnú inštitúciu aj napriek vyššiemu currentAssets.
+    Bežné nefinančné firmy vždy majú nejaké krátkodobé záväzky (dodávatelia,
+    accrued expenses, dane), takže shortTermLiabilities = 0 pri veľkej
+    firme je silný signál IFRS finančnej inštitúcie.
     """
     stmt = _sanitize_stmt_numeric(stmt)
     total_assets = _get(stmt, 'totalAssets')
@@ -300,11 +303,13 @@ def _is_financial_institution(stmt: Any) -> bool:
     if total_liabilities <= 0:
         return False
 
-    # Výnimka pre banky: shortTermLiabilities = 0 a leverage > 80%
-    # Banky majú obrovské záväzky (vklady) ale nie klasifikované ako krátkodobé,
-    # a často výrazné hotovostné rezervy v currentAssets.
+    # Výnimka pre banky a poisťovne: shortTermLiabilities ≈ 0 a leverage > 50%
+    # Bežné firmy majú vždy krátkodobé záväzky (dodávatelia, dane, accruals).
+    # Ak sú ≈ 0 pri veľkej firme s vysokým leverage, ide o IFRS finančnú
+    # inštitúciu kde záväzky (vklady, technické rezervy) nie sú klasifikované
+    # ako krátkodobé. currentAssets môže byť nenulové (hotovosť, pohľadávky).
     if (short_liab is not None and short_liab <= total_assets * 0.01
-            and total_liabilities > total_assets * 0.80):
+            and total_liabilities > total_assets * 0.50):
         return True
 
     # currentAssets chýba alebo je zanedbateľné
