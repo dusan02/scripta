@@ -201,7 +201,22 @@ async def save_to_db(data: CompanyFinancialExtraction):
     Uloží extrahované finančné dáta a názor audítora do databázy pomocou Prisma Clienta.
     Všetky operácie (company upsert + financial statement + auditor opinion) sú zabalené
     v jednej transakcii — ak jedna zlyhá, všetky zmeny sa rollbacknú.
+
+    Prázdne výkazy (totalAssets=0 a revenue=0 a netProfitLoss=0) sa neukladajú —
+    typicky ide o nekonzistentné dáta z RÚZ (prázdne JSON tabuľky, chýbajúce IFRS).
     """
+    # ── Skip empty extractions ──
+    # Ak všetky kľúčové hodnoty sú 0/None, záznam je prázdny — neukladať.
+    _assets = data.metriky.celkove_aktiva or 0
+    _revenue = data.metriky.trzby_z_hlavnej_cinnosti or 0
+    _net = data.metriky.zisk_alebo_strata_po_zdaneni or 0
+    if _assets == 0 and _revenue == 0 and _net == 0:
+        logger.warning(
+            f"[SKIP EMPTY] IČO {data.ico} rok {data.metriky.rok_zavierky}: "
+            f"totalAssets=0, revenue=0, netResult=0 — preskakujem uloženie (prázdny výkaz)"
+        )
+        return
+
     async with get_db_lock():
         db = get_db()
 
@@ -317,6 +332,26 @@ async def save_to_db(data: CompanyFinancialExtraction):
             create_data = {'companyIco': data.ico, 'year': data.metriky.rok_zavierky}
             for key, value in stmt_data.items():
                 create_data[key] = value
+
+            # ── IFRS priorita: neprepisuj existujúci IFRS záznam SK_GAAP dátami ──
+            # Ak v DB už existuje IFRS (konsolidovaný) výkaz pre tento rok
+            # a nový záznam je SK_GAAP (nekonsolidovaný), preskoč update.
+            _new_is_ifrs = data.metriky.is_consolidated
+            if not _new_is_ifrs:
+                existing_stmt = await transaction.financialstatement.find_unique(
+                    where={
+                        'companyIco_year': {
+                            'companyIco': data.ico,
+                            'year': data.metriky.rok_zavierky
+                        }
+                    }
+                )
+                if existing_stmt and existing_stmt.isConsolidated:
+                    logger.info(
+                        f"[IFRS PRIORITY] IČO {data.ico} rok {data.metriky.rok_zavierky}: "
+                        f"existuje IFRS záznam, nový SK_GAAP sa neukladá (skip)"
+                    )
+                    return
 
             statement = await transaction.financialstatement.upsert(
                 where={

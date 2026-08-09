@@ -400,9 +400,20 @@ async def download_ifrs_reports(
         # 4. Spracuj závierky
         sem = asyncio.Semaphore(_CONCURRENCY)
 
+        # Sleduj ktoré roky mali prázdne dáta pre cross-type fallback
+        _empty_years: set[str] = set()
+        _processed_years: set[str] = set()
+
         async def bounded_zavierka(z, idx):
             async with sem:
-                return await _process_zavierka(client, z, ico, out_path, idx)
+                result = await _process_zavierka(client, z, ico, out_path, idx)
+                year = _year_from_period(_period_from_dict(z))
+                if year:
+                    _processed_years.add(year)
+                    # Ak žiadne súbory alebo len prázdne tabuľky → označ ako empty
+                    if not result:
+                        _empty_years.add(year)
+                return result
 
         results = await asyncio.gather(
             *[bounded_zavierka(z, i) for i, z in enumerate(top_zavierky)],
@@ -413,6 +424,45 @@ async def download_ifrs_reports(
                 downloaded_files.extend(f for f in r if f)
             elif isinstance(r, Exception):
                 logger.error(f"[RUZ_API] Chyba pri spracovaní závierky: {r}")
+
+        # ── Cross-type fallback: pre roky s prázdnymi dátami skús druhý typ závierky ──
+        if _empty_years:
+            logger.info(f"[RUZ_API] Cross-type fallback: prázdne roky {_empty_years} — skúšam alternatívny typ závierky")
+            # Nájdi alternatívne závierky pre prázdne roky (opačný kons/nekons typ)
+            _alt_zavierky = []
+            _seen_periods = {z.get("obdobieDo", "") for z in top_zavierky}
+            for z in zavierky:
+                year = _year_from_period(_period_from_dict(z))
+                if year in _empty_years:
+                    p = _period_from_dict(z)
+                    if p not in _seen_periods:
+                        _alt_zavierky.append(z)
+                        _seen_periods.add(p)
+            
+            if _alt_zavierky:
+                logger.info(f"[RUZ_API] Cross-type: nájdených {len(_alt_zavierky)} alternatívnych závierok")
+                _alt_sem = asyncio.Semaphore(_CONCURRENCY)
+                _alt_idx = len(downloaded_files)
+                
+                async def bounded_alt(z, idx):
+                    async with _alt_sem:
+                        return await _process_zavierka(client, z, ico, out_path, idx)
+                
+                alt_results = await asyncio.gather(
+                    *[bounded_alt(z, _alt_idx + i) for i, z in enumerate(_alt_zavierky)],
+                    return_exceptions=True,
+                )
+                _recovered = 0
+                for r in alt_results:
+                    if isinstance(r, list) and r:
+                        downloaded_files.extend(f for f in r if f)
+                        _recovered += 1
+                    elif isinstance(r, Exception):
+                        logger.error(f"[RUZ_API] Cross-type fallback chyba: {r}")
+                if _recovered:
+                    logger.info(f"[RUZ_API] Cross-type fallback: obnovených {_recovered} rokov z alternatívneho typu závierky")
+            else:
+                logger.warning(f"[RUZ_API] Cross-type fallback: žiadne alternatívne závierky pre prázdne roky {_empty_years}")
 
         # 5. Spracuj výročné správy
         async def bounded_vs(v, idx):
@@ -430,6 +480,24 @@ async def download_ifrs_reports(
                 logger.error(f"[RUZ_API] Chyba pri spracovaní VS: {r}")
 
     logger.info(f"[RUZ_API] Stiahnutých {len(downloaded_files)} súborov pre IČO {ico}")
+
+    # ── Per-year summary log ──
+    _ok_years = set()
+    for fp in downloaded_files:
+        m = re.search(r'_(20\d{2})_', os.path.basename(fp))
+        if m:
+            _ok_years.add(int(m.group(1)))
+    _all_years = sorted(_processed_years | {str(y) for y in _ok_years}, reverse=True)
+    _status_parts = []
+    for y in sorted(_processed_years, reverse=True):
+        y_int = int(y) if y.isdigit() else 0
+        if y_int in _ok_years:
+            _status_parts.append(f"{y}:OK")
+        elif y in _empty_years:
+            _status_parts.append(f"{y}:EMPTY")
+        else:
+            _status_parts.append(f"{y}:SKIPPED")
+    logger.info(f"[RUZ_API] Per-year status: {', '.join(_status_parts)}")
 
     # Ak entita existuje, má závierky, ale všetky výkazy sú neverejné —
     # vráť sentinel, aby scraper mohol zobraziť správnu správu (nie "skúste znovu")
