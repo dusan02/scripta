@@ -1162,7 +1162,9 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
         if net_profit is not None and float(net_profit) < 0:
             if fin_sev == "none":
                 fin_sev = "medium"
-            fin_details.append(i18n_strings.get("heatmap_net_loss", "Čistá strata"))
+            _loss_m = abs(float(net_profit)) / 1e6
+            _loss_str = f"{_loss_m:.2f} mil. €" if _loss_m >= 0.01 else f"{abs(float(net_profit)):.0f} €"
+            fin_details.append(f"{i18n_strings.get('heatmap_net_loss', 'Čistá strata')}: {_loss_str}")
     _add("fraud_cat_financial", fin_sev, len(fin_details), fin_details[:3])
 
     # Overall risk level

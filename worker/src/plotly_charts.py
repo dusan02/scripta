@@ -256,8 +256,10 @@ def generate_cashflow_chart(statements, lang="sk") -> str:
 
     def _fmt_m(v):
         if v is None or v == 0: return ""
-        if abs(v) >= 1: return f'{v:.1f}M'
-        return f'{v:.2f}M'
+        # Hodnoty z DB sú v euroch — konvertujeme na milióny
+        v_m = v / 1e6
+        if abs(v_m) >= 1: return f'{v_m:.1f}M'
+        return f'{v_m:.2f}M'
 
     fig = go.Figure()
     fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color=COLORS['green'],
