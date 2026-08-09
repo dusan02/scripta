@@ -2288,10 +2288,13 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=[
             "--disable-gpu", "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-extensions",
+            "--no-first-run",
         ])
         page = await browser.new_page()
         try:
-            await page.goto(f"file://{html_path}", wait_until="networkidle", timeout=30000)
+            await page.goto(f"file://{html_path}", wait_until="domcontentloaded", timeout=30000)
             try:
                 await page.wait_for_function(
                     "() => { const styles = document.querySelectorAll('style'); for (const s of styles) { if (s.textContent.includes('--tw') || s.textContent.includes('.container')) return true; } return false; }",
