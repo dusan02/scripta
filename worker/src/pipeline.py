@@ -1068,13 +1068,18 @@ async def run_and_save_audit_verdict(
 # Eliminuje halucináciu čísel a dangling fragmenty po regex cleanup.
 
 def _format_eur(value: Optional[float]) -> str:
-    """Naformátuje EUR hodnotu: 111607748 → '111,6 mil. €', -2686224 → '-2,7 mil. €'."""
+    """Naformátuje EUR hodnotu: 111607748 → '111,6 mil. €', 27995997000 → '28,0 mld. €'."""
     if value is None:
         return "N/A"
     v = float(value)
     abs_v = abs(v)
     sign = "-" if v < 0 else ""
-    if abs_v >= 1_000_000:
+    if abs_v >= 1_000_000_000:
+        # Miliardy: 27 995 997 000 → "28,0 mld. €"
+        num = f"{abs_v / 1_000_000_000:.1f}".replace(".", ",")
+        return f"{sign}{num} mld. €"
+    elif abs_v >= 1_000_000:
+        # Milióny: 111 607 748 → "111,6 mil. €"
         num = f"{abs_v / 1_000_000:.1f}".replace(".", ",")
         return f"{sign}{num} mil. €"
     elif abs_v >= 1_000:
@@ -1267,10 +1272,16 @@ def build_metric_placeholders(
         ph["{{ALTMAN_ZONE}}"] = "N/A"
 
     # D/E = (ST + LT liabilities) / equity
+    # Ak ST+LT = 0 (banky/IFRS bez klasifikácie), použiť bilančnú rovnicu
     _eq = latest.get("equity")
     if _eq is not None and float(_eq) > 0:
-        _total_liab = float(latest.get("shortTermLiabilities", 0) or 0) + float(latest.get("longTermLiabilities", 0) or 0)
-        ph["{{DEBT_EQUITY}}"] = _format_ratio(_total_liab / float(_eq))
+        _st_liab = float(latest.get("shortTermLiabilities", 0) or 0)
+        _lt_liab = float(latest.get("longTermLiabilities", 0) or 0)
+        _total_liab = _st_liab + _lt_liab
+        if _total_liab == 0 and latest.get("totalAssets"):
+            # Fallback: bilančná rovnica (totalAssets - equity = total liabilities)
+            _total_liab = float(latest["totalAssets"]) - float(_eq)
+        ph["{{DEBT_EQUITY}}"] = _format_ratio(_total_liab / float(_eq)) if _total_liab > 0 else "N/A"
     else:
         ph["{{DEBT_EQUITY}}"] = "N/A"
 

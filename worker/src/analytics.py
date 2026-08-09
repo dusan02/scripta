@@ -278,6 +278,11 @@ def _is_financial_institution(stmt: Any) -> bool:
       — poisťovne držia obrovské technické rezervy
     - equity je kladné (solventná inštitúcia)
     - totalAssets > 10M (významná inštitúcia, nie malá firma s chýbajúcimi dátami)
+
+    Výnimka: banky majú často výrazné cashAndEquivalents (hotovostné rezervy),
+    ktoré sa mapujú do currentAssets. Preto ak shortTermLiabilities = 0
+    a leverage > 80%, považujeme to za finančnú inštitúciu aj napriek
+    vyššiemu currentAssets.
     """
     stmt = _sanitize_stmt_numeric(stmt)
     total_assets = _get(stmt, 'totalAssets')
@@ -290,17 +295,24 @@ def _is_financial_institution(stmt: Any) -> bool:
     if equity is None or equity <= 0:
         return False
 
+    # Skutočné záväzky (totalAssets - equity)
+    total_liabilities = total_assets - equity
+    if total_liabilities <= 0:
+        return False
+
+    # Výnimka pre banky: shortTermLiabilities = 0 a leverage > 80%
+    # Banky majú obrovské záväzky (vklady) ale nie klasifikované ako krátkodobé,
+    # a často výrazné hotovostné rezervy v currentAssets.
+    if (short_liab is not None and short_liab <= total_assets * 0.01
+            and total_liabilities > total_assets * 0.80):
+        return True
+
     # currentAssets chýba alebo je zanedbateľné
     if current_assets is not None and current_assets > total_assets * 0.01:
         return False
 
     # shortTermLiabilities je takmer 0 (technické rezervy nie sú krátkodobé)
     if short_liab is not None and short_liab > total_assets * 0.05:
-        return False
-
-    # Skutočné záväzky sú veľké (totalAssets - equity > 50% aktív)
-    total_liabilities = total_assets - equity
-    if total_liabilities <= 0:
         return False
 
     return total_liabilities > total_assets * 0.5
