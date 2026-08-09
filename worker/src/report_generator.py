@@ -280,7 +280,7 @@ def format_findings(source, i18n=None) -> str:
         url = _MANUAL_LOOKUP_URLS.get(source.source_type)
         if url:
             label = (i18n or {}).get("findings_manual_lookup", "Informáciu dohľadáte na")
-            raw = f"{raw}\n{label}: {url}"
+            raw = f"{raw} | {label}: {url}"
 
     max_chars = 350
     if len(raw) > max_chars:
