@@ -2318,6 +2318,7 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
                 print_background=True,
                 display_header_footer=False,
                 prefer_css_page_size=True,
+                timeout=120000,
             )
         finally:
             # Explicit page close prevents resource leaks if PDF generation throws
