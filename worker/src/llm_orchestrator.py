@@ -59,25 +59,27 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
     Bezpečne zavolá LLM funkciu s exponential backoff a fallback modelom.
 
     - 404 NOT_FOUND → okamžitý fallback na iný model (model vypnutý/deprecated)
-    - 429/503 → exponential backoff [5s, 15s, 30s], potom fallback model
+    - 429/503 → max 1 retry, potom fallback (503 = služba dole, retry je zbytočný)
+    - Timeout → max 1 retry, potom fallback
     - Ak fallback tiež zlyhá, skúsi sekundárny fallback model
     - Ak všetko zlyhá, vyhodí výnimku
     """
     model = kwargs.get("model", "unknown")
     _t0 = time.perf_counter()
-    _timeout = 300 if any(k in label for k in ("Chief", "Cross-Analysis")) else 120
+    _timeout = 180 if any(k in label for k in ("Chief", "Cross-Analysis")) else 120
+    _max_retries = 2  # max 1 retry (2 pokusy total) — znížené z 3
 
     # 404 sa neretryuje — model je vypnutý, treba fallback
-    for attempt, wait in enumerate(_BACKOFF_SECONDS):
+    for attempt, wait in enumerate(_BACKOFF_SECONDS[:_max_retries]):
         try:
             result = await asyncio.wait_for(func(*args, **kwargs), timeout=_timeout)
             elapsed = time.perf_counter() - _t0
             logger.info(f"[{get_correlation_id() or '-'}] LLM OK: {label} model={model} ({elapsed:.1f}s)")
             return result
         except asyncio.TimeoutError:
-            log_llm_retry(label, model, attempt + 1, len(_BACKOFF_SECONDS), f"Timeout {_timeout}s", wait)
+            log_llm_retry(label, model, attempt + 1, _max_retries, f"Timeout {_timeout}s", wait)
             _log_failed_call_cost(model, label, "timeout")
-            if attempt < len(_BACKOFF_SECONDS) - 1:
+            if attempt < _max_retries - 1:
                 await asyncio.sleep(wait)
                 continue
         except Exception as e:
@@ -90,13 +92,13 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
                 _log_failed_call_cost(model, label, "404")
                 break
 
-            # 429/503 — retry s backoff
+            # 429/503 — retry s backoff (max 1 retry)
             if "503" in error_str or "429" in error_str or "resource_exhausted" in error_str:
                 error_reason = "429 (Quota/Credits)" if "429" in error_str or "resource_exhausted" in error_str else "503 (Unavailable)"
-                log_llm_retry(label, model, attempt + 1, len(_BACKOFF_SECONDS), error_reason, wait)
+                log_llm_retry(label, model, attempt + 1, _max_retries, error_reason, wait)
                 _log_failed_call_cost(model, label, error_reason)
                 _mark_last_key_failed()
-                if attempt < len(_BACKOFF_SECONDS) - 1:
+                if attempt < _max_retries - 1:
                     await asyncio.sleep(wait)
                     continue
                 break
