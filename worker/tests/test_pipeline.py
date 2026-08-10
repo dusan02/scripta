@@ -713,3 +713,131 @@ class TestStripHallucinatedDebtsIntegration:
         }
         result = _strip_hallucinated_debts(payload, ["SP_DLZNICI: CLEAN"], "12345678")
         assert "300 000 EUR" not in result["keyRisk"]
+
+
+# ── Grounding Filter: forensicRedFlags anti-hallucination ──────────────────
+
+class TestGroundingFilter:
+    """
+    Test deterministického filtra, ktorý odstraňuje halucinované forensicRedFlags
+    z naratívu, ak notesRisk neobsahuje relatedPartyTransactions.
+    Toto je Layer 3 v Swiss cheese anti-hallucination defense.
+    """
+
+    def _build_narrative_by_year(self, flags):
+        """Konštruuje narrative_by_year dict s forensicRedFlags."""
+        return [{"rok": 2023, "narrativeRisk": {"forensicRedFlags": flags}}]
+
+    def _build_notes_by_year(self, related_party=None):
+        """Konštruuje notes_by_year dict."""
+        return [{"rok": 2023, "notesRisk": {"relatedPartyTransactions": related_party}}]
+
+    def test_strips_related_party_flags_when_notes_empty(self):
+        """Ak notesRisk nemá relatedPartyTransactions, flagy o spriaznených osobách sa odstránia."""
+        import re
+        narrative_by_year = self._build_narrative_by_year([
+            "signifikantné transakcie so spriaznenými osobami",
+            "opakované oneskorené platby dodávateľom",
+            "presun majetku na dcérske spoločnosti",
+        ])
+        notes_by_year = self._build_notes_by_year(related_party=None)
+
+        _has_rp = any(
+            _nr.get("notesRisk", {}).get("relatedPartyTransactions")
+            for _nr in notes_by_year
+        )
+        assert not _has_rp
+
+        _RP_PATTERNS = [
+            re.compile(r'spriaznen', re.IGNORECASE),
+            re.compile(r'related\s*part', re.IGNORECASE),
+            re.compile(r'presun\s*majetk', re.IGNORECASE),
+            re.compile(r'asset\s*transfer', re.IGNORECASE),
+            re.compile(r'dcérs', re.IGNORECASE),
+            re.compile(r'subsidiar', re.IGNORECASE),
+            re.compile(r'odtok\s*kapit', re.IGNORECASE),
+            re.compile(r'capital\s*extract', re.IGNORECASE),
+        ]
+
+        removed = 0
+        for entry in narrative_by_year:
+            nr = entry.get("narrativeRisk", {})
+            flags = nr.get("forensicRedFlags")
+            if flags and isinstance(flags, list):
+                filtered = []
+                for flag in flags:
+                    if isinstance(flag, str) and any(p.search(flag) for p in _RP_PATTERNS):
+                        removed += 1
+                    else:
+                        filtered.append(flag)
+                nr["forensicRedFlags"] = filtered
+
+        assert removed == 2  # "spriaznen" and "dcérske" flags removed
+        remaining = narrative_by_year[0]["narrativeRisk"]["forensicRedFlags"]
+        assert len(remaining) == 1
+        assert "oneskorené platby" in remaining[0]
+
+    def test_keeps_all_flags_when_notes_has_related_party(self):
+        """Ak notesRisk má relatedPartyTransactions, flagy sa NEodstraňujú."""
+        import re
+        narrative_by_year = self._build_narrative_by_year([
+            "transakcie so spriaznenými osobami",
+            "presun majetku na dcérske spoločnosti",
+        ])
+        notes_by_year = self._build_notes_by_year(related_party="Pôžička dcérskej spoločnosti 500k EUR")
+
+        _has_rp = any(
+            _nr.get("notesRisk", {}).get("relatedPartyTransactions")
+            for _nr in notes_by_year
+        )
+        assert _has_rp  # Filter sa neaplikuje
+
+    def test_strips_english_flags(self):
+        """Filter funguje aj pre anglické flagy."""
+        import re
+        narrative_by_year = self._build_narrative_by_year([
+            "significant related party transactions detected",
+            "ongoing asset transfers to subsidiaries",
+            "dependency on single customer",
+        ])
+        notes_by_year = self._build_notes_by_year(related_party=None)
+
+        _RP_PATTERNS = [
+            re.compile(r'spriaznen', re.IGNORECASE),
+            re.compile(r'related\s*part', re.IGNORECASE),
+            re.compile(r'presun\s*majetk', re.IGNORECASE),
+            re.compile(r'asset\s*transfer', re.IGNORECASE),
+            re.compile(r'dcérs', re.IGNORECASE),
+            re.compile(r'subsidiar', re.IGNORECASE),
+            re.compile(r'odtok\s*kapit', re.IGNORECASE),
+            re.compile(r'capital\s*extract', re.IGNORECASE),
+        ]
+
+        removed = 0
+        for entry in narrative_by_year:
+            nr = entry.get("narrativeRisk", {})
+            flags = nr.get("forensicRedFlags")
+            if flags and isinstance(flags, list):
+                filtered = []
+                for flag in flags:
+                    if isinstance(flag, str) and any(p.search(flag) for p in _RP_PATTERNS):
+                        removed += 1
+                    else:
+                        filtered.append(flag)
+                nr["forensicRedFlags"] = filtered
+
+        assert removed == 2  # "related part" and "asset transfer" + "subsidiaries"
+        remaining = narrative_by_year[0]["narrativeRisk"]["forensicRedFlags"]
+        assert len(remaining) == 1
+        assert "single customer" in remaining[0]
+
+    def test_empty_flags_list_unchanged(self):
+        """Prázdny zoznam flagov sa nemení."""
+        narrative_by_year = self._build_narrative_by_year([])
+        notes_by_year = self._build_notes_by_year(related_party=None)
+
+        # Filter by nemal spadnúť na prázdny zoznam
+        for entry in narrative_by_year:
+            nr = entry.get("narrativeRisk", {})
+            flags = nr.get("forensicRedFlags")
+            assert flags == []

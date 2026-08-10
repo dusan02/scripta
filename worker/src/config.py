@@ -38,10 +38,10 @@ class Settings(BaseSettings):
     # Standard: extractors on Flash-Lite, Chief Auditor on Flash (cost-efficient)
     # Expert: Chief Auditor on Pro 3.1 (2-pass), QA on Flash 3.5 (higher quality)
     model_ifrs: str = "gemini-3.5-flash-lite"   # IFRS tabuľky — extrakcia, fallbacky pokrývajú medzery
-    model_narrative: str = "gemini-3.5-flash-lite"  # Naratívna analýza (VS) — textová
-    model_notes: str = "gemini-3.5-flash-lite"  # Forenzný analytik (poznámky) — Flash-Lite stačí (štrukturálne dáta)
+    model_narrative: str = "gemini-3.5-flash"  # Naratívna analýza (VS) — textová, potrebuje silnejší model pre grounding
+    model_notes: str = "gemini-3.5-flash"  # Forenzný analytik (poznámky) — Flash pre spoľahlivú extrakciu related party transactions
     model_vestnik: str = "gemini-3.5-flash-lite"    # Vestník udalosti — štruktúrovaná extrakcia
-    model_cross_analysis: str = "gemini-3.5-flash-lite"  # Cross-Analysis Agent — krížová analýza
+    model_cross_analysis: str = "gemini-3.5-flash"  # Cross-Analysis Agent — krížová analýza, potrebuje grounding
     model_fallback: str = "gemini-3.5-flash-lite"   # Fallback pri 404/503 (Flash-Lite — odlišný model pool)
     model_fallback_2: str = "gemini-3.5-flash"       # Sekundárny fallback (Flash tier)
     llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)

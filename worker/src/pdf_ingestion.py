@@ -19,15 +19,26 @@ _NOTES_PATTERN = re.compile(
 # Kľúčové slová pre identifikáciu konca finančných tabuliek
 # (strana s týmito slovami na začiatku je prvá strana poznámok — odrežeme pred ňou)
 _NOTES_START_SIGNALS = [
+    # English IFRS headings
     r"^\s*notes\s+to\s+the\s+financial",
     r"^\s*notes\s+to\s+the\s+consolidated",
     r"^\s*notes\s+to\s+the\s+annual",
-    r"^\s*poznámky\s+k\s+(?:individuálnej|konsolidovanej|účtovnej)",
     r"^\s*(?:\d+\.?\s+)?explanatory\s+notes",
     r"^\s*(?:\d+\.?\s+)?significant\s+accounting\s+policies",
     r"^\s*(?:\d+\.?\s+)?summary\s+of\s+significant",
+    r"^\s*(?:\d+\.?\s+)?notes\s*$",  # Just "Notes" as a standalone heading
+    r"^\s*(?:\d+\.?\s+)?reporting\s+entity",  # Common first IFRS note
+    r"^\s*(?:\d+\.?\s+)?general\s+information",  # Common first IFRS note
+    # Slovak headings
+    r"^\s*poznámky\s+k\s+(?:individuálnej|konsolidovanej|účtovnej)",
+    r"^\s*poznámky\s+k\s+účtovnej\s+závierke",
+    r"^\s*poznámky\s*$",  # Just "Poznámky" as standalone heading
+    r"^\s*príloha\s+k\s+(?:individuálnej|konsolidovanej|účtovnej)",  # Príloha k účtovnej závierke
+    r"^\s*príloha\s*$",  # Just "Príloha"
     r"^\s*zásady\s+účtovania",
     r"^\s*prehľad\s+dôležitých\s+účtovných",
+    r"^\s*(?:\d+\.?\s+)?všeobecné\s+informácie",  # Common first SK note
+    r"^\s*(?:\d+\.?\s+)?informácie\s+o\s+(?:spoločnosti|subjekte)",  # Common first SK note
 ]
 _NOTES_COMPILED = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in _NOTES_START_SIGNALS]
 
@@ -310,7 +321,7 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
         is_ifrs = True
 
     notes_start_page = -1
-    min_notes_page = settings.pdf_ifrs_min_notes_page if is_ifrs else settings.pdf_sk_gaap_min_notes_page
+    min_notes_page = (settings.pdf_ifrs_min_notes_page - 10) if is_ifrs else settings.pdf_sk_gaap_min_notes_page
 
     for i in range(min_notes_page, total_pages):
         page_text = doc[i].get_text("text")
@@ -319,8 +330,14 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
             break
 
     if notes_start_page == -1:
-        doc.close()
-        return None
+        # Fallback: notes are always at the end of financial statements.
+        # If we can't find the heading, use the last 30 pages (or all pages if < 30).
+        fallback_start = max(0, total_pages - 30)
+        logger.info(
+            f"[PDF Notes Slicing] {os.path.basename(pdf_path)} | "
+            f"NO NOTES HEADING FOUND — using fallback: last {total_pages - fallback_start} pages (from page {fallback_start})"
+        )
+        notes_start_page = fallback_start
 
     # ── Keyword-based slicing ──────────────────────────────────────────────
     # Kľúčové slová pre forenznú analýzu — slovenské aj anglické varianty

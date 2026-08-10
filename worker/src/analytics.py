@@ -501,7 +501,14 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         # Sanitizácia: ak equity > total_assets (účtovne nemožné — súvaha sa nevyrovnáva),
         # equity ratio je nonsensical. Typicky ide o chybu v RÚZ dátach (nekonzistentné
         # jednotky alebo chýbajúce položky aktív). Namiesto 3477% zobrazujeme None.
+        # Tiež ak aktíva ≠ pasíva (equity + liabilities) o viac ako 5%, súvaha je nevyrovnaná
+        # a ratio výpočty sú nespoľahlivé.
+        _balance_diff = abs(total_assets - (equity + total_liabilities)) if total_assets > 0 else 0
+        _balance_imbalance_pct = _balance_diff / total_assets if total_assets > 0 else 0
         if total_assets > 0 and equity > total_assets:
+            ratios["equity_ratio_pct"] = None
+            ratios["balance_sheet_anomaly"] = True
+        elif _balance_imbalance_pct > 0.05:
             ratios["equity_ratio_pct"] = None
             ratios["balance_sheet_anomaly"] = True
         else:

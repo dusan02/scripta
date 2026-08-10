@@ -74,12 +74,28 @@ export async function GET(req: NextRequest) {
       prisma.reportRequest.count({ where }),
     ]);
 
+    // Resolve companyName from Company table for reports where it's null
+    // (worker sets it after ORSR scrape, but Company table may already have it)
+    const icosNeedingName = reports
+      .filter((r) => !r.companyName && r.ico)
+      .map((r) => r.ico as string);
+    const companyNames: Record<string, string> = {};
+    if (icosNeedingName.length > 0) {
+      const companies = await prisma.company.findMany({
+        where: { ico: { in: icosNeedingName } },
+        select: { ico: true, name: true },
+      });
+      for (const c of companies) {
+        if (c.name) companyNames[c.ico] = c.name;
+      }
+    }
+
     const serialized = reports.map((r) => ({
       id:         r.id,
       status:     r.status,
       targetType: r.targetType,
       ico:        r.ico,
-      companyName: r.companyName,
+      companyName: r.companyName || (r.ico ? companyNames[r.ico] || null : null),
       createdAt:  r.createdAt.toISOString(),
       sources:    r.sources,
     }));

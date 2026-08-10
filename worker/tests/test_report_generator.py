@@ -291,6 +291,68 @@ class TestComputeFraudHeatmap:
         assert forensic_cat[0]["severity"] == "critical"  # 3+ flags = critical
         assert forensic_cat[0]["count"] == 3
 
+    def test_narrative_risk_correct_fields(self):
+        """NarrativeRisk s novými DB field names → narrative kategória.
+        Only litigationRisks, goingConcernDoubts, and forensicRedFlags are risk indicators.
+        managementChanges, plannedInvestments, profitabilityExplanation are informational — not risks."""
+        nr = SimpleNamespace(
+            managementChanges="Zmena konateľa v 2023",
+            litigationRisks="Prebiehajúci súdny spor",
+            goingConcernDoubts=True,
+            plannedInvestments="Plán nákupu strojov",
+            profitabilityExplanation="Pokles zisku vysvetlený rastom cien",
+            forensicRedFlags=["závislosť na jednom zákazníkovi", "opakované oneskorené platby"],
+            synthesis="Firma vykazuje stres",
+        )
+        stmt = SimpleNamespace(year=2023, narrativeRisk=nr, notesRisk=None, auditorOpinion=None)
+        result = compute_fraud_heatmap(None, [stmt], [], self._i18n())
+        narrative_cat = [c for c in result["categories"] if "narat" in c["label"].lower()]
+        assert narrative_cat[0]["severity"] == "high"  # 4 flags (1 litigation + 1 goingConcern + 2 forensicRedFlags) = high (>=3)
+        assert narrative_cat[0]["count"] == 4
+
+    def test_narrative_going_concern_doubts_flagged(self):
+        """goingConcernDoubts=True by mal pridať flag do narrative kategórie."""
+        nr = SimpleNamespace(
+            managementChanges=None,
+            litigationRisks=None,
+            goingConcernDoubts=True,
+            plannedInvestments=None,
+            profitabilityExplanation=None,
+            forensicRedFlags=[],
+            synthesis="",
+        )
+        stmt = SimpleNamespace(year=2023, narrativeRisk=nr, notesRisk=None, auditorOpinion=None)
+        result = compute_fraud_heatmap(None, [stmt], [], self._i18n())
+        narrative_cat = [c for c in result["categories"] if "narat" in c["label"].lower()]
+        assert narrative_cat[0]["count"] >= 1
+        assert "Going Concern" in narrative_cat[0]["details"][0]
+
+    def test_notes_risk_correct_fields(self):
+        """NotesRisk s novými DB field names → notes kategória."""
+        notes = SimpleNamespace(
+            relatedPartyTransactions="Pôžička dcérskej spoločnosti 500k EUR",
+            offBalanceSheetLiabilities="Banková záruka za dodávateľa",
+            contingentRisks=None,
+        )
+        stmt = SimpleNamespace(year=2023, narrativeRisk=None, notesRisk=notes, auditorOpinion=None)
+        result = compute_fraud_heatmap(None, [stmt], [], self._i18n())
+        notes_cat = [c for c in result["categories"] if "pozn" in c["label"].lower()]
+        assert notes_cat[0]["severity"] == "high"  # 2 flags = high (>=2 threshold)
+        assert notes_cat[0]["count"] == 2
+
+    def test_empty_notes_risk_shows_none(self):
+        """Prázdny NotesRisk → notes kategória 'none' (desynchronizácia fix)."""
+        notes = SimpleNamespace(
+            relatedPartyTransactions=None,
+            offBalanceSheetLiabilities=None,
+            contingentRisks=None,
+        )
+        stmt = SimpleNamespace(year=2023, narrativeRisk=None, notesRisk=notes, auditorOpinion=None)
+        result = compute_fraud_heatmap(None, [stmt], [], self._i18n())
+        notes_cat = [c for c in result["categories"] if "pozn" in c["label"].lower()]
+        assert notes_cat[0]["severity"] == "none"
+        assert notes_cat[0]["count"] == 0
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # compute_insolvency_score

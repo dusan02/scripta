@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 async function getRecentReports(userId: string) {
   try {
-    return await prisma.reportRequest.findMany({
+    const reports = await prisma.reportRequest.findMany({
       where: { userId, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 10,
@@ -28,6 +28,26 @@ async function getRecentReports(userId: string) {
         sources: { select: { sourceType: true, status: true } },
       },
     });
+
+    // Resolve companyName from Company table for reports where it's null
+    const icosNeedingName = reports
+      .filter((r) => !r.companyName && r.ico)
+      .map((r) => r.ico as string);
+    const companyNames: Record<string, string> = {};
+    if (icosNeedingName.length > 0) {
+      const companies = await prisma.company.findMany({
+        where: { ico: { in: icosNeedingName } },
+        select: { ico: true, name: true },
+      });
+      for (const c of companies) {
+        if (c.name) companyNames[c.ico] = c.name;
+      }
+    }
+
+    return reports.map((r) => ({
+      ...r,
+      companyName: r.companyName || (r.ico ? companyNames[r.ico] || null : null),
+    }));
   } catch {
     return [];
   }

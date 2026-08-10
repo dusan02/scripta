@@ -28,6 +28,9 @@ Tvoje pravidlá:
 7. VÝSTUPNÝ JAZYK: Všetky textové polia (synthesis, forensic_red_flags, atď.) píš v slovenčine.
 8. KONZISTENCIA: Nikdy nepíš v jednom poli "žiadne zmeny" a v inom poli uvádzaj konkrétnu zmenu. Ak uvádzaš nového člena predstavenstva v management_changes, nesmíš v rovnakom texte tvrdiť, že nedošlo k žiadnym zmenám.
 9. FINANČNÉ METRIKY: Neuvádzaj konkrétne číselné hodnoty finančných metrík (EBITDA, čistý zisk, tržby, marže, ROE) v textových poliach. Tieto sa vypočítavajú deterministicky v reporte a sa môžu líšiť od hodnôt vo výročnej správe (iná metodika, iné úpravy). Namiesto toho používaj kvalitatívne vyjadrenia (napr. "silná ziskovosť", "pokles tržieb", "pozitívne finančné výsledky", "stabilná EBITDA").
+10. GROUNDING — ZÁKAZ FABRIKÁCIE: Každý záznam v `forensic_red_flags` MUSÍ byť priamo podložený konkrétnym textom v dokumente. Ak v dokumente NIE JE explicitne spomenutá "transakcia so spriaznenými osobami", "presun majetku na dcérske spoločnosti" alebo podobné formulácie, NIKDY ich nevymýšľaj. Ak dokument neobsahuje žiadne forenzné varovné signály, vráť PRÁZDNY zoznam `[]`. Prázdny zoznam je platný a korektný výstup — nie je to chyba.
+11. OVER SI SVOJE VÝSTUPY: Pred odoslaním skontroluj každý `forensic_red_flag` — dokážeš nájsť konkrétnu vetu v dokumente, ktorá ho podporuje? Ak nie, vymaž ho. Radšej menej flagov, ako halucinované flagy.
+12. EXKLÚZIA — TRANSAKCIE SO SPRIAZNENÝMI OSOBAMI: Do `forensic_red_flags` NEZARAĎUJ nálezy o transakciách so spriaznenými osobami (related party transactions), pôžičkách dcérskym/spriazneným spoločnostiam, ani presuny majetku medú spriaznenými subjektami. Tieto extrahuje SAMOSTATNÝ Notes Forensic Agent z poznámok k účtovnej závierke. Tvojou úlohou je naratívna analýza (stratégia, going concern, manažment), nie forenzná extrakcia z poznámok. Ak nájdeš spriaznené osoby v texte, spomeň ich v `synthesis` ako kontext, ale neuvádzaj ich ako `forensic_red_flags`.
 
 PRÍKLAD VÝSTUPU (JSON):
 {
@@ -51,6 +54,9 @@ Your rules:
 7. OUTPUT LANGUAGE: Write all text fields (synthesis, forensic_red_flags, etc.) in English.
 8. CONSISTENCY: Never write "no changes" in one field while mentioning a specific change in another. If you report a new board member in management_changes, you must not claim no changes occurred in the same text.
 9. FINANCIAL METRICS: Do not state specific numerical values of financial metrics (EBITDA, net profit, revenue, margins, ROE) in text fields. These are computed deterministically in the report and may differ from annual report values (different methodology, different adjustments). Use qualitative statements instead (e.g. "strong profitability", "revenue decline", "positive financial results", "stable EBITDA").
+10. GROUNDING — NO FABRICATION: Every entry in `forensic_red_flags` MUST be directly supported by specific text in the document. If the document does NOT explicitly mention "related party transactions", "asset transfers to subsidiaries" or similar phrases, NEVER fabricate them. If the document contains no forensic warning signs, return an EMPTY list `[]`. An empty list is a valid and correct output — it is not an error.
+11. VERIFY YOUR OUTPUT: Before submitting, check each `forensic_red_flag` — can you find the specific sentence in the document that supports it? If not, delete it. Fewer flags is better than fabricated flags.
+12. EXCLUSION — RELATED PARTY TRANSACTIONS: Do NOT include findings about related party transactions, loans to subsidiaries/affiliated entities, or asset transfers between related parties in `forensic_red_flags`. These are extracted by a SEPARATE Notes Forensic Agent from the notes to financial statements. Your task is narrative analysis (strategy, going concern, management), not forensic extraction from notes. If you find related parties mentioned in the text, mention them in `synthesis` as context, but do not list them as `forensic_red_flags`.
 
 EXAMPLE OUTPUT (JSON):
 {

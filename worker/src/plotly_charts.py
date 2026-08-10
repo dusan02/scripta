@@ -263,16 +263,24 @@ def generate_cashflow_chart(statements, lang="sk") -> str:
 
     fig = go.Figure()
     fig.add_trace(go.Bar(x=years, y=ocf, name=i.get('chart_operating_cf', 'Prevádzkový CF'), marker_color=COLORS['green'],
-                         text=[_fmt_m(v) for v in ocf], textposition='outside', textfont=dict(size=9, color=COLORS['green'])))
+                         text=[_fmt_m(v) for v in ocf], textposition='outside', texttemplate='%{text}',
+                         textfont=dict(size=9, color=COLORS['green']),
+                         hovertemplate='<b>%{x}</b><br>%{text}<extra></extra>'))
     fig.add_trace(go.Bar(x=years, y=icf, name=i.get('chart_investing_cf', 'Investičný CF'), marker_color=COLORS['red'],
-                         text=[_fmt_m(v) for v in icf], textposition='outside', textfont=dict(size=9, color=COLORS['red'])))
+                         text=[_fmt_m(v) for v in icf], textposition='outside', texttemplate='%{text}',
+                         textfont=dict(size=9, color=COLORS['red']),
+                         hovertemplate='<b>%{x}</b><br>%{text}<extra></extra>'))
     fig.add_trace(go.Bar(x=years, y=fcf, name=i.get('chart_financing_cf', 'Finančný CF'), marker_color=COLORS['blue'],
-                         text=[_fmt_m(v) for v in fcf], textposition='outside', textfont=dict(size=9, color=COLORS['blue'])))
+                         text=[_fmt_m(v) for v in fcf], textposition='outside', texttemplate='%{text}',
+                         textfont=dict(size=9, color=COLORS['blue']),
+                         hovertemplate='<b>%{x}</b><br>%{text}<extra></extra>'))
 
     fig.add_trace(go.Scatter(
         x=years, y=cash, name=i.get('chart_cash_equivalents', 'Cash & ekvivalenty'), mode='lines+markers+text',
         line=dict(color=COLORS['slate'], width=2, dash='dash'), marker=dict(size=8, symbol='diamond'),
-        text=[_fmt_m(v) for v in cash], textposition='top center', textfont=dict(size=9, color=COLORS['slate'])
+        text=[_fmt_m(v) for v in cash], textposition='top center', texttemplate='%{text}',
+        textfont=dict(size=9, color=COLORS['slate']),
+        hovertemplate='<b>%{x}</b><br>%{text}<extra></extra>'
     ))
 
     layout = get_base_layout(i.get('chart_cashflow_liquidity', 'Peňažné toky a likvidita'))

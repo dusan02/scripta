@@ -1036,20 +1036,48 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     else:
         _add("fraud_cat_forensic", "none", 0)
 
-    # 3. Narrative risks
+    # 3. Narrative risks (from NarrativeRiskAnalysis — LLM-extracted from annual reports)
     narrative_flags = []
+    # Related party flags z forensicRedFlags sa presúvajú do notes_flags (routing fix)
+    notes_flags_routed = []
+    _rp_pattern = re.compile(r'spriaznen|related\s*part|presun\s*majetk|asset\s*transfer|dcérs|subsidiar|odtok\s*kapit|capital\s*extract', re.IGNORECASE)
 
     for stmt in (stmts or []):
         nr = getattr(stmt, 'narrativeRisk', None)
         if nr:
             year = getattr(stmt, 'year', '')
-            for field in ['goingConcernRisk', 'keyRiskFactors', 'managementChanges']:
-                val = getattr(nr, field, None)
-                if val and not isinstance(val, bool) and str(val).strip():
-                    text = str(val)
+            # Only litigationRisks is a genuine risk indicator from text fields.
+            # managementChanges, plannedInvestments, profitabilityExplanation are
+            # informational/positive — not risk flags that should inflate heatmap severity.
+            val = getattr(nr, 'litigationRisks', None)
+            if val and not isinstance(val, bool) and str(val).strip():
+                text = str(val)
+                if year:
+                    text = f"[{year}] {text}"
+                narrative_flags.append(text[:397] + '…' if len(text) > 400 else text)
+            # goingConcernDoubts is a bool — if True, it's a critical flag
+            if getattr(nr, 'goingConcernDoubts', None) is True:
+                narrative_flags.append(f"[{year}] Going Concern pochybnosti" if year else "Going Concern pochybnosti")
+            # forensicRedFlags is a list[str] — each item is a separate flag
+            # BUT: related party flags are routed to notes_flags (they belong to Notes category)
+            raw_flags = getattr(nr, 'forensicRedFlags', None)
+            if raw_flags:
+                if isinstance(raw_flags, str):
+                    try:
+                        raw_flags = json.loads(raw_flags)
+                    except (json.JSONDecodeError, ValueError):
+                        raw_flags = [raw_flags]
+                for flag in raw_flags:
+                    if isinstance(flag, bool):
+                        continue
+                    text = str(flag)
                     if year:
                         text = f"[{year}] {text}"
-                    narrative_flags.append(text[:397] + '…' if len(text) > 400 else text)
+                    truncated = text[:397] + '…' if len(text) > 400 else text
+                    if _rp_pattern.search(text):
+                        notes_flags_routed.append(truncated)
+                    else:
+                        narrative_flags.append(truncated)
     if len(narrative_flags) >= 3:
         _add("fraud_cat_narrative", "high", len(narrative_flags), narrative_flags[:5])
     elif len(narrative_flags) >= 1:
@@ -1057,14 +1085,16 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
     else:
         _add("fraud_cat_narrative", "none", 0)
 
-    # 4. Notes forensic
+    # 4. Notes forensic (from NotesRiskAnalysis — structured data from financial statement notes)
     notes_flags = []
+    # Pridaj routed flags z narrative forensicRedFlags (related party patterny)
+    notes_flags.extend(notes_flags_routed)
 
     for stmt in (stmts or []):
         nr = getattr(stmt, 'notesRisk', None)
         if nr:
             year = getattr(stmt, 'year', '')
-            for field in ['redFlags', 'accountingAnomalies', 'hiddenRisks']:
+            for field in ['relatedPartyTransactions', 'offBalanceSheetLiabilities', 'contingentRisks']:
                 val = getattr(nr, field, None)
                 if val and not isinstance(val, bool) and str(val).strip():
                     text = str(val)

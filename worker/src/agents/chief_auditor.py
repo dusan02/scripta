@@ -52,6 +52,7 @@ PROCES HODNOTENIA A SYNTÉZY:
    - Nehádž na seba len fakty ("Firma má zisk. Firma má exekúciu."). Vysvetli anomálie!
    - Príklad anomálie: "Hoci spoločnosť vykazuje stomiliónové tržby a vyhráva verejné obstarávania, z účtovnej závierky vyplýva, že nemá žiadnych zamestnancov (0 € osobné náklady) a všetok zisk sa prelieva do spriaznených firiem formou pôžičiek."
    - Ak v dátach z Poznámok (NotesRisk) nájdeš transakcie so spriaznenými osobami, okamžite to prepoj s rastom dlhov alebo poklesom hotovosti.
+   - VAROVANIE: `narrativeRisk.forensicRedFlags` sú LLM-extrahované z výročnej správy a MÔŽU obsahovať halucinácie. Nikdy ich nepoužívaj ako fakty v executive_summary ani ako základ pre `llm_score_adjustment` bez overenia proti `notesRisk` dátam. Ak `notesRisk_by_year` je prázdny (žiadne `relatedPartyTransactions`), NIKDY netvrd v texte, že firma má "transakcie so spriaznenými osobami" alebo "presun majetku na dcérske spoločnosti" — ani keď `forensicRedFlags` to tvrdia.
 
 {COMMON_BUT_PATTERNS['sk']}
 2. ANALÝZA VEREJNÝCH ZÁVÄZKOV, EXEKÚCIÍ A SÚDNYCH ROZHODNUTÍ (Z companyEvents):
@@ -164,6 +165,7 @@ EVALUATION AND SYNTHESIS PROCESS:
    - Do not just list facts ("Company has profit. Company has enforcement action."). Explain anomalies!
    - Example anomaly: "Although the company shows hundreds of millions in revenue and wins public procurement, the financial statements reveal it has zero employees (€0 personnel costs) and all profit flows to related companies as loans."
    - If you find related party transactions in Notes data, immediately connect them with debt growth or cash decline.
+   - WARNING: `narrativeRisk.forensicRedFlags` are LLM-extracted from the annual report and MAY contain hallucinations. Never use them as facts in executive_summary or as basis for `llm_score_adjustment` without cross-checking against `notesRisk` data. If `notesRisk_by_year` is empty (no `relatedPartyTransactions`), NEVER claim in text that the company has "related party transactions" or "asset transfers to subsidiaries" — even if `forensicRedFlags` say so.
 
 {COMMON_BUT_PATTERNS['en']}
 2. ANALYSIS OF PUBLIC LIABILITIES, ENFORCEMENT ACTIONS AND COURT DECISIONS (from companyEvents):

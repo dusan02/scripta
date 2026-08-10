@@ -735,6 +735,55 @@ async def run_and_save_audit_verdict(
                 "auditorOpinion": stmt.get("auditorOpinion"),
             })
 
+        # Deterministický filter: odstráň halucinované forensicRedFlags z naratívu,
+        # ktoré tvrdia "transakcie so spriaznenými osobami" alebo "presun majetku",
+        # ak notesRisk_by_year neobsahuje žiadne relatedPartyTransactions.
+        # Toto je safety net — aj keď LLM ignoruje prompt pravidlá, kód zaručí grounding.
+        def _get_attr(obj, name, default=None):
+            """Helper: getattr pre Pydantic objekty aj dict."""
+            if isinstance(obj, dict):
+                return obj.get(name, default)
+            return getattr(obj, name, default)
+
+        def _set_attr(obj, name, value):
+            """Helper: setattr pre Pydantic objekty aj dict."""
+            if isinstance(obj, dict):
+                obj[name] = value
+            else:
+                setattr(obj, name, value)
+
+        _has_related_party_in_notes = any(
+            _get_attr(_get_attr(_nr, "notesRisk"), "relatedPartyTransactions")
+            for _nr in notes_by_year
+        )
+        if not _has_related_party_in_notes:
+            _RP_PATTERNS = [
+                re.compile(r'spriaznen', re.IGNORECASE),
+                re.compile(r'related\s*part', re.IGNORECASE),
+                re.compile(r'presun\s*majetk', re.IGNORECASE),
+                re.compile(r'asset\s*transfer', re.IGNORECASE),
+                re.compile(r'dcérs', re.IGNORECASE),
+                re.compile(r'subsidiar', re.IGNORECASE),
+                re.compile(r'odtok\s*kapit', re.IGNORECASE),
+                re.compile(r'capital\s*extract', re.IGNORECASE),
+            ]
+            _removed_count = 0
+            for entry in narrative_by_year:
+                nr = _get_attr(entry, "narrativeRisk")
+                flags = _get_attr(nr, "forensicRedFlags")
+                if flags and isinstance(flags, list):
+                    filtered = []
+                    for flag in flags:
+                        if isinstance(flag, str) and any(p.search(flag) for p in _RP_PATTERNS):
+                            _removed_count += 1
+                            logger.warning(f"[GROUNDING FILTER] Odstránený halucinovaný forensicRedFlag z naratívu {_get_attr(entry, 'rok')}: {flag[:80]}")
+                        else:
+                            filtered.append(flag)
+                    if len(filtered) != len(flags):
+                        _set_attr(nr, "forensicRedFlags", filtered)
+            if _removed_count > 0:
+                logger.info(f"[GROUNDING FILTER] Celkom odstránených {_removed_count} halucinovaných forensicRedFlags (žiadne relatedPartyTransactions v notesRisk)")
+
         # Extrahuj findings z registry sources pre LLM kontext
         registry_findings = []
         registry_status_summary = []
@@ -1066,6 +1115,12 @@ async def run_and_save_audit_verdict(
         # Ak LLM spomenie konkrétne sumy dlhov voči registrom, ktoré sú CLEAN,
         # tieto pasáže nahradíme varovaním o halucinácii.
         verdict_payload = _strip_hallucinated_debts(verdict_payload, registry_status_summary, ico)
+
+        # ── Deterministický inject NCRZP záložných práv ──
+        # Cross-Analysis LLM často ignoruje NCRZP findings v executive_summary.
+        # Tento inject zaručí, že záložné práva sa objavia v tabuľke Forenzné dôkazy.
+        verdict_payload = _inject_ncrzp_findings(verdict_payload, registry_findings, ico)
+
         await save_audit_verdict(ico, verdict_payload)
 
     except Exception as e:
@@ -1426,6 +1481,64 @@ def _strip_narrative_financial_metrics(narrative) -> None:
             modified = True
     if modified:
         logger.info(f"[NARRATIVE] Očistené konkrétne finančné metriky z naratívneho textu")
+
+
+def _inject_ncrzp_findings(payload: dict, registry_findings: list[dict], ico: str) -> dict:
+    """
+    Deterministický inject NCRZP záložných práv do AuditVerdict justification.
+    Ak NCRZP scraper našiel záložné práva a LLM ich nespomenul v executiveSummary,
+    pridá štruktúrovaný záznam do tabuľky Forenzné dôkazy.
+    """
+    # Nájdi NCRZP findings
+    ncrzp_findings = None
+    for rf in (registry_findings or []):
+        if rf.get("source_type") == "NCRZP":
+            ncrzp_findings = rf.get("findings", "")
+            break
+
+    if not ncrzp_findings:
+        return payload
+
+    # Skontroluj či LLM už nespomenul NCRZP / záložné právo v texte
+    exec_summary = payload.get("executiveSummary", "") or ""
+    key_risk = payload.get("keyRisk", "") or ""
+    combined_llm = (exec_summary + " " + key_risk).lower()
+    if "ncrzp" in combined_llm or "záložn" in combined_llm or "zalozn" in combined_llm:
+        # LLM už spomenul — nepridávaj duplicitu
+        return payload
+
+    # Parsovanie NCRZP findings — extrahuj počet a čísla záložných práv
+    import re as _re
+    ncrzp_numbers = _re.findall(r'NCRzp\s*\d+/\d+', ncrzp_findings, _re.IGNORECASE)
+    ncrzp_count = len(ncrzp_numbers) if ncrzp_numbers else 1
+
+    # Vytvor štruktúrovaný záznam pre justification tabuľku
+    evidence_text = ncrzp_findings[:500] if isinstance(ncrzp_findings, str) else str(ncrzp_findings)[:500]
+    ncrzp_entry = {
+        "claim": f"Evidované záložné práva v NCRZP ({ncrzp_count} {'záznam' if ncrzp_count == 1 else 'záznamy'})",
+        "evidence": evidence_text,
+        "source": "Notársky centrálny register záložných práv (NCRZP)",
+        "impact": "INFO",
+    }
+
+    # Pridaj do justification (môže byť list alebo JSON string)
+    just = payload.get("justification")
+    if just is None:
+        payload["justification"] = json.dumps([ncrzp_entry], ensure_ascii=False)
+    elif isinstance(just, str):
+        try:
+            just_list = json.loads(just)
+            if isinstance(just_list, list):
+                just_list.append(ncrzp_entry)
+                payload["justification"] = json.dumps(just_list, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    elif isinstance(just, list):
+        just.append(ncrzp_entry)
+
+    logger.info(f"[NCRZP INJECT] IČO {ico}: Pridaný deterministický záznam o {ncrzp_count} záložných právach do justification (LLM ich ignoroval)")
+
+    return payload
 
 
 def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str], ico: str) -> dict:
