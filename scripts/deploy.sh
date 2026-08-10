@@ -41,9 +41,11 @@ for i in $(seq 1 15); do
   sleep 2
 done
 
-# ─── 6. Cleanup old Docker images ──────────────────────────
-echo "[6/6] Cleaning up old Docker images..."
+# ─── 6. Cleanup old Docker images & build cache ────────────
+echo "[6/6] Cleaning up old Docker images & build cache..."
 docker image prune -f 2>/dev/null | tail -1 || true
+docker builder prune -f 2>/dev/null | tail -1 || true
+echo "  Disk: $(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')"
 
 # ─── Health check ──────────────────────────────────────────
 echo "[$(date)] Health check..."
