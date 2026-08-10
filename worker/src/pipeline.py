@@ -1224,6 +1224,11 @@ def build_metric_placeholders(
         latest.get("equity"), prev.get("equity"),
         "vzrástlo", "kleslo"
     )
+    if latest.get("equity") is not None and prev.get("equity") is not None and float(prev.get("equity", 0) or 0) != 0:
+        _eq_pct = ((float(latest["equity"]) - float(prev["equity"])) / abs(float(prev["equity"]))) * 100
+        ph["{{EQUITY_YOY_PCT}}"] = _format_pct(_eq_pct)
+    else:
+        ph["{{EQUITY_YOY_PCT}}"] = "N/A"
     ph["{{OCF_YOY}}"] = _yoy_text(
         latest.get("operatingCashFlow"), prev.get("operatingCashFlow"),
         "stúpol", "klesol"
@@ -1331,6 +1336,11 @@ def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
         return text
     for placeholder, value in placeholders.items():
         text = text.replace(placeholder, value)
+    # Fallback: odstráň všetky nenahradené {{...}} tagy, ktoré LLM vymyslel
+    # ale v placeholder dicte neexistujú (napr. {{EQUITY_YOY_PCT}} pred pridaním).
+    text = re.sub(r'\{\{[A-Z_]+\}\}', '', text)
+    # Cleanup dvojitých medzier po odstránení tagov
+    text = re.sub(r'  +', ' ', text).strip()
     return text
 
 

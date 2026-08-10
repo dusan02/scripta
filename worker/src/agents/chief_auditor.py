@@ -103,6 +103,7 @@ Trendy (medziročné zmeny — obsahujú slovo aj percento):
   {{{{REVENUE_YOY_PCT}}}} — len percento (napr. "13,2 %")
   {{{{NET_RESULT_YOY}}}} — "preklopenie do čistej straty" / "návrat do zisku" / "vzrástol o X %" / "klesol o X %"
   {{{{EQUITY_YOY}}}} — "vzrástlo o 12,3 %" alebo "kleslo o 41,4 %"
+  {{{{EQUITY_YOY_PCT}}}} — len percento (napr. "41,4 %")
   {{{{OCF_YOY}}}} — "stúpol o 82,3 %" alebo "klesol o 15,2 %"
   {{{{ST_LIAB_YOY}}}} — "nárast o 85,8 %" alebo "pokles o 10,2 %"
 
@@ -214,6 +215,7 @@ Trends (year-over-year — include verb and percentage):
   {{{{REVENUE_YOY_PCT}}}} — percentage only (e.g. "13.2%")
   {{{{NET_RESULT_YOY}}}} — "swung to net loss" / "returned to profit" / "increased by X%" / "decreased by X%"
   {{{{EQUITY_YOY}}}} — "increased by 12.3%" or "decreased by 41.4%"
+  {{{{EQUITY_YOY_PCT}}}} — percentage only (e.g. "41.4%")
   {{{{OCF_YOY}}}} — "rose by 82.3%" or "fell by 15.2%"
   {{{{ST_LIAB_YOY}}}} — "increase of 85.8%" or "decrease of 10.2%"
 

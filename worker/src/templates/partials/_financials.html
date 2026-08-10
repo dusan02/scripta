@@ -708,7 +708,7 @@
 <div class="page-break"></div>
 
 <!-- ===== PAGE 1: SÚVAHA ===== -->
-<div class="flex flex-col" style="height: 235mm; page-break-inside: avoid; overflow: hidden;">
+<div class="flex flex-col" style="height: 255mm; page-break-inside: avoid; overflow: hidden;">
     <h2 id="suvaha" class="section-title mb-4 flex-shrink-0">{{ i18n.balance_sheet }}</h2>
     {% if nace_code %}
     <div class="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
@@ -833,8 +833,8 @@
     {% endif %}
 
     {% if bs_infographic_base64 %}
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex justify-center items-center p-3 bg-white shadow-sm mt-4" style="min-height: 180px;">
-        <img src="data:image/png;base64,{{ bs_infographic_base64 }}" alt="{{ i18n.balance_sheet }}" class="w-full h-full object-contain">
+    <div class="flex-1 border border-slate-200 rounded-lg overflow-visible flex justify-center items-center p-3 bg-white shadow-sm mt-4" style="min-height: 200px;">
+        <img src="data:image/png;base64,{{ bs_infographic_base64 }}" alt="{{ i18n.balance_sheet }}" class="w-full h-auto object-contain" style="max-height: 300px;">
     </div>
     <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — {{ i18n.balance_sheet }} {{ latest_stmt.year }} · RÚZ</p>
     {% endif %}
@@ -918,8 +918,8 @@
     {% endif %}
 
     {% if pl_infographic_base64 %}
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex justify-center items-center p-3 bg-white shadow-sm mt-4" style="min-height: 180px;">
-        <img src="data:image/png;base64,{{ pl_infographic_base64 }}" alt="{{ i18n.pnl_statement }}" class="w-full h-full object-contain">
+    <div class="flex-1 border border-slate-200 rounded-lg overflow-visible flex justify-center items-center p-3 bg-white shadow-sm mt-4" style="min-height: 200px;">
+        <img src="data:image/png;base64,{{ pl_infographic_base64 }}" alt="{{ i18n.pnl_statement }}" class="w-full h-auto object-contain" style="max-height: 300px;">
     </div>
     <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — {{ i18n.pnl_statement }} {{ latest_stmt.year }} · RÚZ</p>
     {% endif %}
@@ -999,8 +999,8 @@
     {% if cf_waterfall_base64 %}
     <div class="flex flex-col mt-3 gap-4 flex-1 min-h-0">
         <div class="flex-1 flex flex-col min-h-0">
-            <div class="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm p-3 flex items-center justify-center flex-1 min-h-0">
-                <img src="data:image/png;base64,{{ cf_waterfall_base64 }}" alt="{{ i18n.cash_flow }}" class="w-full h-full object-contain">
+            <div class="border border-slate-200 rounded-lg overflow-visible bg-white shadow-sm p-3 flex items-center justify-center flex-1 min-h-0">
+                <img src="data:image/png;base64,{{ cf_waterfall_base64 }}" alt="{{ i18n.cash_flow }}" class="w-full h-auto object-contain" style="max-height: 300px;">
             </div>
             <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — {{ i18n.cash_flow }} {{ latest_stmt.year }} · RÚZ</p>
         </div>
