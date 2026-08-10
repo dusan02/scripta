@@ -164,16 +164,15 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             _log_failed_call_cost(model, label, "error")
             raise
 
-    # Fallback: kritickí agenti (Chief, Cross-Analysis, QA) len na Pro modely (2.5 Pro),
-    # nikdy na flash/flash-lite (halucinujú). Extractori na flash-lite (náklad).
+    # Fallback: iba Chief Auditor → 2.5 Pro (nehalucinuje).
+    # Cross-Analysis, QA a extractori → flash tier (flash-lite → flash).
     _original_model = model
-    _critical_keywords = ("Chief", "Cross-Analysis", "Report QA")
-    _is_critical = any(k in label for k in _critical_keywords)
-    if _is_critical:
-        # Kritickí agenti: fallback len na 2.5 Pro (stabilný, nehalucinuje)
+    _is_chief = "Chief" in label
+    if _is_chief:
+        # Chief Auditor: fallback len na 2.5 Pro (stabilný, nehalucinuje)
         _fallback_chain = ("gemini-2.5-pro",)
     else:
-        # Extractori: flash-lite → flash (rovnako ako predtým)
+        # Cross-Analysis, QA, extractori: flash-lite → flash
         _fallback_chain = (_FALLBACK_MODEL, _FALLBACK_MODEL_2)
     for fb_model in _fallback_chain:
         if model == fb_model or _original_model == fb_model:
