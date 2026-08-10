@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+import os
 
 from src.config import settings
 from src.log_helpers import log_llm_retry, get_correlation_id
@@ -18,6 +19,61 @@ _MODEL_VESTNIK = settings.model_vestnik
 _BACKOFF_SECONDS = settings.llm_backoff_list
 _FALLBACK_MODEL = settings.model_fallback
 _FALLBACK_MODEL_2 = settings.model_fallback_2
+
+# ── Pro model availability cache ──────────────────────────────────────────
+# Pre-flight check výsledok sa cachuje na 60s — viaceré agenty v jednom reporte
+# zdieľajú rovnaký výsledok (3.1 Pro sa nemení z minúty na minútu)
+_pro_available_cache: dict[str, tuple[bool, float]] = {}
+_PRO_CACHE_TTL = 60  # sekundy
+
+
+async def check_pro_model_available(model: str = "gemini-3.1-pro-preview", timeout: float = 8.0) -> bool:
+    """
+    Pre-flight check: otestuje či Pro model odpovedá v rámci timeoutu.
+    Výsledok sa cachuje na 60s aby sa zbytočne netestoval pri každom agentovi.
+    """
+    now = time.time()
+    cached = _pro_available_cache.get(model)
+    if cached and (now - cached[1]) < _PRO_CACHE_TTL:
+        return cached[0]
+
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        _pro_available_cache[model] = (False, now)
+        return False
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}",
+                json={"contents": [{"parts": [{"text": "OK"}]}], "generationConfig": {"maxOutputTokens": 1}},
+            )
+            available = r.status_code == 200
+            _pro_available_cache[model] = (available, now)
+            logger.info(f"[{get_correlation_id() or '-'}] PRE-FLIGHT {model}: {'AVAILABLE' if available else f'UNAVAILABLE ({r.status_code})'}")
+            return available
+    except Exception as e:
+        _pro_available_cache[model] = (False, now)
+        logger.info(f"[{get_correlation_id() or '-'}] PRE-FLIGHT {model}: UNAVAILABLE ({type(e).__name__})")
+        return False
+
+
+def get_chief_auditor_model() -> str:
+    """
+    Vráti model pre Chief Auditora na základe pre-flight checku.
+    Ak je expert_mode a 3.1 Pro je dostupný → 3.1 Pro.
+    Ak 3.1 Pro nedostupný → 2.5 Pro (stabilný fallback, nie flash).
+    V non-expert móde → flash (štandard).
+    """
+    if not settings.expert_mode:
+        return "gemini-3.5-flash"
+    # Pre-flight check — ak 3.1 Pro nefunguje, použijeme 2.5 Pro
+    cached = _pro_available_cache.get("gemini-3.1-pro-preview")
+    if cached and not cached[0]:
+        logger.info(f"[{get_correlation_id() or '-'}] CHIEF AUDITOR: Using gemini-2.5-pro (3.1 Pro unavailable)")
+        return "gemini-2.5-pro"
+    return "gemini-3.1-pro-preview"
 
 
 def _log_failed_call_cost(model: str, label: str, reason: str, prompt_text: str = "") -> None:
@@ -108,12 +164,17 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             _log_failed_call_cost(model, label, "error")
             raise
 
-    # Fallback: kritickí agenti (Chief, Cross-Analysis, QA) najprv na flash (kvalita),
-    # extractori na flash-lite (náklad). Druhý fallback je vždy slabší model.
+    # Fallback: kritickí agenti (Chief, Cross-Analysis, QA) len na Pro modely (2.5 Pro),
+    # nikdy na flash/flash-lite (halucinujú). Extractori na flash-lite (náklad).
     _original_model = model
     _critical_keywords = ("Chief", "Cross-Analysis", "Report QA")
     _is_critical = any(k in label for k in _critical_keywords)
-    _fallback_chain = (_FALLBACK_MODEL_2, _FALLBACK_MODEL) if _is_critical else (_FALLBACK_MODEL, _FALLBACK_MODEL_2)
+    if _is_critical:
+        # Kritickí agenti: fallback len na 2.5 Pro (stabilný, nehalucinuje)
+        _fallback_chain = ("gemini-2.5-pro",)
+    else:
+        # Extractori: flash-lite → flash (rovnako ako predtým)
+        _fallback_chain = (_FALLBACK_MODEL, _FALLBACK_MODEL_2)
     for fb_model in _fallback_chain:
         if model == fb_model or _original_model == fb_model:
             continue
@@ -130,7 +191,6 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             logger.error(f"[{get_correlation_id() or '-'}] LLM FALLBACK FAIL: {label} model={fb_model}: {e}")
             _log_failed_call_cost(fb_model, label, "fallback_error")
             if "404" not in error_str and "not_found" not in error_str:
-                # Pre 429/503 skúsiť ďalší fallback; pre iné chyby re-raise
                 if "503" in error_str or "429" in error_str or "resource_exhausted" in error_str:
                     _mark_last_key_failed()
                 else:

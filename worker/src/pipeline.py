@@ -37,7 +37,7 @@ from src.llm_extractor import (
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
 from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf, extract_relevant_pdf_chunks
-from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_NOTES, _MODEL_VESTNIK
+from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_NOTES, _MODEL_VESTNIK, check_pro_model_available, get_chief_auditor_model
 from src.agents.pdf_reader import extract_company_events
 from src.analytics import sanitize_cash_flow_fields, estimate_missing_cash_flow, compute_financial_trends, compute_forensic_scorecard
 
@@ -843,11 +843,21 @@ async def run_and_save_audit_verdict(
             logger.warning(f"Cross-Analysis Agent zlyhal pre IČO {ico}: {cross_err} — Chief Auditor pokračuje bez neho.")
 
         # ── Chief Auditor — finálny verdikt + scorecard + evidence ──
+        # Pre-flight check: ak 3.1 Pro nedostupný, použijeme 2.5 Pro priamo (žiadny flash — halucinuje)
+        _chief_model = _cfg.model_verdict
+        if _cfg.expert_mode:
+            _pro_ok = await check_pro_model_available("gemini-3.1-pro-preview", timeout=8.0)
+            if not _pro_ok:
+                _chief_model = "gemini-2.5-pro"
+                logger.info(f"[{ico}] CHIEF AUDITOR: 3.1 Pro nedostupný → používam {_chief_model}")
+            else:
+                _chief_model = "gemini-3.1-pro-preview"
+
         try:
-            logger.info(f"Chief Auditor vstup: {len(auditor_input_json)} chars (redukovaný z {len(company_data)} chars)")
+            logger.info(f"Chief Auditor vstup: {len(auditor_input_json)} chars (redukovaný z {len(company_data)} chars) | model={_chief_model}")
             verdict = await safe_llm_call(
                 evaluate_audit_verdict, auditor_input_json,
-                model=_cfg.model_verdict,
+                model=_chief_model,
                 label="Chief Auditor",
                 report_language=report_language,
                 cross_analysis_summary=cross_summary,
@@ -863,10 +873,10 @@ async def run_and_save_audit_verdict(
                         "cross_analysis_summary": cross_summary,
                         "instruction": "Refine the draft verdict. Improve logical flow, remove repetitions, deepen analysis of hidden connections, and make recommendations more specific and actionable. Keep all factual numbers unchanged. CRITICAL: Keep all {{PLACEHOLDER}} tags (like {{REVENUE}}, {{OCF}}, {{ALTMAN_Z}}) exactly as they are — do NOT replace them with numbers.",
                     }, ensure_ascii=False, default=str)
-                    logger.info(f"Chief Auditor 2-pass (refine): {len(refine_input)} chars")
+                    logger.info(f"Chief Auditor 2-pass (refine): {len(refine_input)} chars | model={_chief_model}")
                     refined = await safe_llm_call(
                         evaluate_audit_verdict, refine_input,
-                        model=_cfg.model_verdict,
+                        model=_chief_model,
                         label="Chief Auditor (refine pass)",
                         report_language=report_language,
                         cross_analysis_summary=cross_summary,
@@ -910,7 +920,7 @@ async def run_and_save_audit_verdict(
                 logger.warning(f"[QA RE-RUN] IČO {ico}: re-running Chief Auditor with {len(qa_discrepancies)} discrepancies")
                 verdict = await safe_llm_call(
                     evaluate_audit_verdict, auditor_input_json,
-                    model=_cfg.model_verdict,
+                    model=_chief_model,
                     label="Chief Auditor (QA re-run)",
                     report_language=report_language,
                     cross_analysis_summary=cross_summary,
