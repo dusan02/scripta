@@ -1495,9 +1495,25 @@ def compute_strengths_weaknesses(scorecard_breakdown, fraud_heatmap, insolvency_
     }
 
 
+def _filter_consolidation_consistency(stmts):
+    """Zabezpečí konzistentný typ závierky v time-series.
+    Ak firma má oba typy (konsolidovaná + individuálna), preferuje jeden typ.
+    Priorita: konsolidovaná (ak ≥3 roky), inak individuálna."""
+    if not stmts:
+        return stmts, "individual"
+    cons = [s for s in stmts if getattr(s, 'isConsolidated', False)]
+    indiv = [s for s in stmts if not getattr(s, 'isConsolidated', False)]
+    if cons and indiv:
+        if len(cons) >= 3:
+            return cons, "consolidated"
+        return indiv, "individual"
+    return stmts, "consolidated" if cons else "individual"
+
+
 def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language="sk", vestnik_date_from=None):
     i18n_strings = get_i18n_strings(report_language)
     verdict = company.auditVerdict
+    financial_basis = "individual"
     if company.financialStatements:
         # Filter out empty statements (RÚZ sometimes returns a header record
         # with all-zero values when a filing exists but has no financial data).
@@ -1509,6 +1525,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             return ta == 0 and rev == 0 and eq == 0
         company.financialStatements = [s for s in company.financialStatements if not _is_empty_stmt(s)]
         company.financialStatements = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
+        # ── Statement type consistency filter ──
+        company.financialStatements, financial_basis = _filter_consolidation_consistency(company.financialStatements)
     stmts = company.financialStatements
     # Sanitizácia: konverzia Decimal na float (po migrácii Float→Decimal v DB)
     # Všetky aritmetické operácie v tejto funkcii + chart funkciách vyžadujú float
@@ -2268,6 +2286,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "is_startup": is_startup,
         "startup_info": startup_info,
         "has_mixed_consolidation": has_mixed_consolidation,
+        "financial_basis": financial_basis,
         "has_non_standard_months": has_non_standard_months,
         "has_short_history": has_short_history,
         "has_balance_imbalance": has_balance_imbalance,
@@ -2472,6 +2491,7 @@ async def generate_financial_summary_pdf(ico: str, target_path: str) -> Optional
             return None
 
         stmts = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
+        stmts, _ = _filter_consolidation_consistency(stmts)
         stmts.sort(key=lambda s: s.year)
         latest = stmts[-1]
         years = [s.year for s in stmts]

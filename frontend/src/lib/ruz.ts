@@ -259,29 +259,32 @@ export async function seedFromRuz(ico: string) {
     include: {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       auditVerdict: true,
-      vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
+      vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
+      companyEvents: { orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
 }
 
 export const getCompanyData = cache(async (ico: string) => {
-  const company = await prisma.company.findUnique({
+  let company = await prisma.company.findUnique({
     where: { ico },
     include: {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       auditVerdict: true,
-      vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 5 },
+      vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
+      companyEvents: { orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
-  if (company && company.city && company.legalForm) {
-    const needsReseed = company.financialStatements.some(
-      s => s.currentAssets === null || s.netProfitLoss === null
-    );
-    if (!needsReseed) return company;
+
+  if (!company) {
+    try {
+      company = await seedFromRuz(ico);
+    } catch {
+      // ignore seeding errors
+    }
   }
-  // Try seeding from RUZ; if it fails (RUZ down), fall back to existing DB record
-  const seeded = await seedFromRuz(ico);
-  return seeded ?? company;
+
+  return company;
 });

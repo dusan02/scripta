@@ -686,6 +686,41 @@ class ScorecardResult:
     score_version: str = "v2"
 
 
+@dataclass
+class ScorecardResultV3:
+    """V3 výsledok — Financial Score, Data Quality a Risk oddelené."""
+    financial_score: int          # 0-100, čisto finančné zdravie (bez DQ penalizácie)
+    data_quality_score: int       # 0-100, kvalita dostupných dát
+    risk_category: str            # AAA / A / B / C (z financial_score)
+    risk_level: str               # LOW / MEDIUM / HIGH / CRITICAL
+    entity_type: str              # commercial / public / nonprofit / other
+    hard_stop: bool = False
+    pillars: list = field(default_factory=list)          # list[ScorecardPillar]
+    availability_mask: dict = field(default_factory=dict)  # {component: True/False}
+    score_version: str = "v3"
+
+
+_PUBLIC_FORMS = {"Obec", "Rozpočtová org. štátu", "Príspevková org.", "Príspevková org. štátu",
+                 "Štátny podnik", "Štátny fond", "Zariadenie štátu"}
+_NONPROFIT_FORMS = {"Nadácia", "Nadácia v zriaďovateľskej fáze", "Občianske združenie",
+                    "Záujmové združenie FO", "Politická strana", "Európske združenie",
+                    "Neinvestičný fond", "Fond", "NOPS"}
+_COMMERCIAL_FORMS = {"s.r.o.", "Akciová spol.", "Ver. obch. spol.", "v.o.s.", "Družstvo",
+                     "Európske družstvo", "Európska spol.", "Organiz. zahr. investora",
+                     "Spoločný podnik"}
+
+
+def classify_entity_type(legal_form: str) -> str:
+    """Rozdelí entity na commercial / public / nonprofit / other podľa legal form."""
+    if legal_form in _PUBLIC_FORMS:
+        return "public"
+    elif legal_form in _NONPROFIT_FORMS:
+        return "nonprofit"
+    elif legal_form in _COMMERCIAL_FORMS:
+        return "commercial"
+    return "other"
+
+
 def _risk_category(score: int) -> str:
     if score >= 90:
         return "AAA"
@@ -1548,6 +1583,564 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         risk_category=_risk_category(total_score),
         hard_stop=hard_stop_triggered,
         score_version="v2"
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════
+# V3 SCORING — Availability Mask + Renormalization + Entity Classifier + DQ Separation
+# ══════════════════════════════════════════════════════════════════════════════════════════
+
+def _compute_data_quality_score(stmts_raw, has_pnl, has_cf, has_audit, entity_type):
+    """Vypočíta Data Quality Score (0-100) ako samostatný výstup."""
+    score = 0
+    # Počet rokov výkazov (max 40 bodov)
+    n = len(stmts_raw)
+    if n >= 5: score += 40
+    elif n >= 3: score += 30
+    elif n >= 2: score += 20
+    elif n >= 1: score += 10
+
+    # P&L dostupnosť (max 25 bodov)
+    if has_pnl: score += 25
+
+    # Cash Flow dostupnosť (max 20 bodov)
+    if has_cf: score += 20
+
+    # Audit opinion (max 15 bodov)
+    if has_audit: score += 15
+
+    return min(100, score)
+
+
+def _risk_level(hard_stop, financial_score, vestnik_events):
+    """Určí risk level na základe hard stop, financial score a vestník events."""
+    if hard_stop:
+        return "CRITICAL"
+    # Check for critical/high vestnik events
+    crit_count = sum(1 for e in vestnik_events
+                     if (e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "")) in ("CRITICAL", "HIGH"))
+    if crit_count > 0:
+        return "HIGH"
+    if financial_score < 40:
+        return "HIGH"
+    if financial_score < 60:
+        return "MEDIUM"
+    return "LOW"
+
+
+def compute_forensic_scorecard_v3(company_dict: dict, trends: dict) -> "ScorecardResultV3":
+    """
+    Scoring V3 / Risk Engine Candidate — interný prototyp, nie finálny Verifa Score.
+
+    STATUS: internal prototype — nepoužívať v produkčnom UI ani ako verejný score.
+    Finálny Verifa Risk Engine bude navrhnutý až s kompletnou dátovou vrstvou
+    (RÚZ + ORSR + Vestník + auditorské správy + poznámky k závierkám + deep-data).
+
+    5-pilierový model s availability mask a renormalizáciou.
+
+    Kľúčové zmeny oproti V2:
+    1. N/A ≠ 0 — chýbajúce dáta sa nerátajú ako 0, váhy sa renormalizujú
+    2. Entity classifier — commercial/public/nonprofit/other
+    3. DQ je samostatný score (0-100), nie multiplier na financial score
+    4. Altman/Piotroski len pre commercial entity
+    5. Hard stops zachované
+    """
+    vestnik_events = company_dict.get("vestnikEvents", [])
+    legal_form = company_dict.get("legalForm", "") or ""
+    entity_type = classify_entity_type(legal_form)
+    nace_code = company_dict.get("naceCode", "") or ""
+    nace_w = get_nace_weights(nace_code)
+
+    # ── HARD STOP ──────────────────────────────────────────────────────────────
+    hard_stop_triggered = False
+    for event in vestnik_events:
+        event_type = (
+            event.get("eventType", "").lower()
+            if isinstance(event, dict)
+            else getattr(event, "eventType", "").lower()
+        )
+        event_type_norm = unicodedata.normalize("NFC", event_type)
+        if any(kw in event_type_norm for kw in ("konkurz", "likvidáci", "reštrukturalizáci")):
+            hard_stop_triggered = True
+            break
+
+    # ── Data preparation ───────────────────────────────────────────────────────
+    stmts_raw = company_dict.get("financialStatements", [])
+    sorted_stmts_raw = sorted(stmts_raw, key=lambda x: x.year if hasattr(x, "year") else x.get("year", 0))
+    startup_info = detect_startup_profile(sorted_stmts_raw)
+    is_financial_inst = _is_financial_institution(sorted_stmts_raw[-1]) if sorted_stmts_raw else False
+
+    all_ratios = trends.get("ratios_by_year") or [{}]
+    all_z = trends.get("altman_z_scores") or [{}]
+    last_ratios = next((r for r in reversed(all_ratios) if r.get("current_ratio") is not None), all_ratios[-1] if all_ratios else {})
+    last_z = next((z for z in reversed(all_z) if z.get("z_score") is not None and z.get("components")), all_z[-1] if all_z else {})
+    consecutive_losses = trends.get("consecutive_losses", 0)
+
+    # ── Availability mask ──────────────────────────────────────────────────────
+    has_pnl = any(
+        _get(s, "mainActivityRevenue", None) is not None or _get(s, "netProfitLoss", None) is not None
+        for s in sorted_stmts_raw
+    ) if sorted_stmts_raw else False
+    has_cf = any(_get(s, "operatingCashFlow", None) is not None for s in sorted_stmts_raw) if sorted_stmts_raw else False
+    has_audit = False
+    for stmt in reversed(sorted_stmts_raw):
+        op = getattr(stmt, "auditorOpinion", None) or (stmt.get("auditorOpinion") if isinstance(stmt, dict) else None)
+        if op:
+            op_type = getattr(op, "opinionType", "") or (op.get("opinionType", "") if isinstance(op, dict) else "")
+            if op_type and str(op_type).lower() != "null":
+                has_audit = True
+                break
+
+    has_balance = any(
+        _get(s, "totalAssets", None) is not None and _get(s, "equity", None) is not None
+        for s in sorted_stmts_raw
+    ) if sorted_stmts_raw else False
+    has_revenue_trend = trends.get("cagr_revenue") is not None
+    has_equity_trend = bool(trends.get("equity_trend", []))
+
+    availability = {
+        "balance_sheet": has_balance,
+        "pnl": has_pnl,
+        "cash_flow": has_cf,
+        "audit": has_audit,
+        "revenue_trend": has_revenue_trend,
+        "equity_trend": has_equity_trend,
+    }
+
+    # ── DQ Score (samostatný, nie multiplier) ──────────────────────────────────
+    dq_score = _compute_data_quality_score(sorted_stmts_raw, has_pnl, has_cf, has_audit, entity_type)
+
+    # Piotroski (computed once, used conditionally)
+    piotroski = compute_piotroski_f_score(sorted_stmts_raw)
+
+    pillars = []
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PILIER 1 — Platobná schopnosť & Exekúcie
+    # Komponenty: current_ratio (12), equity_to_debt (12), vestník events (6)
+    # Available pre všetky entity types (súvaha je zvyčajne dostupná)
+    # ══════════════════════════════════════════════════════════════════════════
+    p1_components = {}  # {name: (score, max, available)}
+    p1_flags = []
+
+    cr = last_ratios.get("current_ratio")
+    if is_financial_inst:
+        p1_components["current_ratio"] = (10, 12, True)
+        p1_flags.append("Current ratio: N/A — finančná inštitúcia")
+    elif cr is None:
+        p1_components["current_ratio"] = (None, 12, False)
+        p1_flags.append("Current ratio: N/A")
+    elif cr >= 1.5:
+        p1_components["current_ratio"] = (12, 12, True)
+        p1_flags.append(f"Current ratio: {cr:.2f} — výborná likvidita")
+    elif cr >= 1.0:
+        p1_components["current_ratio"] = (8, 12, True)
+        p1_flags.append(f"Current ratio: {cr:.2f} — dostatočná likvidita")
+    elif cr >= 0.5:
+        p1_components["current_ratio"] = (4, 12, True)
+        p1_flags.append(f"Current ratio: {cr:.2f} — problematická likvidita")
+    else:
+        p1_components["current_ratio"] = (0, 12, True)
+        p1_flags.append(f"Current ratio: {cr:.2f} — kritická likvidita")
+
+    equity_to_debt = last_z.get("components", {}).get("x4_equity_to_debt", None)
+    if is_financial_inst:
+        _eq = _get(sorted_stmts_raw[-1], "equity", None) if sorted_stmts_raw else None
+        if _eq is not None and _eq > 0:
+            p1_components["equity"] = (12, 12, True)
+            p1_flags.append("Vlastné imanie: kladné")
+        elif _eq is not None and _eq < 0:
+            p1_components["equity"] = (0, 12, True)
+            p1_flags.append("Vlastné imanie: ZÁPORNÉ")
+        else:
+            p1_components["equity"] = (None, 12, False)
+            p1_flags.append("Vlastné imanie: N/A")
+    elif equity_to_debt is None:
+        # Try direct equity check
+        _eq = _get(sorted_stmts_raw[-1], "equity", None) if sorted_stmts_raw else None
+        if _eq is not None:
+            if _eq > 0:
+                p1_components["equity"] = (12, 12, True)
+                p1_flags.append("Vlastné imanie: kladné")
+            else:
+                p1_components["equity"] = (0, 12, True)
+                p1_flags.append("Vlastné imanie: ZÁPORNÉ")
+        else:
+            p1_components["equity"] = (None, 12, False)
+            p1_flags.append("Vlastné imanie: N/A")
+    elif equity_to_debt > 0:
+        p1_components["equity"] = (12, 12, True)
+        p1_flags.append("Vlastné imanie: kladné")
+    else:
+        p1_components["equity"] = (0, 12, True)
+        p1_flags.append("Vlastné imanie: ZÁPORNÉ")
+
+    # Vestník events
+    crit_events_penalty = 0
+    for e in vestnik_events:
+        sev = e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "")
+        if sev in ("CRITICAL", "HIGH"):
+            crit_events_penalty += compute_vestnik_degradation(e)
+    if crit_events_penalty == 0:
+        p1_components["vestnik"] = (6, 6, True)
+        p1_flags.append("Vestník: žiadne kritické udalosti")
+    elif crit_events_penalty < 1.0:
+        p1_components["vestnik"] = (3, 6, True)
+        p1_flags.append("Vestník: staré kritické udalosti")
+    else:
+        p1_components["vestnik"] = (0, 6, True)
+        p1_flags.append(f"Vestník: aktívne kritické udalosti")
+
+    # Renormalize P1
+    p1_avail = [(s, m) for s, m, a in p1_components.values() if a]
+    p1_total_avail = sum(m for _, m in p1_avail)
+    p1_score_avail = sum(s for s, _ in p1_avail)
+    p1_raw = int(round((p1_score_avail / p1_total_avail * 30) if p1_total_avail > 0 else 0))
+    p1_score = int(round((p1_raw / 30.0) * nace_w["P1"]))
+
+    if hard_stop_triggered:
+        p1_score = 0
+        p1_flags = ["HARD STOP — Konkurz/Likvidácia/Reštrukturalizácia"]
+
+    pillars.append(ScorecardPillar(
+        name="Platobná schopnosť & Exekúcie",
+        score=p1_score, max_score=nace_w["P1"],
+        detail=" | ".join(p1_flags[:2]), flags=p1_flags
+    ))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PILIER 2 — Finančné zdravie
+    # Commercial: Altman Z'' (20) + Piotroski (10)
+    # Public/Nonprofit: Equity ratio (15) + Piotroski (15) [bez Altman]
+    # Komponenty sa renormalizujú podľa dostupnosti
+    # ══════════════════════════════════════════════════════════════════════════
+    p2_components = {}
+    p2_flags = []
+
+    if startup_info.get("is_startup"):
+        p2_components["altman"] = (15, 20, True)
+        p2_flags.append(f"STARTUP profil (Altman neaplikovateľné)")
+    elif is_financial_inst:
+        p2_components["altman"] = (15, 20, True)
+        p2_flags.append("Altman Z'': N/A — finančná inštitúcia")
+    elif entity_type != "commercial":
+        # Pre public/nonprofit: Altman nie je aplikovateľný — použijeme equity ratio
+        p2_components["altman"] = (None, 20, False)
+        p2_flags.append("Altman Z'': N/A — neaplikovateľné pre tento typ entity")
+        # Equity ratio ako náhrada — dostupné z BS (totalAssets, equity)
+        _eq = _get(sorted_stmts_raw[-1], "equity", None) if sorted_stmts_raw else None
+        _ta = _get(sorted_stmts_raw[-1], "totalAssets", None) if sorted_stmts_raw else None
+        if _eq is not None and _ta is not None and _ta > 0:
+            eq_ratio = _eq / _ta
+            if eq_ratio >= 0.5:
+                p2_components["equity_ratio"] = (15, 15, True)
+                p2_flags.append(f"Equity ratio: {eq_ratio:.1%} — silná kapitalizácia")
+            elif eq_ratio >= 0.3:
+                p2_components["equity_ratio"] = (10, 15, True)
+                p2_flags.append(f"Equity ratio: {eq_ratio:.1%} — adekvátna")
+            elif eq_ratio >= 0.1:
+                p2_components["equity_ratio"] = (5, 15, True)
+                p2_flags.append(f"Equity ratio: {eq_ratio:.1%} — nízka")
+            else:
+                p2_components["equity_ratio"] = (0, 15, True)
+                p2_flags.append(f"Equity ratio: {eq_ratio:.1%} — kritická")
+        else:
+            p2_components["equity_ratio"] = (None, 15, False)
+            p2_flags.append("Equity ratio: N/A — chýba súvaha")
+    else:
+        z_score_val = last_z.get("z_score")
+        z_zone = last_z.get("zone", "N/A")
+        if z_score_val is None:
+            # Altman nedá sa vypočítať — N/A
+            p2_components["altman"] = (None, 20, False)
+            p2_flags.append("Altman Z'': N/A — nedostatok dát")
+        elif z_zone == "SAFE":
+            p2_components["altman"] = (min(20, int(15 + (z_score_val - 2.6) / (5.0 - 2.6) * 5)), 20, True)
+            p2_flags.append(f"Altman Z'': {z_score_val:.2f} — safe zone")
+        elif z_zone == "GREY":
+            p2_components["altman"] = (min(14, int(7 + (z_score_val - 1.1) / (2.6 - 1.1) * 7)), 20, True)
+            p2_flags.append(f"Altman Z'': {z_score_val:.2f} — grey zone")
+        else:
+            p2_components["altman"] = (max(0, min(4, int((z_score_val / 1.1) * 4))), 20, True)
+            p2_flags.append(f"Altman Z'': {z_score_val:.2f} — distress zone")
+
+    # Piotroski — relevantný pre commercial a nonprofit, obmedzene pre public
+    if entity_type == "public":
+        p2_components["piotroski"] = (None, 10, False)
+        p2_flags.append("Piotroski: N/A — verejný sektor")
+    else:
+        pio_score = piotroski.get("score")
+        if pio_score is not None:
+            p2_components["piotroski"] = (min(10, int((pio_score / 8.0) * 10)), 10, True)
+            p2_flags.append(f"Piotroski F-score: {pio_score}/8")
+        else:
+            p2_components["piotroski"] = (None, 10, False)
+            p2_flags.append("Piotroski: N/A")
+
+    # Renormalize P2
+    p2_avail = [(s, m) for s, m, a in p2_components.values() if a]
+    p2_total_avail = sum(m for _, m in p2_avail)
+    p2_score_avail = sum(s for s, _ in p2_avail)
+    if p2_total_avail > 0:
+        p2_raw = int(round(p2_score_avail / p2_total_avail * 30))
+    else:
+        # All components N/A — neutral, nie 0
+        p2_raw = 5
+    p2_score = int(round((p2_raw / 30.0) * nace_w["P2"]))
+
+    pillars.append(ScorecardPillar(
+        name="Finančné zdravie",
+        score=p2_score, max_score=nace_w["P2"],
+        detail=" | ".join(p2_flags[:2]), flags=p2_flags
+    ))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PILIER 3 — Ziskovosť & Stabilita & CF
+    # Komponenty: profitability (10), margins/ROA (5), cash flow (15)
+    # Pre public/nonprofit: profitability a CF sú N/A (často nemajú P&L)
+    # ══════════════════════════════════════════════════════════════════════════
+    p3_components = {}
+    p3_flags = []
+    n_years = len(sorted_stmts_raw)
+
+    if n_years == 0:
+        p3_components["profitability"] = (None, 10, False)
+        p3_components["margins"] = (None, 5, False)
+        p3_components["cash_flow"] = (None, 15, False)
+        p3_flags.append("DATA VOID")
+    else:
+        # Profitability — available len ak máme netProfitLoss
+        has_profit_data = any(_get(s, "netProfitLoss", None) is not None for s in sorted_stmts_raw)
+        if not has_profit_data:
+            p3_components["profitability"] = (None, 10, False)
+            p3_flags.append("Ziskovosť: N/A — chýba P&L")
+        else:
+            profitable_years = sum(
+                1 for s in sorted_stmts_raw
+                if (_get(s, "netProfitLoss", 0) or 0) > 0
+            )
+            if profitable_years >= 5: p3_components["profitability"] = (10, 10, True)
+            elif profitable_years >= 3: p3_components["profitability"] = (7, 10, True)
+            elif profitable_years >= 1: p3_components["profitability"] = (4, 10, True)
+            else: p3_components["profitability"] = (0, 10, True)
+            p3_flags.append(f"Ziskovosť: {profitable_years}/{n_years} rokov v zisku")
+
+        # Margins/ROA — available len ak máme netProfitLoss v dátach
+        has_npl = any(_get(s, "netProfitLoss", None) is not None for s in sorted_stmts_raw)
+        if not has_npl:
+            p3_components["margins"] = (None, 5, False)
+            p3_flags.append("Marže/ROA: N/A — chýba P&L")
+        else:
+            npm = last_ratios.get("net_profit_margin_pct")
+            roa = last_ratios.get("roa_pct")
+            if npm is None and roa is None:
+                p3_components["margins"] = (None, 5, False)
+                p3_flags.append("Marže/ROA: N/A — chýba P&L")
+            else:
+                m_score = 0
+                if npm is not None and npm >= 10: m_score += 3
+                if roa is not None and roa >= 5: m_score += 2
+                p3_components["margins"] = (m_score, 5, True)
+
+        if consecutive_losses >= 3 and has_profit_data:
+            cur_s, cur_m, _ = p3_components.get("profitability", (0, 10, True))
+            p3_components["profitability"] = (max(0, cur_s - min(10, consecutive_losses * 3)), cur_m, True)
+            p3_flags.append(f"Penalizácia: {consecutive_losses} roky strata")
+
+        # Cash Flow
+        op_cf_raw = _get(sorted_stmts_raw[-1], "operatingCashFlow", None) if sorted_stmts_raw else None
+        rev = _get(sorted_stmts_raw[-1], "mainActivityRevenue", 0) or 0
+        if is_financial_inst and op_cf_raw is not None and op_cf_raw < 0:
+            p3_components["cash_flow"] = (12, 15, True)
+            p3_flags.append("Cash Flow: N/A — finančná inštitúcia")
+        elif op_cf_raw is not None:
+            op_cf = op_cf_raw
+            if op_cf > 0:
+                if rev > 0 and (op_cf / rev) > 0.10:
+                    p3_components["cash_flow"] = (15, 15, True)
+                    p3_flags.append("Cash Flow: Silný (CF/Rev > 10%)")
+                else:
+                    p3_components["cash_flow"] = (7, 15, True)
+                    p3_flags.append("Cash Flow: Kladný")
+            else:
+                p3_components["cash_flow"] = (0, 15, True)
+                p3_flags.append("Cash Flow: Záporný (riziko)")
+        else:
+            p3_components["cash_flow"] = (None, 15, False)
+            p3_flags.append("Cash Flow: N/A")
+
+    # Renormalize P3
+    p3_avail = [(s, m) for s, m, a in p3_components.values() if a]
+    p3_total_avail = sum(m for _, m in p3_avail)
+    p3_score_avail = sum(s for s, _ in p3_avail)
+    if p3_total_avail > 0:
+        p3_raw = int(round(p3_score_avail / p3_total_avail * 30))
+    else:
+        # All components N/A — neutral, nie 0 (chýbajúce dáta != riziko)
+        p3_raw = 5
+    p3_score = int(round((p3_raw / 30.0) * nace_w["P3"]))
+
+    pillars.append(ScorecardPillar(
+        name="Ziskovosť, Stabilita a Cash Flow",
+        score=p3_score, max_score=nace_w["P3"],
+        detail=" | ".join(p3_flags[:2]), flags=p3_flags
+    ))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PILIER 4 — Rast & Trendová sila
+    # Komponenty: CAGR (10), equity trend (5), revenue decline (penalty)
+    # CAGR je N/A ak nemáme revenue dáta, equity trend z BS
+    # ══════════════════════════════════════════════════════════════════════════
+    p4_components = {}
+    p4_flags = []
+
+    cagr = trends.get("cagr_revenue")
+    if cagr is None:
+        p4_components["cagr"] = (None, 10, False)
+        p4_flags.append("CAGR tržieb: N/A")
+    elif cagr >= 15:
+        p4_components["cagr"] = (10, 10, True)
+        p4_flags.append(f"CAGR: +{cagr:.1f}%")
+    elif cagr >= 10:
+        p4_components["cagr"] = (8, 10, True)
+        p4_flags.append(f"CAGR: +{cagr:.1f}%")
+    elif cagr >= 5:
+        p4_components["cagr"] = (6, 10, True)
+        p4_flags.append(f"CAGR: +{cagr:.1f}%")
+    elif cagr >= 0:
+        p4_components["cagr"] = (3, 10, True)
+        p4_flags.append("CAGR: stagnácia")
+    else:
+        p4_components["cagr"] = (max(0, int(3 + cagr/5)), 10, True)
+        p4_flags.append("CAGR: pokles")
+
+    # Equity trend — samostatný komponent, dostupný z BS (netreba revenue)
+    equity_trend = trends.get("equity_trend", [])
+    if equity_trend:
+        last_eq_change = equity_trend[-1].get("yoy_pct")
+        if last_eq_change is not None:
+            if last_eq_change > 10:
+                p4_components["equity_trend"] = (5, 5, True)
+                p4_flags.append(f"Vlastné imanie rastie: +{last_eq_change:.1f}%")
+            elif last_eq_change > 0:
+                p4_components["equity_trend"] = (3, 5, True)
+                p4_flags.append(f"Vlastné imanie: +{last_eq_change:.1f}%")
+            elif last_eq_change == 0:
+                p4_components["equity_trend"] = (2, 5, True)
+                p4_flags.append("Vlastné imanie: stabilné")
+            else:
+                p4_components["equity_trend"] = (0, 5, True)
+                p4_flags.append(f"Vlastné imanie klesá: {last_eq_change:.1f}%")
+        else:
+            p4_components["equity_trend"] = (None, 5, False)
+            p4_flags.append("Equity trend: N/A")
+    else:
+        p4_components["equity_trend"] = (None, 5, False)
+        if not p4_flags or "N/A" not in p4_flags[-1]:
+            p4_flags.append("Equity trend: N/A")
+
+    # Revenue decline penalty — applies to CAGR component
+    rev_trend = trends.get("revenue_trend", [])
+    if len(rev_trend) >= 3:
+        last3 = [r.get("growth_percent", 0) for r in rev_trend[-3:]]
+        if all(g < 0 for g in last3):
+            cur_s, cur_m, cur_a = p4_components.get("cagr", (0, 10, True))
+            cur_s = cur_s if cur_s is not None else 0
+            p4_components["cagr"] = (max(0, cur_s - 3), cur_m, cur_a)
+            p4_flags.append("Tržby klesajú 3 roky (−3 body)")
+
+    # Renormalize P4
+    p4_avail = [(s, m) for s, m, a in p4_components.values() if a]
+    p4_total_avail = sum(m for _, m in p4_avail)
+    p4_score_avail = sum(s for s, _ in p4_avail)
+    if p4_total_avail > 0:
+        p4_raw = int(round(p4_score_avail / p4_total_avail * 15))
+    else:
+        # All components N/A — neutral, nie 0
+        p4_raw = 3
+    p4_score = int(round((p4_raw / 15.0) * nace_w["P4"]))
+
+    pillars.append(ScorecardPillar(
+        name="Rast & Trendová sila",
+        score=p4_score, max_score=nace_w["P4"],
+        detail=" | ".join(p4_flags[:2]), flags=p4_flags
+    ))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # PILIER 5 — Právna bezúhonnosť (rovnaká ako V2)
+    # ══════════════════════════════════════════════════════════════════════════
+    p5_raw = 10
+    p5_flags = []
+
+    pen_critical = 0
+    pen_high = 0
+    pen_med = 0
+    for e in vestnik_events:
+        sev = e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "LOW")
+        deg = compute_vestnik_degradation(e)
+        if sev == "CRITICAL": pen_critical += 10 * deg
+        elif sev == "HIGH": pen_high += 4 * deg
+        elif sev == "MEDIUM": pen_med += 2 * deg
+
+    if pen_critical >= 5:
+        p5_raw = 0
+        p5_flags.append("KRITICKÉ udalosti vo Vestníku")
+    elif pen_high >= 2:
+        p5_raw = max(0, 6 - int(pen_high))
+        p5_flags.append("VYSOKÉ udalosti vo Vestníku")
+    elif pen_med >= 1:
+        p5_raw = max(0, 8 - int(pen_med))
+        p5_flags.append("STREDNÉ udalosti vo Vestníku")
+    elif vestnik_events:
+        p5_raw = 9
+        p5_flags.append("Len nízko-rizikové záznamy vo Vestníku")
+    else:
+        p5_flags.append("Bez záznamu v Obchodnom vestníku ✓")
+
+    # Audit opinion v P5 (ak je dostupný)
+    for stmt in reversed(sorted_stmts_raw):
+        op = getattr(stmt, "auditorOpinion", None) or (stmt.get("auditorOpinion") if isinstance(stmt, dict) else None)
+        if op:
+            op_type = getattr(op, "opinionType", "") or (op.get("opinionType", "") if isinstance(op, dict) else "")
+            if op_type and str(op_type).lower() != "null":
+                op_lower = str(op_type).lower()
+                if "bez výhrad" in op_lower or "unqualified" in op_lower or "ohne vorbehalt" in op_lower:
+                    p5_flags.append("Audítorský posudok: bez výhrad ✓")
+                else:
+                    p5_raw = max(0, p5_raw - 3)
+                    p5_flags.append(f"Audítorský posudok: {op_type} (−3b)")
+                break
+
+    p5_raw = max(0, min(10, p5_raw))
+    p5_score = int(round((p5_raw / 10.0) * nace_w["P5"]))
+    pillars.append(ScorecardPillar(
+        name="Právna bezúhonnosť",
+        score=p5_score, max_score=nace_w["P5"],
+        detail=" | ".join(p5_flags[:2]), flags=p5_flags
+    ))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # FINANCIAL SCORE — súčet pilierov (bez DQ multiplier!)
+    # ══════════════════════════════════════════════════════════════════════════
+    financial_score = sum(p.score for p in pillars)
+    financial_score = max(0, min(100, financial_score))
+
+    if hard_stop_triggered:
+        financial_score = 0
+
+    risk_cat = _risk_category(financial_score)
+    risk_lvl = _risk_level(hard_stop_triggered, financial_score, vestnik_events)
+
+    return ScorecardResultV3(
+        financial_score=financial_score,
+        data_quality_score=dq_score,
+        risk_category=risk_cat,
+        risk_level=risk_lvl,
+        entity_type=entity_type,
+        hard_stop=hard_stop_triggered,
+        pillars=pillars,
+        availability_mask=availability,
+        score_version="v3"
     )
 
 def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:

@@ -16,6 +16,9 @@ import { calcTrend } from "@/lib/trend";
 import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
 import { getLangFromHeaders, generateFirmaMetadata } from "@/lib/seo";
+import { RelatedFirms } from "@/components/related-firms";
+import { VestnikEvents } from "@/components/vestnik-events";
+import { CompanyEvents } from "@/components/company-events";
 
 export const dynamicParams = true;
 export const revalidate = 86400;
@@ -28,11 +31,20 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!parsed) return {};
 
   const company = await getCompanyData(parsed.ico);
-  if (!company) return {};
+  if (!company) return { robots: { index: false, follow: false } };
 
   const h = await headers();
   const lang = getLangFromHeaders(h);
   const name = company.name || `IČO ${company.ico}`;
+
+  // Quality gate: index only firms with ≥2 years of financial data
+  const stmtCount = company.financialStatements.length;
+  if (stmtCount < 2) {
+    return {
+      ...generateFirmaMetadata(name, company.ico, company.city || null, lang),
+      robots: { index: false, follow: true },
+    };
+  }
 
   return generateFirmaMetadata(name, company.ico, company.city || null, lang);
 }
@@ -143,6 +155,14 @@ export default async function CompanyPage({ params }: Params) {
 
         <CompanyHeader company={company} latestYear={latest?.year} />
 
+        {/* Data freshness indicator */}
+        {latest?.createdAt && (
+          <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
+            Údaje aktualizované: {new Date(latest.createdAt).toLocaleDateString("sk-SK")}
+            {latest?.year && ` · Posledná účtovná závierka: ${latest.year}`}
+          </p>
+        )}
+
         <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
           year: s.year,
           mainActivityRevenue: num(s.mainActivityRevenue),
@@ -177,6 +197,16 @@ export default async function CompanyPage({ params }: Params) {
         </div>
 
         <CompanyPersons persons={persons} />
+
+        {/* Vestník events */}
+        {company.vestnikEvents && company.vestnikEvents.length > 0 && (
+          <VestnikEvents events={company.vestnikEvents as any} />
+        )}
+
+        {/* Company events (ORSR, insolventné konanie, daňové nedoplatky, etc.) */}
+        {company.companyEvents && company.companyEvents.length > 0 && (
+          <CompanyEvents events={company.companyEvents as any} />
+        )}
 
         {/* No financial data fallback */}
         {stmts.length === 0 && (
@@ -217,6 +247,9 @@ export default async function CompanyPage({ params }: Params) {
         )}
 
         <ReportCTA ico={company.ico} name={name} />
+
+        {/* Internal linking: related firms by city and industry */}
+        <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} latestRevenue={company.latestRevenue?.toString() ?? null} />
       </div>
     </div>
   );

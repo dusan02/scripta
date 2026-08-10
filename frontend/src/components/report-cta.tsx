@@ -10,7 +10,7 @@ export function ReportCTA({ ico, name }: { ico: string; name: string }) {
   return (
     <div className="rounded-2xl p-5 sm:p-8 text-center mb-6 sm:mb-8" style={{ background: "linear-gradient(135deg, var(--accent-light), var(--info-bg))", border: "1px solid var(--accent-border)" }}>
       <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
-        {t("firma.ctaTitle", { name })}
+        {t("firma.ctaTitle")}
       </h2>
       <p className="text-sm mb-5" style={{ color: "var(--text-secondary)" }}>
         {t("firma.ctaDesc")}
@@ -22,6 +22,14 @@ export function ReportCTA({ ico, name }: { ico: string; name: string }) {
       >
         {t("firma.ctaButton")}
       </Link>
+      <div className="mt-4 space-y-1">
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          {t("firma.ctaTrust")}
+        </p>
+        <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
+          {t("firma.ctaTrust2")}
+        </p>
+      </div>
     </div>
   );
 }

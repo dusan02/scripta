@@ -1,5 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
+}
+
+generator client_py {
+  provider             = "prisma-client-py"
+  enable_experimental_decimal = true
 }
 
 datasource db {
@@ -13,19 +19,40 @@ model User {
   email            String          @unique
   name             String?
   passwordHash     String?
+  emailVerified    DateTime?
   role             UserRole        @default(LAWYER)
   orsrExtractType  String          @default("CURRENT") // CURRENT | FULL
   crzDateFrom      DateTime?       // CRZ dátum "od" — null = defaultne 1 rok dozadu
   rozhodnutiaDateFrom DateTime?    // Rozhodnutia dátum "od" — null = defaultne 1 rok dozadu
+  vestnikDateFrom  DateTime?       // Vestník dátum "od" — null = defaultne 1 rok dozadu
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
+  reportLanguage   String          @default("sk") // sk | en | de — jazyk PDF reportu
+  attachmentsConfig Json?          // User default: {obchodny_register: true, zivnostensky_register: true, auditorska_sprava: false, uctovna_zavierka_a_poznámky: false}
   tokenVersion     Int             @default(0)
-  planName         String?         // Názov paušálu (basic, biznis, pro, onetime)
-  planRenewalDate  DateTime?       // Dátum obnovenia paušálu
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  reportRequests   ReportRequest[]
-  feedback         Feedback[]
-  wallet           Wallet?
+  planName           String?         // Názov paušálu (start, freelance, firma, korporat)
+  planRenewalDate    DateTime?       // Dátum obnovenia paušálu
+  trialEndsAt        DateTime?       // Koniec skúšobného obdobia (5 zadarmo kreditov na mesiac)
+  subscriptionStatus String?         // active | canceled | past_due | trialing
+  subscriptionEndsAt DateTime?       // Dátum ukončenia predplatného (pre zrušené)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  // Email bounce/complaint tracking — prevents sending to invalid addresses
+  emailBounced       Boolean         @default(false)
+  emailBouncedAt     DateTime?
+  emailBouncedReason String?
+  emailComplained    Boolean         @default(false)
+  emailComplainedAt  DateTime?
+  // Soft delete — null means active, non-null means deleted (timestamp)
+  deletedAt          DateTime?
+  reportRequests     ReportRequest[]
+  feedback           Feedback[]
+  wallet             Wallet?
+  creditBatches      CreditBatch[]
+  messages           UserMessage[]      @relation("UserMessages")
+  sentMessages       UserMessage[]      @relation("SentMessages")
+  auditLogs          AdminAuditLog[]    @relation("AdminAuditLogs")
+  watchedCompanies   WatchedCompany[]   @relation("WatchedCompanies")
+  alertDeliveries    AlertDelivery[]    @relation("AlertDeliveries")
 }
 
 model ReportRequest {
@@ -42,13 +69,20 @@ model ReportRequest {
   aiStatus        String?
   eta             Int?
   verifaScore     Int?                // Snapshot skóre fixované pri generovaní reportu
+  scrapersMs      Int?                // Duration of scraper phase in ms
+  aiMs            Int?                // Duration of AI pipeline phase in ms
+  auditorMs       Int?                // Duration of Chief Auditor phase in ms
+  compileMs       Int?                // Duration of PDF compilation phase in ms
+  attachmentsConfig Json?             // Per-report override of attachment visibility
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?           // Soft delete — null means active
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   sources         ReportSource[]
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([deletedAt])
 }
 
 model ReportSource {
@@ -81,6 +115,7 @@ enum ReportStatus {
   COMPLETED
   FAILED
   PARTIAL
+  CANCELLED
 }
 
 enum TargetType {
@@ -126,6 +161,18 @@ enum SourceStatus {
   UNAVAILABLE
 }
 
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@index([email])
+  @@index([expires])
+}
+
 model PasswordResetToken {
   id        String   @id @default(cuid())
   email     String
@@ -166,30 +213,183 @@ enum MessageType {
   ANNOUNCEMENT
   REPLY
   SYSTEM
+  USER
 }
 
 model UserMessage {
   id         String          @id @default(cuid())
   userId     String?
+  senderId   String?
   type        MessageType
   title       String
   body        String
   read        Boolean         @default(false)
   feedbackId  String?
   createdAt   DateTime        @default(now())
+  deletedAt   DateTime?
+
+  user   User? @relation("UserMessages", fields: [userId], references: [id], onDelete: Cascade)
+  sender User? @relation("SentMessages", fields: [senderId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([senderId])
   @@index([read])
+  @@index([deletedAt])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminUserId String
+  action      String
+  targetId    String?
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  admin       User     @relation("AdminAuditLogs", fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, createdAt])
+  @@index([action, createdAt])
+}
+
+// ─── Monitoring scaffold (Verifa Watch) ───────────────────────────────────
+// These models implement the monitoring feature described in
+// docs/monitoring-plan.md. API endpoints are not yet implemented —
+// these models are the database foundation for future development.
+model WatchedCompany {
+  id          String    @id @default(cuid())
+  userId      String
+  companyId   String
+  note        String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user        User      @relation("WatchedCompanies", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+model AlertEvent {
+  id          String    @id @default(cuid())
+  companyId   String
+  source      String
+  eventType   String
+  severity    String
+  title       String
+  description String    @db.Text
+  metadata    Json?
+  riskScore   Int?
+  createdAt   DateTime  @default(now())
+  notifiedAt  DateTime?
+  deletedAt   DateTime?
+
+  @@index([companyId, createdAt])
+  @@index([source, eventType])
+  @@index([deletedAt])
+}
+
+model AlertDelivery {
+  id          String    @id @default(cuid())
+  alertId     String
+  userId      String
+  channel     String
+  status      String
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  user        User      @relation("AlertDeliveries", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([deletedAt])
 }
 
 model Company {
   ico                 String               @id
   name                String?
+  legalForm           String?
+  city                String?
+  street              String?
+  zipCode             String?
+  country             String?
+  establishedAt       DateTime?
+  status              String?
   naceCode            String?
   naceText            String?
+  ownershipType       String?              // Druh vlastníctva (súkromné, štátne, zmiešané...)
+  sizeCategory        String?              // Veľkosť org. (mikro, malá, stredná, veľká)
+  employeeCount       Int?                 // Počet zamestnancov (z RÚZ)
+  latestYear          Int?                 // Rok najnovšej závierky (denormalizované pre screener)
+  latestRevenue       Decimal?  @db.Decimal(15, 2) // Tržby z najnovšej závierky
+  latestProfit        Decimal?  @db.Decimal(15, 2) // Zisk/strata z najnovšej závierky
+  latestAssets        Decimal?  @db.Decimal(15, 2) // Aktíva z najnovšej závierky
+  latestEquity        Decimal?  @db.Decimal(15, 2) // Vlastné imanie z najnovšej závierky
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
+  companyEvents       CompanyEvent[]
   auditVerdict        AuditVerdict?
+  scoringSnapshots    ScoringSnapshot[]
+  companyPersons      CompanyPerson[]
+
+  @@index([legalForm])
+  @@index([city])
+  @@index([naceCode])
+  @@index([status])
+  @@index([establishedAt])
+  @@index([latestRevenue])
+  @@index([latestProfit])
+  @@index([latestAssets])
+}
+
+model CompanyPerson {
+  id          String   @id @default(uuid())
+  companyIco  String
+  rawName     String
+  cleanName   String
+  role        String   // "statutar" | "spolocnik"
+  city        String?
+  zipCode     String?
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyIco], references: [ico], onDelete: Cascade)
+
+  @@index([companyIco])
+  @@index([role])
+}
+
+model NaceCode {
+  code        String   @id  // SK NACE kód (napr. "49410")
+  description String       // Popis (napr. "Cestná doprava osobná")
+  section     String?     // Sekcia (A–Q)
+  sectionName String?     // Názov sekcie
+
+  @@index([section])
+}
+
+model CompanyEvent {
+  id           String   @id @default(uuid())
+  companyIco   String
+  source       String   // ROZHODNUTIA, INSOLVENCY, DISKVALIFIKACIE, DOVERA, VSZP, SP, UNION, FS_DAN, FS_DPH, CRZ, UVO, VESTNIK
+  eventType    String   // SUDNE_ROZHODNUTIE, INSOLVENCIA, DISKVALIFIKACIA, POISTOVNA_DLUH, DAN_NEDOPLATOK, VEREJNA_ZMLUVA, OBSTARAVANIE, VESTNIK_UDALOST
+  severity     String   // CRITICAL, HIGH, MEDIUM, LOW, INFO
+  title        String   // Krátky názov udalosti
+  description  String   @db.Text // Detailný popis
+  eventDate    DateTime? // Dátum udalosti (ak známy z PDF)
+  amount       Decimal? @db.Decimal(15, 2) // Finančná hodnota (napr. výška nedoplatku, suma zmluvy)
+  metadata     Json?    // Dodatočné dáta (súd, číslo spisu, IČO protistrany...)
+  createdAt    DateTime @default(now())
+
+  company      Company  @relation(fields: [companyIco], references: [ico])
+
+  @@index([companyIco])
+  @@index([severity])
+  // Dedup: zabraňuje duplicitným eventom s rovnakým zdrojom, typom, dátumom a sumou.
+  // eventDate a amount môžu byť NULL — PostgreSQL považuje NULL hodnoty za distinct,
+  // takže unikátnosť sa uplatní len pri non-NULL hodnotách.
+  @@unique([companyIco, source, eventType, eventDate, amount])
 }
 
 model VestnikEvent {
@@ -206,35 +406,73 @@ model VestnikEvent {
 
   @@index([companyIco])
   @@index([severityLevel])
+  // Dedup: sourceId je identifikátor z XML feedu (číslo vydania/záznamu).
+  // Ak je sourceId NULL (pre staré dáta alebo ručné vloženie), unikátnosť sa neuplatní.
+  @@unique([companyIco, sourceId])
 }
 
 model FinancialStatement {
   id                                    String          @id @default(uuid())
   companyIco                            String
   year                                  Int
-  totalAssets                           Float?
-  currentAssets                         Float?
-  equity                                Float?
-  shortTermLiabilities                  Float?
-  longTermLiabilities                   Float?        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
-  mainActivityRevenue                   Float?
-  grossProfit                           Float?        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
-  netProfitLoss                         Float?
-  cashAndEquivalents                    Float?
-  operatingCashFlow                     Float?
-  staffCosts                            Float?        // Osobné náklady
-  tradeReceivables                      Float?        // Pohľadávky z obch. styku
-  tradePayables                         Float?        // Záväzky z obch. styku
-  inventory                             Float?        // Zásoby
-  depreciation                          Float?        // Odpisy dlhodobého nehmotného a hmotného majetku
-  investingCashFlow                     Float?        // Čisté peňažné toky z investičnej činnosti
-  financingCashFlow                     Float?        // Čisté peňažné toky z finančnej činnosti
-  interestExpense                       Float?        // Úroky (náklady na úroky)
+  totalAssets                           Decimal?  @db.Decimal(15, 2)
+  currentAssets                         Decimal?  @db.Decimal(15, 2)
+  equity                                Decimal?  @db.Decimal(15, 2)
+  shortTermLiabilities                  Decimal?  @db.Decimal(15, 2)
+  longTermLiabilities                   Decimal?  @db.Decimal(15, 2)        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
+  mainActivityRevenue                   Decimal?  @db.Decimal(15, 2)
+  grossProfit                           Decimal?  @db.Decimal(15, 2)        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
+  netProfitLoss                         Decimal?  @db.Decimal(15, 2)
+  cashAndEquivalents                    Decimal?  @db.Decimal(15, 2)
+  operatingCashFlow                     Decimal?  @db.Decimal(15, 2)
+  staffCosts                            Decimal?  @db.Decimal(15, 2)        // Osobné náklady
+  tradeReceivables                      Decimal?  @db.Decimal(15, 2)        // Pohľadávky z obch. styku
+  tradePayables                         Decimal?  @db.Decimal(15, 2)        // Záväzky z obch. styku
+  inventory                             Decimal?  @db.Decimal(15, 2)        // Zásoby
+  depreciation                          Decimal?  @db.Decimal(15, 2)        // Odpisy dlhodobého nehmotného a hmotného majetku
+  investingCashFlow                     Decimal?  @db.Decimal(15, 2)        // Čisté peňažné toky z investičnej činnosti
+  financingCashFlow                     Decimal?  @db.Decimal(15, 2)        // Čisté peňažné toky z finančnej činnosti
+  interestExpense                       Decimal?  @db.Decimal(15, 2)        // Úroky (náklady na úroky)
+  incomeTax                             Decimal?  @db.Decimal(15, 2)        // Daň z príjmov (riadok 60 vo Výkaze)
   employeeCount                         Int?          // Odhadovaný počet zamestnancov
+  socialInsuranceLiabilities            Decimal?  @db.Decimal(15, 2)        // Záväzky zo sociálneho poistenia (336A) — trestná zodpovednosť štatutára
+  taxLiabilities                        Decimal?  @db.Decimal(15, 2)        // Daňové záväzky a dotácie (341-347) — riziko daňovej exekúcie
+  employeeLiabilities                   Decimal?  @db.Decimal(15, 2)        // Záväzky voči zamestnancom (331, 333) — riziko nevyplatených miezd
   currency                              String        @default("EUR") // Mena výkazu (EUR, CZK, USD...)
   statementType                         String        @default("SK_GAAP") // IFRS | SK_GAAP | MICRO
   monthsInPeriod                        Int?          @default(12) // Pre posunuté/kratšie hospodárske roky
   isConsolidated                        Boolean       @default(false)
+  // ── Extended fields (template 699 — asset/equity composition) ──
+  nonCurrentAssets                      Decimal?  @db.Decimal(15, 2)        // Neobežný majetok (r.2)
+  intangibleAssets                      Decimal?  @db.Decimal(15, 2)        // Dlhodobý nehmotný majetok (r.3)
+  tangibleAssets                        Decimal?  @db.Decimal(15, 2)        // Dlhodobý hmotný majetok (r.11)
+  ltFinancialAssets                     Decimal?  @db.Decimal(15, 2)        // Dlhodobý finančný majetok (r.21)
+  ltReceivables                         Decimal?  @db.Decimal(15, 2)        // Dlhodobé pohľadávky (r.41)
+  stFinancialAssets                     Decimal?  @db.Decimal(15, 2)        // Krátkodobý finančný majetok (r.66)
+  deferredAssets                        Decimal?  @db.Decimal(15, 2)        // Časové rozlíšenie aktív (r.74)
+  shareCapital                          Decimal?  @db.Decimal(15, 2)        // Základné imanie (r.81)
+  sharePremium                          Decimal?  @db.Decimal(15, 2)        // Emisné ážio (r.85)
+  otherCapitalFunds                     Decimal?  @db.Decimal(15, 2)        // Ostatné kapitálové fondy (r.86)
+  statutoryReserveFunds                 Decimal?  @db.Decimal(15, 2)        // Zákonné rezervné fondy (r.87)
+  otherProfitFunds                      Decimal?  @db.Decimal(15, 2)        // Ostatné fondy zo zisku (r.90)
+  retainedEarnings                      Decimal?  @db.Decimal(15, 2)        // Výsledok minulých rokov súčet (r.97)
+  retainedProfit                        Decimal?  @db.Decimal(15, 2)        // Nerozdelený zisk minulých rokov (r.98)
+  accumulatedLoss                       Decimal?  @db.Decimal(15, 2)        // Neuhradená strata minulých rokov (r.99)
+  currentYearProfit                     Decimal?  @db.Decimal(15, 2)        // Výsledok hosp. za úč. obdobie po zdanení z pasív (r.100)
+  ltReserves                            Decimal?  @db.Decimal(15, 2)        // Dlhodobé rezervy (r.118)
+  stReserves                            Decimal?  @db.Decimal(15, 2)        // Krátkodobé rezervy (r.136)
+  stBankLoans                           Decimal?  @db.Decimal(15, 2)        // Bežné bankové úvery (r.139)
+  stFinancialAssistance                 Decimal?  @db.Decimal(15, 2)        // Krátkodobé finančné výpomoci (r.140)
+  operatingCosts                        Decimal?  @db.Decimal(15, 2)        // Náklady na hosp. činnosť spolu (r.10)
+  materialConsumption                   Decimal?  @db.Decimal(15, 2)        // Spotreba materiálu, energie (r.12)
+  servicesCosts                         Decimal?  @db.Decimal(15, 2)        // Služby (r.14)
+  wageCosts                             Decimal?  @db.Decimal(15, 2)        // Mzdové náklady (r.16)
+  taxesFees                             Decimal?  @db.Decimal(15, 2)        // Dane a poplatky (r.20)
+  financialResult                       Decimal?  @db.Decimal(15, 2)        // Výsledok hosp. z fin. činnosti (r.55)
+  profitBeforeTax                       Decimal?  @db.Decimal(15, 2)        // Výsledok hosp. pred zdanením (r.56)
+  profitTransfer                        Decimal?  @db.Decimal(15, 2)        // Prevod podielov na výsledku spoločníkom (r.60)
+  statementDate                         String?                                 // Dátum zostavenia závierky (forenzný signál)
+  approvalDate                          String?                                 // Dátum schválenia závierky
   createdAt                             DateTime        @default(now())
   
   company                               Company         @relation(fields: [companyIco], references: [ico])
@@ -293,10 +531,62 @@ model AuditVerdict {
   justification   String   @db.Text
   keyRisk         String   @db.Text
   scorecardBreakdown Json?
+  llmScoreAdjustment Int? @default(0)
   llmAnalysisStatus String @default("LLM_ANALYZED")
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])
+  snapshots       ScoringSnapshot[]
+}
+
+model ScoringSnapshot {
+  id              String   @id @default(uuid())
+  companyIco      String
+  reportRequestId String?
+  scoringVersion  String   @default("v3")
+  financialYear   Int?
+
+  baseScore       Int
+  finalScore      Int
+  riskCategory    String
+  adjustmentTotal Int      @default(0)
+
+  adjustments     Json     // {litigation: -2, going_concern: -3, ...}
+  isConsolidated  Boolean  @default(false)
+  financialBasis  String   @default("individual")
+
+  llmAdjustment   Int?     @default(0)  // informational only
+  llmAdjustmentReason String? @db.Text   // informational only
+
+  whOverrideRefund Int?    @default(0)   // ORSR White Horse override refund
+
+  inputDataHash   String?  // hash of input data for reproducibility
+
+  createdAt       DateTime @default(now())
+
+  company         Company  @relation(fields: [companyIco], references: [ico])
+  auditVerdict    AuditVerdict? @relation(fields: [auditVerdictId], references: [id])
+  auditVerdictId  String?
+
+  @@index([companyIco])
+  @@index([scoringVersion])
+  @@index([createdAt])
+}
+
+model CreditBatch {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int      // Pôvodný počet kreditov v batchi
+  remaining   Int      // Koľko ostáva k dispozícii
+  source      String   // trial | subscription | addon | rollover
+  planName    String?
+  expiresAt   DateTime // trial=30d, subscription=60d, addon=permanent, rollover=60d
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([userId, createdAt])
 }
 
 model Wallet {
@@ -318,12 +608,19 @@ enum TransactionType {
   CHARGE
   TOPUP
   REFUND
+  REFUND_DEDUCTION
 }
 
 enum TransactionStatus {
   PENDING
   COMPLETED
   FAILED
+}
+
+enum PaymentProvider {
+  STRIPE
+  PADDLE
+  MANUAL
 }
 
 model WalletTransaction {
@@ -333,7 +630,8 @@ model WalletTransaction {
   type                 TransactionType
   status               TransactionStatus  @default(COMPLETED)
   reportRequestId      String?
-  stripePaymentIntentId String?            @unique
+  provider             PaymentProvider?
+  providerReference    String?            @unique
   description          String?
   createdAt            DateTime           @default(now())
 
@@ -341,11 +639,9 @@ model WalletTransaction {
 
   @@index([walletId])
   @@index([reportRequestId])
+  @@index([provider, providerReference])
+  // DB-level idempotency: prevent duplicate CHARGE or REFUND for the same report.
+  // Partial unique index — only applies when reportRequestId is not null.
+  @@unique([reportRequestId, type])
 }
 
-generator client_python {
-  provider             = "prisma-client-py"
-  interface            = "asyncio"
-  recursive_type_depth = 5
-  enable_experimental_decimal = true
-}

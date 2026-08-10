@@ -670,6 +670,21 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
         pass
 
 
+async def save_scoring_snapshot(snapshot_payload: dict):
+    """Uloží scoring snapshot — permanentný audit trail.
+    Nikdy neprepisuje staré snapshoty, vždy vytvorí nový záznam."""
+    db = get_db()
+    try:
+        await db.scoringsnapshot.create(
+            data=snapshot_payload
+        )
+        ico = snapshot_payload.get('companyIco', '?')
+        logger.info(f"ScoringSnapshot pre {ico} uložený (v={snapshot_payload.get('scoringVersion', '?')}, score={snapshot_payload.get('finalScore', '?')}).")
+    except Exception as e:
+        logger.error(f"Chyba pri ukladaní ScoringSnapshot: {e}")
+        raise
+
+
 async def update_report_status(
     report_request_id: str,
     status: str,

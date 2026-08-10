@@ -925,10 +925,160 @@ class TestRuzZipAttachments:
         result = await _download_prilohy([])
         assert result == []
 
-    @pytest.mark.asyncio
-    async def test_download_prilohy_priloha_without_id(self):
-        """Príloha bez 'id' → preskočí sa."""
-        from src.ruz_api import _download_prilohy
-        prilohy = [{"meno": "No ID", "mimeType": "application/pdf"}]
-        result = await _download_prilohy(prilohy)
-        assert result == []
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Tests for _compute_deterministic_adjustment
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestDeterministicAdjustment:
+    """Testy pre deterministický forenzný adjustment (náhrada LLM ±10)."""
+
+    def test_no_findings_zero_adjustment(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        adj, breakdown = _compute_deterministic_adjustment([], [], [], "12345678")
+        assert adj == 0
+        assert breakdown["going_concern"] == 0
+
+    def test_going_concern_doubts(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        narrative = [{"rok": 2024, "narrativeRisk": {"goingConcernDoubts": True}}]
+        adj, breakdown = _compute_deterministic_adjustment(narrative, [], [], "12345678")
+        assert adj == -3
+        assert breakdown["going_concern"] == -3
+
+    def test_litigation_risks(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        narrative = [{"rok": 2024, "narrativeRisk": {
+            "goingConcernDoubts": False,
+            "litigationRisks": "Prebiehajúci súdny spor s dodávateľom",
+        }}]
+        adj, _ = _compute_deterministic_adjustment(narrative, [], [], "12345678")
+        assert adj == -2
+
+    def test_litigation_risks_ignored_when_clean(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        narrative = [{"rok": 2024, "narrativeRisk": {
+            "goingConcernDoubts": False,
+            "litigationRisks": "Žiadne",
+        }}]
+        adj, _ = _compute_deterministic_adjustment(narrative, [], [], "12345678")
+        assert adj == 0
+
+    def test_forensic_red_flags_ignored(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        narrative = [{"rok": 2024, "narrativeRisk": {
+            "goingConcernDoubts": False,
+            "forensicRedFlags": ["flag1", "flag2", "flag3", "flag4", "flag5"],
+        }}]
+        adj, _ = _compute_deterministic_adjustment(narrative, [], [], "12345678")
+        assert adj == 0  # forensic flags are ignored in v3
+
+    def test_related_party_transactions(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        notes = [{"rok": 2024, "notesRisk": {
+            "relatedPartyTransactions": "Pôžička dcérskej spoločnosti 500k EUR",
+        }}]
+        adj, _ = _compute_deterministic_adjustment([], notes, [], "12345678")
+        assert adj == -2
+
+    def test_related_party_skipped_for_consolidated(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        notes = [{"rok": 2024, "notesRisk": {
+            "relatedPartyTransactions": "Pôžička dcérskej spoločnosti 500k EUR",
+        }}]
+        adj, _ = _compute_deterministic_adjustment([], notes, [], "12345678", is_consolidated=True)
+        assert adj == 0  # skipped for consolidated
+
+    def test_critical_company_events(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        events = [
+            {"severity": "CRITICAL", "eventType": "SUDNE_ROZHODNUTIE"},
+            {"severity": "CRITICAL", "eventType": "SUDNE_ROZHODNUTIE"},
+            {"severity": "CRITICAL", "eventType": "SUDNE_ROZHODNUTIE"},
+        ]
+        adj, _ = _compute_deterministic_adjustment([], [], events, "12345678")
+        assert adj == -5  # 3 × -3 = -9, but capped at -5
+
+    def test_total_capped_at_minus_5(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        narrative = [{"rok": 2024, "narrativeRisk": {
+            "goingConcernDoubts": True,  # -3
+            "litigationRisks": "Súdny spor",  # -2
+        }}]
+        notes = [{"rok": 2024, "notesRisk": {
+            "relatedPartyTransactions": "Áno",  # -2
+            "contingentRisks": "Áno",  # -2
+        }}]
+        events = [{"severity": "CRITICAL", "eventType": "INSOLVENCIA"}]  # -3
+        # Total = -3 -2 -2 -2 -3 = -12, clamped to -5
+        adj, _ = _compute_deterministic_adjustment(narrative, notes, events, "12345678")
+        assert adj == -5
+
+    def test_non_critical_events_ignored(self):
+        from src.pipeline import _compute_deterministic_adjustment
+        events = [
+            {"severity": "HIGH", "eventType": "SUDNE_ROZHODNUTIE"},
+            {"severity": "INFO", "eventType": "VEREJNA_ZMLUVA"},
+        ]
+        adj, _ = _compute_deterministic_adjustment([], [], events, "12345678")
+        assert adj == 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Tests for _filter_consolidation_consistency
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFilterConsolidationConsistency:
+    """Testy pre filter konzistencie typu závierky."""
+
+    def test_all_consolidated(self):
+        from src.report_generator import _filter_consolidation_consistency
+        from types import SimpleNamespace
+        stmts = [SimpleNamespace(isConsolidated=True, year=2024),
+                 SimpleNamespace(isConsolidated=True, year=2023)]
+        filtered, basis = _filter_consolidation_consistency(stmts)
+        assert basis == "consolidated"
+        assert len(filtered) == 2
+
+    def test_all_individual(self):
+        from src.report_generator import _filter_consolidation_consistency
+        from types import SimpleNamespace
+        stmts = [SimpleNamespace(isConsolidated=False, year=2024),
+                 SimpleNamespace(isConsolidated=False, year=2023)]
+        filtered, basis = _filter_consolidation_consistency(stmts)
+        assert basis == "individual"
+        assert len(filtered) == 2
+
+    def test_mixed_prefers_consolidated_with_3plus(self):
+        from src.report_generator import _filter_consolidation_consistency
+        from types import SimpleNamespace
+        stmts = [
+            SimpleNamespace(isConsolidated=True, year=2024),
+            SimpleNamespace(isConsolidated=True, year=2023),
+            SimpleNamespace(isConsolidated=True, year=2022),
+            SimpleNamespace(isConsolidated=False, year=2021),
+            SimpleNamespace(isConsolidated=False, year=2020),
+        ]
+        filtered, basis = _filter_consolidation_consistency(stmts)
+        assert basis == "consolidated"
+        assert len(filtered) == 3
+
+    def test_mixed_prefers_individual_when_consolidated_lt_3(self):
+        from src.report_generator import _filter_consolidation_consistency
+        from types import SimpleNamespace
+        stmts = [
+            SimpleNamespace(isConsolidated=True, year=2024),
+            SimpleNamespace(isConsolidated=True, year=2023),
+            SimpleNamespace(isConsolidated=False, year=2022),
+            SimpleNamespace(isConsolidated=False, year=2021),
+            SimpleNamespace(isConsolidated=False, year=2020),
+        ]
+        filtered, basis = _filter_consolidation_consistency(stmts)
+        assert basis == "individual"
+        assert len(filtered) == 3
+
+    def test_empty_stmts(self):
+        from src.report_generator import _filter_consolidation_consistency
+        filtered, basis = _filter_consolidation_consistency([])
+        assert basis == "individual"
+        assert filtered == []

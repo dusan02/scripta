@@ -332,6 +332,7 @@ model Company {
   vestnikEvents       VestnikEvent[]
   companyEvents       CompanyEvent[]
   auditVerdict        AuditVerdict?
+  scoringSnapshots    ScoringSnapshot[]
   companyPersons      CompanyPerson[]
 
   @@index([legalForm])
@@ -536,6 +537,41 @@ model AuditVerdict {
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])
+  snapshots       ScoringSnapshot[]
+}
+
+model ScoringSnapshot {
+  id              String   @id @default(uuid())
+  companyIco      String
+  reportRequestId String?
+  scoringVersion  String   @default("v3")
+  financialYear   Int?
+
+  baseScore       Int
+  finalScore      Int
+  riskCategory    String
+  adjustmentTotal Int      @default(0)
+
+  adjustments     Json     // {litigation: -2, going_concern: -3, ...}
+  isConsolidated  Boolean  @default(false)
+  financialBasis  String   @default("individual")
+
+  llmAdjustment   Int?     @default(0)  // informational only
+  llmAdjustmentReason String? @db.Text   // informational only
+
+  whOverrideRefund Int?    @default(0)   // ORSR White Horse override refund
+
+  inputDataHash   String?  // hash of input data for reproducibility
+
+  createdAt       DateTime @default(now())
+
+  company         Company  @relation(fields: [companyIco], references: [ico])
+  auditVerdict    AuditVerdict? @relation(fields: [auditVerdictId], references: [id])
+  auditVerdictId  String?
+
+  @@index([companyIco])
+  @@index([scoringVersion])
+  @@index([createdAt])
 }
 
 model CreditBatch {

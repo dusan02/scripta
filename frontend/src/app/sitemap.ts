@@ -11,30 +11,33 @@ const VALID_ICO = /^\d{8,10}$/;
 
 const BASE_URL = "https://verifa.sk";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Static pages — with hreflang alternates for all 6 languages
-  // SK has no prefix, other langs use /cs/, /en/, etc.
-  const staticPaths = [
-    "/", "/pricing", "/register", "/documents", "/slovnik",
-    "/terms", "/privacy", "/dpa",
-  ];
+// Each company generates 6 URLs (one per language).
+// Google limit: 50,000 URLs per sitemap. 8000 companies × 6 langs = 48,000 — safe.
+const COMPANIES_PER_SITEMAP = 8000;
 
-  const staticPages: MetadataRoute.Sitemap = staticPaths.flatMap((path) => {
-    return VALID_LANGS.map((lang) => ({
+const STATIC_PATHS = [
+  "/", "/pricing", "/register", "/documents", "/slovnik",
+  "/terms", "/privacy", "/dpa",
+];
+
+function buildStaticPages(): MetadataRoute.Sitemap {
+  return STATIC_PATHS.flatMap((path) =>
+    VALID_LANGS.map((lang) => ({
       url: `${BASE_URL}${localizePath(path, lang)}`,
       lastModified: new Date(),
-      changeFrequency: path === "/" ? "weekly" : "monthly" as const,
+      changeFrequency: path === "/" ? ("weekly" as const) : ("monthly" as const),
       priority: path === "/" ? 1.0 : 0.8,
       alternates: {
         languages: Object.fromEntries(
           VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
         ),
       },
-    }));
-  });
+    }))
+  );
+}
 
-  // Glossary term pages
-  const glossaryPages: MetadataRoute.Sitemap = glossaryTerms.flatMap((term) => {
+function buildGlossaryPages(): MetadataRoute.Sitemap {
+  return glossaryTerms.flatMap((term) => {
     const path = `/slovnik/${term.slug}`;
     return VALID_LANGS.map((lang) => ({
       url: `${BASE_URL}${localizePath(path, lang)}`,
@@ -48,25 +51,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     }));
   });
+}
 
-  // Company pages — fetch companies that have audit verdicts or financial statements
-  const companies = await prisma.company.findMany({
-    where: {
-      OR: [
-        { auditVerdict: { isNot: null } },
-        { financialStatements: { some: {} } },
-      ],
-    },
-    select: {
-      ico: true,
-      name: true,
-      auditVerdict: { select: { createdAt: true } },
-    },
-    take: 1000,
-    orderBy: { ico: "asc" },
-  });
-
-  const companyPages: MetadataRoute.Sitemap = companies
+function buildCompanyPages(
+  companies: { ico: string; auditVerdict: { createdAt: Date } | null }[]
+): MetadataRoute.Sitemap {
+  return companies
     .filter((c) => VALID_ICO.test(c.ico))
     .flatMap((c) => {
       const path = `/firma/${c.ico}`;
@@ -83,6 +73,50 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
       }));
     });
+}
 
-  return [...staticPages, ...glossaryPages, ...companyPages];
+// Generate sitemap IDs: [0] = static + glossary, [1..N] = company batches
+export async function generateSitemaps() {
+  const companyCount = await prisma.company.count({
+    where: {
+      financialStatements: { some: {} },
+    },
+  });
+
+  const companySitemapCount = Math.ceil(companyCount / COMPANIES_PER_SITEMAP);
+  return Array.from({ length: 1 + companySitemapCount }, (_, i) => ({ id: i }));
+}
+
+export default async function sitemap({
+  id,
+}: {
+  id: number;
+}): Promise<MetadataRoute.Sitemap> {
+  // Sitemap 0: static + glossary pages (always small, ~100 URLs)
+  if (id === 0) {
+    return [...buildStaticPages(), ...buildGlossaryPages()];
+  }
+
+  // Sitemap 1..N: company pages (8000 companies each)
+  const skip = (id - 1) * COMPANIES_PER_SITEMAP;
+
+  const companies = await prisma.company.findMany({
+    where: {
+      financialStatements: { some: {} },
+    },
+    select: {
+      ico: true,
+      auditVerdict: { select: { createdAt: true } },
+      _count: { select: { financialStatements: true } },
+    },
+    skip,
+    take: COMPANIES_PER_SITEMAP,
+    orderBy: { ico: "asc" },
+  });
+
+  // Filter to ≥2 financial statements (quality gate)
+  const filtered = companies.filter((c) => c._count.financialStatements >= 2);
+  return buildCompanyPages(
+    filtered.map((c) => ({ ico: c.ico, auditVerdict: c.auditVerdict }))
+  );
 }

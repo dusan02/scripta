@@ -183,9 +183,11 @@ const sk: Dict = {
   "firma.zakladneTrendy": "Základné trendy",
 
   // ── Report CTA ──
-  "firma.ctaTitle": "Odhaľte skutočné riziká firmy {name}",
-  "firma.ctaDesc": "Základné trendy ukazujú len začiatok. Plnohodnotný report odhalí exekúcie, insolvencie, konkurzy, zmeny v štatutároch, Altman Z-skóre a rizikové semafóry z 25+ registrov — všetko v jednom PDF za 10 minút.",
-  "firma.ctaButton": "Vygenerovať report →",
+  "firma.ctaTitle": "Preveriť firmu zadarmo",
+  "firma.ctaDesc": "Získajte prvý kompletný Verifa report zadarmo po registrácii — exekúcie, insolvencie, konkurzy, Altman Z-skóre a rizikové semafóry z 26 registrov SR.",
+  "firma.ctaButton": "Preveriť firmu zadarmo →",
+  "firma.ctaTrust": "Dáta z verejných registrov SR · finančné výkazy · právne údaje · firemné udalosti",
+  "firma.ctaTrust2": "Prvý report zadarmo · bez platobnej karty",
 
   // ── ReportsTable ──
   "reports.praveTeraz": "práve teraz",
@@ -1078,9 +1080,11 @@ const en: Dict = {
   "firma.zakladneTrendy": "Key trends",
 
   // ── Report CTA ──
-  "firma.ctaTitle": "Uncover the real risks of {name}",
-  "firma.ctaDesc": "Key trends are just the beginning. A full report reveals executions, insolvencies, bankruptcies, statutory changes, Altman Z-score and risk indicators from 26 registries — all in one PDF in 10 minutes.",
-  "firma.ctaButton": "Generate report →",
+  "firma.ctaTitle": "Verify this company for free",
+  "firma.ctaDesc": "Get your first complete Verifa report free after registration — executions, insolvencies, bankruptcies, Altman Z-score and risk indicators from 26 Slovak registries.",
+  "firma.ctaButton": "Verify company for free →",
+  "firma.ctaTrust": "Data from public Slovak registries · financial statements · legal records · corporate events",
+  "firma.ctaTrust2": "First report free · no credit card required",
 
   // ── ReportsTable ──
   "reports.praveTeraz": "just now",
@@ -1973,9 +1977,11 @@ const de: Dict = {
   "firma.zakladneTrendy": "Grundlegende Trends",
 
   // ── Report CTA ──
-  "firma.ctaTitle": "Decken Sie die echten Risiken von {name} auf",
-  "firma.ctaDesc": "Grundlegende Trends sind erst der Anfang. Ein vollständiger Bericht offenbart Zwangsvollstreckungen, Insolvenzen, Konkurse, Änderungen bei gesetzlichen Vertretern, Altman Z-Score und Risikoindikatoren aus 26 Registern — alles in einem PDF in 10 Minuten.",
-  "firma.ctaButton": "Bericht erstellen →",
+  "firma.ctaTitle": "Dieses Unternehmen kostenlos prüfen",
+  "firma.ctaDesc": "Erhalten Sie nach der Registrierung Ihren ersten vollständigen Verifa-Bericht kostenlos — Zwangsvollstreckungen, Insolvenzen, Konkurse, Altman Z-Score und Risikoindikatoren aus 26 slowakischen Registern.",
+  "firma.ctaButton": "Unternehmen kostenlos prüfen →",
+  "firma.ctaTrust": "Daten aus öffentlichen slowakischen Registern · Jahresabschlüsse · Rechtsdaten · Unternehmensereignisse",
+  "firma.ctaTrust2": "Erster Bericht kostenlos · keine Kreditkarte erforderlich",
 
   // ── ReportsTable ──
   "reports.praveTeraz": "gerade eben",
@@ -2847,9 +2853,11 @@ const cz: Dict = {
   "company.descNace": ". Hlavní činnost: {nace}",
   "company.descLatestYear": " Poslední dostupné účetní závěrky jsou za rok {year}.",
   "firma.zakladneTrendy": "Základní trendy",
-  "firma.ctaTitle": "Odhalte skutečná rizika firmy {name}",
-  "firma.ctaDesc": "Základní trendy ukazují jen začátek. Plnohodnotný report odhalí exekuce, insolvence, konkurzy, změny ve statutárech, Altman Z-skóre a rizikové semafory z 25+ registrů — všechno v jednom PDF za 10 minut.",
-  "firma.ctaButton": "Vygenerovat report →",
+  "firma.ctaTitle": "Prověřit firmu zdarma",
+  "firma.ctaDesc": "Získejte první kompletní Verifa report zdarma po registraci — exekuce, insolvence, konkurzy, Altman Z-skóre a rizikové semafory z 26 registrů SR.",
+  "firma.ctaButton": "Prověřit firmu zdarma →",
+  "firma.ctaTrust": "Data z veřejných registrů SR · finanční výkazy · právní údaje · firemní události",
+  "firma.ctaTrust2": "První report zdarma · bez platební karty",
   "reports.praveTeraz": "právě teď",
   "reports.predMin": "před {n} min",
   "reports.predH": "před {n} h",
@@ -3734,9 +3742,11 @@ const hu: Dict = {
   "company.descNace": ". Főtevékenység: {nace}",
   "company.descLatestYear": " A legfrissebb elérhető pénzügyi kimutatások a(z) {year} évre vonatkoznak.",
   "firma.zakladneTrendy": "Főbb trendek",
-  "firma.ctaTitle": "Ismerje meg a(z) {name} valós kockázatait",
-  "firma.ctaDesc": "A főbb trendek csak a kezdetet jelentik. Egy teljes jelentés feltárja a végrehajtásokat, fizetésképtelenségeket, csődeljárásokat, törvényes képviselői változásokat, az Altman Z-score-t és a kockázati mutatókat 26 nyilvántartásból — mindezt egyetlen PDF-ben 10 perc alatt.",
-  "firma.ctaButton": "Jelentés generálása →",
+  "firma.ctaTitle": "Ingyenesen ellenőrizze ezt a céget",
+  "firma.ctaDesc": "Regisztráció után ingyenesen kapja meg első teljes Verifa jelentését — végrehajtások, fizetésképtelenségek, csődeljárások, Altman Z-score és kockázati mutatók 26 szlovák nyilvántartásból.",
+  "firma.ctaButton": "Cég ingyenes ellenőrzése →",
+  "firma.ctaTrust": "Adatok szlovák nyilvános nyilvántartásokból · pénzügyi kimutatások · jogi adatok · céges események",
+  "firma.ctaTrust2": "Első jelentés ingyenes · bankkártya nélkül",
   "reports.praveTeraz": "épp now",
   "reports.predMin": "{n>1 ? '{n} perce' : '1 perce'}",
   "reports.predH": "{n>1 ? '{n} órája' : '1 órája'}",
@@ -4533,9 +4543,11 @@ const pl: Dict = {
   "company.descNace": ". Główny przedmiot działalności: {nace}",
   "company.descLatestYear": " Ostatnie dostępne sprawozdania finansowe dotyczą roku {year}.",
   "firma.zakladneTrendy": "Kluczowe trendy",
-  "firma.ctaTitle": "Odkryj rzeczywiste ryzyka spółki {name}",
-  "firma.ctaDesc": "Kluczowe trendy to dopiero początek. Pełny raport ujawnia postępowania egzekucyjne, niewypłacalność, upadłości, zmiany w zarządzie, wskaźnik Altman Z-score oraz wskaźniki ryzyka z 26 rejestrów — wszystko w jednym pliku PDF w 10 minut.",
-  "firma.ctaButton": "Generuj raport →",
+  "firma.ctaTitle": "Sprawdź tę firmę za darmo",
+  "firma.ctaDesc": "Po rejestracji otrzymaj pierwszy pełny raport Verifa za darmo — egzekucje, niewypłacalność, upadłości, wskaźnik Altman Z-score oraz wskaźniki ryzyka z 26 słowackich rejestrów.",
+  "firma.ctaButton": "Sprawdź firmę za darmo →",
+  "firma.ctaTrust": "Dane ze słowackich rejestrów publicznych · sprawozdania finansowe · dane prawne · wydarzenia firmowe",
+  "firma.ctaTrust2": "Pierwszy raport za darmo · bez karty kredytowej",
   "reports.praveTeraz": "przed chwilą",
   "reports.predMin": "{n} min temu",
   "reports.predH": "{n} godz. temu",

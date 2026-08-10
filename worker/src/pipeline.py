@@ -6,6 +6,7 @@ import json
 import re
 import logging
 import time
+import hashlib
 from datetime import datetime
 from typing import Optional
 
@@ -21,7 +22,9 @@ from src.db_repository import (
     save_to_db, save_narrative_to_db, save_notes_to_db,
     save_company_events_to_db, append_company_event_to_db,
     update_ai_status, get_avg_completion_seconds,
+    save_scoring_snapshot,
 )
+
 from src.log_helpers import (
     PhaseTimer, log_pipeline_start, log_pipeline_end,
     log_llm_call, log_llm_retry, get_correlation_id,
@@ -40,6 +43,8 @@ from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slic
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_NOTES, _MODEL_VESTNIK, check_pro_model_available, get_chief_auditor_model
 from src.agents.pdf_reader import extract_company_events
 from src.analytics import sanitize_cash_flow_fields, estimate_missing_cash_flow, compute_financial_trends, compute_forensic_scorecard
+
+SCORING_VERSION = "v3"
 
 # Nastavenie logovania do súboru pre produkciu
 logging.basicConfig(
@@ -582,6 +587,128 @@ def _apply_orsr_override(
     return wh_refund, deterministic_score
 
 
+def _compute_deterministic_adjustment(
+    narrative_by_year: list,
+    notes_by_year: list,
+    company_events: list,
+    ico: str,
+    is_consolidated: bool = False,
+) -> tuple:
+    """
+    Deterministický forenzný adjustment namiesto LLM ±10.
+    Konvertuje štruktúrované LLM nálezy (NarrativeRisk, NotesRisk, CompanyEvents)
+    na deterministické penalizácie podľa pevných pravidiel.
+
+    Vracia (adj, breakdown) kde breakdown je dict s jednotlivými penalizáciami.
+
+    Pravidlá (v3 — menej agresívne, kontextovo citlivé):
+    - going_concern_doubts = True → -3
+    - litigation_risks (non-empty, non-"no risk") → -2
+    - related_party_transactions (non-empty, ONLY for non-consolidated) → -2
+    - contingent_risks (non-empty) → -2
+    - off_balance_sheet_liabilities (non-empty) → -1
+    - CompanyEvent CRITICAL (SUDNE_ROZHODNUTIE, INSOLVENCIA) → -3 each (max -6)
+    - forensic_red_flags: IGNORED (too noisy, already filtered in fraud heatmap)
+    - Cap: -5 (v3 — menej agresívne ako pôvodné ±10)
+    """
+    adj = 0
+    reasons = []
+    breakdown = {
+        "going_concern": 0,
+        "litigation": 0,
+        "related_party": 0,
+        "contingent_risks": 0,
+        "off_balance": 0,
+        "critical_events": 0,
+    }
+
+    # ── NarrativeRiskAnalysis ──
+    # Only use the most recent year to avoid cumulative penalties
+    # (same litigation risk appears in every annual report)
+    latest_nr = None
+    for entry in narrative_by_year:
+        nr = entry.get("narrativeRisk") if isinstance(entry, dict) else None
+        if nr and isinstance(nr, dict):
+            latest_nr = nr
+            break  # narrative_by_year is sorted newest first
+
+    if latest_nr:
+        if latest_nr.get("goingConcernDoubts") is True or latest_nr.get("going_concern_doubts") is True:
+            adj -= 3
+            breakdown["going_concern"] = -3
+            reasons.append("going_concern (-3)")
+
+        litigation = latest_nr.get("litigationRisks") or latest_nr.get("litigation_risks") or ""
+        if litigation and isinstance(litigation, str):
+            low = litigation.lower().strip()
+            if low and low not in ("žiadne", "none", "no", "nie", "bez rizík", "žiadne riziká"):
+                adj -= 2
+                breakdown["litigation"] = -2
+                reasons.append("litigation (-2)")
+
+    # ── NotesRiskAnalysis ──
+    # Only use the most recent year to avoid cumulative penalties
+    latest_notes = None
+    for entry in notes_by_year:
+        notes = entry.get("notesRisk") if isinstance(entry, dict) else None
+        if notes and isinstance(notes, dict):
+            latest_notes = notes
+            break  # notes_by_year is sorted newest first
+
+    if latest_notes:
+
+        rpt = latest_notes.get("relatedPartyTransactions") or latest_notes.get("related_party_transactions") or ""
+        if rpt and isinstance(rpt, str) and rpt.strip().lower() not in ("žiadne", "none", "null", "nie"):
+            if not is_consolidated:
+                adj -= 2
+                breakdown["related_party"] = -2
+                reasons.append("related_party (-2)")
+            else:
+                reasons.append("related_party (skipped — consolidated)")
+
+        cr = latest_notes.get("contingentRisks") or latest_notes.get("contingent_risks") or ""
+        if cr and isinstance(cr, str) and cr.strip().lower() not in ("žiadne", "none", "null", "nie"):
+            adj -= 2
+            breakdown["contingent_risks"] = -2
+            reasons.append("contingent_risks (-2)")
+
+        obs = latest_notes.get("offBalanceSheetLiabilities") or latest_notes.get("off_balance_sheet_liabilities") or ""
+        if obs and isinstance(obs, str) and obs.strip().lower() not in ("žiadne", "none", "null", "nie"):
+            adj -= 1
+            breakdown["off_balance"] = -1
+            reasons.append("off_balance (-1)")
+
+    # ── CompanyEvents (CRITICAL severity) ──
+    critical_events = 0
+    for ev in company_events:
+        if not isinstance(ev, dict):
+            continue
+        severity = ev.get("severity", "")
+        event_type = ev.get("eventType", "") or ev.get("event_type", "")
+        if severity == "CRITICAL" and event_type in ("SUDNE_ROZHODNUTIE", "INSOLVENCIA", "HISTORICAL_BANKRUPTCY"):
+            critical_events += 1
+    if critical_events > 0:
+        ev_penalty = min(critical_events * 3, 6)
+        adj -= ev_penalty
+        breakdown["critical_events"] = -ev_penalty
+        reasons.append(f"critical_events ({critical_events} × -3, capped -{ev_penalty})")
+
+    # Clamp to -5 (v3 — menej agresívne)
+    raw_adj = adj
+    adj = max(-5, min(5, adj))
+
+    # Scale breakdown if clamped
+    if adj != raw_adj and raw_adj < 0:
+        scale = adj / raw_adj
+        for k in breakdown:
+            breakdown[k] = int(round(breakdown[k] * scale))
+
+    if adj != 0:
+        logger.info(f"[DET_ADJ] IČO {ico}: deterministic adjustment = {adj:+d} ({'; '.join(reasons)})")
+
+    return adj, breakdown
+
+
 async def run_and_save_audit_verdict(
     ico: str,
     force: bool = False,
@@ -668,6 +795,24 @@ async def run_and_save_audit_verdict(
         if company.financialStatements:
             # Zoradiť a skrátiť na posledných 5 rokov — konzistentné s report_generator.py
             sorted_stmts = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
+
+            # ── Statement type consistency: nemiešať konsolidované a individuálne ──
+            # Ak firma má oba typy závierok, preferujeme jeden typ pre konzistentný trend.
+            # Priorita: konsolidované (ak ≥3 roky), inak individuálne.
+            cons_stmts = [s for s in sorted_stmts if getattr(s, 'isConsolidated', False)]
+            indiv_stmts = [s for s in sorted_stmts if not getattr(s, 'isConsolidated', False)]
+            if cons_stmts and indiv_stmts:
+                if len(cons_stmts) >= 3:
+                    sorted_stmts = cons_stmts
+                    company_dict["_financial_basis"] = "consolidated"
+                    logger.info(f"[{ico}] Financial basis: consolidated ({len(cons_stmts)} years) — mixing avoided")
+                else:
+                    sorted_stmts = indiv_stmts
+                    company_dict["_financial_basis"] = "individual"
+                    logger.info(f"[{ico}] Financial basis: individual ({len(indiv_stmts)} years) — mixing avoided")
+            else:
+                company_dict["_financial_basis"] = "consolidated" if cons_stmts else "individual"
+
             company.financialStatements = sorted_stmts
             company_dict["financialStatements"] = [
                 {f: getattr(s, f, None) for f in (
@@ -677,7 +822,7 @@ async def run_and_save_audit_verdict(
                     'cashAndEquivalents', 'grossProfit', 'currentAssets', 'inventory',
                     'tradeReceivables', 'tradePayables', 'socialInsuranceLiabilities',
                     'taxLiabilities', 'employeeLiabilities', 'employeeCount', 'monthsInPeriod',
-                    'statementType', 'auditorOpinion', 'narrativeRisk', 'notesRisk',
+                    'statementType', 'isConsolidated', 'auditorOpinion', 'narrativeRisk', 'notesRisk',
                 )}
                 for s in sorted_stmts
             ]
@@ -979,11 +1124,12 @@ async def run_and_save_audit_verdict(
                 logger.warning(f"[QA RE-RUN] IČO {ico}: re-run zlyhal: {rerun_err} — používam pôvodný verdict.")
 
         # ── Fix 3: Deterministické verifaScore ─────────────────────────────────
-        # verifaScore = compute_forensic_scorecard().total_score (vždy, bez ohľadu na LLM).
+        # verifaScore = compute_forensic_scorecard().total_score + deterministic adjustment.
         # LLM forenzný adjustment (llm_score_adjustment) je len informatívny — neukladá sa do skóre.
+        # Deterministický adjustment sa počíta z NarrativeRisk, NotesRisk a CompanyEvents.
         # Fallback na verdict.verifa_score len ak neexistujú finančné výkazy (firma bez dát).
         deterministic_score = scorecard.total_score if scorecard is not None else verdict.verifa_score
-        llm_adj = getattr(verdict, "llm_score_adjustment", 0) or 0
+        llm_adj = getattr(verdict, "llm_score_adjustment", 0) or 0  # informational only
 
         # ── ORSR Management Anomaly override ────────────────────────────────────
         # Ak LLM (Chief Auditor) nastaví white_horse_risk_dismissed=True,
@@ -993,14 +1139,22 @@ async def run_and_save_audit_verdict(
             wh_dismissed, scorecard, deterministic_score, ico
         )
 
+        # ── Deterministický forenzný adjustment (namiesto LLM ±10) ──────────────
+        det_adj, det_breakdown = _compute_deterministic_adjustment(
+            narrative_by_year, notes_by_year,
+            company_dict.get("companyEvents", []),
+            ico,
+            is_consolidated=company_dict.get("_financial_basis") == "consolidated",
+        )
+
         logger.info(
             f"Ukladám AuditVerdict pre IČO {ico}: "
             f"Score={deterministic_score} (algo{f'+{wh_refund}b WH override' if wh_refund else ''}), "
-            f"LLM_adj={llm_adj:+d}, "
+            f"Det_adj={det_adj:+d}, LLM_adj(infonly)={llm_adj:+d}, "
             f"Debt Rating: {verdict.debt_exposure_rating}, Status: {verdict.llm_analysis_status}"
         )
 
-        final_score = max(0, min(100, deterministic_score + llm_adj))
+        final_score = max(0, min(100, deterministic_score + det_adj))
 
         # Deterministická risk_category — Python lookup namiesto LLM
         # Fallback na LLM hodnotu len ak neexistujú finančné výkazy (INSUFFICIENT_DATA)
@@ -1025,7 +1179,7 @@ async def run_and_save_audit_verdict(
             'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
             'keyRisk': _sanitize_verdict_text(verdict.kľúčové_riziko),
             'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
-            'llmScoreAdjustment': llm_adj,
+            'llmScoreAdjustment': det_adj,
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
 
@@ -1122,6 +1276,68 @@ async def run_and_save_audit_verdict(
         verdict_payload = _inject_ncrzp_findings(verdict_payload, registry_findings, ico)
 
         await save_audit_verdict(ico, verdict_payload)
+
+        # ── Scoring Snapshot (permanent audit trail) ─────────────────────────────
+        # Ukladá kompletný scoring snapshot pre budúci empirický model.
+        # Nikdy neprepisuje staré snapshoty — vždy vytvorí nový záznam.
+        try:
+            _financial_basis = company_dict.get("_financial_basis", "individual")
+            _is_consolidated = _financial_basis == "consolidated"
+            _latest_year = None
+            _stmts = company_dict.get("financialStatements", [])
+            if _stmts and isinstance(_stmts, list):
+                _latest_year = getattr(_stmts[0], "year", None) if hasattr(_stmts[0], "year") else (_stmts[0].get("year") if isinstance(_stmts[0], dict) else None)
+
+            # Input data hash — reproducibility
+            # Hashuje všetky vstupy, ktoré ovplyvňujú score:
+            # base_score, consolidation status, narrative/notes risk findings, company events
+            _hash_input = json.dumps({
+                "ico": ico,
+                "base_score": deterministic_score,
+                "is_consolidated": _is_consolidated,
+                "narrative": [
+                    {
+                        "rok": e.get("rok"),
+                        "gc": (e.get("narrativeRisk") or {}).get("goingConcernDoubts"),
+                        "lit": (e.get("narrativeRisk") or {}).get("litigationRisks"),
+                    }
+                    for e in narrative_by_year if isinstance(e, dict)
+                ],
+                "notes": [
+                    {
+                        "rok": e.get("rok"),
+                        "rpt": (e.get("notesRisk") or {}).get("relatedPartyTransactions"),
+                        "cr": (e.get("notesRisk") or {}).get("contingentRisks"),
+                        "obs": (e.get("notesRisk") or {}).get("offBalanceSheetLiabilities"),
+                    }
+                    for e in notes_by_year if isinstance(e, dict)
+                ],
+                "events": [
+                    {"sev": ev.get("severity"), "type": ev.get("eventType")}
+                    for ev in (company_dict.get("companyEvents") or [])
+                    if isinstance(ev, dict)
+                ],
+            }, sort_keys=True, default=str)
+            _input_hash = hashlib.sha256(_hash_input.encode()).hexdigest()[:16]
+
+            snapshot_payload = {
+                'companyIco': ico,
+                'scoringVersion': SCORING_VERSION,
+                'financialYear': _latest_year,
+                'baseScore': deterministic_score,
+                'finalScore': final_score,
+                'riskCategory': _risk_category,
+                'adjustmentTotal': det_adj,
+                'adjustments': Json(det_breakdown),
+                'isConsolidated': _is_consolidated,
+                'financialBasis': _financial_basis,
+                'llmAdjustment': llm_adj,
+                'whOverrideRefund': wh_refund,
+                'inputDataHash': _input_hash,
+            }
+            await save_scoring_snapshot(snapshot_payload)
+        except Exception as snap_err:
+            logger.warning(f"[{ico}] ScoringSnapshot save failed (non-fatal): {snap_err}")
 
     except Exception as e:
         logger.error(f"Chyba pri generovaní AuditVerdict pre IČO {ico}: {e}", exc_info=True)
