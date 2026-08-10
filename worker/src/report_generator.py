@@ -1051,10 +1051,22 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
             # informational/positive — not risk flags that should inflate heatmap severity.
             val = getattr(nr, 'litigationRisks', None)
             if val and not isinstance(val, bool) and str(val).strip():
-                text = str(val)
-                if year:
-                    text = f"[{year}] {text}"
-                narrative_flags.append(text[:397] + '…' if len(text) > 400 else text)
+                raw_text = str(val).strip()
+                # Skip "no risk found" statements — they are NOT risk flags
+                _no_risk = re.search(
+                    r'(?i)(neuvádzajú\s+sa\s+(?:žiadne|konkrétne)|nenachádzajú\s+sa\s+(?:žiadne|konkrétne)'
+                    r'|neobsahuje\s+(?:žiadne|informácie\s+o)|nespomínajú\s+sa\s+(?:žiadne|konkrétne)'
+                    r'|žiadne\s+(?:prebiehajúce\s+)?(?:súdne\s+spor|exekúc|právne\s+hroz|litigation)'
+                    r'|no\s+litigation|no\s+legal\s+proceed|none\s+identified|not\s+mentioned)',
+                    raw_text,
+                )
+                if _no_risk:
+                    pass  # Absence of risk is NOT a risk flag — skip
+                else:
+                    text = raw_text
+                    if year:
+                        text = f"[{year}] {text}"
+                    narrative_flags.append(text[:397] + '…' if len(text) > 400 else text)
             # goingConcernDoubts is a bool — if True, it's a critical flag
             if getattr(nr, 'goingConcernDoubts', None) is True:
                 narrative_flags.append(f"[{year}] Going Concern pochybnosti" if year else "Going Concern pochybnosti")

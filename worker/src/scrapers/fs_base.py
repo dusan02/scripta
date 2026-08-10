@@ -24,6 +24,44 @@ except ImportError:
     _PDF_TITLE_AVAILABLE = False
 
 
+def _postprocess_pdf_dates(pdf_path: Path) -> None:
+    """Post-process scraped PDF: replace MMYY date patterns with MM/YYYY in text layer.
+    Used for FS_DPH_NADMERNY_ODPOCET where government PDF contains raw MMYY dates."""
+    try:
+        import fitz
+        doc = fitz.open(str(pdf_path))
+        modified = False
+        # Match 4-digit MMYY patterns (01-12 for month, any 2 digits for year)
+        date_pattern = re.compile(r'\b(0[1-9]|1[0-2])(\d{2})\b')
+        for page in doc:
+            text = str(page.get_text("text") or "")
+            if not text:
+                continue
+            # Only process pages that look like DPH nadmerný odpočet tables
+            if "Zdaňovacie" not in text and "zdaňovacie" not in text:
+                continue
+            redactions = []
+            for m in date_pattern.finditer(text):
+                mm, yy = m.group(1), m.group(2)
+                old_val = m.group(0)
+                new_val = f"{mm}/20{yy}"
+                rect = page.search_for(old_val)
+                for r in rect:
+                    redactions.append((r, new_val))
+            if redactions:
+                for r, new_val in redactions:
+                    page.add_redact_annot(r, text=new_val, fontsize=0)
+                page.apply_redactions()
+                modified = True
+        if modified:
+            encrypt_flag = getattr(fitz, 'PDF_ENCRYPT_KEEP', 0)
+            doc.save(str(pdf_path), incremental=True, encryption=encrypt_flag)
+            logger.info(f"[PDF Dates] {pdf_path.name} — MMYY dátumy nahradené MM/YYYY")
+        doc.close()
+    except Exception as e:
+        logger.warning(f"[PDF Dates] Post-processing zlyhal pre {pdf_path.name}: {e}")
+
+
 def _format_date_value(val: str) -> str:
     """Opraví dátumový formát z Finančnej správy (MMYY → MM/YYYY)."""
     if not val:
@@ -633,6 +671,8 @@ class FinancnaSpravaBase(BaseScraper):
                         body = await resp.body()
                         if body and len(body) > 0:
                             output_path.write_bytes(body)
+                            if self.source_type == "FS_DPH_NADMERNY_ODPOCET":
+                                _postprocess_pdf_dates(output_path)
                             logger.info(f"[{self.source_type}] PDF uložené (href download, {len(body)} bytes).")
                             return True
                         else:
@@ -658,6 +698,8 @@ class FinancnaSpravaBase(BaseScraper):
                         except Exception:
                             pass
                 if output_path.exists() and output_path.stat().st_size > 0:
+                    if self.source_type == "FS_DPH_NADMERNY_ODPOCET":
+                        _postprocess_pdf_dates(output_path)
                     logger.info(f"[{self.source_type}] PDF uložené (download, {output_path.stat().st_size} bytes).")
                     return True
                 else:
