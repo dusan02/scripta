@@ -16,19 +16,6 @@ export default function PricingSection() {
           <h2 style={{ fontSize: "clamp(24px, 3.5vw, 34px)", fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 14 }}>{t("home.navPricing")}</h2>
         </div>
 
-        {/* Čo obsahuje každý report */}
-        <div className="pricing-includes-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "36px 28px", marginBottom: 44 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 28, textAlign: "center" }}>{t("pricing.coObsahuje")}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 pricing-includes-grid" style={{ gap: "24px 20px" }}>
-            {REPORT_INCLUDES_KEYS.map((key) => (
-              <div key={key} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, fontSize: 13 }}>✓</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.4 }}>{t(key)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pricing-grid" style={{ alignItems: "stretch" }}>
           {PRICING_PLANS.map((plan) => (
             <div key={plan.id} style={{ background: "var(--surface)", border: plan.highlight ? "2px solid var(--accent)" : "1px solid var(--border)", borderRadius: 16, padding: 26, position: "relative", boxShadow: plan.highlight ? "var(--shadow-lg)" : "var(--shadow-sm)" }}>
@@ -61,6 +48,19 @@ export default function PricingSection() {
               </ul>
             </div>
           ))}
+        </div>
+
+        {/* Čo obsahuje každý report — po cenových balíkoch */}
+        <div className="pricing-includes-card" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "36px 28px", marginTop: 44 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 28, textAlign: "center" }}>{t("pricing.coObsahuje")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 pricing-includes-grid" style={{ gap: "24px 20px" }}>
+            {REPORT_INCLUDES_KEYS.map((key) => (
+              <div key={key} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, fontSize: 13 }}>✓</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.4 }}>{t(key)}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 36, flexWrap: "wrap", fontSize: 13, color: "var(--text-secondary)" }} className="pricing-guarantee">
