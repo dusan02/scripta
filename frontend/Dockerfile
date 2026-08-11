@@ -40,6 +40,8 @@ ENV NEXTAUTH_URL=http://localhost:3000
 # Next.js build does not need it; setting it here would bake it into the image.
 ENV WORKER_URL=http://localhost:8000
 ENV SENTRY_AUTH_TOKEN=
+ENV NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=test_2dfbedc6df134bfeec344bb574e
+ENV NEXT_PUBLIC_PADDLE_ENVIRONMENT=sandbox
 
 RUN npm run build
 
