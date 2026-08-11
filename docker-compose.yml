@@ -75,6 +75,14 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-Verifa.sk <noreply@verifa.sk>}
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
+      # ─── Paddle ───
+      BILLING_PROVIDER: ${BILLING_PROVIDER:-paddle}
+      PADDLE_API_KEY: ${PADDLE_API_KEY:-}
+      PADDLE_WEBHOOK_SECRET: ${PADDLE_WEBHOOK_SECRET:-}
+      PADDLE_ENVIRONMENT: ${PADDLE_ENVIRONMENT:-sandbox}
+      PADDLE_PRICE_1: ${PADDLE_PRICE_1:-}
+      PADDLE_PRICE_10: ${PADDLE_PRICE_10:-}
+      PADDLE_PRICE_50: ${PADDLE_PRICE_50:-}
     ports:
       - "3000:3000"
     healthcheck:
