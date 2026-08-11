@@ -55,11 +55,11 @@ export default function LandingPageRoute() {
       <LandingNav />
       <HeroSection />
       <ReportIncludesSection />
+      <SampleReportSection />
       <HowItWorksSection />
       <RoiSection />
       <RegistriesSection />
       <TargetSection />
-      <SampleReportSection />
       <FaqSection />
       <PricingSection />
       <CtaSection />
