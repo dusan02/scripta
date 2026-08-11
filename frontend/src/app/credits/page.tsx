@@ -55,7 +55,7 @@ export default function CreditsPage() {
       });
       const d = await res.json();
       if (res.ok && d.url) {
-        router.push(d.url);
+        window.location.href = d.url;
       } else {
         toast.error(t("pricing.checkoutChyba"));
       }
