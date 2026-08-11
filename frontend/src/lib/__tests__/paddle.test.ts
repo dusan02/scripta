@@ -9,7 +9,7 @@
  * - handleWebhook: unknown event → no result
  * - handleWebhook: missing custom_data → no result
  * - handleWebhook: unknown planId → no result (server-side credits lookup)
- * - createCheckoutSession: valid plan → returns checkout URL
+ * - createCheckoutSession: valid plan → returns client-side checkout URL
  * - createCheckoutSession: invalid plan → throws
  * - createCheckoutSession: missing priceId → throws
  * - Idempotency: eventId is passed through to WebhookResult
@@ -64,14 +64,18 @@ class MockPaddle {
 // Override the Paddle constructor in the module
 (originalModule as any).Paddle = MockPaddle;
 
-// ─── Import after mock setup ──────────────────────────────────────────────────
+// ─── Set env vars before require so PADDLE_PRICE_MAP picks them up ────────────
 
-import { PaddleAdapter, PLAN_CREDITS_MAP } from "../billing/paddle";
+process.env.PADDLE_PRICE_1 = "pri_test1";
+
+// ─── Require after mock + env setup ──────────────────────────────────────────
+
+const { PaddleAdapter, PLAN_CREDITS_MAP, PADDLE_PRICE_MAP } = require("../billing/paddle");
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("PaddleAdapter", () => {
-  let adapter: PaddleAdapter;
+  let adapter: InstanceType<typeof PaddleAdapter>;
 
   beforeEach(() => {
     adapter = new PaddleAdapter();
@@ -357,21 +361,16 @@ describe("PaddleAdapter", () => {
 
   describe("createCheckoutSession", () => {
     it("returns checkout URL for valid plan", async () => {
-      mockTransactionResult = {
-        id: "txn_01test",
-        checkout: { url: "https://checkout.paddle.com/txn_01test" },
-      };
-
-      // Set env var for price
-      process.env.PADDLE_PRICE_1 = "pri_test1";
-
       const result = await adapter.createCheckoutSession({
         planId: "payg1",
         userId: "user-123",
         userEmail: "test@verifa.sk",
       });
 
-      assert.equal(result.url, "https://checkout.paddle.com/txn_01test");
+      assert.match(result.url, /^\/credits\/checkout\?/);
+      assert.match(result.url, /priceId=pri_test1/);
+      assert.match(result.url, /planId=payg1/);
+      assert.match(result.url, /userId=user-123/);
     });
 
     it("throws for invalid plan ID", async () => {
@@ -386,7 +385,8 @@ describe("PaddleAdapter", () => {
     });
 
     it("throws for valid plan but missing priceId", async () => {
-      delete process.env.PADDLE_PRICE_1;
+      const original = PADDLE_PRICE_MAP.payg1.priceId;
+      PADDLE_PRICE_MAP.payg1.priceId = "";
 
       await assert.rejects(
         () => adapter.createCheckoutSession({
@@ -397,26 +397,7 @@ describe("PaddleAdapter", () => {
         /Invalid plan/,
       );
 
-      // Restore for other tests
-      process.env.PADDLE_PRICE_1 = "pri_test1";
-    });
-
-    it("throws when checkout URL is missing from response", async () => {
-      mockTransactionResult = {
-        id: "txn_01test",
-        checkout: { url: null },
-      };
-
-      process.env.PADDLE_PRICE_1 = "pri_test1";
-
-      await assert.rejects(
-        () => adapter.createCheckoutSession({
-          planId: "payg1",
-          userId: "user-123",
-          userEmail: "test@verifa.sk",
-        }),
-        /checkout URL missing/,
-      );
+      PADDLE_PRICE_MAP.payg1.priceId = original;
     });
   });
 
