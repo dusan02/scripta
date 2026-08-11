@@ -1607,11 +1607,6 @@ def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
         return text
     for placeholder, value in placeholders.items():
         text = text.replace(placeholder, value)
-    # Fallback: odstráň všetky nenahradené {{...}} tagy, ktoré LLM vymyslel
-    # ale v placeholder dicte neexistujú (napr. {{EQUITY_YOY_PCT}} pred pridaním).
-    text = re.sub(r'\{\{[A-Z_]+\}\}', '', text)
-    # Cleanup dvojitých medzier po odstránení tagov
-    text = re.sub(r'  +', ' ', text).strip()
     return text
 
 

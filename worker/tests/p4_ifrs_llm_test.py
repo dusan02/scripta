@@ -44,6 +44,10 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
 
+# Skip pytest collection — this is a standalone script requiring GEMINI_API_KEY
+import pytest
+pytestmark = pytest.mark.skip(reason="Standalone script requiring GEMINI_API_KEY — run manually, not via pytest")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import httpx
