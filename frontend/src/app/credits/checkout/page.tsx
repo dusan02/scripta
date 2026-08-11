@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/components/LanguageProvider";
 
 declare global {
   interface Window {
@@ -31,6 +32,7 @@ declare global {
 export default function CheckoutPage() {
   const router = useRouter();
   const params = useSearchParams();
+  const t = useT();
   const [status, setStatus] = useState<"loading" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -42,14 +44,14 @@ export default function CheckoutPage() {
 
     if (!priceId || !planId || !userId) {
       setStatus("error");
-      setErrorMsg("Missing checkout parameters");
+      setErrorMsg(t("checkout.missingParams"));
       return;
     }
 
     const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
     if (!token) {
       setStatus("error");
-      setErrorMsg("Paddle client token not configured");
+      setErrorMsg(t("checkout.noToken"));
       return;
     }
 
@@ -70,7 +72,7 @@ export default function CheckoutPage() {
 
       if (!window.Paddle) {
         setStatus("error");
-        setErrorMsg("Failed to load Paddle.js");
+        setErrorMsg(t("checkout.error"));
         return;
       }
 
@@ -108,12 +110,12 @@ export default function CheckoutPage() {
   if (status === "error") {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "1rem" }}>
-        <p style={{ color: "#ef4444", fontSize: "1.1rem" }}>{errorMsg}</p>
+        <p style={{ color: "var(--danger)", fontSize: "1.1rem" }}>{errorMsg}</p>
         <button
           onClick={() => router.replace("/credits")}
-          style={{ padding: "0.6rem 1.5rem", background: "#10b981", color: "white", border: "none", borderRadius: "8px", cursor: "pointer" }}
+          style={{ padding: "0.6rem 1.5rem", background: "var(--accent)", color: "var(--accent-button-text)", border: "none", borderRadius: "8px", cursor: "pointer" }}
         >
-          Späť na kredity
+          {t("checkout.back")}
         </button>
       </div>
     );
@@ -122,8 +124,8 @@ export default function CheckoutPage() {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
       <div style={{ textAlign: "center", gap: "1rem", display: "flex", flexDirection: "column" }}>
-        <div style={{ width: "40px", height: "40px", border: "3px solid #e5e7eb", borderTopColor: "#10b981", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto" }} />
-        <p style={{ color: "#71717a", fontSize: "0.95rem" }}>Otváram platobnú bránu...</p>
+        <div style={{ width: "40px", height: "40px", border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto" }} />
+        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>{t("checkout.loading")}</p>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
