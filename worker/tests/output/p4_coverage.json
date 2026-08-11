@@ -1,0 +1,647 @@
+{
+  "data_points": [
+    {
+      "category": "Financial",
+      "data_point": "Tržby (Revenue)",
+      "primary_source": "RÚZ API JSON",
+      "fallback": "RÚZ HTML tables",
+      "llm_used": false,
+      "scraper": "REGISTER_UZ"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Zisk/strata (Net profit)",
+      "primary_source": "RÚZ API JSON",
+      "fallback": "RÚZ HTML tables",
+      "llm_used": false,
+      "scraper": "REGISTER_UZ"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Aktíva (Total assets)",
+      "primary_source": "RÚZ API JSON",
+      "fallback": "RÚZ HTML tables",
+      "llm_used": false,
+      "scraper": "REGISTER_UZ"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Vlastné imanie (Equity)",
+      "primary_source": "RÚZ API JSON",
+      "fallback": "RÚZ HTML tables",
+      "llm_used": false,
+      "scraper": "REGISTER_UZ"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Záväzky (Liabilities)",
+      "primary_source": "RÚZ API JSON",
+      "fallback": "RÚZ HTML tables",
+      "llm_used": false,
+      "scraper": "REGISTER_UZ"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Cash",
+      "primary_source": "RÚZ API JSON",
+      "fallback": "RÚZ HTML tables",
+      "llm_used": false,
+      "scraper": "REGISTER_UZ"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Zamestnanci (Employees)",
+      "primary_source": "RÚZ API JSON (titulnaStrana)",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "REGISTER_UZ"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Poznámky (Notes)",
+      "primary_source": "RÚZ PDF prílohy",
+      "fallback": "—",
+      "llm_used": true,
+      "scraper": "REGISTER_UZ",
+      "llm_note": "Notes/forensic analysis — interpretation, not fact extraction"
+    },
+    {
+      "category": "Financial",
+      "data_point": "Audítorská správa",
+      "primary_source": "RÚZ PDF prílohy",
+      "fallback": "—",
+      "llm_used": true,
+      "scraper": "REGISTER_UZ",
+      "llm_note": "Auditor opinion extraction from PDF — structured field in JSON"
+    },
+    {
+      "category": "Company",
+      "data_point": "Názov spoločnosti",
+      "primary_source": "ORSR",
+      "fallback": "RÚZ API",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "IČO",
+      "primary_source": "ORSR",
+      "fallback": "RÚZ API",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "Sídlo (Address)",
+      "primary_source": "ORSR",
+      "fallback": "RÚZ API",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "Právna forma",
+      "primary_source": "ORSR",
+      "fallback": "RÚZ API",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "Predmet činnosti",
+      "primary_source": "ORSR",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "Vlastníci (Owners)",
+      "primary_source": "ORSR",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "Štatutárny orgán",
+      "primary_source": "ORSR",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "Zriaďovateľ (Founder)",
+      "primary_source": "ORSR",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "ORSR"
+    },
+    {
+      "category": "Company",
+      "data_point": "Historické zmeny",
+      "primary_source": "ORSR",
+      "fallback": "—",
+      "llm_used": true,
+      "scraper": "ORSR",
+      "llm_note": "Forensic analysis of ORSR history — anomaly detection, not fact extraction"
+    },
+    {
+      "category": "Risk",
+      "data_point": "Konkurz/likvidácia",
+      "primary_source": "Vestník (XML)",
+      "fallback": "Insolvency Register",
+      "llm_used": false,
+      "scraper": "OBCHODNY_VESTNIK + INSOLVENCY"
+    },
+    {
+      "category": "Risk",
+      "data_point": "Exekúcie (Poverenia)",
+      "primary_source": "Poverenia (justice.gov.sk)",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "POVERENIA"
+    },
+    {
+      "category": "Risk",
+      "data_point": "CRE (crz.sk exekúcie)",
+      "primary_source": "❌ NEEXISTUJE scraper",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "—",
+      "gap": true
+    },
+    {
+      "category": "Risk",
+      "data_point": "Diskvalifikácie",
+      "primary_source": "Diskvalifikácie register",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "DISKVALIFIKACIE"
+    },
+    {
+      "category": "Risk",
+      "data_point": "Súdne rozhodnutia",
+      "primary_source": "Rozhodnutia register",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "ROZHODNUTIA"
+    },
+    {
+      "category": "Risk",
+      "data_point": "NCRZP (nezistené zdroje)",
+      "primary_source": "NCRZP",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "NCRZP"
+    },
+    {
+      "category": "Tax",
+      "data_point": "DPH registrácia",
+      "primary_source": "Finančná správa",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "FINANCNA_SPRAVA"
+    },
+    {
+      "category": "Tax",
+      "data_point": "DPH rusenie",
+      "primary_source": "FS DPH rusenie",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "FS_DPH_RUSENIE"
+    },
+    {
+      "category": "Tax",
+      "data_point": "Daň z príjmov",
+      "primary_source": "FS daň z príjmov",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "FS_DAN_Z_PRIJMOV"
+    },
+    {
+      "category": "Tax",
+      "data_point": "Nadmerný odpočet DPH",
+      "primary_source": "FS nadmerný odpočet",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "FS_DPH_NADMERNY_ODPOCET"
+    },
+    {
+      "category": "Debts",
+      "data_point": "Sociálna poisťovňa dlhy",
+      "primary_source": "SP dlžníci",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "SP_DLZNICI"
+    },
+    {
+      "category": "Debts",
+      "data_point": "VšZP dlhy",
+      "primary_source": "VšZP dlžníci",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "VSZP_DLZNICI"
+    },
+    {
+      "category": "Debts",
+      "data_point": "Dôvera dlhy",
+      "primary_source": "Dôvera dlžníci",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "DOVERA_DLZNICI"
+    },
+    {
+      "category": "Debts",
+      "data_point": "Union dlhy",
+      "primary_source": "Union dlžníci",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "UNION_DLZNICI"
+    },
+    {
+      "category": "Other",
+      "data_point": "RPVS (verejné zdroje)",
+      "primary_source": "RPVS",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "RPVS"
+    },
+    {
+      "category": "Other",
+      "data_point": "NCRD (register dlhov)",
+      "primary_source": "NCRD",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "NCRD"
+    },
+    {
+      "category": "Other",
+      "data_point": "CRZ (register zmlúv)",
+      "primary_source": "CRZ",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "CRZ"
+    },
+    {
+      "category": "Other",
+      "data_point": "UVO (verejné obstarávanie)",
+      "primary_source": "UVO",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "UVO"
+    },
+    {
+      "category": "Other",
+      "data_point": "RPO (register právnických osôb)",
+      "primary_source": "RPO",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "RPO"
+    },
+    {
+      "category": "Other",
+      "data_point": "ZRSR (živnostenský register)",
+      "primary_source": "ZRSR",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "ZRSR"
+    },
+    {
+      "category": "Analysis",
+      "data_point": "Naratívna analýza",
+      "primary_source": "LLM interpretácia",
+      "fallback": "—",
+      "llm_used": true,
+      "scraper": "—",
+      "llm_note": "LLM interprets facts — does not create them"
+    },
+    {
+      "category": "Analysis",
+      "data_point": "Forenzná analýza ORSR",
+      "primary_source": "LLM interpretácia",
+      "fallback": "—",
+      "llm_used": true,
+      "scraper": "—",
+      "llm_note": "LLM detects anomalies in ORSR history"
+    },
+    {
+      "category": "Analysis",
+      "data_point": "Cross-analysis",
+      "primary_source": "LLM interpretácia",
+      "fallback": "—",
+      "llm_used": true,
+      "scraper": "—",
+      "llm_note": "LLM cross-references between registries"
+    },
+    {
+      "category": "Analysis",
+      "data_point": "Chief Auditor verdict",
+      "primary_source": "LLM interpretácia",
+      "fallback": "—",
+      "llm_used": true,
+      "scraper": "—",
+      "llm_note": "LLM synthesizes verdict from deterministic facts + scores"
+    },
+    {
+      "category": "Analysis",
+      "data_point": "Verifa Score",
+      "primary_source": "Deterministic scorecard",
+      "fallback": "—",
+      "llm_used": false,
+      "scraper": "—",
+      "llm_note": "Score is computed deterministically, LLM only suggests adjustment"
+    }
+  ],
+  "ruz_coverage": [
+    {
+      "ico": "35876832",
+      "found": true,
+      "total_zavierky": 13,
+      "json_statements": 0,
+      "pdf_only_statements": 5,
+      "no_data_statements": 0,
+      "years_with_json": [],
+      "years_pdf_only": [
+        2025,
+        2024,
+        2023,
+        2022,
+        2021
+      ],
+      "latest_year": 2025,
+      "latest_year_has_json": false,
+      "konsolidovana": false
+    },
+    {
+      "ico": "31637051",
+      "found": true,
+      "total_zavierky": 36,
+      "json_statements": 0,
+      "pdf_only_statements": 5,
+      "no_data_statements": 0,
+      "years_with_json": [],
+      "years_pdf_only": [
+        2025,
+        2025,
+        2025,
+        2025,
+        2024
+      ],
+      "latest_year": 2025,
+      "latest_year_has_json": false,
+      "konsolidovana": true
+    },
+    {
+      "ico": "31733221",
+      "found": true,
+      "total_zavierky": 2,
+      "json_statements": 2,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2015,
+        2014
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2015,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00603783",
+      "found": true,
+      "total_zavierky": 19,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2023,
+        2022,
+        2021
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00643581",
+      "found": true,
+      "total_zavierky": 13,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2023,
+        2022,
+        2021
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00590797",
+      "found": true,
+      "total_zavierky": 13,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2023,
+        2022,
+        2021
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00311715",
+      "found": true,
+      "total_zavierky": 24,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2024,
+        2024,
+        2023,
+        2023,
+        2022
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2024,
+      "latest_year_has_json": true,
+      "konsolidovana": true
+    },
+    {
+      "ico": "00603201",
+      "found": true,
+      "total_zavierky": 33,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2025,
+        2024,
+        2024,
+        2023
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": true
+    },
+    {
+      "ico": "00318337",
+      "found": true,
+      "total_zavierky": 26,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2025,
+        2024,
+        2024,
+        2023
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": true
+    },
+    {
+      "ico": "00309486",
+      "found": true,
+      "total_zavierky": 25,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2024,
+        2023,
+        2023
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": true
+    },
+    {
+      "ico": "00037800",
+      "found": true,
+      "total_zavierky": 18,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2024,
+        2023,
+        2023
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00895920",
+      "found": true,
+      "total_zavierky": 13,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2023,
+        2022,
+        2021
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00633861",
+      "found": true,
+      "total_zavierky": 4,
+      "json_statements": 4,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2016,
+        2015,
+        2014,
+        2013
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2016,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00208892",
+      "found": true,
+      "total_zavierky": 15,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2023,
+        2023,
+        2022
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    },
+    {
+      "ico": "00596507",
+      "found": true,
+      "total_zavierky": 14,
+      "json_statements": 5,
+      "pdf_only_statements": 0,
+      "no_data_statements": 0,
+      "years_with_json": [
+        2025,
+        2024,
+        2023,
+        2022,
+        2021
+      ],
+      "years_pdf_only": [],
+      "latest_year": 2025,
+      "latest_year_has_json": true,
+      "konsolidovana": false
+    }
+  ],
+  "summary": {
+    "total_companies": 15,
+    "found_in_ruz": 15,
+    "has_json": 13,
+    "pdf_only": 2,
+    "json_coverage_pct": 86.66666666666667
+  }
+}

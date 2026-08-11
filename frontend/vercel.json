@@ -2,11 +2,15 @@
   "crons": [
     {
       "path": "/api/reports/recover-stuck",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/credits/expire",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/vestnik-ingest",
+      "schedule": "0 5 * * *"
     }
   ]
 }

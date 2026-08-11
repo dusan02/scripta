@@ -1,0 +1,1196 @@
+{
+  "companies_tested": 3,
+  "statements_tested": 9,
+  "sk_gaap_statements": 9,
+  "ifrs_statements": 0,
+  "results": [
+    {
+      "ico": "00603783",
+      "company_name": "NEOXX a.s.",
+      "year": 2025,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 12075591.0,
+          "extracted": 12075591.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 7065894.0,
+          "extracted": 7065894.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": 2601706.0,
+          "extracted": 2601706.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 2931589.0,
+          "extracted": 2931589.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 109697.0,
+          "extracted": 109697.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": 18430869.0,
+          "extracted": 18430869.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": 1359394.0,
+          "extracted": 1359394.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": 2385900.0,
+          "extracted": 2385900.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": 64255.0,
+          "extracted": 64255.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": 6275.0,
+          "extracted": 6275.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 320.0,
+          "extracted": 320.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 948864.0,
+          "extracted": 948864.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00603783",
+      "company_name": "NEOXX a.s.",
+      "year": 2024,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 3062601.0,
+          "extracted": 3062601.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 2434564.0,
+          "extracted": 2434564.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": 1242312.0,
+          "extracted": 1242312.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 1035274.0,
+          "extracted": 1035274.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 71663.0,
+          "extracted": 71663.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": 5236183.0,
+          "extracted": 5236183.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": 43290.0,
+          "extracted": 43290.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": 1810022.0,
+          "extracted": 1810022.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": 28259.0,
+          "extracted": 28259.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": 17169.0,
+          "extracted": 17169.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 523.0,
+          "extracted": 523.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 651536.0,
+          "extracted": 651536.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00603783",
+      "company_name": "NEOXX a.s.",
+      "year": 2023,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 2647710.0,
+          "extracted": 2647710.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 2127958.0,
+          "extracted": 2127958.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": 733099.0,
+          "extracted": 733099.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 1184828.0,
+          "extracted": 1184828.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 3035.0,
+          "extracted": 3035.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": 5423410.0,
+          "extracted": 5423410.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": 73196.0,
+          "extracted": 73196.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": 2203681.0,
+          "extracted": 2203681.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": 27030.0,
+          "extracted": 27030.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": 11781.0,
+          "extracted": 11781.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 888.0,
+          "extracted": 888.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 674506.0,
+          "extracted": 674506.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00643581",
+      "company_name": "TERRASTROJ spol. s r.o.",
+      "year": 2025,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 5414343.0,
+          "extracted": 5414343.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 2971375.0,
+          "extracted": 2971375.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": 84492.0,
+          "extracted": 84492.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 3504582.0,
+          "extracted": 3504582.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 1390125.0,
+          "extracted": 1390125.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": 14351640.0,
+          "extracted": 14351640.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": -395145.0,
+          "extracted": -395145.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": 1733839.0,
+          "extracted": 1733839.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": 370272.0,
+          "extracted": 370272.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": 31313.0,
+          "extracted": 31313.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 2244.0,
+          "extracted": 2244.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 670042.0,
+          "extracted": 670042.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00643581",
+      "company_name": "TERRASTROJ spol. s r.o.",
+      "year": 2024,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 6278306.0,
+          "extracted": 6278306.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 4785616.0,
+          "extracted": 4785616.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": 479636.0,
+          "extracted": 479636.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 4652872.0,
+          "extracted": 4652872.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 461376.0,
+          "extracted": 461376.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": 15403337.0,
+          "extracted": 15403337.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": -442383.0,
+          "extracted": -442383.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": 1763231.0,
+          "extracted": 1763231.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": 258474.0,
+          "extracted": 258474.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": 6196.0,
+          "extracted": 6196.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 2955.0,
+          "extracted": 2955.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 1428499.0,
+          "extracted": 1428499.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00643581",
+      "company_name": "TERRASTROJ spol. s r.o.",
+      "year": 2023,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 3686708.0,
+          "extracted": 3686708.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 2650746.0,
+          "extracted": 2650746.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": 72019.0,
+          "extracted": 72019.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 3227744.0,
+          "extracted": 3227744.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 33533.0,
+          "extracted": 33533.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": 13748761.0,
+          "extracted": 13748761.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": -583522.0,
+          "extracted": -583522.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": 1648699.0,
+          "extracted": 1648699.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": 183078.0,
+          "extracted": 183078.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": 1161.0,
+          "extracted": 1161.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 7189.0,
+          "extracted": 7189.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 830727.0,
+          "extracted": 830727.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00188131",
+      "company_name": "CVZ Farbiarska 35 Stará Ľubovňa",
+      "year": 2025,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 549564.91,
+          "extracted": 549564.91,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 33357.38,
+          "extracted": 33357.38,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": -1396.44,
+          "extracted": -1396.44,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00188131",
+      "company_name": "CVZ Farbiarska 35 Stará Ľubovňa",
+      "year": 2024,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 546939.75,
+          "extracted": 546939.75,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 28567.19,
+          "extracted": 28567.19,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": -3447.96,
+          "extracted": -3447.96,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    },
+    {
+      "ico": "00188131",
+      "company_name": "CVZ Farbiarska 35 Stará Ľubovňa",
+      "year": 2023,
+      "statement_type": "SK_GAAP",
+      "konsolidovana": false,
+      "year_correct": true,
+      "unit_error": false,
+      "error": null,
+      "metrics": [
+        {
+          "metric": "celkove_aktiva",
+          "label": "Total Assets",
+          "ground_truth": 579729.63,
+          "extracted": 579729.63,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "obezny_majetok",
+          "label": "Current Assets",
+          "ground_truth": 43731.09,
+          "extracted": 43731.09,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "vlastne_imanie_celkom",
+          "label": "Total Equity",
+          "ground_truth": -3294.01,
+          "extracted": -3294.01,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "kratkodobe_zavazky",
+          "label": "ST Liabilities",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "dlhodobe_zavazky",
+          "label": "LT Liabilities",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "trzby_z_hlavnej_cinnosti",
+          "label": "Revenue",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "zisk_alebo_strata_po_zdaneni",
+          "label": "Net Profit",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "osobne_naklady",
+          "label": "Personnel Costs",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "odpisy",
+          "label": "Depreciation",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "uroky",
+          "label": "Interest Expense",
+          "ground_truth": null,
+          "extracted": null,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "BOTH_NULL"
+        },
+        {
+          "metric": "peniaze_a_penazne_ekvivalenty_k_31_12",
+          "label": "Cash",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        },
+        {
+          "metric": "pohladavky_z_obchodneho_styku",
+          "label": "Trade Receivables",
+          "ground_truth": 0.0,
+          "extracted": 0.0,
+          "exact_match": true,
+          "within_1pct": true,
+          "ratio": null,
+          "classification": "EXACT"
+        }
+      ]
+    }
+  ]
+}

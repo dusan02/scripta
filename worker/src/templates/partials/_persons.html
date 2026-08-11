@@ -1,0 +1,54 @@
+{# ── Osoby a vlastnícke vzťahy z ORSR ── #}
+{% if persons_statutar|length > 0 or persons_spolocnik|length > 0 %}
+<div class="mb-4 mt-4" style="page-break-inside: avoid; break-inside: avoid;">
+    <h2 class="section-title">{{ i18n.persons_title }}</h2>
+    
+    {% if persons_statutar|length > 0 %}
+    <div class="mb-3">
+        <h3 class="subsection-title-sm mb-1">{{ i18n.persons_statutar }}</h3>
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-3 py-1.5 font-semibold text-slate-600 report-body-sm">{{ i18n.persons_name }}</th>
+                        <th class="px-3 py-1.5 font-semibold text-slate-600 report-body-sm">{{ i18n.persons_city }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for person in persons_statutar %}
+                    <tr>
+                        <td class="px-3 py-1.5 text-slate-800 report-body-sm font-medium">{{ person.cleanName }}</td>
+                        <td class="px-3 py-1.5 text-slate-500 report-body-sm">{{ person.city or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if persons_spolocnik|length > 0 %}
+    <div class="mb-3">
+        <h3 class="subsection-title-sm mb-1">{{ i18n.persons_spolocnik }}</h3>
+        <div class="border border-slate-200 rounded-lg overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-3 py-1.5 font-semibold text-slate-600 report-body-sm">{{ i18n.persons_name }}</th>
+                        <th class="px-3 py-1.5 font-semibold text-slate-600 report-body-sm">{{ i18n.persons_city }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for person in persons_spolocnik %}
+                    <tr>
+                        <td class="px-3 py-1.5 text-slate-800 report-body-sm font-medium">{{ person.cleanName }}</td>
+                        <td class="px-3 py-1.5 text-slate-500 report-body-sm">{{ person.city or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

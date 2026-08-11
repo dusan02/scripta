@@ -29,7 +29,8 @@ export async function addCreditBatch(
   source: "trial" | "subscription" | "addon" | "rollover",
   planName?: string,
   providerReference?: string,
-  provider?: PaymentProvider
+  provider?: PaymentProvider,
+  eventId?: string
 ): Promise<void> {
   const expiryDays = EXPIRY_DAYS[source] ?? 36500;
   const expiresAt = new Date();
@@ -50,12 +51,18 @@ export async function addCreditBatch(
       wallet = relocked[0];
     }
 
-    // Idempotency: check if transaction already exists for this provider reference
+    // Idempotency: check if transaction already exists for this provider reference or event ID
     if (providerReference) {
       const existing = await tx.walletTransaction.findUnique({
         where: { providerReference },
       });
       if (existing) return;
+    }
+    if (eventId) {
+      const existingByEvent = await tx.walletTransaction.findUnique({
+        where: { eventId },
+      });
+      if (existingByEvent) return;
     }
 
     // Debt settlement: if wallet balance is negative (e.g. from a chargeback
@@ -100,6 +107,7 @@ export async function addCreditBatch(
         status: "COMPLETED",
         provider: provider || null,
         providerReference: providerReference || null,
+        eventId: eventId || null,
         description: `Kredity — ${source}${planName ? ` (${planName})` : ""} (${amount} kreditov)${settledDebt > 0 ? `, z toho ${settledDebt} na vyrovnanie dlhu` : ""}`,
       },
     });
@@ -537,15 +545,22 @@ export async function revokeCreditsOnRefund(
   creditsToRevoke: number,
   refundReference: string,
   originalProviderReference: string,
-  provider?: PaymentProvider
+  provider?: PaymentProvider,
+  eventId?: string
 ): Promise<RevokeResult> {
   return await prisma.$transaction(async (tx) => {
-    // Idempotency: if a REFUND_DEDUCTION with this refundReference already
-    // exists, skip entirely.
+    // Idempotency: if a REFUND_DEDUCTION with this refundReference or eventId
+    // already exists, skip entirely.
     const existing = await tx.walletTransaction.findUnique({
       where: { providerReference: refundReference },
     });
     if (existing) return { revoked: 0, newBalance: 0, userEmail: null };
+    if (eventId) {
+      const existingByEvent = await tx.walletTransaction.findUnique({
+        where: { eventId },
+      });
+      if (existingByEvent) return { revoked: 0, newBalance: 0, userEmail: null };
+    }
 
     // Lock the wallet row.
     const walletRows = await tx.$queryRaw<any[]>`
@@ -651,6 +666,7 @@ export async function revokeCreditsOnRefund(
         status: "COMPLETED",
         provider: provider || null,
         providerReference: refundReference,
+        eventId: eventId || null,
         description: `Odčítanie kreditov — refund/chargeback (ref: ${refundReference})`,
       },
     });

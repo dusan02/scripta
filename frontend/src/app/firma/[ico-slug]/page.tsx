@@ -155,12 +155,59 @@ export default async function CompanyPage({ params }: Params) {
 
         <CompanyHeader company={company} latestYear={latest?.year} />
 
-        {/* Data freshness indicator */}
-        {latest?.createdAt && (
-          <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
-            Údaje aktualizované: {new Date(latest.createdAt).toLocaleDateString("sk-SK")}
-            {latest?.year && ` · Posledná účtovná závierka: ${latest.year}`}
-          </p>
+        {/* Source attribution + freshness — prominent status for konkurz/likvidácia */}
+        {(() => {
+          const hasKonkurz = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("konkurz"));
+          const hasLikvidacia = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("likvid"));
+          return (
+            <div className="mb-6">
+              {hasKonkurz && (
+                <div className="rounded-lg p-3 mb-3" style={{ background: "var(--danger-bg, #fef2f2)", border: "1px solid var(--danger-border, #fecaca)" }}>
+                  <p className="text-sm font-medium" style={{ color: "var(--danger, #dc2626)" }}>
+                    Firma je v konkurze. Zdroj: Obchodný vestník.
+                  </p>
+                </div>
+              )}
+              {hasLikvidacia && !hasKonkurz && (
+                <div className="rounded-lg p-3 mb-3" style={{ background: "var(--warning-bg, #fffbeb)", border: "1px solid var(--warning-border, #fde68a)" }}>
+                  <p className="text-sm font-medium" style={{ color: "var(--warning, #d97706)" }}>
+                    Firma je v likvidácii. Zdroj: Obchodný vestník.
+                  </p>
+                </div>
+              )}
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Zdroje dát: ORSR · RÚZ · Obchodný vestník
+                {latest?.createdAt && ` · Aktualizované: ${new Date(latest.createdAt).toLocaleDateString("sk-SK")}`}
+                {latest?.year && ` · Posledná závierka: ${latest.year}`}
+                {company.sizeCategory && ` · ${company.sizeCategory}`}
+              </p>
+            </div>
+          );
+        })()}
+
+        {/* Key metrics cards — first screening */}
+        {stmts.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-6 sm:mb-8">
+            <MetricCard label="Tržby" value={fmtEUR(latest?.mainActivityRevenue)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.revenue} />
+            <MetricCard
+              label="Zisk / Strata"
+              value={fmtEUR(latest?.netProfitLoss)}
+              sub={latest ? `rok ${latest.year}` : ""}
+              color="#3b82f6"
+              trend={trends.profit}
+            />
+            <MetricCard label="Celkové aktíva" value={fmtEUR(latest?.totalAssets)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.assets} />
+            <MetricCard label="Vlastné imanie" value={fmtEUR(latest?.equity)} sub={latest ? `rok ${latest.year}` : ""} color="#8b5cf6" trend={trends.equity} />
+          </div>
+        ) : (
+          <div className="rounded-lg p-4 mb-6 sm:mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>
+              Finančné údaje nie sú dostupné
+            </p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              V RÚZ nemáme dostupnú účtovnú závierku pre túto firmu.
+            </p>
+          </div>
         )}
 
         <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
@@ -178,45 +225,21 @@ export default async function CompanyPage({ params }: Params) {
           currentAssets: num(s.currentAssets),
           cashAndEquivalents: num(s.cashAndEquivalents),
         })), {
-          forensicRedFlags: (company.auditVerdict as any)?.forensicRedFlags,
           vestnikEvents: company.vestnikEvents,
         })} />
 
-        {/* Key metrics cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-6 sm:mb-8">
-          <MetricCard label="Tržby" value={fmtEUR(latest?.mainActivityRevenue)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.revenue} />
-          <MetricCard
-            label="Zisk / Strata"
-            value={fmtEUR(latest?.netProfitLoss)}
-            sub={latest ? `rok ${latest.year}` : ""}
-            color={latest?.netProfitLoss !== null && latest?.netProfitLoss !== undefined && num(latest.netProfitLoss)! >= 0 ? "#10b981" : "#ef4444"}
-            trend={trends.profit}
-          />
-          <MetricCard label="Celkové aktíva" value={fmtEUR(latest?.totalAssets)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.assets} />
-          <MetricCard label="Vlastné imanie" value={fmtEUR(latest?.equity)} sub={latest ? `rok ${latest.year}` : ""} color="#8b5cf6" trend={trends.equity} />
-        </div>
-
         <CompanyPersons persons={persons} />
 
-        {/* Vestník events */}
+        {/* Vestník events — zdroj: Obchodný vestník SR */}
         {company.vestnikEvents && company.vestnikEvents.length > 0 && (
           <VestnikEvents events={company.vestnikEvents as any} />
         )}
 
-        {/* Company events (ORSR, insolventné konanie, daňové nedoplatky, etc.) */}
+        {/* Company events — zdroj: ORSR, Vestník (verejné registre) */}
         {company.companyEvents && company.companyEvents.length > 0 && (
           <CompanyEvents events={company.companyEvents as any} />
         )}
 
-        {/* No financial data fallback */}
-        {stmts.length === 0 && (
-          <div className="rounded-2xl p-6 sm:p-8 text-center mb-6 sm:mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Pre túto spoločnosť zatiaľ nie sú k dispozícii účtovné závierky z registra RÚZ.
-              Môžete vygenerovať full report, ktorý čerpá dáta z 26 registrov SR.
-            </p>
-          </div>
-        )}
 
         {/* Balance Sheet section */}
         {balanceData && balanceData.totalAssets != null && (

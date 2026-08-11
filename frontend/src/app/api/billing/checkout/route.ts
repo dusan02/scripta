@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import { getBillingAdapter } from "@/lib/billing";
-import { PRICE_MAP } from "@/lib/billing/stripe";
+import { PRICE_MAP as STRIPE_PRICE_MAP } from "@/lib/billing/stripe";
+import { PADDLE_PRICE_MAP } from "@/lib/billing/paddle";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
-// Valid plan IDs — derived from PRICE_MAP to stay in sync
-const VALID_PLAN_IDS = new Set(Object.keys(PRICE_MAP));
+// Valid plan IDs — merged from all provider price maps to stay in sync
+const VALID_PLAN_IDS = new Set([
+  ...Object.keys(STRIPE_PRICE_MAP),
+  ...Object.keys(PADDLE_PRICE_MAP),
+]);
 
 export async function POST(req: NextRequest) {
   try {

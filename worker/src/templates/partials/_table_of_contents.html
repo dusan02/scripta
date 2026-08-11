@@ -90,6 +90,9 @@
                     {{ source | format_findings | safe | striptags | truncate(120) }}
                     {% endif %}
                 </p>
+                {% if source.checked_at %}
+                <p class="text-[7px] text-slate-400 leading-tight mt-0.5">{{ i18n.checked_at }}: {{ source.checked_at[:16]|replace('T', ' ') }}</p>
+                {% endif %}
             </div>
             <span class="text-[8px] font-mono text-slate-400 flex-shrink-0">{{ start_pages_map.get(source.source_type, '—') }}</span>
         </div>
@@ -98,4 +101,22 @@
     </div>
     </div>
     {% endfor %}
+
+    {# ── Nekontrolované zdroje (sources without scraper) ── #}
+    {% if uncontrolled_sources and uncontrolled_sources|length > 0 %}
+    <div class="mb-2 mt-3" style="page-break-inside: avoid; break-inside: avoid;">
+        <p class="subsection-title-sm mb-1 mt-2">{{ i18n.uncontrolled_sources }}</p>
+        <div class="grid grid-cols-2 gap-1 items-start">
+            {% for src in uncontrolled_sources %}
+            <div class="flex items-center gap-1.5 p-1 rounded border border-slate-200" style="background: #f8fafc;">
+                <div class="flex-shrink-0 w-2 h-2 rounded-full" style="background: #cbd5e1;"></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-semibold text-slate-500 truncate">{{ src.label }}</p>
+                    <p class="text-[7px] text-slate-400 leading-tight">{{ i18n.not_automatic }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>

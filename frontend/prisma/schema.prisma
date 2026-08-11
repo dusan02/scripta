@@ -633,6 +633,7 @@ model WalletTransaction {
   reportRequestId      String?
   provider             PaymentProvider?
   providerReference    String?            @unique
+  eventId              String?            @unique
   description          String?
   createdAt            DateTime           @default(now())
 
@@ -646,3 +647,16 @@ model WalletTransaction {
   @@unique([reportRequestId, type])
 }
 
+model VestnikSyncCheckpoint {
+  id              String   @id @default(cuid())
+  endpoint        String   @unique  // e.g. "konkurz_restrukturalizacia_issues"
+  lastId          Int?              // last_id cursor from API Link header
+  sinceTimestamp  String            // since timestamp from API Link header
+  lastRunAt       DateTime @default(now())
+  lastRunSuccess  Boolean  @default(false)
+  pagesFetched    Int      @default(0)
+  eventsFetched   Int      @default(0)
+  matchedCompanies Int     @default(0)
+  savedEvents     Int      @default(0)
+  durationMs      Int      @default(0)
+}

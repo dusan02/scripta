@@ -157,27 +157,27 @@ const PAGE_SEO: Record<string, Record<Lang, { title: string; description: string
 const FIRMA_SEO: Record<Lang, { title: string; description: string }> = {
   sk: {
     title: "{name} ({ico}) — Finančné dáta, zisk, súvaha",
-    description: "{name} ({ico}){city} — účtovné závierky, tržby, zisk, aktíva, Altman Z-skóre a rizikový profil z 26 Registrov SR.",
+    description: "{name} ({ico}){city} — účtovné závierky, tržby, zisk, aktíva, osoby a udalosti z verejných registrov SR (ORSR, RÚZ, Obchodný vestník)."
   },
   en: {
     title: "{name} ({ico}) — Financial data, profit, balance sheet",
-    description: "{name} ({ico}){city} — financial statements, revenue, profit, assets, Altman Z-Score and risk profile from 26 Slovak Registries.",
+    description: "{name} ({ico}){city} — financial statements, revenue, profit, assets, persons and events from public Slovak registries (ORSR, RÚZ, Obchodný vestník)."
   },
   de: {
     title: "{name} ({ico}) — Finanzdaten, Gewinn, Bilanz",
-    description: "{name} ({ico}){city} — Jahresabschlüsse, Umsatz, Gewinn, Aktiva, Altman Z-Score und Risikoprofil aus 26 slowakischen Registern.",
+    description: "{name} ({ico}){city} — Jahresabschlüsse, Umsatz, Gewinn, Aktiva, Personen und Ereignisse aus öffentlichen slowakischen Registern (ORSR, RÚZ, Obchodný vestník)."
   },
   cz: {
     title: "{name} ({ico}) — Finanční data, zisk, rozvaha",
-    description: "{name} ({ico}){city} — účetní závěrky, tržby, zisk, aktiva, Altman Z-skóre a rizikový profil z 26 registrů SR.",
+    description: "{name} ({ico}){city} — účetní závěrky, tržby, zisk, aktiva, osoby a události z veřejných registrů SR (ORSR, RÚZ, Obchodný vestník)."
   },
   hu: {
     title: "{name} ({ico}) — Pénzügyi adatok, profit, mérleg",
-    description: "{name} ({ico}){city} — pénzügyi kimutatások, árbevétel, profit, eszközök, Altman Z-Score és kockázati profil 26 szlovák nyilvántartásból.",
+    description: "{name} ({ico}){city} — pénzügyi kimutatások, árbevétel, profit, eszközök, személyek és események szlovák nyilvántartásokból (ORSR, RÚZ, Obchodný vestník)."
   },
   pl: {
     title: "{name} ({ico}) — Dane finansowe, zysk, bilans",
-    description: "{name} ({ico}){city} — sprawozdania finansowe, przychody, zysk, aktywa, Altman Z-Score i profil ryzyka z 26 słowackich rejestrów.",
+    description: "{name} ({ico}){city} — sprawozdania finansowe, przychody, zysk, aktywa, osoby i zdarzenia z publicznych słowackich rejestrów (ORSR, RÚZ, Obchodný vestník)."
   },
 };
 

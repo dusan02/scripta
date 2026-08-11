@@ -101,6 +101,17 @@ export default function CreditsPage() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "1") {
+      toast.success(t("pricing.platbaUspesna"));
+      router.replace("/credits");
+    } else if (params.get("canceled") === "1") {
+      toast.error(t("pricing.platbaZrusena"));
+      router.replace("/credits");
+    }
+  }, [router, t]);
+
+  useEffect(() => {
     fetchCredits();
     // Poll every 30s — credits change when reports complete/fail
     const interval = setInterval(fetchCredits, 30000);

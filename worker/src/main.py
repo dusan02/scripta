@@ -188,6 +188,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
         def _on_source_done(source) -> None:
             nonlocal _sources_done_count
             _sources_done_count += 1
+            if not getattr(source, "checked_at", None):
+                source.checked_at = datetime.now(timezone.utc).isoformat()
             logger.debug(f"[WORKER] Source done: {source.source_type}:{source.status} ({_sources_done_count}/{_sources_total})")
             try:
                 loop = asyncio.get_running_loop()
@@ -362,6 +364,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
                         retry_result = retry_map[s.source_type]
                         if retry_result.status == "SUCCESS":
                             _log.info(f"[{_rid}] Retry pass {retry_pass + 1} succeeded for {s.source_type}")
+                            if not getattr(retry_result, "checked_at", None):
+                                retry_result.checked_at = datetime.now(timezone.utc).isoformat()
                             sources[i] = retry_result
                         else:
                             _log.warning(f"[{_rid}] Retry pass {retry_pass + 1} failed again for {s.source_type}: {retry_result.status}")

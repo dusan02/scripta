@@ -1,0 +1,7 @@
+worker/
+frontend/node_modules/
+frontend/.next/
+frontend/.env
+frontend/.env.local
+*.log
+.git/

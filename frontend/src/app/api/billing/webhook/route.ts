@@ -29,10 +29,8 @@ export async function POST(req: NextRequest) {
     events = await adapter.handleWebhook(body, signature);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("Paddle")) {
-      return NextResponse.json({ error: message }, { status: 501 });
-    }
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    console.error("[webhook] handleWebhook error:", message);
+    return NextResponse.json({ error: "Invalid signature or payload" }, { status: 400 });
   }
 
   try {
@@ -40,19 +38,22 @@ export async function POST(req: NextRequest) {
       switch (event.type) {
         case "payment.succeeded": {
           if (event.credits > 0) {
-            const source = event.planName === "addon" ? "addon" : "subscription";
+            // One-time purchases (payg1, payg10, payg50) are "addon" source.
+            // Subscription plans use "subscription" source.
+            const isOneTime = event.planName?.startsWith("payg") || !event.planName || event.planName === "addon";
+            const source = isOneTime ? "addon" : "subscription";
             await addCreditBatch(
               event.userId,
               event.credits,
-              source,
+              source as "trial" | "subscription" | "addon" | "rollover",
               event.planName,
               event.providerReference,
-              adapter.providerName
+              adapter.providerName,
+              event.eventId
             );
 
-            if (event.planName && event.planName !== "addon") {
-              // Use the actual subscription period end from Stripe if available;
-              // fall back to +30 days only if we don't have it (e.g. one-off payments).
+            if (!isOneTime && event.planName) {
+              // Subscription: update user plan status
               const renewalDate = event.currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
               await prisma.user.update({
                 where: { id: event.userId },
@@ -101,7 +102,8 @@ export async function POST(req: NextRequest) {
               event.credits,
               event.providerReference,
               event.originalProviderReference,
-              adapter.providerName
+              adapter.providerName,
+              event.eventId
             );
 
             // If the original TOPUP hasn't been processed yet (out-of-order
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest) {
               console.warn(
                 `[webhook] charge.refunded: original TOPUP not found for ` +
                 `user ${event.userId}, ref ${event.originalProviderReference}. ` +
-                `Returning 500 to trigger Stripe retry.`
+                `Returning 500 to trigger provider retry.`
               );
               return NextResponse.json(
                 { error: "Original TOPUP not found — will retry" },

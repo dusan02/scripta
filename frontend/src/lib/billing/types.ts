@@ -33,6 +33,8 @@ export interface WebhookResult {
   /** For charge.refunded events: the original payment's providerReference
    *  (payment_intent or charge id) used to locate the original TOPUP. */
   originalProviderReference?: string;
+  /** Paddle webhook event_id for deduplication (evt_xxx). */
+  eventId?: string;
 }
 
 export interface PaymentProviderAdapter {

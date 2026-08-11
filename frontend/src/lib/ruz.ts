@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { seedFromOrsr } from "@/lib/orsr";
 
 const RUZ_API = "https://www.registeruz.sk/cruz-public/api";
 const UA = "Verifa.sk/1.0 (+https://verifa.sk)";
@@ -258,10 +259,30 @@ export async function seedFromRuz(ico: string) {
     where: { ico },
     include: {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
-      auditVerdict: true,
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
-      companyEvents: { orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] } }, orderBy: { createdAt: "desc" }, take: 10 },
+    },
+  });
+}
+
+async function seedCompany(ico: string) {
+  // RÚZ + ORSR run in parallel — both support direct IČO lookup.
+  // Vestník API doesn't support IČO filtering (requires full pagination), so it's
+  // NOT included in auto-seed. Vestník events are populated by the worker during
+  // paid report generation and will display if already in DB.
+  await Promise.allSettled([
+    seedFromRuz(ico),
+    seedFromOrsr(ico),
+  ]);
+
+  return await prisma.company.findUnique({
+    where: { ico },
+    include: {
+      financialStatements: { orderBy: { year: "desc" }, take: 5 },
+      vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
+      companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
+      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] } }, orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
 }
@@ -271,16 +292,15 @@ export const getCompanyData = cache(async (ico: string) => {
     where: { ico },
     include: {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
-      auditVerdict: true,
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
-      companyEvents: { orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] } }, orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
 
   if (!company) {
     try {
-      company = await seedFromRuz(ico);
+      company = await seedCompany(ico);
     } catch {
       // ignore seeding errors
     }

@@ -1750,6 +1750,28 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 
     source_map = {s.source_type: s for s in sources} if sources else {}
     
+    # ── Coverage stats for transparency ──
+    # Active scrapers (must match _SCRAPER_REGISTRY in scrapers/registry.py)
+    _ACTIVE_SCRAPER_COUNT = 26
+    _SOURCES_WITHOUT_SCRAPER = {
+        "CRRS": "Register restrukturalizácií",
+        "OCHRANNE_ZNAMKY": "Register ochranných známok",
+        "FS_DPH_BANKOVE_UCTY": "Bankové účty platiteľov DPH",
+        "CRE": "Centrálny register exekúcií",
+    }
+    _successful_sources = sum(1 for s in (sources or []) if s.status == "SUCCESS")
+    _failed_count = sum(1 for s in (sources or []) if s.status in ("FAILED", "UNAVAILABLE"))
+    _uncontrolled_sources = [
+        {"source_type": st, "label": label}
+        for st, label in sorted(_SOURCES_WITHOUT_SCRAPER.items())
+    ]
+    
+    # ── Company persons from ORSR ──
+    company_persons = getattr(company, 'companyPersons', None) or []
+    # Group by role
+    _persons_statutar = [p for p in company_persons if p.role == "statutar"]
+    _persons_spolocnik = [p for p in company_persons if p.role == "spolocnik"]
+    
     # Sídlo (mesto) a rok vzniku z RPO findings
     company_city = None
     company_founded_year = None
@@ -2329,6 +2351,13 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "rpe_alert": _rpe_alert,
         "yoy_table": _yoy_table,
         "critical_fallbacks": _critical_fallbacks,
+        "coverage_successful": _successful_sources,
+        "coverage_total": _ACTIVE_SCRAPER_COUNT,
+        "coverage_uncontrolled": len(_uncontrolled_sources),
+        "uncontrolled_sources": _uncontrolled_sources,
+        "company_persons": company_persons,
+        "persons_statutar": _persons_statutar,
+        "persons_spolocnik": _persons_spolocnik,
     }
 
 def render_html_report(context: dict) -> str:
@@ -2453,6 +2482,7 @@ async def generate_forensic_pdf_report(
                 'financialStatements': {'orderBy': {'year': 'asc'}, 'include': {'auditorOpinion': True, 'narrativeRisk': True, 'notesRisk': True}},
                 'vestnikEvents': {'orderBy': {'publishedAt': 'desc'}},
                 'companyEvents': True,
+                'companyPersons': True,
             }
         )
         

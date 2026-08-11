@@ -65,6 +65,7 @@ class ScrapedSource(BaseModel):
     persons: Optional[List[PersonInfo]] = None
     raw_data: Optional[list] = None  # Štruktúrované dáta z API (JSON) — pre PDF Reader Agent
     full_extract_text: Optional[str] = None  # Celý text "Úplného výpisu" pre ORSR Forensics
+    checked_at: Optional[str] = None  # ISO timestamp when scraper finished (for PDF transparency)
 
     @property
     def message(self) -> Optional[str]:  # backward compat alias
