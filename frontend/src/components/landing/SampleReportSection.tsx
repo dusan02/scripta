@@ -7,7 +7,6 @@ const SAMPLE_REPORTS = [
   { href: "/samples/mobis-slovakia.pdf", name: "Mobis Slovakia s.r.o." },
   { href: "/samples/kamax-fasteners.pdf", name: "KAMAX Fasteners s.r.o." },
   { href: "/samples/continental-tires.pdf", name: "Continental Tires Slovakia s.r.o." },
-  { href: "/samples/bardejovske-kupele.pdf", name: "Bardejovské kúpele a.s." },
 ];
 
 export default function SampleReportSection() {

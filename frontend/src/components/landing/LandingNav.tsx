@@ -147,6 +147,14 @@ export default function LandingNav() {
               {t(item.key)}
             </a>
           ))}
+          <Link
+            href={lhref("/register")}
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center justify-center text-sm font-bold py-4 min-h-[48px] rounded-lg mt-3 transition-all hover:opacity-90"
+            style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+          >
+            {t("home.heroCtaRegister")}
+          </Link>
         </div>
       )}
     </nav>

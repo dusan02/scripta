@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { localizePath } from "@/lib/i18n";
 import { PRICING_PLANS, REPORT_INCLUDES_KEYS } from "@/lib/pricing-plans";
@@ -8,6 +9,8 @@ import { PRICING_PLANS, REPORT_INCLUDES_KEYS } from "@/lib/pricing-plans";
 export default function PricingSection() {
   const t = useT();
   const { lang } = useLang();
+  const { data: session } = useSession();
+  const ctaHref = session ? localizePath("/credits", lang) : localizePath("/register", lang);
 
   return (
     <section id="pricing" style={{ padding: "80px 24px", background: "var(--bg-subtle)", scrollMarginTop: 80 }} className="section-pad">
@@ -35,7 +38,7 @@ export default function PricingSection() {
                     : t("pricing.reportovZaReport", { n: plan.reports, price: plan.pricePerReport })}
               </p>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 18 }}>&nbsp;</p>
-              <Link href={localizePath("/register", lang)} style={{ display: "block", textAlign: "center", background: plan.highlight ? "var(--accent)" : "var(--surface-hover)", color: plan.highlight ? "var(--accent-button-text)" : "var(--text)", border: plan.highlight ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 18 }}>
+              <Link href={ctaHref} style={{ display: "block", textAlign: "center", background: plan.highlight ? "var(--accent)" : "var(--surface-hover)", color: plan.highlight ? "var(--accent-button-text)" : "var(--text)", border: plan.highlight ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 18 }}>
                 {t("home.startVerifying")}
               </Link>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
