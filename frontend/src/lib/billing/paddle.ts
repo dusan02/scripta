@@ -13,14 +13,6 @@ export const PADDLE_PRICE_MAP: Record<string, { priceId: string; credits: number
   payg50: { priceId: process.env.PADDLE_PRICE_50 || "", credits: 50, planName: "payg50" },
 };
 
-function getPaddlePriceMap(): Record<string, { priceId: string; credits: number; planName: string }> {
-  return {
-    payg1:  { priceId: process.env.PADDLE_PRICE_1  || "", credits: 1,  planName: "payg1" },
-    payg10: { priceId: process.env.PADDLE_PRICE_10 || "", credits: 10, planName: "payg10" },
-    payg50: { priceId: process.env.PADDLE_PRICE_50 || "", credits: 50, planName: "payg50" },
-  };
-}
-
 let _paddle: Paddle | null = null;
 function getPaddle(): Paddle {
   if (!_paddle) {
@@ -151,39 +143,22 @@ export class PaddleAdapter implements PaymentProviderAdapter {
 
   async createCheckoutSession(params: CheckoutParams): Promise<CheckoutResult> {
     const { planId, userId, userEmail } = params;
-    const priceMap = getPaddlePriceMap();
-    const plan = priceMap[planId];
+    const plan = PADDLE_PRICE_MAP[planId];
 
     if (!plan || !plan.priceId) {
       throw new Error("Invalid plan");
     }
 
-    const paddle = getPaddle();
-
-    const transactionParams: any = {
-      items: [{ priceId: plan.priceId, quantity: 1 }],
-      customData: {
-        userId,
-        planId,
-      },
-      customer: { email: userEmail },
-    };
-
-    // Only set checkout.url if we have an approved Paddle domain configured.
-    // If not set, Paddle uses its default hosted checkout domain.
-    const checkoutUrl = process.env.PADDLE_CHECKOUT_URL;
-    if (checkoutUrl) {
-      transactionParams.checkout = { url: checkoutUrl };
-    }
-
-    const transaction = await paddle.transactions.create(transactionParams);
-
-    const txnCheckoutUrl = (transaction as any)?.checkout?.url;
-    if (!txnCheckoutUrl) {
-      throw new Error("Paddle checkout URL missing from transaction response");
-    }
-
-    return { url: txnCheckoutUrl };
+    // Client-side overlay checkout: return a special URL that the frontend
+    // intercepts to call Paddle.Checkout.open() with the priceId directly.
+    // No server-side transaction creation needed — Paddle.js handles it all.
+    const params_ = new URLSearchParams({
+      priceId: plan.priceId,
+      planId,
+      userId,
+      email: userEmail,
+    });
+    return { url: `/credits/checkout?${params_.toString()}` };
   }
 
   async createPortalSession(_userEmail: string): Promise<PortalResult> {

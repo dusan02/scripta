@@ -66,9 +66,8 @@ export async function middleware(req: NextRequest) {
 
   // --- Step 4: Auth checks (on realPath, not the prefixed path) ---
   // Root: authenticated users → /dashboard, unauthenticated → landing page
-  // Exception: when _ptxn is present, it's a Paddle checkout return — don't redirect
   if (realPath === "/") {
-    if (token?.id && !searchParams.get("_ptxn")) {
+    if (token?.id) {
       const dashUrl = new URL("/dashboard", req.url);
       if (langResponse) {
         // Preserve lang header in redirect

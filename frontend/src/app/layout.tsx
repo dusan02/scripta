@@ -18,7 +18,6 @@ import OfflineIndicator from "@/components/OfflineIndicator";
 import CookieBanner from "@/components/CookieBanner";
 import AuthProvider from "@/components/AuthProvider";
 import SkipToContent from "@/components/SkipToContent";
-import PaddleCheckoutHandler from "@/components/PaddleCheckoutHandler";
 import { getLangFromHeaders, getHtmlLang, generateGlobalMetadata, getLocalizedJsonLd } from "@/lib/seo";
 
 export const viewport: Viewport = {
@@ -62,8 +61,6 @@ export default async function RootLayout({
       <head>
         {/* No-flash theme script — must run before any rendering */}
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />
-        {/* Paddle.js for overlay checkout (sandbox) */}
-        <script src="https://cdn.paddle.com/paddle/v2/paddle.js" async />
         {/* JSON-LD structured data for SEO (localized) */}
         {jsonLd.map((schema, i) => (
           <script
@@ -78,7 +75,6 @@ export default async function RootLayout({
           <AuthProvider>
             <LanguageProvider initialLang={lang}>
               <SkipToContent />
-              <PaddleCheckoutHandler />
               <NavWrapper />
               <main id="main-content" style={{ minHeight: "calc(100vh - 56px)" }}>{children}</main>
               <Footer />
