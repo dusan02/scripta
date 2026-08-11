@@ -5,7 +5,7 @@ import { useEffect } from "react";
 declare global {
   interface Window {
     Paddle?: {
-      Environment: (env: string) => void;
+      Environment: { set: (env: string) => void };
       Initialize: (opts: { token: string; eventCallback?: (data: any) => void }) => void;
       Checkout: {
         open: (opts: { transactionId: string }) => void;
@@ -21,26 +21,37 @@ export default function PaddleCheckoutHandler() {
 
     if (!ptxn) return;
 
-    // Wait for Paddle.js to load
+    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+    if (!token) {
+      console.error("Paddle: NEXT_PUBLIC_PADDLE_CLIENT_TOKEN not set");
+      return;
+    }
+
+    // Wait for Paddle.js to load, then initialize and open checkout
     const initPaddle = () => {
       if (!window.Paddle) {
         setTimeout(initPaddle, 100);
         return;
       }
 
-      const isSandbox = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === "sandbox";
-      if (isSandbox) {
-        window.Paddle.Environment("sandbox");
+      // Set sandbox environment BEFORE Initialize
+      if (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === "sandbox") {
+        window.Paddle.Environment.set("sandbox");
       }
 
       window.Paddle.Initialize({
-        token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "",
+        token,
+        eventCallback: (data: any) => {
+          console.log("Paddle event:", data?.event);
+        },
       });
 
-      // Open overlay checkout
-      window.Paddle.Checkout.open({
-        transactionId: ptxn,
-      });
+      // Small delay to ensure Initialize completes
+      setTimeout(() => {
+        window.Paddle?.Checkout.open({
+          transactionId: ptxn,
+        });
+      }, 200);
     };
 
     initPaddle();
