@@ -77,14 +77,18 @@ function buildCompanyPages(
 
 // Generate sitemap IDs: [0] = static + glossary, [1..N] = company batches
 export async function generateSitemaps() {
-  const companyCount = await prisma.company.count({
-    where: {
-      financialStatements: { some: {} },
-    },
-  });
+  try {
+    const companyCount = await prisma.company.count({
+      where: {
+        financialStatements: { some: {} },
+      },
+    });
 
-  const companySitemapCount = Math.ceil(companyCount / COMPANIES_PER_SITEMAP);
-  return Array.from({ length: 1 + companySitemapCount }, (_, i) => ({ id: i }));
+    const companySitemapCount = Math.ceil(companyCount / COMPANIES_PER_SITEMAP);
+    return Array.from({ length: 1 + companySitemapCount }, (_, i) => ({ id: i }));
+  } catch {
+    return [{ id: 0 }];
+  }
 }
 
 export default async function sitemap({
