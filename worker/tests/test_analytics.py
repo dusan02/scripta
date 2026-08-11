@@ -635,6 +635,7 @@ class TestComputeFinancialRatios:
             currentAssets=500_000,
             equity=600_000,
             shortTermLiabilities=200_000,
+            longTermLiabilities=200_000,
             mainActivityRevenue=2_000_000,
             netProfitLoss=100_000,
             interestExpense=50_000,
