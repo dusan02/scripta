@@ -61,13 +61,27 @@ export default async function RootLayout({
       <head>
         {/* No-flash theme script — must run before any rendering */}
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />
-        {/* Plausible Analytics — GDPR-friendly, no cookies */}
-        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
-          <script
-            defer
-            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
-            src={process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC || "https://plausible.io/js/script.js"}
-          />
+        {/* Google Analytics 4 — free, event tracking */}
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
+                    anonymize_ip: true,
+                    send_page_view: true
+                  });
+                `,
+              }}
+            />
+          </>
         )}
         {/* JSON-LD structured data for SEO (localized) */}
         {jsonLd.map((schema, i) => (

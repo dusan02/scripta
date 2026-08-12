@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    plausible?: (event: string, options?: { props?: Record<string, string | number | boolean> }) => void;
+    gtag?: (...args: any[]) => void;
   }
 }
 
@@ -8,23 +8,25 @@ export function trackEvent(
   event: string,
   props?: Record<string, string | number | boolean>,
 ) {
-  if (typeof window !== "undefined" && window.plausible) {
-    window.plausible(event, { props });
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", event, props);
   }
 }
 
 export function trackPageview(url: string) {
-  trackEvent("pageview", { url });
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", "page_view", { page_location: url });
+  }
 }
 
 export function trackCheckoutComplete(planId: string, credits: number) {
-  trackEvent("Checkout Complete", { planId, credits });
+  trackEvent("purchase_completed", { plan_id: planId, credits });
 }
 
 export function trackSignup(method: string) {
-  trackEvent("Sign Up", { method });
+  trackEvent("sign_up", { method });
 }
 
 export function trackReportCreated(ico: string) {
-  trackEvent("Report Created", { ico });
+  trackEvent("report_created", { ico });
 }
