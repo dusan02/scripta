@@ -33,11 +33,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com https://cdn.paddle.com https://sandbox-cdn.paddle.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://va.vercel-scripts.com https://cdn.paddle.com https://sandbox-cdn.paddle.com https://www.googletagmanager.com",
               "style-src 'self' 'unsafe-inline' https://cdn.paddle.com https://sandbox-cdn.paddle.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data: https://sandbox-cdn.paddle.com",
-              "connect-src 'self' https://api.stripe.com https://o4508039984754688.ingestion.us.sentry.io https://api.paddle.com https://sandbox-api.paddle.com https://sandbox-cdn.paddle.com",
+              "connect-src 'self' https://api.stripe.com https://o4508039984754688.ingestion.us.sentry.io https://api.paddle.com https://sandbox-api.paddle.com https://sandbox-cdn.paddle.com https://www.google-analytics.com https://region1.google-analytics.com",
               "frame-src 'self' https://js.stripe.com https://*.paddle.com",
               "object-src 'none'",
               "base-uri 'self'",
