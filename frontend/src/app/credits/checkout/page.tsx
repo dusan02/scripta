@@ -84,7 +84,20 @@ export default function CheckoutPage() {
         token,
         eventCallback: (data: any) => {
           if (data?.event === "checkout.completed") {
-            router.replace("/credits?success=1");
+            const txnId = data?.data?.transaction_id || data?.data?.id;
+            if (txnId) {
+              fetch("/api/billing/confirm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ transactionId: txnId }),
+              }).catch((err) => {
+                console.error("[checkout] confirm failed:", err);
+              }).finally(() => {
+                router.replace("/credits?success=1");
+              });
+            } else {
+              router.replace("/credits?success=1");
+            }
           }
           if (data?.event === "checkout.closed") {
             router.replace("/credits");
