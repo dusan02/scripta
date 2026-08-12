@@ -545,7 +545,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         _stored_pio_flags = []
         for _p in scorecard_breakdown:
             for _f in (_p.get("flags") or []):
-                if _re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', _f) or _re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', _f):
+                if re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', _f) or re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', _f):
                     _stored_pio_flags.append(_f)
         piotroski_result = {"score": _pio_score, "flags": _stored_pio_flags or [f"Piotroski F-score: {_pio_score} z 8"]}
     else:
@@ -558,16 +558,16 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                     old_flags = p.get("flags") or []
                     new_flags = []
                     for f in old_flags:
-                        if _re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', f):
+                        if re.match(r'Piotroski F-score:\s*\d+\s*z\s*8', f):
                             new_flags.append(f"Piotroski F-score: {_pio_score} z 8")
-                        elif _re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', f):
+                        elif re.match(r'Neutralizované kritériá \(chýbajúce dáta\):', f):
                             if _pio_flags and len(_pio_flags) > 1:
                                 new_flags.append(_pio_flags[1])
                             else:
                                 new_flags.append(f)
                         else:
                             new_flags.append(f)
-                    if not any(_re.match(r'Piotroski F-score:', f) for f in new_flags):
+                    if not any(re.match(r'Piotroski F-score:', f) for f in new_flags):
                         new_flags.extend(_pio_flags)
                     p["flags"] = new_flags
                     p["detail"] = " | ".join(new_flags[:2])
