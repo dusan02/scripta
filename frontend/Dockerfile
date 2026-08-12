@@ -45,6 +45,9 @@ ENV NEXT_PUBLIC_PADDLE_ENVIRONMENT=sandbox
 ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
 ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID
 
+# Regenerate Prisma client from schema (ensures new fields are typed)
+RUN npx prisma generate
+
 RUN npm run build
 
 # ─── Stage 3: Runner (production) ──────────────────────────
