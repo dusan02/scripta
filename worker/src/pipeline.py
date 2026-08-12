@@ -275,6 +275,9 @@ from src.verdict_builder import (
     _sanitize_verdict_text,
     _apply_orsr_override,
     _compute_deterministic_adjustment,
+    run_and_save_audit_verdict,
+    run_pdf_reader_agent,
+    run_orsr_forensics_agent,
 )
 from src.verdict_metrics import (
     _format_eur,
