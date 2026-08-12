@@ -2,26 +2,35 @@
 
 from __future__ import annotations
 
+import os
 import re
 import json
+import hashlib
 import logging
 from typing import Optional
 
+from prisma import Prisma, Json
+
+from src.config import settings as _cfg
 from src.llm_extractor import AuditVerdict, EvidenceItem, evaluate_audit_verdict, generate_cross_analysis, verify_report_quality
 from src.llm_orchestrator import safe_llm_call, check_pro_model_available, get_chief_auditor_model
-from src.analytics import compute_financial_trends, compute_forensic_scorecard
+from src.analytics import compute_financial_trends, compute_forensic_scorecard, estimate_missing_cash_flow, sanitize_cash_flow_fields
 from src.db_repository import (
     save_company_events_to_db,
     append_company_event_to_db,
     save_scoring_snapshot,
 )
+from src.pdf_ingestion import extract_relevant_pdf_chunks
+from src.agents.pdf_reader import extract_company_events
 from src.verdict_metrics import (
     build_metric_placeholders,
     inject_metrics,
     _strip_narrative_financial_metrics,
     _inject_ncrzp_findings,
     _strip_hallucinated_debts,
+    _METRIC_PATTERNS,
 )
+from src.batch_score import SCORING_VERSION
 
 logger = logging.getLogger(__name__)
 

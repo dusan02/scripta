@@ -2,6 +2,7 @@
 
 import re
 from typing import Optional
+from xml.sax.saxutils import escape as xml_escape
 
 from src.report_sanitizers import sanitize_llm_text
 
