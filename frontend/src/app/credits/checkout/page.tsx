@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/components/LanguageProvider";
+import { trackCheckoutComplete } from "@/lib/analytics";
 
 declare global {
   interface Window {
@@ -85,6 +86,7 @@ export default function CheckoutPage() {
         eventCallback: (data: any) => {
           if (data?.event === "checkout.completed") {
             const txnId = data?.data?.transaction_id || data?.data?.id;
+            trackCheckoutComplete(planId || "", 0);
             if (txnId) {
               fetch("/api/billing/confirm", {
                 method: "POST",

@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import Logo from "@/components/Logo";
 import Link from "next/link";
+import { trackSignup } from "@/lib/analytics";
 import { useTheme } from "@/components/ThemeProvider";
 import { useT } from "@/components/LanguageProvider";
 import AuthPageShell from "@/components/auth/AuthPageShell";
@@ -59,6 +60,7 @@ export default function RegisterPage() {
       }
 
       setEmailSent(true);
+      trackSignup("email");
     } catch {
       setError(t("register.neocakavana"));
     } finally {

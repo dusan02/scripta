@@ -49,6 +49,10 @@ export default function CookieBanner() {
           <a href="/privacy" style={{ color: "var(--accent)", textDecoration: "none" }}>
             {t("cookie.more")}
           </a>
+          {" · "}
+          <a href="/terms" style={{ color: "var(--accent)", textDecoration: "none" }}>
+            {t("home.terms")}
+          </a>
         </p>
         <div style={{ display: "flex", gap: 12, flexShrink: 0 }}>
           <button

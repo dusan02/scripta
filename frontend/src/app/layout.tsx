@@ -61,6 +61,14 @@ export default async function RootLayout({
       <head>
         {/* No-flash theme script — must run before any rendering */}
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Plausible Analytics — GDPR-friendly, no cookies */}
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
+          <script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src={process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_SRC || "https://plausible.io/js/script.js"}
+          />
+        )}
         {/* JSON-LD structured data for SEO (localized) */}
         {jsonLd.map((schema, i) => (
           <script
