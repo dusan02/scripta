@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Inter } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import "./globals.css";
@@ -19,6 +18,7 @@ import OfflineIndicator from "@/components/OfflineIndicator";
 import CookieBanner from "@/components/CookieBanner";
 import AuthProvider from "@/components/AuthProvider";
 import SkipToContent from "@/components/SkipToContent";
+import Analytics from "@/components/Analytics";
 import { getLangFromHeaders, getHtmlLang, generateGlobalMetadata, getLocalizedJsonLd } from "@/lib/seo";
 
 export const viewport: Viewport = {
@@ -72,26 +72,7 @@ export default async function RootLayout({
         ))}
       </head>
       <body>
-        {/* Google Analytics 4 — next/script ensures proper loading */}
-        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="ga4-config" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
-                  anonymize_ip: true,
-                  send_page_view: true
-                });
-              `}
-            </Script>
-          </>
-        )}
+        <Analytics />
         <ThemeProvider>
           <AuthProvider>
             <LanguageProvider initialLang={lang}>
