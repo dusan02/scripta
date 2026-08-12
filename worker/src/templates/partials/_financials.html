@@ -758,8 +758,8 @@
             <tr class="bg-slate-100">
                 <th class="text-left py-1 px-2 font-bold text-slate-600">{{ i18n.col_item }}</th>
                 {% for stmt in stmts_sorted %}
-                <th class="py-1 px-2 font-bold text-slate-600 text-right">
-                    {{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}
+                <th class="py-1 px-2 font-bold text-slate-600">
+                    <div class="flex justify-end items-center"><span>{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5"></span></div>
                 </th>
                 {% endfor %}
             </tr>
