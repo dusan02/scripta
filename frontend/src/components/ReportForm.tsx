@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_SELECTED_SOURCES } from "@/lib/sources";
 import { useT } from "@/components/LanguageProvider";
 import { CheckIcon, SearchIcon, XIcon, ArrowRightIcon, SpinnerIcon, InfoIcon } from "@/components/icons";
+import { trackReportStarted, trackReportCreated } from "@/lib/analytics";
 
 function isValidIco(ico: string): boolean {
   if (!/^\d{8}$/.test(ico)) return false;
@@ -60,6 +61,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
     }
 
     setLoading(true);
+    trackReportStarted(ico);
 
     try {
       const body = { targetType: "COMPANY", sources: selected, ico };
@@ -79,6 +81,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
         return;
       }
 
+      trackReportCreated(ico);
       router.refresh();
       router.push(`/reports/${data.reportRequestId}`);
     } catch {

@@ -23,10 +23,18 @@ export function trackCheckoutComplete(planId: string, credits: number) {
   trackEvent("purchase_completed", { plan_id: planId, credits });
 }
 
+export function trackCheckoutStarted(planId: string) {
+  trackEvent("checkout_started", { plan_id: planId });
+}
+
 export function trackSignup(method: string) {
   trackEvent("sign_up", { method });
 }
 
 export function trackReportCreated(ico: string) {
   trackEvent("report_created", { ico });
+}
+
+export function trackReportStarted(ico: string) {
+  trackEvent("report_started", { ico });
 }

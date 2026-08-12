@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/components/LanguageProvider";
-import { trackCheckoutComplete } from "@/lib/analytics";
+import { trackCheckoutComplete, trackCheckoutStarted } from "@/lib/analytics";
 
 declare global {
   interface Window {
@@ -117,6 +117,8 @@ export default function CheckoutPage() {
           theme: "light",
         },
       });
+
+      trackCheckoutStarted(planId);
     };
 
     initAndOpen();
