@@ -261,7 +261,7 @@ export async function seedFromRuz(ico: string) {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
-      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] } }, orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
 }
@@ -282,7 +282,7 @@ async function seedCompany(ico: string) {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
-      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] } }, orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
 }
@@ -294,7 +294,7 @@ export const getCompanyData = cache(async (ico: string) => {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
-      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] } }, orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
     },
   });
 

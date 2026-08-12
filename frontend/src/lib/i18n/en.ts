@@ -94,6 +94,7 @@ const en: Dict = {
   "firma.aktiva": "Assets",
   "firma.pasiva": "Liabilities",
   "firma.ukazovatel": "Indicator",
+  "firma.orsrUdalosti": "Registration events",
 
   // ── Company header ──
   "company.ico": "Reg. No. (IČO)",

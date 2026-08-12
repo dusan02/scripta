@@ -94,6 +94,7 @@ const sk: Dict = {
   "firma.aktiva": "Aktíva",
   "firma.pasiva": "Pasíva",
   "firma.ukazovatel": "Ukazovateľ",
+  "firma.orsrUdalosti": "Registrujúce udalosti",
 
   // ── Company header ──
   "company.ico": "IČO",

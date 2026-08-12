@@ -79,6 +79,7 @@ const cz: Dict = {
   "firma.aktiva": "Aktiva",
   "firma.pasiva": "Pasiva",
   "firma.ukazovatel": "Ukazatel",
+  "firma.orsrUdalosti": "Registrační události",
   "company.ico": "IČO",
   "company.pravnaForma": "Právní forma",
   "firma.sidlo": "Sídlo",
