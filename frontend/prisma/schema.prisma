@@ -323,6 +323,9 @@ model Company {
   ownershipType       String?              // Druh vlastníctva (súkromné, štátne, zmiešané...)
   sizeCategory        String?              // Veľkosť org. (mikro, malá, stredná, veľká)
   employeeCount       Int?                 // Počet zamestnancov (z RÚZ)
+  ruzEntityId         Int?                 // ID účtovnej jednotky z RÚZ API
+  orsrSyncedAt        DateTime?            // Kedy bol naposledy seedovaný ORSR
+  ruzSyncedAt         DateTime?            // Kedy bol naposledy seedovaný RÚZ
   latestYear          Int?                 // Rok najnovšej závierky (denormalizované pre screener)
   latestRevenue       Decimal?  @db.Decimal(15, 2) // Tržby z najnovšej závierky
   latestProfit        Decimal?  @db.Decimal(15, 2) // Zisk/strata z najnovšej závierky
@@ -343,19 +346,25 @@ model Company {
   @@index([latestRevenue])
   @@index([latestProfit])
   @@index([latestAssets])
+  @@index([orsrSyncedAt])
+  @@index([ruzSyncedAt])
+  updatedAt           DateTime             @updatedAt
 }
 
 model CompanyPerson {
-  id          String   @id @default(uuid())
-  companyIco  String
-  rawName     String
-  cleanName   String
-  role        String   // "statutar" | "spolocnik"
-  city        String?
-  zipCode     String?
-  createdAt   DateTime @default(now())
+  id            String    @id @default(uuid())
+  companyIco    String
+  rawName       String
+  cleanName     String
+  role          String    // "statutar" | "spolocnik" | "dozorna_rada"
+  city          String?
+  street        String?
+  zipCode       String?
+  functionStart DateTime? // Dátum vzniku funkcie (z ORSR)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  company     Company  @relation(fields: [companyIco], references: [ico], onDelete: Cascade)
+  company       Company   @relation(fields: [companyIco], references: [ico], onDelete: Cascade)
 
   @@index([companyIco])
   @@index([role])
@@ -474,7 +483,10 @@ model FinancialStatement {
   profitTransfer                        Decimal?  @db.Decimal(15, 2)        // Prevod podielov na výsledku spoločníkom (r.60)
   statementDate                         String?                                 // Dátum zostavenia závierky (forenzný signál)
   approvalDate                          String?                                 // Dátum schválenia závierky
+  ruzZavierkaId                         Int?                                    // ID závierky z RÚZ API
+  ruzVykazId                            Int?                                    // ID výkazu z RÚZ API
   createdAt                             DateTime        @default(now())
+  updatedAt                             DateTime        @updatedAt
   
   company                               Company         @relation(fields: [companyIco], references: [ico])
   auditorOpinion                        AuditorOpinion?

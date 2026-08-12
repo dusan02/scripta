@@ -124,7 +124,8 @@ const SIZE_MAP: Record<string, string> = {
 export async function seedFromRuz(ico: string) {
   const eids = await ruzGet("uctovne-jednotky", { "zmenene-od": "2000-01-01", ico, "max-zaznamov": 10 });
   if (!eids?.id?.length) return null;
-  const entity = await ruzGet("uctovna-jednotka", { id: eids.id[0] });
+  const entityId = eids.id[0];
+  const entity = await ruzGet("uctovna-jednotka", { id: entityId });
   if (!entity) return null;
 
   const zavierkaIds: number[] = entity.idUctovnychZavierok || [];
@@ -144,9 +145,10 @@ export async function seedFromRuz(ico: string) {
     seenYears.add(year);
 
     const allTables: any[] = [];
+    let ruzVykazId: number | null = null;
     for (const vid of (z.idUctovnychVykazov || [])) {
       const v = await ruzGet("uctovny-vykaz", { id: vid });
-      if (v?.obsah?.tabulky) allTables.push(...v.obsah.tabulky);
+      if (v?.obsah?.tabulky) { allTables.push(...v.obsah.tabulky); ruzVykazId = vid; }
     }
     if (!allTables.length) continue;
 
@@ -193,6 +195,7 @@ export async function seedFromRuz(ico: string) {
       socialInsuranceLiabilities: pasivVal(ordered, 132), taxLiabilities: pasivVal(ordered, 133),
       employeeLiabilities: pasivVal(ordered, 131), statementType: "SK_GAAP",
       monthsInPeriod: 12, isConsolidated: false,
+      ruzZavierkaId: z.id || null, ruzVykazId,
     });
   }
 
@@ -206,13 +209,15 @@ export async function seedFromRuz(ico: string) {
     name: entity.nazovUJ || null,
     legalForm: LF_MAP[entity.pravnaForma] || entity.pravnaForma || null,
     city: entity.mesto || null, street: entity.ulica || null,
-    zipCode: entity.psc || null, country: "Slovensko",
+    zipCode: entity.psc || null, country: entity.krajina || "Slovensko",
     establishedAt: entity.datumZalozenia ? new Date(entity.datumZalozenia) : null,
     status: "active", naceCode: entity.skNace || null,
     naceText,
     ownershipType: OWNERSHIP_MAP[entity.druhVlastnictva] || entity.druhVlastnictva || null,
     sizeCategory: SIZE_MAP[entity.velkostOrganizacie] || entity.velkostOrganizacie || null,
     employeeCount: entity.pocetZamestnancov ?? null,
+    ruzEntityId: entityId,
+    ruzSyncedAt: new Date(),
   };
 
   await prisma.company.upsert({
@@ -222,22 +227,11 @@ export async function seedFromRuz(ico: string) {
   });
 
   for (const s of stmts) {
+    const { year: _year, ruzZavierkaId: _rz, ruzVykazId: _rv, ...stmtData } = s;
     await prisma.financialStatement.upsert({
       where: { companyIco_year: { companyIco: ico, year: s.year } },
       create: { companyIco: ico, ...s },
-      update: {
-        totalAssets: s.totalAssets, currentAssets: s.currentAssets, equity: s.equity,
-        shortTermLiabilities: s.shortTermLiabilities, longTermLiabilities: s.longTermLiabilities,
-        mainActivityRevenue: s.mainActivityRevenue, grossProfit: s.grossProfit,
-        netProfitLoss: s.netProfitLoss, cashAndEquivalents: s.cashAndEquivalents,
-        operatingCashFlow: s.operatingCashFlow, staffCosts: s.staffCosts,
-        tradeReceivables: s.tradeReceivables, tradePayables: s.tradePayables,
-        inventory: s.inventory, depreciation: s.depreciation,
-        interestExpense: s.interestExpense,
-        incomeTax: s.incomeTax,
-        socialInsuranceLiabilities: s.socialInsuranceLiabilities,
-        taxLiabilities: s.taxLiabilities, employeeLiabilities: s.employeeLiabilities,
-      },
+      update: { ...stmtData },
     });
   }
 

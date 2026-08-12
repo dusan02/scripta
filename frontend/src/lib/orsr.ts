@@ -55,8 +55,10 @@ type PersonInfo = {
   rawName: string;
   cleanName: string;
   city: string | null;
+  street: string | null;
   zipCode: string | null;
   role: string;
+  functionStart: Date | null;
 };
 
 function decodeWindows1250(buffer: ArrayBuffer): string {
@@ -262,22 +264,38 @@ function parsePersonsFromSection(text: string, sectionLabel: string, role: strin
     const cleanName = nameWords.join(" ");
 
     let city: string | null = null;
+    let street: string | null = null;
     let zipCode: string | null = null;
-    for (let j = i + 1; j < Math.min(i + 4, sectionLines.length); j++) {
+    let functionStart: Date | null = null;
+    for (let j = i + 1; j < Math.min(i + 5, sectionLines.length); j++) {
       const addrLine = sectionLines[j];
+      // Check for "od:" date line (function start)
+      const odMatch = addrLine.match(/\(od:\s*(\d{2}\.\d{2}\.\d{4})\)/);
+      if (odMatch) {
+        const [d, m, y] = odMatch[1].split(".");
+        functionStart = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+      }
       const zipMatch = addrLine.match(ZIP_RE);
       if (zipMatch) {
         zipCode = zipMatch[1].replace(/\s/g, "");
         const cityPart = addrLine.replace(ZIP_RE, "").replace(/[,;]/g, "").trim();
         if (cityPart) city = cityPart;
+        // Street might be on previous line
+        for (let k = j - 1; k > i; k--) {
+          const prevLine = sectionLines[k].trim();
+          if (prevLine && !prevLine.toLowerCase().startsWith("od:") && !prevLine.startsWith("(") && /\d/.test(prevLine) && !prevLine.includes(" - ")) {
+            street = prevLine;
+            break;
+          }
+        }
         break;
       }
-      if (/^[A-ZÁ-Ž]/.test(addrLine) && !/\d/.test(addrLine)) {
+      if (/^[A-ZÁ-Ž]/.test(addrLine) && !/\d/.test(addrLine) && !addrLine.toLowerCase().startsWith("od:")) {
         city = addrLine.trim();
       }
     }
 
-    persons.push({ rawName, cleanName, city, zipCode, role });
+    persons.push({ rawName, cleanName, city, street, zipCode, role, functionStart });
     i++;
   }
 
@@ -374,6 +392,7 @@ export async function seedFromOrsr(ico: string): Promise<{
           street: address.street || undefined,
           zipCode: address.zipCode || undefined,
           status,
+          orsrSyncedAt: new Date(),
         },
       });
 
@@ -386,7 +405,9 @@ export async function seedFromOrsr(ico: string): Promise<{
             cleanName: p.cleanName,
             role: p.role,
             city: p.city,
+            street: p.street,
             zipCode: p.zipCode,
+            functionStart: p.functionStart,
           })),
         });
       }
