@@ -509,7 +509,7 @@ const sk: Dict = {
   "messages.späť": "Späť",
 
   // ── Cookie banner ──
-  "cookie.text": "Táto stránka používa nevyhnutné cookies pre správne fungovanie. Používaním stránky súhlasíte s ich ukladaním.",
+  "cookie.text": "Táto stránka používa nevyhnutné cookies pre správne fungovanie a analytické cookies (Google Analytics) na zlepšenie služby. Analytické cookies nastavíme len s vaším súhlasom.",
   "cookie.more": "Viac informácií",
   "cookie.accept": "Prijať",
   "cookie.decline": "Odmietnuť",
@@ -1413,7 +1413,7 @@ const en: Dict = {
   "messages.späť": "Back",
 
   // ── Cookie banner ──
-  "cookie.text": "This site uses necessary cookies for proper functionality. By using the site, you agree to their storage.",
+  "cookie.text": "This site uses necessary cookies for proper functionality and analytical cookies (Google Analytics) to improve our service. Analytical cookies are set only with your consent.",
   "cookie.more": "More information",
   "cookie.accept": "Accept",
   "cookie.decline": "Decline",
@@ -2317,7 +2317,7 @@ const de: Dict = {
   "messages.späť": "Zurück",
 
   // ── Cookie banner ──
-  "cookie.text": "Diese Seite verwendet notwendige Cookies für die ordnungsgemäße Funktion. Durch die Nutzung stimmen Sie der Speicherung zu.",
+  "cookie.text": "Diese Seite verwendet notwendige Cookies für die ordnungsgemäße Funktion und analytische Cookies (Google Analytics) zur Verbesserung unseres Dienstes. Analytische Cookies werden nur mit Ihrer Zustimmung gesetzt.",
   "cookie.more": "Mehr Informationen",
   "cookie.accept": "Akzeptieren",
   "cookie.decline": "Ablehnen",
@@ -3173,7 +3173,7 @@ const cz: Dict = {
   "messages.odoslane": "Odeslané",
   "messages.odpovedat": "Odpovědět",
   "messages.späť": "Zpět",
-  "cookie.text": "Táto stránka používá nevyhnutné cookies pre správne fungovanie. Používaním stránky jsouhlasíte s jejich ukládáním.",
+  "cookie.text": "Tato stránka používá nezbytné cookies pro správnou funkci a analytické cookies (Google Analytics) pro vylepšení služby. Analytické cookies nastavíme pouze s vaším souhlasem.",
   "cookie.more": "Více informací",
   "cookie.accept": "Přijmout",
   "cookie.decline": "Odmítnout",
@@ -4069,7 +4069,7 @@ const hu: Dict = {
   "messages.odoslane": "Elküldött",
   "messages.odpovedat": "Válasz",
   "messages.späť": "Vissza",
-  "cookie.text": "Ez a webhely szükséges sütiket használ a megfelelő működés érdekében. A webhely használatával Ön hozzájárul ezek tárolásához.",
+  "cookie.text": "Ez a webhely szükséges sütiket használ a megfelelő működéshez és analitikai sütiket (Google Analytics) a szolgáltatás javításához. Az analitikai sütiket csak az Ön hozzájárulásával állítjuk be.",
   "cookie.more": "További információ",
   "cookie.accept": "Elfogadás",
   "cookie.decline": "Elutasítás",
@@ -4877,7 +4877,7 @@ const pl: Dict = {
   "messages.odoslane": "Wysłane",
   "messages.odpovedat": "Odpowiedz",
   "messages.späť": "Wstecz",
-  "cookie.text": "Ta strona korzysta z niezbędnych plików cookie w celu zapewnienia jej prawidłowego funkcjonowania. Korzystając ze strony, wyrażasz zgodę na ich zapisywanie.",
+  "cookie.text": "Ta strona korzysta z niezbędnych plików cookie dla prawidłowego funkcjonowania oraz plików analitycznych (Google Analytics) w celu ulepszenia usługi. Pliki analityczne są ustawiane tylko za Twoją zgodą.",
   "cookie.more": "Więcej informacji",
   "cookie.accept": "Akceptuj",
   "cookie.decline": "Odrzuć",

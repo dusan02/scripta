@@ -5,6 +5,30 @@ import { useT } from "@/components/LanguageProvider";
 
 const CONSENT_KEY = "verifa-cookie-consent";
 
+export function getCookieConsent(): { analytics: boolean } | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(CONSENT_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function setCookieConsent(accepted: boolean) {
+  localStorage.setItem(
+    CONSENT_KEY,
+    JSON.stringify({
+      necessary: true,
+      analytics: accepted,
+      accepted: new Date().toISOString(),
+      ...(accepted ? {} : { declined: true }),
+    }),
+  );
+  window.dispatchEvent(new Event("cookie-consent-change"));
+}
+
 export default function CookieBanner() {
   const t = useT();
   const [visible, setVisible] = useState(false);
@@ -18,12 +42,12 @@ export default function CookieBanner() {
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem(CONSENT_KEY, JSON.stringify({ necessary: true, accepted: new Date().toISOString() }));
+    setCookieConsent(true);
     setVisible(false);
   };
 
   const handleDecline = () => {
-    localStorage.setItem(CONSENT_KEY, JSON.stringify({ necessary: true, accepted: new Date().toISOString(), declined: true }));
+    setCookieConsent(false);
     setVisible(false);
   };
 
