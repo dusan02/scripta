@@ -22,7 +22,13 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         heading: "1. Úvod",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Tieto podmienky používania (ďalej len „Podmienky&ldquo;) upravujú prístup a používanie služby Verifa.sk (ďalej len „Služba&ldquo;), ktorú prevádzkuje Verifa.sk. Používaním Služby vyjadrujete súhlas s týmito Podmienkami.
+            Tieto podmienky používania (ďalej len „Podmienky&ldquo;) upravujú prístup a používanie služby Verifa.sk (ďalej len „Služba&ldquo;), ktorú prevádzkuje:<br /><br />
+            <strong>Dušan Baran</strong><br />
+            IČ: 06119859<br />
+            Kubelíkova 1258/43, 130 00 Praha, Česká republika<br />
+            E-mail: <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a><br /><br />
+            (ďalej len „Prevádzkovateľ&ldquo;)<br /><br />
+            Používaním Služby vyjadrujete súhlas s týmito Podmienkami.
           </p>
         ),
       },
@@ -97,15 +103,31 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Zmeny podmienok",
+        heading: "9. Odstúpenie od zmluvy",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk si vyhradzuje právo kedykoľvek zmeniť tieto Podmienky. Zmeny budú zverejnené na tejto stránke. Pokračovanie v používaní Služby po zmenách predstavuje súhlas s novými Podmienkami.
+            Spotrebiteľ má právo odstúpiť od zmluvy do 14 dní od zakúpenia kreditov bez uvedenia dôvodu v súlade s § 7 zákona č. 102/2014 Z.z. o ochrane spotrebiteľa pri predaji na diaľku. Právo na odstúpenie zaniká okamihom, keď spotrebiteľ použije zakúpený kredit na vygenerovanie reportu, čím dôjde k poskytnutiu digitálneho obsahu s jeho výslovným súhlasom (§ 7 ods. 6 písm. l) zákona č. 102/2014 Z.z.). Žiadosť o odstúpenie posielajte na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
           </p>
         ),
       },
       {
-        heading: "10. Kontakt",
+        heading: "10. Rozhodné právo a riešenie sporov",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Tieto Podmienky sa riadia právnym poriadkom Slovenskej republiky. Akékoľvek spory budú riešené pred vecne a miestne príslušným súdom Slovenskej republiky. Spotrebiteľ má právo obrátiť sa na platformu RSO (Riešenie sporov online) na <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer" style={linkStyle}>https://ec.europa.eu/odr</a>.
+          </p>
+        ),
+      },
+      {
+        heading: "11. Zmeny podmienok",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Verifa.sk si vyhradzuje právo zmeniť tieto Podmienky. O podstatných zmenách budeme registrovaných používateľov informovať emailom najmenej 14 dní pred nadobudnutím ich účinnosti. Zmeny budú zverejnené na tejto stránke s uvedením dátumu účinnosti. Pokračovanie v používaní Služby po nadobudnutí účinnosti zmien predstavuje súhlas s novými Podmienkami.
+          </p>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Ak máte otázky týkajúce sa týchto Podmienok, kontaktujte nás na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
@@ -122,7 +144,13 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         heading: "1. Introduction",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            These terms of service (hereinafter the &ldquo;Terms&rdquo;) govern the access to and use of the Verifa.sk service (hereinafter the &ldquo;Service&rdquo;), operated by Verifa.sk. By using the Service, you agree to these Terms.
+            These terms of service (hereinafter the &ldquo;Terms&rdquo;) govern the access to and use of the Verifa.sk service (hereinafter the &ldquo;Service&rdquo;), operated by:<br /><br />
+            <strong>Dušan Baran</strong><br />
+            ID: 06119859<br />
+            Kubelíkova 1258/43, 130 00 Prague, Czech Republic<br />
+            E-mail: <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a><br /><br />
+            (hereinafter the &ldquo;Operator&rdquo;)<br /><br />
+            By using the Service, you agree to these Terms.
           </p>
         ),
       },
@@ -197,15 +225,31 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Changes to the Terms",
+        heading: "9. Withdrawal from the Contract",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk reserves the right to change these Terms at any time. Changes will be published on this page. Continued use of the Service after changes constitutes acceptance of the new Terms.
+            The consumer has the right to withdraw from the contract within 14 days of purchasing credits without giving any reason, in accordance with § 7 of Act No. 102/2014 Coll. on Consumer Protection in Distance Selling. The right of withdrawal expires at the moment the consumer uses the purchased credit to generate a report, thereby providing digital content with their express consent (§ 7 para. 6 letter l) of Act No. 102/2014 Coll.). Send withdrawal requests to <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
           </p>
         ),
       },
       {
-        heading: "10. Contact",
+        heading: "10. Governing Law and Dispute Resolution",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            These Terms are governed by the laws of the Slovak Republic. Any disputes shall be resolved before the materially and locally competent court of the Slovak Republic. The consumer has the right to turn to the ODR platform (Online Dispute Resolution) at <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer" style={linkStyle}>https://ec.europa.eu/odr</a>.
+          </p>
+        ),
+      },
+      {
+        heading: "11. Changes to the Terms",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Verifa.sk reserves the right to change these Terms. We will inform registered users about material changes by email at least 14 days before they become effective. Changes will be published on this page with the effective date. Continued use of the Service after the changes become effective constitutes acceptance of the new Terms.
+          </p>
+        ),
+      },
+      {
+        heading: "12. Contact",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             If you have any questions regarding these Terms, please contact us at <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
@@ -222,7 +266,13 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         heading: "1. Einleitung",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Diese Nutzungsbedingungen (nachfolgend die &ldquo;Bedingungen&rdquo;) regeln den Zugriff auf und die Nutzung des Dienstes Verifa.sk (nachfolgend der &ldquo;Dienst&rdquo;), betrieben von Verifa.sk. Durch die Nutzung des Dienstes erklären Sie sich mit diesen Bedingungen einverstanden.
+            Diese Nutzungsbedingungen (nachfolgend die &ldquo;Bedingungen&rdquo;) regeln den Zugriff auf und die Nutzung des Dienstes Verifa.sk (nachfolgend der &ldquo;Dienst&rdquo;), betrieben von:<br /><br />
+            <strong>Dušan Baran</strong><br />
+            ID: 06119859<br />
+            Kubelíkova 1258/43, 130 00 Prag, Tschechische Republik<br />
+            E-mail: <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a><br /><br />
+            (nachfolgend der &ldquo;Betreiber&rdquo;)<br /><br />
+            Durch die Nutzung des Dienstes erklären Sie sich mit diesen Bedingungen einverstanden.
           </p>
         ),
       },
@@ -297,15 +347,31 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Änderungen der Bedingungen",
+        heading: "9. Widerrufsrecht",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk behält sich das Recht vor, diese Bedingungen jederzeit zu ändern. Änderungen werden auf dieser Seite veröffentlicht. Die fortgesetzte Nutzung des Dienstes nach Änderungen gilt als Zustimmung zu den neuen Bedingungen.
+            Der Verbraucher hat das Recht, innerhalb von 14 Tagen nach dem Kauf von Credits ohne Angabe von Gründen gemäß § 7 des Gesetzes Nr. 102/2014 Slg. über den Verbraucherschutz im Fernabsatz vom Vertrag zurückzutreten. Das Widerrufsrecht erlischt in dem Moment, in dem der Verbraucher das gekaufte Credit zur Erstellung eines Berichts verwendet und dadurch digitale Inhalte mit seiner ausdrücklichen Zustimmung bereitgestellt werden (§ 7 Abs. 6 Buchstabe l) des Gesetzes Nr. 102/2014 Slg.). Senden Sie Widerrufsanfragen an <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
           </p>
         ),
       },
       {
-        heading: "10. Kontakt",
+        heading: "10. Anwendbares Recht und Streitbeilegung",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Diese Bedingungen unterliegen den Gesetzen der Slowakischen Republik. Alle Streitigkeiten werden vor dem sachlich und örtlich zuständigen Gericht der Slowakischen Republik beigelegt. Der Verbraucher hat das Recht, sich an die OS-Plattform (Online-Streitbeilegung) unter <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer" style={linkStyle}>https://ec.europa.eu/odr</a> zu wenden.
+          </p>
+        ),
+      },
+      {
+        heading: "11. Änderungen der Bedingungen",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Verifa.sk behält sich das Recht vor, diese Bedingungen zu ändern. Wir werden registrierte Nutzer mindestens 14 Tage vor deren Inkrafttreten per E-Mail über wesentliche Änderungen informieren. Änderungen werden auf dieser Seite mit dem Datum des Inkrafttretens veröffentlicht. Die fortgesetzte Nutzung des Dienstes nach Inkrafttreten der Änderungen gilt als Zustimmung zu den neuen Bedingungen.
+          </p>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Wenn Sie Fragen zu diesen Bedingungen haben, kontaktieren Sie uns unter <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
@@ -322,7 +388,13 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         heading: "1. Úvod",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Tyto podmínky používání (dále jen „Podmínky&ldquo;) upravují přístup a používání služby Verifa.sk (dále jen „Služba&ldquo;), kterou provozuje Verifa.sk. Používáním Služby vyjadřujete souhlas s těmito Podmínkami.
+            Tyto podmínky používání (dále jen „Podmínky&ldquo;) upravují přístup a používání služby Verifa.sk (dále jen „Služba&ldquo;), kterou provozuje:<br /><br />
+            <strong>Dušan Baran</strong><br />
+            IČ: 06119859<br />
+            Kubelíkova 1258/43, 130 00 Praha, Česká republika<br />
+            E-mail: <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a><br /><br />
+            (dále jen „Provozovatel&ldquo;)<br /><br />
+            Používáním Služby vyjadřujete souhlas s těmito Podmínkami.
           </p>
         ),
       },
@@ -397,15 +469,31 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Změny podmínek",
+        heading: "9. Odstoupení od smlouvy",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk si vyhrazuje právo kdykoli změnit tyto Podmínky. Změny budou zveřejněny na této stránce. Pokračování v používání Služby po změnách představuje souhlas s novými Podmínkami.
+            Spotřebitel má právo odstoupit od smlouvy do 14 dnů od zakoupení kreditů bez udání důvodu v souladu s § 7 zákona č. 102/2014 Z.z. o ochraně spotřebitele při prodeji na dálku. Právo na odstoupení zaniká okamžikem, kdy spotřebitel použije zakoupený kredit k vygenerování reportu, čímž dojde k poskytnutí digitálního obsahu s jeho výslovným souhlasem (§ 7 odst. 6 písm. l) zákona č. 102/2014 Z.z.). Žádost o odstoupení zasílejte na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
           </p>
         ),
       },
       {
-        heading: "10. Kontakt",
+        heading: "10. Rozhodné právo a řešení sporů",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Tyto Podmínky se řídí právním řádem Slovenské republiky. Veškeré spory budou řešeny před věcně a místně příslušným soudem Slovenské republiky. Spotřebitel má právo obrátit se na platformu RSO (Řešení sporů online) na <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer" style={linkStyle}>https://ec.europa.eu/odr</a>.
+          </p>
+        ),
+      },
+      {
+        heading: "11. Změny podmínek",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Verifa.sk si vyhrazuje právo změnit tyto Podmínky. O podstatných změnách budeme registrované uživatele informovat e-mailem nejméně 14 dní před nabytím jejich účinnosti. Změny budou zveřejněny na této stránce s uvedením data účinnosti. Pokračování v používání Služby po nabytí účinnosti změn představuje souhlas s novými Podmínkami.
+          </p>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Pokud máte otázky týkající se těchto Podmínek, kontaktujte nás na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
@@ -422,7 +510,13 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         heading: "1. Bevezetés",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Ezek a felhasználási feltételek (a továbbiakban &ldquo;Feltételek&rdquo;) szabályozzák a Verifa.sk szolgáltatás (a továbbiakban &ldquo;Szolgáltatás&rdquo;) elérését és használatát, amelyet a Verifa.sk üzemeltet. A Szolgáltatás használatával Ön elfogadja ezeket a Feltételeket.
+            Ezek a felhasználási feltételek (a továbbiakban &ldquo;Feltételek&rdquo;) szabályozzák a Verifa.sk szolgáltatás (a továbbiakban &ldquo;Szolgáltatás&rdquo;) elérését és használatát, amelyet üzemeltet:<br /><br />
+            <strong>Dušan Baran</strong><br />
+            Azonosító: 06119859<br />
+            Kubelíkova 1258/43, 130 00 Prága, Cseh Köztársaság<br />
+            E-mail: <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a><br /><br />
+            (a továbbiakban &ldquo;Üzemeltető&rdquo;)<br /><br />
+            A Szolgáltatás használatával Ön elfogadja ezeket a Feltételeket.
           </p>
         ),
       },
@@ -497,18 +591,34 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. A feltételek változásai",
+        heading: "9. Elállás a szerződéstől",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            A Verifa.sk fenntartja a jogot, hogy ezeket a Feltételeket bármikor megváltoztassa. A változtatások ezen az oldalon kerülnek közzétételre. A Szolgáltatás változások utáni további használata az új Feltételek elfogadásának minősül.
+            A fogyasztó jogosult a kreditek megvásárlásától számított 14 napon belül indokolás nélkül elállni a szerződéstől a távértékesítés során a fogyasztóvédelemről szóló 102/2014. (Z.z.) sz. törvény 7. §-a alapján. Az elállási jog megszűnik abban a pillanatban, amikor a fogyasztó a megvásárolt kreditet jelentés generálására használja, ezáltal kifejezett beleegyezésével digitális tartalom szolgáltatására kerül sor (a 102/2014. (Z.z.) sz. törvény 7. § (6) bekezdés l) pontja). Az elállási kérelmet az <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> címre küldje.
           </p>
         ),
       },
       {
-        heading: "10. Kapcsolat",
+        heading: "10. Irányadó jog és vitarendezés",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Ha kérdése van ezekkel a Feltételekkel kapcsolatban, lépjen velünk kapcsolatba a <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> címen.
+            Ezekre a Feltételekre a Szlovák Köztársaság jogrendje az irányadó. A vitákat a Szlovák Köztársaság tárgyi és helyi hatáskörrel rendelkező bírósága előtt kell rendezni. A fogyasztó jogosult az ODR platformhoz (Online vitarendezés) fordulni a <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer" style={linkStyle}>https://ec.europa.eu/odr</a> címen.
+          </p>
+        ),
+      },
+      {
+        heading: "11. A feltételek változásai",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            A Verifa.sk fenntartja a jogot a jelen Feltételek megváltoztatására. A lényeges változásokról a regisztrált felhasználókat legalább 14 nappal a hatálybalépés előtt e-mailben értesítjük. A változások ezen az oldalon kerülnek közzétételre a hatálybalépés dátumával együtt. A Szolgáltatás további használata a változások hatálybalépése után az új Feltételek elfogadásának minősül.
+          </p>
+        ),
+      },
+      {
+        heading: "12. Kapcsolat",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Ha kérdése van ezekkel a Feltételekre kapcsolatban, lépjen velünk kapcsolatba a <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> címen.
           </p>
         ),
       },
@@ -522,7 +632,13 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         heading: "1. Wprowadzenie",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Niniejsze warunki korzystania z usług (dalej &ldquo;Warunki&rdquo;) regulują dostęp do usługi Verifa.sk (dalej &ldquo;Usługa&rdquo;) i jej korzystanie, prowadzonej przez Verifa.sk. Korzystając z Usługi, wyrażasz zgodę na niniejsze Warunki.
+            Niniejsze warunki korzystania z usług (dalej &ldquo;Warunki&rdquo;) regulują dostęp do usługi Verifa.sk (dalej &ldquo;Usługa&rdquo;) i jej korzystanie, prowadzonej przez:<br /><br />
+            <strong>Dušan Baran</strong><br />
+            ID: 06119859<br />
+            Kubelíkova 1258/43, 130 00 Praga, Czechy<br />
+            E-mail: <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a><br /><br />
+            (dalej &ldquo;Operator&rdquo;)<br /><br />
+            Korzystając z Usługi, wyrażasz zgodę na niniejsze Warunki.
           </p>
         ),
       },
@@ -597,15 +713,31 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Zmiany warunków",
+        heading: "9. Odstąpienie od umowy",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk zastrzega sobie prawo do zmiany niniejszych Warunków w dowolnym czasie. Zmiany zostaną opublikowane na tej stronie. Kontynuowanie korzystania z Usługi po zmianach stanowi akceptację nowych Warunków.
+            Konsument ma prawo odstąpić od umowy w terminie 14 dni od zakupu kredytów bez podania przyczyny, zgodnie z § 7 ustawy nr 102/2014 Dz.U. o ochronie konsumentów w sprzedaży na odległość. Prawo do odstąpienia od umowy wygasa z chwilą wykorzystania przez konsumenta zakupionego kredytu do wygenerowania raportu, co oznacza dostarczenie treści cyfrowych za jego wyraźną zgodą (§ 7 ust. 6 lit. l) ustawy nr 102/2014 Dz.U.). Prośby o odstąpienie należy kierować na adres <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
           </p>
         ),
       },
       {
-        heading: "10. Kontakt",
+        heading: "10. Prawo właściwe i rozwiązywanie sporów",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Niniejsze Warunki podlegają prawu Republiki Słowackiej. Wszelkie spory będą rozstrzygane przed właściwym rzeczowo i miejscowo sądem Republiki Słowackiej. Konsument ma prawo zwrócić się do platformy ODR (internetowe rozstrzyganie sporów) pod adresem <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer" style={linkStyle}>https://ec.europa.eu/odr</a>.
+          </p>
+        ),
+      },
+      {
+        heading: "11. Zmiany warunków",
+        body: (
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            Verifa.sk zastrzega sobie prawo do zmiany niniejszych Warunków. O istotnych zmianach będziemy informować zarejestrowanych użytkowników e-mailem co najmniej 14 dni przed ich wejściem w życie. Zmiany będą publikowane na tej stronie z podaniem daty wejścia w życie. Kontynuowanie korzystania z Usługi po wejściu w życie zmian oznacza akceptację nowych Warunków.
+          </p>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Jeśli masz pytania dotyczące niniejszych Warunków, skontaktuj się z nami pod adresem <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
@@ -638,7 +770,7 @@ export default async function TermsPage() {
 
         <section>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 32 }}>
-            {content.lastUpdated}: {new Date().toLocaleDateString(LOCALE_MAP[lang])}.
+            {content.lastUpdated}: 12. 8. 2026.
           </p>
         </section>
       </div>

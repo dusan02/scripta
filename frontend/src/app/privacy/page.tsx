@@ -91,6 +91,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
             <li style={liStyle}><strong>Vygenerované reporty:</strong> po dobu platnosti používateľského účtu</li>
             <li style={liStyle}><strong>Prístupové logy:</strong> 12 mesiacov (bezpečnostné dôvody)</li>
             <li style={liStyle}><strong>Marketingový súhlas:</strong> do odvolania súhlasu</li>
+            <li style={liStyle}><strong>Údaje používateľského účtu (meno, email, hash hesla):</strong> po dobu existencie účtu + 30 dní po jeho vymazaní</li>
           </ul>
         ),
       },
@@ -111,7 +112,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
               <li style={liStyle}><strong>Právo odvolať súhlas</strong> — kedykoľvek bez vplyvu na zákonnosť predchádzajúceho spracúvania</li>
             </ul>
             <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-              Uplatnenie práv môžete požadovať e-mailom na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
+              Uplatnenie práv môžete požadovať e-mailom na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. Na žiadosť odpovieme bez zbytočného odkladu, najneskôr do 30 dní od jej doručenia. V odôvodnených prípadoch môže byť lehota predĺžená o ďalších 60 dní.
             </p>
           </>
         ),
@@ -129,23 +130,71 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Prenos údajov do tretích krajín",
+        heading: "9. Príjemcovia osobných údajov",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Údaje sú uložené na serveroch v Európskej únii. Platobné spracúvanie zabezpečuje Paddle (Merchant of Record), ktoré môže spracúvať údaje mimo EHP v súlade so Standard Contractual Clauses (SCC). Žiadne iné prenosy do tretích krajín neprebiehajú.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Zoznam sprostredkovateľov:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}><strong>Paddle.com Market Ltd.</strong> — platobné spracúvanie a fakturácia (UK/USA). Právny základ prenosu: Standard Contractual Clauses (SCC) + UK Addendum.</li>
+              <li style={liStyle}><strong>Google Ireland Limited (Google Analytics 4)</strong> — webová analytika, anonymizované údaje o návštevnosti (USA). Právny základ prenosu: EU-US Data Privacy Framework. Analytické cookies (_ga, _ga_*) sa nastavujú len po udelení výslovného súhlasu.</li>
+              <li style={liStyle}><strong>Resend, Inc.</strong> — odosielanie transakčných e-mailov (overenie registrácie, reset hesla, notifikácie). USA. Právny základ prenosu: EU-US Data Privacy Framework.</li>
+              <li style={liStyle}><strong>Functional Software, Inc. (Sentry)</strong> — monitoring a logovanie chýb aplikácie (IP adresa, verzia prehliadača, záznamy o chybách). USA. Právny základ: Art. 6 ods. 1 písm. f) GDPR (oprávnený záujem). Právny základ prenosu: EU-US Data Privacy Framework.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              So všetkými sprostredkovateľmi máme uzavreté zmluvy o spracúvaní osobných údajov (DPA) v zmysle Art. 28 GDPR.
+            </p>
+          </>
         ),
       },
       {
-        heading: "10. Cookies",
+        heading: "10. Prenos údajov do tretích krajín",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk používa len nevyhnutné technické cookies (relácia, jazyk, preferencia tmavého/svetlého režimu). Nepoužívame marketingové ani sledovacie cookies tretích strán. Na používanie nevyhnutných cookies nie je potrebný súhlas.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Údaje sú uložené na serveroch v Európskej únii (Slovensko). Niektorí naši sprostredkovatelia môžu spracúvať údaje mimo EHP (USA, UK). Prenos údajov je zabezpečený prostredníctvom:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>EU-US Data Privacy Framework (rozhodnutie Európskej komisie C(2023) 4745 z 10. júla 2023) — Google, Resend, Sentry</li>
+              <li style={liStyle}>Standard Contractual Clauses (SCC) + UK Addendum — Paddle</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Podrobný zoznam príjemcov je uvedený v sekcii 9.
+            </p>
+          </>
         ),
       },
       {
-        heading: "11. Kontakt",
+        heading: "11. Cookies",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Verifa.sk používa nasledujúce typy cookies:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              <strong>Nevyhnutné cookies (bez súhlasu):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Session cookie (next-auth.session-token) — prihlásenie, platnosť do zatvorenia prehliadača</li>
+              <li style={liStyle}>Jazykové nastavenie — platnosť 1 rok</li>
+              <li style={liStyle}>Preferencia tmavého/svetlého režimu — platnosť 1 rok</li>
+              <li style={liStyle}>Záznam cookie súhlasu (localStorage) — trvalý</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12, marginBottom: 12 }}>
+              <strong>Analytické cookies (len so súhlasom):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Google Analytics (_ga, _ga_*) — anonymizované štatistiky návštevnosti, platnosť 2 roky. Nastavujú sa len po udelení výslovného súhlasu prostredníctvom cookie banneru.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Analytické cookies môžete kedykoľvek odmietnuť prostredníctvom cookie banneru alebo vymazaním cookies vo vašom prehliadači.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Pri otázkach týkajúcich sa ochrany osobných údajov nás kontaktujte na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. Máte tiež právo podať sťažnosť Úradu na ochranu osobných údajov Slovenskej republiky.
@@ -230,6 +279,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
             <li style={liStyle}><strong>Generated reports:</strong> for the duration of the user account</li>
             <li style={liStyle}><strong>Access logs:</strong> 12 months (security reasons)</li>
             <li style={liStyle}><strong>Marketing consent:</strong> until withdrawal of consent</li>
+            <li style={liStyle}><strong>User account data:</strong> for the duration of the account + 30 days after deletion</li>
           </ul>
         ),
       },
@@ -250,7 +300,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
               <li style={liStyle}><strong>Right to withdraw consent</strong> — at any time without affecting the lawfulness of prior processing</li>
             </ul>
             <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-              You may exercise your rights by email at <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
+              You may exercise your rights by email at <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. We will respond to your request without undue delay, no later than 30 days after receipt. In justified cases, the period may be extended by another 60 days.
             </p>
           </>
         ),
@@ -268,23 +318,71 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Data Transfers to Third Countries",
+        heading: "9. Recipients of Personal Data",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Data is stored on servers within the European Union. Payment processing is handled by Paddle (Merchant of Record), which may process data outside the EEA in accordance with Standard Contractual Clauses (SCC). No other transfers to third countries take place.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              A list of subprocessors:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}><strong>Paddle.com Market Ltd.</strong> — payment processing and invoicing (UK/USA). Legal basis for transfer: Standard Contractual Clauses (SCC) + UK Addendum.</li>
+              <li style={liStyle}><strong>Google Ireland Limited (Google Analytics 4)</strong> — web analytics, anonymized traffic data (USA). Legal basis for transfer: EU-US Data Privacy Framework. Analytics cookies (_ga, _ga_*) are set only after explicit consent.</li>
+              <li style={liStyle}><strong>Resend, Inc.</strong> — sending transactional emails (registration verification, password reset, notifications). USA. Legal basis for transfer: EU-US Data Privacy Framework.</li>
+              <li style={liStyle}><strong>Functional Software, Inc. (Sentry)</strong> — application error monitoring and logging (IP address, browser version, error logs). USA. Legal basis: Art. 6(1)(f) GDPR (legitimate interest). Legal basis for transfer: EU-US Data Privacy Framework.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              We have concluded data processing agreements (DPA) under Art. 28 GDPR with all subprocessors.
+            </p>
+          </>
         ),
       },
       {
-        heading: "10. Cookies",
+        heading: "10. Data Transfers to Third Countries",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk uses only necessary technical cookies (session, language, dark/light mode preference). We do not use third-party marketing or tracking cookies. Consent is not required for the use of necessary cookies.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Data is stored on servers in the European Union (Slovakia). Some of our subprocessors may process data outside the EEA (USA, UK). Data transfer is secured through:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>EU-US Data Privacy Framework (European Commission Decision C(2023) 4745 of 10 July 2023) — Google, Resend, Sentry</li>
+              <li style={liStyle}>Standard Contractual Clauses (SCC) + UK Addendum — Paddle</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              A detailed list of recipients is provided in section 9.
+            </p>
+          </>
         ),
       },
       {
-        heading: "11. Contact",
+        heading: "11. Cookies",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Verifa.sk uses the following types of cookies:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              <strong>Necessary cookies (without consent):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Session cookie (next-auth.session-token) — login, valid until browser is closed</li>
+              <li style={liStyle}>Language preference — valid for 1 year</li>
+              <li style={liStyle}>Dark/light mode preference — valid for 1 year</li>
+              <li style={liStyle}>Consent cookie record (localStorage) — permanent</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12, marginBottom: 12 }}>
+              <strong>Analytics cookies (only with consent):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Google Analytics (_ga, _ga_*) — anonymized traffic statistics, valid for 2 years. Set only after explicit consent via the cookie banner.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              You can reject analytics cookies at any time via the cookie banner or by deleting cookies in your browser.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "12. Contact",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             For questions regarding the protection of personal data, please contact us at <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. You also have the right to lodge a complaint with the Office for Personal Data Protection of the Slovak Republic.
@@ -369,6 +467,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
             <li style={liStyle}><strong>Generierte Berichte:</strong> für die Dauer des Benutzerkontos</li>
             <li style={liStyle}><strong>Zugriffsprotokolle:</strong> 12 Monate (Sicherheitsgründe)</li>
             <li style={liStyle}><strong>Marketing-Einwilligung:</strong> bis zum Widerruf der Einwilligung</li>
+            <li style={liStyle}><strong>Benutzerkontodaten:</strong> für die Dauer des Kontos + 30 Tage nach Löschung</li>
           </ul>
         ),
       },
@@ -389,7 +488,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
               <li style={liStyle}><strong>Recht auf Widerruf der Einwilligung</strong> — jederzeit ohne Auswirkung auf die Rechtmäßigkeit der bisherigen Verarbeitung</li>
             </ul>
             <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-              Sie können Ihre Rechte per E-Mail an <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> geltend machen.
+              Sie können Ihre Rechte per E-Mail an <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> geltend machen. Wir werden Ihre Anfrage ohne unangemessene Verzögerung, spätestens jedoch innerhalb von 30 Tagen nach Erhalt, beantworten. In begründeten Fällen kann die Frist um weitere 60 Tage verlängert werden.
             </p>
           </>
         ),
@@ -407,23 +506,71 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Datenübertragung in Drittländer",
+        heading: "9. Empfänger personenbezogener Daten",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Daten werden auf Servern innerhalb der Europäischen Union gespeichert. Die Zahlungsabwicklung erfolgt über Paddle (Merchant of Record), der Daten außerhalb des EWR gemäß den Standard Contractual Clauses (SCC) verarbeiten kann. Es finden keine weiteren Übertragungen in Drittländer statt.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Eine Liste der Auftragsverarbeiter:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}><strong>Paddle.com Market Ltd.</strong> — Zahlungsabwicklung und Rechnungsstellung (UK/USA). Rechtsgrundlage der Übermittlung: Standard Contractual Clauses (SCC) + UK Addendum.</li>
+              <li style={liStyle}><strong>Google Ireland Limited (Google Analytics 4)</strong> — Webanalyse, anonymisierte Verkehrsdaten (USA). Rechtsgrundlage der Übermittlung: EU-US Data Privacy Framework. Analyse-Cookies (_ga, _ga_*) werden nur nach ausdrücklicher Einwilligung gesetzt.</li>
+              <li style={liStyle}><strong>Resend, Inc.</strong> — Versand von Transaktions-E-Mails (Registrierungsüberprüfung, Passwort-Reset, Benachrichtigungen). USA. Rechtsgrundlage der Übermittlung: EU-US Data Privacy Framework.</li>
+              <li style={liStyle}><strong>Functional Software, Inc. (Sentry)</strong> — Anwendungsfehlerüberwachung und Protokollierung (IP-Adresse, Browserversion, Fehlerprotokolle). USA. Rechtsgrundlage: Art. 6 Abs. 1 lit. f) GDPR (berechtigtes Interesse). Rechtsgrundlage der Übermittlung: EU-US Data Privacy Framework.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Wir haben mit allen Auftragsverarbeitern Verträge zur Auftragsverarbeitung (DPA) gemäß Art. 28 GDPR abgeschlossen.
+            </p>
+          </>
         ),
       },
       {
-        heading: "10. Cookies",
+        heading: "10. Datenübertragung in Drittländer",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk verwendet nur notwendige technische Cookies (Sitzung, Sprache, Einstellung Dunkel-/Hell-Modus). Wir verwenden keine Marketing- oder Tracking-Cookies von Drittanbietern. Für die Verwendung notwendiger Cookies ist keine Einwilligung erforderlich.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Daten werden auf Servern in der Europäischen Union (Slowakei) gespeichert. Einige unserer Auftragsverarbeiter können Daten außerhalb des EWR (USA, UK) verarbeiten. Die Datenübertragung ist gesichert durch:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>EU-US Data Privacy Framework (Beschluss der Europäischen Kommission C(2023) 4745 vom 10. Juli 2023) — Google, Resend, Sentry</li>
+              <li style={liStyle}>Standard Contractual Clauses (SCC) + UK Addendum — Paddle</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Eine detaillierte Liste der Empfänger finden Sie in Abschnitt 9.
+            </p>
+          </>
         ),
       },
       {
-        heading: "11. Kontakt",
+        heading: "11. Cookies",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Verifa.sk verwendet die folgenden Arten von Cookies:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              <strong>Notwendige Cookies (ohne Einwilligung):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Session-Cookie (next-auth.session-token) — Anmeldung, gültig bis der Browser geschlossen wird</li>
+              <li style={liStyle}>Spracheinstellung — gültig für 1 Jahr</li>
+              <li style={liStyle}>Dark/Light-Mode-Präferenz — gültig für 1 Jahr</li>
+              <li style={liStyle}>Einwilligungs-Cookie-Eintrag (localStorage) — dauerhaft</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12, marginBottom: 12 }}>
+              <strong>Analyse-Cookies (nur mit Einwilligung):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Google Analytics (_ga, _ga_*) — anonymisierte Verkehrsstatistiken, gültig für 2 Jahre. Werden nur nach ausdrücklicher Einwilligung über das Cookie-Banner gesetzt.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Sie können Analyse-Cookies jederzeit über das Cookie-Banner oder durch Löschen der Cookies in Ihrem Browser ablehnen.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Bei Fragen zum Schutz personenbezogener Daten kontaktieren Sie uns unter <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. Sie haben auch das Recht, eine Beschwerde beim Amt für den Schutz personenbezogener Daten der Slowakischen Republik einzureichen.
@@ -508,6 +655,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
             <li style={liStyle}><strong>Vygenerované reporty:</strong> po dobu platnosti uživatelského účtu</li>
             <li style={liStyle}><strong>Přístupové logy:</strong> 12 měsíců (bezpečnostní důvody)</li>
             <li style={liStyle}><strong>Marketingový souhlas:</strong> do odvolání souhlasu</li>
+            <li style={liStyle}><strong>Údaje uživatelského účtu (jméno, email, hash hesla):</strong> po dobu existence účtu + 30 dní po jeho vymazání</li>
           </ul>
         ),
       },
@@ -528,7 +676,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
               <li style={liStyle}><strong>Právo odvolat souhlas</strong> — kdykoli bez vlivu na zákonnost předchozího zpracování</li>
             </ul>
             <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-              Uplatnění práv můžete požadovat e-mailem na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
+              Uplatnění práv můžete požadovat e-mailem na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. Na žádost odpovíme bez zbytečného odkladu, nejpozději do 30 dnů od jejího doručení. V odůvodněných případech může být lhůta prodloužena o dalších 60 dnů.
             </p>
           </>
         ),
@@ -546,23 +694,71 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Přenášení údajů do třetích zemí",
+        heading: "9. Příjemci osobních údajů",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Údaje jsou uloženy na serverech v Evropské unii. Platební zpracování zabezpečuje Paddle (Merchant of Record), který může zpracovávat údaje mimo EHP v souladu se Standard Contractual Clauses (SCC). Žádné další přenosy do třetích zemí neprobíhají.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Seznam zpracovatelů:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}><strong>Paddle.com Market Ltd.</strong> — platební zpracování a fakturace (UK/USA). Právní základ přenosu: Standard Contractual Clauses (SCC) + UK Addendum.</li>
+              <li style={liStyle}><strong>Google Ireland Limited (Google Analytics 4)</strong> — webová analytika, anonymizované údaje o návštěvnosti (USA). Právní základ přenosu: EU-US Data Privacy Framework. Analytické cookies (_ga, _ga_*) se nastavují pouze po udělení výslovného souhlasu.</li>
+              <li style={liStyle}><strong>Resend, Inc.</strong> — odesílání transakčních e-mailů (ověření registrace, reset hesla, notifikace). USA. Právní základ přenosu: EU-US Data Privacy Framework.</li>
+              <li style={liStyle}><strong>Functional Software, Inc. (Sentry)</strong> — monitoring a logování chyb aplikace (IP adresa, verze prohlížeče, záznamy o chybách). USA. Právní základ: Art. 6 odst. 1 písm. f) GDPR (oprávněný zájem). Právní základ přenosu: EU-US Data Privacy Framework.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Se všemi zpracovateli máme uzavřeny smlouvy o zpracování osobních údajů (DPA) ve smyslu Art. 28 GDPR.
+            </p>
+          </>
         ),
       },
       {
-        heading: "10. Cookies",
+        heading: "10. Přenos údajů do třetích zemí",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk používá pouze nezbytné technické cookies (relace, jazyk, preference tmavého/světlého režimu). Nepoužíváme marketingové ani sledovací cookies třetích stran. Pro používání nezbytných cookies není nutný souhlas.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Údaje jsou uloženy na serverech v Evropské unii (Slovensko). Někteří naši zpracovatelé mohou zpracovávat údaje mimo EHP (USA, UK). Přenos údajů je zabezpečen prostřednictvím:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>EU-US Data Privacy Framework (rozhodnutí Evropské komise C(2023) 4745 ze dne 10. července 2023) — Google, Resend, Sentry</li>
+              <li style={liStyle}>Standard Contractual Clauses (SCC) + UK Addendum — Paddle</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Podrobný seznam příjemců je uveden v sekci 9.
+            </p>
+          </>
         ),
       },
       {
-        heading: "11. Kontakt",
+        heading: "11. Cookies",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Verifa.sk používá následující typy cookies:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              <strong>Nezbytné cookies (bez souhlasu):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Session cookie (next-auth.session-token) — přihlášení, platnost do zavření prohlížeče</li>
+              <li style={liStyle}>Jazykové nastavení — platnost 1 rok</li>
+              <li style={liStyle}>Preference tmavého/světlého režimu — platnost 1 rok</li>
+              <li style={liStyle}>Záznam cookie souhlasu (localStorage) — trvalý</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12, marginBottom: 12 }}>
+              <strong>Analytické cookies (pouze se souhlasem):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Google Analytics (_ga, _ga_*) — anonymizované statistiky návštěvnosti, platnost 2 roky. Nastavují se pouze po udělení výslovného souhlasu prostřednictvím cookie banneru.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Analytické cookies můžete kdykoli odmítnout prostřednictvím cookie banneru nebo vymazáním cookies ve vašem prohlížeči.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Při otázkách týkajících se ochrany osobních údajů nás kontaktujte na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. Máte také právo podat stížnost Úřadu na ochranu osobních údajů Slovenské republiky.
@@ -647,6 +843,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
             <li style={liStyle}><strong>Generált jelentések:</strong> a felhasználói fiók érvényességének idejére</li>
             <li style={liStyle}><strong>Hozzáférési naplók:</strong> 12 hónap (biztonsági okokból)</li>
             <li style={liStyle}><strong>Marketing hozzájárulás:</strong> a hozzájárulás visszavonásáig</li>
+            <li style={liStyle}><strong>Felhasználói fiók adatai:</strong> a fiók fennállásának idejére + a törlés utáni 30 napig</li>
           </ul>
         ),
       },
@@ -667,7 +864,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
               <li style={liStyle}><strong>Hozzájárulás visszavonásának joga</strong> — bármikor, a korábbi adatkezelés jogszerűségét nem érintően</li>
             </ul>
             <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-              Jogai érvényesítését e-mailben kérhetje a <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> címen.
+              Jogai érvényesítését e-mailben kérhetje a <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> címen. Kérésére indokolatlan késedelem nélkül, de legkésőbb a beérkezéstől számított 30 napon belül válaszolunk. Indokolt esetben a határidő további 60 nappal meghosszabbítható.
             </p>
           </>
         ),
@@ -685,23 +882,71 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Adattovábbítás harmadik országokba",
+        heading: "9. Személyes adatok címzettjei",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Az adatok az Európai Unión belüli szervereken tárolódnak. A fizetésfeldolgozást a Paddle (Merchant of Record) kezeli, amely az EGT-n kívül is dolgozhat fel adatokat a Standard Contractual Clauses (SCC) keretében. Más harmadik országokba történő adattovábbítás nem történik.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Az adatfeldolgozók listája:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}><strong>Paddle.com Market Ltd.</strong> — fizetésfeldolgozás és számlázás (UK/USA). Az adattovábbítás jogalapja: Standard Contractual Clauses (SCC) + UK Addendum.</li>
+              <li style={liStyle}><strong>Google Ireland Limited (Google Analytics 4)</strong> — webanalitika, anonimizált forgalmi adatok (USA). Az adattovábbítás jogalapja: EU-US Data Privacy Framework. Az analitikai sütik (_ga, _ga_*) csak kifejezett hozzájárulás után kerülnek beállításra.</li>
+              <li style={liStyle}><strong>Resend, Inc.</strong> — tranzakciós e-mailek küldése (regisztráció ellenőrzése, jelszó visszaállítása, értesítések). USA. Az adattovábbítás jogalapja: EU-US Data Privacy Framework.</li>
+              <li style={liStyle}><strong>Functional Software, Inc. (Sentry)</strong> — alkalmazáshibák figyelése és naplózása (IP-cím, böngészőverzió, hibanaplók). USA. Jogalap: GDPR 6. cikk (1) bekezdés f) pont (jogos érdek). Az adattovábbítás jogalapja: EU-US Data Privacy Framework.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Minden adatfeldolgozóval adatfeldolgozói szerződést (DPA) kötöttünk a GDPR 28. cikke alapján.
+            </p>
+          </>
         ),
       },
       {
-        heading: "10. Sütik",
+        heading: "10. Adattovábbítás harmadik országokba",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            A Verifa.sk csak szükséges technikai sütiket használ (munkamenet, nyelv, sötét/világos mód beállítása). Nem használunk harmadik féltől származó marketing vagy követő sütiket. A szükséges sütik használatához nem kell hozzájárulás.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Az adatok az Európai Unióban (Szlovákia) található szervereken vannak tárolva. Néhány adatfeldolgozónk az EGT-n kívül is dolgozhat fel adatokat (USA, UK). Az adattovábbítás biztonságát az alábbiak garantálják:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>EU-US Data Privacy Framework (Az Európai Bizottság 2023. július 10-i C(2023) 4745 határozata) — Google, Resend, Sentry</li>
+              <li style={liStyle}>Standard Contractual Clauses (SCC) + UK Addendum — Paddle</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              A címzettek részletes listáját a 9. rész tartalmazza.
+            </p>
+          </>
         ),
       },
       {
-        heading: "11. Kapcsolat",
+        heading: "11. Sütik",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              A Verifa.sk az alábbi típusú sütiket használja:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              <strong>Szükséges sütik (hozzájárulás nélkül):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Munkamenet süti (next-auth.session-token) — bejelentkezés, érvényes a böngésző bezárásáig</li>
+              <li style={liStyle}>Nyelvi beállítás — érvényes 1 évig</li>
+              <li style={liStyle}>Sötét/világos mód preferenciája — érvényes 1 évig</li>
+              <li style={liStyle}>Hozzájárulási süti rekord (localStorage) — tartós</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12, marginBottom: 12 }}>
+              <strong>Analitikai sütik (csak hozzájárulással):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Google Analytics (_ga, _ga_*) — anonimizált forgalmi statisztikák, érvényes 2 évig. Csak kifejezett hozzájárulás után kerülnek beállításra a süti banneren keresztül.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Az analitikai sütiket bármikor elutasíthatja a süti banneren keresztül, vagy a böngészőjében a sütik törlésével.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "12. Kapcsolat",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Személyes adatok védelmével kapcsolatos kérdésekben lépjen velünk kapcsolatba a <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> címen. Jogában áll panaszt tenni a Szlovák Köztársaság Személyes Adatok Védelméért Felelős Hivatalánál is.
@@ -786,6 +1031,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
             <li style={liStyle}><strong>Wygenerowane raporty:</strong> przez okres ważności konta użytkownika</li>
             <li style={liStyle}><strong>Logi dostępu:</strong> 12 miesięcy (powody bezpieczeństwa)</li>
             <li style={liStyle}><strong>Zgoda marketingowa:</strong> do wycofania zgody</li>
+            <li style={liStyle}><strong>Dane konta użytkownika:</strong> przez czas istnienia konta + 30 dni po jego usunięciu</li>
           </ul>
         ),
       },
@@ -806,7 +1052,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
               <li style={liStyle}><strong>Prawo do wycofania zgody</strong> — w dowolnym czasie bez wpływu na zgodność z prawem poprzedniego przetwarzania</li>
             </ul>
             <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
-              Swoje prawa mogą Państwo wykonać wysyłając e-mail na <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>.
+              Mogą Państwo realizować swoje prawa za pośrednictwem poczty e-mail na adres <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. Na żądanie odpowiemy bez zbędnej zwłoki, nie później niż w ciągu 30 dni od jego doręczenia. W uzasadnionych przypadkach termin ten może zostać przedłużony o kolejne 60 dni.
             </p>
           </>
         ),
@@ -824,23 +1070,71 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
-        heading: "9. Przekazywanie danych do państw trzecich",
+        heading: "9. Odbiorcy danych osobowych",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Dane są przechowywane na serwerach w Unii Europejskiej. Przetwarzanie płatności obsługuje Paddle (Merchant of Record), który może przetwarzać dane poza EOG zgodnie ze Standard Contractual Clauses (SCC). Nie odbywają się żadne inne transfery do państw trzecich.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Lista podmiotów przetwarzających:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}><strong>Paddle.com Market Ltd.</strong> — przetwarzanie płatności i fakturowanie (UK/USA). Podstawa prawna przekazania: Standard Contractual Clauses (SCC) + UK Addendum.</li>
+              <li style={liStyle}><strong>Google Ireland Limited (Google Analytics 4)</strong> — analityka internetowa, zanonimizowane dane o ruchu (USA). Podstawa prawna przekazania: EU-US Data Privacy Framework. Pliki cookie analityczne (_ga, _ga_*) są ustawiane tylko po wyrażeniu wyraźnej zgody.</li>
+              <li style={liStyle}><strong>Resend, Inc.</strong> — wysyłanie transakcyjnych e-maili (weryfikacja rejestracji, resetowanie hasła, powiadomienia). USA. Podstawa prawna przekazania: EU-US Data Privacy Framework.</li>
+              <li style={liStyle}><strong>Functional Software, Inc. (Sentry)</strong> — monitorowanie i logowanie błędów aplikacji (adres IP, wersja przeglądarki, logi błędów). USA. Podstawa prawna: Art. 6 ust. 1 lit. f) GDPR (uzasadniony interes). Podstawa prawna przekazania: EU-US Data Privacy Framework.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Z wszystkimi podmiotami przetwarzającymi zawarliśmy umowy o powierzeniu przetwarzania danych osobowych (DPA) w rozumieniu Art. 28 GDPR.
+            </p>
+          </>
         ),
       },
       {
-        heading: "10. Cookies",
+        heading: "10. Przekazywanie danych do państw trzecich",
         body: (
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            Verifa.sk używa tylko niezbędnych plików cookie technicznych (sesja, język, preferencja trybu ciemnego/jasnego). Nie używamy plików cookie marketingowych ani śledzących stron trzecich. Zgoda nie jest wymagana do stosowania niezbędnych plików cookie.
-          </p>
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Dane są przechowywane na serwerach w Unii Europejskiej (Słowacja). Niektórzy z naszych podmiotów przetwarzających mogą przetwarzać dane poza EOG (USA, UK). Przekazywanie danych jest zabezpieczone poprzez:
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>EU-US Data Privacy Framework (decyzja Komisji Europejskiej C(2023) 4745 z 10 lipca 2023) — Google, Resend, Sentry</li>
+              <li style={liStyle}>Standard Contractual Clauses (SCC) + UK Addendum — Paddle</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Szczegółowa lista odbiorców znajduje się w sekcji 9.
+            </p>
+          </>
         ),
       },
       {
-        heading: "11. Kontakt",
+        heading: "11. Pliki cookie",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              Verifa.sk używa następujących typów plików cookie:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 12 }}>
+              <strong>Niezbędne pliki cookie (bez zgody):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Plik cookie sesji (next-auth.session-token) — logowanie, ważność do zamknięcia przeglądarki</li>
+              <li style={liStyle}>Ustawienia językowe — ważność 1 rok</li>
+              <li style={liStyle}>Preferencja trybu ciemnego/jasnego — ważność 1 rok</li>
+              <li style={liStyle}>Zapis zgody na pliki cookie (localStorage) — stały</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12, marginBottom: 12 }}>
+              <strong>Analityczne pliki cookie (tylko za zgodą):</strong>
+            </p>
+            <ul style={ulStyle}>
+              <li style={liStyle}>Google Analytics (_ga, _ga_*) — zanonimizowane statystyki ruchu, ważność 2 lata. Ustawiane tylko po udzieleniu wyraźnej zgody za pośrednictwem banera plików cookie.</li>
+            </ul>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              Mogą Państwo w dowolnym momencie odrzucić analityczne pliki cookie za pośrednictwem banera plików cookie lub usuwając pliki cookie w swojej przeglądarce.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "12. Kontakt",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             W sprawach dotyczących ochrony danych osobowych prosimy o kontakt pod adresem <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a>. Mają Państwo również prawo do złożenia skargi do Urzędu Ochrony Danych Osobowych Republiki Słowackiej.
@@ -873,7 +1167,7 @@ export default async function PrivacyPage() {
 
         <section>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 32 }}>
-            {content.lastUpdated}: {new Date().toLocaleDateString(LOCALE_MAP[lang])}.
+            {content.lastUpdated}: 12. 8. 2026.
           </p>
         </section>
       </div>
