@@ -238,7 +238,12 @@ export async function POST(req: NextRequest) {
           companyName,
           selectedSources: sources as SourceType[],
           status: "PENDING",
-          attachmentsConfig: dbUser?.attachmentsConfig as any ?? undefined,
+          attachmentsConfig: (dbUser?.attachmentsConfig as any) ?? {
+            obchodny_register: true,
+            zivnostensky_register: true,
+            auditorska_sprava: false,
+            "uctovna_zavierka_a_poznámky": false,
+          },
           sources: {
             create: (sources as SourceType[]).map((source) => ({
               sourceType: source,
@@ -275,7 +280,12 @@ export async function POST(req: NextRequest) {
         rozhodnutiaDateFrom: dbUser?.rozhodnutiaDateFrom?.toISOString().split("T")[0] ?? null,
         vestnikDateFrom: dbUser?.vestnikDateFrom?.toISOString().split("T")[0] ?? null,
         reportLanguage: dbUser?.reportLanguage ?? "sk",
-        attachmentsConfig: dbUser?.attachmentsConfig as Record<string, boolean> | null ?? null,
+        attachmentsConfig: (dbUser?.attachmentsConfig as Record<string, boolean> | null) ?? {
+          obchodny_register: true,
+          zivnostensky_register: true,
+          auditorska_sprava: false,
+          "uctovna_zavierka_a_poznámky": false,
+        },
       });
     } catch (workerErr) {
       console.error("Worker enqueue failed", workerErr);
