@@ -21,19 +21,16 @@ export default function Analytics() {
     script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
     document.head.appendChild(script);
 
-    // Init dataLayer + config
+    // Init dataLayer + config (standard GA4 snippet)
     window.dataLayer = window.dataLayer || [];
-    function gtag(...args: any[]) {
-      window.dataLayer!.push(args);
-    }
-    gtag("js", new Date());
-    gtag("config", gaId, {
+    window.gtag = function gtag() {
+      window.dataLayer!.push(arguments);
+    };
+    (window.gtag as any)("js", new Date());
+    (window.gtag as any)("config", gaId, {
       anonymize_ip: true,
       send_page_view: true,
     });
-
-    // Expose gtag globally for analytics.ts
-    window.gtag = gtag;
   }, [gaId]);
 
   return null;
