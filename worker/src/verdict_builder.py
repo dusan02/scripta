@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Optional
 
-from src.llm_extractor import AuditVerdict, evaluate_audit_verdict, generate_cross_analysis, verify_report_quality
+from src.llm_extractor import AuditVerdict, EvidenceItem, evaluate_audit_verdict, generate_cross_analysis, verify_report_quality
 from src.llm_orchestrator import safe_llm_call, check_pro_model_available, get_chief_auditor_model
 from src.analytics import compute_financial_trends, compute_forensic_scorecard
 from src.db_repository import (
