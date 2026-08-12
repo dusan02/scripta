@@ -220,18 +220,29 @@ export async function seedFromRuz(ico: string) {
     ruzSyncedAt: new Date(),
   };
 
+  // Only update non-null fields — don't overwrite existing DB values with NULL
+  const companyUpdate: Record<string, any> = {};
+  for (const [k, v] of Object.entries(companyData)) {
+    if (v !== null && v !== undefined) companyUpdate[k] = v;
+  }
+
   await prisma.company.upsert({
     where: { ico },
     create: { ico, ...companyData },
-    update: companyData,
+    update: companyUpdate,
   });
 
   for (const s of stmts) {
     const { year: _year, ruzZavierkaId: _rz, ruzVykazId: _rv, ...stmtData } = s;
+    // Only update non-null fields — don't overwrite existing DB values (e.g. from worker PDF scraping) with NULL
+    const updateData: Record<string, any> = {};
+    for (const [k, v] of Object.entries(stmtData)) {
+      if (v !== null && v !== undefined) updateData[k] = v;
+    }
     await prisma.financialStatement.upsert({
       where: { companyIco_year: { companyIco: ico, year: s.year } },
       create: { companyIco: ico, ...s },
-      update: { ...stmtData },
+      update: updateData,
     });
   }
 
