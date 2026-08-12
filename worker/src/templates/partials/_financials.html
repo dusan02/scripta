@@ -758,11 +758,8 @@
             <tr class="bg-slate-100">
                 <th class="text-left py-1 px-2 font-bold text-slate-600">{{ i18n.col_item }}</th>
                 {% for stmt in stmts_sorted %}
-                <th class="py-1 px-2 font-bold text-slate-600">
-                    <div class="flex justify-end items-center">
-                        <span>{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</span>
-                        <span class="w-3 inline-block flex-shrink-0 ml-0.5"></span>
-                    </div>
+                <th class="py-1 px-2 font-bold text-slate-600 text-right">
+                    {{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}
                 </th>
                 {% endfor %}
             </tr>
@@ -781,11 +778,12 @@
                 (i18n.row_long_term_liab, 'longTermLiabilities', 'pl-4'),
                 (i18n.row_trade_payables, 'tradePayables', 'pl-8'),
             ] %}
-            <tr><td class="subsection-title-sm py-1" style="color: #94a3b8;">{{ i18n.assets }}</td>
-            {% for stmt in stmts_sorted %}
-            {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
-            <td class="py-0.5 px-2 text-right font-bold text-slate-600" style="color: #94a3b8;">{% if ta is not none %}{{ ta | format_number_millions }}{% else %}—{% endif %}</td>
-            {% endfor %}
+            <tr class="bg-slate-100">
+                <td class="subsection-title-sm py-1 px-2 font-bold text-slate-900">{{ i18n.assets }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
+                <td class="py-0.5 px-2 text-slate-900"><div class="flex justify-end items-center"><span class="font-bold">{% if ta is not none %}{{ ta | format_number_millions }}{% else %}—{% endif %}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5"></span></div></td>
+                {% endfor %}
             </tr>
             {% for label, field, padding_class in asset_rows %}
             <tr class="border-b border-slate-100">
@@ -802,22 +800,23 @@
                 {% endfor %}
             </tr>
             {% endfor %}
-            <tr><td class="subsection-title-sm py-1 pt-2" style="color: #94a3b8;">{{ i18n.capital_liabilities }}</td>
-            {% for stmt in stmts_sorted %}
-            {% set eq = stmt.equity if stmt.equity is defined else none %}
-            {% set stl = stmt.shortTermLiabilities if stmt.shortTermLiabilities is defined else none %}
-            {% set ltl = stmt.longTermLiabilities if stmt.longTermLiabilities is defined else none %}
-            {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
-            {# Súvaha sa musí vyrovnať: Aktíva = Pasíva.
-               Preferujeme totalAssets (ak je dostupné), aby sa zabránilo rounding rozdielom
-               medzi individuálne zaokrúhlenými komponentmi a raw súčtom. #}
-            {% set total_liab = (eq or 0) + (stl or 0) + (ltl or 0) if (eq is not none or stl is not none or ltl is not none) else none %}
-            {% if ta is not none and total_liab is not none and (ta - total_liab)|abs < 5000 %}
-            {# Ak je rozdiel < 5k €, ide o rounding artefakt — zobraz totalAssets #}
-            {% set total_liab = ta %}
-            {% endif %}
-            <td class="py-0.5 px-2 text-right font-bold" style="color: #94a3b8;">{% if total_liab is not none %}{{ total_liab | format_number_millions }}{% else %}—{% endif %}</td>
-            {% endfor %}
+            <tr class="bg-slate-100">
+                <td class="subsection-title-sm py-1 pt-2 px-2 font-bold text-slate-900">{{ i18n.capital_liabilities }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set eq = stmt.equity if stmt.equity is defined else none %}
+                {% set stl = stmt.shortTermLiabilities if stmt.shortTermLiabilities is defined else none %}
+                {% set ltl = stmt.longTermLiabilities if stmt.longTermLiabilities is defined else none %}
+                {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
+                {# Súvaha sa musí vyrovnať: Aktíva = Pasíva.
+                   Preferujeme totalAssets (ak je dostupné), aby sa zabránilo rounding rozdielom
+                   medzi individuálne zaokrúhlenými komponentmi a raw súčtom. #}
+                {% set total_liab = (eq or 0) + (stl or 0) + (ltl or 0) if (eq is not none or stl is not none or ltl is not none) else none %}
+                {% if ta is not none and total_liab is not none and (ta - total_liab)|abs < 5000 %}
+                {# Ak je rozdiel < 5k €, ide o rounding artefakt — zobraz totalAssets #}
+                {% set total_liab = ta %}
+                {% endif %}
+                <td class="py-0.5 px-2 text-slate-900"><div class="flex justify-end items-center"><span class="font-bold">{% if total_liab is not none %}{{ total_liab | format_number_millions }}{% else %}—{% endif %}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5"></span></div></td>
+                {% endfor %}
             </tr>
             {% for label, field, padding_class in liability_rows %}
             <tr class="border-b border-slate-100">

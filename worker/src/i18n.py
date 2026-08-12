@@ -240,7 +240,7 @@ I18N_STRINGS = {
         "row_long_term_liab": "Dlhodobé záväzky",
         "row_trade_payables": "Záväzky z obch. styku",
         "assets": "Aktíva",
-        "capital_liabilities": "Kapitál a záväzky",
+        "capital_liabilities": "Pasíva",
         "row_revenue_main": "Tržby z hlavnej činnosti",
         "row_operating_profit_est": "Prevádzkový zisk (odhad)",
         "row_net_profit": "Čistý zisk / strata",
