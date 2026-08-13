@@ -6,7 +6,7 @@ const RUZ_API = "https://www.registeruz.sk/cruz-public/api";
 const UA = "Verifa.sk/1.0 (+https://verifa.sk)";
 
 const ACTIV_OFFSET = 1;
-const PASIV_OFFSET = 79;
+const PASIV_OFFSET = 1;
 const INCOME_OFFSET = 1;
 
 // ── Parsing helpers ──
@@ -50,27 +50,21 @@ function getRow(tables: any[], idx: number, cislo: number, offset: number, cols:
 }
 
 function activVal(t: any[], r: number, cur = true): number | null {
-  const row = getRow(t, 0, r, ACTIV_OFFSET, 4);
+  const row = getRow(t, 0, r, ACTIV_OFFSET, 1);
   if (!row) return null;
-  const tgt = cur ? 2 : 3;
-  const ds = row.length > 4 ? row.length - 4 : 0;
-  return toFloat(row[ds + tgt]);
+  return toFloat(row[0]);
 }
 
 function pasivVal(t: any[], r: number, cur = true): number | null {
-  const row = getRow(t, 1, r, PASIV_OFFSET, 2);
+  const row = getRow(t, 1, r, PASIV_OFFSET, 1);
   if (!row) return null;
-  const tgt = cur ? 0 : 1;
-  const ds = row.length > 2 ? row.length - 2 : 0;
-  return toFloat(row[ds + tgt]);
+  return toFloat(row[0]);
 }
 
 function incomeVal(t: any[], r: number, cur = true): number | null {
-  const row = getRow(t, 2, r, INCOME_OFFSET, 2);
+  const row = getRow(t, 2, r, INCOME_OFFSET, 1);
   if (!row) return null;
-  const tgt = cur ? 0 : 1;
-  const ds = row.length > 2 ? row.length - 2 : 0;
-  return toFloat(row[ds + tgt]);
+  return toFloat(row[0]);
 }
 
 function identifyTables(tables: any[]): Record<string, number> {
@@ -161,15 +155,17 @@ export async function seedFromRuz(ico: string) {
 
     const zasobyPrev = activVal(ordered, 34, false);
     const pohladavkyPrev = activVal(ordered, 54, false);
-    const zavazkyPrev = pasivVal(ordered, 123, false);
+    const zavazkyPrev = pasivVal(ordered, 87, false);
 
     const zasoby = activVal(ordered, 34);
     const pohladavky = activVal(ordered, 54);
-    const zavazkyObchod = pasivVal(ordered, 123);
-    const zisk = hasIncome ? incomeVal(ordered, 61) : null;
-    const odpisy = hasIncome ? incomeVal(ordered, 21) : null;
+    const zavazkyObchod = pasivVal(ordered, 87);
+    const zisk = hasIncome ? incomeVal(ordered, 121) : null;
+    const odpisy = hasIncome ? incomeVal(ordered, 27) : null;
     const trzby = hasIncome ? incomeVal(ordered, 1) : null;
     const cogs = hasIncome ? incomeVal(ordered, 10) : null;
+    const profitBeforeTax = hasIncome ? incomeVal(ordered, 111) : null;
+    const incomeTax = hasIncome ? incomeVal(ordered, 113) : null;
 
     let ocf: number | null = null;
     if (zisk !== null && odpisy !== null) {
@@ -185,15 +181,16 @@ export async function seedFromRuz(ico: string) {
 
     stmts.push({
       year, totalAssets: activVal(ordered, 1), currentAssets: activVal(ordered, 33),
-      equity: pasivVal(ordered, 80), shortTermLiabilities: pasivVal(ordered, 122),
-      longTermLiabilities: pasivVal(ordered, 102), mainActivityRevenue: trzby,
+      equity: pasivVal(ordered, 3), shortTermLiabilities: pasivVal(ordered, 85),
+      longTermLiabilities: pasivVal(ordered, 89), mainActivityRevenue: trzby,
       grossProfit: hrubaMarza, netProfitLoss: zisk, cashAndEquivalents: activVal(ordered, 72),
       operatingCashFlow: ocf, staffCosts: hasIncome ? incomeVal(ordered, 15) : null,
       tradeReceivables: pohladavky, tradePayables: zavazkyObchod, inventory: zasoby,
       depreciation: odpisy, interestExpense: hasIncome ? incomeVal(ordered, 49) : null,
-      incomeTax: hasIncome ? incomeVal(ordered, 60) : null,
-      socialInsuranceLiabilities: pasivVal(ordered, 132), taxLiabilities: pasivVal(ordered, 133),
-      employeeLiabilities: pasivVal(ordered, 131), statementType: "SK_GAAP",
+      incomeTax,
+      profitBeforeTax,
+      socialInsuranceLiabilities: pasivVal(ordered, 95), taxLiabilities: pasivVal(ordered, 109),
+      employeeLiabilities: pasivVal(ordered, 91), statementType: "SK_GAAP",
       monthsInPeriod: 12, isConsolidated: false,
       ruzZavierkaId: z.id || null, ruzVykazId,
     });
