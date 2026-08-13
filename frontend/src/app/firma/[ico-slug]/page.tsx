@@ -199,7 +199,7 @@ export default async function CompanyPage({ params }: Params) {
                   <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Zamestnanci: {company.employeeCount}</span>
                 )}
                 {company.ownershipType && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{company.ownershipType}</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Druh vlastníctva: {company.ownershipType}</span>
                 )}
               </div>
             </div>
