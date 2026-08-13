@@ -62,8 +62,8 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
           </button>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={200} minHeight={200}>
-        <BarChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+      <ResponsiveContainer width="100%" height={240} minHeight={240}>
+        <BarChart data={data} margin={{ top: 0, right: 0, left: -15, bottom: 0 }}>
           <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={{ stroke: "var(--border)" }} />
           <YAxis tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : ""} tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--border)" }} width={45} />
           <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
