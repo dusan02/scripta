@@ -156,6 +156,7 @@ const hu: Dict = {
   "firma.ostatnePasiva": "Egyéb források",
   "firma.analyzaTrendu": "Trendelemzés",
   "firma.udajeNedostupne": "A mérlegadatok nem állnak rendelkezésre",
+  "firma.orsrUdalosti": "ORSR események",
   "firma.trzby": "Árbevétel",
   "firma.hrubaMarza": "Bruttó árrés",
   "firma.osobneNaklady": "Személyi jellegű ráfordítások",

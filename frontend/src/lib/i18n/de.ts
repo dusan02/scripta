@@ -83,6 +83,7 @@ const de: Dict = {
   "firma.ostatnePasiva": "Sonstige Passiva",
   "firma.analyzaTrendu": "Trendanalyse",
   "firma.udajeNedostupne": "Bilanzdaten nicht verfügbar",
+  "firma.orsrUdalosti": "ORSR Ereignisse",
   "firma.trzby": "Umsatz",
   "firma.hrubaMarza": "Rohergebnis",
   "firma.osobneNaklady": "Personalkosten",
