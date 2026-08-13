@@ -184,13 +184,13 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={isPrint ? 240 : 310} minHeight={isPrint ? 240 : 310}>
+    <ResponsiveContainer width="100%" height={isPrint ? 280 : 310} minHeight={isPrint ? 280 : 310}>
       <Sankey
         data={sankeyData}
-        nodePadding={isPrint ? 10 : 18}
+        nodePadding={isPrint ? 8 : 18}
         nodeWidth={8}
         linkCurvature={0.4}
-        margin={isPrint ? { top: 8, right: 70, bottom: 8, left: 70 } : { top: 10, right: 80, bottom: 10, left: 80 }}
+        margin={isPrint ? { top: 5, right: 60, bottom: 5, left: 60 } : { top: 10, right: 80, bottom: 10, left: 80 }}
         node={(props: any) => {
           const { x, y, width, height, index, payload } = props;
           const color = payload?.color || "#94a3b8";
@@ -224,7 +224,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
                 y={y + height / 2 - (isMultiLine ? 6 : 0)}
                 dy=".35em"
                 textAnchor={textAnchor}
-                fontSize={10}
+                fontSize={isPrint ? 8 : 10}
                 fill="var(--text)"
               >
                 <tspan x={labelX} dy="0">{line1}</tspan>
@@ -232,10 +232,10 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
               </text>
               <text
                 x={labelX}
-                y={y + height / 2 + (isMultiLine ? 16 : 13)}
+                y={y + height / 2 + (isMultiLine ? 14 : 11)}
                 dy=".35em"
                 textAnchor={textAnchor}
-                fontSize={9}
+                fontSize={isPrint ? 7 : 9}
                 fill="var(--text-muted)"
               >
                 {fmtEUR(value)}

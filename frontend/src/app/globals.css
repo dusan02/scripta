@@ -771,17 +771,20 @@ textarea:focus-visible {
   .grid-cols-2.md\:grid-cols-4 > div > div:last-child { margin-top: 1px !important; }
   .grid-cols-2.md\:grid-cols-4 > div > div:last-child > p { font-size: 8px !important; }
 
-  /* Print sections: balance uses full page, P&L stays compact */
-  .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  /* Print sections: chart on top, table below, stacked vertically */
+  .print-section { display: flex !important; flex-direction: column !important; gap: 16px !important; }
   .print-section > * { width: 100% !important; }
 
-  /* Balance section (page 1): Sankey chart, table below */
+  /* Chart cards in print: fixed height with overflow hidden */
+  .print-section .rounded-2xl { overflow: hidden !important; }
+  .print-section .recharts-wrapper { overflow: hidden !important; }
+  .print-section .recharts-surface { overflow: hidden !important; }
+
+  /* Balance section (page 1): Sankey chart */
   .print-section:not(.print-break-before) .recharts-responsive-container {
-    height: 240px !important;
-    min-height: 240px !important;
-  }
-  .print-section:not(.print-break-before) .recharts-surface {
-    overflow: hidden !important;
+    height: 280px !important;
+    min-height: 280px !important;
+    max-height: 280px !important;
   }
 
   /* P&L section (page 2): bar chart bigger, table below */
@@ -791,9 +794,15 @@ textarea:focus-visible {
     min-height: 220px !important;
   }
 
-  /* Smaller chart labels in print to fit inside margins */
+  /* Smaller chart labels in print to fit inside container */
   .print-section .recharts-surface text { font-size: 8px !important; }
   .print-section .recharts-surface tspan { font-size: 7px !important; }
+
+  /* Sankey-specific: constrain SVG viewBox content */
+  .print-section:not(.print-break-before) .recharts-wrapper {
+    height: 280px !important;
+    max-height: 280px !important;
+  }
 
   /* Center chart cards and their title */
   .print-section .rounded-2xl { text-align: center !important; }
