@@ -297,7 +297,7 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Financial ratios — indebtedness & current liquidity */}
         {stmts.length > 0 && (
-          <div className="mb-6 sm:mb-8">
+          <div className="mb-6 sm:mb-8 print-break-before">
             <ChartCard title="Finančné ukazovatele">
               <FinancialRatios stmts={stmts} />
             </ChartCard>

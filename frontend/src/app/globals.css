@@ -750,33 +750,37 @@ textarea:focus-visible {
 
   /* Reset layout for print */
   body { background: white !important; color: black !important; }
-  .max-w-\[1200px\] { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  .max-w-\[1200px\] { max-width: 100% !important; padding: 0 8px !important; margin: 0 !important; }
 
   /* Force all text to black for readability */
   * { color: black !important; border-color: #ccc !important; }
 
   /* Compact spacing */
-  .mb-4, .mb-6, .mb-8 { margin-bottom: 8px !important; }
+  .mb-4 { margin-bottom: 6px !important; }
+  .mb-6, .mb-8 { margin-bottom: 10px !important; }
   .mb-2 { margin-bottom: 4px !important; }
   .py-6, .py-8 { padding-top: 4px !important; padding-bottom: 4px !important; }
-  .gap-4, .gap-2 { gap: 8px !important; }
+  .gap-4 { gap: 12px !important; }
+  .gap-2 { gap: 6px !important; }
+  .p-4, .p-5 { padding: 10px !important; }
+  .rounded-2xl { border-radius: 6px !important; }
 
-  /* Force grid to single column for print */
-  .grid { display: block !important; }
-  .grid > div { margin-bottom: 8px !important; }
+  /* Keep 2-column grid for chart+table sections */
+  .lg\:grid-cols-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
 
   /* Smaller fonts for print */
-  table { font-size: 10px !important; }
+  table { font-size: 9px !important; }
   .text-xs { font-size: 10px !important; }
   .text-sm { font-size: 11px !important; }
-  .text-\[10px\] { font-size: 9px !important; }
+  .text-\[10px\] { font-size: 8px !important; }
 
-  /* Hide charts (canvas/svg don't print well) */
-  canvas, svg { display: none !important; }
+  /* Charts: constrain height so they don't overflow */
+  .recharts-wrapper, .recharts-surface { max-height: 200px !important; overflow: visible !important; }
 
-  /* Page break control: max 2 pages */
-  .print-page-break { page-break-before: always; }
+  /* Page break: balance sheet + P&L on page 1, ratios on page 2 */
+  .print-break-before { page-break-before: always; }
 
-  /* Avoid breaking inside tables */
+  /* Avoid breaking inside sections */
   table, tr, td, th { page-break-inside: avoid; }
+  .rounded-2xl { page-break-inside: avoid; }
 }
