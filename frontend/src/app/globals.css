@@ -745,15 +745,12 @@ textarea:focus-visible {
 
 /* ── Print: 2-page PDF layout ── */
 @media print {
-  /* Hide non-essential elements */
-  header, nav, .no-print { display: none !important; }
-
   /* Reset layout for print */
   body { background: white !important; color: black !important; }
   .max-w-\[1200px\] { max-width: 100% !important; padding: 0 8px !important; margin: 0 !important; }
 
   /* Force all text to black for readability */
-  * { color: black !important; border-color: #ccc !important; }
+  *, *::before, *::after { color: black !important; border-color: #ccc !important; }
 
   /* Compact spacing */
   .mb-4 { margin-bottom: 6px !important; }
@@ -762,11 +759,8 @@ textarea:focus-visible {
   .py-6, .py-8 { padding-top: 4px !important; padding-bottom: 4px !important; }
   .gap-4 { gap: 12px !important; }
   .gap-2 { gap: 6px !important; }
-  .p-4, .p-5 { padding: 10px !important; }
+  .p-4, .p-5 { padding: 8px !important; }
   .rounded-2xl { border-radius: 6px !important; }
-
-  /* Keep 2-column grid for chart+table sections */
-  .lg\:grid-cols-2 { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
 
   /* Smaller fonts for print */
   table { font-size: 9px !important; }
@@ -774,13 +768,28 @@ textarea:focus-visible {
   .text-sm { font-size: 11px !important; }
   .text-\[10px\] { font-size: 8px !important; }
 
-  /* Charts: constrain height so they don't overflow */
-  .recharts-wrapper, .recharts-surface { max-height: 200px !important; overflow: visible !important; }
+  /* Metric cards: keep 4 columns, compact */
+  .grid-cols-2.md\:grid-cols-4 { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
 
-  /* Page break: balance sheet + P&L on page 1, ratios on page 2 */
+  /* Print sections (balance, P&L): single column, chart on top, table below */
+  .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  .print-section > * { width: 100% !important; margin-bottom: 0 !important; }
+
+  /* Chart cards in print */
+  .print-section .recharts-responsive-container { height: 140px !important; min-height: 0 !important; }
+  .print-section .recharts-wrapper, .print-section .recharts-surface { height: 100% !important; max-height: 140px !important; }
+
+  /* Reduce chart margins/padding for print */
+  .print-section .recharts-surface { overflow: visible !important; }
+
+  /* Page break: P&L starts on page 2 */
   .print-break-before { page-break-before: always; }
 
   /* Avoid breaking inside sections */
   table, tr, td, th { page-break-inside: avoid; }
-  .rounded-2xl { page-break-inside: avoid; }
+  .rounded-2xl, .print-section, .print-section > * { page-break-inside: avoid; }
+
+  /* Hide non-essential elements — MUST be last to win specificity */
+  header, nav, .no-print { display: none !important; }
+  html body .no-print { display: none !important; }
 }

@@ -273,7 +273,7 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Balance Sheet section — chart left, table right */}
         {balanceData && balanceData.totalAssets != null && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section">
             <ChartCard title="Štruktúra súvahy">
               <BalanceSankeyChart data={balanceData} />
             </ChartCard>
@@ -285,7 +285,7 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Profit and Loss section — chart left, table right */}
         {chartData.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section print-break-before">
             <ChartCard title="Tržby a zisk v čase">
               <RevenueProfitChart data={chartData} />
             </ChartCard>
@@ -297,7 +297,7 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Financial ratios — indebtedness & current liquidity */}
         {stmts.length > 0 && (
-          <div className="mb-6 sm:mb-8 print-break-before">
+          <div className="mb-6 sm:mb-8">
             <ChartCard title="Finančné ukazovatele">
               <FinancialRatios stmts={stmts} />
             </ChartCard>
