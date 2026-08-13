@@ -762,25 +762,67 @@ textarea:focus-visible {
   .p-4, .p-5 { padding: 8px !important; }
   .rounded-2xl { border-radius: 6px !important; }
 
-  /* Smaller fonts for print */
-  table { font-size: 9px !important; }
-  .text-xs { font-size: 10px !important; }
-  .text-sm { font-size: 11px !important; }
-  .text-\[10px\] { font-size: 8px !important; }
-
-  /* Metric cards: keep 4 columns, compact */
-  .grid-cols-2.md\:grid-cols-4 { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
-
-  /* Print sections (balance, P&L): single column, chart on top, table below */
+  /* Print sections: balance uses full page, P&L stays compact */
   .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
-  .print-section > * { width: 100% !important; margin-bottom: 0 !important; }
 
-  /* Chart cards in print */
-  .print-section .recharts-responsive-container { height: 140px !important; min-height: 0 !important; }
-  .print-section .recharts-wrapper, .print-section .recharts-surface { height: 100% !important; max-height: 140px !important; }
+  /* Balance section (page 1): fill page, Sankey grows, table pushed to bottom */
+  .print-section:not(.print-break-before) {
+    min-height: 65vh;
+    justify-content: flex-start !important;
+  }
+  .print-section:not(.print-break-before) > *:first-child {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 260px !important;
+    max-height: 420px !important;
+  }
+  .print-section:not(.print-break-before) > *:last-child {
+    flex: 0 0 auto !important;
+  }
+  .print-section:not(.print-break-before) .recharts-responsive-container {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .print-section:not(.print-break-before) .recharts-wrapper,
+  .print-section:not(.print-break-before) .recharts-surface {
+    height: 100% !important;
+    width: 100% !important;
+  }
 
-  /* Reduce chart margins/padding for print */
-  .print-section .recharts-surface { overflow: visible !important; }
+  /* P&L section (page 2): fill page, bar chart grows, table pushed to bottom */
+  .print-section.print-break-before {
+    min-height: 65vh;
+    justify-content: flex-start !important;
+    page-break-before: always;
+  }
+  .print-section.print-break-before > *:first-child {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 220px !important;
+    max-height: 460px !important;
+  }
+  .print-section.print-break-before > *:last-child {
+    flex: 0 0 auto !important;
+  }
+  .print-section.print-break-before .recharts-responsive-container {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .print-section.print-break-before .recharts-wrapper,
+  .print-section.print-break-before .recharts-surface {
+    height: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Financial ratios: keep with P&L on page 2, compact */
+  .print-break-before + .mb-6, .print-break-before + .mb-8 {
+    margin-top: 10px !important;
+    page-break-before: avoid;
+  }
 
   /* Page break: P&L starts on page 2 */
   .print-break-before { page-break-before: always; }
