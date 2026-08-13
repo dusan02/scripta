@@ -772,7 +772,12 @@ textarea:focus-visible {
   .grid-cols-2.md\:grid-cols-4 > div > div:last-child > p { font-size: 8px !important; }
 
   /* Print sections: balance uses full page, P&L stays compact */
-  .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; align-items: center !important; }
+  .print-section > * { width: 100% !important; }
+
+  /* Center charts inside their cards */
+  .print-section .recharts-responsive-container { margin: 0 auto !important; }
+  .print-section .recharts-wrapper { margin: 0 auto !important; }
 
   /* Balance section (page 1): Sankey chart bigger, table below */
   .print-section:not(.print-break-before) > *:first-child {
