@@ -15,6 +15,7 @@ import { fmtEUR, num } from "@/lib/format";
 import { calcTrend } from "@/lib/trend";
 import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
+import { getServerSession } from "@/lib/auth";
 import { getLangFromHeaders, generateFirmaMetadata } from "@/lib/seo";
 import { RelatedFirms } from "@/components/related-firms";
 import { VestnikEvents } from "@/components/vestnik-events";
@@ -56,6 +57,9 @@ export default async function CompanyPage({ params }: Params) {
 
   const company = await getCompanyData(parsed.ico);
   if (!company) notFound();
+
+  const session = await getServerSession();
+  const isLoggedIn = !!session?.user?.id;
 
   const persons = company.companyPersons ?? [];
 
@@ -138,9 +142,15 @@ export default async function CompanyPage({ params }: Params) {
             >
               Report →
             </Link>
-            <Link href="/login" className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text)" }}>
-              Prihlásiť sa
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text)" }}>
+                Dashboard
+              </Link>
+            ) : (
+              <Link href="/login" className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text)" }}>
+                Prihlásiť sa
+              </Link>
+            )}
           </div>
         </div>
       </header>
