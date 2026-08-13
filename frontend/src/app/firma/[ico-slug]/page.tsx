@@ -185,12 +185,17 @@ export default async function CompanyPage({ params }: Params) {
                   </p>
                 </div>
               )}
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Zdroje dát: ORSR · RÚZ · Obchodný vestník
-                {latest?.createdAt && ` · Aktualizované: ${new Date(latest.createdAt).toLocaleDateString("sk-SK")}`}
-                {latest?.year && ` · Posledná závierka: ${latest.year}`}
-                {company.sizeCategory && ` · ${company.sizeCategory}`}
-              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {["ORSR", "RÚZ", "Obchodný vestník"].map(src => (
+                  <span key={src} className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{src}</span>
+                ))}
+                {latest?.year && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Závierka {latest.year}</span>
+                )}
+                {company.sizeCategory && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{company.sizeCategory}</span>
+                )}
+              </div>
             </div>
           );
         })()}
@@ -203,11 +208,11 @@ export default async function CompanyPage({ params }: Params) {
               label="Zisk / Strata"
               value={fmtEUR(latest?.netProfitLoss)}
               sub={latest ? `rok ${latest.year}` : ""}
-              color="#3b82f6"
+              color="#10b981"
               trend={trends.profit}
             />
-            <MetricCard label="Celkové aktíva" value={fmtEUR(latest?.totalAssets)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.assets} />
-            <MetricCard label="Vlastné imanie" value={fmtEUR(latest?.equity)} sub={latest ? `rok ${latest.year}` : ""} color="#8b5cf6" trend={trends.equity} />
+            <MetricCard label="Celkové aktíva" value={fmtEUR(latest?.totalAssets)} sub={latest ? `rok ${latest.year}` : ""} color="#8b5cf6" trend={trends.assets} />
+            <MetricCard label="Vlastné imanie" value={fmtEUR(latest?.equity)} sub={latest ? `rok ${latest.year}` : ""} color="#f59e0b" trend={trends.equity} />
           </div>
         ) : (
           <div className="rounded-lg p-4 mb-6 sm:mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>

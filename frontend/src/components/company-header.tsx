@@ -37,7 +37,7 @@ export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; l
         {company.establishedAt && <span><strong>{t("firma.zalozena")}:</strong> {fmtYear(company.establishedAt)}</span>}
         {company.naceText && <span><strong>{t("firma.predmetCinnosti")}:</strong> {company.naceText}</span>}
       </div>
-      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+      <p className="sr-only">
         {t("company.desc", { name, ico: company.ico, city: cityPart, legalForm: legalFormPart, established: establishedPart, nace: nacePart })}{latestYearPart}
       </p>
     </div>
