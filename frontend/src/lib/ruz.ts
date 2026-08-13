@@ -200,11 +200,7 @@ function parseStatement(
   const depreciation = hasIncome
     ? (val(income, INCOME_ROWS.depreciation) ?? val(income, INCOME_ROWS.depreciationOld))
     : null;
-  const grossProfit = hasIncome
-    ? (mainActivityRevenue !== null && cogs !== null
-      ? mainActivityRevenue - cogs
-      : val(income, INCOME_ROWS.grossProfit))
-    : null;
+  const grossProfit = hasIncome ? val(income, INCOME_ROWS.grossProfit) : null;
   const interestExpense = hasIncome ? val(income, INCOME_ROWS.interestExpense) : null;
   const profitBeforeTax = hasIncome ? val(income, INCOME_ROWS.profitBeforeTax) : null;
   const incomeTax = hasIncome ? val(income, INCOME_ROWS.incomeTax) : null;
