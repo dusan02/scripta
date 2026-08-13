@@ -337,7 +337,7 @@ export function generateFirmaMetadata(name: string, ico: string, city: string | 
   const alternates = getHreflangAlternates(firmaPath);
 
   return {
-    title,
+    title: { absolute: title },
     description,
     alternates: {
       canonical: canonicalUrl,

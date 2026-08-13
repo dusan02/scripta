@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force text-right alignment on table cells — override any inherited center */
+table .text-right { text-align: right !important; }
+table .text-left { text-align: left !important; }
+
+/* Formula tooltip for financial ratio rows */
+.formula-tooltip-text {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: 100;
+  background: var(--text);
+  color: var(--bg);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+  width: max-content;
+  max-width: 280px;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  pointer-events: none;
+  text-decoration: none;
+  font-weight: 400;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.formula-tooltip:hover .formula-tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+.formula-tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  border: 5px solid transparent;
+  border-top-color: var(--text);
+}
+
 @layer base {
   :root {
     /* ── Color palette (defined once) ── */
@@ -744,6 +784,10 @@ textarea:focus-visible {
 }
 
 /* ── Print: 2-page PDF layout ── */
+
+/* Print-only elements: hidden on screen, shown in print */
+.print-only-logo, .print-only-footer { display: none; }
+
 @page {
   margin: 12mm 10mm 16mm 10mm;
 }
@@ -753,6 +797,10 @@ textarea:focus-visible {
   body { background: white !important; color: black !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .max-w-\[1200px\] { max-width: 100% !important; padding: 0 8px !important; margin: 0 !important; }
+
+  /* Print-only logo: fixed position to appear on every page top-right */
+  .print-only-logo { display: none; }
+  .print-only-footer { display: none; }
 
   /* Force all text to black for readability */
   *, *::before, *::after { color: black !important; border-color: #ccc !important; }
@@ -789,16 +837,22 @@ textarea:focus-visible {
   .print-section .recharts-surface text { font-size: 8px !important; }
   .print-section .recharts-surface tspan { font-size: 7px !important; }
 
-  /* Center chart cards and their title */
-  .print-section .rounded-2xl { text-align: center !important; }
+  /* Center chart card titles only (not table cells) */
   .print-section .rounded-2xl > h3 { text-align: center !important; }
 
   /* Page break: P&L starts on page 2 */
   .print-break-before { page-break-before: always; }
   .print-break-before-avoid { page-break-before: avoid !important; }
 
-  /* Avoid breaking inside tables */
-  table, tr, td, th { page-break-inside: avoid; }
+  /* Avoid breaking inside tables and chart cards */
+  table, tr, td, th { page-break-inside: avoid; break-inside: avoid; }
+  .print-section .rounded-2xl { page-break-inside: avoid; break-inside: avoid; }
+
+  /* Force table cell alignment in print — override any inherited center */
+  .print-section table td.text-right,
+  .print-section table th.text-right { text-align: right !important; }
+  .print-section table td.text-left,
+  .print-section table th.text-left { text-align: left !important; }
 
   /* Compact tables in print */
   .print-section table { font-size: 9px !important; }
@@ -813,4 +867,33 @@ textarea:focus-visible {
   /* Hide non-essential elements — MUST be last to win specificity */
   header, nav, .no-print { display: none !important; }
   html body .no-print { display: none !important; }
+
+  /* Print-only logo and footer — show only in print, fixed on every page */
+  .print-only-logo {
+    display: block !important;
+    position: fixed;
+    top: 2mm;
+    right: 10mm;
+    z-index: 100;
+  }
+  .print-only-logo img {
+    height: 28px;
+    width: auto;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .print-only-footer {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    bottom: 4mm;
+    left: 10mm;
+    right: 10mm;
+    border-top: 1px solid #ccc;
+    padding-top: 2mm;
+    font-size: 8px;
+    color: #888 !important;
+    z-index: 100;
+  }
 }

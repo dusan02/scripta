@@ -4,55 +4,107 @@ import { fmtNum } from "@/lib/format";
 import { useT } from "@/components/LanguageProvider";
 
 // ═══════════════════════════════════════════════════════════════
-// Shared table renderer
+// Unified base table — shared by all financial tables (DRY)
 // ═══════════════════════════════════════════════════════════════
 
-interface TableRow {
+interface BaseTableRow {
   label: string;
-  key: string;
+  tooltip?: string;
   bold?: boolean;
+  renderValue: (stmt: any) => React.ReactNode;
 }
 
-function FinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows: TableRow[]; sectionTitle?: string }) {
+const TABLE_BASE = "w-full border-collapse";
+const TH_LABEL = "text-left py-1.5 px-2 font-semibold whitespace-nowrap";
+const TH_VALUE = "text-right py-1.5 px-1.5 font-semibold whitespace-nowrap";
+const TD_LABEL = "text-left py-1.5 px-2";
+const TD_VALUE = "text-right py-1.5 px-1.5 whitespace-nowrap tabular-nums font-mono";
+
+// Tooltip styles for rows with formula hints
+const TOOLTIP_STYLE: React.CSSProperties = {
+  cursor: "help",
+  textDecoration: "underline",
+  textDecorationColor: "var(--border)",
+  textDecorationStyle: "dotted",
+  textUnderlineOffset: "3px",
+  position: "relative" as const,
+};
+
+function FormulaTooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="formula-tooltip"
+      style={TOOLTIP_STYLE}
+      title={text}
+    >
+      {children}
+      <span className="formula-tooltip-text">{text}</span>
+    </span>
+  );
+}
+
+function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows: BaseTableRow[]; sectionTitle?: string }) {
   const t = useT();
   const sorted = [...stmts].sort((a, b) => a.year - b.year);
+  const colWidth = `${70 / sorted.length}%`;
 
   return (
     <div>
       {sectionTitle && (
         <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
       )}
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse", width: "100%", minWidth: sorted.length > 4 ? 500 : "auto" }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid var(--border)" }}>
-              <th className="text-left py-1.5 px-2 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
+      <table className={TABLE_BASE} style={{ fontSize: 12, minWidth: sorted.length > 4 ? 480 : "auto" }}>
+        <colgroup>
+          <col style={{ width: "30%" }} />
+          {sorted.map((s) => (
+            <col key={s.year} style={{ width: colWidth }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr style={{ borderBottom: "2px solid var(--border)" }}>
+            <th className={TH_LABEL} style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
+            {sorted.map(s => (
+              <th key={s.year} className={TH_VALUE} style={{ color: "var(--text-muted)" }}>{s.year}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+              <td
+                className={TD_LABEL}
+                style={{
+                  color: row.bold ? "var(--text)" : "var(--text-secondary)",
+                  fontWeight: row.bold ? 700 : 400,
+                  ...(row.tooltip ? TOOLTIP_STYLE : {}),
+                }}
+              >
+                {row.tooltip ? <FormulaTooltip text={row.tooltip}>{row.label}</FormulaTooltip> : row.label}
+              </td>
               {sorted.map(s => (
-                <th key={s.year} className="text-right py-1.5 px-2.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: row.bold ? "var(--text)" : "var(--text-secondary)", fontWeight: row.bold ? 700 : 400 }}>{row.label}</td>
-                {sorted.map(s => (
-                  <td key={s.year} className="text-right py-1.5 px-2.5 whitespace-nowrap" style={{
+                <td
+                  key={s.year}
+                  className={TD_VALUE}
+                  style={{
                     color: "var(--text)",
-                    fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
                     fontVariantNumeric: "tabular-nums",
                     fontWeight: row.bold ? 700 : 400,
-                  }}>
-                    {fmtNum(s[row.key])}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  }}
+                >
+                  {row.renderValue(s)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
+}
+
+// Helper: create a simple row that reads a key and formats with fmtNum
+function dataRow(label: string, key: string, bold?: boolean): BaseTableRow {
+  return { label, bold, renderValue: (s) => fmtNum(s[key]) };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -61,27 +113,27 @@ function FinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows: Tab
 
 export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
   const t = useT();
-  const ASSETS_ROWS: TableRow[] = [
-    { label: t("firma.celkoveAktiva"), key: "totalAssets", bold: true },
-    { label: t("firma.neobeznyMajetok"), key: "nonCurrentAssets" },
-    { label: t("firma.obeznyMajetok"), key: "currentAssets" },
-    { label: t("firma.zasoby"), key: "inventory" },
-    { label: t("firma.pohladavky"), key: "tradeReceivables" },
-    { label: t("firma.cashEkvivalenty"), key: "cashAndEquivalents" },
+  const ASSETS_ROWS: BaseTableRow[] = [
+    dataRow(t("firma.celkoveAktiva"), "totalAssets", true),
+    dataRow(t("firma.neobeznyMajetok"), "nonCurrentAssets"),
+    dataRow(t("firma.obeznyMajetok"), "currentAssets"),
+    dataRow(t("firma.zasoby"), "inventory"),
+    dataRow(t("firma.pohladavky"), "tradeReceivables"),
+    dataRow(t("firma.cashEkvivalenty"), "cashAndEquivalents"),
   ];
-  const LIABILITIES_ROWS: TableRow[] = [
-    { label: t("firma.vlastneImanie"), key: "equity", bold: true },
-    { label: t("firma.zakladneImanie"), key: "shareCapital" },
-    { label: t("firma.kratkodobeZavazky"), key: "shortTermLiabilities" },
-    { label: t("firma.zavazkyZObchod"), key: "tradePayables" },
-    { label: t("firma.dlhodobeZavazky"), key: "longTermLiabilities" },
+  const LIABILITIES_ROWS: BaseTableRow[] = [
+    dataRow(t("firma.vlastneImanie"), "equity", true),
+    dataRow(t("firma.zakladneImanie"), "shareCapital"),
+    dataRow(t("firma.kratkodobeZavazky"), "shortTermLiabilities"),
+    dataRow(t("firma.zavazkyZObchod"), "tradePayables"),
+    dataRow(t("firma.dlhodobeZavazky"), "longTermLiabilities"),
   ];
 
   return (
     <div>
-      <FinancialTable stmts={stmts} rows={ASSETS_ROWS} sectionTitle={t("firma.aktiva")} />
+      <BaseFinancialTable stmts={stmts} rows={ASSETS_ROWS} sectionTitle={t("firma.aktiva")} />
       <div className="mt-2" />
-      <FinancialTable stmts={stmts} rows={LIABILITIES_ROWS} sectionTitle={t("firma.pasiva")} />
+      <BaseFinancialTable stmts={stmts} rows={LIABILITIES_ROWS} sectionTitle={t("firma.pasiva")} />
     </div>
   );
 }
@@ -92,19 +144,19 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
 
 export function ProfitLossTable({ stmts }: { stmts: any[] }) {
   const t = useT();
-  const PL_ROWS: TableRow[] = [
-    { label: t("firma.trzby"), key: "mainActivityRevenue", bold: true },
-    { label: t("firma.prevadzkoveNaklady"), key: "operatingCosts" },
-    { label: t("firma.hrubaMarza"), key: "grossProfit" },
-    { label: t("firma.osobneNaklady"), key: "staffCosts" },
-    { label: t("firma.odpisy"), key: "depreciation" },
-    { label: t("firma.ziskPredZdanenim"), key: "profitBeforeTax" },
-    { label: t("firma.uroky"), key: "interestExpense" },
-    { label: t("firma.danZPrjimu"), key: "incomeTax" },
-    { label: t("firma.ziskStrata"), key: "netProfitLoss", bold: true },
-    { label: t("firma.cashFlowPrevadzky"), key: "operatingCashFlow" },
+  const PL_ROWS: BaseTableRow[] = [
+    dataRow(t("firma.trzby"), "mainActivityRevenue", true),
+    dataRow(t("firma.prevadzkoveNaklady"), "operatingCosts"),
+    dataRow(t("firma.hrubaMarza"), "grossProfit"),
+    dataRow(t("firma.osobneNaklady"), "staffCosts"),
+    dataRow(t("firma.odpisy"), "depreciation"),
+    dataRow(t("firma.ziskPredZdanenim"), "profitBeforeTax"),
+    dataRow(t("firma.uroky"), "interestExpense"),
+    dataRow(t("firma.danZPrjimu"), "incomeTax"),
+    dataRow(t("firma.ziskStrata"), "netProfitLoss", true),
+    dataRow(t("firma.cashFlowPrevadzky"), "operatingCashFlow"),
   ];
-  return <FinancialTable stmts={stmts} rows={PL_ROWS} />;
+  return <BaseFinancialTable stmts={stmts} rows={PL_ROWS} />;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -164,59 +216,25 @@ function fmtRatio(v: number | null): string {
 
 export function FinancialRatios({ stmts }: { stmts: any[] }) {
   const t = useT();
-  const sorted = [...stmts].sort((a, b) => a.year - b.year);
 
-  const ratioRows: { label: string; tooltip: string; compute: (s: any) => number | null; fmt: (v: number | null) => string }[] = [
+  const ratioRows: BaseTableRow[] = [
     {
       label: t("firma.zadlzenost"),
       tooltip: t("firma.zadlzenostFormula"),
-      compute: (s) => {
+      renderValue: (s) => {
         const stl = toNum(s.shortTermLiabilities);
         const ltl = toNum(s.longTermLiabilities);
         const ta = toNum(s.totalAssets);
-        if (stl == null || ltl == null || ta == null) return null;
-        return safeDiv(stl + ltl, ta);
+        if (stl == null || ltl == null || ta == null) return fmtPct(null);
+        return fmtPct(safeDiv(stl + ltl, ta));
       },
-      fmt: fmtPct,
     },
     {
       label: t("firma.beznaLikvidita"),
       tooltip: t("firma.beznaLikviditaFormula"),
-      compute: (s) => safeDiv(toNum(s.currentAssets), toNum(s.shortTermLiabilities)),
-      fmt: fmtRatio,
+      renderValue: (s) => fmtRatio(safeDiv(toNum(s.currentAssets), toNum(s.shortTermLiabilities))),
     },
   ];
 
-  return (
-    <div>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse", width: "100%", minWidth: sorted.length > 4 ? 500 : "auto" }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid var(--border)" }}>
-              <th className="text-left py-1.5 px-2 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
-              {sorted.map(s => (
-                <th key={s.year} className="text-right py-1.5 px-2.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ratioRows.map((row) => (
-              <tr key={row.label} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--text-secondary)", cursor: "help", textDecoration: "underline", textDecorationColor: "var(--border)", textDecorationStyle: "dotted", textUnderlineOffset: "3px" }} title={row.tooltip}>{row.label}</td>
-                {sorted.map(s => (
-                  <td key={s.year} className="text-right py-1.5 px-2.5 whitespace-nowrap" style={{
-                    color: "var(--text)",
-                    fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
-                    fontVariantNumeric: "tabular-nums",
-                  }}>
-                    {row.fmt(row.compute(s))}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  return <BaseFinancialTable stmts={stmts} rows={ratioRows} />;
 }

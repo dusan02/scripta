@@ -167,6 +167,17 @@ export default async function CompanyPage({ params }: Params) {
 
         <CompanyHeader company={company} latestYear={latest?.year} />
 
+        {/* Print-only header with logo — fixed to appear on every page */}
+        <div className="print-only-logo">
+          <img src="/logo-verifa.png" alt="Verifa.sk" />
+        </div>
+
+        {/* Print-only footer — consistent on every page */}
+        <div className="print-only-footer">
+          <span>© 2026 Verifa.sk</span>
+          <span>Business risk report</span>
+        </div>
+
         {/* Source attribution + freshness — prominent status for konkurz/likvidácia */}
         {(() => {
           const hasKonkurz = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("konkurz"));
@@ -286,7 +297,7 @@ export default async function CompanyPage({ params }: Params) {
         {/* Profit and Loss section — chart left, table right */}
         {chartData.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section print-break-before">
-            <ChartCard title="Tržby a zisk v čase">
+            <ChartCard title="Tržby a zisk v čase (v mil. €)">
               <RevenueProfitChart data={chartData} />
             </ChartCard>
             <ChartCard title="Výkaz ziskov a strát (v tis. €)">
