@@ -160,16 +160,16 @@ export default async function CompanyPage({ params }: Params) {
           const hasKonkurz = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("konkurz"));
           const hasLikvidacia = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("likvid"));
           return (
-            <div className="mb-6">
+            <div className="mb-4">
               {hasKonkurz && (
-                <div className="rounded-lg p-3 mb-3" style={{ background: "var(--danger-bg, #fef2f2)", border: "1px solid var(--danger-border, #fecaca)" }}>
+                <div className="rounded-lg p-3 mb-2" style={{ background: "var(--danger-bg, #fef2f2)", border: "1px solid var(--danger-border, #fecaca)" }}>
                   <p className="text-sm font-medium" style={{ color: "var(--danger, #dc2626)" }}>
                     Firma je v konkurze. Zdroj: Obchodný vestník.
                   </p>
                 </div>
               )}
               {hasLikvidacia && !hasKonkurz && (
-                <div className="rounded-lg p-3 mb-3" style={{ background: "var(--warning-bg, #fffbeb)", border: "1px solid var(--warning-border, #fde68a)" }}>
+                <div className="rounded-lg p-3 mb-2" style={{ background: "var(--warning-bg, #fffbeb)", border: "1px solid var(--warning-border, #fde68a)" }}>
                   <p className="text-sm font-medium" style={{ color: "var(--warning, #d97706)" }}>
                     Firma je v likvidácii. Zdroj: Obchodný vestník.
                   </p>
@@ -187,7 +187,7 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Key metrics cards — first screening */}
         {stmts.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-6 sm:mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
             <MetricCard label="Tržby" value={fmtEUR(latest?.mainActivityRevenue)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.revenue} />
             <MetricCard
               label="Zisk / Strata"
@@ -241,28 +241,24 @@ export default async function CompanyPage({ params }: Params) {
         )}
 
 
-        {/* Balance Sheet section */}
+        {/* Balance Sheet section — chart left, table right */}
         {balanceData && balanceData.totalAssets != null && (
-          <div className="mb-8">
-            <div className="mb-4">
-              <ChartCard title="Štruktúra súvahy">
-                <BalanceSankeyChart data={balanceData} />
-              </ChartCard>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8">
+            <ChartCard title="Štruktúra súvahy">
+              <BalanceSankeyChart data={balanceData} />
+            </ChartCard>
             <ChartCard title="Súvaha (v tis. €)">
               <BalanceSheetTable stmts={stmts} />
             </ChartCard>
           </div>
         )}
 
-        {/* Profit and Loss section */}
+        {/* Profit and Loss section — chart left, table right */}
         {chartData.length > 0 && (
-          <div className="mb-8">
-            <div className="mb-4">
-              <ChartCard title="Tržby a zisk v čase">
-                <RevenueProfitChart data={chartData} />
-              </ChartCard>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8">
+            <ChartCard title="Tržby a zisk v čase">
+              <RevenueProfitChart data={chartData} />
+            </ChartCard>
             <ChartCard title="Výkaz ziskov a strát (v tis. €)">
               <ProfitLossTable stmts={stmts} />
             </ChartCard>

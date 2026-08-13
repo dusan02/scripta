@@ -26,9 +26,9 @@ export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; l
   const latestYearPart = latestYear ? t("company.descLatestYear", { year: String(latestYear) }) : "";
 
   return (
-    <div className="mb-8">
-      <h1 className="text-2xl sm:text-3xl font-black mb-2" style={{ color: "var(--text)" }}>{name}</h1>
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1 sm:gap-x-6 sm:gap-y-2 text-xs sm:text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+    <div className="mb-4">
+      <h1 className="text-xl sm:text-2xl font-black mb-1" style={{ color: "var(--text)" }}>{name}</h1>
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs sm:text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
         <span><strong>{t("company.ico")}:</strong> {company.ico}</span>
         {company.legalForm && <span><strong>{t("company.pravnaForma")}:</strong> {company.legalForm}</span>}
         {company.city && (
@@ -37,7 +37,7 @@ export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; l
         {company.establishedAt && <span><strong>{t("firma.zalozena")}:</strong> {fmtYear(company.establishedAt)}</span>}
         {company.naceText && <span><strong>{t("firma.predmetCinnosti")}:</strong> {company.naceText}</span>}
       </div>
-      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
         {t("company.desc", { name, ico: company.ico, city: cityPart, legalForm: legalFormPart, established: establishedPart, nace: nacePart })}{latestYearPart}
       </p>
     </div>

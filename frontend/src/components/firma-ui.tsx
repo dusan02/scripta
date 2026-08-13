@@ -3,45 +3,17 @@
 import { fmtNum } from "@/lib/format";
 import { useT } from "@/components/LanguageProvider";
 
-export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
-  const t = useT();
-  const BS_ASSETS_ROWS = [
-    { label: t("firma.celkoveAktiva"), key: "totalAssets" },
-    { label: t("firma.obeznyMajetok"), key: "currentAssets" },
-    { label: t("firma.zasoby"), key: "inventory" },
-    { label: t("firma.pohladavky"), key: "tradeReceivables" },
-    { label: t("firma.cashEkvivalenty"), key: "cashAndEquivalents" },
-  ];
-  const BS_LIABILITIES_ROWS = [
-    { label: t("firma.vlastneImanie"), key: "equity" },
-    { label: t("firma.kratkodobeZavazky"), key: "shortTermLiabilities" },
-    { label: t("firma.dlhodobeZavazky"), key: "longTermLiabilities" },
-  ];
-  return (
-    <div>
-      <GenericTable stmts={stmts} rows={BS_ASSETS_ROWS} sectionTitle={t("firma.aktiva")} />
-      <div className="mt-3" />
-      <GenericTable stmts={stmts} rows={BS_LIABILITIES_ROWS} sectionTitle={t("firma.pasiva")} />
-    </div>
-  );
+// ═══════════════════════════════════════════════════════════════
+// Shared table renderer
+// ═══════════════════════════════════════════════════════════════
+
+interface TableRow {
+  label: string;
+  key: string;
+  bold?: boolean;
 }
 
-export function ProfitLossTable({ stmts }: { stmts: any[] }) {
-  const t = useT();
-  const PL_ROWS = [
-    { label: t("firma.trzby"), key: "mainActivityRevenue" },
-    { label: t("firma.hrubaMarza"), key: "grossProfit" },
-    { label: t("firma.osobneNaklady"), key: "staffCosts" },
-    { label: t("firma.odpisy"), key: "depreciation" },
-    { label: t("firma.uroky"), key: "interestExpense" },
-    { label: t("firma.danZPrjimu"), key: "incomeTax" },
-    { label: t("firma.ziskStrata"), key: "netProfitLoss" },
-    { label: t("firma.cashFlowPrevadzky"), key: "operatingCashFlow" },
-  ];
-  return <GenericTable stmts={stmts} rows={PL_ROWS} />;
-}
-
-function GenericTable({ stmts, rows, sectionTitle }: { stmts: any[], rows: any[], sectionTitle?: string }) {
+function FinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows: TableRow[]; sectionTitle?: string }) {
   const t = useT();
   const sorted = [...stmts].sort((a, b) => a.year - b.year);
 
@@ -51,21 +23,26 @@ function GenericTable({ stmts, rows, sectionTitle }: { stmts: any[], rows: any[]
         <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
       )}
       <div style={{ overflowX: "auto" }}>
-        <table style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse", width: "100%", minWidth: sorted.length > 4 ? 600 : "auto" }}>
+        <table style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse", width: "100%", minWidth: sorted.length > 4 ? 500 : "auto" }}>
           <thead>
             <tr style={{ borderBottom: "2px solid var(--border)" }}>
-              <th className="text-left py-2 px-2 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
+              <th className="text-left py-1.5 px-2 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
               {sorted.map(s => (
-                <th key={s.year} className="text-right py-2 px-3 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
+                <th key={s.year} className="text-right py-1.5 px-2.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.key} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td className="py-2 px-2 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{row.label}</td>
+                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: row.bold ? "var(--text)" : "var(--text-secondary)", fontWeight: row.bold ? 700 : 400 }}>{row.label}</td>
                 {sorted.map(s => (
-                  <td key={s.year} className="text-right py-2 px-3 whitespace-nowrap" style={{ color: "var(--text)", fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace", fontVariantNumeric: "tabular-nums" }}>
+                  <td key={s.year} className="text-right py-1.5 px-2.5 whitespace-nowrap" style={{
+                    color: "var(--text)",
+                    fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+                    fontVariantNumeric: "tabular-nums",
+                    fontWeight: row.bold ? 700 : 400,
+                  }}>
                     {fmtNum(s[row.key])}
                   </td>
                 ))}
@@ -77,6 +54,57 @@ function GenericTable({ stmts, rows, sectionTitle }: { stmts: any[], rows: any[]
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════
+// Balance Sheet — Aktíva + Pasíva in one aligned table
+// ═══════════════════════════════════════════════════════════════
+
+export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const ASSETS_ROWS: TableRow[] = [
+    { label: t("firma.celkoveAktiva"), key: "totalAssets", bold: true },
+    { label: t("firma.obeznyMajetok"), key: "currentAssets" },
+    { label: t("firma.zasoby"), key: "inventory" },
+    { label: t("firma.pohladavky"), key: "tradeReceivables" },
+    { label: t("firma.cashEkvivalenty"), key: "cashAndEquivalents" },
+  ];
+  const LIABILITIES_ROWS: TableRow[] = [
+    { label: t("firma.vlastneImanie"), key: "equity", bold: true },
+    { label: t("firma.kratkodobeZavazky"), key: "shortTermLiabilities" },
+    { label: t("firma.dlhodobeZavazky"), key: "longTermLiabilities" },
+  ];
+
+  return (
+    <div>
+      <FinancialTable stmts={stmts} rows={ASSETS_ROWS} sectionTitle={t("firma.aktiva")} />
+      <div className="mt-2" />
+      <FinancialTable stmts={stmts} rows={LIABILITIES_ROWS} sectionTitle={t("firma.pasiva")} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Profit & Loss table
+// ═══════════════════════════════════════════════════════════════
+
+export function ProfitLossTable({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const PL_ROWS: TableRow[] = [
+    { label: t("firma.trzby"), key: "mainActivityRevenue", bold: true },
+    { label: t("firma.hrubaMarza"), key: "grossProfit" },
+    { label: t("firma.osobneNaklady"), key: "staffCosts" },
+    { label: t("firma.odpisy"), key: "depreciation" },
+    { label: t("firma.uroky"), key: "interestExpense" },
+    { label: t("firma.danZPrjimu"), key: "incomeTax" },
+    { label: t("firma.ziskStrata"), key: "netProfitLoss", bold: true },
+    { label: t("firma.cashFlowPrevadzky"), key: "operatingCashFlow" },
+  ];
+  return <FinancialTable stmts={stmts} rows={PL_ROWS} />;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Metric cards & chart containers
+// ═══════════════════════════════════════════════════════════════
 
 export function MetricCard({ label, value, sub, color, trend }: { label: string; value: string; sub: string; color: string; trend?: { direction: "up" | "down" | "flat"; pct: number } }) {
   const trendColor = "var(--text-muted)";
@@ -94,10 +122,10 @@ export function MetricCard({ label, value, sub, color, trend }: { label: string;
   );
 }
 
-export function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+export function ChartCard({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-2xl p-4 sm:p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-      <h3 className="text-sm font-bold mb-3 sm:mb-4" style={{ color: "var(--text)" }}>{title}</h3>
+    <div className={`rounded-2xl p-4 sm:p-5 ${className ?? ""}`} style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+      <h3 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>{title}</h3>
       {children}
     </div>
   );
