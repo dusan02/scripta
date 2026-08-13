@@ -268,7 +268,7 @@ export default async function CompanyPage({ params }: Params) {
         <ReportCTA ico={company.ico} name={name} />
 
         {/* Internal linking: related firms by city and industry */}
-        <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} latestRevenue={company.latestRevenue?.toString() ?? null} />
+        <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} />
       </div>
     </div>
   );
