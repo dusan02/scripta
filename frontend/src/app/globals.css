@@ -762,6 +762,14 @@ textarea:focus-visible {
   .p-4, .p-5 { padding: 8px !important; }
   .rounded-2xl { border-radius: 6px !important; }
 
+  /* Metric cards: compact single-line in print */
+  .grid-cols-2.md\:grid-cols-4 { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important; }
+  .grid-cols-2.md\:grid-cols-4 > div { padding: 4px 6px !important; }
+  .grid-cols-2.md\:grid-cols-4 > div > p:first-child { font-size: 8px !important; margin-bottom: 1px !important; }
+  .grid-cols-2.md\:grid-cols-4 > div > div:first-of-type { font-size: 12px !important; }
+  .grid-cols-2.md\:grid-cols-4 > div > div:last-child { margin-top: 1px !important; }
+  .grid-cols-2.md\:grid-cols-4 > div > div:last-child > p { font-size: 8px !important; }
+
   /* Print sections: balance uses full page, P&L stays compact */
   .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
 
@@ -770,8 +778,8 @@ textarea:focus-visible {
     flex: 0 0 auto !important;
   }
   .print-section:not(.print-break-before) .recharts-responsive-container {
-    height: 320px !important;
-    min-height: 320px !important;
+    height: 260px !important;
+    min-height: 260px !important;
   }
 
   /* P&L section (page 2): bar chart bigger, table below */
