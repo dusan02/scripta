@@ -90,6 +90,8 @@ const cz: Dict = {
   "firma.zadlzenost": "Zadluženost",
   "firma.beznaLikvidita": "Běžná likvidita",
   "firma.financneUkazovatele": "Finanční ukazatele",
+  "firma.zadlzenostFormula": "Vzorec: (Krátkodobé závazky + Dlouhodobé závazky) / Celková aktiva",
+  "firma.beznaLikviditaFormula": "Vzorec: Oběžný majetek / Krátkodobé závazky",
   "company.ico": "IČO",
   "company.pravnaForma": "Právní forma",
   "firma.sidlo": "Sídlo",

@@ -94,6 +94,8 @@ const de: Dict = {
   "firma.zadlzenost": "Verschuldungsgrad",
   "firma.beznaLikvidita": "Liquidität 3. Grades",
   "firma.financneUkazovatele": "Finanzkennzahlen",
+  "firma.zadlzenostFormula": "Formel: (Kurzfristige Verbindlichkeiten + Langfristige Verbindlichkeiten) / Gesamtvermögen",
+  "firma.beznaLikviditaFormula": "Formel: Umlaufvermögen / Kurzfristige Verbindlichkeiten",
   "firma.trzby": "Umsatz",
   "firma.hrubaMarza": "Rohergebnis",
   "firma.osobneNaklady": "Personalkosten",

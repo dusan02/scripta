@@ -105,6 +105,8 @@ const en: Dict = {
   "firma.zadlzenost": "Indebtedness",
   "firma.beznaLikvidita": "Current liquidity",
   "firma.financneUkazovatele": "Financial indicators",
+  "firma.zadlzenostFormula": "Formula: (Short-term liabilities + Long-term liabilities) / Total assets",
+  "firma.beznaLikviditaFormula": "Formula: Current assets / Short-term liabilities",
 
   // ── Company header ──
   "company.ico": "Reg. No. (IČO)",

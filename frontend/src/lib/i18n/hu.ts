@@ -167,6 +167,8 @@ const hu: Dict = {
   "firma.zadlzenost": "Eladósodás",
   "firma.beznaLikvidita": "Folyó likviditás",
   "firma.financneUkazovatele": "Pénzügyi mutatók",
+  "firma.zadlzenostFormula": "Képlet: (Rövid lejáratú kötelezettségek + Hosszú lejáratú kötelezettségek) / Eszközök összesen",
+  "firma.beznaLikviditaFormula": "Képlet: Forgóeszközök / Rövid lejáratú kötelezettségek",
   "firma.trzby": "Árbevétel",
   "firma.hrubaMarza": "Bruttó árrés",
   "firma.osobneNaklady": "Személyi jellegű ráfordítások",

@@ -166,9 +166,10 @@ export function FinancialRatios({ stmts }: { stmts: any[] }) {
   const t = useT();
   const sorted = [...stmts].sort((a, b) => a.year - b.year);
 
-  const ratioRows: { label: string; compute: (s: any) => number | null; fmt: (v: number | null) => string }[] = [
+  const ratioRows: { label: string; tooltip: string; compute: (s: any) => number | null; fmt: (v: number | null) => string }[] = [
     {
       label: t("firma.zadlzenost"),
+      tooltip: t("firma.zadlzenostFormula"),
       compute: (s) => {
         const stl = toNum(s.shortTermLiabilities);
         const ltl = toNum(s.longTermLiabilities);
@@ -180,6 +181,7 @@ export function FinancialRatios({ stmts }: { stmts: any[] }) {
     },
     {
       label: t("firma.beznaLikvidita"),
+      tooltip: t("firma.beznaLikviditaFormula"),
       compute: (s) => safeDiv(toNum(s.currentAssets), toNum(s.shortTermLiabilities)),
       fmt: fmtRatio,
     },
@@ -200,7 +202,7 @@ export function FinancialRatios({ stmts }: { stmts: any[] }) {
           <tbody>
             {ratioRows.map((row) => (
               <tr key={row.label} style={{ borderBottom: "1px solid var(--border)" }}>
-                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{row.label}</td>
+                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--text-secondary)", cursor: "help", textDecoration: "underline", textDecorationColor: "var(--border)", textDecorationStyle: "dotted", textUnderlineOffset: "3px" }} title={row.tooltip}>{row.label}</td>
                 {sorted.map(s => (
                   <td key={s.year} className="text-right py-1.5 px-2.5 whitespace-nowrap" style={{
                     color: "var(--text)",

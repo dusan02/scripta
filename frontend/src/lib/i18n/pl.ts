@@ -167,6 +167,8 @@ const pl: Dict = {
   "firma.zadlzenost": "Zadłużenie",
   "firma.beznaLikvidita": "Płynność bieżąca",
   "firma.financneUkazovatele": "Wskaźniki finansowe",
+  "firma.zadlzenostFormula": "Wzór: (Zobowiązania krótkoterminowe + Zobowiązania długoterminowe) / Aktywa ogółem",
+  "firma.beznaLikviditaFormula": "Wzór: Aktywa obrotowe / Zobowiązania krótkoterminowe",
   "firma.trzby": "Przychody",
   "firma.hrubaMarza": "Marża brutto",
   "firma.osobneNaklady": "Koszty pracownicze",
