@@ -184,7 +184,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={isPrint ? 300 : 310} minHeight={isPrint ? 300 : 310}>
+    <ResponsiveContainer width="100%" height={isPrint ? 240 : 310} minHeight={isPrint ? 240 : 310}>
       <Sankey
         data={sankeyData}
         nodePadding={isPrint ? 10 : 18}

@@ -775,10 +775,10 @@ textarea:focus-visible {
   .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
   .print-section > * { width: 100% !important; }
 
-  /* Balance section (page 1): Sankey chart bigger, table below */
+  /* Balance section (page 1): Sankey chart, table below */
   .print-section:not(.print-break-before) .recharts-responsive-container {
-    height: 300px !important;
-    min-height: 300px !important;
+    height: 240px !important;
+    min-height: 240px !important;
   }
   .print-section:not(.print-break-before) .recharts-surface {
     overflow: hidden !important;
@@ -801,10 +801,20 @@ textarea:focus-visible {
 
   /* Page break: P&L starts on page 2 */
   .print-break-before { page-break-before: always; }
+  .print-break-before-avoid { page-break-before: avoid !important; }
 
-  /* Avoid breaking inside sections */
+  /* Avoid breaking inside tables */
   table, tr, td, th { page-break-inside: avoid; }
-  .rounded-2xl, .print-section { page-break-inside: avoid; }
+
+  /* Compact tables in print */
+  .print-section table { font-size: 9px !important; }
+  .print-section table th { padding: 2px 4px !important; }
+  .print-section table td { padding: 2px 4px !important; }
+  .print-section table .text-\[10px\],
+  .print-section table .text-xs { font-size: 8px !important; }
+
+  /* Hide source attribution badges in print */
+  .print-section + .mb-6, .print-section + .mb-8 { margin-top: 0 !important; }
 
   /* Hide non-essential elements — MUST be last to win specificity */
   header, nav, .no-print { display: none !important; }

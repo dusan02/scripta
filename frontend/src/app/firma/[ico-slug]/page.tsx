@@ -172,7 +172,7 @@ export default async function CompanyPage({ params }: Params) {
           const hasKonkurz = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("konkurz"));
           const hasLikvidacia = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("likvid"));
           return (
-            <div className="mb-4">
+            <div className="mb-4 no-print">
               {hasKonkurz && (
                 <div className="rounded-lg p-3 mb-2" style={{ background: "var(--danger-bg, #fef2f2)", border: "1px solid var(--danger-border, #fecaca)" }}>
                   <p className="text-sm font-medium" style={{ color: "var(--danger, #dc2626)" }}>
@@ -295,9 +295,9 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Financial ratios — indebtedness & current liquidity */}
+        {/* Financial ratios — keep on page 2 with P&L */}
         {stmts.length > 0 && (
-          <div className="mb-6 sm:mb-8">
+          <div className="mb-6 sm:mb-8 print-section print-break-before-avoid">
             <ChartCard title="Finančné ukazovatele">
               <FinancialRatios stmts={stmts} />
             </ChartCard>
