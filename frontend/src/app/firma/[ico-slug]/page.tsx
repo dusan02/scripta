@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
-import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable } from "@/components/firma-ui";
+import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, FinancialRatios } from "@/components/firma-ui";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
 import { CompanyHeader } from "@/components/company-header";
@@ -193,7 +193,13 @@ export default async function CompanyPage({ params }: Params) {
                   <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Závierka {latest.year}</span>
                 )}
                 {company.sizeCategory && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{company.sizeCategory}</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Veľkosť firmy: {company.sizeCategory}</span>
+                )}
+                {company.employeeCount != null && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Zamestnanci: {company.employeeCount}</span>
+                )}
+                {company.ownershipType && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{company.ownershipType}</span>
                 )}
               </div>
             </div>
@@ -279,6 +285,15 @@ export default async function CompanyPage({ params }: Params) {
             </ChartCard>
             <ChartCard title="Výkaz ziskov a strát (v tis. €)">
               <ProfitLossTable stmts={stmts} />
+            </ChartCard>
+          </div>
+        )}
+
+        {/* Financial ratios — indebtedness & current liquidity */}
+        {stmts.length > 0 && (
+          <div className="mb-6 sm:mb-8">
+            <ChartCard title="Finančné ukazovatele">
+              <FinancialRatios stmts={stmts} />
             </ChartCard>
           </div>
         )}

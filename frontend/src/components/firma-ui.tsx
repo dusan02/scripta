@@ -63,6 +63,7 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
   const t = useT();
   const ASSETS_ROWS: TableRow[] = [
     { label: t("firma.celkoveAktiva"), key: "totalAssets", bold: true },
+    { label: t("firma.neobeznyMajetok"), key: "nonCurrentAssets" },
     { label: t("firma.obeznyMajetok"), key: "currentAssets" },
     { label: t("firma.zasoby"), key: "inventory" },
     { label: t("firma.pohladavky"), key: "tradeReceivables" },
@@ -70,7 +71,9 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
   ];
   const LIABILITIES_ROWS: TableRow[] = [
     { label: t("firma.vlastneImanie"), key: "equity", bold: true },
+    { label: t("firma.zakladneImanie"), key: "shareCapital" },
     { label: t("firma.kratkodobeZavazky"), key: "shortTermLiabilities" },
+    { label: t("firma.zavazkyZObchod"), key: "tradePayables" },
     { label: t("firma.dlhodobeZavazky"), key: "longTermLiabilities" },
   ];
 
@@ -91,9 +94,11 @@ export function ProfitLossTable({ stmts }: { stmts: any[] }) {
   const t = useT();
   const PL_ROWS: TableRow[] = [
     { label: t("firma.trzby"), key: "mainActivityRevenue", bold: true },
+    { label: t("firma.prevadzkoveNaklady"), key: "operatingCosts" },
     { label: t("firma.hrubaMarza"), key: "grossProfit" },
     { label: t("firma.osobneNaklady"), key: "staffCosts" },
     { label: t("firma.odpisy"), key: "depreciation" },
+    { label: t("firma.ziskPredZdanenim"), key: "profitBeforeTax" },
     { label: t("firma.uroky"), key: "interestExpense" },
     { label: t("firma.danZPrjimu"), key: "incomeTax" },
     { label: t("firma.ziskStrata"), key: "netProfitLoss", bold: true },
@@ -127,6 +132,89 @@ export function ChartCard({ title, children, className }: { title: string; child
     <div className={`rounded-2xl p-4 sm:p-5 ${className ?? ""}`} style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
       <h3 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>{title}</h3>
       {children}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Financial Ratios — indebtedness & current liquidity
+// ═══════════════════════════════════════════════════════════════
+
+function safeDiv(a: number | null | undefined, b: number | null | undefined): number | null {
+  if (a == null || b == null || b === 0) return null;
+  return a / b;
+}
+
+function toNum(v: any): number | null {
+  if (v == null) return null;
+  if (typeof v === "number") return v;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+function fmtPct(v: number | null): string {
+  if (v == null) return "—";
+  return `${(v * 100).toFixed(1)}%`;
+}
+
+function fmtRatio(v: number | null): string {
+  if (v == null) return "—";
+  return v.toFixed(2);
+}
+
+export function FinancialRatios({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const sorted = [...stmts].sort((a, b) => a.year - b.year);
+
+  const ratioRows: { label: string; compute: (s: any) => number | null; fmt: (v: number | null) => string }[] = [
+    {
+      label: t("firma.zadlzenost"),
+      compute: (s) => {
+        const stl = toNum(s.shortTermLiabilities);
+        const ltl = toNum(s.longTermLiabilities);
+        const ta = toNum(s.totalAssets);
+        if (stl == null || ltl == null || ta == null) return null;
+        return safeDiv(stl + ltl, ta);
+      },
+      fmt: fmtPct,
+    },
+    {
+      label: t("firma.beznaLikvidita"),
+      compute: (s) => safeDiv(toNum(s.currentAssets), toNum(s.shortTermLiabilities)),
+      fmt: fmtRatio,
+    },
+  ];
+
+  return (
+    <div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", borderCollapse: "collapse", width: "100%", minWidth: sorted.length > 4 ? 500 : "auto" }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid var(--border)" }}>
+              <th className="text-left py-1.5 px-2 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
+              {sorted.map(s => (
+                <th key={s.year} className="text-right py-1.5 px-2.5 font-semibold whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{s.year}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ratioRows.map((row) => (
+              <tr key={row.label} style={{ borderBottom: "1px solid var(--border)" }}>
+                <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{row.label}</td>
+                {sorted.map(s => (
+                  <td key={s.year} className="text-right py-1.5 px-2.5 whitespace-nowrap" style={{
+                    color: "var(--text)",
+                    fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+                    fontVariantNumeric: "tabular-nums",
+                  }}>
+                    {row.fmt(row.compute(s))}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

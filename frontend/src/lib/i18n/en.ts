@@ -95,6 +95,16 @@ const en: Dict = {
   "firma.pasiva": "Liabilities",
   "firma.ukazovatel": "Indicator",
   "firma.orsrUdalosti": "Registration events",
+  "firma.neobeznyMajetok": "Non-current assets",
+  "firma.zakladneImanie": "Share capital",
+  "firma.zavazkyZObchod": "Trade payables",
+  "firma.prevadzkoveNaklady": "Operating costs",
+  "firma.ziskPredZdanenim": "Profit before tax",
+  "firma.pocetZamestnancov": "Employees",
+  "firma.typVlastnictva": "Ownership type",
+  "firma.zadlzenost": "Indebtedness",
+  "firma.beznaLikvidita": "Current liquidity",
+  "firma.financneUkazovatele": "Financial indicators",
 
   // ── Company header ──
   "company.ico": "Reg. No. (IČO)",

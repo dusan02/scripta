@@ -95,6 +95,16 @@ const sk: Dict = {
   "firma.pasiva": "Pasíva",
   "firma.ukazovatel": "Ukazovateľ",
   "firma.orsrUdalosti": "Registrujúce udalosti",
+  "firma.neobeznyMajetok": "Neobežný majetok",
+  "firma.zakladneImanie": "Základné imanie",
+  "firma.zavazkyZObchod": "Záväzky z obchodného styku",
+  "firma.prevadzkoveNaklady": "Prevádzkové náklady",
+  "firma.ziskPredZdanenim": "Zisk pred zdanením",
+  "firma.pocetZamestnancov": "Zamestnanci",
+  "firma.typVlastnictva": "Typ vlastníctva",
+  "firma.zadlzenost": "Zadlženosť",
+  "firma.beznaLikvidita": "Bežná likvidita",
+  "firma.financneUkazovatele": "Finančné ukazovatele",
 
   // ── Company header ──
   "company.ico": "IČO",

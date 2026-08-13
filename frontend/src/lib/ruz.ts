@@ -105,6 +105,7 @@ function val(table: RuzTable | null, row: number): number | null {
 
 const AKTIV_ROWS = {
   totalAssets: 1,
+  nonCurrentAssets: 2,
   currentAssets: 33,
   inventory: 34,
   tradeReceivables: 54,
@@ -113,6 +114,7 @@ const AKTIV_ROWS = {
 
 const PASIV_ROWS = {
   equity: 3,
+  shareCapital: 5,
   shortTermLiabilities: 85,
   tradePayables: 87,
   longTermLiabilities: 89,
@@ -124,6 +126,7 @@ const PASIV_ROWS = {
 const INCOME_ROWS = {
   mainActivityRevenue: 1,
   costOfGoodsSold: 10,
+  operatingCosts: 10,
   staffCosts: 15,
   depreciationOld: 21,
   depreciation: 27,
@@ -143,8 +146,10 @@ interface ParsedStatement {
   ruzZavierkaId: number | null;
   ruzVykazId: number | null;
   totalAssets: number | null;
+  nonCurrentAssets: number | null;
   currentAssets: number | null;
   equity: number | null;
+  shareCapital: number | null;
   shortTermLiabilities: number | null;
   longTermLiabilities: number | null;
   mainActivityRevenue: number | null;
@@ -160,6 +165,7 @@ interface ParsedStatement {
   interestExpense: number | null;
   incomeTax: number | null;
   profitBeforeTax: number | null;
+  operatingCosts: number | null;
   socialInsuranceLiabilities: number | null;
   taxLiabilities: number | null;
   employeeLiabilities: number | null;
@@ -179,6 +185,7 @@ function parseStatement(
 
   // ── Aktíva ──
   const totalAssets = val(aktiv, AKTIV_ROWS.totalAssets);
+  const nonCurrentAssets = val(aktiv, AKTIV_ROWS.nonCurrentAssets);
   const currentAssets = val(aktiv, AKTIV_ROWS.currentAssets);
   const inventory = val(aktiv, AKTIV_ROWS.inventory);
   const tradeReceivables = val(aktiv, AKTIV_ROWS.tradeReceivables);
@@ -186,6 +193,7 @@ function parseStatement(
 
   // ── Pasíva ──
   const equity = val(pasiv, PASIV_ROWS.equity);
+  const shareCapital = val(pasiv, PASIV_ROWS.shareCapital);
   const shortTermLiabilities = val(pasiv, PASIV_ROWS.shortTermLiabilities);
   const tradePayables = val(pasiv, PASIV_ROWS.tradePayables);
   const longTermLiabilities = val(pasiv, PASIV_ROWS.longTermLiabilities);
@@ -196,6 +204,7 @@ function parseStatement(
   // ── Výkaz ziskov a strát ──
   const mainActivityRevenue = hasIncome ? val(income, INCOME_ROWS.mainActivityRevenue) : null;
   const cogs = hasIncome ? val(income, INCOME_ROWS.costOfGoodsSold) : null;
+  const operatingCosts = hasIncome ? val(income, INCOME_ROWS.operatingCosts) : null;
   const staffCosts = hasIncome ? val(income, INCOME_ROWS.staffCosts) : null;
   const depreciation = hasIncome
     ? (val(income, INCOME_ROWS.depreciation) ?? val(income, INCOME_ROWS.depreciationOld))
@@ -217,8 +226,10 @@ function parseStatement(
     ruzZavierkaId: zavierkaId,
     ruzVykazId: vykazId,
     totalAssets,
+    nonCurrentAssets,
     currentAssets,
     equity,
+    shareCapital,
     shortTermLiabilities,
     longTermLiabilities,
     mainActivityRevenue,
@@ -234,6 +245,7 @@ function parseStatement(
     interestExpense,
     incomeTax,
     profitBeforeTax,
+    operatingCosts,
     socialInsuranceLiabilities,
     taxLiabilities,
     employeeLiabilities,
