@@ -746,7 +746,8 @@ textarea:focus-visible {
 /* ── Print: 2-page PDF layout ── */
 @media print {
   /* Reset layout for print */
-  body { background: white !important; color: black !important; }
+  body { background: white !important; color: black !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .max-w-\[1200px\] { max-width: 100% !important; padding: 0 8px !important; margin: 0 !important; }
 
   /* Force all text to black for readability */
