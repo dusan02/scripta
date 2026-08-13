@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Sankey, Layer,
 } from "recharts";
 import { useMemo, useState } from "react";
@@ -40,18 +40,39 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
+
+  const LEGEND_ITEMS = [
+    { key: "tržby", color: "#3b82f6", label: t("firma.trzby") },
+    { key: "zisk", color: "#10b981", label: t("firma.ziskStrata") },
+    { key: "daň", color: "#f59e0b", label: t("firma.danZPrjimu") },
+  ];
+
   return (
-    <ResponsiveContainer width="100%" height={220} minHeight={220}>
-      <BarChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-        <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={{ stroke: "var(--border)" }} />
-        <YAxis tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : ""} tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--border)" }} width={45} />
-        <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
-        <Legend wrapperStyle={{ fontSize: 11, cursor: "pointer" }} onClick={(e: any) => { if (e?.dataKey) toggle(e.dataKey); }} />
-        <Bar dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
-        <Bar dataKey="zisk" fill="#10b981" radius={[4, 4, 0, 0]} name={t("firma.ziskStrata")} hide={hidden.has("zisk")} />
-        <Bar dataKey="daň" fill="#f59e0b" radius={[4, 4, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div>
+      <div className="flex flex-wrap gap-3 mb-2">
+        {LEGEND_ITEMS.map(item => (
+          <button
+            key={item.key}
+            onClick={() => toggle(item.key)}
+            className="flex items-center gap-1.5 text-xs cursor-pointer"
+            style={{ opacity: hidden.has(item.key) ? 0.4 : 1, color: "var(--text-muted)" }}
+          >
+            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: item.color }} />
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <ResponsiveContainer width="100%" height={200} minHeight={200}>
+        <BarChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+          <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={{ stroke: "var(--border)" }} />
+          <YAxis tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : ""} tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--border)" }} width={45} />
+          <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
+          <Bar dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
+          <Bar dataKey="zisk" fill="#10b981" radius={[4, 4, 0, 0]} name={t("firma.ziskStrata")} hide={hidden.has("zisk")} />
+          <Bar dataKey="daň" fill="#f59e0b" radius={[4, 4, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
