@@ -4,8 +4,29 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Sankey, Layer,
 } from "recharts";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/components/LanguageProvider";
+
+function useIsPrint() {
+  const [isPrint, setIsPrint] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("print");
+    const update = () => setIsPrint(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    const before = () => setIsPrint(true);
+    const after = () => setIsPrint(false);
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      mq.removeEventListener("change", update);
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+    };
+  }, []);
+  return isPrint;
+}
 
 function fmtEUR(val: number | null | undefined): string {
   if (val === null || val === undefined) return "—";
@@ -34,6 +55,7 @@ type BalanceData = {
 
 export function RevenueProfitChart({ data }: { data: ChartData[] }) {
   const t = useT();
+  const isPrint = useIsPrint();
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggle = (key: string) => setHidden(prev => {
     const next = new Set(prev);
@@ -49,7 +71,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-2">
+      <div className={`flex gap-3 mb-2 ${isPrint ? "justify-center" : "flex-wrap"}`}>
         {LEGEND_ITEMS.map(item => (
           <button
             key={item.key}
@@ -62,10 +84,10 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
           </button>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={240} minHeight={240}>
-        <BarChart data={data} margin={{ top: 0, right: 0, left: -15, bottom: 0 }}>
-          <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: 11 }} axisLine={{ stroke: "var(--border)" }} />
-          <YAxis tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : ""} tick={{ fill: "var(--text-muted)", fontSize: 10 }} axisLine={{ stroke: "var(--border)" }} width={45} />
+      <ResponsiveContainer width="100%" height={isPrint ? 220 : 240} minHeight={isPrint ? 220 : 240}>
+        <BarChart data={data} margin={isPrint ? { top: 0, right: 40, left: 40, bottom: 0 } : { top: 0, right: 0, left: -15, bottom: 0 }}>
+          <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: "var(--border)" }} />
+          <YAxis tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : ""} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 35 : 45} />
           <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
           <Bar dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
           <Bar dataKey="zisk" fill="#10b981" radius={[4, 4, 0, 0]} name={t("firma.ziskStrata")} hide={hidden.has("zisk")} />
@@ -78,6 +100,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
 
 export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   const t = useT();
+  const isPrint = useIsPrint();
   const { sankeyData } = useMemo(() => {
     const current = Math.max(0, data.currentAssets ?? 0);
     const rawTotalAssets = Math.max(0, data.totalAssets ?? 0);
@@ -161,13 +184,13 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={310} minHeight={310}>
+    <ResponsiveContainer width="100%" height={isPrint ? 300 : 310} minHeight={isPrint ? 300 : 310}>
       <Sankey
         data={sankeyData}
-        nodePadding={18}
+        nodePadding={isPrint ? 10 : 18}
         nodeWidth={8}
         linkCurvature={0.4}
-        margin={{ top: 10, right: 80, bottom: 10, left: 80 }}
+        margin={isPrint ? { top: 8, right: 70, bottom: 8, left: 70 } : { top: 10, right: 80, bottom: 10, left: 80 }}
         node={(props: any) => {
           const { x, y, width, height, index, payload } = props;
           const color = payload?.color || "#94a3b8";

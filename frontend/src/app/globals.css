@@ -772,30 +772,32 @@ textarea:focus-visible {
   .grid-cols-2.md\:grid-cols-4 > div > div:last-child > p { font-size: 8px !important; }
 
   /* Print sections: balance uses full page, P&L stays compact */
-  .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; align-items: center !important; }
+  .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
   .print-section > * { width: 100% !important; }
 
-  /* Center charts inside their cards */
-  .print-section .recharts-responsive-container { margin: 0 auto !important; }
-  .print-section .recharts-wrapper { margin: 0 auto !important; }
-
   /* Balance section (page 1): Sankey chart bigger, table below */
-  .print-section:not(.print-break-before) > *:first-child {
-    flex: 0 0 auto !important;
-  }
   .print-section:not(.print-break-before) .recharts-responsive-container {
-    height: 260px !important;
-    min-height: 260px !important;
+    height: 300px !important;
+    min-height: 300px !important;
+  }
+  .print-section:not(.print-break-before) .recharts-surface {
+    overflow: hidden !important;
   }
 
   /* P&L section (page 2): bar chart bigger, table below */
-  .print-section.print-break-before {
-    page-break-before: always;
-  }
+  .print-section.print-break-before { page-break-before: always; }
   .print-section.print-break-before .recharts-responsive-container {
-    height: 240px !important;
-    min-height: 240px !important;
+    height: 220px !important;
+    min-height: 220px !important;
   }
+
+  /* Smaller chart labels in print to fit inside margins */
+  .print-section .recharts-surface text { font-size: 8px !important; }
+  .print-section .recharts-surface tspan { font-size: 7px !important; }
+
+  /* Center chart cards and their title */
+  .print-section .rounded-2xl { text-align: center !important; }
+  .print-section .rounded-2xl > h3 { text-align: center !important; }
 
   /* Page break: P&L starts on page 2 */
   .print-break-before { page-break-before: always; }
