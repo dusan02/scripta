@@ -210,25 +210,28 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
-          year: s.year,
-          mainActivityRevenue: num(s.mainActivityRevenue),
-          netProfitLoss: num(s.netProfitLoss),
-          totalAssets: num(s.totalAssets),
-          equity: num(s.equity),
-          grossProfit: num(s.grossProfit),
-          staffCosts: num(s.staffCosts),
-          depreciation: num(s.depreciation),
-          incomeTax: num(s.incomeTax),
-          shortTermLiabilities: num(s.shortTermLiabilities),
-          longTermLiabilities: num(s.longTermLiabilities),
-          currentAssets: num(s.currentAssets),
-          cashAndEquivalents: num(s.cashAndEquivalents),
-        })), {
-          vestnikEvents: company.vestnikEvents,
-        })} />
+        {/* Trends + Persons side-by-side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
+          <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
+            year: s.year,
+            mainActivityRevenue: num(s.mainActivityRevenue),
+            netProfitLoss: num(s.netProfitLoss),
+            totalAssets: num(s.totalAssets),
+            equity: num(s.equity),
+            grossProfit: num(s.grossProfit),
+            staffCosts: num(s.staffCosts),
+            depreciation: num(s.depreciation),
+            incomeTax: num(s.incomeTax),
+            shortTermLiabilities: num(s.shortTermLiabilities),
+            longTermLiabilities: num(s.longTermLiabilities),
+            currentAssets: num(s.currentAssets),
+            cashAndEquivalents: num(s.cashAndEquivalents),
+          })), {
+            vestnikEvents: company.vestnikEvents,
+          })} />
 
-        <CompanyPersons persons={persons} />
+          <CompanyPersons persons={persons} />
+        </div>
 
         {/* Vestník events — zdroj: Obchodný vestník SR */}
         {company.vestnikEvents && company.vestnikEvents.length > 0 && (

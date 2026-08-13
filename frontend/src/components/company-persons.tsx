@@ -21,7 +21,7 @@ export function CompanyPersons({ persons }: { persons: Person[] }) {
   if (persons.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 sm:mb-6">
+    <div className="space-y-4">
       {Object.entries(ROLE_LABELS).map(([role, label]) => {
         const rolePersons = persons.filter(p => p.role === role);
         if (rolePersons.length === 0) return null;

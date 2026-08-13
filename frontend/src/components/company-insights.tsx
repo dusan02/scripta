@@ -8,18 +8,14 @@ export function CompanyInsights({ insights }: { insights: Insight[] }) {
   if (insights.length === 0) return null;
 
   return (
-    <div className="mb-4 sm:mb-6">
-      <h2 className="text-sm sm:text-base font-bold mb-2" style={{ color: "var(--text)" }}>
+    <div className="rounded-2xl p-4 sm:p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+      <h2 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>
         {t("firma.zakladneTrendy")}
       </h2>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {insights.map((insight, i) => (
-          <div
-            key={i}
-            className="rounded-lg px-3 py-1.5 text-xs sm:text-sm leading-relaxed"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-          >
-            <span style={{ color: "var(--text-secondary)" }}>{insight.text}</span>
+          <div key={i} className="text-xs sm:text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            {insight.text}
           </div>
         ))}
       </div>
