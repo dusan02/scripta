@@ -49,11 +49,12 @@ async def get_companies(limit: int, ico_filter: str | None = None) -> list[dict]
 
     companies = await db.company.find_many(
         where=where,
-        order={"employeeCount": "desc", "ico": "asc"},
         take=limit,
     )
 
-    result = [{"ico": c.ico, "name": c.name, "city": getattr(c, "city", None)} for c in companies]
+    # Sort in Python — Prisma 0.15.0 doesn't support order in find_many
+    companies_sorted = sorted(companies, key=lambda c: (getattr(c, "employeeCount", 0) or 0, c.ico), reverse=True)
+    result = [{"ico": c.ico, "name": c.name, "city": getattr(c, "city", None)} for c in companies_sorted]
     await disconnect_db()
     return result
 
