@@ -58,8 +58,9 @@ export function generateCompanyInsights(
   if (prev && latest.mainActivityRevenue != null && prev.mainActivityRevenue != null) {
     const revPct = pctChange(latest.mainActivityRevenue, prev.mainActivityRevenue);
     if (Math.abs(revPct) >= 1) {
+      const dir = revPct > 0 ? "vzrástli" : "klesli";
       insights.push({
-        text: `Tržby: ${fmtPct(revPct)} (${absFmt(prev.mainActivityRevenue)} → ${absFmt(latest.mainActivityRevenue)}, ${prev.year}→${latest.year})`,
+        text: `Tržby ${dir} o ${fmtPct(revPct)} medzi rokmi ${prev.year} a ${latest.year}, z ${absFmt(prev.mainActivityRevenue)} na ${absFmt(latest.mainActivityRevenue)}.`,
       });
     }
   }
@@ -68,8 +69,10 @@ export function generateCompanyInsights(
   if (prev && latest.netProfitLoss != null && prev.netProfitLoss != null) {
     const profitPct = pctChange(latest.netProfitLoss, prev.netProfitLoss);
     if (Math.abs(profitPct) >= 1) {
+      const dir = profitPct > 0 ? "vzrástol" : "klesol";
+      const label = latest.netProfitLoss < 0 ? "Strata" : "Zisk";
       insights.push({
-        text: `Zisk/strata: ${fmtPct(profitPct)} (${absFmt(prev.netProfitLoss)} → ${absFmt(latest.netProfitLoss)})`,
+        text: `${label} ${dir} o ${fmtPct(profitPct)} v porovnaní s predchádzajúcim rokom, z ${absFmt(prev.netProfitLoss)} na ${absFmt(latest.netProfitLoss)}.`,
       });
     }
   }
@@ -78,8 +81,9 @@ export function generateCompanyInsights(
   if (prev && latest.totalAssets != null && prev.totalAssets != null) {
     const assetsPct = pctChange(latest.totalAssets, prev.totalAssets);
     if (Math.abs(assetsPct) >= 5) {
+      const dir = assetsPct > 0 ? "vzrástli" : "klesli";
       insights.push({
-        text: `Celkové aktíva: ${fmtPct(assetsPct)} → ${absFmt(latest.totalAssets)}`,
+        text: `Celkové aktíva ${dir} o ${fmtPct(assetsPct)} a dosiahli hodnotu ${absFmt(latest.totalAssets)}.`,
       });
     }
   }
@@ -88,8 +92,9 @@ export function generateCompanyInsights(
   if (prev && latest.equity != null && prev.equity != null) {
     const eqPct = pctChange(latest.equity, prev.equity);
     if (Math.abs(eqPct) >= 5) {
+      const dir = eqPct > 0 ? "vzrástlo" : "kleslo";
       insights.push({
-        text: `Vlastné imanie: ${fmtPct(eqPct)} → ${absFmt(latest.equity)}`,
+        text: `Vlastné imanie ${dir} o ${fmtPct(eqPct)} na úroveň ${absFmt(latest.equity)}.`,
       });
     }
   }
@@ -98,14 +103,14 @@ export function generateCompanyInsights(
   if (latest.mainActivityRevenue != null && latest.mainActivityRevenue > 0 && latest.netProfitLoss != null) {
     const margin = (latest.netProfitLoss / latest.mainActivityRevenue) * 100;
     insights.push({
-      text: `Zisková marža: ${margin.toFixed(1)} %`,
+      text: `Zisková marža dosiahla ${margin.toFixed(1)} % z celkových tržieb za rok ${latest.year}.`,
     });
   }
 
   // ── Negatívne vlastné imanie (fakt) ──
   if (latest.equity != null && latest.equity < 0) {
     insights.push({
-      text: `Vlastné imanie je záporné (${absFmt(latest.equity)})`,
+      text: `Vlastné imanie firmy je záporné (${absFmt(latest.equity)}), čo znamená, že záväzky prevyšujú aktíva.`,
     });
   }
 
@@ -116,8 +121,9 @@ export function generateCompanyInsights(
     if (y3.mainActivityRevenue != null && y1.mainActivityRevenue != null && y1.mainActivityRevenue > 0) {
       const cagr = (Math.pow(y3.mainActivityRevenue / y1.mainActivityRevenue, 1 / 2) - 1) * 100;
       if (Math.abs(cagr) >= 2) {
+        const dir = cagr > 0 ? "rast" : "pokles";
         insights.push({
-          text: `Priemerný ročný rast tržieb (3 roky): ${fmtPct(cagr)}`,
+          text: `Priemerný ročný ${dir} tržieb za posledné 3 roky činí ${fmtPct(cagr)}.`,
         });
       }
     }
@@ -127,7 +133,7 @@ export function generateCompanyInsights(
   if (opts?.orsrFindings) {
     const f = opts.orsrFindings.toLowerCase();
     if (f.includes("likvid")) {
-      insights.push({ text: "Spoločnosť je v likvidácii (ORSR)." });
+      insights.push({ text: "Spoločnosť je v likvidácii, ako vyplýva z Obchodného registra SR." });
     } else if (f.includes("vymazan")) {
       insights.push({ text: "Spoločnosť bola vymazaná z Obchodného registra SR." });
     }
@@ -138,7 +144,7 @@ export function generateCompanyInsights(
     const recent = opts.vestnikEvents.slice(0, 2);
     for (const ev of recent) {
       if (ev.title) {
-        insights.push({ text: `Obchodný vestník: ${ev.title}.` });
+        insights.push({ text: `V Obchodnom vestníku bola uverejnená informácia: ${ev.title}.` });
       }
     }
   }
