@@ -742,3 +742,41 @@ textarea:focus-visible {
   .content-page h2 { font-size: 18px !important; }
   .content-card { padding: 20px 16px !important; }
 }
+
+/* ── Print: 2-page PDF layout ── */
+@media print {
+  /* Hide non-essential elements */
+  header, nav, .no-print { display: none !important; }
+
+  /* Reset layout for print */
+  body { background: white !important; color: black !important; }
+  .max-w-\[1200px\] { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+
+  /* Force all text to black for readability */
+  * { color: black !important; border-color: #ccc !important; }
+
+  /* Compact spacing */
+  .mb-4, .mb-6, .mb-8 { margin-bottom: 8px !important; }
+  .mb-2 { margin-bottom: 4px !important; }
+  .py-6, .py-8 { padding-top: 4px !important; padding-bottom: 4px !important; }
+  .gap-4, .gap-2 { gap: 8px !important; }
+
+  /* Force grid to single column for print */
+  .grid { display: block !important; }
+  .grid > div { margin-bottom: 8px !important; }
+
+  /* Smaller fonts for print */
+  table { font-size: 10px !important; }
+  .text-xs { font-size: 10px !important; }
+  .text-sm { font-size: 11px !important; }
+  .text-\[10px\] { font-size: 9px !important; }
+
+  /* Hide charts (canvas/svg don't print well) */
+  canvas, svg { display: none !important; }
+
+  /* Page break control: max 2 pages */
+  .print-page-break { page-break-before: always; }
+
+  /* Avoid breaking inside tables */
+  table, tr, td, th { page-break-inside: avoid; }
+}

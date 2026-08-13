@@ -18,6 +18,7 @@ import { getCompanyData } from "@/lib/ruz";
 import { getServerSession } from "@/lib/auth";
 import { getLangFromHeaders, generateFirmaMetadata } from "@/lib/seo";
 import { RelatedFirms } from "@/components/related-firms";
+import { PrintButton } from "@/components/PrintButton";
 import { VestnikEvents } from "@/components/vestnik-events";
 import { CompanyEvents } from "@/components/company-events";
 
@@ -133,7 +134,8 @@ export default async function CompanyPage({ params }: Params) {
           <Link href="/" className="flex items-center gap-2">
             <Logo size="sm" />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 no-print">
+            <PrintButton />
             <ThemeToggle size="sm" />
             <Link
               href={`/dashboard?ico=${company.ico}`}
@@ -157,7 +159,7 @@ export default async function CompanyPage({ params }: Params) {
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs sm:text-sm mb-4" style={{ color: "var(--text-muted)" }}>
+        <div className="flex items-center gap-2 text-xs sm:text-sm mb-4 no-print" style={{ color: "var(--text-muted)" }}>
           <Link href="/" className="hover:underline">Verifa.sk</Link>
           <span>/</span><span>Firma</span><span>/</span>
           <span style={{ color: "var(--text)" }}>{name}</span>
@@ -232,7 +234,7 @@ export default async function CompanyPage({ params }: Params) {
         )}
 
         {/* Trends + Persons side-by-side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6 no-print">
           <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
             year: s.year,
             mainActivityRevenue: num(s.mainActivityRevenue),
@@ -256,12 +258,16 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Vestník events — zdroj: Obchodný vestník SR */}
         {company.vestnikEvents && company.vestnikEvents.length > 0 && (
-          <VestnikEvents events={company.vestnikEvents as any} />
+          <div className="no-print">
+            <VestnikEvents events={company.vestnikEvents as any} />
+          </div>
         )}
 
         {/* Company events — zdroj: ORSR, Vestník (verejné registre) */}
         {company.companyEvents && company.companyEvents.length > 0 && (
-          <CompanyEvents events={company.companyEvents as any} />
+          <div className="no-print">
+            <CompanyEvents events={company.companyEvents as any} />
+          </div>
         )}
 
 
@@ -298,10 +304,12 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        <ReportCTA ico={company.ico} name={name} />
+        <div className="no-print">
+          <ReportCTA ico={company.ico} name={name} />
 
-        {/* Internal linking: related firms by city and industry */}
-        <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} />
+          {/* Internal linking: related firms by city and industry */}
+          <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} />
+        </div>
       </div>
     </div>
   );
