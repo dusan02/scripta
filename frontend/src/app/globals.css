@@ -765,63 +765,22 @@ textarea:focus-visible {
   /* Print sections: balance uses full page, P&L stays compact */
   .print-section { display: flex !important; flex-direction: column !important; gap: 10px !important; }
 
-  /* Balance section (page 1): fill page, Sankey grows, table pushed to bottom */
-  .print-section:not(.print-break-before) {
-    min-height: 65vh;
-    justify-content: flex-start !important;
-  }
+  /* Balance section (page 1): Sankey chart bigger, table below */
   .print-section:not(.print-break-before) > *:first-child {
-    flex: 1 1 auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: 260px !important;
-    max-height: 420px !important;
-  }
-  .print-section:not(.print-break-before) > *:last-child {
     flex: 0 0 auto !important;
   }
   .print-section:not(.print-break-before) .recharts-responsive-container {
-    flex: 1 1 auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-  }
-  .print-section:not(.print-break-before) .recharts-wrapper,
-  .print-section:not(.print-break-before) .recharts-surface {
-    height: 100% !important;
-    width: 100% !important;
+    height: 320px !important;
+    min-height: 320px !important;
   }
 
-  /* P&L section (page 2): fill page, bar chart grows, table pushed to bottom */
+  /* P&L section (page 2): bar chart bigger, table below */
   .print-section.print-break-before {
-    min-height: 65vh;
-    justify-content: flex-start !important;
     page-break-before: always;
   }
-  .print-section.print-break-before > *:first-child {
-    flex: 1 1 auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: 220px !important;
-    max-height: 460px !important;
-  }
-  .print-section.print-break-before > *:last-child {
-    flex: 0 0 auto !important;
-  }
   .print-section.print-break-before .recharts-responsive-container {
-    flex: 1 1 auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-  }
-  .print-section.print-break-before .recharts-wrapper,
-  .print-section.print-break-before .recharts-surface {
-    height: 100% !important;
-    width: 100% !important;
-  }
-
-  /* Financial ratios: keep with P&L on page 2, compact */
-  .print-break-before + .mb-6, .print-break-before + .mb-8 {
-    margin-top: 10px !important;
-    page-break-before: avoid;
+    height: 240px !important;
+    min-height: 240px !important;
   }
 
   /* Page break: P&L starts on page 2 */
@@ -829,7 +788,7 @@ textarea:focus-visible {
 
   /* Avoid breaking inside sections */
   table, tr, td, th { page-break-inside: avoid; }
-  .rounded-2xl, .print-section, .print-section > * { page-break-inside: avoid; }
+  .rounded-2xl, .print-section { page-break-inside: avoid; }
 
   /* Hide non-essential elements — MUST be last to win specificity */
   header, nav, .no-print { display: none !important; }
