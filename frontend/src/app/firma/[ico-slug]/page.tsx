@@ -356,7 +356,7 @@ export default async function CompanyPage({ params }: Params) {
         {/* Profit and Loss section — chart left, table right */}
         {chartData.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section print-break-before">
-            <ChartCard title="Tržby a zisk v čase (v mil. €)">
+            <ChartCard title="Tržby a zisk v čase">
               <RevenueProfitChart data={chartData} />
             </ChartCard>
             <ChartCard title="Výkaz ziskov a strát (v tis. €)">
