@@ -47,10 +47,37 @@ type ChartData = {
 
 type BalanceData = {
   currentAssets: number | null;
+  nonCurrentAssets: number | null;
   totalAssets: number | null;
   equity: number | null;
   shortTermLiabilities: number | null;
   longTermLiabilities: number | null;
+  // Detailed asset breakdown
+  intangibleAssets: number | null;
+  tangibleAssets: number | null;
+  ltFinancialAssets: number | null;
+  ltReceivables: number | null;
+  inventory: number | null;
+  tradeReceivables: number | null;
+  stFinancialAssets: number | null;
+  cashAndEquivalents: number | null;
+  deferredAssets: number | null;
+  // Detailed equity breakdown
+  shareCapital: number | null;
+  sharePremium: number | null;
+  otherCapitalFunds: number | null;
+  statutoryReserveFunds: number | null;
+  retainedEarnings: number | null;
+  currentYearProfit: number | null;
+  // Detailed liabilities breakdown
+  ltReserves: number | null;
+  stReserves: number | null;
+  stBankLoans: number | null;
+  stFinancialAssistance: number | null;
+  tradePayables: number | null;
+  socialInsuranceLiabilities: number | null;
+  taxLiabilities: number | null;
+  employeeLiabilities: number | null;
 };
 
 export function RevenueProfitChart({ data }: { data: ChartData[] }) {
@@ -102,67 +129,115 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   const t = useT();
   const isPrint = useIsPrint();
   const { sankeyData } = useMemo(() => {
-    const current = Math.max(0, data.currentAssets ?? 0);
     const rawTotalAssets = Math.max(0, data.totalAssets ?? 0);
-    const nonCurrent = Math.max(0, rawTotalAssets - current);
-    
+    if (rawTotalAssets <= 0) return { sankeyData: { nodes: [], links: [] } };
+
+    const pos = (v: number | null) => Math.max(0, v ?? 0);
+
+    // ── Use DB aggregate values directly (matches table) ─────────
+    const nonCurrentAssets = pos(data.nonCurrentAssets);
+    const currentAssets = pos(data.currentAssets);
+
+    // ── Right side: equity + liabilities (DB aggregates) ─────────
     const equityVal = data.equity ?? 0;
     const isNegativeEquity = equityVal < 0;
     const absEquity = Math.abs(equityVal);
-    
-    const shortLiab = Math.max(0, data.shortTermLiabilities ?? 0);
-    const longLiab = Math.max(0, data.longTermLiabilities ?? 0);
+    const shortLiab = pos(data.shortTermLiabilities);
+    const longLiab = pos(data.longTermLiabilities);
 
-    const leftNodes = [];
-    if (current > 0) leftNodes.push({ name: t("firma.obeznyMajetok"), value: current, color: "#10b981", linkColor: "rgba(16,185,129,0.3)" });
-    if (nonCurrent > 0) leftNodes.push({ name: t("firma.dlhodobyMajetok"), value: nonCurrent, color: "#0ea5e9", linkColor: "rgba(14,165,233,0.3)" });
-    if (isNegativeEquity && absEquity > 0) leftNodes.push({ name: t("firma.zaporneImanie"), value: absEquity, color: "#ef4444", linkColor: "rgba(239,68,68,0.3)" });
+    // ── Neutral corporate color palette ──────────────────────────
+    // Assets: blues/teals | Equity: greens | Liabilities: neutral grays
+    // Red reserved ONLY for negative equity
+    const C = {
+      nonCurrent: "#0ea5e9",
+      current: "#06b6d4",
+      equity: "#059669",
+      shortLiab: "#64748b",
+      longLiab: "#78716c",
+      negEquity: "#ef4444",
+      other: "#94a3b8",
+    };
 
-    const rightNodes = [];
-    if (!isNegativeEquity && absEquity > 0) rightNodes.push({ name: t("firma.vlastneImanie"), value: absEquity, color: "#10b981", linkColor: "rgba(16,185,129,0.3)" });
-    if (shortLiab > 0) rightNodes.push({ name: t("firma.kratkodobeZavazky"), value: shortLiab, color: "#f43f5e", linkColor: "rgba(244,63,94,0.3)" });
-    if (longLiab > 0) rightNodes.push({ name: t("firma.dlhodobeZavazky"), value: longLiab, color: "#f43f5e", linkColor: "rgba(244,63,94,0.3)" });
+    const lc = (c: string, a: number) => c + Math.round(a * 255).toString(16).padStart(2, "0");
 
-    const leftSum = leftNodes.reduce((sum, n) => sum + n.value, 0);
-    const rightSum = rightNodes.reduce((sum, n) => sum + n.value, 0);
-    const centerValue = Math.max(leftSum, rightSum, rawTotalAssets);
+    type SNode = { name: string; color: string; isLeft: boolean; isCenter?: boolean };
+    type SLink = { source: number; target: number; value: number; lColor: string; srcName?: string; tgtName?: string };
+    const nodes: SNode[] = [];
+    const links: SLink[] = [];
 
-    if (leftSum < centerValue) {
-      leftNodes.push({ name: t("firma.ostatneAktiva"), value: centerValue - leftSum, color: "#94a3b8", linkColor: "rgba(148,163,184,0.3)" });
+    // ═══════════════════════════════════════════════════════════════
+    // LEFT: Asset aggregates (matches table: Neobežný / Obežný / Ostatné)
+    // ═══════════════════════════════════════════════════════════════
+
+    const leftItems: { name: string; value: number; color: string }[] = [];
+
+    if (nonCurrentAssets > 0) {
+      leftItems.push({ name: t("firma.neobeznyMajetok"), value: nonCurrentAssets, color: C.nonCurrent });
     }
-    if (rightSum < centerValue) {
-      rightNodes.push({ name: t("firma.ostatnePasiva"), value: centerValue - rightSum, color: "#64748b", linkColor: "rgba(100,116,139,0.3)" });
+    if (currentAssets > 0) {
+      leftItems.push({ name: t("firma.obeznyMajetok"), value: currentAssets, color: C.current });
     }
 
-    const nodes: { name: string; color: string; isLeft: boolean; isCenter?: boolean }[] = [];
-    const links: { source: number; target: number; value: number; lColor: string; srcName?: string; tgtName?: string }[] = [];
+    // Handle negative equity — shows on asset side
+    if (isNegativeEquity && absEquity > 0) {
+      leftItems.push({ name: t("firma.zaporneImanie"), value: absEquity, color: C.negEquity });
+    }
 
-    // Left nodes
-    leftNodes.forEach(n => {
+    // Residual "Ostatné aktíva" = total - sum of known items
+    const leftSum = leftItems.reduce((s, n) => s + n.value, 0);
+    const otherAssetsVal = rawTotalAssets - leftSum;
+    if (otherAssetsVal > 1) {
+      leftItems.push({ name: t("firma.ostatneAktiva"), value: otherAssetsVal, color: C.other });
+    }
+
+    // Add left nodes
+    leftItems.forEach(n => {
       nodes.push({ name: n.name, color: n.color, isLeft: true });
     });
 
-    // Center node — no label (it's a conduit, label would overlap links)
-    const centerIndex = nodes.length;
-    nodes.push({ name: "", color: "#64748b", isLeft: true, isCenter: true });
+    // ═══════════════════════════════════════════════════════════════
+    // CENTER: Bilančná suma
+    // ═══════════════════════════════════════════════════════════════
 
-    // Right nodes
+    const centerIndex = nodes.length;
+    nodes.push({ name: "", color: "#475569", isLeft: true, isCenter: true });
+
+    // Links: left → center
+    leftItems.forEach((n, i) => {
+      links.push({ source: i, target: centerIndex, value: n.value, lColor: lc(n.color, 0.25), srcName: n.name, tgtName: t("firma.bilancnaSuma") });
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // RIGHT: Equity + Liabilities (matches table)
+    // ═══════════════════════════════════════════════════════════════
+
+    const rightItems: { name: string; value: number; color: string }[] = [];
+
+    if (!isNegativeEquity && absEquity > 0) {
+      rightItems.push({ name: t("firma.vlastneImanie"), value: absEquity, color: C.equity });
+    }
+    if (shortLiab > 0) {
+      rightItems.push({ name: t("firma.kratkodobeZavazky"), value: shortLiab, color: C.shortLiab });
+    }
+    if (longLiab > 0) {
+      rightItems.push({ name: t("firma.dlhodobeZavazky"), value: longLiab, color: C.longLiab });
+    }
+
+    // Residual "Ostatné pasíva"
+    const rightSum = rightItems.reduce((s, n) => s + n.value, 0);
+    const otherLiabsVal = rawTotalAssets - rightSum;
+    if (otherLiabsVal > 1) {
+      rightItems.push({ name: t("firma.ostatnePasiva"), value: otherLiabsVal, color: C.other });
+    }
+
     const rightStartIndex = nodes.length;
-    rightNodes.forEach(n => {
+    rightItems.forEach(n => {
       nodes.push({ name: n.name, color: n.color, isLeft: false });
     });
 
-    // Add links
-    leftNodes.forEach((n, i) => {
-      if (n.value > 0) {
-        links.push({ source: i, target: centerIndex, value: n.value, lColor: n.linkColor, srcName: n.name, tgtName: t("firma.bilancnaSuma") });
-      }
-    });
-
-    rightNodes.forEach((n, i) => {
-      if (n.value > 0) {
-        links.push({ source: centerIndex, target: rightStartIndex + i, value: n.value, lColor: n.linkColor, srcName: t("firma.bilancnaSuma"), tgtName: n.name });
-      }
+    // Links: center → right
+    rightItems.forEach((n, i) => {
+      links.push({ source: centerIndex, target: rightStartIndex + i, value: n.value, lColor: lc(n.color, 0.25), srcName: t("firma.bilancnaSuma"), tgtName: n.name });
     });
 
     return { sankeyData: { nodes, links } };
@@ -184,27 +259,30 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={isPrint ? 240 : 310} minHeight={isPrint ? 240 : 310}>
+    <ResponsiveContainer width="100%" height={isPrint ? 300 : 350} minHeight={isPrint ? 300 : 350}>
       <Sankey
         data={sankeyData}
-        nodePadding={isPrint ? 12 : 18}
+        nodePadding={isPrint ? 8 : 14}
         nodeWidth={8}
         linkCurvature={0.4}
-        margin={isPrint ? { top: 8, right: 60, bottom: 8, left: 60 } : { top: 10, right: 80, bottom: 10, left: 80 }}
+        margin={isPrint ? { top: 8, right: 70, bottom: 8, left: 70 } : { top: 10, right: 90, bottom: 10, left: 90 }}
         node={(props: any) => {
-          const { x, y, width, height, index, payload } = props;
-          const color = payload?.color || "#94a3b8";
-          const name = payload?.name || "";
-          const isLeft = payload?.isLeft ?? false;
-          const isCenter = payload?.isCenter ?? false;
+          const { x, y, width, height, index } = props;
+          const nodeData = sankeyData.nodes[index] || {};
+          const color = nodeData.color || "#94a3b8";
+          const isLeft = nodeData.isLeft ?? false;
+          const isCenter = nodeData.isCenter ?? false;
+          const name = nodeData.name || (isCenter ? t("firma.bilancnaSuma") : "");
           const hasOutgoing = outgoingValue[index] !== undefined;
           const value = hasOutgoing ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
 
-          // Center node: render bar only, no label (label would overlap links)
+          // Center node: render bar only, no label
           if (isCenter) {
             return (
               <Layer key={`node-${index}`}>
-                <rect x={x} y={y} width={width} height={height} fill={color} rx={3} />
+                <rect x={x} y={y} width={width} height={height} fill={color} rx={3}>
+                  <title>{`${name}: ${fmtEUR(value)}`}</title>
+                </rect>
               </Layer>
             );
           }
@@ -216,36 +294,49 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
           const line1 = isMultiLine ? words[0] : name;
           const line2 = isMultiLine ? words.slice(1).join(" ") : "";
 
+          // Always show name; show value only if node is tall enough (needs ~22px for both lines)
+          const showName = true;
+          const showValue = height >= (isPrint ? 16 : 22);
+
           return (
             <Layer key={`node-${index}`}>
-              <rect x={x} y={y} width={width} height={height} fill={color} rx={3} />
-              <text
-                x={labelX}
-                y={y + height / 2 - (isMultiLine ? 6 : 0)}
-                dy=".35em"
-                textAnchor={textAnchor}
-                fontSize={isPrint ? 8 : 10}
-                fill="var(--text)"
-              >
-                <tspan x={labelX} dy="0">{line1}</tspan>
-                {isMultiLine && <tspan x={labelX} dy="1.1em">{line2}</tspan>}
-              </text>
-              <text
-                x={labelX}
-                y={y + height / 2 + (isMultiLine ? 14 : 11)}
-                dy=".35em"
-                textAnchor={textAnchor}
-                fontSize={isPrint ? 7 : 9}
-                fill="var(--text-muted)"
-              >
-                {fmtEUR(value)}
-              </text>
+              <rect x={x} y={y} width={width} height={height} fill={color} rx={3}>
+                <title>{`${name}: ${fmtEUR(value)}`}</title>
+              </rect>
+              {showName && (
+                <>
+                  <text
+                    x={labelX}
+                    y={y + height / 2 - (showValue && isMultiLine ? 6 : 0)}
+                    dy=".35em"
+                    textAnchor={textAnchor}
+                    fontSize={isPrint ? 8 : 10}
+                    fill="var(--text)"
+                  >
+                    <tspan x={labelX} dy="0">{line1}</tspan>
+                    {showValue && isMultiLine && <tspan x={labelX} dy="1.1em">{line2}</tspan>}
+                  </text>
+                  {showValue && (
+                    <text
+                      x={labelX}
+                      y={y + height / 2 + (isMultiLine ? 14 : 11)}
+                      dy=".35em"
+                      textAnchor={textAnchor}
+                      fontSize={isPrint ? 7 : 9}
+                      fill="var(--text-muted)"
+                    >
+                      {fmtEUR(value)}
+                    </text>
+                  )}
+                </>
+              )}
             </Layer>
           );
         }}
         link={(props: any) => {
-          const { sourceX, targetX, sourceY, targetY, sourceControlX, targetControlX, linkWidth, index, payload } = props;
-          const lColor = payload?.lColor || "#94a3b8";
+          const { sourceX, targetX, sourceY, targetY, sourceControlX, targetControlX, linkWidth, index } = props;
+          const linkData = sankeyData.links[index] || {};
+          const lColor = linkData.lColor || "#94a3b8";
           const halfWidth = Math.max(0.5, linkWidth / 2);
           
           const path = `
@@ -270,9 +361,20 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
         <Tooltip
           contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
           formatter={(v: any, _name: any, props: any) => {
-            const payload = props?.payload;
-            if (payload?.srcName && payload?.tgtName) {
-              return [fmtEUR(v as number), `${payload.srcName} → ${payload.tgtName}`];
+            const p = props?.payload;
+            // Link hover: payload has source/target
+            if (p?.source != null && p?.target != null) {
+              const linkData = sankeyData.links[props?.payload?.index ?? -1];
+              if (linkData?.srcName && linkData?.tgtName) {
+                return [fmtEUR(v as number), `${linkData.srcName} → ${linkData.tgtName}`];
+              }
+            }
+            // Node hover: payload has no source/target, look up node by index
+            const nodeIdx = p?.index;
+            if (nodeIdx != null && sankeyData.nodes[nodeIdx]) {
+              const nd = sankeyData.nodes[nodeIdx];
+              const nodeName = nd.name || t("firma.bilancnaSuma");
+              return [fmtEUR(v as number), nodeName];
             }
             return [fmtEUR(v as number), ""];
           }}

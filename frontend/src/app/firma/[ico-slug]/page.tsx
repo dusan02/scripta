@@ -91,34 +91,71 @@ export default async function CompanyPage({ params }: Params) {
 
   const balanceData = latest ? {
     currentAssets: num(latest.currentAssets),
+    nonCurrentAssets: num(latest.nonCurrentAssets),
     totalAssets: num(latest.totalAssets),
     equity: num(latest.equity),
     shortTermLiabilities: num(latest.shortTermLiabilities),
     longTermLiabilities: num(latest.longTermLiabilities),
+    intangibleAssets: num(latest.intangibleAssets),
+    tangibleAssets: num(latest.tangibleAssets),
+    ltFinancialAssets: num(latest.ltFinancialAssets),
+    ltReceivables: num(latest.ltReceivables),
+    inventory: num(latest.inventory),
+    tradeReceivables: num(latest.tradeReceivables),
+    stFinancialAssets: num(latest.stFinancialAssets),
+    cashAndEquivalents: num(latest.cashAndEquivalents),
+    deferredAssets: num(latest.deferredAssets),
+    shareCapital: num(latest.shareCapital),
+    sharePremium: num(latest.sharePremium),
+    otherCapitalFunds: num(latest.otherCapitalFunds),
+    statutoryReserveFunds: num(latest.statutoryReserveFunds),
+    retainedEarnings: num(latest.retainedEarnings),
+    currentYearProfit: num(latest.currentYearProfit),
+    ltReserves: num(latest.ltReserves),
+    stReserves: num(latest.stReserves),
+    stBankLoans: num(latest.stBankLoans),
+    stFinancialAssistance: num(latest.stFinancialAssistance),
+    tradePayables: num(latest.tradePayables),
+    socialInsuranceLiabilities: num(latest.socialInsuranceLiabilities),
+    taxLiabilities: num(latest.taxLiabilities),
+    employeeLiabilities: num(latest.employeeLiabilities),
   } : null;
+
+  const orgSchema: Record<string, any> = {
+    "@type": "Organization",
+    "@id": `https://verifa.sk/firma/${company.ico}#organization`,
+    name,
+    legalName: company.name || undefined,
+    identifier: { "@type": "PropertyValue", name: "IČO", value: company.ico },
+    url: `https://verifa.sk/firma/${company.ico}`,
+  };
+
+  if (company.establishedAt) {
+    orgSchema.foundingDate = company.establishedAt.toISOString().split("T")[0];
+  }
+  if (company.city || company.street || company.zipCode) {
+    orgSchema.address = {
+      "@type": "PostalAddress",
+      addressCountry: "SK",
+      ...(company.city ? { addressLocality: company.city } : {}),
+      ...(company.street ? { streetAddress: company.street } : {}),
+      ...(company.zipCode ? { postalCode: company.zipCode } : {}),
+    };
+  }
+  if (company.naceText) {
+    orgSchema.knowsAbout = company.naceText;
+  }
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "Organization",
-        "@id": `https://verifa.sk/firma/${company.ico}#organization`,
-        name, identifier: company.ico,
-        url: `https://verifa.sk/firma/${company.ico}`,
-      },
-      {
-        "@type": "Dataset",
-        name: `Finančné dáta — ${name}`,
-        description: `Účtovné závierky pre ${name} (IČO: ${company.ico}).`,
-        creator: { "@type": "Organization", name: "Verifa.sk", url: "https://verifa.sk" },
-        about: { "@type": "Organization", name, identifier: company.ico },
-        temporalCoverage: latest ? `${latest.year}` : undefined,
-      },
+      orgSchema,
       {
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Verifa.sk", item: "https://verifa.sk" },
-          { "@type": "ListItem", position: 2, name, item: `https://verifa.sk/firma/${company.ico}` },
+          { "@type": "ListItem", position: 2, name: "Firma", item: "https://verifa.sk/firma" },
+          { "@type": "ListItem", position: 3, name, item: `https://verifa.sk/firma/${company.ico}` },
         ],
       },
     ],
@@ -219,6 +256,21 @@ export default async function CompanyPage({ params }: Params) {
           );
         })()}
 
+        {/* Provenance — data source, period, last updated */}
+        {stmts.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-[11px] mb-3 no-print" style={{ color: "var(--text-muted)" }}>
+            <span>Zdroj finančných dát: <strong>Register účtovných závierok (RÚZ)</strong></span>
+            <span>·</span>
+            <span>Obdobie: {stmts[stmts.length - 1]?.year}–{latest?.year}</span>
+            {company.ruzSyncedAt && (
+              <>
+                <span>·</span>
+                <span>Aktualizované: {new Date(company.ruzSyncedAt).toLocaleDateString("sk-SK")}</span>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Key metrics cards — first screening */}
         {stmts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
@@ -312,6 +364,10 @@ export default async function CompanyPage({ params }: Params) {
             <ChartCard title="Finančné ukazovatele">
               <FinancialRatios stmts={stmts} />
             </ChartCard>
+            <p className="text-[11px] mt-2 no-print" style={{ color: "var(--text-muted)" }}>
+              Ukazovatele sú počítané z účtovných závierok. ROE = zisk / vlastné imanie, ROA = zisk / celkové aktíva, zadĺženosť = cudzie zdroje / celkové aktíva. {/* */}
+              <Link href="/slovnik" className="underline hover:no-underline">Vysvetlenie pojmov →</Link>
+            </p>
           </div>
         )}
 

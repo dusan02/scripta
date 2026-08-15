@@ -120,6 +120,11 @@ async function generatePDF({ url, ico, out }) {
     // Emulate print media to trigger @media print CSS
     await page.emulateMedia({ media: "print" });
 
+    // Hide CSS print-only footer since Playwright provides its own footerTemplate
+    await page.addStyleTag({
+      content: `.print-only-footer { display: none !important; }`,
+    });
+
     console.log("[PDF] Generating PDF...");
     await page.pdf({
       path: outputPath,

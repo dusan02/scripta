@@ -868,32 +868,34 @@ textarea:focus-visible {
   header, nav, .no-print { display: none !important; }
   html body .no-print { display: none !important; }
 
-  /* Print-only logo and footer — show only in print, fixed on every page */
+  /* Print-only logo — fixed to appear on every page */
   .print-only-logo {
     display: block !important;
     position: fixed;
-    top: 2mm;
-    right: 10mm;
-    z-index: 100;
+    top: 0;
+    right: 0;
+    z-index: 9999;
   }
   .print-only-logo img {
-    height: 28px;
+    height: 24px;
     width: auto;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+  /* Print-only footer — hidden when using Playwright (which has its own footerTemplate).
+     For browser print (Ctrl+P), this provides a custom footer. */
   .print-only-footer {
     display: flex !important;
     justify-content: space-between;
     align-items: center;
     position: fixed;
-    bottom: 4mm;
-    left: 10mm;
-    right: 10mm;
+    bottom: 0;
+    left: 0;
+    right: 0;
     border-top: 1px solid #ccc;
-    padding-top: 2mm;
+    padding: 2mm 10mm;
     font-size: 8px;
     color: #888 !important;
-    z-index: 100;
+    z-index: 9999;
   }
 }

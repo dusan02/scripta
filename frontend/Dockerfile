@@ -69,21 +69,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/cookie ./node_modules/cookie
-COPY --from=builder /app/node_modules/jose ./node_modules/jose
-COPY --from=builder /app/node_modules/next-auth ./node_modules/next-auth
-COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
-COPY --from=builder /app/node_modules/ioredis ./node_modules/ioredis
-COPY --from=builder /app/node_modules/@ioredis ./node_modules/@ioredis
-COPY --from=builder /app/node_modules/cluster-key-slot ./node_modules/cluster-key-slot
-COPY --from=builder /app/node_modules/redis-errors ./node_modules/redis-errors
-COPY --from=builder /app/node_modules/standard-as-callback ./node_modules/standard-as-callback
-COPY --from=builder /app/node_modules/denque ./node_modules/denque
-COPY --from=builder /app/node_modules/debug ./node_modules/debug
-COPY --from=builder /app/node_modules/ms ./node_modules/ms
+COPY --from=builder /app/node_modules ./node_modules
 
 USER nextjs
 

@@ -326,6 +326,9 @@ model Company {
   ruzEntityId         Int?                 // ID účtovnej jednotky z RÚZ API
   orsrSyncedAt        DateTime?            // Kedy bol naposledy seedovaný ORSR
   ruzSyncedAt         DateTime?            // Kedy bol naposledy seedovaný RÚZ
+  shareCapital        Decimal?  @db.Decimal(15, 2) // Základné imanie (z ORSR)
+  businessActivity    String?  @db.Text    // Predmet činnosti (z ORSR/RPO)
+  signingAuthority    String?  @db.Text    // Konanie menom spoločnosti (z ORSR)
   latestYear          Int?                 // Rok najnovšej závierky (denormalizované pre screener)
   latestRevenue       Decimal?  @db.Decimal(15, 2) // Tržby z najnovšej závierky
   latestProfit        Decimal?  @db.Decimal(15, 2) // Zisk/strata z najnovšej závierky

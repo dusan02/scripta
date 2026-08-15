@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let { ico, sources } = parseResult.data;
+    let { ico, sources, companyName: bodyCompanyName } = parseResult.data as { ico: string; sources: SourceType[]; companyName?: string };
 
     // ── Deduplikácia: ak už beží report pre rovnaké IČO (mladší ako 2 min), vráť existujúci.
     // Chráni pred dvojklikom, refreshom, alebo dvomi tabmi — žiadny kredit sa nemrhá.
@@ -213,8 +213,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Company name sa nastaví workerom po ORSR scrape (správne handling neaktuálnych výpisov)
-    const companyName: string | null = null;
+    // Company name from ORSR lookup (if provided by frontend) — worker will overwrite if needed
+    const companyName: string | null = bodyCompanyName || null;
 
     // Atomic transaction: consume credit + create report in one DB transaction.
     // This prevents race conditions where another request could exhaust credits

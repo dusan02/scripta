@@ -326,6 +326,92 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<string>
   }
 }
 
+function extractEstablishedDate(text: string): Date | null {
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    if (lower.includes("dátum vzniku") || lower.includes("datum vzniku")) {
+      for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+        const candidate = lines[j].trim();
+        const m = candidate.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+        if (m) {
+          return new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function extractShareCapital(text: string): number | null {
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    if (lower.includes("základné imanie") || lower.includes("zakladne imanie")) {
+      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+        const candidate = lines[j].trim();
+        // ORSR formát: "5 000,00 EUR" alebo "5000 EUR"
+        const m = candidate.match(/([\d\s]+[,\.]?\d*)\s*(?:EUR|€)?/i);
+        if (m) {
+          const numStr = m[1].replace(/\s/g, "").replace(",", ".");
+          const val = parseFloat(numStr);
+          if (!isNaN(val) && val > 0) return val;
+        }
+        // Also check for "splatené" line with amount
+        if (candidate.toLowerCase().includes("splaten") || /\d/.test(candidate)) {
+          const m2 = candidate.match(/([\d\s]+[,\.]?\d*)/);
+          if (m2) {
+            const numStr = m2[1].replace(/\s/g, "").replace(",", ".");
+            const val = parseFloat(numStr);
+            if (!isNaN(val) && val > 0) return val;
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function extractBusinessActivity(text: string): string | null {
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    if (lower.includes("predmet činnosti") || lower.includes("predmet cinnosti")) {
+      const activityLines: string[] = [];
+      for (let j = i + 1; j < Math.min(i + 20, lines.length); j++) {
+        const candidate = lines[j].trim();
+        if (!candidate) { if (activityLines.length > 0) break; continue; }
+        if (LABEL_RE.test(candidate) && candidate.length < 60) break;
+        activityLines.push(candidate);
+      }
+      if (activityLines.length > 0) {
+        return activityLines.join(" ").slice(0, 2000);
+      }
+    }
+  }
+  return null;
+}
+
+function extractSigningAuthority(text: string): string | null {
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    if (lower.includes("konanie menom") || lower.includes("spôsob konania") || lower.includes("spôsob konania")) {
+      const authLines: string[] = [];
+      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+        const candidate = lines[j].trim();
+        if (!candidate) { if (authLines.length > 0) break; continue; }
+        if (LABEL_RE.test(candidate) && candidate.length < 60 && !SUBLABELS.has(candidate.split(":")[0].trim().toLowerCase())) break;
+        authLines.push(candidate);
+      }
+      if (authLines.length > 0) {
+        return authLines.join(" ").slice(0, 1000);
+      }
+    }
+  }
+  return null;
+}
+
 export async function seedFromOrsr(ico: string): Promise<{
   name: string | null;
   legalForm: string | null;
@@ -333,6 +419,10 @@ export async function seedFromOrsr(ico: string): Promise<{
   street: string | null;
   zipCode: string | null;
   status: string | null;
+  establishedAt: Date | null;
+  shareCapital: number | null;
+  businessActivity: string | null;
+  signingAuthority: string | null;
   persons: PersonInfo[];
 } | null> {
   try {
@@ -370,6 +460,10 @@ export async function seedFromOrsr(ico: string): Promise<{
     const address = extractAddress(text);
     const findings = extractFindings(text);
     const persons = extractPersons(text);
+    const establishedAt = extractEstablishedDate(text);
+    const shareCapital = extractShareCapital(text);
+    const businessActivity = extractBusinessActivity(text);
+    const signingAuthority = extractSigningAuthority(text);
 
     const status = findings.includes("likvidácii")
       ? "LIQUIDATION"
@@ -392,6 +486,10 @@ export async function seedFromOrsr(ico: string): Promise<{
           street: address.street || undefined,
           zipCode: address.zipCode || undefined,
           status,
+          establishedAt: establishedAt || undefined,
+          shareCapital: shareCapital || undefined,
+          businessActivity: businessActivity || undefined,
+          signingAuthority: signingAuthority || undefined,
           orsrSyncedAt: new Date(),
         },
       });
@@ -420,6 +518,10 @@ export async function seedFromOrsr(ico: string): Promise<{
       street: address.street,
       zipCode: address.zipCode,
       status,
+      establishedAt,
+      shareCapital,
+      businessActivity,
+      signingAuthority,
       persons,
     };
   } catch (e) {

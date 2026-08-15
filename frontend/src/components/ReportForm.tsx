@@ -31,6 +31,36 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
   const [error, setError] = useState<string | null>(null);
   const [icoError, setIcoError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyLookup, setCompanyLookup] = useState<"idle" | "searching" | "found" | "notfound">("idle");
+
+  useEffect(() => {
+    if (ico.length !== 8 || !isValidIco(ico)) {
+      setCompanyName(null);
+      setCompanyLookup("idle");
+      return;
+    }
+    setCompanyLookup("searching");
+    setCompanyName(null);
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/lookup?ico=${ico}`, { signal: controller.signal });
+        if (!res.ok) { setCompanyLookup("idle"); return; }
+        const data = await res.json();
+        if (data.found && data.companyName) {
+          setCompanyName(data.companyName);
+          setCompanyLookup("found");
+        } else {
+          setCompanyName(null);
+          setCompanyLookup("notfound");
+        }
+      } catch {
+        setCompanyLookup("idle");
+      }
+    }, 300);
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [ico]);
 
   // Use external state if provided, otherwise internal
   const selected = extSelected ?? internalSelected;
@@ -60,11 +90,21 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
       return;
     }
 
+    if (companyLookup === "notfound") {
+      setError(t("form.firmaNenajdena"));
+      return;
+    }
+
+    if (companyLookup === "searching") {
+      setError(t("form.hladamFirmu"));
+      return;
+    }
+
     setLoading(true);
     trackReportStarted(ico);
 
     try {
-      const body = { targetType: "COMPANY", sources: selected, ico };
+      const body = { targetType: "COMPANY", sources: selected, ico, companyName: companyName || undefined };
 
       const res = await fetch("/api/reports", {
         method: "POST",
@@ -147,10 +187,10 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
           <button
             id="submit-report-btn"
             type="submit"
-            disabled={loading || !ico}
+            disabled={loading || !ico || companyLookup === "searching" || companyLookup === "notfound"}
             style={{
-              background: ico && !loading ? "var(--accent)" : "var(--bg-muted)",
-              color: ico && !loading ? "var(--accent-button-text, #000000)" : "var(--text-muted)",
+              background: ico && !loading && companyLookup !== "searching" && companyLookup !== "notfound" ? "var(--accent)" : "var(--bg-muted)",
+              color: ico && !loading && companyLookup !== "searching" && companyLookup !== "notfound" ? "var(--accent-button-text, #000000)" : "var(--text-muted)",
             }}
             className="flex items-center justify-center gap-1.5 px-4 font-semibold text-sm transition-all duration-150 flex-shrink-0 hover:brightness-110 disabled:cursor-not-allowed cursor-pointer outline-none h-full rounded-r-xl border-l border-border"
           >
@@ -170,6 +210,24 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
       {icoError && (
         <p className="text-xs mt-2 text-center fade-in" style={{ color: "var(--danger)" }}>
           {icoError}
+        </p>
+      )}
+
+      {/* ── Company name / lookup status ─────────── */}
+      {companyLookup === "searching" && (
+        <p className="text-xs mt-2 text-center fade-in flex items-center justify-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+          <SpinnerIcon size={12} />
+          {t("form.hladamFirmu")}
+        </p>
+      )}
+      {companyLookup === "found" && companyName && (
+        <p className="text-xs mt-2 text-center fade-in" style={{ color: "var(--accent)" }}>
+          ✓ {companyName}
+        </p>
+      )}
+      {companyLookup === "notfound" && (
+        <p className="text-xs mt-2 text-center fade-in" style={{ color: "var(--danger)" }}>
+          {t("form.firmaNenajdena")}
         </p>
       )}
 

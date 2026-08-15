@@ -107,20 +107,40 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     # Zvyšok: môže byť záporný (= ostatné výnosy presahujúce náklady)
     other_opex = gross - net - (staff_val + dep_val + int_val)
 
+    # ── Korporátna paleta (inšpirovaná web verziou) ──────────────
+    # Príjmy: modrá | Náklady: odlíšené farby | Zisk: zelená
+    NODE_C = {
+        'revenue':   COLORS['blue_dark'],   # Tržby
+        'cogs':      '#f97316',             # Priame náklady - oranžová
+        'gross':     COLORS['green'],       # Hrubá marža
+        'staff':     '#ef4444',             # Osobné náklady - červená
+        'depreciation': '#8b5cf6',          # Odpisy - fialová
+        'interest':  '#eab308',             # Úroky - žltá
+        'other_opex': '#ec4899',            # Ostatné náklady - ružová
+        'net_profit': COLORS['green'],      # Čistý zisk
+        'other_income': COLORS['blue'],     # Ostatné výnosy
+        'loss':      COLORS['red'],         # Strata
+        'other':     COLORS['slate_light'], # Ostatné (residual)
+    }
+
+    def _node_label(text: str, val: float) -> str:
+        """Multi-line label s názvom a hodnotou (ako web verzia)."""
+        return f"{text}<br><span style='font-size:11px;opacity:0.7'>{_adaptive_fmt(val)}</span>"
+
     labels = [
-        i.get('sankey_revenue', 'Tržby'),                        # 0
-        i.get('sankey_cogs', 'Priame náklady (COGS)'),         # 1
-        i.get('sankey_gross_margin', 'Hrubá marža'),                   # 2
-        i.get('sankey_staff', 'Osobné náklady'),                # 3
-        i.get('sankey_depreciation', 'Odpisy'),                        # 4
-        i.get('sankey_interest', 'Úroky'),                         # 5
-        i.get('sankey_other_opex', 'Ostatné prevádzkové náklady'),   # 6
-        i.get('sankey_net_profit', 'Čistý zisk'),                    # 7
+        _node_label(i.get('sankey_revenue', 'Tržby'), revenue),                        # 0
+        _node_label(i.get('sankey_cogs', 'Priame náklady (COGS)'), cogs),              # 1
+        _node_label(i.get('sankey_gross_margin', 'Hrubá marža'), gross),               # 2
+        _node_label(i.get('sankey_staff', 'Osobné náklady'), staff_val),               # 3
+        _node_label(i.get('sankey_depreciation', 'Odpisy'), dep_val),                  # 4
+        _node_label(i.get('sankey_interest', 'Úroky'), int_val),                       # 5
+        _node_label(i.get('sankey_other_opex', 'Ostatné prevádzkové náklady'), max(0, other_opex)),  # 6
+        _node_label(i.get('sankey_net_profit', 'Čistý zisk'), max(0, net)),            # 7
     ]
     colors = [
-        COLORS['blue_dark'], COLORS['red'], COLORS['green'],
-        COLORS['red'], COLORS['red'], COLORS['red'], COLORS['red'],
-        COLORS['green'],
+        NODE_C['revenue'], NODE_C['cogs'], NODE_C['gross'],
+        NODE_C['staff'], NODE_C['depreciation'], NODE_C['interest'], NODE_C['other_opex'],
+        NODE_C['net_profit'],
     ]
 
     source, target, value, link_color = [], [], [], []
@@ -128,30 +148,30 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
     # Tržby → COGS + Hrubá marža
     if cogs > 0:
         source.append(0); target.append(1); value.append(cogs)
-        link_color.append("rgba(239,68,68,0.35)")
+        link_color.append("rgba(249,115,22,0.30)")  # oranžová (COGS)
     source.append(0); target.append(2); value.append(gross)
     link_color.append("rgba(91,146,121,0.35)")
 
-    # Hrubá marža → náklady
+    # Hrubá marža → náklady (odlíšené farby ako na webe)
     if staff_val > 0:
         source.append(2); target.append(3); value.append(staff_val)
-        link_color.append("rgba(239,68,68,0.35)")
+        link_color.append("rgba(239,68,68,0.30)")  # červená (personál)
     if dep_val > 0:
         source.append(2); target.append(4); value.append(dep_val)
-        link_color.append("rgba(239,68,68,0.35)")
+        link_color.append("rgba(139,92,246,0.30)")  # fialová (odpisy)
     if int_val > 0:
         source.append(2); target.append(5); value.append(int_val)
-        link_color.append("rgba(239,68,68,0.35)")
+        link_color.append("rgba(234,179,8,0.30)")   # žltá (úroky)
 
     # other_opex: kladné = ostatné náklady odchádza z Hrubej marže
     #             záporné = ostatné výnosy pritekajú DO Hrubej marže (nový zdrojový uzol)
     if other_opex > 0:
         source.append(2); target.append(6); value.append(other_opex)
-        link_color.append("rgba(239,68,68,0.35)")
+        link_color.append("rgba(236,72,153,0.35)")
     elif other_opex < 0:
         # Ostatné výnosy → Hrubá marža (index 2)
-        labels.append(i.get('sankey_other_income', 'Ostatné výnosy'))
-        colors.append("#3b82f6")
+        labels.append(_node_label(i.get('sankey_other_income', 'Ostatné výnosy'), abs(other_opex)))
+        colors.append(NODE_C['other_income'])
         idx_ov = len(labels) - 1
         source.append(idx_ov); target.append(2); value.append(abs(other_opex))
         link_color.append("rgba(59,130,246,0.35)")
@@ -161,8 +181,8 @@ def generate_pl_infographic(stmt, lang="sk") -> str:
         source.append(2); target.append(7); value.append(net)
         link_color.append("rgba(91,146,121,0.35)")
     elif net < 0:
-        labels.append(i.get('sankey_loss', 'Strata'))
-        colors.append(COLORS['red'])
+        labels.append(_node_label(i.get('sankey_loss', 'Strata'), abs(net)))
+        colors.append(NODE_C['loss'])
         idx_loss = len(labels) - 1
         source.append(idx_loss); target.append(2); value.append(abs(net))
         link_color.append("rgba(239,68,68,0.35)")
@@ -248,30 +268,43 @@ def generate_cashflow_waterfall(stmt, lang="sk") -> str:
     if working_capital_effect >= 0:
         # Jednoduchý prípad: Čistý zisk + Odpisy + Zmeny v PK → Prevádzkový CF
         # Uzly: 0=Čistý zisk, 1=Odpisy, 2=Zmeny v PK, 3=Prevádzkový CF
-        labels = [i.get('sankey_net_profit', 'Čistý zisk'), i.get('sankey_depreciation', 'Odpisy'), i.get('sankey_wc_changes', 'Zmeny v prac. kapitále'), i.get('chart_operating_cf', 'Prevádzkový CF')]
-        colors = [COLORS['green'], COLORS['blue'], COLORS['green_light'], COLORS['green']]
+        def _cf_lbl(text, val): return f"{text}<br><span style='font-size:11px;opacity:0.7'>{_adaptive_fmt(val)}</span>"
+        labels = [
+            _cf_lbl(i.get('sankey_net_profit', 'Čistý zisk'), net_profit),
+            _cf_lbl(i.get('sankey_depreciation', 'Odpisy'), dep_val),
+            _cf_lbl(i.get('sankey_wc_changes', 'Zmeny v prac. kapitále'), max(0, working_capital_effect)),
+            _cf_lbl(i.get('chart_operating_cf', 'Prevádzkový CF'), ocf),
+        ]
+        colors = [COLORS['green'], '#8b5cf6', COLORS['green_light'], COLORS['green']]
         source = [0, 1]
         target = [3, 3]
         value = [net_profit, dep_val]
-        link_color = ["rgba(91,146,121,0.4)", "rgba(59,130,246,0.4)"]
+        link_color = ["rgba(91,146,121,0.35)", "rgba(139,92,246,0.35)"]
         node_x = [0.01, 0.01, 0.01, 0.82]
         node_y = [0.25, 0.60, 0.85, 0.50]
         if working_capital_effect > 0:
             source.append(2); target.append(3); value.append(working_capital_effect)
-            link_color.append("rgba(34,197,94,0.4)")
+            link_color.append("rgba(34,197,94,0.35)")
     else:
         # BUG FIX: Záporný efekt PK. Schéma: 
         # Čistý zisk + Odpisy → Hrubý CF
         # Hrubý CF → Prevádzkový CF + Odtok do PK
         # Uzly: 0=Čistý zisk, 1=Odpisy, 2=Hrubý peňažný tok, 3=Prevádzkový CF, 4=Záporné zmeny v PK
-        labels = [i.get('sankey_net_profit', 'Čistý zisk'), i.get('sankey_depreciation', 'Odpisy'), i.get('sankey_gross_cf', 'Hrubý peňažný tok'), i.get('chart_operating_cf', 'Prevádzkový CF'), i.get('sankey_negative_wc', 'Záporné zmeny v prac. kapitále')]
-        colors = [COLORS['green'], COLORS['blue'], "#1d4ed8", COLORS['green'], COLORS['red']]
+        def _cf_lbl(text, val): return f"{text}<br><span style='font-size:11px;opacity:0.7'>{_adaptive_fmt(val)}</span>"
+        labels = [
+            _cf_lbl(i.get('sankey_net_profit', 'Čistý zisk'), net_profit),
+            _cf_lbl(i.get('sankey_depreciation', 'Odpisy'), dep_val),
+            _cf_lbl(i.get('sankey_gross_cf', 'Hrubý peňažný tok'), gross_cf),
+            _cf_lbl(i.get('chart_operating_cf', 'Prevádzkový CF'), ocf),
+            _cf_lbl(i.get('sankey_negative_wc', 'Záporné zmeny v prac. kapitále'), abs(working_capital_effect)),
+        ]
+        colors = [COLORS['green'], '#8b5cf6', "#1d4ed8", COLORS['green'], COLORS['red']]
         source = [0, 1, 2, 2]
         target = [2, 2, 3, 4]
         value = [net_profit, dep_val, ocf, abs(working_capital_effect)]
         link_color = [
-            "rgba(91,146,121,0.4)", "rgba(59,130,246,0.4)",
-            "rgba(91,146,121,0.4)", "rgba(239,68,68,0.4)"
+            "rgba(91,146,121,0.35)", "rgba(139,92,246,0.35)",
+            "rgba(91,146,121,0.35)", "rgba(239,68,68,0.35)"
         ]
         node_x = [0.01, 0.01, 0.45, 0.82, 0.82]
         node_y = [0.25, 0.70, 0.50, 0.25, 0.75]
@@ -348,32 +381,59 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     short_term = max(0.0, float(short_liab))
     long_term = max(0.0, float(long_liab))
     
+    # ── Korporátna paleta (zhodná s web verziou) ──────────────────
+    BS_C = {
+        'current':       '#06b6d4',   # Obežný majetok - tyrkysová
+        'non_current':   '#0ea5e9',   # Neobežný majetok - modrá
+        'equity':        '#059669',   # Vlastné imanie - zelená
+        'short_liab':    '#64748b',   # Krátkodobé záväzky - slate
+        'long_liab':     '#78716c',   # Dlhodobé záväzky - stone
+        'neg_equity':    '#ef4444',   # Záporné imanie - červená
+        'other':         '#94a3b8',   # Ostatné - slate light
+        'cash':          '#10b981',   # Hotovosť - zelená light
+        'receivables':   '#14b8a6',   # Pohľadávky - teal
+        'inventory':     '#0ea5e9',   # Zásoby - modrá
+        'other_current': '#94a3b8',   # Ostatné obežné - slate light
+    }
+
+    def _bs_label(text: str, val: float) -> str:
+        """Multi-line label s názvom a hodnotou (ako web verzia)."""
+        return f"{text}<br><span style='font-size:11px;opacity:0.7'>{_adaptive_fmt(val)}</span>"
+
+    def _bs_link_color(hex_color: str, alpha: float = 0.30) -> str:
+        """Convert hex color to rgba string."""
+        h = hex_color.lstrip('#')
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"rgba({r},{g},{b},{alpha})"
+
     # Ľavé uzly (Aktíva + záporné VI)
     left_nodes = []
     if current_assets > 0:
-        left_nodes.append({"name": i.get('sankey_current_assets', 'Obežný majetok'), "value": current_assets, "color": COLORS['green'], "link_color": "rgba(91,146,121,0.35)", "id": 4})
+        left_nodes.append({"name": _bs_label(i.get('sankey_current_assets', 'Obežný majetok'), current_assets), "value": current_assets, "color": BS_C['current'], "link_color": _bs_link_color(BS_C['current']), "id": 4})
     if non_current_assets > 0:
-        left_nodes.append({"name": i.get('sankey_non_current', 'Dlhodobý majetok'), "value": non_current_assets, "color": "#0ea5e9", "link_color": "rgba(14,165,233,0.35)", "id": 5})
+        left_nodes.append({"name": _bs_label(i.get('sankey_non_current', 'Dlhodobý majetok'), non_current_assets), "value": non_current_assets, "color": BS_C['non_current'], "link_color": _bs_link_color(BS_C['non_current']), "id": 5})
     if is_negative_equity and abs_equity > 0:
-        left_nodes.append({"name": i.get('sankey_negative_equity', 'Záporné vl. imanie'), "value": abs_equity, "color": "#ef4444", "link_color": "rgba(239,68,68,0.35)", "id": 99})
+        left_nodes.append({"name": _bs_label(i.get('sankey_negative_equity', 'Záporné vl. imanie'), abs_equity), "value": abs_equity, "color": BS_C['neg_equity'], "link_color": _bs_link_color(BS_C['neg_equity']), "id": 99})
         
     # Pravé uzly (Pasíva)
     right_nodes = []
     if not is_negative_equity and abs_equity > 0:
-        right_nodes.append({"name": i.get('sankey_equity', 'Vlastné imanie'), "value": abs_equity, "color": COLORS['green'], "link_color": "rgba(91,146,121,0.35)", "id": 8})
+        right_nodes.append({"name": _bs_label(i.get('sankey_equity', 'Vlastné imanie'), abs_equity), "value": abs_equity, "color": BS_C['equity'], "link_color": _bs_link_color(BS_C['equity']), "id": 8})
     if short_term > 0:
-        right_nodes.append({"name": i.get('sankey_short_liab', 'Krátkodobé záväzky'), "value": short_term, "color": "#fca5a5", "link_color": "#fca5a5", "id": 9})
+        right_nodes.append({"name": _bs_label(i.get('sankey_short_liab', 'Krátkodobé záväzky'), short_term), "value": short_term, "color": BS_C['short_liab'], "link_color": _bs_link_color(BS_C['short_liab']), "id": 9})
     if long_term > 0:
-        right_nodes.append({"name": i.get('sankey_long_liab', 'Dlhodobé záväzky'), "value": long_term, "color": "#fca5a5", "link_color": "#fca5a5", "id": 10})
+        right_nodes.append({"name": _bs_label(i.get('sankey_long_liab', 'Dlhodobé záväzky'), long_term), "value": long_term, "color": BS_C['long_liab'], "link_color": _bs_link_color(BS_C['long_liab']), "id": 10})
         
     left_sum = sum(n["value"] for n in left_nodes)
     right_sum = sum(n["value"] for n in right_nodes)
     center_val = max(left_sum, right_sum, float(total_assets))
     
     if left_sum < center_val:
-        left_nodes.append({"name": i.get('sankey_other_active', 'Ostatné aktíva'), "value": center_val - left_sum, "color": COLORS['slate'], "link_color": "rgba(148,163,184,0.3)", "id": 100})
+        residual = center_val - left_sum
+        left_nodes.append({"name": _bs_label(i.get('sankey_other_active', 'Ostatné aktíva'), residual), "value": residual, "color": BS_C['other'], "link_color": _bs_link_color(BS_C['other'], 0.25), "id": 100})
     if right_sum < center_val:
-        right_nodes.append({"name": i.get('sankey_other_pasiva', 'Ostatné pasíva'), "value": center_val - right_sum, "color": COLORS['slate'], "link_color": "#fca5a5", "id": 11})
+        residual = center_val - right_sum
+        right_nodes.append({"name": _bs_label(i.get('sankey_other_pasiva', 'Ostatné pasíva'), residual), "value": residual, "color": BS_C['other'], "link_color": _bs_link_color(BS_C['other'], 0.25), "id": 11})
 
     # Sub-nodes for current assets
     raw_components = cash + receivables + inventory
@@ -392,10 +452,10 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     
     # Pridanie sub-nodes — Y rozsah 0.12–0.85, rovnomerne rozmiestnené
     sub_nodes_start = len(nodes)
-    if cash > 0: nodes.append({"name": i.get('sankey_cash', 'Hotovosť'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.12)
-    if receivables > 0: nodes.append({"name": i.get('sankey_receivables', 'Pohľadávky'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.33)
-    if inventory > 0: nodes.append({"name": i.get('sankey_inventory', 'Zásoby'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.54)
-    if other_current > 0: nodes.append({"name": i.get('sankey_other_current', 'Ostat. obež. maj.'), "color": COLORS['green_light']}); node_x.append(0.01); node_y.append(0.82)
+    if cash > 0: nodes.append({"name": _bs_label(i.get('sankey_cash', 'Hotovosť'), cash), "color": BS_C['cash']}); node_x.append(0.01); node_y.append(0.12)
+    if receivables > 0: nodes.append({"name": _bs_label(i.get('sankey_receivables', 'Pohľadávky'), receivables), "color": BS_C['receivables']}); node_x.append(0.01); node_y.append(0.33)
+    if inventory > 0: nodes.append({"name": _bs_label(i.get('sankey_inventory', 'Zásoby'), inventory), "color": BS_C['inventory']}); node_x.append(0.01); node_y.append(0.54)
+    if other_current > 0: nodes.append({"name": _bs_label(i.get('sankey_other_current', 'Ostat. obež. maj.'), other_current), "color": BS_C['other_current']}); node_x.append(0.01); node_y.append(0.82)
     
     # Mapovanie Left nodes — Y rozsah 0.12–0.82, rovnomerne
     left_count = len(left_nodes)
@@ -413,14 +473,14 @@ def generate_balance_sheet_infographic(stmt, lang="sk") -> str:
     if 4 in left_node_ids:
         om_idx = left_node_ids[4]
         idx = sub_nodes_start
-        if cash > 0: links.append({"source": idx, "target": om_idx, "value": cash, "color": "rgba(91,146,121,0.25)"}); idx += 1
-        if receivables > 0: links.append({"source": idx, "target": om_idx, "value": receivables, "color": "rgba(91,146,121,0.25)"}); idx += 1
-        if inventory > 0: links.append({"source": idx, "target": om_idx, "value": inventory, "color": "rgba(91,146,121,0.25)"}); idx += 1
-        if other_current > 0: links.append({"source": idx, "target": om_idx, "value": other_current, "color": "rgba(91,146,121,0.25)"})
+        if cash > 0: links.append({"source": idx, "target": om_idx, "value": cash, "color": _bs_link_color(BS_C['cash'], 0.25)}); idx += 1
+        if receivables > 0: links.append({"source": idx, "target": om_idx, "value": receivables, "color": _bs_link_color(BS_C['receivables'], 0.25)}); idx += 1
+        if inventory > 0: links.append({"source": idx, "target": om_idx, "value": inventory, "color": _bs_link_color(BS_C['inventory'], 0.25)}); idx += 1
+        if other_current > 0: links.append({"source": idx, "target": om_idx, "value": other_current, "color": _bs_link_color(BS_C['other_current'], 0.25)})
         
     # Center node
     center_idx = len(nodes)
-    nodes.append({"name": i.get('sankey_total_assets', 'Celkové aktíva'), "color": COLORS['slate']})
+    nodes.append({"name": _bs_label(i.get('sankey_total_assets', 'Celkové aktíva'), center_val), "color": COLORS['slate']})
     node_x.append(0.5)
     node_y.append(0.5)
     
