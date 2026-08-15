@@ -96,6 +96,11 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
     { key: "daň", color: "#f59e0b", label: t("firma.danZPrjimu"), type: "bar" as const },
   ];
 
+  const fmtLeft = (v: number) => v >= 1e6 ? `${(v / 1e6).toFixed(0)}` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}` : "";
+  const fmtRight = (v: number) => v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : v !== 0 ? `${v.toFixed(0)}` : "";
+  const tooltipStyle = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 };
+  const margin = isPrint ? { top: 0, right: 40, left: 40, bottom: 0 } : { top: 0, right: 0, left: -15, bottom: 0 };
+
   return (
     <div>
       <div className={`flex gap-3 mb-2 ${isPrint ? "justify-center" : "flex-wrap justify-center"}`}>
@@ -111,23 +116,33 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
           </button>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={isPrint ? 260 : 280} minHeight={isPrint ? 260 : 280}>
-        <ComposedChart data={data} margin={isPrint ? { top: 0, right: 40, left: 40, bottom: 0 } : { top: 0, right: 0, left: -15, bottom: 0 }}>
+      {/* Top chart: revenue + tax (single axis, always ≥ 0) */}
+      <ResponsiveContainer width="100%" height={isPrint ? 180 : 200} minHeight={isPrint ? 180 : 200}>
+        <ComposedChart data={data} margin={margin}>
           <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: "var(--border)" }} />
-          <YAxis yAxisId="left" domain={[0, "auto"]} tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}` : v >= 1e3 ? `${(v/1e3).toFixed(0)}` : ""} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 30 : 35} />
-          <YAxis yAxisId="right" orientation="right" tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v !== 0 ? `${v.toFixed(0)}` : ""} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 35 : 40} />
-          <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
-          <Bar yAxisId="left" dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
-          <Bar yAxisId="left" dataKey="daň" fill="#f59e0b" radius={[4, 4, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
-          <Bar yAxisId="right" dataKey="zisk" name={t("firma.ziskStrata")} hide={hidden.has("zisk")} radius={[4, 4, 0, 0]}>
-            {data.map((d, i) => {
-              const v = d.zisk;
-              const color = v == null ? "transparent" : v >= 0 ? "#10b981" : "#ef4444";
-              return <Cell key={i} fill={color} />;
-            })}
-          </Bar>
+          <YAxis domain={[0, "auto"]} tickFormatter={fmtLeft} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 30 : 35} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} />
+          <Bar dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
+          <Bar dataKey="daň" fill="#f59e0b" radius={[4, 4, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
         </ComposedChart>
       </ResponsiveContainer>
+      {/* Bottom chart: profit/loss (own axis, supports negative values) */}
+      {!hidden.has("zisk") && (
+        <ResponsiveContainer width="100%" height={isPrint ? 100 : 110} minHeight={isPrint ? 100 : 110}>
+          <ComposedChart data={data} margin={margin}>
+            <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} />
+            <YAxis domain={["auto", "auto"]} tickFormatter={fmtRight} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 7 : 9 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 30 : 35} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} />
+            <Bar dataKey="zisk" name={t("firma.ziskStrata")} radius={[4, 4, 0, 0]}>
+              {data.map((d, i) => {
+                const v = d.zisk;
+                const color = v == null ? "transparent" : v >= 0 ? "#10b981" : "#ef4444";
+                return <Cell key={i} fill={color} />;
+              })}
+            </Bar>
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
