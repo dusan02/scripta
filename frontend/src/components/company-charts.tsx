@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BarChart, Bar, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, ComposedChart, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Sankey, Layer,
 } from "recharts";
 import { useEffect, useMemo, useState } from "react";
@@ -92,7 +92,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
 
   const LEGEND_ITEMS = [
     { key: "tržby", color: "#3b82f6", label: t("firma.trzby"), type: "bar" as const },
-    { key: "zisk", color: "#10b981", label: t("firma.ziskStrata"), type: "line" as const },
+    { key: "zisk", color: "#10b981", label: t("firma.ziskStrata"), type: "bar" as const },
     { key: "daň", color: "#f59e0b", label: t("firma.danZPrjimu"), type: "bar" as const },
   ];
 
@@ -106,16 +106,12 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
             className="flex items-center gap-1.5 text-xs cursor-pointer"
             style={{ opacity: hidden.has(item.key) ? 0.4 : 1, color: "var(--text-muted)" }}
           >
-            {item.type === "line" ? (
-              <span className="inline-block w-3 h-0.5 rounded-sm" style={{ background: item.color }} />
-            ) : (
-              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: item.color }} />
-            )}
+            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: item.color }} />
             {item.label}
           </button>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={isPrint ? 220 : 240} minHeight={isPrint ? 220 : 240}>
+      <ResponsiveContainer width="100%" height={isPrint ? 260 : 280} minHeight={isPrint ? 260 : 280}>
         <ComposedChart data={data} margin={isPrint ? { top: 0, right: 40, left: 40, bottom: 0 } : { top: 0, right: 0, left: -15, bottom: 0 }}>
           <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: "var(--border)" }} />
           <YAxis yAxisId="left" tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}` : v >= 1e3 ? `${(v/1e3).toFixed(0)}` : ""} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 30 : 35} />
@@ -123,7 +119,13 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
           <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
           <Bar yAxisId="left" dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
           <Bar yAxisId="left" dataKey="daň" fill="#f59e0b" radius={[4, 4, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
-          <Line yAxisId="right" type="monotone" dataKey="zisk" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: "#10b981" }} name={t("firma.ziskStrata")} hide={hidden.has("zisk")} connectNulls />
+          <Bar yAxisId="right" dataKey="zisk" name={t("firma.ziskStrata")} hide={hidden.has("zisk")} radius={[4, 4, 0, 0]}>
+            {data.map((d, i) => {
+              const v = d.zisk;
+              const color = v == null ? "transparent" : v >= 0 ? "#10b981" : "#ef4444";
+              return <Cell key={i} fill={color} />;
+            })}
+          </Bar>
         </ComposedChart>
       </ResponsiveContainer>
     </div>

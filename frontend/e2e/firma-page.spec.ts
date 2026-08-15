@@ -337,7 +337,8 @@ test.describe("Company profile page", () => {
 
   test("revenue/profit chart has dual Y-axes", async ({ page }) => {
     // Regression test: profit was invisible when revenue was 1000x larger.
-    // Now uses ComposedChart with dual-axis (left=revenue, right=profit).
+    // Now uses ComposedChart with dual-axis (left=revenue/tax, right=profit/loss).
+    // Profit/loss is a Bar with green (profit) or red (loss) color.
     await page.goto(`/firma/${DUAL_AXIS_ICO}`, { waitUntil: "networkidle" });
 
     const chartCard = page.locator("text=Tržby a zisk v čase").locator("..");
@@ -349,9 +350,10 @@ test.describe("Company profile page", () => {
     const axisCount = await yAxisElements.count();
     expect(axisCount).toBeGreaterThanOrEqual(2);
 
-    // Should have a Line element for profit (not just Bars)
-    const line = chartCard.locator(".recharts-line").first();
-    await expect(line).toBeVisible({ timeout: 5_000 });
+    // Should have Bar elements (not just one set — multiple bars for revenue, tax, profit)
+    const bars = chartCard.locator(".recharts-bar-rect");
+    const barCount = await bars.count();
+    expect(barCount).toBeGreaterThan(0);
   });
 
   test("financial ratios table has expected rows", async ({ page }) => {
