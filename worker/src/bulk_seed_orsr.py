@@ -89,16 +89,14 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
             data=company_update,
         )
 
-        # Upsert CompanyPerson records for spolocnici
+        # Upsert CompanyPerson records — replace ALL ORSR-sourced persons
         if result.persons:
-            # Delete existing spolocnik records for this company
+            # Delete existing person records for this company (all roles from ORSR)
             await db.companyperson.delete_many(
-                where={"companyIco": ico, "role": "spolocnik"},
+                where={"companyIco": ico},
             )
             # Insert new ones
             for p in result.persons:
-                if p.role != "spolocnik":
-                    continue
                 await db.companyperson.create(
                     data={
                         "companyIco": ico,
