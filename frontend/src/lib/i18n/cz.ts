@@ -132,6 +132,17 @@ const cz: Dict = {
   "firma.ctaButton": "Prověřit firmu zdarma →",
   "firma.ctaTrust": "Data z veřejných registrů SR · finanční výkazy · právní údaje · firemní události",
   "firma.ctaTrust2": "První report zdarma · bez platební karty",
+
+  // ── Provenance + methodology ──
+  "firma.provenanceZdroj": "Zdroj finančních dat",
+  "firma.provenanceRuz": "Registr účetních závěrek (RÚZ)",
+  "firma.provenanceObdobie": "Období",
+  "firma.provenanceAktualizovane": "Aktualizováno",
+  "firma.metodologia": "Ukazatele jsou počítány z účetních závěrek. ROE = zisk / vlastní kapitál, ROA = zisk / celková aktiva, zadluženost = cizí zdroje / celková aktiva.",
+  "firma.metodologiaLink": "Slovník pojmů →",
+  "firma.financneUdajeNedostupne": "Finanční údaje nejsou dostupné",
+  "firma.financneUdajeNedostupneDesc": "V RÚZ nemáme dostupnou účetní závěrku pro tuto firmu.",
+
   "reports.praveTeraz": "právě teď",
   "reports.predMin": "před {n} min",
   "reports.predH": "před {n} h",

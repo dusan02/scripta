@@ -154,6 +154,16 @@ const de: Dict = {
   "firma.ctaTrust": "Daten aus öffentlichen slowakischen Registern · Jahresabschlüsse · Rechtsdaten · Unternehmensereignisse",
   "firma.ctaTrust2": "Erster Bericht kostenlos · keine Kreditkarte erforderlich",
 
+  // ── Provenance + methodology ──
+  "firma.provenanceZdroj": "Quelle der Finanzdaten",
+  "firma.provenanceRuz": "Register der Jahresabschlüsse (RÚZ)",
+  "firma.provenanceObdobie": "Zeitraum",
+  "firma.provenanceAktualizovane": "Aktualisiert",
+  "firma.metodologia": "Kennzahlen werden aus Jahresabschlüssen berechnet. ROE = Gewinn / Eigenkapital, ROA = Gewinn / Gesamtkapital, Verschuldungsgrad = Fremdkapital / Gesamtkapital.",
+  "firma.metodologiaLink": "Glossar →",
+  "firma.financneUdajeNedostupne": "Finanzdaten nicht verfügbar",
+  "firma.financneUdajeNedostupneDesc": "Im RÚZ ist kein Jahresabschluss für dieses Unternehmen verfügbar.",
+
   // ── ReportsTable ──
   "reports.praveTeraz": "gerade eben",
   "reports.predMin": "vor {n} Min",

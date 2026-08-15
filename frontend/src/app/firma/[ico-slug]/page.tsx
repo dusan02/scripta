@@ -17,6 +17,7 @@ import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
 import { getServerSession } from "@/lib/auth";
 import { getLangFromHeaders, generateFirmaMetadata } from "@/lib/seo";
+import { translate } from "@/lib/i18n";
 import { RelatedFirms } from "@/components/related-firms";
 import { PrintButton } from "@/components/PrintButton";
 import { VestnikEvents } from "@/components/vestnik-events";
@@ -61,6 +62,10 @@ export default async function CompanyPage({ params }: Params) {
 
   const session = await getServerSession();
   const isLoggedIn = !!session?.user?.id;
+
+  const h = await headers();
+  const lang = getLangFromHeaders(h);
+  const t = (key: string, params?: Record<string, string | number>) => translate(lang, key, params);
 
   const persons = company.companyPersons ?? [];
 
@@ -259,13 +264,13 @@ export default async function CompanyPage({ params }: Params) {
         {/* Provenance — data source, period, last updated */}
         {stmts.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-[11px] mb-3 no-print" style={{ color: "var(--text-muted)" }}>
-            <span>Zdroj finančných dát: <strong>Register účtovných závierok (RÚZ)</strong></span>
+            <span>{t("firma.provenanceZdroj")}: <strong>{t("firma.provenanceRuz")}</strong></span>
             <span>·</span>
-            <span>Obdobie: {stmts[stmts.length - 1]?.year}–{latest?.year}</span>
+            <span>{t("firma.provenanceObdobie")}: {stmts[stmts.length - 1]?.year}–{latest?.year}</span>
             {company.ruzSyncedAt && (
               <>
                 <span>·</span>
-                <span>Aktualizované: {new Date(company.ruzSyncedAt).toLocaleDateString("sk-SK")}</span>
+                <span>{t("firma.provenanceAktualizovane")}: {new Date(company.ruzSyncedAt).toLocaleDateString(lang === "sk" ? "sk-SK" : "en-GB")}</span>
               </>
             )}
           </div>
@@ -288,10 +293,10 @@ export default async function CompanyPage({ params }: Params) {
         ) : (
           <div className="rounded-lg p-4 mb-6 sm:mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
             <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>
-              Finančné údaje nie sú dostupné
+              {t("firma.financneUdajeNedostupne")}
             </p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              V RÚZ nemáme dostupnú účtovnú závierku pre túto firmu.
+              {t("firma.financneUdajeNedostupneDesc")}
             </p>
           </div>
         )}
@@ -365,8 +370,8 @@ export default async function CompanyPage({ params }: Params) {
               <FinancialRatios stmts={stmts} />
             </ChartCard>
             <p className="text-[11px] mt-2 no-print" style={{ color: "var(--text-muted)" }}>
-              Ukazovatele sú počítané z účtovných závierok. ROE = zisk / vlastné imanie, ROA = zisk / celkové aktíva, zadĺženosť = cudzie zdroje / celkové aktíva. {/* */}
-              <Link href="/slovnik" className="underline hover:no-underline">Vysvetlenie pojmov →</Link>
+              {t("firma.metodologia")} {/* */}
+              <Link href="/slovnik" className="underline hover:no-underline">{t("firma.metodologiaLink")}</Link>
             </p>
           </div>
         )}

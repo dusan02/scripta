@@ -220,6 +220,17 @@ const pl: Dict = {
   "firma.ctaButton": "Sprawdź firmę za darmo →",
   "firma.ctaTrust": "Dane ze słowackich rejestrów publicznych · sprawozdania finansowe · dane prawne · wydarzenia firmowe",
   "firma.ctaTrust2": "Pierwszy raport za darmo · bez karty kredytowej",
+
+  // ── Provenance + methodology ──
+  "firma.provenanceZdroj": "Źródło danych finansowych",
+  "firma.provenanceRuz": "Rejestr sprawozdań finansowych (RÚZ)",
+  "firma.provenanceObdobie": "Okres",
+  "firma.provenanceAktualizovane": "Zaktualizowano",
+  "firma.metodologia": "Wskaźniki są obliczane ze sprawozdań finansowych. ROE = zysk / kapitał własny, ROA = zysk / całkowite aktywa, zadłużenie = zobowiązania / całkowite aktywa.",
+  "firma.metodologiaLink": "Słownik pojęć →",
+  "firma.financneUdajeNedostupne": "Dane finansowe niedostępne",
+  "firma.financneUdajeNedostupneDesc": "W RÚZ nie ma dostępnego sprawozdania finansowego dla tej firmy.",
+
   "reports.praveTeraz": "przed chwilą",
   "reports.predMin": "{n} min temu",
   "reports.predH": "{n} godz. temu",

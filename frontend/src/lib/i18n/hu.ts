@@ -220,6 +220,17 @@ const hu: Dict = {
   "firma.ctaButton": "Cég ingyenes ellenőrzése →",
   "firma.ctaTrust": "Adatok szlovák nyilvános nyilvántartásokból · pénzügyi kimutatások · jogi adatok · céges események",
   "firma.ctaTrust2": "Első jelentés ingyenes · bankkártya nélkül",
+
+  // ── Provenance + methodology ──
+  "firma.provenanceZdroj": "Pénzügyi adatok forrása",
+  "firma.provenanceRuz": "Pénzügyi beszámolók nyilvántartása (RÚZ)",
+  "firma.provenanceObdobie": "Időszak",
+  "firma.provenanceAktualizovane": "Frissítve",
+  "firma.metodologia": "A mutatók a pénzügyi beszámolókból számítottak. ROE = profit / saját tőke, ROA = profit / teljes eszköz, eladósodás = idegen tőke / teljes eszköz.",
+  "firma.metodologiaLink": "Szótár →",
+  "firma.financneUdajeNedostupne": "Pénzügyi adatok nem érhetők el",
+  "firma.financneUdajeNedostupneDesc": "A RÚZ-ban nem áll rendelkezésre pénzügyi beszámoló ehhez a cégnél.",
+
   "reports.praveTeraz": "épp now",
   "reports.predMin": "{n>1 ? '{n} perce' : '1 perce'}",
   "reports.predH": "{n>1 ? '{n} órája' : '1 órája'}",

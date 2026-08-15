@@ -154,6 +154,16 @@ const en: Dict = {
   "firma.ctaTrust": "Data from public Slovak registries · financial statements · legal records · corporate events",
   "firma.ctaTrust2": "First report free · no credit card required",
 
+  // ── Provenance + methodology ──
+  "firma.provenanceZdroj": "Financial data source",
+  "firma.provenanceRuz": "Register of Financial Statements (RÚZ)",
+  "firma.provenanceObdobie": "Period",
+  "firma.provenanceAktualizovane": "Updated",
+  "firma.metodologia": "Ratios are calculated from financial statements. ROE = profit / equity, ROA = profit / total assets, indebtedness = liabilities / total assets.",
+  "firma.metodologiaLink": "Glossary →",
+  "firma.financneUdajeNedostupne": "Financial data not available",
+  "firma.financneUdajeNedostupneDesc": "No financial statement is available in RÚZ for this company.",
+
   // ── ReportsTable ──
   "reports.praveTeraz": "just now",
   "reports.predMin": "{n} min ago",

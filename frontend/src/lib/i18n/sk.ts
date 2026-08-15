@@ -154,6 +154,16 @@ const sk: Dict = {
   "firma.ctaTrust": "Dáta z verejných registrov SR · finančné výkazy · právne údaje · firemné udalosti",
   "firma.ctaTrust2": "Prvý report zadarmo · bez platobnej karty",
 
+  // ── Provenance + methodology ──
+  "firma.provenanceZdroj": "Zdroj finančných dát",
+  "firma.provenanceRuz": "Register účtovných závierok (RÚZ)",
+  "firma.provenanceObdobie": "Obdobie",
+  "firma.provenanceAktualizovane": "Aktualizované",
+  "firma.metodologia": "Ukazovatele sú počítané z účtovných závierok. ROE = zisk / vlastné imanie, ROA = zisk / celkové aktíva, zadĺženosť = cudzie zdroje / celkové aktíva.",
+  "firma.metodologiaLink": "Vysvetlenie pojmov →",
+  "firma.financneUdajeNedostupne": "Finančné údaje nie sú dostupné",
+  "firma.financneUdajeNedostupneDesc": "V RÚZ nemáme dostupnú účtovnú závierku pre túto firmu.",
+
   // ── ReportsTable ──
   "reports.praveTeraz": "práve teraz",
   "reports.predMin": "pred {n} min",
