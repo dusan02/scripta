@@ -335,22 +335,18 @@ test.describe("Company profile page", () => {
     }
   });
 
-  test("revenue/profit chart has dual Y-axes", async ({ page }) => {
+  test("revenue/profit chart has separate revenue and profit/loss charts", async ({ page }) => {
     // Regression test: profit was invisible when revenue was 1000x larger.
-    // Now uses ComposedChart with dual-axis (left=revenue/tax, right=profit/loss).
-    // Profit/loss is a Bar with green (profit) or red (loss) color.
+    // Now split into two stacked BarCharts: top for revenue/tax, bottom for profit/loss.
+    // Profit/loss bars are green (profit) or red (loss).
     await page.goto(`/firma/${DUAL_AXIS_ICO}`, { waitUntil: "networkidle" });
 
-    // The chart title is in an <h3> — find the card by looking for the heading
     const chartHeading = page.locator("h3", { hasText: "Tržby a zisk v čase" }).first();
     await expect(chartHeading).toBeVisible({ timeout: 15_000 });
 
-    // Navigate up to the card container, then find the SVG chart
-    const chartContainer = chartHeading.locator("xpath=ancestor::div[contains(@class, 'print-section') or contains(@class, 'grid')]").first();
-
-    // Should have two YAxis elements (left and right)
+    // Should have at least 2 YAxis elements (one per chart)
     const yAxisElements = page.locator(".recharts-yAxis");
-    await expect(yAxisElements.first()).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(2000); // Wait for charts to render
     const axisCount = await yAxisElements.count();
     expect(axisCount).toBeGreaterThanOrEqual(2);
 
