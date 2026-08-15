@@ -94,36 +94,38 @@ export default async function CompanyPage({ params }: Params) {
     vlastnéImanie: num(s.equity),
   }));
 
-  const balanceData = latest ? {
-    currentAssets: num(latest.currentAssets),
-    nonCurrentAssets: num(latest.nonCurrentAssets),
-    totalAssets: num(latest.totalAssets),
-    equity: num(latest.equity),
-    shortTermLiabilities: num(latest.shortTermLiabilities),
-    longTermLiabilities: num(latest.longTermLiabilities),
-    intangibleAssets: num(latest.intangibleAssets),
-    tangibleAssets: num(latest.tangibleAssets),
-    ltFinancialAssets: num(latest.ltFinancialAssets),
-    ltReceivables: num(latest.ltReceivables),
-    inventory: num(latest.inventory),
-    tradeReceivables: num(latest.tradeReceivables),
-    stFinancialAssets: num(latest.stFinancialAssets),
-    cashAndEquivalents: num(latest.cashAndEquivalents),
-    deferredAssets: num(latest.deferredAssets),
-    shareCapital: num(latest.shareCapital),
-    sharePremium: num(latest.sharePremium),
-    otherCapitalFunds: num(latest.otherCapitalFunds),
-    statutoryReserveFunds: num(latest.statutoryReserveFunds),
-    retainedEarnings: num(latest.retainedEarnings),
-    currentYearProfit: num(latest.currentYearProfit),
-    ltReserves: num(latest.ltReserves),
-    stReserves: num(latest.stReserves),
-    stBankLoans: num(latest.stBankLoans),
-    stFinancialAssistance: num(latest.stFinancialAssistance),
-    tradePayables: num(latest.tradePayables),
-    socialInsuranceLiabilities: num(latest.socialInsuranceLiabilities),
-    taxLiabilities: num(latest.taxLiabilities),
-    employeeLiabilities: num(latest.employeeLiabilities),
+  // Use the most recent year that has totalAssets for the Sankey chart
+  const balanceStmt = stmts.find(s => num(s.totalAssets) != null) ?? null;
+  const balanceData = balanceStmt ? {
+    currentAssets: num(balanceStmt.currentAssets),
+    nonCurrentAssets: num(balanceStmt.nonCurrentAssets),
+    totalAssets: num(balanceStmt.totalAssets),
+    equity: num(balanceStmt.equity),
+    shortTermLiabilities: num(balanceStmt.shortTermLiabilities),
+    longTermLiabilities: num(balanceStmt.longTermLiabilities),
+    intangibleAssets: num(balanceStmt.intangibleAssets),
+    tangibleAssets: num(balanceStmt.tangibleAssets),
+    ltFinancialAssets: num(balanceStmt.ltFinancialAssets),
+    ltReceivables: num(balanceStmt.ltReceivables),
+    inventory: num(balanceStmt.inventory),
+    tradeReceivables: num(balanceStmt.tradeReceivables),
+    stFinancialAssets: num(balanceStmt.stFinancialAssets),
+    cashAndEquivalents: num(balanceStmt.cashAndEquivalents),
+    deferredAssets: num(balanceStmt.deferredAssets),
+    shareCapital: num(balanceStmt.shareCapital),
+    sharePremium: num(balanceStmt.sharePremium),
+    otherCapitalFunds: num(balanceStmt.otherCapitalFunds),
+    statutoryReserveFunds: num(balanceStmt.statutoryReserveFunds),
+    retainedEarnings: num(balanceStmt.retainedEarnings),
+    currentYearProfit: num(balanceStmt.currentYearProfit),
+    ltReserves: num(balanceStmt.ltReserves),
+    stReserves: num(balanceStmt.stReserves),
+    stBankLoans: num(balanceStmt.stBankLoans),
+    stFinancialAssistance: num(balanceStmt.stFinancialAssistance),
+    tradePayables: num(balanceStmt.tradePayables),
+    socialInsuranceLiabilities: num(balanceStmt.socialInsuranceLiabilities),
+    taxLiabilities: num(balanceStmt.taxLiabilities),
+    employeeLiabilities: num(balanceStmt.employeeLiabilities),
   } : null;
 
   const orgSchema: Record<string, any> = {
@@ -345,7 +347,7 @@ export default async function CompanyPage({ params }: Params) {
             <ChartCard title="Štruktúra súvahy">
               <BalanceSankeyChart data={balanceData} />
             </ChartCard>
-            <ChartCard title="Súvaha (v tis. €)">
+            <ChartCard title={`Súvaha (v tis. €)${balanceStmt ? ` — ${balanceStmt.year}` : ""}`}>
               <BalanceSheetTable stmts={stmts} />
             </ChartCard>
           </div>
