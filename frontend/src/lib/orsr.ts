@@ -307,7 +307,15 @@ function extractPersons(text: string): PersonInfo[] {
   persons.push(...parsePersonsFromSection(text, "Štatutárny orgán", "statutar"));
   persons.push(...parsePersonsFromSection(text, "Dozorná rada", "dozorna_rada"));
   persons.push(...parsePersonsFromSection(text, "Spoločníci", "spolocnik"));
-  return persons;
+
+  // Deduplicate by cleanName + role — ORSR often lists same person twice
+  const seen = new Set<string>();
+  return persons.filter(p => {
+    const key = `${p.cleanName?.toLowerCase()}|${p.role}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<string> {
