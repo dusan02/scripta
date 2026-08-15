@@ -4,6 +4,7 @@ import { addCreditBatch } from "@/lib/credits";
 import { PLAN_CREDITS_MAP } from "@/lib/billing/paddle";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
+import { confirmSchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,12 @@ export async function POST(req: NextRequest) {
     });
     if (!rl.allowed) return rateLimitResponse(rl);
 
-    const { transactionId } = await req.json();
-    if (!transactionId || typeof transactionId !== "string") {
-      return NextResponse.json({ error: "Transaction ID required" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    const parsed = confirmSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Transaction ID required", details: parsed.error.flatten() }, { status: 400 });
     }
+    const { transactionId } = parsed.data;
 
     const apiKey = process.env.PADDLE_API_KEY;
     if (!apiKey) {

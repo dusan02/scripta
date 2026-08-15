@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { accountDeleteSchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -22,15 +23,15 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const { password } = body as { password?: string };
-
-    if (!password) {
+    const body = await req.json().catch(() => null);
+    const parsed = accountDeleteSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
         { error: "Password confirmation is required to delete your account." },
         { status: 400 }
       );
     }
+    const { password } = parsed.data;
 
     // Verify password
     const dbUser = await prisma.user.findUnique({

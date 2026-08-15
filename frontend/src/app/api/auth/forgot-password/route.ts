@@ -5,6 +5,7 @@ import { hashToken } from "@/lib/token";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { sendEmail, emailShell, emailButton } from "@/lib/email";
 import { NEXTAUTH_URL } from "@/lib/env";
+import { forgotPasswordSchema } from "@/lib/api-schemas";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -12,12 +13,13 @@ export async function POST(req: NextRequest) {
   if (!rl.allowed) return rateLimitResponse(rl);
 
   try {
-    const { email } = await req.json();
-
-    if (!email) {
+    const body = await req.json().catch(() => null);
+    const parsed = forgotPasswordSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ message: "E-mail je povinný." }, { status: 400 });
     }
 
+    const { email } = parsed.data;
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = await prisma.user.findUnique({

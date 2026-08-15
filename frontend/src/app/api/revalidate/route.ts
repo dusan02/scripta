@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { verifyCronSecret } from "@/lib/auth";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
+import { revalidateSchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +31,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const type = body.type || "all";
+  const parsed = revalidateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid input" }, { status: 400 });
+  }
+  const { type, path } = parsed.data;
 
-  if (type === "path" && body.path) {
-    revalidatePath(body.path);
-    return NextResponse.json({ revalidated: true, path: body.path });
+  if (type === "path" && path) {
+    revalidatePath(path);
+    return NextResponse.json({ revalidated: true, path });
   }
 
   // Revalidate all firma profiles + sitemap

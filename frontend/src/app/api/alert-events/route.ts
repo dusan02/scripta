@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { alertListQuerySchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,14 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
-  const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+  const parsed = alertListQuerySchema.safeParse({
+    limit: searchParams.get("limit") || undefined,
+    offset: searchParams.get("offset") || undefined,
+  });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
+  }
+  const { limit, offset } = parsed.data;
 
   // Get user's watched company IČOs
   const watched = await prisma.watchedCompany.findMany({

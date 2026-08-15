@@ -4,6 +4,7 @@ import { getBillingAdapter } from "@/lib/billing";
 import { PRICE_MAP as STRIPE_PRICE_MAP } from "@/lib/billing/stripe";
 import { PADDLE_PRICE_MAP } from "@/lib/billing/paddle";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
+import { checkoutSchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +29,12 @@ export async function POST(req: NextRequest) {
     });
     if (!rl.allowed) return rateLimitResponse(rl);
 
-    const { planId } = await req.json();
-    if (!planId || typeof planId !== "string") {
-      return NextResponse.json({ error: "Plan ID required" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    const parsed = checkoutSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Plan ID required", details: parsed.error.flatten() }, { status: 400 });
     }
+    const { planId } = parsed.data;
 
     if (!VALID_PLAN_IDS.has(planId)) {
       return NextResponse.json({ error: "Invalid plan ID" }, { status: 400 });

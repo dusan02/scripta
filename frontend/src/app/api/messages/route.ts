@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { sendEmail, getReplyToAddress } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
+import { messageCreateSchema, messageMarkReadSchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -44,15 +45,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { title, message } = body;
-
-    if (!title?.trim() || !message?.trim()) {
+    const body = await req.json().catch(() => null);
+    const parsed = messageCreateSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Title and message are required" },
+        { error: "Title and message are required", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
+    const { title, message } = parsed.data;
 
     // Rate limiting: max 5 messages per hour per user
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -108,15 +109,15 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { messageIds } = body;
-
-    if (!Array.isArray(messageIds)) {
+    const body = await req.json().catch(() => null);
+    const parsed = messageMarkReadSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "messageIds must be an array" },
+        { error: "messageIds must be a non-empty array of strings", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
+    const { messageIds } = parsed.data;
 
     // Označiť správy ako prečítané (len pre prihláseného používateľa, nie soft-deleted)
     await prisma.userMessage.updateMany({

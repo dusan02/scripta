@@ -5,6 +5,7 @@ import { sendEmail, getReplyToAddress } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { translate, normalizeLang } from "@/lib/i18n";
+import { feedbackSchema } from "@/lib/api-schemas";
 
 const VALID_CATEGORIES = ["BUG", "IMPROVEMENT", "QUESTION", "OTHER"] as const;
 
@@ -33,22 +34,15 @@ export async function POST(req: NextRequest) {
     const rl = await rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 5 });
     if (!rl.allowed) return rateLimitResponse(rl);
 
-    const body = await req.json();
-    const { category, requestId, message } = body;
-
-    if (!category || !VALID_CATEGORIES.includes(category)) {
+    const body = await req.json().catch(() => null);
+    const parsed = feedbackSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: translate(lang, "email.feedbackKategoriaPovinna") },
+        { error: translate(lang, "email.feedbackKategoriaPovinna"), details: parsed.error.flatten() },
         { status: 400 }
       );
     }
-
-    if (!message || typeof message !== "string" || message.trim().length === 0) {
-      return NextResponse.json(
-        { error: translate(lang, "email.feedbackTextPovinny") },
-        { status: 400 }
-      );
-    }
+    const { category, requestId, message } = parsed.data;
 
     const feedback = await prisma.feedback.create({
       data: {

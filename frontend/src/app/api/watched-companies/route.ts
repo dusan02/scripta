@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
+import { watchedCompanyCreateSchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -53,16 +54,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const companyId = body.companyId?.trim();
-  const note = body.note?.trim();
-
-  if (!companyId || !ICO_PATTERN.test(companyId)) {
-    return NextResponse.json({ error: "Valid 8-digit IČO is required" }, { status: 400 });
+  const parsed = watchedCompanyCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid input", details: parsed.error.flatten() }, { status: 400 });
   }
-
-  if (note && note.length > 500) {
-    return NextResponse.json({ error: "Note must be at most 500 characters" }, { status: 400 });
-  }
+  const { companyId, note } = parsed.data;
 
   // Check plan-based limit
   const dbUser = await prisma.user.findUnique({

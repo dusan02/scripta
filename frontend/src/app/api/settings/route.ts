@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { SOURCE_IDS } from "@/lib/sources";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { VALID_LANGS } from "@/lib/i18n";
+import { settingsPatchSchema } from "@/lib/api-schemas";
 
 export async function GET(req: NextRequest) {
   try {
@@ -47,8 +48,15 @@ export async function PATCH(req: NextRequest) {
     const rl = await rateLimit(req, { windowMs: 10 * 60 * 1000, maxRequests: 20 });
     if (!rl.allowed) return rateLimitResponse(rl);
 
-    const body = await req.json();
-    const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, vestnikDateFrom, defaultSources, reportLanguage, attachmentsConfig } = body;
+    const body = await req.json().catch(() => null);
+    const parsed = settingsPatchSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || "Invalid input", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+    const { orsrExtractType, crzDateFrom, rozhodnutiaDateFrom, vestnikDateFrom, defaultSources, reportLanguage, attachmentsConfig } = parsed.data;
 
     const data: Record<string, unknown> = {};
 
