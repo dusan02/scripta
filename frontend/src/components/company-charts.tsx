@@ -369,7 +369,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
           contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, padding: "6px 10px" }}
           formatter={(_v: any, _name: any, props: any) => {
             const p = props?.payload;
-            if (!p) return ["", ""];
+            if (!p) return null as unknown as [string, string];
             // Link hover
             if (p.source != null && p.target != null && typeof p.index === "number") {
               const linkData = sankeyData.links[p.index];
@@ -384,7 +384,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
               const val = outgoingValue[p.index] ?? incomingValue[p.index] ?? 0;
               return [fmtEUR(val), nodeName];
             }
-            return ["", ""];
+            return null as unknown as [string, string];
           }}
         />
       </Sankey>

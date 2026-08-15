@@ -435,6 +435,8 @@ async function seedCompany(ico: string) {
   });
 }
 
+const RESEED_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 export const getCompanyData = cache(async (ico: string) => {
   let company = await prisma.company.findUnique({
     where: { ico },
@@ -451,6 +453,26 @@ export const getCompanyData = cache(async (ico: string) => {
       company = await seedCompany(ico);
     } catch {
       // ignore seeding errors
+    }
+  } else if (
+    company.financialStatements.length < MAX_STMTS &&
+    (!company.ruzSyncedAt || Date.now() - company.ruzSyncedAt.getTime() > RESEED_THRESHOLD_MS)
+  ) {
+    // Re-seed from RÚZ if company has fewer than 5 financial statements
+    // and hasn't been synced recently — picks up newly filed statements
+    try {
+      await seedFromRuz(ico);
+      company = await prisma.company.findUnique({
+        where: { ico },
+        include: {
+          financialStatements: { orderBy: { year: "desc" }, take: 5 },
+          vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
+          companyPersons: { orderBy: { rawName: "asc" }, take: 50 },
+          companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
+        },
+      });
+    } catch {
+      // ignore re-seed errors — serve existing data
     }
   }
 
