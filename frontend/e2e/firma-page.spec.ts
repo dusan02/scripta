@@ -341,19 +341,24 @@ test.describe("Company profile page", () => {
     // Profit/loss is a Bar with green (profit) or red (loss) color.
     await page.goto(`/firma/${DUAL_AXIS_ICO}`, { waitUntil: "networkidle" });
 
-    const chartCard = page.locator("text=Tržby a zisk v čase").locator("..");
-    await expect(chartCard).toBeVisible({ timeout: 15_000 });
+    // The chart title is in an <h3> — find the card by looking for the heading
+    const chartHeading = page.locator("h3", { hasText: "Tržby a zisk v čase" }).first();
+    await expect(chartHeading).toBeVisible({ timeout: 15_000 });
+
+    // Navigate up to the card container, then find the SVG chart
+    const chartContainer = chartHeading.locator("xpath=ancestor::div[contains(@class, 'print-section') or contains(@class, 'grid')]").first();
 
     // Should have two YAxis elements (left and right)
-    const yAxisElements = chartCard.locator(".recharts-yAxis");
+    const yAxisElements = page.locator(".recharts-yAxis");
     await expect(yAxisElements.first()).toBeVisible({ timeout: 10_000 });
     const axisCount = await yAxisElements.count();
     expect(axisCount).toBeGreaterThanOrEqual(2);
 
-    // Should have Bar elements (not just one set — multiple bars for revenue, tax, profit)
-    const bars = chartCard.locator(".recharts-bar-rect");
-    const barCount = await bars.count();
-    expect(barCount).toBeGreaterThan(0);
+    // Should have bar rectangles (Recharts renders bars as <rect>)
+    const svgRects = page.locator(".recharts-surface rect");
+    await expect(svgRects.first()).toBeVisible({ timeout: 10_000 });
+    const rectCount = await svgRects.count();
+    expect(rectCount).toBeGreaterThan(0);
   });
 
   test("financial ratios table has expected rows", async ({ page }) => {
