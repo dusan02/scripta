@@ -41,7 +41,9 @@ class PersonInfo(BaseModel):
     clean_name: str         # Meno bez titulov (Peter Kurucz)
     city: Optional[str] = None
     zip_code: Optional[str] = None
-    role: str               # "statutar" alebo "spolocnik"
+    role: str               # "statutar" | "spolocnik" | "dozorna_rada"
+    capital_contribution: Optional[float] = None  # Vklad v EUR (pre spoločníkov)
+    capital_paid: Optional[float] = None           # Splatené v EUR
 
 
 class OrsrForensics(BaseModel):
@@ -66,6 +68,10 @@ class ScrapedSource(BaseModel):
     raw_data: Optional[list] = None  # Štruktúrované dáta z API (JSON) — pre PDF Reader Agent
     full_extract_text: Optional[str] = None  # Celý text "Úplného výpisu" pre ORSR Forensics
     checked_at: Optional[str] = None  # ISO timestamp when scraper finished (for PDF transparency)
+    # ── ORSR structured fields (for bulk seeding) ──
+    share_capital: Optional[float] = None       # Základné imanie v EUR
+    signing_authority: Optional[str] = None     # Konanie menom spoločnosti
+    business_activity: Optional[str] = None     # Predmet podnikania (činnosti)
 
     @property
     def message(self) -> Optional[str]:  # backward compat alias

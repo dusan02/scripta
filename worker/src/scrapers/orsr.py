@@ -136,10 +136,12 @@ class OrsrScraper(BaseScraper):
                     logger.error(f"[{self.source_type}] PDF zlyhalo: {e}")
                     return self._make_result(status="FAILED", status_message=f"Chyba pri generovaní PDF z ORSR: {e}")
 
-                # 7. Extract findings + persons
+                # 7. Extract findings + persons + structured fields
                 body_text = self._html_to_text(detail_html)
                 findings = self._extract_findings(body_text)
-                persons = self._extract_persons(body_text)
+                persons = self._extract_persons(body_text, html=detail_html)
+                structured = self._extract_structured_fields(detail_html)
+                self._extract_capital_contributions(detail_html, persons)
 
                 logger.info(f"[{self.source_type}] ORSR hotový za {time.perf_counter() - _t:.1f}s")
                 return self._make_result(
@@ -151,6 +153,9 @@ class OrsrScraper(BaseScraper):
                     company_name=company_name,
                     persons=persons,
                     full_extract_text=full_extract_text,
+                    share_capital=structured["share_capital"],
+                    signing_authority=structured["signing_authority"],
+                    business_activity=structured["business_activity"],
                 )
 
         except httpx.TimeoutException:
@@ -391,14 +396,218 @@ class OrsrScraper(BaseScraper):
             return "POZOR: Spoločnosť je vymazaná z ORSR."
         return "Aktívna spoločnosť v ORSR (bez zistených anomálií)."
 
-    def _extract_persons(self, text: str) -> list[PersonInfo]:
-        """Extrahuje osoby z sekcií 'Štatutárny orgán' a 'Spoločníci' z ORSR výpisu."""
+    # ── Structured field extraction (HTML-based, for bulk seeding) ─────
+
+    def _extract_structured_fields(self, html: str) -> dict:
+        """Extrahuje shareCapital, signingAuthority, businessActivity z HTML výpisu.
+        Vráti dict s kľúčmi: share_capital, signing_authority, business_activity.
+        """
+        soup = BeautifulSoup(html, "lxml")
+        return {
+            "share_capital": self._extract_share_capital(soup),
+            "signing_authority": self._extract_signing_authority(soup),
+            "business_activity": self._extract_business_activity(soup),
+        }
+
+    @staticmethod
+    def _extract_share_capital(soup: BeautifulSoup) -> Optional[float]:
+        """Extrahuje základné imanie z HTML výpisu.
+        Pre a.s.: label 'Výška základného imania:' → '4 069 176,126944 EUR Rozsah splatenia: ...'
+        Pre s.r.o.: imanie = súčet vkladov spoločníkov (nie je explicitné v ORSR).
+        """
+        for table in soup.find_all("table"):
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                for i, cell in enumerate(cells):
+                    text = cell.get_text(strip=True).lower()
+                    if "základného imania" in text and i + 1 < len(cells):
+                        val_text = cells[i + 1].get_text(" ", strip=True)
+                        # Pattern: "4 069 176,126944 EUR" or "5 000 EUR"
+                        m = re.search(r'([\d\s,.]+)\s*EUR', val_text)
+                        if m:
+                            amount_str = m.group(1).replace("\xa0", "").replace(" ", "").replace(",", ".")
+                            try:
+                                return float(amount_str)
+                            except ValueError:
+                                pass
+        return None
+
+    @staticmethod
+    def _extract_signing_authority(soup: BeautifulSoup) -> Optional[str]:
+        """Extrahuje 'Konanie menom spoločnosti' z HTML výpisu."""
+        for table in soup.find_all("table"):
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                for i, cell in enumerate(cells):
+                    text = cell.get_text(strip=True).lower()
+                    if "konanie menom spoločnosti" in text and i + 1 < len(cells):
+                        val_text = cells[i + 1].get_text(" ", strip=True)
+                        # Remove "(od: DD.MM.YYYY)" suffixes
+                        cleaned = re.sub(r'\s*\(od:\s*\d{2}\.\d{2}\.\d{4}\)\s*', ' ', val_text).strip()
+                        if cleaned:
+                            return cleaned
+        return None
+
+    @staticmethod
+    def _extract_business_activity(soup: BeautifulSoup) -> Optional[str]:
+        """Extrahuje 'Predmet podnikania (činnosti)' z HTML výpisu."""
+        for table in soup.find_all("table"):
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                for i, cell in enumerate(cells):
+                    text = cell.get_text(strip=True).lower()
+                    if "predmet podnikania" in text and i + 1 < len(cells):
+                        val_text = cells[i + 1].get_text(" ", strip=True)
+                        # Remove "(od: DD.MM.YYYY)" suffixes
+                        cleaned = re.sub(r'\s*\(od:\s*\d{2}\.\d{2}\.\d{4}\)\s*', ' ', val_text).strip()
+                        if cleaned:
+                            return cleaned
+        return None
+
+    def _extract_capital_contributions(self, html: str, persons: list[PersonInfo]) -> None:
+        """Extrahuje vklady spoločníkov z 'Výška vkladu každého spoločníka:' sekcie.
+        HTML-based parser — správne spojuje mená rozbité na <span> elementy.
+        Updatuje existujúce PersonInfo objekty (spoločníci) s capital_contribution a capital_paid.
+        """
+        soup = BeautifulSoup(html, "lxml")
+
+        # Nájdime sekciu "Výška vkladu každého spoločníka"
+        contributions: list[tuple[str, float, float]] = []  # (name, vklad, splatene)
+
+        for table in soup.find_all("table"):
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                for i, cell in enumerate(cells):
+                    text = cell.get_text(strip=True).lower()
+                    if "výška vkladu každého spoločníka" in text and i + 1 < len(cells):
+                        # Obsah je v ďalšej bunke — vnorené tabuľky s entries
+                        content_cell = cells[i + 1]
+                        for sub_table in content_cell.find_all("table"):
+                            sub_rows = sub_table.find_all("tr")
+                            for sr in sub_rows:
+                                sr_cells = sr.find_all("td")
+                                if not sr_cells:
+                                    continue
+                                # Prvý stĺpec = meno + vklad, druhý = dátum
+                                left = sr_cells[0]
+                                left_text = left.get_text(" ", strip=True)
+                                # Pattern: "Peter Krcho Vklad: 3 000 EUR Splatené: 3 000 EUR"
+                                m = re.search(r'Vklad:\s*([\d\s,.]+)\s*EUR\s*Splatené:\s*([\d\s,.]+)\s*EUR', left_text, re.IGNORECASE)
+                                if m:
+                                    vklad_str = m.group(1).replace("\xa0", "").replace(" ", "").replace(",", ".")
+                                    splatene_str = m.group(2).replace("\xa0", "").replace(" ", "").replace(",", ".")
+                                    try:
+                                        vklad = float(vklad_str)
+                                        splatene = float(splatene_str)
+                                    except ValueError:
+                                        continue
+                                    # Meno = všetko pred "Vklad:"
+                                    name_part = left_text[:m.start()].strip()
+                                    name_part = re.sub(r'\s*\(od:\s*\d{2}\.\d{2}\.\d{4}\)\s*$', '', name_part).strip()
+                                    if name_part:
+                                        contributions.append((name_part, vklad, splatene))
+
+        # Match contributions to existing spolocnik persons
+        for name, vklad, splatene in contributions:
+            for person in persons:
+                if person.role != "spolocnik":
+                    continue
+                # Try clean_name match
+                if person.clean_name and person.clean_name in name:
+                    person.capital_contribution = vklad
+                    person.capital_paid = splatene
+                    break
+                # Try raw_name match
+                if person.raw_name and person.raw_name in name:
+                    person.capital_contribution = vklad
+                    person.capital_paid = splatene
+                    break
+
+    def _extract_persons(self, text: str, html: str = None) -> list[PersonInfo]:
+        """Extrahuje osoby z sekcií 'Štatutárny orgán', 'Dozorná rada', 'Spoločníci'.
+        Primárne HTML-based parser (správne spojuje <span> mená), fallback na text-based.
+        """
         persons: list[PersonInfo] = []
-        persons.extend(self._parse_persons_from_section(text, "Štatutárny orgán", "statutar"))
-        persons.extend(self._parse_persons_from_section(text, "Dozorná rada", "dozorna_rada"))
-        persons.extend(self._parse_persons_from_section(text, "Spoločníci", "spolocnik"))
+        if html:
+            persons.extend(self._parse_persons_from_html(html, "Spoločníci", "spolocnik"))
+            persons.extend(self._parse_persons_from_html(html, "Štatutárny orgán", "statutar"))
+            persons.extend(self._parse_persons_from_html(html, "Dozorná rada", "dozorna_rada"))
+        if not persons:
+            persons.extend(self._parse_persons_from_section(text, "Štatutárny orgán", "statutar"))
+            persons.extend(self._parse_persons_from_section(text, "Dozorná rada", "dozorna_rada"))
+            persons.extend(self._parse_persons_from_section(text, "Spoločníci", "spolocnik"))
         if persons:
             logger.info(f"[{self.source_type}] Extrahovaných {len(persons)} osôb z ORSR výpisu.")
+        return persons
+
+    @staticmethod
+    def _parse_persons_from_html(html: str, label_text: str, role: str) -> list[PersonInfo]:
+        """HTML-based parser pre osoby z ORSR výpisu.
+        Správne spojuje mená rozbité na <span class='ra'> elementy.
+        """
+        soup = BeautifulSoup(html, "lxml")
+        persons: list[PersonInfo] = []
+        for span in soup.find_all("span", class_="tl"):
+            lt = span.get_text(strip=True)
+            if label_text not in lt:
+                continue
+            td = span.find_parent("td")
+            if not td:
+                continue
+            tr = td.find_parent("tr")
+            if not tr:
+                continue
+            tds = tr.find_all("td")
+            if len(tds) < 2:
+                continue
+            content = tds[1]
+            for sub in content.find_all("table", recursive=False):
+                for sr in sub.find_all("tr"):
+                    cells = sr.find_all("td")
+                    if not cells:
+                        continue
+                    left = cells[0]
+                    full = left.get_text(" ", strip=True)
+                    # Name from <a> or first <span class=ra> without digits
+                    a = left.find("a")
+                    if a and a.get_text(strip=True):
+                        raw_name = a.get_text(" ", strip=True)
+                    else:
+                        raw_name = ""
+                        for s in left.find_all("span", class_="ra"):
+                            t = s.get_text(strip=True)
+                            if t and not any(c.isdigit() for c in t):
+                                raw_name = t
+                                break
+                    if not raw_name or len(raw_name) < 3:
+                        continue
+                    # Skip role labels like "konatelia", "predstavenstvo"
+                    _ROLE_LABELS = {"konatelia", "predstavenstvo", "konateľ", "predseda predstavenstva",
+                                    "podpredseda predstavenstva", "člen predstavenstva"}
+                    if raw_name.lower().strip() in _ROLE_LABELS:
+                        continue
+                    # Clean name
+                    words = raw_name.split()
+                    name_words = [w for w in words if w.lower().rstrip(".,") not in ACADEMIC_TITLES]
+                    name_words = [w for w in name_words if w.rstrip(".,;") and any(c.isalpha() for c in w)]
+                    clean_name = " ".join(name_words) if len(name_words) >= 2 else raw_name
+                    # ZIP
+                    zm = ZIP_RE.search(full)
+                    zip_code = zm.group(1).replace(" ", "") if zm else None
+                    # City
+                    city = None
+                    if zm:
+                        after = full[full.find(raw_name) + len(raw_name):]
+                        cm = re.search(
+                            r'([A-ZÁ-Ž][a-zá-ž]+(?:\s+[A-Za-zá-ž]+)*)\s+' + re.escape(zm.group(1)),
+                            after,
+                        )
+                        if cm:
+                            city = cm.group(1)
+                    persons.append(PersonInfo(
+                        raw_name=raw_name, clean_name=clean_name,
+                        city=city, zip_code=zip_code, role=role,
+                    ))
         return persons
 
     @staticmethod
