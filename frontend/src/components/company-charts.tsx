@@ -347,36 +347,44 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
             Z
           `;
 
+          const linkTitle = linkData.srcName && linkData.tgtName
+            ? `${linkData.srcName} → ${linkData.tgtName}: ${fmtEUR(linkData.value)}`
+            : fmtEUR(linkData.value);
+
           return (
             <Layer key={`link-${index}`}>
               <path
                 d={path}
                 fill={lColor}
                 stroke="none"
-              />
+              >
+                <title>{linkTitle}</title>
+              </path>
             </Layer>
           );
         }}
       >
         <Tooltip
-          contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-          formatter={(v: any, _name: any, props: any) => {
+          cursor={false}
+          contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, padding: "6px 10px" }}
+          formatter={(_v: any, _name: any, props: any) => {
             const p = props?.payload;
-            // Link hover: payload has source/target
-            if (p?.source != null && p?.target != null) {
-              const linkData = sankeyData.links[props?.payload?.index ?? -1];
+            if (!p) return ["", ""];
+            // Link hover
+            if (p.source != null && p.target != null && typeof p.index === "number") {
+              const linkData = sankeyData.links[p.index];
               if (linkData?.srcName && linkData?.tgtName) {
-                return [fmtEUR(v as number), `${linkData.srcName} → ${linkData.tgtName}`];
+                return [fmtEUR(linkData.value), `${linkData.srcName} → ${linkData.tgtName}`];
               }
             }
-            // Node hover: payload has no source/target, look up node by index
-            const nodeIdx = p?.index;
-            if (nodeIdx != null && sankeyData.nodes[nodeIdx]) {
-              const nd = sankeyData.nodes[nodeIdx];
+            // Node hover
+            if (typeof p.index === "number" && sankeyData.nodes[p.index]) {
+              const nd = sankeyData.nodes[p.index];
               const nodeName = nd.name || t("firma.bilancnaSuma");
-              return [fmtEUR(v as number), nodeName];
+              const val = outgoingValue[p.index] ?? incomingValue[p.index] ?? 0;
+              return [fmtEUR(val), nodeName];
             }
-            return [fmtEUR(v as number), ""];
+            return ["", ""];
           }}
         />
       </Sankey>
