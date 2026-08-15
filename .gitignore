@@ -51,3 +51,9 @@ schema.prisma.bak
 worker/=0.23.0
 .vercel
 .env*
+
+# Checkpoint / build artifacts
+frontend/seed-*-checkpoint.json
+frontend/tsconfig.tsbuildinfo
+*.tsbuildinfo
+frontend/prisma/schema 2.prisma
