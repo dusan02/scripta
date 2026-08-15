@@ -33,10 +33,11 @@ _DELAY_BETWEEN_REQUESTS = 0.3  # seconds
 
 
 async def get_companies_for_seeding(limit: int, ico_filter: str | None = None) -> list[dict]:
-    """Fetch companies sorted by latestRevenue DESC, skipping orsrSyncedAt IS NOT NULL."""
-    from src.db_client import get_db, connect_db, disconnect_db
+    """Fetch companies sorted by latestRevenue DESC, skipping orsrSyncedAt IS NOT NULL.
+    Assumes DB is already connected.
+    """
+    from src.db_client import get_db
 
-    await connect_db()
     db = get_db()
 
     where = {"orsrSyncedAt": None}
@@ -49,15 +50,15 @@ async def get_companies_for_seeding(limit: int, ico_filter: str | None = None) -
         order={"latestRevenue": "desc"},
     )
 
-    result = [{"ico": c.ico, "name": c.name} for c in companies]
-    await disconnect_db()
-    return result
+    return [{"ico": c.ico, "name": c.name} for c in companies]
 
 
 async def scrape_and_save_orsr(ico: str, name: str) -> dict:
-    """Scrape ORSR for one company and write structured data to DB."""
+    """Scrape ORSR for one company and write structured data to DB.
+    Assumes DB is already connected (connect_db called by caller).
+    """
     from src.scrapers.orsr import OrsrScraper
-    from src.db_client import get_db, connect_db, disconnect_db
+    from src.db_client import get_db
 
     scraper = OrsrScraper(browser=None)
     tmp_dir = Path("/tmp/orsr_seed")
@@ -69,8 +70,7 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
         if result.status != "SUCCESS":
             return {"ico": ico, "status": result.status, "message": result.status_message}
 
-        # Write to DB
-        await connect_db()
+        # Write to DB (connection already open)
         db = get_db()
 
         # Update Company
@@ -91,11 +91,9 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
 
         # Upsert CompanyPerson records — replace ALL ORSR-sourced persons
         if result.persons:
-            # Delete existing person records for this company (all roles from ORSR)
             await db.companyperson.delete_many(
                 where={"companyIco": ico},
             )
-            # Insert new ones
             for p in result.persons:
                 await db.companyperson.create(
                     data={
@@ -107,8 +105,6 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
                         "zipCode": p.zip_code,
                     },
                 )
-
-        await disconnect_db()
 
         return {
             "ico": ico,
@@ -187,6 +183,11 @@ async def main(args):
         datefmt="%H:%M:%S",
     )
 
+    from src.db_client import connect_db, disconnect_db
+
+    # Connect DB once for the entire run
+    await connect_db()
+
     checkpoint = load_checkpoint() if args.resume else {"processed": [], "failed": [], "last_run": None}
     processed_icos = set(checkpoint.get("processed", []))
 
@@ -202,6 +203,7 @@ async def main(args):
 
     if not companies:
         logger.info("Nothing to do.")
+        await disconnect_db()
         return
 
     # Process in small batches
@@ -233,6 +235,9 @@ async def main(args):
     print(f"  Failed:    {failed}")
     print(f"  Checkpoint: {_CHECKPOINT_FILE}")
     print("=" * 60)
+
+    # Disconnect DB
+    await disconnect_db()
 
 
 if __name__ == "__main__":
