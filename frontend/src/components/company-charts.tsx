@@ -114,7 +114,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
       <ResponsiveContainer width="100%" height={isPrint ? 260 : 280} minHeight={isPrint ? 260 : 280}>
         <ComposedChart data={data} margin={isPrint ? { top: 0, right: 40, left: 40, bottom: 0 } : { top: 0, right: 0, left: -15, bottom: 0 }}>
           <XAxis dataKey="year" tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: "var(--border)" }} />
-          <YAxis yAxisId="left" tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}` : v >= 1e3 ? `${(v/1e3).toFixed(0)}` : ""} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 30 : 35} />
+          <YAxis yAxisId="left" domain={[0, "auto"]} tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(0)}` : v >= 1e3 ? `${(v/1e3).toFixed(0)}` : ""} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 30 : 35} />
           <YAxis yAxisId="right" orientation="right" tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v !== 0 ? `${v.toFixed(0)}` : ""} tick={{ fill: "var(--text-muted)", fontSize: isPrint ? 8 : 10 }} axisLine={{ stroke: "var(--border)" }} width={isPrint ? 35 : 40} />
           <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: any) => fmtEUR(v as number)} />
           <Bar yAxisId="left" dataKey="tržby" fill="#3b82f6" radius={[4, 4, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
