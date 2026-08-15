@@ -286,7 +286,7 @@ export default async function CompanyPage({ params }: Params) {
               label="Zisk / Strata"
               value={fmtEUR(latest?.netProfitLoss)}
               sub={latest ? `rok ${latest.year}` : ""}
-              color="#10b981"
+              color={num(latest?.netProfitLoss) != null && num(latest?.netProfitLoss)! < 0 ? "#ef4444" : "#10b981"}
               trend={trends.profit}
             />
             <MetricCard label="Celkové aktíva" value={fmtEUR(latest?.totalAssets)} sub={latest ? `rok ${latest.year}` : ""} color="#8b5cf6" trend={trends.assets} />
