@@ -79,7 +79,7 @@ ROW_RESERVES = 141  # Časové rozlíšenie (pasív)
 # Výkaz ziskov a strát (table 2)
 ROW_NET_REVENUE = 1
 ROW_OPERATING_INCOME = 2        # Výnosy z hosp. činnosti spolu
-ROW_COST_OF_GOODS_SOLD = 10   # Náklady na predaný tovar a služby (COGS)
+ROW_OPERATING_COSTS = 10       # Náklady na hospodársku činnosť spolu (NOT COGS — includes wages, depreciation, services)
 ROW_MATERIAL_CONSUMPTION = 12  # Spotreba materiálu, energie
 ROW_SERVICES = 14              # Služby
 ROW_PERSONNEL_COSTS = 15
@@ -570,7 +570,7 @@ def parse_tables_to_metrics(
     dan_z_prijmu_val = None
     prevod_podielov_spolocnikom = None
     if extended_fields_ok and has_income:
-        naklady_na_hosp_cinnost = _get_income_value(ordered, ROW_COST_OF_GOODS_SOLD)
+        naklady_na_hosp_cinnost = _get_income_value(ordered, ROW_OPERATING_COSTS)
         spotreba_materialu = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION)
         sluzby = _get_income_value(ordered, ROW_SERVICES)
         mzdove_naklady = _get_income_value(ordered, ROW_WAGE_COSTS)
@@ -584,13 +584,18 @@ def parse_tables_to_metrics(
     if trzby is None and has_income:
         trzby = _get_income_value(ordered, ROW_OPERATING_INCOME)
 
-    # Hrubá marža: preferovaný výpozet = Tržby - Náklady na predaný tovar (COGS)
-    # Ak nie sú k dispozícii obe hodnoty, fallback na Pridanú hodnotu (riadok 28)
+    # Hrubá marža: Tržby - (Spotreba materiálu + Služby) ako proxy pre COGS v SK GAAP
+    # Riadok 10 (náklady na hosp. činnosť spolu) zahŕňa aj mzdy, odpisy → nie je COGS.
+    # Fallback: Pridaná hodnota (riadok 28) ako najbližšie proxy z SK GAAP výkazu.
     hruba_marza = None
     if has_income:
-        cogs = _get_income_value(ordered, ROW_COST_OF_GOODS_SOLD)
-        if trzby is not None and cogs is not None:
-            hruba_marza = trzby - cogs
+        spotreba = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION)
+        sluzby_val = _get_income_value(ordered, ROW_SERVICES)
+        cogs_proxy = None
+        if spotreba is not None or sluzby_val is not None:
+            cogs_proxy = (spotreba or 0) + (sluzby_val or 0)
+        if trzby is not None and cogs_proxy is not None and cogs_proxy > 0:
+            hruba_marza = trzby - cogs_proxy
         if hruba_marza is None:
             # Fallback: Pridaná hodnota (proxy pre hrubú maržu v SK GAAP)
             hruba_marza = _get_income_value(ordered, ROW_VALUE_ADDED)

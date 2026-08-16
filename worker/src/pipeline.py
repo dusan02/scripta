@@ -496,7 +496,14 @@ async def process_company(
                     logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
                 if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None and "vlastne_imanie_celkom" not in _low_confidence_fields:
                     if m.kratkodobe_zavazky is not None and m.dlhodobe_zavazky is not None:
-                        computed_equity = m.celkove_aktiva - (m.kratkodobe_zavazky + m.dlhodobe_zavazky)
+                        liabilities = m.kratkodobe_zavazky + m.dlhodobe_zavazky
+                        if getattr(m, 'dlhodobe_rezervy', None) is not None:
+                            liabilities += m.dlhodobe_rezervy
+                        if getattr(m, 'kratkodobe_rezervy', None) is not None:
+                            liabilities += m.kratkodobe_rezervy
+                        if getattr(m, 'bezne_bankove_uvery', None) is not None:
+                            liabilities += m.bezne_bankove_uvery
+                        computed_equity = m.celkove_aktiva - liabilities
                         if computed_equity > 0:
                             m.vlastne_imanie_celkom = computed_equity
                             logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad): {m.vlastne_imanie_celkom}")

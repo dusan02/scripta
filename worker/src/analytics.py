@@ -570,13 +570,10 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
 
         # ── DIO (Days Inventory Outstanding) ──
         # (Zásoby / COGS) × 365. Pre IT/služobné firmy s COGS ≈ 0 → None (nie delenie nulou).
-        # COGS proxy: operating_costs (r.10 = náklady na hosp. činnosť spolu) alebo material_consumption (r.12).
-        # Pre služobné firmy je material_consumption často 0 aj keď operating_costs > 0 (služby, osobné náklady).
-        # Používame operating_costs ako prvý fallback (komplexnejší), material_consumption ako druhý.
+        # COGS proxy: material_consumption (r.12 = spotreba materiálu) — nie operating_costs (r.10),
+        # ktorý zahŕňa aj mzdy, odpisy a služby, čo by umelo znížilo DIO.
         cogs_proxy = None
-        if operating_costs is not None and operating_costs > 0:
-            cogs_proxy = operating_costs
-        elif material_consumption is not None and material_consumption > 0:
+        if material_consumption is not None and material_consumption > 0:
             cogs_proxy = material_consumption
         # Anualizácia COGS pre skrátené obdobia
         if cogs_proxy is not None and months_in_period > 0 and months_in_period != 12:
