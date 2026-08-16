@@ -169,7 +169,8 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
     # Get ICOs that need incomeTax update — raw SQL for speed
     all_icos: list[str] = []
     rows = await db.query_raw(
-        'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE "incomeTax" IS NULL AND "netProfitLoss" IS NOT NULL ORDER BY "companyIco"'
+        'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE "incomeTax" IS NULL AND "netProfitLoss" IS NOT NULL AND "companyIco" IS NOT NULL AND "companyIco" != $1 AND "companyIco" != $2 ORDER BY "companyIco"',
+        '', '00000000'
     )
     all_icos = [r["companyIco"] for r in rows]
 
@@ -204,6 +205,7 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
                             'UPDATE "FinancialStatement" SET "incomeTax" = $1 WHERE "companyIco" = $2 AND year = $3 AND "incomeTax" IS NULL',
                             tax, ico, year
                         )
+                        logger.info(f"[{ico}] year={year} tax={tax} rows_updated={result}")
                         count += result
 
                     if count > 0:
@@ -213,13 +215,13 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
 
                     processed_list.append(ico)
                 except Exception as e:
-                    logger.warning(f"[{ico}] Error: {e}")
+                    logger.warning(f"[{ico}] Error: {type(e).__name__}: {e}")
                     skipped += 1
                     processed_list.append(ico)
 
         for i in range(0, len(todo), batch_size):
             batch = todo[i:i + batch_size]
-            logger.info(f"Batch {i // batch_size + 1}/{(len(todo) + batch_size - 1) // batch_size}: {len(batch)} ICOs (updated={updated}, skipped={skipped})")
+            logger.info(f"Batch {i // batch_size + 1}/{(len(todo) + batch_size - 1) // batch_size}: {len(batch)} ICOs (updated={updated}, skipped={skipped}) first={batch[0] if batch else 'N/A'}")
 
             await asyncio.gather(*[process_ico(ico) for ico in batch])
 
