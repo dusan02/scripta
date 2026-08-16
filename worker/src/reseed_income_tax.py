@@ -88,19 +88,27 @@ def _to_float(val) -> Optional[float]:
     return None
 
 
-def extract_tax_from_data(data: list) -> Optional[float]:
-    """Extract incomeTax from income table data (riadok 57, offset 1, 2 cols)."""
-    if not data or len(data) < 114:
-        return None
-    start = 56 * 2  # (57 - 1) * 2
-    if start + 2 <= len(data):
-        return _to_float(data[start])
-    return None
+def extract_fields_from_data(data: list) -> dict:
+    """Extract incomeTax (r.57), profitBeforeTax (r.56), operatingCosts/COGS (r.10) from income table.
+    Stride=2, offset=1: start = (row - 1) * 2, current = data[start]."""
+    result = {}
+    if not data:
+        return result
+    # incomeTax: row 57, idx = 56*2 = 112
+    if len(data) >= 114:
+        result["incomeTax"] = _to_float(data[112])
+    # profitBeforeTax: row 56, idx = 55*2 = 110
+    if len(data) >= 112:
+        result["profitBeforeTax"] = _to_float(data[110])
+    # operatingCosts (COGS): row 10, idx = 9*2 = 18
+    if len(data) >= 20:
+        result["operatingCosts"] = _to_float(data[18])
+    return result
 
 
-async def fetch_tax_for_ico(client: httpx.AsyncClient, ico: str) -> dict[int, float]:
-    """Fetch incomeTax values for all years of a company.
-    Returns {year: incomeTax}."""
+async def fetch_fields_for_ico(client: httpx.AsyncClient, ico: str) -> dict[int, dict]:
+    """Fetch incomeTax, profitBeforeTax, operatingCosts for all years of a company.
+    Returns {year: {incomeTax: float, profitBeforeTax: float, operatingCosts: float}}."""
     r = await ruz_get(client, "uctovne-jednotky", {"ico": ico, "zmenene-od": "2000-01-01"})
     if not r or not r.get("id"):
         return {}
@@ -114,11 +122,11 @@ async def fetch_tax_for_ico(client: httpx.AsyncClient, ico: str) -> dict[int, fl
     if not zavierka_ids:
         return {}
 
-    year_tax: dict[int, float] = {}
+    year_fields: dict[int, dict] = {}
     seen_years: set[int] = set()
 
     for zid in zavierka_ids:
-        if len(year_tax) >= 5:
+        if len(year_fields) >= 5:
             break
         z = await ruz_get(client, "uctovna-zavierka", {"id": zid})
         if not z:
@@ -146,11 +154,11 @@ async def fetch_tax_for_ico(client: httpx.AsyncClient, ico: str) -> dict[int, fl
             continue
 
         data = all_tables[income_idx].get("data", [])
-        tax = extract_tax_from_data(data)
-        if tax is not None:
-            year_tax[year] = tax
+        fields = extract_fields_from_data(data)
+        if fields:
+            year_fields[year] = fields
 
-    return year_tax
+    return year_fields
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -166,10 +174,10 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
     await db.connect()
     db_client._db = db
 
-    # Get ICOs that need incomeTax update — raw SQL for speed
+    # Get ICOs that need any of: incomeTax, profitBeforeTax, operatingCosts update
     all_icos: list[str] = []
     rows = await db.query_raw(
-        'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE "incomeTax" IS NULL AND "netProfitLoss" IS NOT NULL AND "companyIco" IS NOT NULL AND "companyIco" != $1 AND "companyIco" != $2 ORDER BY "companyIco"',
+        'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE ("incomeTax" IS NULL OR "profitBeforeTax" IS NULL OR "operatingCosts" IS NULL) AND "netProfitLoss" IS NOT NULL AND "companyIco" IS NOT NULL AND "companyIco" != $1 AND "companyIco" != $2 ORDER BY "companyIco"',
         '', '00000000'
     )
     all_icos = [r["companyIco"] for r in rows]
@@ -194,19 +202,35 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
             async with sem:
                 await asyncio.sleep(0.3)  # rate limit RÚZ API
                 try:
-                    year_tax = await fetch_tax_for_ico(client, ico)
-                    if not year_tax:
+                    year_fields = await fetch_fields_for_ico(client, ico)
+                    if not year_fields:
                         skipped += 1
                         processed_list.append(ico)
                         return
 
                     count = 0
-                    for year, tax in year_tax.items():
-                        result = await db.execute_raw(
-                            'UPDATE "FinancialStatement" SET "incomeTax" = $1 WHERE "companyIco" = $2 AND year = $3 AND "incomeTax" IS NULL',
-                            tax, ico, year
-                        )
-                        logger.info(f"[{ico}] year={year} tax={tax} rows_updated={result}")
+                    for year, fields in year_fields.items():
+                        # Build SET clause for non-null fields only
+                        set_parts = []
+                        params = []
+                        pidx = 1
+                        for field_name in ["incomeTax", "profitBeforeTax", "operatingCosts"]:
+                            val = fields.get(field_name)
+                            if val is not None:
+                                set_parts.append(f'"{field_name}" = ${pidx}')
+                                params.append(val)
+                                pidx += 1
+                        if not set_parts:
+                            continue
+                        # Add WHERE params
+                        where_parts = [f'"companyIco" = ${pidx}', f'year = ${pidx + 1}']
+                        params.extend([ico, year])
+                        # Only update fields that are currently NULL
+                        null_checks = [f'"{f}" IS NULL' for f in fields if fields[f] is not None]
+                        where_sql = ' AND '.join(where_parts + null_checks)
+                        sql = f'UPDATE "FinancialStatement" SET {", ".join(set_parts)} WHERE {where_sql}'
+                        result = await db.execute_raw(sql, *params)
+                        logger.info(f"[{ico}] year={year} fields={fields} rows_updated={result}")
                         count += result
 
                     if count > 0:
