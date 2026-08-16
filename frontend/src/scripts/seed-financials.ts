@@ -212,7 +212,7 @@ async function downloadFinancials(ico: string): Promise<number> {
       inventory: zasoby,
       depreciation: odpisy,
       interestExpense: hasIncome ? incomeVal(ordered, 49) : null,
-      incomeTax: hasIncome ? incomeVal(ordered, 60) : null,
+      incomeTax: hasIncome ? incomeVal(ordered, 57) : null,
       socialInsuranceLiabilities: pasivVal(ordered, 132),
       taxLiabilities: pasivVal(ordered, 133),
       employeeLiabilities: pasivVal(ordered, 131),

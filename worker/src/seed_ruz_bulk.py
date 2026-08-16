@@ -422,7 +422,7 @@ async def download_financials(
             "inventory": zasoby,
             "depreciation": odpisy,
             "interestExpense": _income_val(ordered, 49) if has_income else None,
-            "incomeTax": _income_val(ordered, 60) if has_income else None,
+            "incomeTax": _income_val(ordered, 57) if has_income else None,
             "socialInsuranceLiabilities": _pasiv_val(ordered, 132),
             "taxLiabilities": _pasiv_val(ordered, 133),
             "employeeLiabilities": _pasiv_val(ordered, 131),
