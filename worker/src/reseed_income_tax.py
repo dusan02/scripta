@@ -172,13 +172,14 @@ async def main(concurrency: int = 3, max_count: int = 0, resume: bool = False):
     cp = load_checkpoint() if resume else {"processed_icos": [], "total_updated": 0, "total_skipped": 0}
     processed_set = set(cp.get("processed_icos", []))
 
-    conn = await asyncpg.connect(DB_DSN)
+    conn = await asyncpg.create_pool(DB_DSN, min_size=1, max_size=concurrency + 1)
 
     # Get ICOs that need any of: incomeTax, profitBeforeTax, operatingCosts update
-    rows = await conn.fetch(
-        'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE ("incomeTax" IS NULL OR "profitBeforeTax" IS NULL OR "operatingCosts" IS NULL) AND "netProfitLoss" IS NOT NULL AND "companyIco" IS NOT NULL AND "companyIco" != $1 AND "companyIco" != $2 ORDER BY "companyIco"',
-        '', '00000000'
-    )
+    async with conn.acquire() as c:
+        rows = await c.fetch(
+            'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE ("incomeTax" IS NULL OR "profitBeforeTax" IS NULL OR "operatingCosts" IS NULL) AND "netProfitLoss" IS NOT NULL AND "companyIco" IS NOT NULL AND "companyIco" != $1 AND "companyIco" != $2 ORDER BY "companyIco"',
+            '', '00000000'
+        )
     all_icos = [r["companyIco"] for r in rows]
 
     logger.info(f"Total ICOs needing incomeTax update: {len(all_icos)}")
@@ -228,7 +229,8 @@ async def main(concurrency: int = 3, max_count: int = 0, resume: bool = False):
                         null_checks = [f'"{f}" IS NULL' for f in ["incomeTax", "profitBeforeTax", "operatingCosts"] if fields.get(f) is not None]
                         where_sql = ' AND '.join([where_ico, where_year] + null_checks)
                         sql = f'UPDATE "FinancialStatement" SET {", ".join(set_parts)} WHERE {where_sql}'
-                        result = await conn.execute(sql, *params)
+                        async with conn.acquire() as c:
+                            result = await c.execute(sql, *params)
                         count += int(result.split()[-1]) if result else 0
                         logger.info(f"[{ico}] year={year} fields={fields} rows_updated={result}")
 
@@ -257,7 +259,7 @@ async def main(concurrency: int = 3, max_count: int = 0, resume: bool = False):
 
             await asyncio.sleep(0.5)
 
-    await conn.close()
+    conn.terminate()
     logger.info(f"Done. Updated: {updated}, Skipped: {skipped}, Total processed: {len(processed_list)}")
 
 
