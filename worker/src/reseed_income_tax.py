@@ -166,24 +166,12 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
     await db.connect()
     db_client._db = db
 
-    # Get ICOs that need incomeTax update — paginate to avoid timeout
+    # Get ICOs that need incomeTax update — raw SQL for speed
     all_icos: list[str] = []
-    skip = 0
-    batch_fetch = 5000
-    while True:
-        stmts = await db.financialstatement.find_many(
-            where={"incomeTax": None, "netProfitLoss": {"not": None}},
-            distinct=["companyIco"],
-            take=batch_fetch,
-            skip=skip,
-        )
-        if not stmts:
-            break
-        all_icos.extend(s.companyIco for s in stmts)
-        skip += batch_fetch
-        if len(stmts) < batch_fetch:
-            break
-        logger.info(f"Fetched {len(all_icos)} ICOs so far...")
+    rows = await db.query_raw(
+        'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE "incomeTax" IS NULL AND "netProfitLoss" IS NOT NULL ORDER BY "companyIco"'
+    )
+    all_icos = [r["companyIco"] for r in rows]
 
     logger.info(f"Total ICOs needing incomeTax update: {len(all_icos)}")
 
@@ -212,11 +200,11 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
 
                     count = 0
                     for year, tax in year_tax.items():
-                        result = await db.financialstatement.update_many(
-                            where={"companyIco": ico, "year": year, "incomeTax": None},
-                            data={"incomeTax": tax},
+                        result = await db.execute_raw(
+                            'UPDATE "FinancialStatement" SET "incomeTax" = $1 WHERE "companyIco" = $2 AND year = $3 AND "incomeTax" IS NULL',
+                            tax, ico, year
                         )
-                        count += result.count if hasattr(result, "count") else 0
+                        count += result
 
                     if count > 0:
                         updated += count
