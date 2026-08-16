@@ -7,6 +7,7 @@ Usage:
     python3 -m src.reseed_income_tax [--concurrency 10] [--max N] [--resume]
 """
 import asyncio
+import asyncpg
 import httpx
 import json
 import logging
@@ -163,20 +164,17 @@ async def fetch_fields_for_ico(client: httpx.AsyncClient, ico: str) -> dict[int,
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
-async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
-    from prisma import Prisma
-    import db_client
+DB_DSN = "postgresql://verifa:verifa@localhost:5432/verifa"
 
+
+async def main(concurrency: int = 3, max_count: int = 0, resume: bool = False):
     cp = load_checkpoint() if resume else {"processed_icos": [], "total_updated": 0, "total_skipped": 0}
     processed_set = set(cp.get("processed_icos", []))
 
-    db = Prisma()
-    await db.connect()
-    db_client._db = db
+    conn = await asyncpg.connect(DB_DSN)
 
     # Get ICOs that need any of: incomeTax, profitBeforeTax, operatingCosts update
-    all_icos: list[str] = []
-    rows = await db.query_raw(
+    rows = await conn.fetch(
         'SELECT DISTINCT "companyIco" FROM "FinancialStatement" WHERE ("incomeTax" IS NULL OR "profitBeforeTax" IS NULL OR "operatingCosts" IS NULL) AND "netProfitLoss" IS NOT NULL AND "companyIco" IS NOT NULL AND "companyIco" != $1 AND "companyIco" != $2 ORDER BY "companyIco"',
         '', '00000000'
     )
@@ -213,25 +211,25 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
                         # Build SET clause for non-null fields only
                         set_parts = []
                         params = []
-                        pidx = 1
                         for field_name in ["incomeTax", "profitBeforeTax", "operatingCosts"]:
                             val = fields.get(field_name)
                             if val is not None:
-                                set_parts.append(f'"{field_name}" = ${pidx}')
+                                set_parts.append(f'"{field_name}" = ${len(params) + 1}')
                                 params.append(val)
-                                pidx += 1
                         if not set_parts:
                             continue
                         # Add WHERE params
-                        where_parts = [f'"companyIco" = ${pidx}', f'year = ${pidx + 1}']
-                        params.extend([ico, year])
+                        params.append(ico)
+                        params.append(year)
+                        where_ico = f'"companyIco" = ${len(params) - 1}'
+                        where_year = f'year = ${len(params)}'
                         # Only update fields that are currently NULL
-                        null_checks = [f'"{f}" IS NULL' for f in fields if fields[f] is not None]
-                        where_sql = ' AND '.join(where_parts + null_checks)
+                        null_checks = [f'"{f}" IS NULL' for f in ["incomeTax", "profitBeforeTax", "operatingCosts"] if fields.get(f) is not None]
+                        where_sql = ' AND '.join([where_ico, where_year] + null_checks)
                         sql = f'UPDATE "FinancialStatement" SET {", ".join(set_parts)} WHERE {where_sql}'
-                        result = await db.execute_raw(sql, *params)
+                        result = await conn.execute(sql, *params)
+                        count += int(result.split()[-1]) if result else 0
                         logger.info(f"[{ico}] year={year} fields={fields} rows_updated={result}")
-                        count += result
 
                     if count > 0:
                         updated += count
@@ -258,7 +256,7 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
 
             await asyncio.sleep(0.5)
 
-    await db.disconnect()
+    await conn.close()
     logger.info(f"Done. Updated: {updated}, Skipped: {skipped}, Total processed: {len(processed_list)}")
 
 
