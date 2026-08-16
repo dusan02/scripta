@@ -58,10 +58,13 @@ function toFloat(val: unknown): number | null {
 // ═══════════════════════════════════════════════════════════════
 // Table extraction — šablóna 699 (Súvaha + Výkaz ziskov a strát)
 //
-// RÚZ API returns `obsah.tabulky` as a flat array of strings:
-//   data: ["val1", "val2", "", "val3", ...]
-// Each index = one row (1-indexed in the official form).
-// Only šablóna 699 has structured data; all others return empty.
+// RÚZ API returns `obsah.tabulky` as a flat 1D array of strings.
+// Each official form row occupies multiple columns (stride):
+//   Aktíva:  stride=4 (Brutto, Korekcia, Netto bežné, Netto minulé)
+//   Pasíva:  stride=2 (Bežné obdobie, Minulé obdobie), offset=79
+//   Income:  stride=2 (Bežné obdobie, Minulé obdobie), offset=1
+//
+// Row numbers below match the official Úč POD 2-01 form.
 // ═══════════════════════════════════════════════════════════════
 
 interface RuzTable {
@@ -91,10 +94,33 @@ function identifyTables(tables: RuzTable[]): ParsedTables | null {
   };
 }
 
-/** Extract value at 1-indexed row from a flat-data table. */
-function val(table: RuzTable | null, row: number): number | null {
+/** Extract aktíva value. Stride=4: [Brutto, Korekcia, Netto bežné, Netto minulé] */
+function valAktiv(table: RuzTable | null, formRow: number, current = true): number | null {
   if (!table?.data || !Array.isArray(table.data)) return null;
-  const idx = row - 1;
+  const STRIDE = 4;
+  const col = current ? 2 : 3; // Netto bežné / Netto minulé
+  const idx = (formRow - 1) * STRIDE + col;
+  if (idx < 0 || idx >= table.data.length) return null;
+  return toFloat(table.data[idx]);
+}
+
+/** Extract pasíva value. Stride=2, offset=79: [Bežné, Minulé] */
+function valPasiv(table: RuzTable | null, formRow: number, current = true): number | null {
+  if (!table?.data || !Array.isArray(table.data)) return null;
+  const STRIDE = 2;
+  const OFFSET = 79;
+  const col = current ? 0 : 1;
+  const idx = (formRow - OFFSET) * STRIDE + col;
+  if (idx < 0 || idx >= table.data.length) return null;
+  return toFloat(table.data[idx]);
+}
+
+/** Extract income statement value. Stride=2, offset=1: [Bežné, Minulé] */
+function valIncome(table: RuzTable | null, formRow: number, current = true): number | null {
+  if (!table?.data || !Array.isArray(table.data)) return null;
+  const STRIDE = 2;
+  const col = current ? 0 : 1;
+  const idx = (formRow - 1) * STRIDE + col;
   if (idx < 0 || idx >= table.data.length) return null;
   return toFloat(table.data[idx]);
 }
@@ -113,14 +139,14 @@ const AKTIV_ROWS = {
 } as const;
 
 const PASIV_ROWS = {
-  equity: 3,
-  shareCapital: 5,
-  shortTermLiabilities: 85,
-  tradePayables: 87,
-  longTermLiabilities: 89,
-  employeeLiabilities: 91,
-  socialInsuranceLiabilities: 95,
-  taxLiabilities: 109,
+  equity: 80,
+  shareCapital: 81,
+  shortTermLiabilities: 122,
+  tradePayables: 123,
+  longTermLiabilities: 102,
+  employeeLiabilities: 131,
+  socialInsuranceLiabilities: 132,
+  taxLiabilities: 133,
 } as const;
 
 const INCOME_ROWS = {
@@ -132,9 +158,9 @@ const INCOME_ROWS = {
   depreciation: 27,
   grossProfit: 28,
   interestExpense: 49,
-  profitBeforeTax: 111,
-  incomeTax: 113,
-  netProfitLoss: 121,
+  profitBeforeTax: 56,
+  incomeTax: 57,
+  netProfitLoss: 61,
 } as const;
 
 // ═══════════════════════════════════════════════════════════════
@@ -184,36 +210,36 @@ function parseStatement(
   const hasIncome = income !== null;
 
   // ── Aktíva ──
-  const totalAssets = val(aktiv, AKTIV_ROWS.totalAssets);
-  const nonCurrentAssets = val(aktiv, AKTIV_ROWS.nonCurrentAssets);
-  const currentAssets = val(aktiv, AKTIV_ROWS.currentAssets);
-  const inventory = val(aktiv, AKTIV_ROWS.inventory);
-  const tradeReceivables = val(aktiv, AKTIV_ROWS.tradeReceivables);
-  const cashAndEquivalents = val(aktiv, AKTIV_ROWS.cashAndEquivalents);
+  const totalAssets = valAktiv(aktiv, AKTIV_ROWS.totalAssets);
+  const nonCurrentAssets = valAktiv(aktiv, AKTIV_ROWS.nonCurrentAssets);
+  const currentAssets = valAktiv(aktiv, AKTIV_ROWS.currentAssets);
+  const inventory = valAktiv(aktiv, AKTIV_ROWS.inventory);
+  const tradeReceivables = valAktiv(aktiv, AKTIV_ROWS.tradeReceivables);
+  const cashAndEquivalents = valAktiv(aktiv, AKTIV_ROWS.cashAndEquivalents);
 
   // ── Pasíva ──
-  const equity = val(pasiv, PASIV_ROWS.equity);
-  const shareCapital = val(pasiv, PASIV_ROWS.shareCapital);
-  const shortTermLiabilities = val(pasiv, PASIV_ROWS.shortTermLiabilities);
-  const tradePayables = val(pasiv, PASIV_ROWS.tradePayables);
-  const longTermLiabilities = val(pasiv, PASIV_ROWS.longTermLiabilities);
-  const employeeLiabilities = val(pasiv, PASIV_ROWS.employeeLiabilities);
-  const socialInsuranceLiabilities = val(pasiv, PASIV_ROWS.socialInsuranceLiabilities);
-  const taxLiabilities = val(pasiv, PASIV_ROWS.taxLiabilities);
+  const equity = valPasiv(pasiv, PASIV_ROWS.equity);
+  const shareCapital = valPasiv(pasiv, PASIV_ROWS.shareCapital);
+  const shortTermLiabilities = valPasiv(pasiv, PASIV_ROWS.shortTermLiabilities);
+  const tradePayables = valPasiv(pasiv, PASIV_ROWS.tradePayables);
+  const longTermLiabilities = valPasiv(pasiv, PASIV_ROWS.longTermLiabilities);
+  const employeeLiabilities = valPasiv(pasiv, PASIV_ROWS.employeeLiabilities);
+  const socialInsuranceLiabilities = valPasiv(pasiv, PASIV_ROWS.socialInsuranceLiabilities);
+  const taxLiabilities = valPasiv(pasiv, PASIV_ROWS.taxLiabilities);
 
   // ── Výkaz ziskov a strát ──
-  const mainActivityRevenue = hasIncome ? val(income, INCOME_ROWS.mainActivityRevenue) : null;
-  const cogs = hasIncome ? val(income, INCOME_ROWS.costOfGoodsSold) : null;
-  const operatingCosts = hasIncome ? val(income, INCOME_ROWS.operatingCosts) : null;
-  const staffCosts = hasIncome ? val(income, INCOME_ROWS.staffCosts) : null;
+  const mainActivityRevenue = hasIncome ? valIncome(income, INCOME_ROWS.mainActivityRevenue) : null;
+  const cogs = hasIncome ? valIncome(income, INCOME_ROWS.costOfGoodsSold) : null;
+  const operatingCosts = hasIncome ? valIncome(income, INCOME_ROWS.operatingCosts) : null;
+  const staffCosts = hasIncome ? valIncome(income, INCOME_ROWS.staffCosts) : null;
   const depreciation = hasIncome
-    ? (val(income, INCOME_ROWS.depreciation) ?? val(income, INCOME_ROWS.depreciationOld))
+    ? (valIncome(income, INCOME_ROWS.depreciation) ?? valIncome(income, INCOME_ROWS.depreciationOld))
     : null;
-  const grossProfit = hasIncome ? val(income, INCOME_ROWS.grossProfit) : null;
-  const interestExpense = hasIncome ? val(income, INCOME_ROWS.interestExpense) : null;
-  const profitBeforeTax = hasIncome ? val(income, INCOME_ROWS.profitBeforeTax) : null;
-  const incomeTax = hasIncome ? val(income, INCOME_ROWS.incomeTax) : null;
-  const netProfitLoss = hasIncome ? val(income, INCOME_ROWS.netProfitLoss) : null;
+  const grossProfit = hasIncome ? valIncome(income, INCOME_ROWS.grossProfit) : null;
+  const interestExpense = hasIncome ? valIncome(income, INCOME_ROWS.interestExpense) : null;
+  const profitBeforeTax = hasIncome ? valIncome(income, INCOME_ROWS.profitBeforeTax) : null;
+  const incomeTax = hasIncome ? valIncome(income, INCOME_ROWS.incomeTax) : null;
+  const netProfitLoss = hasIncome ? valIncome(income, INCOME_ROWS.netProfitLoss) : null;
 
   // ── Operating cash flow (simplified indirect method) ──
   let operatingCashFlow: number | null = null;

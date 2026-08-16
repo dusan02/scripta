@@ -49,7 +49,7 @@ async def ruz_get(client: httpx.AsyncClient, endpoint: str, params: dict, max_re
                 await asyncio.sleep(2 ** attempt)
                 continue
             return None
-        except (httpx.TimeoutException, httpx.ConnectError):
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError):
             await asyncio.sleep(2 ** attempt)
     return None
 
@@ -188,10 +188,11 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
     skipped = cp.get("total_skipped", 0)
     processed_list = list(processed_set)
 
-    async with httpx.AsyncClient(verify=False) as client:
+    async with httpx.AsyncClient(verify=False, limits=httpx.Limits(max_connections=concurrency, max_keepalive_connections=concurrency)) as client:
         async def process_ico(ico: str):
             nonlocal updated, skipped
             async with sem:
+                await asyncio.sleep(0.3)  # rate limit RÚZ API
                 try:
                     year_tax = await fetch_tax_for_ico(client, ico)
                     if not year_tax:
@@ -240,7 +241,7 @@ async def main(concurrency: int = 10, max_count: int = 0, resume: bool = False):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--concurrency", type=int, default=10)
+    parser.add_argument("--concurrency", type=int, default=3)
     parser.add_argument("--max", type=int, default=0, help="Max ICOs to process (0 = all)")
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
