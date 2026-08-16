@@ -3,6 +3,7 @@ import type { Dict } from "./types";
 const cz: Dict = {
   "nav.landing": "Domů",
   "nav.overenie": "Overení",
+  "nav.screener": "Screener",
   "nav.historia": "Historie",
   "nav.nastavenia": "Nastavení",
   "nav.kredity": "Kredity",

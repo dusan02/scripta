@@ -68,6 +68,13 @@ export default function LandingNav() {
                 {t(item.key)}
               </a>
             ))}
+            <Link
+              href={lhref("/screener")}
+              className="text-sm font-medium leading-9 transition-colors hover:text-[var(--accent)]"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("nav.screener")}
+            </Link>
           </div>
         </div>
 
@@ -147,6 +154,14 @@ export default function LandingNav() {
               {t(item.key)}
             </a>
           ))}
+          <Link
+            href={lhref("/screener")}
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center text-sm font-medium py-4 min-h-[48px] border-b transition-colors hover:text-[var(--accent)]"
+            style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+          >
+            {t("nav.screener")}
+          </Link>
           <Link
             href={lhref("/register")}
             onClick={() => setMobileMenuOpen(false)}

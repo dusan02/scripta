@@ -4,6 +4,7 @@ const en: Dict = {
   // ── NavBar ──
   "nav.landing": "Home",
   "nav.overenie": "Verification",
+  "nav.screener": "Screener",
   "nav.historia": "History",
   "nav.nastavenia": "Settings",
   "nav.kredity": "Credits",

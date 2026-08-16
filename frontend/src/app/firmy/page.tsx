@@ -93,9 +93,22 @@ export default async function FirmyPage({
           <span>/</span><span style={{ color: "var(--text)" }}>Firmy</span>
         </div>
 
-        <h1 className="text-2xl sm:text-3xl font-black mb-6" style={{ color: "var(--text)" }}>
+        <h1 className="text-2xl sm:text-3xl font-black mb-2" style={{ color: "var(--text)" }}>
           Firmy na Slovensku
         </h1>
+
+        <div className="mb-6 p-3 rounded-lg flex items-center justify-between gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Hľadáte pokročilejší filter? Skúste nový Screener firiem.
+          </p>
+          <Link
+            href="/screener"
+            className="text-sm font-medium px-3 py-1.5 rounded-lg whitespace-nowrap"
+            style={{ background: "var(--accent)", color: "#fff" }}
+          >
+            Spustiť Screener →
+          </Link>
+        </div>
 
         <FirmyFiltersClient
           naceSections={options.naceSections}

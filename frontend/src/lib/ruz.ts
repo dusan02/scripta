@@ -393,6 +393,8 @@ export async function seedFromRuz(ico: string) {
     ownershipType: OWNERSHIP_MAP[entity.druhVlastnictva] || entity.druhVlastnictva || null,
     sizeCategory: SIZE_MAP[entity.velkostOrganizacie] || entity.velkostOrganizacie || null,
     employeeCount: entity.pocetZamestnancov ?? null,
+    kraj: entity.kraj || null,
+    okres: entity.okres || null,
     ruzEntityId: entityId,
     ruzSyncedAt: new Date(),
   };

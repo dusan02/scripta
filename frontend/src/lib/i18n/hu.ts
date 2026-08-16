@@ -91,6 +91,7 @@ const hu: Dict = {
   "docs.spatDomov": "Vissza a főoldalra",
   "nav.landing": "Főoldal",
   "nav.overenie": "Ellenőrzés",
+  "nav.screener": "Screener",
   "nav.historia": "Előzmények",
   "nav.nastavenia": "Beállítások",
   "nav.kredity": "Kreditek",

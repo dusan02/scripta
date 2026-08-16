@@ -197,6 +197,8 @@ async def upsert_company(entity: dict) -> bool:
                 "ownershipType": ownership,
                 "sizeCategory": size_cat,
                 "employeeCount": entity.get("pocetZamestnancov"),
+                "kraj": entity.get("kraj"),
+                "okres": entity.get("okres"),
             },
             "update": {
                 "name": entity.get("nazovUJ"),
@@ -211,6 +213,8 @@ async def upsert_company(entity: dict) -> bool:
                 "ownershipType": ownership,
                 "sizeCategory": size_cat,
                 "employeeCount": entity.get("pocetZamestnancov"),
+                "kraj": entity.get("kraj"),
+                "okres": entity.get("okres"),
             },
         },
     )

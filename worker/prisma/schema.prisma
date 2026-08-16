@@ -249,6 +249,8 @@ model Company {
   shareCapital        Decimal?  @db.Decimal(15, 2) // Základné imanie (z ORSR)
   businessActivity    String?  @db.Text    // Predmet činnosti (z ORSR/RPO)
   signingAuthority    String?  @db.Text    // Konanie menom spoločnosti (z ORSR)
+  kraj                String?              // NUTS3 region code z RÚZ API (napr. SK010) — raw API hodnota, žiadna transformácia
+  okres               String?              // LAU district code z RÚZ API (napr. SK0105) — raw API hodnota, žiadna transformácia
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
   companyEvents       CompanyEvent[]
@@ -264,6 +266,8 @@ model Company {
   @@index([latestProfit])
   @@index([latestAssets])
   @@index([orsrSyncedAt])
+  @@index([kraj])
+  @@index([okres])
 }
 
 model CompanyPerson {

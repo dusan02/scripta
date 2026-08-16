@@ -327,6 +327,8 @@ model Company {
   latestProfit        Decimal?  @db.Decimal(15, 2) // Zisk/strata z najnovšej závierky
   latestAssets        Decimal?  @db.Decimal(15, 2) // Aktíva z najnovšej závierky
   latestEquity        Decimal?  @db.Decimal(15, 2) // Vlastné imanie z najnovšej závierky
+  kraj                String?              // NUTS3 region code z RÚZ API (napr. SK010) — raw API hodnota, žiadna transformácia
+  okres               String?              // LAU district code z RÚZ API (napr. SK0105) — raw API hodnota, žiadna transformácia
   financialStatements FinancialStatement[]
   vestnikEvents       VestnikEvent[]
   companyEvents       CompanyEvent[]
@@ -342,6 +344,8 @@ model Company {
   @@index([latestRevenue])
   @@index([latestProfit])
   @@index([latestAssets])
+  @@index([kraj])
+  @@index([okres])
 }
 
 model CompanyPerson {

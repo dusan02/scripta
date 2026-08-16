@@ -91,6 +91,7 @@ const pl: Dict = {
   "docs.spatDomov": "Powrót do strony głównej",
   "nav.landing": "Strona główna",
   "nav.overenie": "Weryfikacja",
+  "nav.screener": "Screener",
   "nav.historia": "Historia",
   "nav.nastavenia": "Ustawienia",
   "nav.kredity": "Kredyty",

@@ -24,6 +24,7 @@ import {
 const NAV_ITEMS = [
   { href: "/landing", key: "nav.landing", icon: HomeIcon },
   { href: "/dashboard", key: "nav.overenie", icon: SearchIcon },
+  { href: "/screener", key: "nav.screener", icon: SearchIcon },
   { href: "/history", key: "nav.historia", icon: ClockIcon },
   { href: "/credits", key: "nav.kredity", icon: CreditCardIcon },
   { href: "/settings", key: "nav.nastavenia", icon: SettingsIcon },

@@ -4,6 +4,7 @@ const sk: Dict = {
   // ── NavBar ──
   "nav.landing": "Domov",
   "nav.overenie": "Overenie",
+  "nav.screener": "Screener",
   "nav.historia": "História",
   "nav.nastavenia": "Nastavenia",
   "nav.kredity": "Kredity",
