@@ -384,7 +384,9 @@ async def download_financials(
         zisk = _income_val(ordered, 61) if has_income else None
         odpisy = _income_val(ordered, 21) if has_income else None
         trzby = _income_val(ordered, 1) if has_income else None
-        cogs = _income_val(ordered, 10) if has_income else None
+        operating_costs = _income_val(ordered, 10) if has_income else None
+        spotreba_materialu = _income_val(ordered, 12) if has_income else None
+        sluzby_val = _income_val(ordered, 14) if has_income else None
 
         # Operating cash flow estimate
         ocf = None
@@ -397,16 +399,20 @@ async def download_financials(
             if zavazky_obchod is not None and zavazky_prev is not None:
                 ocf += zavazky_obchod - zavazky_prev
 
-        # Gross profit
+        # Gross profit: Tržby - (Spotreba materiálu + Služby) ako COGS proxy
         hruba_marza = None
-        if trzby is not None and cogs is not None:
-            hruba_marza = trzby - cogs
+        cogs_proxy = None
+        if spotreba_materialu is not None or sluzby_val is not None:
+            cogs_proxy = (spotreba_materialu or 0) + (sluzby_val or 0)
+        if trzby is not None and cogs_proxy is not None and cogs_proxy > 0:
+            hruba_marza = trzby - cogs_proxy
         if hruba_marza is None and has_income:
             hruba_marza = _income_val(ordered, 28)
 
         stmts.append({
             "year": year,
             "totalAssets": _activ_val(ordered, 1),
+            "nonCurrentAssets": _activ_val(ordered, 2),
             "currentAssets": _activ_val(ordered, 33),
             "equity": _pasiv_val(ordered, 80),
             "shortTermLiabilities": _pasiv_val(ordered, 122),
@@ -424,7 +430,9 @@ async def download_financials(
             "interestExpense": _income_val(ordered, 49) if has_income else None,
             "incomeTax": _income_val(ordered, 57) if has_income else None,
             "profitBeforeTax": _income_val(ordered, 56) if has_income else None,
-            "operatingCosts": cogs,
+            "operatingCosts": operating_costs,
+            "materialConsumption": spotreba_materialu,
+            "servicesCosts": sluzby_val,
             "socialInsuranceLiabilities": _pasiv_val(ordered, 132),
             "taxLiabilities": _pasiv_val(ordered, 133),
             "employeeLiabilities": _pasiv_val(ordered, 131),
@@ -446,6 +454,7 @@ async def download_financials(
                 "create": {"companyIco": ico, **s},
                 "update": {
                     "totalAssets": s["totalAssets"],
+                    "nonCurrentAssets": s["nonCurrentAssets"],
                     "currentAssets": s["currentAssets"],
                     "equity": s["equity"],
                     "shortTermLiabilities": s["shortTermLiabilities"],
@@ -464,6 +473,8 @@ async def download_financials(
                     "incomeTax": s["incomeTax"],
                     "profitBeforeTax": s["profitBeforeTax"],
                     "operatingCosts": s["operatingCosts"],
+                    "materialConsumption": s["materialConsumption"],
+                    "servicesCosts": s["servicesCosts"],
                     "socialInsuranceLiabilities": s["socialInsuranceLiabilities"],
                     "taxLiabilities": s["taxLiabilities"],
                     "employeeLiabilities": s["employeeLiabilities"],
