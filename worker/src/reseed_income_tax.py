@@ -209,30 +209,30 @@ async def main(concurrency: int = 3, max_count: int = 0, resume: bool = False):
                         return
 
                     count = 0
-                    for year, fields in year_fields.items():
-                        # Build SET clause for non-null fields only
-                        set_parts = []
-                        params = []
-                        for field_name in ["incomeTax", "profitBeforeTax", "operatingCosts"]:
-                            val = fields.get(field_name)
-                            if val is not None:
-                                set_parts.append(f'"{field_name}" = ${len(params) + 1}')
-                                params.append(val)
-                        if not set_parts:
-                            continue
-                        # Add WHERE params
-                        params.append(ico)
-                        params.append(year)
-                        where_ico = f'"companyIco" = ${len(params) - 1}'
-                        where_year = f'year = ${len(params)}'
-                        # Only update fields that are currently NULL
-                        null_checks = [f'"{f}" IS NULL' for f in ["incomeTax", "profitBeforeTax", "operatingCosts"] if fields.get(f) is not None]
-                        where_sql = ' AND '.join([where_ico, where_year] + null_checks)
-                        sql = f'UPDATE "FinancialStatement" SET {", ".join(set_parts)} WHERE {where_sql}'
-                        async with conn.acquire() as c:
+                    async with conn.acquire() as c:
+                        for year, fields in year_fields.items():
+                            # Build SET clause for non-null fields only
+                            set_parts = []
+                            params = []
+                            for field_name in ["incomeTax", "profitBeforeTax", "operatingCosts"]:
+                                val = fields.get(field_name)
+                                if val is not None:
+                                    set_parts.append(f'"{field_name}" = ${len(params) + 1}')
+                                    params.append(val)
+                            if not set_parts:
+                                continue
+                            # Add WHERE params
+                            params.append(ico)
+                            params.append(year)
+                            where_ico = f'"companyIco" = ${len(params) - 1}'
+                            where_year = f'year = ${len(params)}'
+                            # Only update fields that are currently NULL
+                            null_checks = [f'"{f}" IS NULL' for f in ["incomeTax", "profitBeforeTax", "operatingCosts"] if fields.get(f) is not None]
+                            where_sql = ' AND '.join([where_ico, where_year] + null_checks)
+                            sql = f'UPDATE "FinancialStatement" SET {", ".join(set_parts)} WHERE {where_sql}'
                             result = await c.execute(sql, *params)
-                        count += int(result.split()[-1]) if result else 0
-                        logger.info(f"[{ico}] year={year} fields={fields} rows_updated={result}")
+                            count += int(result.split()[-1]) if result else 0
+                            logger.info(f"[{ico}] year={year} fields={fields} rows_updated={result}")
 
                     if count > 0:
                         updated += count
