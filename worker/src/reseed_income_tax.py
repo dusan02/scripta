@@ -164,7 +164,7 @@ async def fetch_fields_for_ico(client: httpx.AsyncClient, ico: str) -> dict[int,
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
-DB_DSN = "postgresql://verifa:verifa@localhost:5432/verifa"
+DB_DSN = "postgresql://verifa:verifa@postgres:5432/verifa"
 
 
 async def main(concurrency: int = 3, max_count: int = 0, resume: bool = False):
