@@ -148,7 +148,15 @@ async def process_batch(companies: list[dict], concurrency: int = 5) -> list[dic
             _t = time.perf_counter()
             logger.info(f"[{idx+1}/{len(companies)}] {name} ({ico})")
 
-            result = await scrape_and_save_orsr(ico, name)
+            result = None
+            for attempt in range(1, 4):
+                result = await scrape_and_save_orsr(ico, name)
+                if result.get("status") == "SUCCESS":
+                    break
+                if attempt < 3:
+                    logger.warning(f"[{idx+1}/{len(companies)}] {ico} — attempt {attempt} failed, retrying...")
+                    await asyncio.sleep(2.0 * attempt)
+
             elapsed = time.perf_counter() - _t
 
             status = result.get("status", "?")
@@ -242,7 +250,7 @@ async def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bulk seed ORSR data into DB")
-    parser.add_argument("--max", type=int, default=10, help="Max companies (default: 10)")
+    parser.add_argument("--max", type=int, default=999999, help="Max companies (default: all)")
     parser.add_argument("--ico", type=str, default=None, help="Single IČO")
     parser.add_argument("--concurrency", type=int, default=5, help="Parallel workers (default: 5)")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
