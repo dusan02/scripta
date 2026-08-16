@@ -27,6 +27,8 @@ const ROW_NET_REVENUE = 1;
 const ROW_PERSONNEL_COSTS = 15;
 const ROW_DEPRECIATION = 21;
 const ROW_INTEREST_EXPENSE = 49;
+const ROW_PROFIT_BEFORE_TAX = 56;
+const ROW_INCOME_TAX = 57;
 const ROW_NET_PROFIT = 61;
 const ROW_COGS = 10;
 const ROW_VALUE_ADDED = 28;
@@ -225,11 +227,13 @@ async function seedCompany(ico: string) {
     const osobneNaklady = hasIncome ? getIncomeValue(ordered, ROW_PERSONNEL_COSTS) : null;
     const odpisy = hasIncome ? getIncomeValue(ordered, ROW_DEPRECIATION) : null;
     const uroky = hasIncome ? getIncomeValue(ordered, ROW_INTEREST_EXPENSE) : null;
+    const ziskPredZdanenim = hasIncome ? getIncomeValue(ordered, ROW_PROFIT_BEFORE_TAX) : null;
+    const danZPrijmu = hasIncome ? getIncomeValue(ordered, ROW_INCOME_TAX) : null;
     const ziskPoZdaneni = hasIncome ? getIncomeValue(ordered, ROW_NET_PROFIT) : null;
+    const cogs = hasIncome ? getIncomeValue(ordered, ROW_COGS) : null;
 
     let hrubaMarza: number | null = null;
     if (hasIncome) {
-      const cogs = getIncomeValue(ordered, ROW_COGS);
       if (trzby !== null && cogs !== null) hrubaMarza = trzby - cogs;
       if (hrubaMarza === null) hrubaMarza = getIncomeValue(ordered, ROW_VALUE_ADDED);
     }
@@ -268,6 +272,9 @@ async function seedCompany(ico: string) {
       inventory: zasoby,
       depreciation: odpisy,
       interestExpense: uroky,
+      incomeTax: danZPrijmu,
+      profitBeforeTax: ziskPredZdanenim,
+      operatingCosts: cogs,
       socialInsuranceLiabilities: zavazkySP,
       taxLiabilities: danoveZavazky,
       employeeLiabilities: zavazkyZamestnanci,
@@ -359,6 +366,9 @@ async function seedCompany(ico: string) {
         inventory: stmt.inventory,
         depreciation: stmt.depreciation,
         interestExpense: stmt.interestExpense,
+        incomeTax: stmt.incomeTax,
+        profitBeforeTax: stmt.profitBeforeTax,
+        operatingCosts: stmt.operatingCosts,
         socialInsuranceLiabilities: stmt.socialInsuranceLiabilities,
         taxLiabilities: stmt.taxLiabilities,
         employeeLiabilities: stmt.employeeLiabilities,
@@ -383,6 +393,9 @@ async function seedCompany(ico: string) {
         inventory: stmt.inventory,
         depreciation: stmt.depreciation,
         interestExpense: stmt.interestExpense,
+        incomeTax: stmt.incomeTax,
+        profitBeforeTax: stmt.profitBeforeTax,
+        operatingCosts: stmt.operatingCosts,
         socialInsuranceLiabilities: stmt.socialInsuranceLiabilities,
         taxLiabilities: stmt.taxLiabilities,
         employeeLiabilities: stmt.employeeLiabilities,
