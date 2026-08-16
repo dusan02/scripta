@@ -32,8 +32,8 @@ _CHECKPOINT_FILE = Path("output/orsr_seed_checkpoint.json")
 _DELAY_BETWEEN_REQUESTS = 0.3  # seconds
 
 
-async def get_companies_for_seeding(limit: int, ico_filter: str | None = None) -> list[dict]:
-    """Fetch companies sorted by latestRevenue DESC, skipping orsrSyncedAt IS NOT NULL.
+async def get_companies_batch(batch_size: int = 100, offset: int = 0, ico_filter: str | None = None) -> list[dict]:
+    """Fetch a batch of companies sorted by latestRevenue DESC, skipping orsrSyncedAt IS NOT NULL.
     Assumes DB is already connected.
     """
     from src.db_client import get_db
@@ -46,7 +46,8 @@ async def get_companies_for_seeding(limit: int, ico_filter: str | None = None) -
 
     companies = await db.company.find_many(
         where=where,
-        take=limit,
+        take=batch_size,
+        skip=offset,
         order={"latestRevenue": "desc"},
     )
 
@@ -199,48 +200,75 @@ async def main(args):
     checkpoint = load_checkpoint() if args.resume else {"processed": [], "failed": [], "last_run": None}
     processed_icos = set(checkpoint.get("processed", []))
 
-    # Get companies
-    logger.info(f"Fetching up to {args.max} companies without ORSR data...")
-    companies = await get_companies_for_seeding(args.max, args.ico)
-    logger.info(f"Found {len(companies)} companies to process")
+    # Paginated fetching — process in DB batches of 100, scrape in sub-batches of 10
+    db_batch_size = 100
+    total_processed = 0
+    total_failed = 0
+    offset = 0
 
-    # Filter out already processed (for resume)
-    if args.resume:
-        companies = [c for c in companies if c["ico"] not in processed_icos]
-        logger.info(f"After checkpoint filter: {len(companies)} remaining")
-
-    if not companies:
-        logger.info("Nothing to do.")
-        await disconnect_db()
-        return
-
-    # Process in small batches
-    batch_size = min(10, len(companies))
-    all_results = []
-
-    for i in range(0, len(companies), batch_size):
-        batch = companies[i:i + batch_size]
-        logger.info(f"Batch {i//batch_size + 1}: {len(batch)} companies")
-        results = await process_batch(batch, concurrency=args.concurrency)
-        all_results.extend(results)
-
-        # Update checkpoint
-        for r, c in zip(results, batch):
+    if args.ico:
+        # Single company mode
+        companies = await get_companies_batch(batch_size=1, ico_filter=args.ico)
+        if not companies:
+            logger.info(f"Company {args.ico} not found or already synced.")
+            await disconnect_db()
+            return
+        results = await process_batch(companies, concurrency=1)
+        for r, c in zip(results, companies):
             if r.get("status") == "SUCCESS":
                 checkpoint["processed"].append(c["ico"])
+                total_processed += 1
             else:
                 checkpoint["failed"].append(c["ico"])
+                total_failed += 1
         save_checkpoint(checkpoint)
+    else:
+        # Full paginated mode
+        while total_processed + total_failed < args.max:
+            remaining = args.max - (total_processed + total_failed)
+            fetch_size = min(db_batch_size, remaining)
+            if fetch_size <= 0:
+                break
+
+            logger.info(f"Fetching batch of {fetch_size} companies (offset={offset})...")
+            companies = await get_companies_batch(batch_size=fetch_size, offset=offset)
+
+            if not companies:
+                logger.info("No more companies to process.")
+                break
+
+            # Filter already processed (for resume)
+            if args.resume:
+                companies = [c for c in companies if c["ico"] not in processed_icos]
+                if not companies:
+                    offset += fetch_size
+                    continue
+
+            logger.info(f"Processing {len(companies)} companies (total so far: {total_processed + total_failed})")
+
+            # Process in sub-batches of 10
+            sub_batch_size = 10
+            for i in range(0, len(companies), sub_batch_size):
+                sub = companies[i:i + sub_batch_size]
+                results = await process_batch(sub, concurrency=args.concurrency)
+
+                for r, c in zip(results, sub):
+                    if r.get("status") == "SUCCESS":
+                        checkpoint["processed"].append(c["ico"])
+                        total_processed += 1
+                    else:
+                        checkpoint["failed"].append(c["ico"])
+                        total_failed += 1
+                save_checkpoint(checkpoint)
+
+            offset += fetch_size
 
     # Summary
-    success = sum(1 for r in all_results if r.get("status") == "SUCCESS")
-    failed = sum(1 for r in all_results if r.get("status") != "SUCCESS")
-
     print("\n" + "=" * 60)
     print(f"  ORSR BULK SEED SUMMARY")
-    print(f"  Total:     {len(all_results)}")
-    print(f"  Success:   {success}")
-    print(f"  Failed:    {failed}")
+    print(f"  Success:   {total_processed}")
+    print(f"  Failed:    {total_failed}")
+    print(f"  Total:     {total_processed + total_failed}")
     print(f"  Checkpoint: {_CHECKPOINT_FILE}")
     print("=" * 60)
 
