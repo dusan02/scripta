@@ -96,19 +96,26 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
     { key: "daň", color: "#f59e0b", label: t("firma.danZPrjimu") },
   ];
 
-  const fmtLarge = (v: number) => v >= 1e6 ? `${(v / 1e6).toFixed(0)}` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}` : "";
-  const fmtSmall = (v: number) => {
+  const fmtAxis = (v: number) => {
     const abs = Math.abs(v);
-    if (abs >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+    if (abs >= 1e6) return `${(v / 1e6).toFixed(abs >= 1e7 ? 0 : 1)}M`;
     if (abs >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
     if (v !== 0) return v.toFixed(0);
-    return "";
+    return "0";
   };
   const tooltipStyle = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 };
   const axisColor = "var(--text-muted)";
   const gridColor = "var(--border)";
-  const yAxisWidth = isPrint ? 35 : 40;
-  const margin = isPrint ? { top: 0, right: 10, left: 0, bottom: 0 } : { top: 0, right: 5, left: -10, bottom: 0 };
+  const yAxisWidth = isPrint ? 38 : 45;
+  const margin = isPrint ? { top: 0, right: 10, left: 0, bottom: 0 } : { top: 0, right: 5, left: -5, bottom: 0 };
+
+  // Compute Y-axis domain from visible data
+  const visibleKeys = ["tržby", "zisk", "daň"].filter(k => !hidden.has(k));
+  const allValues = data.flatMap(d => visibleKeys.map(k => d[k as keyof ChartData] as number | null)).filter((v): v is number => v != null);
+  const maxVal = allValues.length ? Math.max(...allValues) : 0;
+  const minVal = allValues.length ? Math.min(...allValues) : 0;
+  const yMax = maxVal > 0 ? maxVal * 1.1 : 100;
+  const yMin = minVal < 0 ? minVal * 1.1 : 0;
 
   return (
     <div>
@@ -125,33 +132,22 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
           </button>
         ))}
       </div>
-      {/* Top chart: revenue + tax (single axis, always ≥ 0) */}
-      <ResponsiveContainer width="100%" height={isPrint ? 170 : 190} minHeight={isPrint ? 170 : 190}>
-        <BarChart data={data} margin={margin} barGap={2}>
+      <ResponsiveContainer width="100%" height={isPrint ? 220 : 250} minHeight={isPrint ? 220 : 250}>
+        <BarChart data={data} margin={margin} barGap={2} barCategoryGap="20%">
           <XAxis dataKey="year" tick={{ fill: axisColor, fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-          <YAxis domain={[0, "auto"]} tickFormatter={fmtLarge} tick={{ fill: axisColor, fontSize: isPrint ? 8 : 10 }} axisLine={false} tickLine={false} width={yAxisWidth} />
+          <YAxis domain={[yMin, yMax]} tickFormatter={fmtAxis} tick={{ fill: axisColor, fontSize: isPrint ? 8 : 10 }} axisLine={false} tickLine={false} width={yAxisWidth} />
           <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} cursor={{ fill: "var(--border)", opacity: 0.3 }} />
           <Bar dataKey="tržby" fill="#3b82f6" radius={[3, 3, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
+          <Bar dataKey="zisk" name={t("firma.ziskStrata")} radius={[3, 3, 0, 0]} hide={hidden.has("zisk")}>
+            {data.map((d, i) => {
+              const v = d.zisk;
+              const color = v == null ? "transparent" : v >= 0 ? "#10b981" : "#ef4444";
+              return <Cell key={i} fill={color} />;
+            })}
+          </Bar>
           <Bar dataKey="daň" fill="#f59e0b" radius={[3, 3, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
         </BarChart>
       </ResponsiveContainer>
-      {/* Bottom chart: profit/loss (own axis, supports negative values) */}
-      {!hidden.has("zisk") && (
-        <ResponsiveContainer width="100%" height={isPrint ? 90 : 100} minHeight={isPrint ? 90 : 100}>
-          <BarChart data={data} margin={margin} barGap={2}>
-            <XAxis dataKey="year" tick={false} axisLine={{ stroke: gridColor }} tickLine={false} />
-            <YAxis domain={["auto", "auto"]} tickFormatter={fmtSmall} tick={{ fill: axisColor, fontSize: isPrint ? 7 : 9 }} axisLine={false} tickLine={false} width={yAxisWidth} />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} cursor={{ fill: "var(--border)", opacity: 0.3 }} />
-            <Bar dataKey="zisk" name={t("firma.ziskStrata")} radius={[3, 3, 0, 0]}>
-              {data.map((d, i) => {
-                const v = d.zisk;
-                const color = v == null ? "transparent" : v >= 0 ? "#10b981" : "#ef4444";
-                return <Cell key={i} fill={color} />;
-              })}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      )}
     </div>
   );
 }
