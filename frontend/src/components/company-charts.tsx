@@ -155,6 +155,9 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
 export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   const t = useT();
   const isPrint = useIsPrint();
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hoveredType, setHoveredType] = useState<"node" | "link" | null>(null);
+
   const { sankeyData } = useMemo(() => {
     const rawTotalAssets = Math.max(0, data.totalAssets ?? 0);
     if (rawTotalAssets <= 0) return { sankeyData: { nodes: [], links: [] } };
@@ -270,6 +273,31 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
     return { sankeyData: { nodes, links } };
   }, [data, t]);
 
+  // Compute which links are connected to a hovered node
+  const activeLinkIndices = useMemo(() => {
+    if (hoveredType !== "node" || hoveredIndex === null) return null;
+    const indices = new Set<number>();
+    sankeyData.links.forEach((l, i) => {
+      if (l.source === hoveredIndex || l.target === hoveredIndex) indices.add(i);
+    });
+    return indices;
+  }, [hoveredType, hoveredIndex, sankeyData.links]);
+
+  const isLinkActive = (linkIdx: number) => {
+    if (hoveredType === "link") return hoveredIndex === linkIdx;
+    if (hoveredType === "node" && activeLinkIndices) return activeLinkIndices.has(linkIdx);
+    return true;
+  };
+
+  const isNodeActive = (nodeIdx: number) => {
+    if (hoveredType === "node") return hoveredIndex === nodeIdx;
+    if (hoveredType === "link" && hoveredIndex !== null) {
+      const link = sankeyData.links[hoveredIndex];
+      return link && (link.source === nodeIdx || link.target === nodeIdx);
+    }
+    return true;
+  };
+
   if (!sankeyData || sankeyData.links.length === 0) {
     return (
       <div className="flex items-center justify-center h-[250px] sm:h-[300px] text-sm" style={{ color: "var(--text-muted)" }}>
@@ -302,12 +330,21 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
           const name = nodeData.name || (isCenter ? t("firma.bilancnaSuma") : "");
           const hasOutgoing = outgoingValue[index] !== undefined;
           const value = hasOutgoing ? (outgoingValue[index] || 0) : (incomingValue[index] || 0);
+          const active = isNodeActive(index);
+          const dim = hoveredType !== null && !active;
+          const nodeOpacity = dim ? 0.25 : active && hoveredType === "node" ? 1 : 0.85;
 
           // Center node: render bar only, no label
           if (isCenter) {
             return (
               <Layer key={`node-${index}`}>
-                <rect x={x} y={y} width={width} height={height} fill={color} rx={3}>
+                <rect
+                  x={x} y={y} width={width} height={height}
+                  fill={color} rx={3} opacity={nodeOpacity}
+                  style={{ cursor: "pointer", transition: "opacity 0.2s" }}
+                  onMouseEnter={() => { setHoveredIndex(index); setHoveredType("node"); }}
+                  onMouseLeave={() => { setHoveredIndex(null); setHoveredType(null); }}
+                >
                   <title>{`${name}: ${fmtEUR(value)}`}</title>
                 </rect>
               </Layer>
@@ -327,7 +364,13 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
 
           return (
             <Layer key={`node-${index}`}>
-              <rect x={x} y={y} width={width} height={height} fill={color} rx={3}>
+              <rect
+                x={x} y={y} width={width} height={height}
+                fill={color} rx={3} opacity={nodeOpacity}
+                style={{ cursor: "pointer", transition: "opacity 0.2s" }}
+                onMouseEnter={() => { setHoveredIndex(index); setHoveredType("node"); }}
+                onMouseLeave={() => { setHoveredIndex(null); setHoveredType(null); }}
+              >
                 <title>{`${name}: ${fmtEUR(value)}`}</title>
               </rect>
               {showName && (
@@ -339,6 +382,8 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
                     textAnchor={textAnchor}
                     fontSize={isPrint ? 8 : 10}
                     fill="var(--text)"
+                    opacity={dim ? 0.3 : 1}
+                    style={{ pointerEvents: "none", transition: "opacity 0.2s" }}
                   >
                     <tspan x={labelX} dy="0">{line1}</tspan>
                     {showValue && isMultiLine && <tspan x={labelX} dy="1.1em">{line2}</tspan>}
@@ -351,6 +396,8 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
                       textAnchor={textAnchor}
                       fontSize={isPrint ? 7 : 9}
                       fill="var(--text-muted)"
+                      opacity={dim ? 0.3 : 1}
+                      style={{ pointerEvents: "none", transition: "opacity 0.2s" }}
                     >
                       {fmtEUR(value)}
                     </text>
@@ -365,7 +412,9 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
           const linkData = sankeyData.links[index] || {};
           const lColor = linkData.lColor || "#94a3b8";
           const halfWidth = Math.max(0.5, linkWidth / 2);
-          
+          const active = isLinkActive(index);
+          const linkOpacity = hoveredType === null ? 1 : active ? 0.9 : 0.12;
+
           const path = `
             M${sourceX},${sourceY - halfWidth}
             C${sourceControlX},${sourceY - halfWidth} ${targetControlX},${targetY - halfWidth} ${targetX},${targetY - halfWidth}
@@ -384,6 +433,10 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
                 d={path}
                 fill={lColor}
                 stroke="none"
+                opacity={linkOpacity}
+                style={{ cursor: "pointer", transition: "opacity 0.2s" }}
+                onMouseEnter={() => { setHoveredIndex(index); setHoveredType("link"); }}
+                onMouseLeave={() => { setHoveredIndex(null); setHoveredType(null); }}
               >
                 <title>{linkTitle}</title>
               </path>
@@ -391,29 +444,6 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
           );
         }}
       >
-        <Tooltip
-          cursor={false}
-          contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12, padding: "6px 10px" }}
-          formatter={(_v: any, _name: any, props: any) => {
-            const p = props?.payload;
-            if (!p) return null as unknown as [string, string];
-            // Link hover
-            if (p.source != null && p.target != null && typeof p.index === "number") {
-              const linkData = sankeyData.links[p.index];
-              if (linkData?.srcName && linkData?.tgtName) {
-                return [fmtEUR(linkData.value), `${linkData.srcName} → ${linkData.tgtName}`];
-              }
-            }
-            // Node hover
-            if (typeof p.index === "number" && sankeyData.nodes[p.index]) {
-              const nd = sankeyData.nodes[p.index];
-              const nodeName = nd.name || t("firma.bilancnaSuma");
-              const val = outgoingValue[p.index] ?? incomingValue[p.index] ?? 0;
-              return [fmtEUR(val), nodeName];
-            }
-            return null as unknown as [string, string];
-          }}
-        />
       </Sankey>
     </ResponsiveContainer>
   );
