@@ -446,7 +446,7 @@ model FinancialStatement {
   investingCashFlow                     Decimal?  @db.Decimal(15, 2)        // Čisté peňažné toky z investičnej činnosti
   financingCashFlow                     Decimal?  @db.Decimal(15, 2)        // Čisté peňažné toky z finančnej činnosti
   interestExpense                       Decimal?  @db.Decimal(15, 2)        // Úroky (náklady na úroky)
-  incomeTax                             Decimal?  @db.Decimal(15, 2)        // Daň z príjmov (riadok 60 vo Výkaze)
+  incomeTax                             Decimal?  @db.Decimal(15, 2)        // Daň z príjmov (riadok 57 vo Výkaze)
   employeeCount                         Int?          // Odhadovaný počet zamestnancov
   socialInsuranceLiabilities            Decimal?  @db.Decimal(15, 2)        // Záväzky zo sociálneho poistenia (336A) — trestná zodpovednosť štatutára
   taxLiabilities                        Decimal?  @db.Decimal(15, 2)        // Daňové záväzky a dotácie (341-347) — riziko daňovej exekúcie
