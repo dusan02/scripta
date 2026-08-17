@@ -30,6 +30,7 @@ from src.pipeline import (
     _build_fallback_verdict,
     _remaining_eta,
     _apply_orsr_override,
+    _apply_balance_sheet_fallbacks,
 )
 
 
@@ -841,3 +842,144 @@ class TestGroundingFilter:
             nr = entry.get("narrativeRisk", {})
             flags = nr.get("forensicRedFlags")
             assert flags == []
+
+
+# ── _apply_balance_sheet_fallbacks ──────────────────────────────────────────────
+
+class TestApplyBalanceSheetFallbacks:
+    """Testy pre fallback výpočty chýbajúcich súvahových položiek."""
+
+    def test_equity_from_basic_liabilities(self):
+        """vlastne_imanie = celkove_aktiva - (kratkodobe + dlhodobe zavazky)."""
+        m = _metrics(2024,
+            celkove_aktiva=1_000_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        assert m.vlastne_imanie_celkom == 500_000
+
+    def test_equity_includes_lt_reserves(self):
+        """Fallback zahŕňa dlhodobé rezervy do pasív."""
+        m = _metrics(2024,
+            celkove_aktiva=1_000_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+            dlhodobe_rezervy=100_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        # equity = 1M - (300k + 200k + 100k) = 400k
+        assert m.vlastne_imanie_celkom == 400_000
+
+    def test_equity_includes_st_reserves(self):
+        """Fallback zahŕňa krátkodobé rezervy do pasív."""
+        m = _metrics(2024,
+            celkove_aktiva=1_000_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+            kratkodobe_rezervy=50_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        # equity = 1M - (300k + 200k + 50k) = 450k
+        assert m.vlastne_imanie_celkom == 450_000
+
+    def test_equity_includes_bank_loans(self):
+        """Fallback zahŕňa bežné bankové úvery do pasív."""
+        m = _metrics(2024,
+            celkove_aktiva=1_000_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+            bezne_bankove_uvery=150_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        # equity = 1M - (300k + 200k + 150k) = 350k
+        assert m.vlastne_imanie_celkom == 350_000
+
+    def test_equity_includes_all_extra_liabilities(self):
+        """Fallback zahŕňa rezervy + úvery naraz."""
+        m = _metrics(2024,
+            celkove_aktiva=1_000_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+            dlhodobe_rezervy=100_000,
+            kratkodobe_rezervy=50_000,
+            bezne_bankove_uvery=150_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        # equity = 1M - (300k + 200k + 100k + 50k + 150k) = 200k
+        assert m.vlastne_imanie_celkom == 200_000
+
+    def test_equity_skipped_when_negative(self):
+        """Ak by bolo vlastne_imanie záporné, fallback sa preskočí."""
+        m = _metrics(2024,
+            celkove_aktiva=100_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        # 100k - 500k = -400k → preskočiť
+        assert m.vlastne_imanie_celkom is None
+
+    def test_equity_not_overwritten_when_present(self):
+        """Ak vlastne_imanie už existuje, fallback ho neprepíše."""
+        m = _metrics(2024,
+            celkove_aktiva=1_000_000,
+            vlastne_imanie_celkom=600_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        assert m.vlastne_imanie_celkom == 600_000
+
+    def test_equity_skipped_when_low_confidence(self):
+        """Ak je vlastne_imanie v low_confidence_fields, fallback sa neaplikuje."""
+        m = _metrics(2024,
+            celkove_aktiva=1_000_000,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+        )
+        _apply_balance_sheet_fallbacks(m, low_confidence_fields={"vlastne_imanie_celkom"})
+        assert m.vlastne_imanie_celkom is None
+
+    def test_obezny_majetok_from_subitems(self):
+        """obezny_majetok sa vypočíta zo zásob + pohľadávok + hotovosti (>= 2 sub-items)."""
+        m = _metrics(2024,
+            zasoby=100_000,
+            pohladavky_z_obchodneho_styku=200_000,
+            peniaze_a_penazne_ekvivalenty_k_31_12=50_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        assert m.obezny_majetok == 350_000
+
+    def test_obezny_majetok_skipped_with_one_subitem(self):
+        """Ak je len 1 sub-item, obezny_majetok sa nevypočíta."""
+        m = _metrics(2024,
+            zasoby=100_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        assert m.obezny_majetok is None
+
+    def test_celkove_aktiva_from_obezny(self):
+        """celkove_aktiva sa aproximuje z obezny_majetok keď chýba."""
+        m = _metrics(2024,
+            obezny_majetok=500_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        assert m.celkove_aktiva == 500_000
+
+    def test_celkove_aktiva_skipped_when_low_confidence(self):
+        """Ak je celkove_aktiva v low_confidence_fields, fallback sa neaplikuje."""
+        m = _metrics(2024,
+            obezny_majetok=500_000,
+        )
+        _apply_balance_sheet_fallbacks(m, low_confidence_fields={"celkove_aktiva"})
+        assert m.celkove_aktiva is None
+
+    def test_no_fallback_when_assets_missing(self):
+        """Ak chýba celkove_aktiva aj obezny_majetok, equity fallback sa neaplikuje."""
+        m = _metrics(2024,
+            kratkodobe_zavazky=300_000,
+            dlhodobe_zavazky=200_000,
+        )
+        _apply_balance_sheet_fallbacks(m)
+        assert m.vlastne_imanie_celkom is None

@@ -355,8 +355,24 @@ class TestComputeFinancialRatios:
         # EBIT = 200k + |-50k| = 250k; IC = 250k / 50k = 5.0
         assert r["interest_coverage"] == 5.0
 
-    def test_dio_with_cogs(self):
-        """DIO = (inventory / operatingCosts) * 365."""
+    def test_dio_with_material_consumption(self):
+        """DIO = (inventory / materialConsumption) * 365. operatingCosts sa už nepoužíva."""
+        s = _stmt(
+            totalAssets=1_000_000,
+            currentAssets=500_000,
+            equity=600_000,
+            shortTermLiabilities=200_000,
+            mainActivityRevenue=2_000_000,
+            inventory=200_000,
+            materialConsumption=1_000_000,
+            netProfitLoss=50_000,
+        )
+        r = compute_financial_ratios(s)
+        # DIO = (200k / 1M) * 365 = 73
+        assert r["dio_days"] == 73.0
+
+    def test_dio_ignores_operating_costs(self):
+        """operatingCosts (r.10) sa už nepoužíva pre DIO — obsahuje mzdy, odpisy, služby."""
         s = _stmt(
             totalAssets=1_000_000,
             currentAssets=500_000,
@@ -365,11 +381,12 @@ class TestComputeFinancialRatios:
             mainActivityRevenue=2_000_000,
             inventory=200_000,
             operatingCosts=1_000_000,
+            materialConsumption=None,
             netProfitLoss=50_000,
         )
         r = compute_financial_ratios(s)
-        # DIO = (200k / 1M) * 365 = 73
-        assert r["dio_days"] == 73.0
+        # operatingCosts sa ignoruje, materialConsumption chýba → DIO = None
+        assert r["dio_days"] is None
 
     def test_dio_zero_inventory(self):
         """Žiadne zásoby → DIO = 0 (nie None)."""
@@ -380,14 +397,14 @@ class TestComputeFinancialRatios:
             shortTermLiabilities=200_000,
             mainActivityRevenue=2_000_000,
             inventory=0,
-            operatingCosts=1_000_000,
+            materialConsumption=1_000_000,
             netProfitLoss=50_000,
         )
         r = compute_financial_ratios(s)
         assert r["dio_days"] == 0
 
-    def test_dio_no_cogs(self):
-        """IT firma: operatingCosts = 0, materialConsumption = 0, inventory > 0 → DIO = None."""
+    def test_dio_no_material_consumption(self):
+        """IT firma: materialConsumption = 0, inventory > 0 → DIO = None (nie delenie nulou)."""
         s = _stmt(
             totalAssets=1_000_000,
             currentAssets=500_000,
@@ -395,15 +412,14 @@ class TestComputeFinancialRatios:
             shortTermLiabilities=200_000,
             mainActivityRevenue=2_000_000,
             inventory=10_000,
-            operatingCosts=0,
             materialConsumption=0,
             netProfitLoss=50_000,
         )
         r = compute_financial_ratios(s)
         assert r["dio_days"] is None
 
-    def test_dio_fallback_to_material_consumption(self):
-        """Ak operatingCosts chýba alebo je 0, fallback na materialConsumption."""
+    def test_dio_material_consumption_only(self):
+        """DIO používa výhradne materialConsumption ako COGS proxy."""
         s = _stmt(
             totalAssets=1_000_000,
             currentAssets=500_000,
@@ -411,7 +427,6 @@ class TestComputeFinancialRatios:
             shortTermLiabilities=200_000,
             mainActivityRevenue=2_000_000,
             inventory=100_000,
-            operatingCosts=None,
             materialConsumption=500_000,
             netProfitLoss=50_000,
         )
@@ -428,7 +443,7 @@ class TestComputeFinancialRatios:
             shortTermLiabilities=200_000,
             mainActivityRevenue=3_650_000,  # pre jednoduchý DSO/DPO výpočet
             inventory=100_000,
-            operatingCosts=500_000,
+            materialConsumption=500_000,
             tradeReceivables=100_000,   # DSO = 10
             tradePayables=100_000,      # DPO = 10
             netProfitLoss=50_000,
@@ -452,7 +467,6 @@ class TestComputeFinancialRatios:
             shortTermLiabilities=200_000,
             mainActivityRevenue=3_650_000,
             inventory=10_000,
-            operatingCosts=0,
             materialConsumption=0,
             tradeReceivables=100_000,
             tradePayables=100_000,

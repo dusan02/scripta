@@ -300,6 +300,42 @@ def _remaining_eta(t_start: float, baseline: float) -> int:
     return max(5, int(baseline - elapsed))
 
 
+def _apply_balance_sheet_fallbacks(m, low_confidence_fields: set = None, file_name: str = ""):
+    """Compute missing balance sheet totals from sub-items.
+
+    - obezny_majetok from inventory + trade receivables + cash (if >= 2 sub-items present)
+    - celkove_aktiva from obezny_majetok (if missing)
+    - vlastne_imanie_celkom from celkove_aktiva - liabilities (including reserves + bank loans)
+
+    NEPREPISUJ polia, ktoré verifikácia nastavila na None (LOW confidence mismatch).
+    """
+    if low_confidence_fields is None:
+        low_confidence_fields = set()
+
+    if m.obezny_majetok is None:
+        current_sub = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
+        if len(current_sub) >= 2:
+            m.obezny_majetok = sum(current_sub)
+            logger.info(f"[FALLBACK] {file_name}: obezny_majetok vypočítané z sub-items: {m.obezny_majetok}")
+    if m.celkove_aktiva is None and m.obezny_majetok is not None and "celkove_aktiva" not in low_confidence_fields:
+        m.celkove_aktiva = m.obezny_majetok
+        logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
+    if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None and "vlastne_imanie_celkom" not in low_confidence_fields:
+        if m.kratkodobe_zavazky is not None and m.dlhodobe_zavazky is not None:
+            liabilities = m.kratkodobe_zavazky + m.dlhodobe_zavazky
+            if getattr(m, 'dlhodobe_rezervy', None) is not None:
+                liabilities += m.dlhodobe_rezervy
+            if getattr(m, 'kratkodobe_rezervy', None) is not None:
+                liabilities += m.kratkodobe_rezervy
+            if getattr(m, 'bezne_bankove_uvery', None) is not None:
+                liabilities += m.bezne_bankove_uvery
+            computed_equity = m.celkove_aktiva - liabilities
+            if computed_equity > 0:
+                m.vlastne_imanie_celkom = computed_equity
+                logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad): {m.vlastne_imanie_celkom}")
+            else:
+                logger.warning(f"[FALLBACK-SKIP] {file_name}: vlastne_imanie by bolo záporné ({computed_equity}) — preskakujem")
+
 
 async def process_company(
     ico: str,
@@ -483,32 +519,9 @@ async def process_company(
                         logger.warning(f"[STAFF COSTS RETRY] Osobné náklady sa nepodarilo nájsť v {file_name}")
 
                 # Fallback: compute missing balance sheet totals from sub-items
-                # NEPREPISUJ polia, ktoré verifikácia nastavila na None (LOW confidence mismatch)
                 m = data.metriky
                 _low_confidence_fields = {item.field for item in data.verification_confidence if item.confidence == "LOW"}
-                if m.obezny_majetok is None:
-                    current_sub = [v for v in [m.zasoby, m.pohladavky_z_obchodneho_styku, m.peniaze_a_penazne_ekvivalenty_k_31_12] if v is not None]
-                    if len(current_sub) >= 2:
-                        m.obezny_majetok = sum(current_sub)
-                        logger.info(f"[FALLBACK] {file_name}: obezny_majetok vypočítané z sub-items: {m.obezny_majetok}")
-                if m.celkove_aktiva is None and m.obezny_majetok is not None and "celkove_aktiva" not in _low_confidence_fields:
-                    m.celkove_aktiva = m.obezny_majetok
-                    logger.info(f"[FALLBACK] {file_name}: celkove_aktiva aproximované z obežného majetku: {m.celkove_aktiva}")
-                if m.vlastne_imanie_celkom is None and m.celkove_aktiva is not None and "vlastne_imanie_celkom" not in _low_confidence_fields:
-                    if m.kratkodobe_zavazky is not None and m.dlhodobe_zavazky is not None:
-                        liabilities = m.kratkodobe_zavazky + m.dlhodobe_zavazky
-                        if getattr(m, 'dlhodobe_rezervy', None) is not None:
-                            liabilities += m.dlhodobe_rezervy
-                        if getattr(m, 'kratkodobe_rezervy', None) is not None:
-                            liabilities += m.kratkodobe_rezervy
-                        if getattr(m, 'bezne_bankove_uvery', None) is not None:
-                            liabilities += m.bezne_bankove_uvery
-                        computed_equity = m.celkove_aktiva - liabilities
-                        if computed_equity > 0:
-                            m.vlastne_imanie_celkom = computed_equity
-                            logger.warning(f"[FALLBACK-APPROX] {file_name}: vlastne_imanie aproximované (horný odhad): {m.vlastne_imanie_celkom}")
-                        else:
-                            logger.warning(f"[FALLBACK-SKIP] {file_name}: vlastne_imanie by bolo záporné ({computed_equity}) — preskakujem")
+                _apply_balance_sheet_fallbacks(m, _low_confidence_fields, file_name)
                 logger.info(
                     f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
                     f"ico={data.ico} assets={data.metriky.celkove_aktiva} "

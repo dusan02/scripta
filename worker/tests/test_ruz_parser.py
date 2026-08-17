@@ -27,7 +27,9 @@ from src.ruz_parser import (
     ROW_ST_LIABILITIES,
     ROW_LT_LIABILITIES,
     ROW_NET_REVENUE,
-    ROW_COST_OF_GOODS_SOLD,
+    ROW_OPERATING_COSTS,
+    ROW_MATERIAL_CONSUMPTION,
+    ROW_SERVICES,
     ROW_PERSONNEL_COSTS,
     ROW_NET_PROFIT,
     ROW_VALUE_ADDED,
@@ -414,7 +416,8 @@ def _set_row(arr, idx, row, cols=7):
 
 
 def _make_tables(assets=None, equity=None, st_liab=None, lt_liab=None,
-                 revenue=None, cogs=None, personnel=None, net_profit=None,
+                 revenue=None, cogs=None, material_consumption=None, services=None,
+                 personnel=None, net_profit=None,
                  value_added=None, cash=None, current_assets=None,
                  trade_recv=None, trade_pay=None, inv_liab=None, sp_liab=None,
                  tax_liab=None, emp_liab=None, depreciation=None, interest=None,
@@ -471,8 +474,14 @@ def _make_tables(assets=None, equity=None, st_liab=None, lt_liab=None,
         _set_row(income_data, ROW_NET_REVENUE - _INCOME_OFFSET,
                  _make_income_row(ROW_NET_REVENUE, "Čistý obrat", revenue), cols=5)
     if cogs is not None:
-        _set_row(income_data, ROW_COST_OF_GOODS_SOLD - _INCOME_OFFSET,
-                 _make_income_row(ROW_COST_OF_GOODS_SOLD, "Náklady na predaný tovar", cogs), cols=5)
+        _set_row(income_data, ROW_OPERATING_COSTS - _INCOME_OFFSET,
+                 _make_income_row(ROW_OPERATING_COSTS, "Náklady na hosp. činnosť", cogs), cols=5)
+    if material_consumption is not None:
+        _set_row(income_data, ROW_MATERIAL_CONSUMPTION - _INCOME_OFFSET,
+                 _make_income_row(ROW_MATERIAL_CONSUMPTION, "Spotreba materiálu", material_consumption), cols=5)
+    if services is not None:
+        _set_row(income_data, ROW_SERVICES - _INCOME_OFFSET,
+                 _make_income_row(ROW_SERVICES, "Služby", services), cols=5)
     if personnel is not None:
         _set_row(income_data, ROW_PERSONNEL_COSTS - _INCOME_OFFSET,
                  _make_income_row(ROW_PERSONNEL_COSTS, "Osobné náklady", personnel), cols=5)
@@ -524,29 +533,63 @@ class TestParseTablesToMetrics:
         assert metrics.trzby_z_hlavnej_cinnosti == 5_000_000
         assert metrics.zisk_alebo_strata_po_zdaneni == 200_000
 
-    def test_gross_margin_from_cogs(self):
+    def test_gross_margin_from_material_and_services(self):
+        """Hrubá marža = Tržby - (Spotreba materiálu + Služby). NIE operating_costs (r.10)."""
         tables, titulna = _make_tables(
             assets=1_000_000,
             equity=500_000,
             st_liab=300_000,
             lt_liab=200_000,
             revenue=5_000_000,
-            cogs=3_000_000,
+            material_consumption=2_000_000,
+            services=1_000_000,
             pocet_zam=50,
         )
         metrics = parse_tables_to_metrics(tables, titulna, "12345678")
         assert metrics is not None
-        # hruba_marza = Tržby - COGS = 5M - 3M = 2M
+        # hruba_marza = Tržby - (Spotreba + Služby) = 5M - (2M + 1M) = 2M
         assert metrics.hruba_marza == 2_000_000
 
-    def test_gross_margin_fallback_to_value_added(self):
+    def test_gross_margin_only_material(self):
+        """Hrubá marža keď chýbajú služby — Tržby - Spotreba materiálu."""
         tables, titulna = _make_tables(
             assets=1_000_000,
             equity=500_000,
             st_liab=300_000,
             lt_liab=200_000,
             revenue=5_000_000,
-            cogs=None,  # COGS chýba
+            material_consumption=3_000_000,
+            pocet_zam=50,
+        )
+        metrics = parse_tables_to_metrics(tables, titulna, "12345678")
+        assert metrics is not None
+        # hruba_marza = 5M - 3M = 2M
+        assert metrics.hruba_marza == 2_000_000
+
+    def test_gross_margin_ignores_operating_costs(self):
+        """Riadok 10 (operating_costs) sa NEpoužíva pre hrubú maržu — zahŕňa mzdy, odpisy."""
+        tables, titulna = _make_tables(
+            assets=1_000_000,
+            equity=500_000,
+            st_liab=300_000,
+            lt_liab=200_000,
+            revenue=5_000_000,
+            cogs=4_000_000,  # operating_costs (r.10) — should NOT be used as COGS
+            pocet_zam=50,
+        )
+        metrics = parse_tables_to_metrics(tables, titulna, "12345678")
+        assert metrics is not None
+        # Bez spotreba/services → fallback na Pridanú hodnotu (None tu) → hruba_marza = None
+        assert metrics.hruba_marza is None
+
+    def test_gross_margin_fallback_to_value_added(self):
+        """Bez spotreba/services → fallback na Pridanú hodnotu (r.28)."""
+        tables, titulna = _make_tables(
+            assets=1_000_000,
+            equity=500_000,
+            st_liab=300_000,
+            lt_liab=200_000,
+            revenue=5_000_000,
             value_added=1_500_000,
             pocet_zam=50,
         )
@@ -563,7 +606,8 @@ class TestParseTablesToMetrics:
             st_liab=100,
             lt_liab=100,
             revenue=2000,
-            cogs=1200,
+            material_consumption=800,
+            services=400,
             pocet_zam=50,    # > 5
         )
         metrics = parse_tables_to_metrics(tables, titulna, "12345678")
@@ -572,7 +616,7 @@ class TestParseTablesToMetrics:
         assert metrics.celkove_aktiva == 500_000
         assert metrics.vlastne_imanie_celkom == 300_000
         assert metrics.trzby_z_hlavnej_cinnosti == 2_000_000
-        assert metrics.hruba_marza == 800_000  # (2000 - 1200) * 1000
+        assert metrics.hruba_marza == 800_000  # (2000 - (800+400)) * 1000
 
     def test_unit_detection_eur_normal(self):
         """Ak aktíva >= 5000, nedeteguj tisíce EUR."""
@@ -582,7 +626,8 @@ class TestParseTablesToMetrics:
             st_liab=100_000,
             lt_liab=100_000,
             revenue=2_000_000,
-            cogs=1_200_000,
+            material_consumption=800_000,
+            services=400_000,
             pocet_zam=50,
         )
         metrics = parse_tables_to_metrics(tables, titulna, "12345678")
@@ -599,13 +644,15 @@ class TestParseTablesToMetrics:
             st_liab=100,
             lt_liab=100,
             revenue=2000,
-            cogs=1200,
+            material_consumption=800,
+            services=400,
             pocet_zam=4,     # <= 5 → malá firma, nie tisíce EUR
         )
         metrics = parse_tables_to_metrics(tables, titulna, "12345678")
         assert metrics is not None
         # Žiadny multiplier
         assert metrics.celkove_aktiva == 500
+        assert metrics.hruba_marza == 800  # 2000 - (800+400)
 
     def test_parentheses_in_net_profit(self):
         """Strata v zátvorkách by mala byť záporná."""
