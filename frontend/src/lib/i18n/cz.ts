@@ -134,6 +134,24 @@ const cz: Dict = {
   "firma.ctaTrust": "Data z veřejných registrů SR · finanční výkazy · právní údaje · firemní události",
   "firma.ctaTrust2": "První report zdarma · bez platební karty",
 
+  // ── Inline CTA (po MetricCards) ──
+  "firma.inlineCta1Title": "Chcete tuto firmu prověřit před obchodem?",
+  "firma.inlineCta1Desc": "Veřejné finanční údaje jsou pouze částí obrazu. Verifa automaticky prověří dostupné registry a identifikuje potenciální rizika.",
+  "firma.inlineCta1Button": "Prověřit firmu →",
+
+  // ── Inline CTA (po tabulkách) ──
+  "firma.inlineCta2Title": "Finanční výsledky jsou pouze částí obrazu",
+  "firma.inlineCta2Desc": "Kompletní Business Risk Report automaticky kontroluje dostupné veřejné registry — nedoplatky, exekuce, insolvence, vlastnická struktura a další rizikové signály.",
+  "firma.inlineCta2Button": "Vygenerovat Business Risk Report →",
+
+  // ── Risk teaser ──
+  "firma.riskTeaserTitle": "Business Risk Analysis",
+  "firma.riskTeaserDesc": "Finanční údaje jsou pouze jednou částí prověření firmy. Verifa při kompletním reportu kontroluje dostupné veřejné registry, finanční ukazatele a další rizikové signály.",
+  "firma.riskTeaserButton": "Odemknout risk analýzu →",
+
+  // ── FAQ ──
+  "firma.faqTitle": "Často hledané informace",
+
   // ── Provenance + methodology ──
   "firma.provenanceZdroj": "Zdroj finančních dat",
   "firma.provenanceRuz": "Registr účetních závěrek (RÚZ)",

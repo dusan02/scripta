@@ -222,6 +222,24 @@ const hu: Dict = {
   "firma.ctaTrust": "Adatok szlovák nyilvános nyilvántartásokból · pénzügyi kimutatások · jogi adatok · céges események",
   "firma.ctaTrust2": "Első jelentés ingyenes · bankkártya nélkül",
 
+  // ── Inline CTA (MetricCards után) ──
+  "firma.inlineCta1Title": "Szeretné ellenőrizni ezt a céget üzletkötés előtt?",
+  "firma.inlineCta1Desc": "A nyilvános pénzügyi adatok csak a kép egy részét mutatják. A Verifa automatikusan ellenőrzi az elérhető nyilvántartásokat és azonosítja a potenciális kockázatokat.",
+  "firma.inlineCta1Button": "Cég ellenőrzése →",
+
+  // ── Inline CTA (táblázatok után) ──
+  "firma.inlineCta2Title": "A pénzügyi eredmények csak a kép egy része",
+  "firma.inlineCta2Desc": "A teljes Business Risk Report automatikusan ellenőrzi az elérhető nyilvános nyilvántartásokat — adótartozások, végrehajtások, csődeljárás, tulajdonosi szerkezet és egyéb kockázati jelek.",
+  "firma.inlineCta2Button": "Business Risk Report generálása →",
+
+  // ── Risk teaser ──
+  "firma.riskTeaserTitle": "Business Risk Analysis",
+  "firma.riskTeaserDesc": "A pénzügyi adatok csak a cégellenőrzés egy részét képezik. A Verifa teljes jelentésében ellenőrzi az elérhető nyilvános nyilvántartásokat, pénzügyi mutatókat és egyéb kockázati jeleket.",
+  "firma.riskTeaserButton": "Kockázatelemzés feloldása →",
+
+  // ── FAQ ──
+  "firma.faqTitle": "Gyakran keresett információk",
+
   // ── Provenance + methodology ──
   "firma.provenanceZdroj": "Pénzügyi adatok forrása",
   "firma.provenanceRuz": "Pénzügyi beszámolók nyilvántartása (RÚZ)",

@@ -155,6 +155,24 @@ const en: Dict = {
   "firma.ctaTrust": "Data from public Slovak registries · financial statements · legal records · corporate events",
   "firma.ctaTrust2": "First report free · no credit card required",
 
+  // ── Inline CTA (after MetricCards) ──
+  "firma.inlineCta1Title": "Want to verify this company before doing business?",
+  "firma.inlineCta1Desc": "Public financial data is only part of the picture. Verifa automatically checks available registries and identifies potential risks.",
+  "firma.inlineCta1Button": "Verify company →",
+
+  // ── Inline CTA (after tables) ──
+  "firma.inlineCta2Title": "Financial results are only part of the picture",
+  "firma.inlineCta2Desc": "A complete Business Risk Report automatically checks available public registries — tax arrears, executions, insolvency, ownership structure and other risk signals.",
+  "firma.inlineCta2Button": "Generate Business Risk Report →",
+
+  // ── Risk teaser ──
+  "firma.riskTeaserTitle": "Business Risk Analysis",
+  "firma.riskTeaserDesc": "Financial data is only one part of company verification. Verifa's complete report checks available public registries, financial indicators and other risk signals.",
+  "firma.riskTeaserButton": "Unlock risk analysis →",
+
+  // ── FAQ ──
+  "firma.faqTitle": "Frequently asked questions",
+
   // ── Provenance + methodology ──
   "firma.provenanceZdroj": "Financial data source",
   "firma.provenanceRuz": "Register of Financial Statements (RÚZ)",

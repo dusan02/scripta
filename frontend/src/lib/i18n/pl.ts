@@ -222,6 +222,24 @@ const pl: Dict = {
   "firma.ctaTrust": "Dane ze słowackich rejestrów publicznych · sprawozdania finansowe · dane prawne · wydarzenia firmowe",
   "firma.ctaTrust2": "Pierwszy raport za darmo · bez karty kredytowej",
 
+  // ── Inline CTA (po MetricCards) ──
+  "firma.inlineCta1Title": "Chcesz sprawdzić tę firmę przed zawarciem umowy?",
+  "firma.inlineCta1Desc": "Publiczne dane finansowe to tylko część obrazu. Verifa automatycznie sprawdza dostępne rejestry i identyfikuje potencjalne ryzyka.",
+  "firma.inlineCta1Button": "Sprawdź firmę →",
+
+  // ── Inline CTA (po tabelach) ──
+  "firma.inlineCta2Title": "Wyniki finansowe to tylko część obrazu",
+  "firma.inlineCta2Desc": "Kompletny Business Risk Report automatycznie sprawdza dostępne rejestry publiczne — zaległości podatkowe, egzekucje, insolwencja, struktura właścicielska i inne sygnały ryzyka.",
+  "firma.inlineCta2Button": "Wygeneruj Business Risk Report →",
+
+  // ── Risk teaser ──
+  "firma.riskTeaserTitle": "Business Risk Analysis",
+  "firma.riskTeaserDesc": "Dane finansowe to tylko jedna część weryfikacji firmy. Pełny raport Verifa sprawdza dostępne rejestry publiczne, wskaźniki finansowe i inne sygnały ryzyka.",
+  "firma.riskTeaserButton": "Odblokuj analizę ryzyka →",
+
+  // ── FAQ ──
+  "firma.faqTitle": "Często poszukiwane informacje",
+
   // ── Provenance + methodology ──
   "firma.provenanceZdroj": "Źródło danych finansowych",
   "firma.provenanceRuz": "Rejestr sprawozdań finansowych (RÚZ)",

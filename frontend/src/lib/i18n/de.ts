@@ -155,6 +155,24 @@ const de: Dict = {
   "firma.ctaTrust": "Daten aus öffentlichen slowakischen Registern · Jahresabschlüsse · Rechtsdaten · Unternehmensereignisse",
   "firma.ctaTrust2": "Erster Bericht kostenlos · keine Kreditkarte erforderlich",
 
+  // ── Inline CTA (nach MetricCards) ──
+  "firma.inlineCta1Title": "Möchten Sie dieses Unternehmen vor Geschäftsabschluss prüfen?",
+  "firma.inlineCta1Desc": "Öffentliche Finanzdaten sind nur ein Teil des Bildes. Verifa prüft automatisch verfügbare Register und identifiziert potenzielle Risiken.",
+  "firma.inlineCta1Button": "Unternehmen prüfen →",
+
+  // ── Inline CTA (nach Tabellen) ──
+  "firma.inlineCta2Title": "Finanzergebnisse sind nur ein Teil des Bildes",
+  "firma.inlineCta2Desc": "Ein vollständiger Business Risk Report prüft automatisch verfügbare öffentliche Register — Steuerrückstände, Zwangsvollstreckungen, Insolvenz, Eigentümerstruktur und weitere Risikosignale.",
+  "firma.inlineCta2Button": "Business Risk Report generieren →",
+
+  // ── Risk Teaser ──
+  "firma.riskTeaserTitle": "Business Risk Analysis",
+  "firma.riskTeaserDesc": "Finanzdaten sind nur ein Teil der Unternehmensprüfung. Der vollständige Verifa-Bericht prüft verfügbare öffentliche Register, Finanzkennzahlen und weitere Risikosignale.",
+  "firma.riskTeaserButton": "Risikoanalyse freischalten →",
+
+  // ── FAQ ──
+  "firma.faqTitle": "Häufig gestellte Fragen",
+
   // ── Provenance + methodology ──
   "firma.provenanceZdroj": "Quelle der Finanzdaten",
   "firma.provenanceRuz": "Register der Jahresabschlüsse (RÚZ)",
