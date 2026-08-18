@@ -8,7 +8,7 @@ import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
 import { CompanyHeader } from "@/components/company-header";
 import { CompanyPersons } from "@/components/company-persons";
-import { ReportCTA } from "@/components/report-cta";
+import { ReportCTA, InlineCTA1, InlineCTA2, RiskTeaser, CompanyFAQ } from "@/components/report-cta";
 import { CompanyInsights } from "@/components/company-insights";
 import { slugify, parseCompanySlug } from "@/lib/slug";
 import { fmtEUR, num } from "@/lib/format";
@@ -324,6 +324,9 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
+        {/* CTA #1 — inline after metrics */}
+        {stmts.length > 0 && <InlineCTA1 ico={company.ico} />}
+
         {/* Trends + Persons side-by-side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6 no-print">
           <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
@@ -407,6 +410,24 @@ export default async function CompanyPage({ params }: Params) {
             </p>
           </div>
         )}
+
+        {/* CTA #2 — after financial tables (risk-focused) */}
+        {stmts.length > 0 && <InlineCTA2 ico={company.ico} />}
+
+        {/* Risk teaser — locked card */}
+        {stmts.length > 0 && <RiskTeaser ico={company.ico} />}
+
+        {/* FAQ — dynamic per-company SEO content */}
+        <CompanyFAQ
+          name={name}
+          ico={company.ico}
+          city={company.city}
+          legalForm={company.legalForm}
+          foundedYear={company.establishedAt ? new Date(company.establishedAt).getFullYear() : null}
+          latestRevenue={latest ? fmtEUR(latest.mainActivityRevenue) : null}
+          latestProfit={latest ? fmtEUR(latest.netProfitLoss) : null}
+          latestYear={latest?.year}
+        />
 
         <div className="no-print">
           <ReportCTA ico={company.ico} name={name} />
