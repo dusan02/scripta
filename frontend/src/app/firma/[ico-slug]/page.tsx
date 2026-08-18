@@ -153,6 +153,22 @@ export default async function CompanyPage({ params }: Params) {
     orgSchema.knowsAbout = company.naceText;
   }
 
+  // Dataset schema for Google Dataset Search (financial statements)
+  const datasetSchema: Record<string, any> | null = stmts.length >= 2 ? {
+    "@type": "Dataset",
+    name: `Finančné výkazy — ${name} (${company.ico})`,
+    description: `Účtovné závierky spoločnosti ${name} (IČO: ${company.ico}) za roky ${stmts[stmts.length - 1]?.year}–${latest?.year}. Zdroj: Register účtovných závierok SR (RÚZ).`,
+    url: `https://verifa.sk/firma/${company.ico}`,
+    temporalCoverage: `${stmts[stmts.length - 1]?.year}/${latest?.year}`,
+    creator: { "@type": "Organization", name: "Register účtovných závierok SR", url: "https://registeruz.sk" },
+    license: "https://data.gov.sk/def/ontology/law/License/opendata",
+    distribution: {
+      "@type": "DataDownload",
+      encodingFormat: "text/html",
+      contentUrl: `https://verifa.sk/firma/${company.ico}`,
+    },
+  } : null;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -165,6 +181,7 @@ export default async function CompanyPage({ params }: Params) {
           { "@type": "ListItem", position: 3, name, item: `https://verifa.sk/firma/${company.ico}` },
         ],
       },
+      ...(datasetSchema ? [datasetSchema] : []),
     ],
   };
 
@@ -178,25 +195,25 @@ export default async function CompanyPage({ params }: Params) {
           <Link href="/" className="flex items-center gap-2">
             <Logo size="sm" />
           </Link>
-          <div className="flex items-center gap-2 no-print">
+          <div className="flex items-center gap-1.5 sm:gap-2 no-print">
             <PrintButton />
             <ThemeToggle size="sm" />
-            <Link
-              href={`/dashboard?ico=${company.ico}`}
-              className="text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-lg transition-all hover:scale-105"
-              style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
-            >
-              Report →
-            </Link>
             {isLoggedIn ? (
-              <Link href="/dashboard" className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text)" }}>
+              <Link href="/dashboard" className="text-[11px] sm:text-xs font-medium px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
                 Dashboard
               </Link>
             ) : (
-              <Link href="/login" className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text)" }}>
+              <Link href="/login" className="text-[11px] sm:text-xs font-medium px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
                 Prihlásiť sa
               </Link>
             )}
+            <Link
+              href={`/dashboard?ico=${company.ico}`}
+              className="text-xs sm:text-sm font-bold px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg transition-all hover:scale-105"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
+            >
+              Objednať report
+            </Link>
           </div>
         </div>
       </header>
@@ -205,7 +222,7 @@ export default async function CompanyPage({ params }: Params) {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs sm:text-sm mb-4 no-print" style={{ color: "var(--text-muted)" }}>
           <Link href="/" className="hover:underline">Verifa.sk</Link>
-          <span>/</span><span>Firma</span><span>/</span>
+          <span>/</span><Link href="/firmy" className="hover:underline">Firma</Link><span>/</span>
           <span style={{ color: "var(--text)" }}>{name}</span>
         </div>
 
@@ -243,7 +260,11 @@ export default async function CompanyPage({ params }: Params) {
                 </div>
               )}
               <div className="flex flex-wrap gap-1.5">
-                {["ORSR", "RÚZ", "Obchodný vestník"].map(src => (
+                {[
+                  ...(persons.length > 0 ? ["ORSR"] : []),
+                  ...(stmts.length > 0 ? ["RÚZ"] : []),
+                  ...(company.vestnikEvents && company.vestnikEvents.length > 0 ? ["Obchodný vestník"] : []),
+                ].map(src => (
                   <span key={src} className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{src}</span>
                 ))}
                 {latest?.year && (
@@ -265,14 +286,14 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Provenance — data source, period, last updated */}
         {stmts.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 text-[11px] mb-3 no-print" style={{ color: "var(--text-muted)" }}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs mb-3 no-print" style={{ color: "var(--text-muted)" }}>
             <span>{t("firma.provenanceZdroj")}: <strong>{t("firma.provenanceRuz")}</strong></span>
             <span>·</span>
-            <span>{t("firma.provenanceObdobie")}: {stmts[stmts.length - 1]?.year}–{latest?.year}</span>
+            <span>{t("firma.provenanceObdobie")}: <strong>{stmts[stmts.length - 1]?.year}–{latest?.year}</strong></span>
             {company.ruzSyncedAt && (
               <>
                 <span>·</span>
-                <span>{t("firma.provenanceAktualizovane")}: {new Date(company.ruzSyncedAt).toLocaleDateString(lang === "sk" ? "sk-SK" : "en-GB")}</span>
+                <span>{t("firma.provenanceAktualizovane")}: <strong>{new Date(company.ruzSyncedAt).toLocaleDateString(lang === "sk" ? "sk-SK" : "en-GB")}</strong></span>
               </>
             )}
           </div>
@@ -344,10 +365,19 @@ export default async function CompanyPage({ params }: Params) {
         {/* Balance Sheet section — chart left, table right */}
         {balanceData && balanceData.totalAssets != null && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section">
-            <ChartCard title="Štruktúra súvahy">
-              <BalanceSankeyChart data={balanceData} />
-            </ChartCard>
-            <ChartCard title={`Súvaha (v tis. €)${balanceStmt ? ` — ${balanceStmt.year}` : ""}`}>
+            {/* Only show Sankey if we have meaningful breakdown (not just totalAssets) */}
+            {(balanceData.currentAssets != null || balanceData.nonCurrentAssets != null) ? (
+              <ChartCard title="Štruktúra súvahy">
+                <BalanceSankeyChart data={balanceData} />
+              </ChartCard>
+            ) : (
+              <ChartCard title="Štruktúra súvahy">
+                <div className="flex items-center justify-center h-[250px] text-sm" style={{ color: "var(--text-muted)" }}>
+                  Detailný rozpad súvahy nie je k dispozícii.
+                </div>
+              </ChartCard>
+            )}
+            <ChartCard title="Súvaha (v tis. €)">
               <BalanceSheetTable stmts={stmts} />
             </ChartCard>
           </div>

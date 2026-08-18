@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/firma/", "/pricing", "/register", "/terms", "/privacy", "/dpa", "/documents", "/slovnik"],
+        allow: ["/", "/firma/", "/firmy", "/screener", "/pricing", "/register", "/terms", "/privacy", "/dpa", "/documents", "/slovnik"],
         disallow: [
           "/api/",
           "/admin/",
@@ -46,6 +46,16 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: "PerplexityBot",
+        allow: ["/", "/firma/", "/pricing", "/slovnik", "/documents"],
+        disallow: ["/api/", "/admin/", "/dashboard/", "/reports/", "/settings/", "/messages/"],
+      },
+      {
+        userAgent: "Google-Extended",
+        allow: ["/", "/firma/", "/pricing", "/slovnik", "/documents"],
+        disallow: ["/api/", "/admin/", "/dashboard/", "/reports/", "/settings/", "/messages/"],
+      },
+      {
+        userAgent: "Applebot-Extended",
         allow: ["/", "/firma/", "/pricing", "/slovnik", "/documents"],
         disallow: ["/api/", "/admin/", "/dashboard/", "/reports/", "/settings/", "/messages/"],
       },

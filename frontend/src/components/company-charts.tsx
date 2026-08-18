@@ -2,7 +2,7 @@
 
 import {
   BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Sankey, Layer,
+  ReferenceLine, Sankey, Layer,
 } from "recharts";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/components/LanguageProvider";
@@ -109,7 +109,64 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
   const yAxisWidth = isPrint ? 38 : 45;
   const margin = isPrint ? { top: 0, right: 10, left: 0, bottom: 0 } : { top: 0, right: 5, left: -5, bottom: 0 };
 
-  // Compute Y-axis domain from visible data
+  // Detect scale mismatch: if revenue is >10x profit, split into two charts
+  const revValues = data.map(d => Math.abs(d.tržby ?? 0)).filter(v => v > 0);
+  const profitValues = data.map(d => Math.abs(d.zisk ?? 0)).filter(v => v > 0);
+  const maxRev = revValues.length ? Math.max(...revValues) : 0;
+  const maxProfit = profitValues.length ? Math.max(...profitValues) : 0;
+  const needsSplit = maxRev > 0 && maxProfit > 0 && maxRev / maxProfit > 10;
+
+  if (needsSplit) {
+    // Split: top chart = revenue, bottom chart = profit + tax (separate Y scales)
+    const revDomain: [number, number] = [0, maxRev * 1.1];
+    const profitVals = data.flatMap(d => [d.zisk, d.daň].filter((v): v is number => v != null));
+    const pMax = profitVals.length ? Math.max(...profitVals) : 0;
+    const pMin = profitVals.length ? Math.min(...profitVals) : 0;
+    const profitDomain: [number, number] = [pMin < 0 ? pMin * 1.1 : 0, pMax > 0 ? pMax * 1.1 : 100];
+
+    return (
+      <div>
+        <div className={`flex gap-3 mb-2 ${isPrint ? "justify-center" : "flex-wrap justify-center"}`}>
+          {LEGEND_ITEMS.map(item => (
+            <button key={item.key} onClick={() => toggle(item.key)} className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ opacity: hidden.has(item.key) ? 0.4 : 1, color: axisColor }}>
+              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: item.color }} />
+              {item.label}
+            </button>
+          ))}
+        </div>
+        {/* Revenue chart */}
+        {!hidden.has("tržby") && (
+          <ResponsiveContainer width="100%" height={isPrint ? 100 : 110} minHeight={isPrint ? 100 : 110}>
+            <BarChart data={data} margin={margin} barCategoryGap="20%">
+              <XAxis dataKey="year" tick={{ fill: axisColor, fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
+              <YAxis domain={revDomain} tickFormatter={fmtAxis} tick={{ fill: axisColor, fontSize: isPrint ? 8 : 10 }} axisLine={false} tickLine={false} width={yAxisWidth} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} cursor={{ fill: "var(--border)", opacity: 0.3 }} />
+              <Bar dataKey="tržby" fill="#3b82f6" radius={[3, 3, 0, 0]} name={t("firma.trzby")} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+        {/* Profit + Tax chart */}
+        <ResponsiveContainer width="100%" height={isPrint ? 120 : 140} minHeight={isPrint ? 120 : 140}>
+          <BarChart data={data} margin={margin} barGap={2} barCategoryGap="20%">
+            <XAxis dataKey="year" tick={{ fill: axisColor, fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
+            <YAxis domain={profitDomain} tickFormatter={fmtAxis} tick={{ fill: axisColor, fontSize: isPrint ? 8 : 10 }} axisLine={false} tickLine={false} width={yAxisWidth} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} cursor={{ fill: "var(--border)", opacity: 0.3 }} />
+            <ReferenceLine y={0} stroke="var(--text-muted)" strokeWidth={1} strokeOpacity={0.5} />
+            <Bar dataKey="zisk" name={t("firma.ziskStrata")} radius={[3, 3, 0, 0]} hide={hidden.has("zisk")}>
+              {data.map((d, i) => {
+                const v = d.zisk;
+                const color = v == null ? "transparent" : v >= 0 ? "#10b981" : "#ef4444";
+                return <Cell key={i} fill={color} />;
+              })}
+            </Bar>
+            <Bar dataKey="daň" fill="#f59e0b" radius={[3, 3, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }
+
+  // Single chart (normal scale)
   const visibleKeys = ["tržby", "zisk", "daň"].filter(k => !hidden.has(k));
   const allValues = data.flatMap(d => visibleKeys.map(k => d[k as keyof ChartData] as number | null)).filter((v): v is number => v != null);
   const maxVal = allValues.length ? Math.max(...allValues) : 0;
@@ -137,6 +194,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
           <XAxis dataKey="year" tick={{ fill: axisColor, fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
           <YAxis domain={[yMin, yMax]} tickFormatter={fmtAxis} tick={{ fill: axisColor, fontSize: isPrint ? 8 : 10 }} axisLine={false} tickLine={false} width={yAxisWidth} />
           <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} cursor={{ fill: "var(--border)", opacity: 0.3 }} />
+          <ReferenceLine y={0} stroke="var(--text-muted)" strokeWidth={1} strokeOpacity={0.5} />
           <Bar dataKey="tržby" fill="#3b82f6" radius={[3, 3, 0, 0]} name={t("firma.trzby")} hide={hidden.has("tržby")} />
           <Bar dataKey="zisk" name={t("firma.ziskStrata")} radius={[3, 3, 0, 0]} hide={hidden.has("zisk")}>
             {data.map((d, i) => {

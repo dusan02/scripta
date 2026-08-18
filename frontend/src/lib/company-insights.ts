@@ -18,6 +18,7 @@ type Stmt = {
 
 export type Insight = {
   text: string;
+  severity?: "positive" | "negative" | "neutral" | "warning";
 };
 
 function pctChange(curr: number, prev: number): number {
@@ -61,6 +62,7 @@ export function generateCompanyInsights(
       const dir = revPct > 0 ? "vzrástli" : "klesli";
       insights.push({
         text: `Tržby ${dir} o ${fmtPct(revPct)} medzi rokmi ${prev.year} a ${latest.year}, z ${absFmt(prev.mainActivityRevenue)} na ${absFmt(latest.mainActivityRevenue)}.`,
+        severity: revPct > 0 ? "positive" : "negative",
       });
     }
   }
@@ -73,6 +75,7 @@ export function generateCompanyInsights(
       const label = latest.netProfitLoss < 0 ? "Strata" : "Zisk";
       insights.push({
         text: `${label} ${dir} o ${fmtPct(profitPct)} v porovnaní s predchádzajúcim rokom, z ${absFmt(prev.netProfitLoss)} na ${absFmt(latest.netProfitLoss)}.`,
+        severity: profitPct > 0 ? "positive" : "negative",
       });
     }
   }
@@ -84,6 +87,7 @@ export function generateCompanyInsights(
       const dir = assetsPct > 0 ? "vzrástli" : "klesli";
       insights.push({
         text: `Celkové aktíva ${dir} o ${fmtPct(assetsPct)} a dosiahli hodnotu ${absFmt(latest.totalAssets)}.`,
+        severity: assetsPct > 0 ? "positive" : "negative",
       });
     }
   }
@@ -95,6 +99,7 @@ export function generateCompanyInsights(
       const dir = eqPct > 0 ? "vzrástlo" : "kleslo";
       insights.push({
         text: `Vlastné imanie ${dir} o ${fmtPct(eqPct)} na úroveň ${absFmt(latest.equity)}.`,
+        severity: eqPct > 0 ? "positive" : "negative",
       });
     }
   }
@@ -104,6 +109,7 @@ export function generateCompanyInsights(
     const margin = (latest.netProfitLoss / latest.mainActivityRevenue) * 100;
     insights.push({
       text: `Zisková marža dosiahla ${margin.toFixed(1)} % z celkových tržieb za rok ${latest.year}.`,
+      severity: margin > 0 ? "neutral" : "negative",
     });
   }
 
@@ -111,6 +117,7 @@ export function generateCompanyInsights(
   if (latest.equity != null && latest.equity < 0) {
     insights.push({
       text: `Vlastné imanie firmy je záporné (${absFmt(latest.equity)}), čo znamená, že záväzky prevyšujú aktíva.`,
+      severity: "warning",
     });
   }
 
@@ -124,6 +131,7 @@ export function generateCompanyInsights(
         const dir = cagr > 0 ? "rast" : "pokles";
         insights.push({
           text: `Priemerný ročný ${dir} tržieb za posledné 3 roky činí ${fmtPct(cagr)}.`,
+          severity: cagr > 0 ? "positive" : "negative",
         });
       }
     }
@@ -133,9 +141,9 @@ export function generateCompanyInsights(
   if (opts?.orsrFindings) {
     const f = opts.orsrFindings.toLowerCase();
     if (f.includes("likvid")) {
-      insights.push({ text: "Spoločnosť je v likvidácii, ako vyplýva z Obchodného registra SR." });
+      insights.push({ text: "Spoločnosť je v likvidácii, ako vyplýva z Obchodného registra SR.", severity: "warning" });
     } else if (f.includes("vymazan")) {
-      insights.push({ text: "Spoločnosť bola vymazaná z Obchodného registra SR." });
+      insights.push({ text: "Spoločnosť bola vymazaná z Obchodného registra SR.", severity: "warning" });
     }
   }
 
@@ -144,7 +152,7 @@ export function generateCompanyInsights(
     const recent = opts.vestnikEvents.slice(0, 2);
     for (const ev of recent) {
       if (ev.title) {
-        insights.push({ text: `V Obchodnom vestníku bola uverejnená informácia: ${ev.title}.` });
+        insights.push({ text: `V Obchodnom vestníku bola uverejnená informácia: ${ev.title}.`, severity: "neutral" });
       }
     }
   }

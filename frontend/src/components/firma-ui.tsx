@@ -53,6 +53,7 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
       {sectionTitle && (
         <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
       )}
+      <div className="overflow-x-auto -mx-2 px-2">
       <table className={TABLE_BASE} style={{ fontSize: 12, minWidth: sorted.length > 4 ? 480 : "auto" }}>
         <colgroup>
           <col style={{ width: "30%" }} />
@@ -98,13 +99,23 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
 
 // Helper: create a simple row that reads a key and formats with fmtNum
-function dataRow(label: string, key: string, bold?: boolean): BaseTableRow {
-  return { label, bold, renderValue: (s) => fmtNum(s[key]) };
+function dataRow(label: string, key: string, bold?: boolean): BaseTableRow & { _key?: string } {
+  return { label, bold, _key: key, renderValue: (s) => fmtNum(s[key]) };
+}
+
+// Filter out rows where ALL values are null/undefined across all statements
+function filterEmptyRows(rows: (BaseTableRow & { _key?: string })[], stmts: any[]): BaseTableRow[] {
+  return rows.filter(row => {
+    if (row.bold) return true; // Always keep bold (summary) rows
+    if (!row._key) return true;
+    return stmts.some(s => s[row._key!] != null);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -113,7 +124,7 @@ function dataRow(label: string, key: string, bold?: boolean): BaseTableRow {
 
 export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
   const t = useT();
-  const ASSETS_ROWS: BaseTableRow[] = [
+  const ASSETS_ROWS = [
     dataRow(t("firma.celkoveAktiva"), "totalAssets", true),
     dataRow(t("firma.neobeznyMajetok"), "nonCurrentAssets"),
     dataRow(t("firma.obeznyMajetok"), "currentAssets"),
@@ -121,7 +132,7 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
     dataRow(t("firma.pohladavky"), "tradeReceivables"),
     dataRow(t("firma.cashEkvivalenty"), "cashAndEquivalents"),
   ];
-  const LIABILITIES_ROWS: BaseTableRow[] = [
+  const LIABILITIES_ROWS = [
     dataRow(t("firma.vlastneImanie"), "equity", true),
     dataRow(t("firma.zakladneImanie"), "shareCapital"),
     dataRow(t("firma.kratkodobeZavazky"), "shortTermLiabilities"),
@@ -131,9 +142,9 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
 
   return (
     <div>
-      <BaseFinancialTable stmts={stmts} rows={ASSETS_ROWS} sectionTitle={t("firma.aktiva")} />
+      <BaseFinancialTable stmts={stmts} rows={filterEmptyRows(ASSETS_ROWS, stmts)} sectionTitle={t("firma.aktiva")} />
       <div className="mt-2" />
-      <BaseFinancialTable stmts={stmts} rows={LIABILITIES_ROWS} sectionTitle={t("firma.pasiva")} />
+      <BaseFinancialTable stmts={stmts} rows={filterEmptyRows(LIABILITIES_ROWS, stmts)} sectionTitle={t("firma.pasiva")} />
     </div>
   );
 }
@@ -144,7 +155,7 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
 
 export function ProfitLossTable({ stmts }: { stmts: any[] }) {
   const t = useT();
-  const PL_ROWS: BaseTableRow[] = [
+  const PL_ROWS = [
     dataRow(t("firma.trzby"), "mainActivityRevenue", true),
     dataRow(t("firma.prevadzkoveNaklady"), "operatingCosts"),
     dataRow(t("firma.hrubaMarza"), "grossProfit"),
@@ -156,7 +167,7 @@ export function ProfitLossTable({ stmts }: { stmts: any[] }) {
     dataRow(t("firma.ziskStrata"), "netProfitLoss", true),
     dataRow(t("firma.cashFlowPrevadzky"), "operatingCashFlow"),
   ];
-  return <BaseFinancialTable stmts={stmts} rows={PL_ROWS} />;
+  return <BaseFinancialTable stmts={stmts} rows={filterEmptyRows(PL_ROWS, stmts)} />;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -164,16 +175,21 @@ export function ProfitLossTable({ stmts }: { stmts: any[] }) {
 // ═══════════════════════════════════════════════════════════════
 
 export function MetricCard({ label, value, sub, color, trend }: { label: string; value: string; sub: string; color: string; trend?: { direction: "up" | "down" | "flat"; pct: number } }) {
-  const trendColor = "var(--text-muted)";
+  const trendColor = trend?.direction === "up" ? "#10b981" : trend?.direction === "down" ? "#ef4444" : "var(--text-muted)";
   const trendIcon = trend?.direction === "up" ? "↑" : trend?.direction === "down" ? "↓" : "→";
   const trendText = trend ? `${trendIcon} ${trend.pct > 0 ? trend.pct.toFixed(0) : "0"}%` : null;
+  const isEmpty = value === "—" || value === "N/A";
   return (
     <div className="rounded-xl p-3 sm:p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
       <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>{label}</p>
-      <div className="text-lg sm:text-xl font-black" style={{ color }}>{value}</div>
+      {isEmpty ? (
+        <div className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Údaje nedostupné</div>
+      ) : (
+        <div className="text-lg sm:text-xl font-black" style={{ color }}>{value}</div>
+      )}
       <div className="flex items-center gap-2 mt-1">
         {sub && <p className="text-[10px] sm:text-xs" style={{ color: "var(--text-muted)" }}>{sub}</p>}
-        {trendText && <p className="text-[10px] sm:text-xs font-bold" style={{ color: trendColor }}>{trendText}</p>}
+        {trendText && !isEmpty && <p className="text-[10px] sm:text-xs font-bold" style={{ color: trendColor }}>{trendText}</p>}
       </div>
     </div>
   );
@@ -225,14 +241,31 @@ export function FinancialRatios({ stmts }: { stmts: any[] }) {
         const stl = toNum(s.shortTermLiabilities);
         const ltl = toNum(s.longTermLiabilities);
         const ta = toNum(s.totalAssets);
-        if (stl == null || ltl == null || ta == null) return fmtPct(null);
-        return fmtPct(safeDiv(stl + ltl, ta));
+        // At least one liability source must be present, treat null as 0
+        if (stl == null && ltl == null) return fmtPct(null);
+        if (ta == null) return fmtPct(null);
+        return fmtPct(safeDiv((stl ?? 0) + (ltl ?? 0), ta));
       },
     },
     {
       label: t("firma.beznaLikvidita"),
       tooltip: t("firma.beznaLikviditaFormula"),
       renderValue: (s) => fmtRatio(safeDiv(toNum(s.currentAssets), toNum(s.shortTermLiabilities))),
+    },
+    {
+      label: "ROE",
+      tooltip: "Čistý zisk / Vlastné imanie",
+      renderValue: (s) => fmtPct(safeDiv(toNum(s.netProfitLoss), toNum(s.equity))),
+    },
+    {
+      label: "ROA",
+      tooltip: "Čistý zisk / Celkové aktíva",
+      renderValue: (s) => fmtPct(safeDiv(toNum(s.netProfitLoss), toNum(s.totalAssets))),
+    },
+    {
+      label: "Zisková marža",
+      tooltip: "Čistý zisk / Tržby",
+      renderValue: (s) => fmtPct(safeDiv(toNum(s.netProfitLoss), toNum(s.mainActivityRevenue))),
     },
   ];
 

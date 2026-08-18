@@ -371,8 +371,11 @@ export function getLocalizedJsonLd(lang: Lang) {
       logo: "https://verifa.sk/logo-verifa.png",
       description: seo.orgDescription,
       email: "info@verifa.sk",
-      areaServed: "SK",
-      knowsAbout: ["business risk report", "finančná analýza", "forenzný audit", "registre SR", "Altman Z-score", "Piotroski model"],
+      areaServed: { "@type": "Country", name: "Slovakia", alternateName: "SK" },
+      knowsAbout: ["business risk report", "finančná analýza", "forenzný audit", "registre SR", "Altman Z-score", "Piotroski model", "due diligence", "insolvency prediction", "fraud detection"],
+      sameAs: [
+        "https://www.linkedin.com/company/verifa-sk",
+      ],
     },
     {
       "@context": "https://schema.org",
@@ -380,11 +383,17 @@ export function getLocalizedJsonLd(lang: Lang) {
       name: "Verifa.sk",
       url: "https://verifa.sk",
       description: seo.websiteDescription,
+      about: {
+        "@type": "Thing",
+        name: "Slovak company verification and due diligence",
+        description: "Automated business risk assessment of Slovak companies using data from 25+ public registers",
+      },
       publisher: {
         "@type": "Organization",
         name: "Verifa.sk",
         url: "https://verifa.sk",
       },
+      inLanguage: ["sk", "en", "de", "cs", "hu", "pl"],
     },
   ];
 }

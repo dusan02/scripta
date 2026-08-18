@@ -793,17 +793,57 @@ textarea:focus-visible {
 }
 
 @media print {
+  /* ── Force light-mode CSS variables regardless of active theme ── */
+  :root, [data-theme="dark"], [data-theme="light"] {
+    --bg: #ffffff !important;
+    --bg-subtle: #fafafa !important;
+    --bg-muted: #f4f4f5 !important;
+    --bg-elevated: #ffffff !important;
+    --surface: #ffffff !important;
+    --surface-hover: #fafafa !important;
+    --border: #e4e4e7 !important;
+    --border-strong: #d4d4d8 !important;
+    --text: #09090b !important;
+    --text-secondary: #52525b !important;
+    --text-muted: #71717a !important;
+    --text-placeholder: #a1a1aa !important;
+    --accent: #5b9279 !important;
+    --accent-light: #f0f7f4 !important;
+    --accent-border: #c3dcd0 !important;
+    --accent-button-text: #ffffff !important;
+    --success: #5b9279 !important;
+    --success-bg: rgba(91, 146, 121, 0.08) !important;
+    --danger: #ef4444 !important;
+    --danger-bg: rgba(239, 68, 68, 0.06) !important;
+    --warning: #f59e0b !important;
+    --warning-bg: rgba(245, 158, 11, 0.06) !important;
+    --info: #3b82f6 !important;
+    --info-bg: rgba(59, 130, 246, 0.06) !important;
+    --shadow-sm: none !important;
+    --shadow: none !important;
+    --shadow-md: none !important;
+    --shadow-lg: none !important;
+    --glow-accent: none !important;
+    --glow-success: none !important;
+    --glow-warning: none !important;
+    --glow-danger: none !important;
+    --glow-info: none !important;
+  }
+
   /* Reset layout for print */
-  body { background: white !important; color: black !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .max-w-\[1200px\] { max-width: 100% !important; padding: 0 8px !important; margin: 0 !important; }
 
   /* Print-only logo: fixed position to appear on every page top-right */
   .print-only-logo { display: none; }
   .print-only-footer { display: none; }
 
-  /* Force all text to black for readability */
-  *, *::before, *::after { color: black !important; border-color: #ccc !important; }
+  /* Force all text to black and backgrounds to white for readability */
+  *, *::before, *::after { color: black !important; border-color: #ccc !important; background: transparent !important; }
+  body { background: white !important; }
+  /* Preserve SVG chart colors — don't override fill/stroke attributes */
+  svg, svg * { background: unset !important; color: unset !important; }
 
   /* Compact spacing */
   .mb-4 { margin-bottom: 6px !important; }

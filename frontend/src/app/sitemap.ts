@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { glossaryTerms } from "@/lib/glossary";
 import { VALID_LANGS, localizePath, HREFLANG_MAP } from "@/lib/i18n";
+import { slugify } from "@/lib/slug";
 
 export const revalidate = 3600; // Regenerate every hour
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ const COMPANIES_PER_SITEMAP = 8000;
 
 const STATIC_PATHS = [
   "/", "/pricing", "/register", "/documents", "/slovnik",
-  "/terms", "/privacy", "/dpa",
+  "/terms", "/privacy", "/dpa", "/firmy", "/screener",
 ];
 
 function buildStaticPages(): MetadataRoute.Sitemap {
@@ -54,12 +55,13 @@ function buildGlossaryPages(): MetadataRoute.Sitemap {
 }
 
 function buildCompanyPages(
-  companies: { ico: string; auditVerdict: { createdAt: Date } | null }[]
+  companies: { ico: string; name: string | null; auditVerdict: { createdAt: Date } | null }[]
 ): MetadataRoute.Sitemap {
   return companies
     .filter((c) => VALID_ICO.test(c.ico))
     .flatMap((c) => {
-      const path = `/firma/${c.ico}`;
+      const slug = c.name ? `${c.ico}-${slugify(c.name)}` : c.ico;
+      const path = `/firma/${slug}`;
       const lastMod = c.auditVerdict?.createdAt || new Date();
       return VALID_LANGS.map((lang) => ({
         url: `${BASE_URL}${localizePath(path, lang)}`,
@@ -110,6 +112,7 @@ export default async function sitemap({
     },
     select: {
       ico: true,
+      name: true,
       auditVerdict: { select: { createdAt: true } },
       _count: { select: { financialStatements: true } },
     },
@@ -121,6 +124,6 @@ export default async function sitemap({
   // Filter to ≥2 financial statements (quality gate)
   const filtered = companies.filter((c) => c._count.financialStatements >= 2);
   return buildCompanyPages(
-    filtered.map((c) => ({ ico: c.ico, auditVerdict: c.auditVerdict }))
+    filtered.map((c) => ({ ico: c.ico, name: c.name, auditVerdict: c.auditVerdict }))
   );
 }
