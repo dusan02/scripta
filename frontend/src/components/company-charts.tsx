@@ -122,7 +122,15 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
     const profitVals = data.flatMap(d => [d.zisk, d.daň].filter((v): v is number => v != null));
     const pMax = profitVals.length ? Math.max(...profitVals) : 0;
     const pMin = profitVals.length ? Math.min(...profitVals) : 0;
+    // Ensure small values remain visible: if the range is extreme (max/min > 50x median),
+    // add a minimum visible threshold so bars with small values are still perceptible
+    const absProfitVals = profitVals.map(v => Math.abs(v)).filter(v => v > 0).sort((a, b) => a - b);
+    const medianProfit = absProfitVals.length > 0 ? absProfitVals[Math.floor(absProfitVals.length / 2)] : 0;
+    const extremeRange = medianProfit > 0 && (Math.abs(pMax) > medianProfit * 50 || Math.abs(pMin) > medianProfit * 50);
+    // If extreme range, clamp domain to ±max(|pMax|,|pMin|) but set min bar height via minPointSize on Bar
     const profitDomain: [number, number] = [pMin < 0 ? pMin * 1.1 : 0, pMax > 0 ? pMax * 1.1 : 100];
+    // minPointSize ensures even tiny values get a visible bar (2px minimum)
+    const profitMinPointSize = extremeRange ? 3 : 0;
 
     return (
       <div>
@@ -152,14 +160,14 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
             <YAxis domain={profitDomain} tickFormatter={fmtAxis} tick={{ fill: axisColor, fontSize: isPrint ? 8 : 10 }} axisLine={false} tickLine={false} width={yAxisWidth} />
             <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => fmtEUR(v as number)} cursor={{ fill: "var(--border)", opacity: 0.3 }} />
             <ReferenceLine y={0} stroke="var(--text-muted)" strokeWidth={1} strokeOpacity={0.5} />
-            <Bar dataKey="zisk" name={t("firma.ziskStrata")} radius={[3, 3, 0, 0]} hide={hidden.has("zisk")}>
+            <Bar dataKey="zisk" name={t("firma.ziskStrata")} radius={[3, 3, 0, 0]} hide={hidden.has("zisk")} minPointSize={profitMinPointSize}>
               {data.map((d, i) => {
                 const v = d.zisk;
                 const color = v == null ? "transparent" : v >= 0 ? "#10b981" : "#ef4444";
                 return <Cell key={i} fill={color} />;
               })}
             </Bar>
-            <Bar dataKey="daň" fill="#f59e0b" radius={[3, 3, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} />
+            <Bar dataKey="daň" fill="#f59e0b" radius={[3, 3, 0, 0]} name={t("firma.danZPrjimu")} hide={hidden.has("daň")} minPointSize={profitMinPointSize} />
           </BarChart>
         </ResponsiveContainer>
       </div>
