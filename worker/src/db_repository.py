@@ -8,6 +8,7 @@ from prisma.errors import PrismaError
 import httpx
 from src.llm_extractor import CompanyFinancialExtraction, NarrativeRiskAnalysis
 from src.db_client import get_db
+from src.ruz_parser import compute_data_quality_status
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +326,9 @@ async def save_to_db(data: CompanyFinancialExtraction):
                 'profitTransfer': data.metriky.prevod_podielov_spolocnikom,
                 'statementDate': data.metriky.datum_zostavenia,
                 'approvalDate': data.metriky.datum_schvalenia,
+                # dataQualityStatus is derived from the BS fields being persisted
+                # in this very save — always non-None so it survives the filter below.
+                'dataQualityStatus': compute_data_quality_status(data.metriky),
             }
             stmt_data = {k: v for k, v in stmt_fields.items() if v is not None}
 
@@ -419,6 +423,9 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
                     'mainActivityRevenue': 0,
                     'netProfitLoss': 0,
                     'cashAndEquivalents': 0,
+                    # Placeholder statement (no BS extraction ran) — no
+                    # structured currentAssets → always SOURCE_GAP.
+                    'dataQualityStatus': 'SOURCE_GAP',
                 },
                 'update': {}
             }

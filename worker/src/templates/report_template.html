@@ -5,6 +5,8 @@
     {% include "partials/_summary.html" %}
     <div class="part-divider">{{ i18n.part_financial_analysis }}</div>
     {% include "partials/_financials.html" %}
+    <div class="part-divider">{{ i18n.part_forensic | default('Forenzné zistenia') }}</div>
+    {% include "partials/_forensic_findings.html" %}
     <div class="part-divider">{{ i18n.part_registry }}</div>
     {% include "partials/_table_of_contents.html" %}
     {% include "partials/_legal.html" %}

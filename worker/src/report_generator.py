@@ -100,6 +100,220 @@ from src.report_scoring import (
     _translate_auditor_op,
 )
 
+
+def _build_forensic_findings(stmts_sorted, auditor_opinion, i18n_strings):
+    """Build structured forensic findings from NotesRisk, NarrativeRisk, and AuditorOpinion.
+
+    Returns a dict with sections for the 'Forensic & Audit Findings' PDF page:
+    - auditor_opinion: type, going_concern, reservations, auditor_name
+    - related_parties: from NotesRisk.relatedPartyTransactions
+    - off_balance_sheet: from NotesRisk.offBalanceSheetLiabilities
+    - litigation: from NotesRisk.contingentRisks
+    - going_concern: from NarrativeRisk.goingConcernDoubts + AuditorOpinion
+    - forensic_red_flags: from NarrativeRisk.forensicRedFlags (grounded only)
+    Each finding includes source, confidence, and score impact.
+    """
+    def _clean(v):
+        if v is None or (isinstance(v, str) and v.strip().lower() in ("null", "none", "nie", "no", "n/a")):
+            return None
+        if isinstance(v, str):
+            v = v.strip()
+            if not v or v.lower() in ("žiadne", "none", "null", "nie", "no", "n/a"):
+                return None
+        return v
+
+    def _get_notes_risk(stmt):
+        """Extract NotesRisk from a FinancialStatement (Prisma model or dict)."""
+        nr = getattr(stmt, 'notesRisk', None)
+        if nr is None and isinstance(stmt, dict):
+            nr = stmt.get('notesRisk')
+        if nr is None:
+            return None
+        if hasattr(nr, '__dict__'):
+            return {k: getattr(nr, k) for k in dir(nr) if not k.startswith('_')}
+        return nr if isinstance(nr, dict) else None
+
+    def _get_narrative_risk(stmt):
+        nr = getattr(stmt, 'narrativeRisk', None)
+        if nr is None and isinstance(stmt, dict):
+            nr = stmt.get('narrativeRisk')
+        if nr is None:
+            return None
+        if hasattr(nr, '__dict__'):
+            return {k: getattr(nr, k) for k in dir(nr) if not k.startswith('_')}
+        return nr if isinstance(nr, dict) else None
+
+    # Use latest 2 years for notes, latest for narrative
+    sorted_desc = sorted(stmts_sorted, key=lambda s: getattr(s, 'year', s.get('year', 0) if isinstance(s, dict) else 0), reverse=True)
+    latest = sorted_desc[0] if sorted_desc else None
+    latest_year = getattr(latest, 'year', latest.get('year') if isinstance(latest, dict) else None) if latest else None
+
+    findings = {
+        "has_data": False,
+        "latest_year": latest_year,
+        "auditor_opinion": None,
+        "related_parties": None,
+        "off_balance_sheet": None,
+        "litigation": None,
+        "going_concern": None,
+        "forensic_red_flags": [],
+        "sources_available": [],
+    }
+
+    # 1. Auditor Opinion
+    if auditor_opinion:
+        ao = auditor_opinion
+        findings["auditor_opinion"] = {
+            "opinion_type": ao.get("opinion_type"),
+            "going_concern_risk": _clean(ao.get("going_concern_risk")),
+            "reservation_text": _clean(ao.get("reservation_text")),
+            "auditor_name": _clean(ao.get("auditor_name")),
+            "source": i18n_strings.get("forensic_source_audit", "Audit Report"),
+            "confidence": "High",
+            "score_impact": None,
+        }
+        findings["has_data"] = True
+        findings["sources_available"].append("audit")
+
+    # 2. NotesRisk — use latest year only (per UX spec: current due-diligence state, not archive)
+    notes_by_year = []
+    for stmt in sorted_desc[:1]:
+        year = getattr(stmt, 'year', stmt.get('year') if isinstance(stmt, dict) else None)
+        nr = _get_notes_risk(stmt)
+        if nr and year:
+            notes_by_year.append((year, nr))
+
+    if notes_by_year:
+        latest_notes_year, latest_notes = notes_by_year[0]
+
+        # Related party transactions
+        rpt = _clean(latest_notes.get("relatedPartyTransactions") or latest_notes.get("related_party_transactions"))
+        if rpt:
+            findings["related_parties"] = {
+                "status": "identified",
+                "evidence": rpt,
+                "year": latest_notes_year,
+                "source": i18n_strings.get("forensic_source_notes", "Notes to Financial Statements"),
+                "confidence": "High",
+                "score_impact": -2,
+            }
+            findings["has_data"] = True
+        else:
+            findings["related_parties"] = {
+                "status": "none_identified",
+                "evidence": None,
+                "year": latest_notes_year,
+                "source": i18n_strings.get("forensic_source_notes", "Notes to Financial Statements"),
+                "confidence": "High",
+                "score_impact": 0,
+            }
+            findings["has_data"] = True
+
+        # Off-balance-sheet
+        obs = _clean(latest_notes.get("offBalanceSheetLiabilities") or latest_notes.get("off_balance_sheet_liabilities"))
+        if obs:
+            findings["off_balance_sheet"] = {
+                "status": "identified",
+                "evidence": obs,
+                "year": latest_notes_year,
+                "source": i18n_strings.get("forensic_source_notes", "Notes to Financial Statements"),
+                "confidence": "High",
+                "score_impact": None,
+            }
+            findings["has_data"] = True
+
+        # Litigation / contingent risks
+        cr = _clean(latest_notes.get("contingentRisks") or latest_notes.get("contingent_risks"))
+        if cr:
+            findings["litigation"] = {
+                "status": "identified",
+                "evidence": cr,
+                "year": latest_notes_year,
+                "source": i18n_strings.get("forensic_source_notes", "Notes to Financial Statements"),
+                "confidence": "High",
+                "score_impact": None,
+            }
+            findings["has_data"] = True
+
+        findings["sources_available"].append("notes")
+
+        # ── Historical trend: check if going concern / related parties also appeared in previous year ──
+        if len(sorted_desc) >= 2:
+            prev_stmt = sorted_desc[1]
+            prev_year = getattr(prev_stmt, 'year', prev_stmt.get('year') if isinstance(prev_stmt, dict) else None)
+            prev_notes = _get_notes_risk(prev_stmt)
+            prev_narrative = _get_narrative_risk(prev_stmt)
+
+            # Related parties trend
+            if findings.get("related_parties", {}).get("status") == "identified" and prev_notes:
+                prev_rpt = _clean(prev_notes.get("relatedPartyTransactions") or prev_notes.get("related_party_transactions"))
+                if prev_rpt:
+                    findings["related_parties"]["trend_warning"] = i18n_strings.get(
+                        "forensic_trend_repeated",
+                        "Also identified in {prev_year}. Repeated related-party activity."
+                    ).format(prev_year=prev_year)
+
+            # Going concern trend
+            if findings.get("going_concern", {}).get("status") == "identified":
+                prev_gc = None
+                if prev_narrative:
+                    prev_gc = _clean(prev_narrative.get("goingConcernDoubts") or prev_narrative.get("going_concern_doubts"))
+                if not prev_gc and prev_notes:
+                    # Check auditor opinion for previous year
+                    prev_ao = getattr(prev_stmt, 'auditorOpinion', None)
+                    if prev_ao and hasattr(prev_ao, 'goingConcernRisk'):
+                        prev_gc = _clean(getattr(prev_ao, 'goingConcernRisk', None))
+                if prev_gc:
+                    findings["going_concern"]["trend_warning"] = i18n_strings.get(
+                        "forensic_trend_gc",
+                        "Similar going concern warning also disclosed in {prev_year}."
+                    ).format(prev_year=prev_year)
+
+    # 3. NarrativeRisk — going concern + forensic red flags (grounded only)
+    if latest:
+        nr = _get_narrative_risk(latest)
+        if nr:
+            gc = _clean(nr.get("goingConcernDoubts") or nr.get("going_concern_doubts"))
+            if gc:
+                findings["going_concern"] = {
+                    "status": "identified",
+                    "evidence": gc,
+                    "year": latest_year,
+                    "source": i18n_strings.get("forensic_source_annual", "Annual Report"),
+                    "confidence": "Medium",
+                    "score_impact": None,
+                }
+                findings["has_data"] = True
+            elif auditor_opinion and _clean(auditor_opinion.get("going_concern_risk")):
+                findings["going_concern"] = {
+                    "status": "identified",
+                    "evidence": str(auditor_opinion.get("going_concern_risk")),
+                    "year": latest_year,
+                    "source": i18n_strings.get("forensic_source_audit", "Audit Report"),
+                    "confidence": "High",
+                    "score_impact": None,
+                }
+                findings["has_data"] = True
+
+            # Forensic red flags — only grounded ones (filtered by verdict_builder)
+            flags = nr.get("forensicRedFlags") or nr.get("forensic_red_flags")
+            if flags and isinstance(flags, list):
+                cleaned_flags = [_clean(f) for f in flags if _clean(f)]
+                if cleaned_flags:
+                    findings["forensic_red_flags"] = [{
+                        "evidence": f,
+                        "year": latest_year,
+                        "source": i18n_strings.get("forensic_source_annual", "Annual Report"),
+                        "confidence": "Medium",
+                        "score_impact": None,
+                    } for f in cleaned_flags[:5]]  # Max 5 flags
+                    findings["has_data"] = True
+
+            findings["sources_available"].append("narrative")
+
+    return findings
+
+
 def prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language="sk", vestnik_date_from=None):
     i18n_strings = get_i18n_strings(report_language)
     verdict = company.auditVerdict
@@ -692,6 +906,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             "auditor_name": _clean_db_val(getattr(ao, 'auditorName', None)),
         }
 
+    # ── Forensic & Audit Findings: structured evidence from NotesRisk, NarrativeRisk, AuditorOpinion ──
+    forensic_findings = _build_forensic_findings(stmts_sorted, auditor_opinion, i18n_strings)
+
     # Gauge arc endpoint for cover page score gauge
     score_val = verdict.verifaScore if verdict else 0
     arc_angle = (score_val / 100.0) * 180
@@ -913,6 +1130,8 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "ratios_chart_base64": ratios_chart_base64,
         "radar_chart_base64": radar_chart_base64,
         "auditor_opinion": auditor_opinion,
+        "forensic_findings": forensic_findings,
+        "bs_source_gap": getattr(latest_stmt, 'dataQualityStatus', None) == 'SOURCE_GAP' if latest_stmt else False,
         "gauge_end_x": gauge_end_x,
         "gauge_end_y": gauge_end_y,
         "gauge_large_arc": gauge_large_arc,

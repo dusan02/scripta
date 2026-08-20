@@ -343,6 +343,11 @@ async function seedCompany(ico: string) {
   // 9. Upsert FinancialStatements
   let upsertedStmts = 0;
   for (const stmt of statements) {
+    // dataQualityStatus is NOT NULL — mirrors src/ruz_parser.py::compute_data_quality_status
+    // (AVAILABLE only when both totalAssets and currentAssets are present).
+    const dataQualityStatus =
+      stmt.totalAssets != null && stmt.currentAssets != null ? "AVAILABLE" : "SOURCE_GAP";
+
     await prisma.financialStatement.upsert({
       where: {
         companyIco_year: { companyIco: ico, year: stmt.year },
@@ -375,6 +380,7 @@ async function seedCompany(ico: string) {
         statementType: stmt.statementType,
         monthsInPeriod: stmt.monthsInPeriod,
         isConsolidated: stmt.isConsolidated,
+        dataQualityStatus,
       },
       update: {
         totalAssets: stmt.totalAssets,
@@ -399,6 +405,7 @@ async function seedCompany(ico: string) {
         socialInsuranceLiabilities: stmt.socialInsuranceLiabilities,
         taxLiabilities: stmt.taxLiabilities,
         employeeLiabilities: stmt.employeeLiabilities,
+        dataQualityStatus,
       },
     });
     upsertedStmts++;

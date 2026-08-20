@@ -1,0 +1,23 @@
+TASK:
+STATUS:
+
+COMPLETED:
+- ...
+
+IN PROGRESS:
+- ...
+
+BLOCKED:
+- ...
+
+DECISIONS:
+- ...
+
+FILES CHANGED:
+- ...
+
+TEST STATUS:
+- ...
+
+NEXT ACTION:
+- ...

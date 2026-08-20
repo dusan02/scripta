@@ -298,6 +298,12 @@ def _get_row(tables: list, table_idx: int, cislo_riadku: int, offset: int, data_
 
 
 def _activ_val(tables: list, cislo: int, current: bool = True) -> Optional[float]:
+    if not tables:
+        return None
+    pocet_stlpcov = tables[0].get("pocetDatovychStlpcov", 4)
+    if pocet_stlpcov == 2:
+        row = _get_row(tables, 0, cislo, 1, data_cols=2)
+        return _extract_row(row, 2, 0 if current else 1) if row else None
     row = _get_row(tables, 0, cislo, 1, data_cols=4)
     return _extract_row(row, 4, 2 if current else 3) if row else None
 

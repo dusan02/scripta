@@ -198,6 +198,7 @@ interface ParsedStatement {
   statementType: string;
   monthsInPeriod: number;
   isConsolidated: boolean;
+  dataQualityStatus: string;
 }
 
 function parseStatement(
@@ -247,6 +248,10 @@ function parseStatement(
     operatingCashFlow = netProfitLoss + depreciation;
   }
 
+  // dataQualityStatus is NOT NULL — mirrors src/ruz_parser.py::compute_data_quality_status
+  // (AVAILABLE only when both totalAssets and currentAssets are present).
+  const dataQualityStatus = totalAssets !== null && currentAssets !== null ? "AVAILABLE" : "SOURCE_GAP";
+
   return {
     year,
     ruzZavierkaId: zavierkaId,
@@ -278,6 +283,7 @@ function parseStatement(
     statementType: "SK_GAAP",
     monthsInPeriod: 12,
     isConsolidated: false,
+    dataQualityStatus,
   };
 }
 

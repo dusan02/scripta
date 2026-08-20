@@ -1,0 +1,157 @@
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# FORENSIC & AUDIT FINDINGS — Evidence-based findings with provenance          #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+
+{% if forensic_findings and forensic_findings.has_data %}
+
+<div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">
+    <h2 id="forensic_findings" class="section-title">{{ i18n.forensic_findings_title | default('Forenzné a audítorské zistenia') }}</h2>
+    <p class="report-body-sm text-slate-500 mb-4">{{ i18n.forensic_findings_intro | default('Štruktúrované dôkazy z audítorských správ, poznámok k závierke a výročných správ. Každé zistenie obsahuje zdroj a úroveň spoľahlivosti.') }}</p>
+</div>
+
+{# ── Auditor's Opinion ── #}
+{% if forensic_findings.auditor_opinion %}
+<div class="mb-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="subsection-title">{{ i18n.forensic_auditor_opinion | default('Audítorský posudok') }}</h3>
+        {% if forensic_findings.auditor_opinion.opinion_type %}
+        {% set op = forensic_findings.auditor_opinion.opinion_type %}
+        {% set op_color = "#059669" if "bez výhrad" in op|lower or "unqualified" in op|lower else "#f59e0b" if "výhrad" in op|lower or "qualified" in op|lower else "#ef4444" %}
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" style="background: {{ op_color }}20; color: {{ op_color }};">{{ op }}</span>
+        {% endif %}
+    </div>
+    {% if forensic_findings.auditor_opinion.auditor_name %}
+    <p class="report-body-sm text-slate-600 mb-1"><strong>{{ i18n.forensic_auditor_name | default('Audítor') }}:</strong> {{ forensic_findings.auditor_opinion.auditor_name }}</p>
+    {% endif %}
+    {% if forensic_findings.auditor_opinion.reservation_text %}
+    <p class="report-body-sm text-slate-600 mb-1"><strong>{{ i18n.forensic_reservations | default('Výhrady') }}:</strong> {{ forensic_findings.auditor_opinion.reservation_text | sanitize_llm }}</p>
+    {% endif %}
+    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
+        <span>📍 {{ forensic_findings.auditor_opinion.source }}</span>
+        <span>🔒 {{ i18n.forensic_confidence_high | default('High') }}</span>
+    </div>
+</div>
+{% endif %}
+
+{# ── Related Party Transactions ── #}
+{% if forensic_findings.related_parties %}
+<div class="mb-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="subsection-title">{{ i18n.forensic_related_parties | default('Transakcie so spriaznenými osobami') }}</h3>
+        {% if forensic_findings.related_parties.status == "identified" %}
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⚠️ {{ i18n.forensic_identified | default('Identified') }}</span>
+        {% else %}
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✓ {{ i18n.forensic_none_identified | default('None identified') }}</span>
+        {% endif %}
+    </div>
+    {% if forensic_findings.related_parties.evidence %}
+    <div class="mb-2">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{{ i18n.forensic_evidence | default('Evidence') }}</p>
+        <p class="report-body-sm text-slate-700">{{ forensic_findings.related_parties.evidence | sanitize_llm }}</p>
+    </div>
+    {% endif %}
+    {% if forensic_findings.related_parties.score_impact and forensic_findings.related_parties.score_impact != 0 %}
+    <p class="report-body-sm text-rose-600 mb-1"><strong>{{ i18n.forensic_score_impact | default('Impact on score') }}:</strong> {{ forensic_findings.related_parties.score_impact }} {{ i18n.forensic_points | default('points') }}</p>
+    {% endif %}
+    {% if forensic_findings.related_parties.trend_warning %}
+    <p class="report-body-sm text-amber-600 mb-1"><strong>🟡 {{ i18n.forensic_trend | default('Trend') }}:</strong> {{ forensic_findings.related_parties.trend_warning }}</p>
+    {% endif %}
+    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
+        <span>📍 {{ forensic_findings.related_parties.source }}</span>
+        <span>🔒 {{ i18n.forensic_confidence_high | default('High') }}</span>
+        {% if forensic_findings.related_parties.year %}<span>📅 {{ forensic_findings.related_parties.year }}</span>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Off-balance-sheet commitments ── #}
+{% if forensic_findings.off_balance_sheet %}
+<div class="mb-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="subsection-title">{{ i18n.forensic_off_balance | default('Podsúvahové záväzky') }}</h3>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⚠️ {{ i18n.forensic_identified | default('Identified') }}</span>
+    </div>
+    <div class="mb-2">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{{ i18n.forensic_evidence | default('Evidence') }}</p>
+        <p class="report-body-sm text-slate-700">{{ forensic_findings.off_balance_sheet.evidence | sanitize_llm }}</p>
+    </div>
+    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
+        <span>📍 {{ forensic_findings.off_balance_sheet.source }}</span>
+        <span>🔒 {{ i18n.forensic_confidence_high | default('High') }}</span>
+        {% if forensic_findings.off_balance_sheet.year %}<span>📅 {{ forensic_findings.off_balance_sheet.year }}</span>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Legal / Litigation ── #}
+{% if forensic_findings.litigation %}
+<div class="mb-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="subsection-title">{{ i18n.forensic_litigation | default('Súdne spory a právne riziká') }}</h3>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⚠️ {{ i18n.forensic_identified | default('Identified') }}</span>
+    </div>
+    <div class="mb-2">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{{ i18n.forensic_evidence | default('Evidence') }}</p>
+        <p class="report-body-sm text-slate-700">{{ forensic_findings.litigation.evidence | sanitize_llm }}</p>
+    </div>
+    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
+        <span>📍 {{ forensic_findings.litigation.source }}</span>
+        <span>🔒 {{ i18n.forensic_confidence_high | default('High') }}</span>
+        {% if forensic_findings.litigation.year %}<span>📅 {{ forensic_findings.litigation.year }}</span>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Going Concern ── #}
+{% if forensic_findings.going_concern %}
+<div class="mb-4 p-4 bg-white border border-rose-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="subsection-title">{{ i18n.forensic_going_concern | default('Going Concern — ohrozenie pokračovania') }}</h3>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">🔴 {{ i18n.forensic_identified | default('Identified') }}</span>
+    </div>
+    <div class="mb-2">
+        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{{ i18n.forensic_evidence | default('Evidence') }}</p>
+        <p class="report-body-sm text-slate-700">{{ forensic_findings.going_concern.evidence | sanitize_llm }}</p>
+    </div>
+    {% if forensic_findings.going_concern.trend_warning %}
+    <p class="report-body-sm text-rose-600 mb-1"><strong>🔴 {{ i18n.forensic_trend | default('Trend') }}:</strong> {{ forensic_findings.going_concern.trend_warning }}</p>
+    {% endif %}
+    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
+        <span>📍 {{ forensic_findings.going_concern.source }}</span>
+        <span>🔒 {{ forensic_findings.going_concern.confidence }}</span>
+        {% if forensic_findings.going_concern.year %}<span>📅 {{ forensic_findings.going_concern.year }}</span>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Forensic Red Flags (grounded only) ── #}
+{% if forensic_findings.forensic_red_flags %}
+<div class="mb-4 p-4 bg-white border border-amber-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
+    <h3 class="subsection-title mb-2">{{ i18n.forensic_red_flags | default('Forenzné varovné indikátory') }}</h3>
+    {% for flag in forensic_findings.forensic_red_flags %}
+    <div class="mb-2 {% if not loop.last %}pb-2 border-b border-slate-100{% endif %}">
+        <div class="flex items-start gap-2">
+            <span class="text-amber-500 font-bold flex-shrink-0">🚩</span>
+            <p class="report-body-sm text-slate-700">{{ flag.evidence | sanitize_llm }}</p>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
+        <span>📍 {{ forensic_findings.forensic_red_flags[0].source }}</span>
+        <span>🔒 {{ forensic_findings.forensic_red_flags[0].confidence }}</span>
+        {% if forensic_findings.forensic_red_flags[0].year %}<span>📅 {{ forensic_findings.forensic_red_flags[0].year }}</span>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── No findings fallback ── #}
+{% if not forensic_findings.auditor_opinion and not forensic_findings.related_parties and not forensic_findings.off_balance_sheet and not forensic_findings.litigation and not forensic_findings.going_concern and not forensic_findings.forensic_red_flags %}
+<div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex items-center gap-2">
+        <span class="text-emerald-500 font-bold">✓</span>
+        <p class="report-body-sm text-emerald-700">{{ i18n.forensic_no_findings | default('Žiadne forenzné zistenia neboli identifikované v dostupných zdrojoch.') }}</p>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}

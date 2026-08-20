@@ -1,0 +1,14 @@
+{
+  "name": "verifa-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Verifa — DB queries, RÚZ API, and server management",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "pg": "^8.13.0"
+  }
+}

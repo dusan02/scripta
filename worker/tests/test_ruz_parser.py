@@ -1039,3 +1039,235 @@ class TestTemplate699Guard:
         metrics = parse_tables_to_metrics(tables, titulna, "12345678", id_sablony=None)
         assert metrics is not None
         assert metrics.celkove_aktiva == 1_000_000
+
+
+# ── Regression: data_cols dynamic detection (balance-sheet parser bug fix) ──
+
+class TestActivDataColsDynamic:
+    """Regression tests pre dynamic data_cols detection v _get_activ_value.
+
+    Bug: parser hard-coded data_cols=4 pre aktív tabuľku. Ak šablóna mala
+    pocetDatovychStlpcov=2 (zjednodušený formát), extrakcia zlyhala →
+    totalAssets/currentAssets boli NULL aj keď dáta existovali.
+    Fix: _get_activ_value číta pocetDatovychStlpcov z tabuľky metadata.
+    """
+
+    def _make_aktiv_2col_lol(self, total_assets: float, current_assets: float = 0):
+        """Aktív tabuľka s 2 dátovými stĺpcami (zjednodušený formát), list-of-lists."""
+        data = []
+        for i in range(78):
+            current = total_assets if i == 0 else (current_assets if i == 32 else 0)
+            prev = total_assets * 0.9 if i == 0 else (current_assets * 0.9 if i == 32 else 0)
+            data.append([str(current), str(prev)])
+        return data
+
+    def _make_pasiv_2col_lol(self, equity: float):
+        """Pasív tabuľka s 2 dátovými stĺpcami, list-of-lists."""
+        data = []
+        for i in range(67):
+            current = equity if i == 1 else 0  # row 80 = idx 1 (offset 79)
+            prev = equity * 0.9 if i == 1 else 0
+            data.append([str(current), str(prev)])
+        return data
+
+    def test_aktiv_2col_extracts_total_assets(self):
+        """Aktív s pocetDatovychStlpcov=2 by mal extrahovať totalAssets z col 0."""
+        from src.ruz_parser import _get_activ_value
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "pocetDatovychStlpcov": 2, "data": self._make_aktiv_2col_lol(500_000)},
+        ]
+        val = _get_activ_value(tables, ROW_TOTAL_ASSETS, current=True)
+        assert val == 500_000.0
+
+    def test_aktiv_2col_extracts_current_assets(self):
+        """Aktív s pocetDatovychStlpcov=2 by mal extrahovať currentAssets z col 0."""
+        from src.ruz_parser import _get_activ_value
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "pocetDatovychStlpcov": 2, "data": self._make_aktiv_2col_lol(500_000, 200_000)},
+        ]
+        val = _get_activ_value(tables, ROW_CURRENT_ASSETS, current=True)
+        assert val == 200_000.0
+
+    def test_aktiv_4col_still_works(self):
+        """Aktív s pocetDatovychStlpcov=4 (štandard) by mal naďalej fungovať."""
+        from src.ruz_parser import _get_activ_value
+        # Standard 4-col LOL: [Brutto, Korekcia, Netto2, Netto3]
+        data = []
+        for i in range(78):
+            netto2 = 500_000 if i == 0 else 0
+            netto3 = 450_000 if i == 0 else 0
+            data.append(["100", "0", str(netto2), str(netto3)])
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "pocetDatovychStlpcov": 4, "data": data},
+        ]
+        val = _get_activ_value(tables, ROW_TOTAL_ASSETS, current=True)
+        assert val == 500_000.0
+
+    def test_aktiv_default_4col_when_metadata_missing(self):
+        """Ak pocetDatovychStlpcov chýba, default=4 (backwards compat)."""
+        from src.ruz_parser import _get_activ_value
+        data = []
+        for i in range(78):
+            netto2 = 500_000 if i == 0 else 0
+            netto3 = 450_000 if i == 0 else 0
+            data.append(["100", "0", str(netto2), str(netto3)])
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "data": data},  # no pocetDatovychStlpcov
+        ]
+        val = _get_activ_value(tables, ROW_TOTAL_ASSETS, current=True)
+        assert val == 500_000.0
+
+    def test_aktiv_2col_preceding_period(self):
+        """Aktív s 2 col: preceding period = col 1."""
+        from src.ruz_parser import _get_activ_value
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "pocetDatovychStlpcov": 2, "data": self._make_aktiv_2col_lol(500_000)},
+        ]
+        val = _get_activ_value(tables, ROW_TOTAL_ASSETS, current=False)
+        assert val == 450_000.0  # 500_000 * 0.9
+
+    def test_full_parse_2col_balance_sheet(self):
+        """Kompletný parse_tables_to_metrics s 2-col aktív tabuľkou."""
+        aktiv = self._make_aktiv_2col_lol(1_000_000, 400_000)
+        pasiv = self._make_pasiv_2col_lol(600_000)
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "pocetDatovychStlpcov": 2, "data": aktiv},
+            {"nazov": {"sk": "Strana pasív"}, "pocetDatovychStlpcov": 2, "data": pasiv},
+        ]
+        titulna = {
+            "obdobieOd": "2023-01-01",
+            "obdobieDo": "2023-12-31",
+            "pocetZamestnancov": 10,
+            "konsolidovana": False,
+        }
+        metrics = parse_tables_to_metrics(tables, titulna, "12345678", id_sablony=699)
+        assert metrics is not None
+        assert metrics.celkove_aktiva == 1_000_000
+        assert metrics.obezny_majetok == 400_000
+        assert metrics.vlastne_imanie_celkom == 600_000
+
+    def test_aktiv_empty_tables(self):
+        """_get_activ_value s prázdnymi tables by mal vrátiť None, nie crash."""
+        from src.ruz_parser import _get_activ_value
+        assert _get_activ_value([], ROW_TOTAL_ASSETS) is None
+        assert _get_activ_value(None, ROW_TOTAL_ASSETS) is None
+
+
+# ── Regression: template 687 balance-sheet row mapping ──
+
+class TestTemplate687BalanceSheet:
+    """Regression tests pre template 687 (micro-firm) balance sheet parsing.
+
+    Bug: parser used 699 row mapping (r.33=currentAssets) + data_cols=4 for ALL templates.
+    687 has different row mapping (r.14=currentAssets) + data_cols=2.
+    Result: totalAssets was actually nonCurrentAssets, currentAssets was always NULL.
+    Fix: detect id_sablony=687 and use 687 row mapping + data_cols=2.
+    """
+
+    def _make_687_aktiv_flat(self, total_assets=57062, non_current=7671, current=49391, cash=47467):
+        """687 aktív: 23 rows × 2 cols = 46 flat values [current, previous]."""
+        data = []
+        for i in range(23):
+            cur = prev = ""
+            if i == 0:   cur, prev = str(total_assets), str(int(total_assets * 0.9))
+            elif i == 1: cur, prev = str(non_current), str(int(non_current * 0.9))
+            elif i == 13: cur, prev = str(current), str(int(current * 0.9))  # r.14 = Obežný
+            elif i == 14: cur, prev = "1000", "900"  # r.15 = Zásoby
+            elif i == 16: cur, prev = "2000", "1800"  # r.17 = Krátkodobé pohľadávky
+            elif i == 17: cur, prev = "1500", "1400"  # r.18 = Pohľadávky z obch.styku
+            elif i == 20: cur, prev = str(cash), str(int(cash * 0.9))  # r.21 = Fin.majetok
+            elif i == 21: cur, prev = str(cash), str(int(cash * 0.9))  # r.22 = Peniaze
+            data.extend([cur, prev])
+        return data
+
+    def _make_687_pasiv_flat(self, equity=42987, total_liab=14075, st_liab=11785, trade_pay=9036):
+        """687 pasív: 22 rows × 2 cols = 44 flat values [current, previous]."""
+        data = []
+        for i in range(22):
+            cur = prev = ""
+            if i == 1:   cur, prev = str(equity), str(int(equity * 0.9))      # r.25 = Vlastné imanie
+            elif i == 2: cur, prev = "5000", "5000"                            # r.26 = Základné imanie
+            elif i == 10: cur, prev = str(total_liab), str(int(total_liab * 0.9))  # r.34 = Záväzky
+            elif i == 11: cur, prev = "2000", "1800"                           # r.35 = Dlhodobé
+            elif i == 14: cur, prev = str(st_liab), str(int(st_liab * 0.9))   # r.38 = Krátkodobé
+            elif i == 15: cur, prev = str(trade_pay), str(int(trade_pay * 0.9))  # r.39 = Obchodné
+            data.extend([cur, prev])
+        return data
+
+    def test_687_total_assets_correct(self):
+        """687: totalAssets by mal byť r.1 (SPOLU MAJETOK), nie r.2 (Neobežný)."""
+        from src.ruz_parser import _get_activ_value, ROW_MICRO_TOTAL_ASSETS
+        tables = [{"nazov": {"sk": "Strana aktív"}, "data": self._make_687_aktiv_flat(total_assets=57062)}]
+        val = _get_activ_value(tables, ROW_MICRO_TOTAL_ASSETS, id_sablony=687)
+        assert val == 57062.0  # NOT 7671 (which is nonCurrentAssets)
+
+    def test_687_current_assets_correct(self):
+        """687: currentAssets = r.14 (Obežný majetok), nie r.33 (out of range)."""
+        from src.ruz_parser import _get_activ_value, ROW_MICRO_CURRENT_ASSETS
+        tables = [{"nazov": {"sk": "Strana aktív"}, "data": self._make_687_aktiv_flat(current=49391)}]
+        val = _get_activ_value(tables, ROW_MICRO_CURRENT_ASSETS, id_sablony=687)
+        assert val == 49391.0
+
+    def test_687_cash_correct(self):
+        """687: cash = r.22 (Peniaze)."""
+        from src.ruz_parser import _get_activ_value, ROW_MICRO_CASH
+        tables = [{"nazov": {"sk": "Strana aktív"}, "data": self._make_687_aktiv_flat(cash=47467)}]
+        val = _get_activ_value(tables, ROW_MICRO_CASH, id_sablony=687)
+        assert val == 47467.0
+
+    def test_687_equity_correct(self):
+        """687: equity = r.25 (Vlastné imanie)."""
+        from src.ruz_parser import _get_pasiv_value, ROW_MICRO_TOTAL_EQUITY
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "data": self._make_687_aktiv_flat()},
+            {"nazov": {"sk": "Strana pasív"}, "data": self._make_687_pasiv_flat(equity=42987)},
+        ]
+        val = _get_pasiv_value(tables, ROW_MICRO_TOTAL_EQUITY, id_sablony=687)
+        assert val == 42987.0
+
+    def test_687_short_term_liabilities_correct(self):
+        """687: shortTermLiabilities = r.38."""
+        from src.ruz_parser import _get_pasiv_value, ROW_MICRO_ST_LIABILITIES
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "data": self._make_687_aktiv_flat()},
+            {"nazov": {"sk": "Strana pasív"}, "data": self._make_687_pasiv_flat(st_liab=11785)},
+        ]
+        val = _get_pasiv_value(tables, ROW_MICRO_ST_LIABILITIES, id_sablony=687)
+        assert val == 11785.0
+
+    def test_687_full_parse_balance_sheet(self):
+        """Kompletný parse 687 balance sheet — overuje všetky polia."""
+        aktiv = self._make_687_aktiv_flat(total_assets=57062, non_current=7671, current=49391, cash=47467)
+        pasiv = self._make_687_pasiv_flat(equity=42987, total_liab=14075, st_liab=11785, trade_pay=9036)
+        tables = [
+            {"nazov": {"sk": "Strana aktív"}, "data": aktiv},
+            {"nazov": {"sk": "Strana pasív"}, "data": pasiv},
+        ]
+        titulna = {
+            "obdobieOd": "2021-01-01",
+            "obdobieDo": "2021-12-31",
+            "pocetZamestnancov": 0,
+            "konsolidovana": False,
+        }
+        metrics = parse_tables_to_metrics(tables, titulna, "46958819", id_sablony=687)
+        assert metrics is not None
+        assert metrics.celkove_aktiva == 57062.0   # NOT 7671!
+        assert metrics.obezny_majetok == 49391.0   # NOT NULL!
+        assert metrics.peniaze_a_penazne_ekvivalenty_k_31_12 == 47467.0
+        assert metrics.vlastne_imanie_celkom == 42987.0
+        assert metrics.kratkodobe_zavazky == 11785.0  # NOT NULL!
+        assert metrics.zavazky_z_obchodneho_styku == 9036.0
+
+    def test_687_vs_699_total_assets_different(self):
+        """Rovnaké dáta interpretované ako 687 vs 699 dávajú rôzny totalAssets."""
+        from src.ruz_parser import _get_activ_value, ROW_MICRO_TOTAL_ASSETS, ROW_TOTAL_ASSETS
+        data = self._make_687_aktiv_flat(total_assets=57062, non_current=7671)
+        tables = [{"nazov": {"sk": "Strana aktív"}, "data": data}]
+
+        # 687: r.1, data_cols=2, target=0 → 57062
+        val_687 = _get_activ_value(tables, ROW_MICRO_TOTAL_ASSETS, id_sablony=687)
+        assert val_687 == 57062.0
+
+        # 699: r.1, data_cols=4, target=2 → 7671 (WRONG — that's nonCurrentAssets)
+        val_699 = _get_activ_value(tables, ROW_TOTAL_ASSETS, id_sablony=699)
+        assert val_699 == 7671.0  # This is the bug — 699 mapping on 687 data gives wrong value

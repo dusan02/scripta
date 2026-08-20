@@ -194,10 +194,16 @@ async function downloadFinancials(ico: string): Promise<number> {
     if (trzby !== null && cogs !== null) hrubaMarza = trzby - cogs;
     if (hrubaMarza === null && hasIncome) hrubaMarza = incomeVal(ordered, 28);
 
+    const totalAssets = activVal(ordered, 1);
+    const currentAssets = activVal(ordered, 33);
+    // dataQualityStatus is NOT NULL — mirrors src/ruz_parser.py::compute_data_quality_status
+    // (AVAILABLE only when both totalAssets and currentAssets are present).
+    const dataQualityStatus = totalAssets !== null && currentAssets !== null ? "AVAILABLE" : "SOURCE_GAP";
+
     stmts.push({
       year,
-      totalAssets: activVal(ordered, 1),
-      currentAssets: activVal(ordered, 33),
+      totalAssets,
+      currentAssets,
       equity: pasivVal(ordered, 80),
       shortTermLiabilities: pasivVal(ordered, 122),
       longTermLiabilities: pasivVal(ordered, 102),
@@ -221,6 +227,7 @@ async function downloadFinancials(ico: string): Promise<number> {
       statementType: "SK_GAAP",
       monthsInPeriod: 12,
       isConsolidated: false,
+      dataQualityStatus,
     });
   }
 
@@ -255,6 +262,7 @@ async function downloadFinancials(ico: string): Promise<number> {
         socialInsuranceLiabilities: s.socialInsuranceLiabilities,
         taxLiabilities: s.taxLiabilities,
         employeeLiabilities: s.employeeLiabilities,
+        dataQualityStatus: s.dataQualityStatus,
       },
     });
     count++;

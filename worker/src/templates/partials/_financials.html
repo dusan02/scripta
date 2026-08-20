@@ -1,3 +1,16 @@
+{# ── Source gap notice (if latest FS has SOURCE_GAP status) ── #}
+{% if bs_source_gap %}
+<div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex items-start gap-2">
+        <span class="text-amber-500 flex-shrink-0 mt-0.5">ℹ️</span>
+        <div>
+            <strong class="block text-amber-800 report-body-sm">{{ i18n.bs_source_gap_title | default('Detail súvahy nedostupný') }}</strong>
+            <p class="text-amber-700 report-body-sm mt-1">{{ i18n.bs_source_gap_desc | default('Účtovná závierka je evidovaná v RÚZ, avšak dostupný digitálny výkaz neobsahuje štruktúrované údaje.') }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {# ── 5-PILIEROVÝ SCORECARD (moved from _summary.html) ── #}
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
 <div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">

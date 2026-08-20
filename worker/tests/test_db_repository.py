@@ -454,6 +454,186 @@ class TestSchemaConstraints:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# save_to_db / save_narrative_to_db — dataQualityStatus write-path contract
+#
+# Regresný test pre incident: FinancialStatement.dataQualityStatus je NOT NULL
+# (od migrácie 20260820090000_add_data_quality_status), ale save_to_db a
+# save_narrative_to_db pôvodne nikdy nezahŕňali toto pole do `create` payloadu.
+# Nový INSERT (nová firma/rok) by preto spadol na NOT NULL constraint violation.
+# Tento test overuje priamo write-path (nie len parser), aby sa táto medzera
+# už nemohla zopakovať bez povšimnutia.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _make_financial_extraction(ico="99999999", total_assets=100000.0,
+                                current_assets=60000.0, year=2023):
+    """Postaví minimálnu, ale validnú CompanyFinancialExtraction pre testy write-path.
+
+    is_consolidated=True zámerne obchádza IFRS-priority find_unique vetvu v save_to_db,
+    aby test nemusel mockovať jej návratovú hodnotu.
+    """
+    from src.agents.shared import AuditorReportData, CompanyFinancialExtraction, FinancialMetrics
+
+    metriky = FinancialMetrics(
+        rok_zavierky=year,
+        celkove_aktiva=total_assets,
+        obezny_majetok=current_assets,
+        vlastne_imanie_celkom=50000.0,
+        kratkodobe_zavazky=30000.0,
+        dlhodobe_zavazky=20000.0,
+        trzby_z_hlavnej_cinnosti=200000.0,
+        hruba_marza=50000.0,
+        zisk_alebo_strata_po_zdaneni=10000.0,
+        peniaze_a_penazne_ekvivalenty_k_31_12=15000.0,
+        ciste_penazne_toky_z_prevadzkovej_cinnosti=0.0,
+        osobne_naklady=40000.0,
+        pohladavky_z_obchodneho_styku=20000.0,
+        zavazky_z_obchodneho_styku=10000.0,
+        zasoby=10000.0,
+        odpisy=5000.0,
+        investicny_cash_flow=0.0,
+        financny_cash_flow=0.0,
+        uroky=1000.0,
+        dan_z_prijmu=2000.0,
+        pocet_zamestnancov=10,
+        mena="EUR",
+        typ_zavierky="SK_GAAP",
+        pocet_mesiacov_obdobia=12,
+        is_consolidated=True,
+    )
+    audit = AuditorReportData(
+        nazor_auditora="Neznámy",  # unknown → save_to_db skips auditoropinion.upsert
+        going_concern_riziko=False,
+        auditor_vyhrady_text=None,
+    )
+    return CompanyFinancialExtraction(
+        ico=ico,
+        # Placeholder name (matches _INVALID_NAMES) → save_to_db skips the
+        # company.find_unique/name-update branch, which is out of scope here.
+        nazov_spolocnosti="Neznámy",
+        audit=audit,
+        metriky=metriky,
+    )
+
+
+class TestSaveToDbDataQualityStatus:
+    """save_to_db musí vždy zahrnúť dataQualityStatus do create AJ update payloadu
+    financialstatement.upsert — inak zlyhá NOT NULL constraint pri novom INSERTe
+    a status by po reparse ostal stale pri UPDATE."""
+
+    @pytest.mark.asyncio
+    async def test_create_payload_includes_available_status(self):
+        """totalAssets + currentAssets present → dataQualityStatus='AVAILABLE'."""
+        from src.db_repository import save_to_db
+
+        tx_mock = AsyncMock()
+        db_mock = MagicMock()
+        db_mock.tx = MagicMock(return_value=_async_ctx_mgr(tx_mock))
+
+        data = _make_financial_extraction(total_assets=100000.0, current_assets=60000.0)
+
+        with patch("src.db_repository.get_db", return_value=db_mock), \
+             patch("src.db_repository._fetch_nace_from_api", AsyncMock(return_value=(None, None))):
+            await save_to_db(data)
+
+        create_data = tx_mock.financialstatement.upsert.call_args.kwargs["data"]["create"]
+        assert "dataQualityStatus" in create_data, \
+            "dataQualityStatus chýba v create payloade — nový INSERT by spadol na NOT NULL"
+        assert create_data["dataQualityStatus"] == "AVAILABLE"
+
+    @pytest.mark.asyncio
+    async def test_create_payload_includes_source_gap_status(self):
+        """currentAssets chýba (Pattern B) → dataQualityStatus='SOURCE_GAP'."""
+        from src.db_repository import save_to_db
+
+        tx_mock = AsyncMock()
+        db_mock = MagicMock()
+        db_mock.tx = MagicMock(return_value=_async_ctx_mgr(tx_mock))
+
+        data = _make_financial_extraction(total_assets=100000.0, current_assets=None)
+
+        with patch("src.db_repository.get_db", return_value=db_mock), \
+             patch("src.db_repository._fetch_nace_from_api", AsyncMock(return_value=(None, None))):
+            await save_to_db(data)
+
+        create_data = tx_mock.financialstatement.upsert.call_args.kwargs["data"]["create"]
+        assert create_data["dataQualityStatus"] == "SOURCE_GAP"
+
+    @pytest.mark.asyncio
+    async def test_update_payload_also_recomputes_status(self):
+        """Update payload (existujúci FS) musí tiež obsahovať prepočítaný status,
+        aby nezostal stale po budúcom reparse existujúceho záznamu."""
+        from src.db_repository import save_to_db
+
+        tx_mock = AsyncMock()
+        db_mock = MagicMock()
+        db_mock.tx = MagicMock(return_value=_async_ctx_mgr(tx_mock))
+
+        data = _make_financial_extraction(total_assets=100000.0, current_assets=60000.0)
+
+        with patch("src.db_repository.get_db", return_value=db_mock), \
+             patch("src.db_repository._fetch_nace_from_api", AsyncMock(return_value=(None, None))):
+            await save_to_db(data)
+
+        update_data = tx_mock.financialstatement.upsert.call_args.kwargs["data"]["update"]
+        assert update_data.get("dataQualityStatus") == "AVAILABLE"
+
+    @pytest.mark.asyncio
+    async def test_empty_extraction_is_skipped_not_saved(self):
+        """totalAssets=revenue=netProfit=0 → save_to_db sa vôbec nevolá (skip empty),
+        takže dataQualityStatus otázka je irelevantná — over že sa upsert nezavolá."""
+        from src.db_repository import save_to_db
+
+        tx_mock = AsyncMock()
+        db_mock = MagicMock()
+        db_mock.tx = MagicMock(return_value=_async_ctx_mgr(tx_mock))
+
+        data = _make_financial_extraction(total_assets=0.0, current_assets=0.0)
+        data.metriky.trzby_z_hlavnej_cinnosti = 0.0
+        data.metriky.zisk_alebo_strata_po_zdaneni = 0.0
+
+        with patch("src.db_repository.get_db", return_value=db_mock), \
+             patch("src.db_repository._fetch_nace_from_api", AsyncMock(return_value=(None, None))):
+            await save_to_db(data)
+
+        tx_mock.financialstatement.upsert.assert_not_called()
+
+
+class TestSaveNarrativeToDbDataQualityStatus:
+    """save_narrative_to_db vytvára placeholder FinancialStatement (bez BS
+    extrakcie) ak výkaz ešte neexistuje — musí explicitne nastaviť
+    dataQualityStatus='SOURCE_GAP', inak zlyhá NOT NULL constraint."""
+
+    @pytest.mark.asyncio
+    async def test_placeholder_create_has_source_gap_status(self):
+        from src.db_repository import save_narrative_to_db
+        from src.agents.narrative import NarrativeRiskAnalysis
+
+        stmt_mock = MagicMock()
+        stmt_mock.id = "fs_123"
+
+        db_mock = AsyncMock()
+        db_mock.company.upsert = AsyncMock()
+        db_mock.financialstatement.upsert = AsyncMock(return_value=stmt_mock)
+        db_mock.narrativeriskanalysis.upsert = AsyncMock()
+
+        narrative = NarrativeRiskAnalysis(
+            management_changes=None,
+            litigation_risks=None,
+            going_concern_doubts=False,
+            planned_investments=None,
+            profitability_explanation=None,
+            forensic_red_flags=[],
+            synthesis="test",
+        )
+
+        with patch("src.db_repository.get_db", return_value=db_mock):
+            await save_narrative_to_db("99999999", 2023, narrative)
+
+        create_data = db_mock.financialstatement.upsert.call_args.kwargs["data"]["create"]
+        assert create_data.get("dataQualityStatus") == "SOURCE_GAP"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════
 

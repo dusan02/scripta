@@ -97,6 +97,74 @@ ROW_INCOME_TAX = 57
 ROW_PROFIT_TRANSFER = 60       # Prevod podielov na výsledku spoločníkom
 ROW_NET_PROFIT = 61
 
+# ── Micro-firm (zjednodušený účtovný výkaz, šablóna 687) row mapping ──
+# RÚZ vracia skrátený income table (38 rows) pre mikro účtovné jednotky (MÚJ).
+# Row mapping overený z oficiálnej RÚZ šablóny 687 (MF/18008/2014):
+#   https://www.registeruz.sk/cruz-public/api/sablony?id=687
+# Income table rows 1-38 majú úplne iný layout než standard SK GAAP (šablóna 699):
+#   - Row 1 = Výnosy z hospodárskej činnosti spolu (súčet, širšie než standard "tržby")
+#   - Row 3 = Tržby z predaja vlastných výrobkov a služieb (≈ standard row 1)
+#   - Row 8 = Náklady na hosp. činnosť spolu (≈ standard row 10)
+#   - Row 10 = Spotreba materiálu (≈ standard row 12)
+#   - Row 11 = Služby (≈ standard row 14)
+#   - Row 12 = Osobné náklady (≈ standard row 15)
+#   - Row 14 = Odpisy (≈ standard row 21)
+#   - Row 18 = Výsledok z hosp. činnosti (≈ standard row 27)
+#   - Row 19 = Pridaná hodnota (≈ standard row 28)
+#   - Row 31 = Nákladové úroky (≈ standard row 49)
+#   - Row 34 = Výsledok z fin. činnosti (≈ standard row 55)
+#   - Row 35 = Výsledok pred zdanením (≈ standard row 56)
+#   - Row 36 = Daň z príjmov (≈ standard row 57)
+#   - Row 37 = Prevod podielov (≈ standard row 60)
+#   - Row 38 = Výsledok po zdanení (≈ standard row 61)
+# Balance sheet (aktív/pasív) má ROVNAKÉ rozdielne row mapping ako income:
+#   Aktív (23 rows, 2 data columns):
+#     r.1=SPOLU MAJETOK, r.2=Neobežný, r.14=Obežný, r.15=Zásoby,
+#     r.17=Krátkodobé pohľadávky, r.18=Pohľadávky z obch.styku,
+#     r.21=Finančný majetok, r.22=Peniaze, r.23=Ostatné fin.účty
+#   Pasív (22 rows, 2 data columns):
+#     r.24=SPOLU, r.25=Vlastné imanie, r.26=Základné imanie,
+#     r.34=Záväzky, r.35=Dlhodobé záväzky, r.38=Krátkodobé záväzky,
+#     r.39=Záväzky z obch.styku
+ROW_MICRO_OPERATING_COSTS = 8
+ROW_MICRO_MATERIAL_CONSUMPTION = 10
+ROW_MICRO_SERVICES = 11
+ROW_MICRO_PERSONNEL_COSTS = 12
+ROW_MICRO_TAXES_FEES = 13
+ROW_MICRO_DEPRECIATION = 14
+ROW_MICRO_OPERATING_PROFIT = 18
+ROW_MICRO_VALUE_ADDED = 19
+ROW_MICRO_INTEREST_EXPENSE = 31
+ROW_MICRO_FINANCIAL_RESULT = 34
+ROW_MICRO_PROFIT_BEFORE_TAX = 35
+ROW_MICRO_INCOME_TAX = 36
+ROW_MICRO_PROFIT_TRANSFER = 37
+ROW_MICRO_NET_PROFIT = 38
+
+# Micro-firm balance sheet row mapping (šablóna 687)
+ROW_MICRO_TOTAL_ASSETS = 1           # SPOLU MAJETOK
+ROW_MICRO_NON_CURRENT_ASSETS = 2     # Neobežný majetok
+ROW_MICRO_CURRENT_ASSETS = 14        # Obežný majetok
+ROW_MICRO_INVENTORY = 15             # Zásoby
+ROW_MICRO_ST_RECEIVABLES_TOTAL = 17  # Krátkodobé pohľadávky súčet
+ROW_MICRO_TRADE_RECEIVABLES = 18     # Pohľadávky z obchodného styku
+ROW_MICRO_FINANCIAL_ASSETS = 21      # Finančný majetok
+ROW_MICRO_CASH = 22                  # Peniaze a účty v bankách
+ROW_MICRO_OTHER_FIN = 23             # Ostatné finančné účty
+
+ROW_MICRO_TOTAL_EQUITY_LIAB = 24     # SPOLU VLASTNÉ IMANIE A ZÁVÄZKY
+ROW_MICRO_TOTAL_EQUITY = 25          # Vlastné imanie
+ROW_MICRO_SHARE_CAPITAL = 26         # Základné imanie
+ROW_MICRO_TOTAL_LIABILITIES = 34     # Záväzky
+ROW_MICRO_LT_LIABILITIES = 35        # Dlhodobé záväzky
+ROW_MICRO_ST_LIABILITIES = 38        # Krátkodobé záväzky
+ROW_MICRO_TRADE_PAYABLES = 39        # Záväzky z obchodného styku
+
+# Detekcia micro formátu: 38 rows × 2 cols (flat) = 76, alebo 38 rows (list-of-lists).
+# Threshold 80 dáva toleranciu pre prípadné drobné variácie (37-40 rows).
+_MICRO_MAX_DATA_LEN_FLAT = 80   # 40 rows × 2 cols
+_MICRO_MAX_ROWS_LOL = 40        # list-of-lists
+
 # Offsets to convert cisloRiadku → data[] index
 _ACTIV_OFFSET = 1
 _PASIV_OFFSET = 79
@@ -230,31 +298,149 @@ def _get_row(tables: list, table_idx: int, cislo_riadku: int, offset: int, data_
     return None
 
 
-def _get_activ_value(tables: list, cislo_riadku: int, current: bool = True) -> Optional[float]:
+def _get_activ_value(tables: list, cislo_riadku: int, current: bool = True, id_sablony: Optional[int] = None) -> Optional[float]:
     """Extract current or preceding period value from Strana aktív.
 
-    Aktív has 4 data columns: [Brutto, Korekcia, Netto2 (current), Netto3 (preceding)].
-    We use Netto (column index 2) for current period.
+    Template 699 (standard): 4 data columns [Brutto, Korekcia, Netto2 (current), Netto3 (preceding)].
+    Template 687 (micro-firm): 2 data columns [Bežné (current), Predchádzajúce (preceding)].
     """
-    row = _get_row(tables, 0, cislo_riadku, _ACTIV_OFFSET, data_cols=4)
+    if not tables or len(tables) == 0:
+        return None
+
+    # Determine data_cols based on template
+    if id_sablony == 687:
+        data_cols = 2
+        target = 0 if current else 1
+    else:
+        # Check table metadata first, then default to 4
+        tab = tables[0]
+        pocet_stlpcov = tab.get("pocetDatovychStlpcov", 4)
+        if pocet_stlpcov == 2:
+            data_cols = 2
+            target = 0 if current else 1
+        else:
+            data_cols = 4
+            target = 2 if current else 3  # Netto2 / Netto3
+
+    row = _get_row(tables, 0, cislo_riadku, _ACTIV_OFFSET, data_cols=data_cols)
     if row is None:
         return None
-    target = 2 if current else 3  # Netto2 / Netto3
-    return _extract_row_value(row, 4, target)
+    return _extract_row_value(row, data_cols, target)
 
 
-def _get_pasiv_value(tables: list, cislo_riadku: int, current: bool = True) -> Optional[float]:
-    """Extract current or preceding period value from Strana pasív."""
-    row = _get_row(tables, 1, cislo_riadku, _PASIV_OFFSET, data_cols=2)
+def _get_pasiv_value(tables: list, cislo_riadku: int, current: bool = True, id_sablony: Optional[int] = None) -> Optional[float]:
+    """Extract current or preceding period value from Strana pasív.
+
+    Template 699 (standard): pasív offset = 79, 2 data columns [Bežné, Predchádzajúce].
+    Template 687 (micro-firm): pasív offset = 23 (r.24 = first pasív row), 2 data columns.
+    """
+    if id_sablony == 687:
+        # 687 pasív starts at r.24, so offset = 24 (cisloRiadku - offset = idx)
+        offset = 24
+    else:
+        offset = _PASIV_OFFSET  # 79 for standard 699
+
+    row = _get_row(tables, 1, cislo_riadku, offset, data_cols=2)
     if row is None:
         return None
     target = 0 if current else 1
     return _extract_row_value(row, 2, target)
 
 
-def _get_income_value(tables: list, cislo_riadku: int, current: bool = True) -> Optional[float]:
-    """Extract current or preceding period value from Výkaz ziskov a strát."""
-    row = _get_row(tables, 2, cislo_riadku, _INCOME_OFFSET, data_cols=2)
+def _is_micro_income_format(tables: list, income_idx: int) -> bool:
+    """Detect whether the income table is a micro-firm (zjednodušený) format.
+
+    Uses positive detection: row 38 (micro netProfit) must exist AND have a value,
+    AND row 61 (standard netProfit) must be absent or empty.
+    This avoids false-positive on test data with few populated standard rows.
+    Also requires row count <= 40 (micro has 38 rows, standard has 100+).
+    """
+    if income_idx < 0 or income_idx >= len(tables):
+        return False
+    data = tables[income_idx].get("data", [])
+    if not data:
+        return False
+    first = data[0]
+    is_flat = not isinstance(first, list)
+
+    # Criterion 1: row count threshold (micro has 38 rows)
+    if is_flat:
+        if len(data) > _MICRO_MAX_DATA_LEN_FLAT:
+            return False
+    else:
+        if len(data) > _MICRO_MAX_ROWS_LOL:
+            return False
+
+    def _get_row_value(cislo_riadku: int) -> Optional[float]:
+        """Extract current-period value from income table at given row number."""
+        idx = cislo_riadku - _INCOME_OFFSET
+        if is_flat:
+            start = idx * 2
+            if start + 2 <= len(data):
+                return _to_float(data[start])
+            return None
+        else:
+            if idx < len(data):
+                row = data[idx]
+                if not row:
+                    return None
+                # List-of-lists: value at col _INCOME_CURRENT_COL (3) for full rows,
+                # or col 0 for data-only rows
+                if len(row) > _INCOME_CURRENT_COL:
+                    return _to_float(row[_INCOME_CURRENT_COL])
+                if len(row) > 0:
+                    return _to_float(row[0])
+            return None
+
+    # Criterion 2: row 38 (micro netProfit) must have a value
+    row_38_val = _get_row_value(ROW_MICRO_NET_PROFIT)
+    if row_38_val is None:
+        return False  # row 38 absent → not micro (could be test data or standard)
+
+    # Criterion 3: row 61 (standard netProfit) must be absent or empty
+    row_61_val = _get_row_value(ROW_NET_PROFIT)
+    if row_61_val is not None:
+        return False  # row 61 has value → standard format, not micro
+
+    return True
+
+
+# Mapping: standard row → micro row, for ALL income statement fields that differ.
+# Row 1 (netRevenue) is intentionally NOT remapped — micro row 1 = "Výnosy spolu"
+# (širšie než standard "tržby z predaja"), ale je to najlepší dostupný proxy.
+# Row 2 (operatingIncome) is NOT remapped — micro row 2 = "Tržby z predaja tovaru".
+# ROW_WAGE_COSTS (16) mapped to -1: micro-firm nemá samostatný row pre mzdové náklady
+# (osobné náklady row 12 zahŕňajú mzdy) → _get_row vráti None (idx < 0).
+_MICRO_ROW_MAP: dict[int, int] = {
+    ROW_OPERATING_COSTS: ROW_MICRO_OPERATING_COSTS,
+    ROW_MATERIAL_CONSUMPTION: ROW_MICRO_MATERIAL_CONSUMPTION,
+    ROW_SERVICES: ROW_MICRO_SERVICES,
+    ROW_PERSONNEL_COSTS: ROW_MICRO_PERSONNEL_COSTS,
+    ROW_WAGE_COSTS: -1,  # micro-firm nemá samostatný row pre mzdové náklady
+    ROW_TAXES_FEES: ROW_MICRO_TAXES_FEES,
+    ROW_DEPRECIATION: ROW_MICRO_DEPRECIATION,
+    ROW_OPERATING_PROFIT: ROW_MICRO_OPERATING_PROFIT,
+    ROW_VALUE_ADDED: ROW_MICRO_VALUE_ADDED,
+    ROW_INTEREST_EXPENSE: ROW_MICRO_INTEREST_EXPENSE,
+    ROW_FINANCIAL_RESULT: ROW_MICRO_FINANCIAL_RESULT,
+    ROW_PROFIT_BEFORE_TAX: ROW_MICRO_PROFIT_BEFORE_TAX,
+    ROW_INCOME_TAX: ROW_MICRO_INCOME_TAX,
+    ROW_PROFIT_TRANSFER: ROW_MICRO_PROFIT_TRANSFER,
+    ROW_NET_PROFIT: ROW_MICRO_NET_PROFIT,
+}
+
+
+def _get_income_value(tables: list, cislo_riadku: int, current: bool = True,
+                      income_idx: int = 2, is_micro: bool = False) -> Optional[float]:
+    """Extract current or preceding period value from Výkaz ziskov a strát.
+
+    If is_micro=True, remaps P&L summary rows (profitBeforeTax, incomeTax,
+    profitTransfer, netProfit) to their micro-firm positions (rows 33-38).
+    Rows 1-28 (revenue, costs, etc.) are identical between formats.
+    """
+    if is_micro and cislo_riadku in _MICRO_ROW_MAP:
+        cislo_riadku = _MICRO_ROW_MAP[cislo_riadku]
+    row = _get_row(tables, income_idx, cislo_riadku, _INCOME_OFFSET, data_cols=2)
     if row is None:
         return None
     target = 0 if current else 1
@@ -474,27 +660,50 @@ def parse_tables_to_metrics(
 
     # ── Extract metrics from tables ──
     has_income = len(ordered) > 2
+    # Detect micro-firm (zjednodušený) income format — 38 rows vs standard ~100+.
+    # Rows 1-28 are identical; P&L summary rows (33-38) replace standard 56-61.
+    is_micro_income = has_income and _is_micro_income_format(ordered, 2)
+    if has_income and is_micro_income:
+        logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: micro-firm income format detected (38 rows)")
+
+    # ── Template 687 (micro-firm) uses different row mapping + data_cols=2 ──
+    is_micro_template = (id_sablony == 687)
+    if is_micro_template:
+        logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: template 687 (micro-firm) — using 687 row mapping")
 
     # Balance sheet — aktív
-    celkove_aktiva = _get_activ_value(ordered, ROW_TOTAL_ASSETS)
-    obezny_majetok = _get_activ_value(ordered, ROW_CURRENT_ASSETS)
-    zasoby = _get_activ_value(ordered, ROW_INVENTORY)
-    peniaze = _get_activ_value(ordered, ROW_CASH)
-    pohladavky = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES)
+    if is_micro_template:
+        celkove_aktiva = _get_activ_value(ordered, ROW_MICRO_TOTAL_ASSETS, id_sablony=id_sablony)
+        obezny_majetok = _get_activ_value(ordered, ROW_MICRO_CURRENT_ASSETS, id_sablony=id_sablony)
+        zasoby = _get_activ_value(ordered, ROW_MICRO_INVENTORY, id_sablony=id_sablony)
+        peniaze = _get_activ_value(ordered, ROW_MICRO_CASH, id_sablony=id_sablony)
+        pohladavky = _get_activ_value(ordered, ROW_MICRO_TRADE_RECEIVABLES, id_sablony=id_sablony)
+    else:
+        celkove_aktiva = _get_activ_value(ordered, ROW_TOTAL_ASSETS, id_sablony=id_sablony)
+        obezny_majetok = _get_activ_value(ordered, ROW_CURRENT_ASSETS, id_sablony=id_sablony)
+        zasoby = _get_activ_value(ordered, ROW_INVENTORY, id_sablony=id_sablony)
+        peniaze = _get_activ_value(ordered, ROW_CASH, id_sablony=id_sablony)
+        pohladavky = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES, id_sablony=id_sablony)
 
     # ── Cash fallback: ak riadok 72 (Peniaze) je 0 alebo None, skús alternatívne riadky ──
-    # Niektoré firmy (najmä veľké akciové spoločnosti) vykazujú hotovosť na riadku 71
-    # (Finančné účty) alebo 66 (Krátkodobý finančný majetok súčet) namiesto 72.
-    if not peniaze or peniaze == 0:
-        _alt_cash = _get_activ_value(ordered, ROW_FINANCIAL_ACCOUNTS)  # riadok 71
-        if _alt_cash and _alt_cash > 0:
-            logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: cash fallback riadok 71 (Finančné účty) = {_alt_cash}")
-            peniaze = _alt_cash
-        else:
-            _alt_cash2 = _get_activ_value(ordered, ROW_ST_FINANCIAL_ASSETS)  # riadok 66
-            if _alt_cash2 and _alt_cash2 > 0:
-                logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: cash fallback riadok 66 (Krátkodobý fin. majetok) = {_alt_cash2}")
-                peniaze = _alt_cash2
+    if not is_micro_template:
+        # Standard 699: skús r.71 (Finančné účty) alebo r.66 (Krátkodobý fin. majetok)
+        if not peniaze or peniaze == 0:
+            _alt_cash = _get_activ_value(ordered, ROW_FINANCIAL_ACCOUNTS, id_sablony=id_sablony)
+            if _alt_cash and _alt_cash > 0:
+                logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: cash fallback riadok 71 (Finančné účty) = {_alt_cash}")
+                peniaze = _alt_cash
+            else:
+                _alt_cash2 = _get_activ_value(ordered, ROW_ST_FINANCIAL_ASSETS, id_sablony=id_sablony)
+                if _alt_cash2 and _alt_cash2 > 0:
+                    logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: cash fallback riadok 66 (Krátkodobý fin. majetok) = {_alt_cash2}")
+                    peniaze = _alt_cash2
+    else:
+        # 687: r.22 = Peniaze, r.21 = Finančný majetok
+        if not peniaze or peniaze == 0:
+            _alt_cash = _get_activ_value(ordered, ROW_MICRO_FINANCIAL_ASSETS, id_sablony=id_sablony)
+            if _alt_cash and _alt_cash > 0:
+                peniaze = _alt_cash
 
     # ── Asset composition (extended fields — only for template 699) ──
     neobezny_majetok = None
@@ -514,14 +723,24 @@ def parse_tables_to_metrics(
         casove_rozlisenie_aktiv = _get_activ_value(ordered, ROW_DEFERRED_ASSETS)
 
     # Balance sheet — pasív
-    vlastne_imanie = _get_pasiv_value(ordered, ROW_TOTAL_EQUITY)
-    celkove_cudzie_zdroje = _get_pasiv_value(ordered, ROW_TOTAL_LIABILITIES)
-    dlhodobe_zavazky = _get_pasiv_value(ordered, ROW_LT_LIABILITIES)
-    kratkodobe_zavazky = _get_pasiv_value(ordered, ROW_ST_LIABILITIES)
-    zavazky_obchod = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES)
-    zavazky_zamestnanci = _get_pasiv_value(ordered, ROW_EMPLOYEE_LIAB)
-    zavazky_sp = _get_pasiv_value(ordered, ROW_SOCIAL_INS_LIAB)
-    danove_zavazky = _get_pasiv_value(ordered, ROW_TAX_LIAB)
+    if is_micro_template:
+        vlastne_imanie = _get_pasiv_value(ordered, ROW_MICRO_TOTAL_EQUITY, id_sablony=id_sablony)
+        celkove_cudzie_zdroje = _get_pasiv_value(ordered, ROW_MICRO_TOTAL_LIABILITIES, id_sablony=id_sablony)
+        dlhodobe_zavazky = _get_pasiv_value(ordered, ROW_MICRO_LT_LIABILITIES, id_sablony=id_sablony)
+        kratkodobe_zavazky = _get_pasiv_value(ordered, ROW_MICRO_ST_LIABILITIES, id_sablony=id_sablony)
+        zavazky_obchod = _get_pasiv_value(ordered, ROW_MICRO_TRADE_PAYABLES, id_sablony=id_sablony)
+        zavazky_zamestnanci = None  # 687 nemá samostatný riadok pre zamestnancov
+        zavazky_sp = None  # 687 nemá samostatný riadok pre SP
+        danove_zavazky = None  # 687 nemá samostatný riadok pre daňové záväzky
+    else:
+        vlastne_imanie = _get_pasiv_value(ordered, ROW_TOTAL_EQUITY, id_sablony=id_sablony)
+        celkove_cudzie_zdroje = _get_pasiv_value(ordered, ROW_TOTAL_LIABILITIES, id_sablony=id_sablony)
+        dlhodobe_zavazky = _get_pasiv_value(ordered, ROW_LT_LIABILITIES, id_sablony=id_sablony)
+        kratkodobe_zavazky = _get_pasiv_value(ordered, ROW_ST_LIABILITIES, id_sablony=id_sablony)
+        zavazky_obchod = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES, id_sablony=id_sablony)
+        zavazky_zamestnanci = _get_pasiv_value(ordered, ROW_EMPLOYEE_LIAB, id_sablony=id_sablony)
+        zavazky_sp = _get_pasiv_value(ordered, ROW_SOCIAL_INS_LIAB, id_sablony=id_sablony)
+        danove_zavazky = _get_pasiv_value(ordered, ROW_TAX_LIAB, id_sablony=id_sablony)
 
     # ── Equity composition + reserves (extended fields — only for template 699) ──
     zakladne_imanie = None
@@ -554,12 +773,16 @@ def parse_tables_to_metrics(
 
     # Income statement
     trzby = _get_income_value(ordered, ROW_NET_REVENUE) if has_income else None
-    osobne_naklady = _get_income_value(ordered, ROW_PERSONNEL_COSTS) if has_income else None
-    odpisy = _get_income_value(ordered, ROW_DEPRECIATION) if has_income else None
-    uroky = _get_income_value(ordered, ROW_INTEREST_EXPENSE) if has_income else None
-    zisk_po_zdaneni = _get_income_value(ordered, ROW_NET_PROFIT) if has_income else None
+    osobne_naklady = _get_income_value(ordered, ROW_PERSONNEL_COSTS, is_micro=is_micro_income) if has_income else None
+    odpisy = _get_income_value(ordered, ROW_DEPRECIATION, is_micro=is_micro_income) if has_income else None
+    uroky = _get_income_value(ordered, ROW_INTEREST_EXPENSE, is_micro=is_micro_income) if has_income else None
+    zisk_po_zdaneni = _get_income_value(ordered, ROW_NET_PROFIT, is_micro=is_micro_income) if has_income else None
 
-    # ── Income statement detail (extended fields — only for template 699) ──
+    # ── Income statement detail ──
+    # NOTE: Income statement fields are extracted for ALL templates (699, 687, etc.)
+    # because micro-firm row mapping (_MICRO_ROW_MAP) handles row index differences.
+    # The extended_fields_ok guard only applies to asset/equity composition (below),
+    # which has different row layouts in non-699 templates with no micro mapping.
     naklady_na_hosp_cinnost = None
     spotreba_materialu = None
     sluzby = None
@@ -569,16 +792,16 @@ def parse_tables_to_metrics(
     zisk_pred_zdanenim = None
     dan_z_prijmu_val = None
     prevod_podielov_spolocnikom = None
-    if extended_fields_ok and has_income:
-        naklady_na_hosp_cinnost = _get_income_value(ordered, ROW_OPERATING_COSTS)
-        spotreba_materialu = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION)
-        sluzby = _get_income_value(ordered, ROW_SERVICES)
-        mzdove_naklady = _get_income_value(ordered, ROW_WAGE_COSTS)
-        dane_a_poplatky = _get_income_value(ordered, ROW_TAXES_FEES)
-        vysledok_z_fin_cinnosti = _get_income_value(ordered, ROW_FINANCIAL_RESULT)
-        zisk_pred_zdanenim = _get_income_value(ordered, ROW_PROFIT_BEFORE_TAX)
-        dan_z_prijmu_val = _get_income_value(ordered, ROW_INCOME_TAX)
-        prevod_podielov_spolocnikom = _get_income_value(ordered, ROW_PROFIT_TRANSFER)
+    if has_income:
+        naklady_na_hosp_cinnost = _get_income_value(ordered, ROW_OPERATING_COSTS, is_micro=is_micro_income)
+        spotreba_materialu = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION, is_micro=is_micro_income)
+        sluzby = _get_income_value(ordered, ROW_SERVICES, is_micro=is_micro_income)
+        mzdove_naklady = _get_income_value(ordered, ROW_WAGE_COSTS, is_micro=is_micro_income)
+        dane_a_poplatky = _get_income_value(ordered, ROW_TAXES_FEES, is_micro=is_micro_income)
+        vysledok_z_fin_cinnosti = _get_income_value(ordered, ROW_FINANCIAL_RESULT, is_micro=is_micro_income)
+        zisk_pred_zdanenim = _get_income_value(ordered, ROW_PROFIT_BEFORE_TAX, is_micro=is_micro_income)
+        dan_z_prijmu_val = _get_income_value(ordered, ROW_INCOME_TAX, is_micro=is_micro_income)
+        prevod_podielov_spolocnikom = _get_income_value(ordered, ROW_PROFIT_TRANSFER, is_micro=is_micro_income)
 
     # If revenue is None, try operating income total as fallback
     if trzby is None and has_income:
@@ -589,8 +812,8 @@ def parse_tables_to_metrics(
     # Fallback: Pridaná hodnota (riadok 28) ako najbližšie proxy z SK GAAP výkazu.
     hruba_marza = None
     if has_income:
-        spotreba = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION)
-        sluzby_val = _get_income_value(ordered, ROW_SERVICES)
+        spotreba = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION, is_micro=is_micro_income)
+        sluzby_val = _get_income_value(ordered, ROW_SERVICES, is_micro=is_micro_income)
         cogs_proxy = None
         if spotreba is not None or sluzby_val is not None:
             cogs_proxy = (spotreba or 0) + (sluzby_val or 0)
@@ -598,7 +821,7 @@ def parse_tables_to_metrics(
             hruba_marza = trzby - cogs_proxy
         if hruba_marza is None:
             # Fallback: Pridaná hodnota (proxy pre hrubú maržu v SK GAAP)
-            hruba_marza = _get_income_value(ordered, ROW_VALUE_ADDED)
+            hruba_marza = _get_income_value(ordered, ROW_VALUE_ADDED, is_micro=is_micro_income)
 
     # ── Per-field unit sanity check ──
     # RÚZ JSON občas vracia detailné P&L riadky (spotreba materiálu, náklady na hosp.
@@ -851,6 +1074,29 @@ def parse_zavierka_to_metrics(
         return None
 
     return parse_tables_to_metrics(all_tables, ts, ico, id_sablony=id_sablony)
+
+
+def compute_data_quality_status(metrics: Optional[FinancialMetrics]) -> str:
+    """Single source of truth for FinancialStatement.dataQualityStatus.
+
+    Used by every code path that writes a FinancialStatement row
+    (db_repository.save_to_db, save_narrative_to_db, reparse/retry scripts)
+    so that the DB status always reflects the actual persisted BS fields.
+
+    - AVAILABLE:   totalAssets AND currentAssets are both present (not None)
+    - SOURCE_GAP:  totalAssets is None, OR totalAssets present but
+                   currentAssets is None (RÚZ source has insufficient
+                   structured balance-sheet data)
+
+    API_ERROR / PARSER_ERROR are transient states assigned by the
+    error-handling/retry layer (see retry_api_errors.py), not by this
+    deterministic classifier.
+    """
+    if metrics is None:
+        return "SOURCE_GAP"
+    if metrics.celkove_aktiva is not None and metrics.obezny_majetok is not None:
+        return "AVAILABLE"
+    return "SOURCE_GAP"
 
 
 def metrics_to_extraction(

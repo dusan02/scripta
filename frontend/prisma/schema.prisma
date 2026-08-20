@@ -492,6 +492,7 @@ model FinancialStatement {
   approvalDate                          String?                                 // Dátum schválenia závierky
   ruzZavierkaId                         Int?                                    // ID závierky z RÚZ API
   ruzVykazId                            Int?                                    // ID výkazu z RÚZ API
+  dataQualityStatus                     String        // AVAILABLE | SOURCE_GAP | API_ERROR | PARSER_ERROR
   createdAt                             DateTime        @default(now())
   updatedAt                             DateTime        @updatedAt
   
