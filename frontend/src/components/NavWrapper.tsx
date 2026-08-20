@@ -6,6 +6,7 @@ export default function NavWrapper() {
   const pathname = usePathname();
   if (
     pathname === "/" ||
+    pathname === "/landing" ||
     pathname === "/screener" ||
     pathname.startsWith("/firma/") ||
     pathname === "/login" ||

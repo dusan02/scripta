@@ -9,6 +9,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { useScrollLock, useScrolled, useHideOnScroll } from "@/components/useNav";
 import { HamburgerButton, MobileMenuBackdrop } from "@/components/NavShared";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { localizePath, delocalizePath } from "@/lib/i18n";
 
 const NAV_ITEMS = [
@@ -22,10 +23,13 @@ export default function LandingNav() {
   const t = useT();
   const { lang } = useLang();
   const pathname = usePathname();
+  const { data: session } = useSession();
   const scrolled = useScrolled(20);
   const authBarVisible = useHideOnScroll(100);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   useScrollLock(mobileMenuOpen);
+
+  const isAuthenticated = !!session?.user?.id;
 
   // On the landing page, hash links scroll to sections.
   // On other pages, link to /landing sections with lang prefix.
@@ -83,20 +87,32 @@ export default function LandingNav() {
           <div className="hidden md:flex items-center gap-3">
             <ThemeToggle size="md" />
             <LanguageSwitcher />
-            <Link
-              href={lhref("/register")}
-              className="inline-flex items-center h-9 px-4 rounded-lg text-sm font-medium border transition-all hover:opacity-80"
-              style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
-            >
-              {t("home.navRegister")}
-            </Link>
-            <Link
-              href={lhref("/login")}
-              className="inline-flex items-center h-9 px-5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
-              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
-            >
-              {t("home.navLogin")}
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                href={lhref("/dashboard")}
+                className="inline-flex items-center h-9 px-5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+                style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+              >
+                {t("nav.overenie")}
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={lhref("/register")}
+                  className="inline-flex items-center h-9 px-4 rounded-lg text-sm font-medium border transition-all hover:opacity-80"
+                  style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+                >
+                  {t("home.navRegister")}
+                </Link>
+                <Link
+                  href={lhref("/login")}
+                  className="inline-flex items-center h-9 px-5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+                  style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+                >
+                  {t("home.navLogin")}
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile: theme + language + hamburger */}
@@ -120,20 +136,32 @@ export default function LandingNav() {
           maxHeight: authBarVisible ? 60 : 0,
         }}
       >
-        <Link
-          href={lhref("/register")}
-          className="flex-1 text-center text-sm font-semibold leading-10 h-10 rounded-lg border transition-all hover:opacity-80"
-          style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
-        >
-          {t("home.navRegister")}
-        </Link>
-        <Link
-          href={lhref("/login")}
-          className="flex-1 text-center text-sm font-semibold leading-10 h-10 rounded-lg transition-all hover:opacity-90"
-          style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
-        >
-          {t("home.navLogin")}
-        </Link>
+        {isAuthenticated ? (
+          <Link
+            href={lhref("/dashboard")}
+            className="flex-1 text-center text-sm font-semibold leading-10 h-10 rounded-lg transition-all hover:opacity-90"
+            style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+          >
+            {t("nav.overenie")}
+          </Link>
+        ) : (
+          <>
+            <Link
+              href={lhref("/register")}
+              className="flex-1 text-center text-sm font-semibold leading-10 h-10 rounded-lg border transition-all hover:opacity-80"
+              style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+            >
+              {t("home.navRegister")}
+            </Link>
+            <Link
+              href={lhref("/login")}
+              className="flex-1 text-center text-sm font-semibold leading-10 h-10 rounded-lg transition-all hover:opacity-90"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+            >
+              {t("home.navLogin")}
+            </Link>
+          </>
+        )}
       </div>
 
       {/* Mobile dropdown menu */}
@@ -162,14 +190,25 @@ export default function LandingNav() {
           >
             {t("nav.screener")}
           </Link>
-          <Link
-            href={lhref("/register")}
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center justify-center text-sm font-bold py-4 min-h-[48px] rounded-lg mt-3 transition-all hover:opacity-90"
-            style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
-          >
-            {t("home.heroCtaRegister")}
-          </Link>
+          {isAuthenticated ? (
+            <Link
+              href={lhref("/dashboard")}
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-center text-sm font-bold py-4 min-h-[48px] rounded-lg mt-3 transition-all hover:opacity-90"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+            >
+              {t("nav.overenie")}
+            </Link>
+          ) : (
+            <Link
+              href={lhref("/register")}
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-center text-sm font-bold py-4 min-h-[48px] rounded-lg mt-3 transition-all hover:opacity-90"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+            >
+              {t("home.heroCtaRegister")}
+            </Link>
+          )}
         </div>
       )}
     </nav>
