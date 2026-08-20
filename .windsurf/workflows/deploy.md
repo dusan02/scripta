@@ -2,19 +2,6 @@
 description: Deploy worker and frontend changes to production server
 ---
 
-## Server facts
-
-- Deploy path on server: `/var/www/verifa` (NOT `/opt/scripta`)
-- Containers sharing `verifa-worker-image`: `verifa_worker` (FastAPI/API) AND
-  `verifa_arq_worker` (background report-generation jobs). Both must be
-  rebuilt/restarted together — restarting only `worker` leaves the arq
-  worker running stale code.
-- `docker compose build ... --no-cache` builds the image; it does NOT restart
-  the container. Always follow with `docker compose up -d <service>`.
-- Production Postgres runs in `verifa_postgres` (`docker exec verifa_postgres
-  psql -U verifa -d verifa ...`). It is a separate DB from any local/dev DB —
-  do not assume a locally-applied migration is present in prod.
-
 ## Deploy Workflow
 
 1. Run tests locally to verify changes
@@ -22,9 +9,9 @@ description: Deploy worker and frontend changes to production server
    cd worker && python3 -m pytest tests/ -q --tb=short -m "not integration"
    cd frontend && npx tsc --noEmit && npm run test:unit && npm run build
    ```
-   Always check the actual exit code (`echo $?` or a separate `echo "EXIT=$?"`
-   line) — piping through `| tail` masks the real exit code of the command
-   before the pipe, not the exit code of `tail`.
+   Always check the actual exit code (`echo $?` on its own line, or a
+   separate `echo "EXIT=$?"`) — piping through `| tail` masks the real exit
+   code of the command before the pipe, not the exit code of `tail`.
 
 2. If the change adds/alters a required (NOT NULL, no `@default`) Prisma
    column, verify EVERY FinancialStatement/Company `create`/`upsert` call
@@ -35,59 +22,58 @@ description: Deploy worker and frontend changes to production server
    ```
    `frontend/src/scripts/*` is excluded from `tsc`/`next build` type-checking
    (see `tsconfig.json` `exclude`), so bugs there won't surface in CI — check
-   them manually.
+   them manually. `scripts/deploy.sh`'s `prisma migrate deploy` step will
+   apply the migration itself, but it won't catch missing fields in
+   hand-written `create` payloads — that's a code-review concern, not a
+   deploy-script concern.
 
 3. Commit changes to git
    ```
    git add -A && git commit -m "description" && git push
    ```
 
-4. SSH to server, pull, and check whether a new Prisma migration needs to be
-   applied to production BEFORE rebuilding (a NOT NULL column with no
-   default will break every INSERT until the column exists):
+4. Deploy via the unified script — from your local machine:
    ```
-   ssh root@verifa.sk "cd /var/www/verifa && git pull"
-   ssh root@verifa.sk "docker exec verifa_postgres psql -U verifa -d verifa -c \"\\d \\\"FinancialStatement\\\"\"" | grep -i <new_column>
+   bash scripts/deploy.sh                              # server-build, all services (default)
+   bash scripts/deploy.sh --local-build                # build locally, ship images, all services
+   bash scripts/deploy.sh --service=frontend           # only rebuild/restart frontend
+   bash scripts/deploy.sh --local-build --service=worker  # local-build, worker+arq_worker only
    ```
-   If missing, apply it (from the frontend container, which has the Prisma
-   Node client and migration files) before restarting worker/arq_worker:
+   This single script (see its header comment for full details) handles:
+   git pull on the server, build (locally or on the server), `prisma
+   migrate deploy`, restarting `worker` + `arq_worker` together (never just
+   one — they share the same image and both must run current code),
+   `nginx reload`, tagging the previous image(s) for rollback, pruning old
+   images/build cache, and a final HTTPS health check.
+
+   It can also be run directly on the server (auto-detected):
    ```
-   ssh root@verifa.sk "cd /var/www/verifa && docker compose exec frontend npx prisma migrate deploy"
+   ssh root@verifa.sk "cd /var/www/verifa && bash scripts/deploy.sh"
    ```
 
-5. Rebuild worker image
+5. Verify deployment
    ```
-   ssh root@verifa.sk "cd /var/www/verifa && docker compose build worker --no-cache"
-   ```
-
-6. Restart BOTH worker and arq_worker (same image)
-   ```
-   ssh root@verifa.sk "cd /var/www/verifa && docker compose up -d worker arq_worker"
-   ```
-
-7. Verify both are healthy and the fix actually landed in the running
-   container (rebuilds can silently reuse cached layers):
-   ```
-   ssh root@verifa.sk "docker ps --format '{{.Names}}: {{.Status}}' | grep verifa"
-   ssh root@verifa.sk "docker logs verifa_worker --tail 30"
+   ssh root@verifa.sk "cd /var/www/verifa && docker compose ps"
+   ssh root@verifa.sk "docker logs verifa_worker --tail 20"
    ssh root@verifa.sk "docker logs verifa_arq_worker --tail 20"
-   ssh root@verifa.sk "docker exec verifa_worker grep -n '<distinctive string from the fix>' /app/src/<file>.py"
-   ```
-
-8. If frontend changes, rebuild and restart frontend
-   ```
-   ssh root@verifa.sk "cd /var/www/verifa && docker compose build frontend --no-cache && docker compose up -d frontend"
-   ```
-
-9. Verify frontend is responding
-   ```
    curl -s -o /dev/null -w "%{http_code}\n" https://verifa.sk
-   ssh root@verifa.sk "docker logs verifa_frontend --tail 20; docker ps --format '{{.Names}}: {{.Status}}' | grep verifa_frontend"
+   ```
+   For a code change you're not 100% sure landed (e.g. after a rebuild that
+   might have reused cached layers), confirm directly in the running
+   container:
+   ```
+   ssh root@verifa.sk "docker exec verifa_worker grep -n '<distinctive string from the fix>' /app/src/<file>.py"
    ```
 
 ## Rollback
 
-If something breaks:
+`scripts/deploy.sh` prints a ready-to-run rollback command at the end of
+every deploy (it tags the previous image(s) before overwriting them). If
+you need it after the fact:
 ```
-ssh root@verifa.sk "cd /var/www/verifa && git revert HEAD --no-edit && docker compose build worker frontend --no-cache && docker compose up -d worker arq_worker frontend"
+ssh root@89.185.250.213 "cd /var/www/verifa && docker tag verifa-frontend:rollback verifa-frontend && docker tag verifa-worker-image:rollback verifa-worker-image && docker compose up -d --force-recreate frontend worker arq_worker"
+```
+Or, to roll back the git history too:
+```
+ssh root@verifa.sk "cd /var/www/verifa && git revert HEAD --no-edit" && bash scripts/deploy.sh
 ```
