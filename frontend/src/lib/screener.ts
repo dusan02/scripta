@@ -806,16 +806,16 @@ export async function queryScreener(
   //    AND findMany with tier SELECT (Enforcement #3)
   const select = getSelectForTier(tier);
 
-  const [companies, total] = await Promise.all([
-    prisma.company.findMany({
-      where,
-      select,
-      orderBy,
-      skip,
-      take,
-    }),
-    prisma.company.count({ where }),
-  ]);
+  // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
+  // Parallel findMany + count + 4× queryRaw from getScreenerFilterOptions = 6 concurrent → pool timeout.
+  const companies = await prisma.company.findMany({
+    where,
+    select,
+    orderBy,
+    skip,
+    take,
+  });
+  const total = await prisma.company.count({ where });
 
   // 7. Serialize Decimals to strings (Prisma returns Decimal objects)
   const serialized: ScreenerResult[] = companies.map((c) => ({
@@ -863,38 +863,38 @@ export type ScreenerFilterOptions = {
  * Only fetches options for FREE filters (AUTH filters are boolean toggles, no dropdowns).
  */
 export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
-  const [legalForms, cities, kraje, okresy] = await Promise.all([
-    prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
+  // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
+  // 4 parallel queryRaw + findMany + count from queryScreener = 6 concurrent → pool timeout.
+  const legalForms = await prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
       SELECT "legalForm", COUNT(*) as cnt
       FROM "Company"
       WHERE "legalForm" IS NOT NULL AND "legalForm" != ''
       GROUP BY "legalForm"
       ORDER BY cnt DESC
       LIMIT 20
-    `,
-    prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
+    `;
+  const cities = await prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
       SELECT city, COUNT(*) as cnt
       FROM "Company"
       WHERE city IS NOT NULL AND city != ''
       GROUP BY city
       ORDER BY cnt DESC
       LIMIT 50
-    `,
-    prisma.$queryRaw<Array<{ kraj: string; cnt: bigint }>>`
+    `;
+  const kraje = await prisma.$queryRaw<Array<{ kraj: string; cnt: bigint }>>`
       SELECT kraj, COUNT(*) as cnt
       FROM "Company"
       WHERE kraj IS NOT NULL AND kraj != '' AND kraj != 'SKZZZ'
       GROUP BY kraj
       ORDER BY cnt DESC
-    `,
-    prisma.$queryRaw<Array<{ okres: string; cnt: bigint }>>`
+    `;
+  const okresy = await prisma.$queryRaw<Array<{ okres: string; cnt: bigint }>>`
       SELECT okres, COUNT(*) as cnt
       FROM "Company"
       WHERE okres IS NOT NULL AND okres != ''
       GROUP BY okres
       ORDER BY cnt DESC
-    `,
-  ]);
+    `;
 
   return {
     naceSections: getNaceSections(),

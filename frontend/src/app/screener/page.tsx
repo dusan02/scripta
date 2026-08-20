@@ -93,10 +93,10 @@ export default async function ScreenerPage({
 
   // 3. Query screener (sanitized params → WHERE → COUNT → tier SELECT)
   //    and fetch filter options for the sidebar
-  const [result, options] = await Promise.all([
-    queryScreener(searchParams, tier),
-    getScreenerFilterOptions(),
-  ]);
+  // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
+  // Parallel execution of findMany + count + 4× queryRaw = 6 concurrent queries → pool timeout.
+  const result = await queryScreener(searchParams, tier);
+  const options = await getScreenerFilterOptions();
 
   const { companies, total, page, totalPages, appliedFilters, resultLimit } = result;
 
