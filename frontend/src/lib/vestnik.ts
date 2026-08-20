@@ -32,7 +32,7 @@ function classifyEvent(kindName: string, text: string): { eventType: string; sev
   if (lower.includes("exekú") || lower.includes("exeku")) {
     return { eventType: "Exekúcia", severityLevel: "HIGH" };
   }
-  if (lower.includes("zrušen") || lower.includes("vymazan")) {
+  if (lower.includes("zrušen") || lower.includes("zrušil") || lower.includes("vymazan")) {
     return { eventType: "Zrušenie / Vymazanie", severityLevel: "HIGH" };
   }
   if (lower.includes("zmen") || lower.includes("podanie")) {
@@ -47,15 +47,20 @@ function buildSummary(text: string, kindName: string): string {
 }
 
 function parseDate(dateStr: string): Date {
-  try {
-    return new Date(dateStr.replace("Z", "+00:00"));
-  } catch {
-    try {
-      return new Date(dateStr.substring(0, 10));
-    } catch {
-      return new Date();
-    }
+  if (!dateStr || dateStr === "UNKNOWN") {
+    return new Date();
   }
+  const normalized = dateStr.replace("Z", "+00:00");
+  const date = new Date(normalized);
+  if (!isNaN(date.getTime())) {
+    return date;
+  }
+  // Fallback: try YYYY-MM-DD substring
+  const fallback = new Date(dateStr.substring(0, 10));
+  if (!isNaN(fallback.getTime())) {
+    return fallback;
+  }
+  return new Date();
 }
 
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
@@ -83,6 +88,43 @@ function extractText(item: Record<string, unknown>): string {
   return parts.join("\n");
 }
 
+/**
+ * Extract IČO from a Vestník API item.
+ *
+ * API structure changed: `cin` and `debtor.cin` fields no longer exist.
+ * IČO is now in `proposers[].cin` (86.6% coverage) and in text fields (21.6%).
+ * When both are present, they match 97.2% of the time.
+ *
+ * Strategy:
+ *   1. Primary: proposers[].cin (first proposer with cin)
+ *   2. Fallback: regex extraction from text fields (IČO XXXXXXXX)
+ */
+function extractIco(item: Record<string, unknown>): number | null {
+  // 1. Try proposers[].cin
+  const proposers = item.proposers;
+  if (Array.isArray(proposers)) {
+    for (const p of proposers) {
+      if (p && typeof p === "object") {
+        const cin = (p as Record<string, unknown>).cin;
+        if (cin !== undefined && cin !== null) {
+          const icoInt = parseInt(String(cin), 10);
+          if (!isNaN(icoInt)) return icoInt;
+        }
+      }
+    }
+  }
+
+  // 2. Fallback: regex from text fields
+  const text = extractText(item);
+  const match = text.match(/I[CČ]O[:\s]*(\d{8})/i);
+  if (match) {
+    const icoInt = parseInt(match[1], 10);
+    if (!isNaN(icoInt)) return icoInt;
+  }
+
+  return null;
+}
+
 function parseNextLink(linkHeader: string): string | null {
   for (const part of linkHeader.split(",")) {
     if (part.includes("rel='next'") || part.includes('rel="next"')) {
@@ -91,6 +133,30 @@ function parseNextLink(linkHeader: string): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Generate a deterministic sourceId when API item lacks an `id` field.
+ * Without this, multiple events without id would collide on (companyIco, "UNKNOWN")
+ * and only one would be stored.
+ *
+ * Fingerprint = first 16 chars of SHA-256 over: ico|publishedAt|kind|text
+ */
+function fingerprintSourceId(ico: string, publishedAt: string, kindName: string, text: string): string {
+  const { createHash } = require("crypto") as typeof import("crypto");
+  const input = `${ico}|${publishedAt}|${kindName}|${text.substring(0, 1000)}`;
+  return "FP_" + createHash("sha256").update(input).digest("hex").substring(0, 16);
+}
+
+/**
+ * Resolve sourceId from API item, using fingerprint fallback when id is missing.
+ */
+function resolveSourceId(item: Record<string, unknown>, ico: string, publishedAt: string, kindName: string, text: string): string {
+  const rawId = item.id;
+  if (rawId !== undefined && rawId !== null && String(rawId) !== "UNKNOWN") {
+    return String(rawId);
+  }
+  return fingerprintSourceId(ico, publishedAt, kindName, text);
 }
 
 async function fetchVestnikEvents(ico: string): Promise<RawVestnikEvent[]> {
@@ -123,20 +189,8 @@ async function fetchVestnikEvents(ico: string): Promise<RawVestnikEvent[]> {
           : data.items || data.data || [];
 
         for (const item of items) {
-          let itemCin = item.cin;
-          if (itemCin === undefined || itemCin === null) {
-            const debtor = item.debtor;
-            if (debtor && typeof debtor === "object") {
-              itemCin = (debtor as Record<string, unknown>).cin;
-            }
-          }
-          if (itemCin === undefined || itemCin === null) continue;
-
-          try {
-            if (parseInt(String(itemCin), 10) !== icoInt) continue;
-          } catch {
-            continue;
-          }
+          const itemIco = extractIco(item);
+          if (itemIco === null || itemIco !== icoInt) continue;
 
           const text = extractText(item);
           if (!text) continue;
@@ -180,7 +234,9 @@ export async function seedFromVestnik(ico: string): Promise<number> {
       const { eventType, severityLevel } = classifyEvent(ev.kind_name, ev.text);
       const summary = buildSummary(ev.text, ev.kind_name);
       const publishedAt = parseDate(ev.published_at);
-      const sourceId = ev.id;
+      const sourceId = ev.id === "UNKNOWN"
+        ? fingerprintSourceId(ico, ev.published_at, ev.kind_name, ev.text)
+        : ev.id;
 
       try {
         await prisma.vestnikEvent.upsert({
@@ -226,15 +282,24 @@ type IngestResult = {
 const OVERLAP_DAYS = 3;
 const CRON_MAX_PAGES = 50;
 
+// ── or_podanie_issues decision ──────────────────────────────────────────────
+// This endpoint is NOT included in cron incremental sync.
+// Reason: API data ends December 2022 — no new records are published.
+// It IS included in seedFromVestnik (per-company) and the Python scraper
+// for historical completeness when generating a full report.
+// This is a deliberate data-source decision, not a bug.
+
 /**
  * Checkpoint-based Vestník ingestion for cron.
  *
  * Uses last_id + since cursor from the API Link header, stored in DB.
- * - Cursor is advanced ONLY after successful completion of the entire batch.
+ * - Cursor is advanced ONLY after successful completion of the entire batch
+ *   AND when there are no more pages (url === null).
  * - 3-day overlap on since timestamp to catch late or corrected records.
  * - upsert via sourceId ensures idempotency (dedup is automatic).
  * - or_podanie_issues is skipped (API data ends Dec 2022 — no new records).
- * - On error, cursor is NOT advanced → next run retries from same point.
+ * - On error OR page limit reached, cursor is NOT advanced → next run retries.
+ * - MAX_PAGES is NOT a success condition — it means "more data exists, retry next run".
  */
 export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
   const startTime = Date.now();
@@ -273,8 +338,10 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
   let totalEvents = 0;
   let savedEvents = 0;
   const matchedIcos = new Set<string>();
-  let finalLastId: number | null = null;
-  let finalSince: string = sinceDate;
+  // Track the last successfully processed item's id and published_at.
+  // These become the checkpoint cursor — NOT the "next URL" params.
+  let lastProcessedId: number | null = null;
+  let lastProcessedSince: string = sinceDate;
   let allSuccess = true;
 
   while (url && pagesFetched < CRON_MAX_PAGES) {
@@ -294,23 +361,35 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
         ? data
         : data.items || data.data || [];
 
-      for (const item of items) {
-        let itemCin = item.cin;
-        if (itemCin === undefined || itemCin === null) {
-          const debtor = item.debtor;
-          if (debtor && typeof debtor === "object") {
-            itemCin = (debtor as Record<string, unknown>).cin;
+      // P0-3: Track cursor from the LAST item on the page, regardless of match.
+      // API cursor semantics (empirically verified):
+      //   last_id = id of last item on page
+      //   since   = updated_at of last item on page (NOT created_at — old records
+      //             get re-indexed with updated_at > created_at)
+      // Items are sorted by updated_at. If we only track matched items,
+      // the cursor won't advance past unmatched items → re-fetching (inefficient).
+      // Must be set BEFORE the match filter loop.
+      if (items.length > 0) {
+        const lastItem = items[items.length - 1];
+        const lastItemId = lastItem.id;
+        if (lastItemId !== undefined && lastItemId !== null) {
+          const idInt = parseInt(String(lastItemId), 10);
+          if (!isNaN(idInt)) {
+            lastProcessedId = idInt;
           }
         }
-        if (itemCin === undefined || itemCin === null) continue;
-
-        let icoStr: string | undefined;
-        try {
-          const icoInt = parseInt(String(itemCin), 10);
-          icoStr = icoIntMap.get(icoInt);
-        } catch {
-          continue;
+        // API uses updated_at for the since cursor (verified on 76 pages).
+        const lastUpdatedAt = String(lastItem.updated_at || lastItem.created_at || "");
+        if (lastUpdatedAt) {
+          lastProcessedSince = lastUpdatedAt;
         }
+      }
+
+      for (const item of items) {
+        const itemIco = extractIco(item);
+        if (itemIco === null) continue;
+
+        const icoStr = icoIntMap.get(itemIco);
         if (!icoStr) continue;
 
         const text = extractText(item);
@@ -322,8 +401,9 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
         const kindName = String(item.kind_name || item.kind || item.file_name || "");
         const { eventType, severityLevel } = classifyEvent(kindName, text);
         const summary = buildSummary(text, kindName);
-        const publishedAt = parseDate(String(item.published_at || item.created_at || "UNKNOWN"));
-        const sourceId = String(item.id || "UNKNOWN");
+        const publishedAtStr = String(item.published_at || item.created_at || "UNKNOWN");
+        const publishedAt = parseDate(publishedAtStr);
+        const sourceId = resolveSourceId(item, icoStr, publishedAtStr, kindName, text);
 
         try {
           await prisma.vestnikEvent.upsert({
@@ -351,24 +431,9 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
 
       pagesFetched++;
 
-      // Track cursor from Link header
+      // Follow Link header for next page
       const linkHeader = resp.headers.get("link") || "";
       const nextUrl = parseNextLink(linkHeader);
-
-      if (nextUrl) {
-        // Extract last_id and since from next URL for cursor tracking
-        try {
-          const parsed = new URL(nextUrl);
-          const params = new URLSearchParams(parsed.searchParams);
-          const lid = params.get("last_id");
-          const s = params.get("since");
-          if (lid) finalLastId = parseInt(lid, 10);
-          if (s) finalSince = s;
-        } catch {
-          // ignore parse errors
-        }
-      }
-
       url = nextUrl;
     } catch {
       allSuccess = false;
@@ -376,18 +441,26 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
     }
   }
 
+  // P0-2: Page limit reached but more data exists → NOT a success condition
+  const reachedPageLimit = pagesFetched >= CRON_MAX_PAGES && url !== null;
+  if (reachedPageLimit) {
+    allSuccess = false;
+    console.warn(`[Vestník cron] Page limit (${CRON_MAX_PAGES}) reached, more data exists. Cursor NOT advanced.`);
+  }
+
   const durationMs = Date.now() - startTime;
-  const cursorAfter = allSuccess && finalLastId != null
-    ? `last_id=${finalLastId}, since=${finalSince}`
+  const cursorAfter = allSuccess && lastProcessedId != null
+    ? `last_id=${lastProcessedId}, since=${lastProcessedSince}`
     : null;
 
   // Update checkpoint in DB — only advance cursor on full success
+  // (no errors AND no remaining pages)
   await prisma.vestnikSyncCheckpoint.upsert({
     where: { endpoint },
     create: {
       endpoint,
-      lastId: allSuccess ? finalLastId : null,
-      sinceTimestamp: allSuccess ? finalSince : sinceDate,
+      lastId: allSuccess ? lastProcessedId : null,
+      sinceTimestamp: allSuccess ? lastProcessedSince : sinceDate,
       lastRunAt: new Date(),
       lastRunSuccess: allSuccess,
       pagesFetched,
@@ -397,8 +470,9 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
       durationMs,
     },
     update: {
-      lastId: allSuccess ? finalLastId : checkpoint?.lastId ?? null,
-      sinceTimestamp: allSuccess ? finalSince : checkpoint?.sinceTimestamp ?? sinceDate,
+      // On failure: keep previous cursor so next run retries from same point
+      lastId: allSuccess ? lastProcessedId : checkpoint?.lastId ?? null,
+      sinceTimestamp: allSuccess ? lastProcessedSince : checkpoint?.sinceTimestamp ?? sinceDate,
       lastRunAt: new Date(),
       lastRunSuccess: allSuccess,
       pagesFetched,

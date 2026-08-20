@@ -47,6 +47,10 @@ const en: Dict = {
   "form.sietovaChyba": "Network error. Try again.",
   "form.hladamFirmu": "Searching company in ORSR...",
   "form.firmaNenajdena": "Company with this VAT number was not found in ORSR.",
+  "form.noCreditsTitle": "You need 1 credit for this report.",
+  "form.noCreditsDesc": "Choose a credit package to continue verifying companies.",
+  "form.buy1Report": "Buy 1 report",
+  "form.buy10Reports": "Buy 10 reports",
   "form.skryt": "Hide",
   "form.zobrazit": "Show",
 

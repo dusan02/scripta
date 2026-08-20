@@ -178,13 +178,19 @@ class TestPillar1:
         assert p1.score > 0
 
     def test_critical_vestnik_events_reduce_p1(self):
+        """F4 fix: vestnik penalization moved from P1 to P5 (no double-counting)."""
         company = _healthy_company_dict()
         company["vestnikEvents"] = [_vestnik_event(event_type="Exekúcia", severity="CRITICAL", days_ago=10)]
         trends = _healthy_trends()
         result = compute_forensic_scorecard(company, trends)
         p1 = [p for p in result.pillars if "Platobná" in p.name][0]
-        # Critical event → no +6 for clean vestník
-        assert any("kritické" in f.lower() or "penalizácia" in f.lower() for f in p1.flags)
+        p5 = [p for p in result.pillars if "Právna" in p.name][0]
+        # P1 should NOT have vestnik flags (removed in F4 fix)
+        assert not any("vestník" in f.lower() or "kritické" in f.lower() for f in p1.flags), \
+            f"P1 should not have vestnik flags after F4 fix: {p1.flags}"
+        # P5 should have the critical event penalization
+        assert any("kritické" in f.lower() or "KRITICKÉ" in f for f in p5.flags), \
+            f"P5 should have critical vestnik flags: {p5.flags}"
 
 
 # ── PILIER 2: Finančné zdravie ────────────────────────────────────────────────
@@ -576,7 +582,7 @@ class TestScorecardResult:
         company = _healthy_company_dict()
         trends = _healthy_trends()
         result = compute_forensic_scorecard(company, trends)
-        assert result.score_version == "v2"
+        assert result.score_version == "v3-frozen"
 
     def test_pillar_scores_within_max(self):
         company = _healthy_company_dict()

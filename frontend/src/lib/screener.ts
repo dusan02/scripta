@@ -122,6 +122,33 @@ export function getNaceSections() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// kraj (NUTS3) labels — official Slovak region codes (public standard)
+// ═══════════════════════════════════════════════════════════════
+
+const KRAJ_LABELS: Record<string, string> = {
+  "SK010": "Bratislavský kraj",
+  "SK021": "Trnavský kraj",
+  "SK022": "Nitriansky kraj",
+  "SK023": "Trenčiansky kraj",
+  "SK031": "Žilinský kraj",
+  "SK032": "Banskobystrický kraj",
+  "SK041": "Prešovský kraj",
+  "SK042": "Košický kraj",
+  "SKZZZ": "Nezistené",
+};
+
+export function getKrajLabel(value: string | null): string | null {
+  if (!value) return null;
+  return KRAJ_LABELS[value] || value;
+}
+
+export function getKrajOptions() {
+  return Object.entries(KRAJ_LABELS)
+    .filter(([code]) => code !== "SKZZZ")
+    .map(([value, label]) => ({ value, label }));
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ownershipType labels — RÚZ API documented values (public spec, not business rule)
 // Approved decision #2: use official RÚZ documented labels for UI.
 // Query layer operates on raw stored values.
@@ -292,6 +319,30 @@ const FREE_FILTERS: FilterDef[] = [
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
       return { city: { in: value as string[] } };
+    },
+  },
+
+  // 6b. Kraj (NUTS3 region)
+  {
+    key: "kraj",
+    accessLevel: "FREE",
+    label: "Kraj",
+    parse: parseMulti,
+    buildWhere: (value) => {
+      if (!Array.isArray(value) || value.length === 0) return null;
+      return { kraj: { in: value as string[] } };
+    },
+  },
+
+  // 6c. Okres (LAU district)
+  {
+    key: "okres",
+    accessLevel: "FREE",
+    label: "Okres",
+    parse: parseMulti,
+    buildWhere: (value) => {
+      if (!Array.isArray(value) || value.length === 0) return null;
+      return { okres: { in: value as string[] } };
     },
   },
 
@@ -802,6 +853,8 @@ export type ScreenerFilterOptions = {
   legalForms: Array<{ value: string; label: string; count: number }>;
   ownershipTypes: Array<{ value: string; label: string }>;
   cities: Array<{ value: string; label: string; count: number }>;
+  kraje: Array<{ value: string; label: string; count: number }>;
+  okresy: Array<{ value: string; label: string; count: number }>;
 };
 
 /**
@@ -810,7 +863,7 @@ export type ScreenerFilterOptions = {
  * Only fetches options for FREE filters (AUTH filters are boolean toggles, no dropdowns).
  */
 export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
-  const [legalForms, cities] = await Promise.all([
+  const [legalForms, cities, kraje, okresy] = await Promise.all([
     prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
       SELECT "legalForm", COUNT(*) as cnt
       FROM "Company"
@@ -827,6 +880,20 @@ export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions>
       ORDER BY cnt DESC
       LIMIT 50
     `,
+    prisma.$queryRaw<Array<{ kraj: string; cnt: bigint }>>`
+      SELECT kraj, COUNT(*) as cnt
+      FROM "Company"
+      WHERE kraj IS NOT NULL AND kraj != '' AND kraj != 'SKZZZ'
+      GROUP BY kraj
+      ORDER BY cnt DESC
+    `,
+    prisma.$queryRaw<Array<{ okres: string; cnt: bigint }>>`
+      SELECT okres, COUNT(*) as cnt
+      FROM "Company"
+      WHERE okres IS NOT NULL AND okres != ''
+      GROUP BY okres
+      ORDER BY cnt DESC
+    `,
   ]);
 
   return {
@@ -841,6 +908,16 @@ export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions>
       value: c.city,
       label: c.city,
       count: Number(c.cnt),
+    })),
+    kraje: kraje.map((k) => ({
+      value: k.kraj,
+      label: getKrajLabel(k.kraj) || k.kraj,
+      count: Number(k.cnt),
+    })),
+    okresy: okresy.map((o) => ({
+      value: o.okres,
+      label: o.okres,
+      count: Number(o.cnt),
     })),
   };
 }

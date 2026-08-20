@@ -26,13 +26,20 @@ export default function HeroSection() {
           {t("home.heroSubtitle")}
         </p>
 
-        <div className="mb-4">
+        <div className="mb-4 flex flex-col sm:flex-row gap-3 items-center justify-center hero-cta">
           <Link
             href={localizePath("/register", lang)}
             className="inline-block px-8 py-4 rounded-xl no-underline font-bold text-[16px] transition-all hover:opacity-90"
             style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--shadow-lg)" }}
           >
             {t("home.heroCtaRegister")}
+          </Link>
+          <Link
+            href={localizePath("/screener", lang)}
+            className="inline-block px-6 py-4 rounded-xl no-underline font-semibold text-[15px] transition-all hover:opacity-80"
+            style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+          >
+            {lang === "sk" ? "Preskúmať slovenské firmy →" : lang === "de" ? "Slowakische Firmen durchsuchen →" : "Explore Slovak companies →"}
           </Link>
         </div>
 

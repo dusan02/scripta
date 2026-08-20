@@ -40,15 +40,20 @@ async def get_companies_batch(batch_size: int = 100, offset: int = 0, ico_filter
 
     db = get_db()
 
-    where = {"orsrSyncedAt": None}
+    where = {
+        "orsrSyncedAt": None,
+        # Only scrape legal forms that exist in ORSR (Obchodný register SR).
+        # Družstvá, štátne podniky, európske družstvá, európske spoločnosti (SE) are NOT in ORSR.
+        "legalForm": {"in": ["s.r.o.", "a.s.", "v.o.s.", "k.s."]},
+    }
     if ico_filter:
-        where = {"ico": ico_filter}
+        where = {"ico": ico_filter, "orsrSyncedAt": None}
 
     companies = await db.company.find_many(
         where=where,
         take=batch_size,
         skip=offset,
-        order={"latestRevenue": "desc"},
+        order={"ico": "asc"},
     )
 
     return [{"ico": c.ico, "name": c.name} for c in companies]
@@ -90,22 +95,39 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
             data=company_update,
         )
 
-        # Upsert CompanyPerson records — replace ALL ORSR-sourced persons
+        # Update CompanyPerson records — NON-DESTRUCTIVE.
+        # RPO import already populated statutar persons (1.99M records).
+        # ORSR adds spolocnik + functionStart data. We upsert by (companyIco, cleanName, role)
+        # to avoid duplicates without deleting RPO-sourced records.
         if result.persons:
-            await db.companyperson.delete_many(
-                where={"companyIco": ico},
-            )
             for p in result.persons:
-                await db.companyperson.create(
-                    data={
+                existing = await db.companyperson.find_first(
+                    where={
                         "companyIco": ico,
-                        "rawName": p.raw_name,
                         "cleanName": p.clean_name,
                         "role": p.role,
-                        "city": p.city,
-                        "zipCode": p.zip_code,
                     },
                 )
+                if existing:
+                    # Update with ORSR-enriched data (city, zipCode, functionStart)
+                    await db.companyperson.update(
+                        where={"id": existing.id},
+                        data={
+                            "city": p.city or existing.city,
+                            "zipCode": p.zip_code or existing.zipCode,
+                        },
+                    )
+                else:
+                    await db.companyperson.create(
+                        data={
+                            "companyIco": ico,
+                            "rawName": p.raw_name,
+                            "cleanName": p.clean_name,
+                            "role": p.role,
+                            "city": p.city,
+                            "zipCode": p.zip_code,
+                        },
+                    )
 
         return {
             "ico": ico,

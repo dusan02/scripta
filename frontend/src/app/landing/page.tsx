@@ -3,6 +3,7 @@
 import LandingJsonLd from "@/components/LandingJsonLd";
 import LandingNav from "@/components/landing/LandingNav";
 import HeroSection from "@/components/landing/HeroSection";
+import ScreenerCtaSection from "@/components/landing/ScreenerCtaSection";
 import ReportIncludesSection from "@/components/landing/ReportIncludesSection";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import RoiSection from "@/components/landing/RoiSection";
@@ -54,6 +55,7 @@ export default function LandingPageRoute() {
       `}</style>
       <LandingNav />
       <HeroSection />
+      <ScreenerCtaSection />
       <ReportIncludesSection />
       <SampleReportSection />
       <HowItWorksSection />

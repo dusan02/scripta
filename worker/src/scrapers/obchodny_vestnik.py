@@ -126,7 +126,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
     ) -> List[Dict]:
         """
         Fetch z ekosystem sync API s plnou pagináciou cez Link header.
-        Filtruje podľa štruktúrneho poľa cin/debtor.cin.
+        Filtruje podľa IČO z proposers[].cin (primárne) alebo textových polí (fallback).
         Používa 365-dňový lookback — pokrýva historické konkurzy/reštrukturalizácie.
         """
         from_date = (datetime.utcnow() - timedelta(days=365)).isoformat()
@@ -149,17 +149,12 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
                 page_matches = 0
                 for item in items:
-                    item_cin = item.get("cin")
-                    if item_cin is None:
-                        debtor = item.get("debtor")
-                        if debtor and isinstance(debtor, dict):
-                            item_cin = debtor.get("cin")
-
-                    if item_cin is None:
+                    item_ico = self._extract_ico(item)
+                    if item_ico is None:
                         continue
 
                     try:
-                        if int(item_cin) != ico_int:
+                        if int(item_ico) != ico_int:
                             continue
                     except (ValueError, TypeError):
                         continue
@@ -206,6 +201,41 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
         logger.info(f"[OV] {endpoint}: prehľadaných {pages_fetched} strán, nájdených {len(results)} záznamov pre IČO {ico_clean}")
         return results
+
+    @staticmethod
+    def _extract_ico(item: Dict) -> Optional[int]:
+        """
+        Extract IČO from a Vestník API item.
+        API changed: cin/debtor.cin no longer exist. IČO is in proposers[].cin (86.6%) or text (21.6%).
+        """
+        # 1. Try proposers[].cin
+        proposers = item.get("proposers")
+        if isinstance(proposers, list):
+            for p in proposers:
+                if isinstance(p, dict):
+                    cin = p.get("cin")
+                    if cin is not None:
+                        try:
+                            return int(cin)
+                        except (ValueError, TypeError):
+                            pass
+
+        # 2. Fallback: regex from text fields
+        text_parts = []
+        for field in ("heading", "decision", "announcement", "advice", "text", "content"):
+            val = item.get(field)
+            if val and isinstance(val, str) and val.strip():
+                text_parts.append(val.strip())
+        text = "\n".join(text_parts)
+
+        match = re.search(r'I[CČ]O[:\s]*(\d{8})', text, re.IGNORECASE)
+        if match:
+            try:
+                return int(match.group(1))
+            except (ValueError, TypeError):
+                pass
+
+        return None
 
 async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
     """

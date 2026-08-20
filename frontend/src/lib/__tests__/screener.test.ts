@@ -118,9 +118,9 @@ function testEstablishedAtAnomaly() {
 }
 
 function testFilterCount() {
-  console.log("Test 4: Filter count — exactly 12 FREE + 4 AUTH = 16 logical filters");
+  console.log("Test 4: Filter count — exactly 14 FREE + 4 AUTH = 18 logical filters");
 
-  // The frozen contract defines 12 FREE logical filters and 4 AUTH logical filters.
+  // The frozen contract defines 14 FREE logical filters and 4 AUTH logical filters.
   // Some logical filters have min+max params (e.g. revenueMin, revenueMax = 1 "Tržby" filter).
   // We count unique logical filters by grouping min/max pairs.
   const freeKeys = ALL_FILTERS.filter((f) => f.accessLevel === "FREE").map((f) => f.key);
@@ -131,10 +131,10 @@ function testFilterCount() {
   const freeLogical = new Set(freeKeys.map((k) => k.replace(/(Min|Max)$/, "")));
   const authLogical = new Set(authKeys);
 
-  // 12 FREE logical filters: q, naceSection, naceCode, legalForm, ownershipType, city,
-  //   age, revenue, profit, assets, equity, latestYear
-  if (freeLogical.size !== 12) {
-    throw new Error(`FAIL: Expected 12 FREE logical filters, got ${freeLogical.size}: ${Array.from(freeLogical).join(", ")}`);
+  // 14 FREE logical filters: q, naceSection, naceCode, legalForm, ownershipType, city,
+  //   kraj, okres, age, revenue, profit, assets, equity, latestYear
+  if (freeLogical.size !== 14) {
+    throw new Error(`FAIL: Expected 14 FREE logical filters, got ${freeLogical.size}: ${Array.from(freeLogical).join(", ")}`);
   }
   if (authLogical.size !== 4) {
     throw new Error(`FAIL: Expected 4 AUTH logical filters, got ${authLogical.size}: ${Array.from(authLogical).join(", ")}`);
@@ -142,7 +142,7 @@ function testFilterCount() {
   if (premiumKeys.length !== 0) {
     throw new Error(`FAIL: Expected 0 PREMIUM filters in MVP, got ${premiumKeys.length}`);
   }
-  console.log(`  PASS: 12 FREE + 4 AUTH + 0 PREMIUM = 16 logical filters (${freeKeys.length} + ${authKeys.length} URL params)`);
+  console.log(`  PASS: 14 FREE + 4 AUTH + 0 PREMIUM = 18 logical filters (${freeKeys.length} + ${authKeys.length} URL params)`);
 }
 
 function testNullNotZero() {

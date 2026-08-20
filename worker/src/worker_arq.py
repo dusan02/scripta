@@ -122,6 +122,6 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     max_jobs = 3  # Concurrency limit — scraper a PDF fázy chránené _scraper_lock/_pdf_lock v main.py
-    job_timeout = 1200  # 20 min — 26 sources with retry passes can exceed 10 min
+    job_timeout = 2400  # 40 min — 26 sources with LLM retry/fallback can exceed 20 min
     keep_result = 3600
     allow_abort_jobs = True

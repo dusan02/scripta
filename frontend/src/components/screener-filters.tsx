@@ -12,6 +12,8 @@ type Props = {
     legalForms: FilterOption[];
     ownershipTypes: Array<{ value: string; label: string }>;
     cities: FilterOption[];
+    kraje: FilterOption[];
+    okresy: FilterOption[];
   };
   tier: ScreenerTier;
   appliedFilters: string[];
@@ -216,6 +218,46 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           {options.cities.map((c) => (
             <option key={c.value} value={c.value}>
               {c.label} ({c.count})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 6b. Kraj */}
+      <div>
+        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+          Kraj
+        </label>
+        <select
+          className={SELECT_STYLE}
+          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          value={sp("kraj")}
+          onChange={(e) => applyFilter("kraj", e.target.value)}
+        >
+          <option value="">Všetky</option>
+          {options.kraje.map((k) => (
+            <option key={k.value} value={k.value}>
+              {k.label} ({k.count})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 6c. Okres */}
+      <div>
+        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+          Okres
+        </label>
+        <select
+          className={SELECT_STYLE}
+          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          value={sp("okres")}
+          onChange={(e) => applyFilter("okres", e.target.value)}
+        >
+          <option value="">Všetky</option>
+          {options.okresy.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label} ({o.count})
             </option>
           ))}
         </select>

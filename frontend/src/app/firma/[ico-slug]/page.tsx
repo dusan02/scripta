@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -69,8 +69,11 @@ export default async function CompanyPage({ params }: Params) {
 
   const persons = company.companyPersons ?? [];
 
-  if (parsed.slug) {
-    redirect(`/firma/${company.ico}`);
+  // SEO: if URL has no slug (e.g. /firma/35757442), 301 redirect to /firma/35757442-slug
+  // This preserves link juice and ensures canonical URLs with company name
+  if (!parsed.slug) {
+    const slug = slugify(company.name);
+    permanentRedirect(`/firma/${company.ico}-${slug}`);
   }
 
   const name = company.name || `IČO ${company.ico}`;

@@ -4,6 +4,7 @@ import { rateLimitByKey } from "@/lib/rateLimit";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { ScreenerFilters } from "@/components/screener-filters";
+import { slugify } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
@@ -205,7 +206,7 @@ export default async function ScreenerPage({
                       <tr key={c.ico} className="border-t hover:bg-[var(--surface)]" style={{ borderColor: "var(--border)" }}>
                         <td className="px-4 py-3">
                           <Link
-                            href={`/firma/${c.ico}`}
+                            href={`/firma/${c.ico}-${slugify(c.name)}`}
                             className="font-medium hover:underline"
                             style={{ color: "var(--accent)" }}
                           >

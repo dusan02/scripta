@@ -16,7 +16,7 @@ class EvidenceItem(BaseModel):
 
 class AuditVerdict(BaseModel):
     verifa_score: int = Field(..., ge=0, le=100, description="Musí byť PRESNE rovné algorithmic_prescore — nepridávaj ani neodoberáj body. Toto pole je výstupom deterministického algoritmu a LLM ho neupravuje.")
-    llm_score_adjustment: int = Field(default=0, ge=-10, le=10, description="Tvoj forenzný posudok adjustmentu včaka PDF a naratívnym dátam. Záporné = penalizácia, kladné = bonus. Toto pole je len informatívne — neovplyvňuje uložené verifaScore.")
+    llm_score_adjustment: int = Field(default=0, ge=-10, le=10, description="Tvoj forenzný posudok adjustmentu vďaka PDF a naratívnym dátam. Záporné = penalizácia, kladné = bonus. Toto pole je INFORMATÍVNE — neovplyvňuje priamo uložené verifaScore. Finálne skóre sa počíta deterministicky z NarrativeRisk, NotesRisk a CompanyEvents. Tvoj adjustment slúži ako signal pre používateľa, aké riziká by deterministický model mal zohľadniť.")
     risk_category: Literal["AAA", "A", "B", "C", "INSUFFICIENT_DATA"]
     debt_exposure_rating: Optional[int] = Field(default=None, ge=0, le=10, description="Hodnotenie expozície voči verejným dlhom (0=čisté, 10=katastrofa). null = nebolo možné vyhodnotiť.")
     executive_summary: str = Field(..., description="Hlboká korelačná analýza a forenzná syntéza. Prepoj finančné anomálie so zisteniami z registrov do pútavého odstavca.")
@@ -62,8 +62,8 @@ PROCES HODNOTENIA A SYNTÉZY:
    - Urči `debt_exposure_rating` (0-10), kde 0 = žiadne dlhy, 10 = katastrofálna dlhová pasca.
 3. VÝPOČET FORENŽNÉHO ADJUSTMENTU:
    - V poli `verifa_score` vrátiš PRESNE hodnotu `algorithmic_prescore` — bez akejkoľvek zmeny.
-   - V poli `llm_score_adjustment` uvedieš forenzný adjustment v rozsahu -10 až +10 bodov. Tento adjustment sa pripočíta k `algorithmic_prescore` pre finálne `verifaScore` v databáze. Preto buď konzervatívny — používaj ho len pri jasných forenzných zisteniach, ktoré algoritmus nezachytil (napr. -5 za aktívne exekúcie v PDF, +3 za silné pozitívne naratívne signály). Nenulový adjustment musí byť zdôvodnený v `zdovodnenie`.
-   - Priraď kategóriu rizika podľa `algorithmic_prescore` + tvoj adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
+   - V poli `llm_score_adjustment` uvedieš svoj forenzný posudok v rozsahu -10 až +10 bodov. Toto je INFORMATÍVNY indikátor — finálne `verifaScore` sa počíta deterministicky z NarrativeRisk, NotesRisk a CompanyEvents (nie z tohto poľa). Tvoj adjustment signalizuje, aké riziká by deterministický model mal zohľadniť. Nenulový adjustment musí byť zdôvodnený v `zdovodnenie`.
+   - Priraď kategóriu rizika podľa `algorithmic_prescore`: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C. (Kategória sa počíta z finálneho skóre, nie z tvojho adjustmentu.)
 
 PRAVIDLÁ PRE ORSR / ANOMÁLIA V ŠTRUKTÚRE VEDENIA:
 - Ak firma má vysoký počet zmien štatutárov (napr. 50+) ALE sú splnené ALL tieto podmienky:
@@ -175,8 +175,8 @@ EVALUATION AND SYNTHESIS PROCESS:
    - Determine `debt_exposure_rating` (0-10), where 0 = no debts, 10 = catastrophic debt trap.
 3. FORENSIC ADJUSTMENT CALCULATION:
    - In the `verifa_score` field, return EXACTLY the value of `algorithmic_prescore` — without any change.
-   - In the `llm_score_adjustment` field, state the forensic adjustment in the range -10 to +10 points. This adjustment is added to `algorithmic_prescore` for the final `verifaScore` in the database. Therefore be conservative — only use it for clear forensic findings that the algorithm did not capture (e.g. -5 for active enforcement actions in PDF, +3 for strong positive narrative signals). Non-zero adjustment must be justified in `zdovodnenie`.
-   - Assign risk category based on `algorithmic_prescore` + your adj.: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C.
+   - In the `llm_score_adjustment` field, state your forensic assessment in the range -10 to +10 points. This is an INFORMATIONAL indicator — the final `verifaScore` is computed deterministically from NarrativeRisk, NotesRisk and CompanyEvents (not from this field). Your adjustment signals which risks the deterministic model should account for. Non-zero adjustment must be justified in `zdovodnenie`.
+   - Assign risk category based on `algorithmic_prescore`: 90–100 = AAA, 70–89 = A, 40–69 = B, 0–39 = C. (Category is computed from the final score, not from your adjustment.)
 
 ORSR / WHITE HORSE RULES:
 - If the company has a high number of statutory changes (e.g. 50+) BUT ALL of these conditions are met:

@@ -22,6 +22,36 @@ function extractText(item: Record<string, unknown>): string {
   return parts.join("\n");
 }
 
+/**
+ * Extract IČO from a Vestník API item.
+ * API changed: cin/debtor.cin no longer exist. IČO is in proposers[].cin (86.6%) or text (21.6%).
+ */
+function extractIco(item: Record<string, unknown>): number | null {
+  // 1. Try proposers[].cin
+  const proposers = item.proposers;
+  if (Array.isArray(proposers)) {
+    for (const p of proposers) {
+      if (p && typeof p === "object") {
+        const cin = (p as Record<string, unknown>).cin;
+        if (cin !== undefined && cin !== null) {
+          const icoInt = parseInt(String(cin), 10);
+          if (!isNaN(icoInt)) return icoInt;
+        }
+      }
+    }
+  }
+
+  // 2. Fallback: regex from text fields
+  const text = extractText(item);
+  const match = text.match(/I[CČ]O[:\s]*(\d{8})/i);
+  if (match) {
+    const icoInt = parseInt(match[1], 10);
+    if (!isNaN(icoInt)) return icoInt;
+  }
+
+  return null;
+}
+
 function parseNextLink(linkHeader: string): string | null {
   for (const part of linkHeader.split(",")) {
     if (part.includes("rel='next'") || part.includes('rel="next"')) {
@@ -30,6 +60,27 @@ function parseNextLink(linkHeader: string): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Generate a deterministic sourceId when API item lacks an `id` field.
+ * Without this, multiple events without id would collide on (companyIco, "UNKNOWN").
+ */
+function fingerprintSourceId(ico: string, publishedAt: string, kindName: string, text: string): string {
+  const { createHash } = require("crypto") as typeof import("crypto");
+  const input = `${ico}|${publishedAt}|${kindName}|${text.substring(0, 1000)}`;
+  return "FP_" + createHash("sha256").update(input).digest("hex").substring(0, 16);
+}
+
+/**
+ * Resolve sourceId from API item, using fingerprint fallback when id is missing.
+ */
+function resolveSourceId(item: Record<string, unknown>, ico: string, publishedAt: string, kindName: string, text: string): string {
+  const rawId = item.id;
+  if (rawId !== undefined && rawId !== null && String(rawId) !== "UNKNOWN") {
+    return String(rawId);
+  }
+  return fingerprintSourceId(ico, publishedAt, kindName, text);
 }
 
 function classifyEvent(kindName: string, text: string): { eventType: string; severityLevel: string } {
@@ -43,7 +94,7 @@ function classifyEvent(kindName: string, text: string): { eventType: string; sev
   if (lower.includes("exekú") || lower.includes("exeku")) {
     return { eventType: "Exekúcia", severityLevel: "HIGH" };
   }
-  if (lower.includes("zrušen") || lower.includes("vymazan")) {
+  if (lower.includes("zrušen") || lower.includes("zrušil") || lower.includes("vymazan")) {
     return { eventType: "Zrušenie / Vymazanie", severityLevel: "HIGH" };
   }
   if (lower.includes("zmen") || lower.includes("podanie")) {
@@ -58,15 +109,20 @@ function buildSummary(text: string, kindName: string): string {
 }
 
 function parseDate(dateStr: string): Date {
-  try {
-    return new Date(dateStr.replace("Z", "+00:00"));
-  } catch {
-    try {
-      return new Date(dateStr.substring(0, 10));
-    } catch {
-      return new Date();
-    }
+  if (!dateStr || dateStr === "UNKNOWN") {
+    return new Date();
   }
+  const normalized = dateStr.replace("Z", "+00:00");
+  const date = new Date(normalized);
+  if (!isNaN(date.getTime())) {
+    return date;
+  }
+  // Fallback: try YYYY-MM-DD substring
+  const fallback = new Date(dateStr.substring(0, 10));
+  if (!isNaN(fallback.getTime())) {
+    return fallback;
+  }
+  return new Date();
 }
 
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
@@ -102,6 +158,7 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
   durationMs: number;
   cursorLastId: number | null;
   cursorSince: string;
+  success: boolean;
 }> {
   const startTime = Date.now();
   const endpoint = "konkurz_restrukturalizacia_issues";
@@ -125,8 +182,10 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
   let eventsFetched = 0;
   let savedEvents = 0;
   const matchedIcos = new Set<string>();
-  let finalLastId: number | null = null;
-  let finalSince: string = sinceDate;
+  // Track the last successfully processed item's id and published_at.
+  let lastProcessedId: number | null = null;
+  let lastProcessedSince: string = sinceDate;
+  let allSuccess = true;
 
   while (url) {
     if (pagesFetched > 0) {
@@ -137,6 +196,7 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
       const resp = await fetchWithTimeout(url, 15000);
       if (!resp.ok) {
         console.error(`[Vestník backfill] HTTP ${resp.status} on page ${pagesFetched + 1}`);
+        allSuccess = false;
         break;
       }
 
@@ -145,23 +205,35 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
         ? data
         : data.items || data.data || [];
 
-      for (const item of items) {
-        let itemCin = item.cin;
-        if (itemCin === undefined || itemCin === null) {
-          const debtor = item.debtor;
-          if (debtor && typeof debtor === "object") {
-            itemCin = (debtor as Record<string, unknown>).cin;
+      // P0-3: Track cursor from the LAST item on the page, regardless of match.
+      // API cursor semantics (empirically verified):
+      //   last_id = id of last item on page
+      //   since   = updated_at of last item on page (NOT created_at — old records
+      //             get re-indexed with updated_at > created_at)
+      // Items are sorted by updated_at. If we only track matched items,
+      // the cursor won't advance past unmatched items → re-fetching (inefficient).
+      // Must be set BEFORE the match filter loop.
+      if (items.length > 0) {
+        const lastItem = items[items.length - 1];
+        const lastItemId = lastItem.id;
+        if (lastItemId !== undefined && lastItemId !== null) {
+          const idInt = parseInt(String(lastItemId), 10);
+          if (!isNaN(idInt)) {
+            lastProcessedId = idInt;
           }
         }
-        if (itemCin === undefined || itemCin === null) continue;
-
-        let icoStr: string | undefined;
-        try {
-          const icoInt = parseInt(String(itemCin), 10);
-          icoStr = icoIntMap.get(icoInt);
-        } catch {
-          continue;
+        // API uses updated_at for the since cursor (verified on 76 pages).
+        const lastUpdatedAt = String(lastItem.updated_at || lastItem.created_at || "");
+        if (lastUpdatedAt) {
+          lastProcessedSince = lastUpdatedAt;
         }
+      }
+
+      for (const item of items) {
+        const itemIco = extractIco(item);
+        if (itemIco === null) continue;
+
+        const icoStr = icoIntMap.get(itemIco);
         if (!icoStr) continue;
 
         const text = extractText(item);
@@ -173,8 +245,9 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
         const kindName = String(item.kind_name || item.kind || item.file_name || "");
         const { eventType, severityLevel } = classifyEvent(kindName, text);
         const summary = buildSummary(text, kindName);
-        const publishedAt = parseDate(String(item.published_at || item.created_at || "UNKNOWN"));
-        const sourceId = String(item.id || "UNKNOWN");
+        const publishedAtStr = String(item.published_at || item.created_at || "UNKNOWN");
+        const publishedAt = parseDate(publishedAtStr);
+        const sourceId = resolveSourceId(item, icoStr, publishedAtStr, kindName, text);
 
         try {
           await prisma.vestnikEvent.upsert({
@@ -202,41 +275,33 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
 
       pagesFetched++;
 
-      // Track cursor from Link header
+      // Follow Link header for next page
       const linkHeader = resp.headers.get("link") || "";
       const nextUrl = parseNextLink(linkHeader);
-
-      if (nextUrl) {
-        try {
-          const parsed = new URL(nextUrl);
-          const params = new URLSearchParams(parsed.searchParams);
-          const lid = params.get("last_id");
-          const s = params.get("since");
-          if (lid) finalLastId = parseInt(lid, 10);
-          if (s) finalSince = s;
-        } catch {
-          // ignore parse errors
-        }
-      }
-
       url = nextUrl;
     } catch (e) {
       console.error(`[Vestník backfill] Error on page ${pagesFetched + 1}:`, e);
+      allSuccess = false;
       break;
     }
   }
 
   const durationMs = Date.now() - startTime;
 
-  // Save checkpoint for daily cron
+  // P0-1: Save checkpoint with correct success status.
+  // success = no errors AND all pages consumed (url === null).
+  // If we broke out due to HTTP error or exception, allSuccess is false.
+  // Backfill has no MAX_PAGES limit — it walks all pages.
+  const success = allSuccess && url === null;
+
   await prisma.vestnikSyncCheckpoint.upsert({
     where: { endpoint },
     create: {
       endpoint,
-      lastId: finalLastId,
-      sinceTimestamp: finalSince,
+      lastId: success ? lastProcessedId : null,
+      sinceTimestamp: success ? lastProcessedSince : sinceDate,
       lastRunAt: new Date(),
-      lastRunSuccess: true,
+      lastRunSuccess: success,
       pagesFetched,
       eventsFetched,
       matchedCompanies: matchedIcos.size,
@@ -244,10 +309,10 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
       durationMs,
     },
     update: {
-      lastId: finalLastId,
-      sinceTimestamp: finalSince,
+      lastId: success ? lastProcessedId : null,
+      sinceTimestamp: success ? lastProcessedSince : sinceDate,
       lastRunAt: new Date(),
-      lastRunSuccess: true,
+      lastRunSuccess: success,
       pagesFetched,
       eventsFetched,
       matchedCompanies: matchedIcos.size,
@@ -256,8 +321,8 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
     },
   });
 
-  console.log(`[Vestník backfill] Complete: ${pagesFetched} pages, ${eventsFetched} events fetched, ${matchedIcos.size} companies matched, ${savedEvents} saved, ${durationMs}ms`);
-  console.log(`[Vestník backfill] Checkpoint saved: last_id=${finalLastId}, since=${finalSince}`);
+  console.log(`[Vestník backfill] ${success ? "Complete" : "PARTIAL"}: ${pagesFetched} pages, ${eventsFetched} events fetched, ${matchedIcos.size} companies matched, ${savedEvents} saved, ${durationMs}ms`);
+  console.log(`[Vestník backfill] Checkpoint: success=${success}, last_id=${lastProcessedId}, since=${lastProcessedSince}`);
 
   return {
     pagesFetched,
@@ -265,8 +330,9 @@ export async function vestnikBackfill(sinceOverride?: string): Promise<{
     matchedCompanies: matchedIcos.size,
     savedEvents,
     durationMs,
-    cursorLastId: finalLastId,
-    cursorSince: finalSince,
+    cursorLastId: lastProcessedId,
+    cursorSince: lastProcessedSince,
+    success,
   };
 }
 
@@ -277,8 +343,8 @@ if (require.main === module) {
 
   vestnikBackfill(since)
     .then((r) => {
-      console.log(`Backfill done: ${r.pagesFetched} pages, ${r.eventsFetched} events, ${r.savedEvents} saved`);
-      process.exit(0);
+      console.log(`Backfill ${r.success ? "done" : "PARTIAL"}: ${r.pagesFetched} pages, ${r.eventsFetched} events, ${r.savedEvents} saved, success=${r.success}`);
+      process.exit(r.success ? 0 : 1);
     })
     .catch((e) => {
       console.error("Backfill failed:", e);

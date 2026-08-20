@@ -28,6 +28,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
   const [ico, setIco] = useState("");
   const [internalSelected, setInternalSelected] = useState<string[]>(DEFAULT_SELECTED_SOURCES);
   const [loading, setLoading] = useState(false);
+  const [noCredits, setNoCredits] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [icoError, setIcoError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -79,6 +80,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setNoCredits(false);
 
     if (selected.length === 0) {
       setError(t("form.zvoliteRegister"));
@@ -114,6 +116,11 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 402) {
+          setNoCredits(true);
+          setError(null);
+          return;
+        }
         const detail = data.details ? ` (${typeof data.details === 'string' ? data.details : JSON.stringify(data.details)})` : '';
         setError(
           (data.error ?? t("form.chyba")) + detail
@@ -236,6 +243,34 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs mt-4 fade-in bg-danger-bg border border-danger text-danger">
           <InfoIcon size={14} className="flex-shrink-0" />
           {error}
+        </div>
+      )}
+
+      {/* ── No credits — buy credits CTA ─────────── */}
+      {noCredits && (
+        <div className="mt-4 p-5 rounded-xl fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <p className="text-sm font-semibold mb-1" style={{ color: "var(--text)" }}>
+            {t("form.noCreditsTitle")}
+          </p>
+          <p className="text-xs mb-4" style={{ color: "var(--text-secondary)" }}>
+            {t("form.noCreditsDesc")}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => router.push("/credits?plan=payg1")}
+              className="px-4 py-2.5 rounded-lg font-bold text-sm transition-all hover:scale-105"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+            >
+              {t("form.buy1Report")} — 14 €
+            </button>
+            <button
+              onClick={() => router.push("/credits?plan=payg10")}
+              className="px-4 py-2.5 rounded-lg font-semibold text-sm transition-all hover:scale-105"
+              style={{ background: "var(--surface-hover)", color: "var(--text)", border: "1px solid var(--border)" }}
+            >
+              {t("form.buy10Reports")} — 89 €
+            </button>
+          </div>
         </div>
       )}
     </form>

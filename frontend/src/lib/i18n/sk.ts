@@ -47,6 +47,10 @@ const sk: Dict = {
   "form.sietovaChyba": "Sieťová chyba. Skúste znova.",
   "form.hladamFirmu": "Hľadám firmu v ORSR...",
   "form.firmaNenajdena": "Firma s týmto IČO sa v ORSR nenašla.",
+  "form.noCreditsTitle": "Na tento report potrebujete 1 kredit.",
+  "form.noCreditsDesc": "Vyberte si balíček kreditov a pokračujte v preverovaní firiem.",
+  "form.buy1Report": "Kúpiť 1 report",
+  "form.buy10Reports": "Kúpiť 10 reportov",
   "form.skryt": "Skryť",
   "form.zobrazit": "Zobraziť",
 

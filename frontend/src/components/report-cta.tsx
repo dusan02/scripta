@@ -125,13 +125,18 @@ export function ReportCTA({ ico, name }: { ico: string; name: string }) {
           </li>
         ))}
       </ul>
+      {/* Price + CTA */}
+      <div className="mb-4">
+        <span className="text-2xl font-black" style={{ color: "var(--text)" }}>14 €</span>
+        <span className="text-sm ml-1" style={{ color: "var(--text-muted)" }}>/ report</span>
+      </div>
       <div>
         <Link
           href={localizePath(`/dashboard?ico=${ico}`, lang)}
           className="inline-block px-6 sm:px-8 py-3 rounded-xl font-bold text-sm transition-all hover:scale-105"
           style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
         >
-          {t("firma.ctaButton")}
+          {lang === "sk" ? "Preveriť túto firmu →" : lang === "de" ? "Dieses Unternehmen prüfen →" : "Verify this company →"}
         </Link>
       </div>
       <div className="mt-4 space-y-1">

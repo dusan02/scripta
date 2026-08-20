@@ -1,6 +1,7 @@
 import { queryFirmy, getFirmyFilterOptions, type FirmyFilters, type FirmySort } from "@/lib/firmy";
 import { fmtEUR } from "@/lib/format";
 import { FirmyFilters as FirmyFiltersClient } from "@/components/firmy-filters";
+import { slugify } from "@/lib/slug";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -142,7 +143,7 @@ export default async function FirmyPage({
               {firms.map((f) => (
                 <tr key={f.ico} className="border-t hover:bg-[var(--surface)]" style={{ borderColor: "var(--border)" }}>
                   <td className="px-4 py-3">
-                    <Link href={`/firma/${f.ico}`} className="font-medium hover:underline" style={{ color: "var(--accent)" }}>
+                    <Link href={`/firma/${f.ico}-${slugify(f.name)}`} className="font-medium hover:underline" style={{ color: "var(--accent)" }}>
                       {f.name || f.ico}
                     </Link>
                   </td>

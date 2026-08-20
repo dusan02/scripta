@@ -47,6 +47,10 @@ const de: Dict = {
   "form.sietovaChyba": "Netzwerkfehler. Versuchen Sie es erneut.",
   "form.hladamFirmu": "Suche Firma im ORSR...",
   "form.firmaNenajdena": "Firma mit dieser IČO wurde im ORSR nicht gefunden.",
+  "form.noCreditsTitle": "Sie benötigen 1 Guthaben für diesen Bericht.",
+  "form.noCreditsDesc": "Wählen Sie ein Guthaben-Paket, um Unternehmen weiter zu prüfen.",
+  "form.buy1Report": "1 Bericht kaufen",
+  "form.buy10Reports": "10 Berichte kaufen",
   "form.skryt": "Verbergen",
   "form.zobrazit": "Anzeigen",
 

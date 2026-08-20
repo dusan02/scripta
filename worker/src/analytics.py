@@ -352,6 +352,7 @@ def compute_altman_z_score(stmt: Any, force_financial_inst: bool = False) -> Dic
         total_assets = _get(stmt, 'totalAssets')
         current_assets = _get(stmt, 'currentAssets')
         equity = _get(stmt, 'equity')
+        retained_earnings = _get(stmt, 'retainedEarnings')
         net_profit = _get(stmt, 'netProfitLoss')
         interest_expense = _get(stmt, 'interestExpense')
         short_liabilities = _get(stmt, 'shortTermLiabilities')
@@ -387,9 +388,18 @@ def compute_altman_z_score(stmt: Any, force_financial_inst: bool = False) -> Dic
         ebit = net_profit + abs(interest_expense) if interest_expense is not None else net_profit
 
         x1 = working_capital / total_assets
-        x2 = equity / total_assets               # retained earnings approx
+        # X2: Retained earnings / total assets (original Altman 2005).
+        # DB has retainedEarnings field — use it when available.
+        # Fallback to equity/TA only when retainedEarnings is None (legacy data).
+        if retained_earnings is not None:
+            x2 = retained_earnings / total_assets
+        else:
+            x2 = equity / total_assets               # fallback: equity as proxy
         x3 = ebit / total_assets                  # EBIT approx (not just net profit)
-        x4 = equity / total_liabilities
+        # Cap X4 at 10.0 — prevents Z'' explosion when total_liabilities ≈ 0
+        # (e.g. new company with equity ≈ totalAssets, fallback total_liabilities=1).
+        # X4=10 means equity is 10× total liabilities — extremely strong but sane.
+        x4 = min(equity / total_liabilities, 10.0)
 
         z = round(6.56 * x1 + 3.26 * x2 + 6.72 * x3 + 1.05 * x4, 2)
 
@@ -680,7 +690,8 @@ class ScorecardResult:
     pillars: list  # list[ScorecardPillar]
     risk_category: str   # AAA / A / B / C
     hard_stop: bool = False  # True = konkurz / likvidácia
-    score_version: str = "v2"
+    score_version: str = "v3-frozen"
+    confidence: int = 100  # 0-100, ako spoľahlivé je skóre (nižšie pri N/A fallback)
 
 
 @dataclass
@@ -765,65 +776,80 @@ def compute_piotroski_f_score(statements: list) -> dict:
     p_rev = _get(prev, 'mainActivityRevenue', None)
 
     score = 0.0
+    earned = 0.0
     skipped = []
 
     # 1. ROA > 0
     if c_net_profit is not None and c_assets is not None and c_assets > 0:
-        if c_net_profit / c_assets > 0: score += 1
+        if c_net_profit / c_assets > 0: score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("ROA")
+        skipped.append("ROA")
 
     # 2. CFO > 0
     if c_cf is not None:
-        if c_cf > 0: score += 1
+        if c_cf > 0: score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("CFO>0")
+        skipped.append("CFO>0")
 
     # 3. dROA > 0
     if (c_net_profit is not None and c_assets and c_assets > 0 and
             p_net_profit is not None and p_assets is not None and p_assets > 0):
-        if (c_net_profit / c_assets) > (p_net_profit / p_assets): score += 1
+        if (c_net_profit / c_assets) > (p_net_profit / p_assets): score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("dROA")
+        skipped.append("dROA")
 
     # 4. CFO > Net Income
     if c_cf is not None and c_net_profit is not None:
-        if c_cf > c_net_profit: score += 1
+        if c_cf > c_net_profit: score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("CFO>NI")
+        skipped.append("CFO>NI")
 
     # 5. dLeverage < 0
     if (c_long_debt is not None and c_assets and c_assets > 0 and
             p_long_debt is not None and p_assets is not None and p_assets > 0):
         c_lev = c_long_debt / c_assets
         p_lev = p_long_debt / p_assets
-        if c_lev < p_lev: score += 1
+        if c_lev < p_lev: score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("dLev")
+        skipped.append("dLev")
 
     # 6. dLiquidity > 0
     if (c_curr_assets is not None and c_curr_liab is not None and c_curr_liab > 0 and
             p_curr_assets is not None and p_curr_liab is not None and p_curr_liab > 0):
-        if (c_curr_assets / c_curr_liab) > (p_curr_assets / p_curr_liab): score += 1
+        if (c_curr_assets / c_curr_liab) > (p_curr_assets / p_curr_liab): score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("dLiq")
+        skipped.append("dLiq")
 
     # 7. dMargin > 0 — gross margin; skip if grossProfit missing (common for IFRS by-function)
     if (c_gross is not None and c_rev and c_rev > 0 and
             p_gross is not None and p_rev and p_rev > 0):
-        if (c_gross / c_rev) > (p_gross / p_rev): score += 1
+        if (c_gross / c_rev) > (p_gross / p_rev): score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("dMargin")
+        skipped.append("dMargin")
 
     # 8. dTurnover > 0
     if (c_rev is not None and c_assets and c_assets > 0 and
             p_rev is not None and p_assets is not None and p_assets > 0):
-        if (c_rev / c_assets) > (p_rev / p_assets): score += 1
+        if (c_rev / c_assets) > (p_rev / p_assets): score += 1; earned += 1
     else:
-        score += 0.5; skipped.append("dTurn")
+        skipped.append("dTurn")
 
-    final_score = int(round(score))
-    flags = [f"Piotroski F-score: {final_score} z 8"]
+    # Renormalization: if too many criteria are missing (>4 of 8, i.e. less than
+    # half available), Piotroski is not meaningful — return N/A.
+    # Otherwise, renormalize to 0-8 scale: score = earned / available * 8.
+    # This replaces the old 0.5-per-missing approach which inflated scores for
+    # firms with incomplete data (e.g. IFRS without grossProfit/currentAssets).
+    n_skipped = len(skipped)
+    n_available = 8 - n_skipped
+    if n_available < 4:
+        return {
+            "score": None,
+            "flags": [f"Piotroski F-score: N/A — príliš mnoho chýbajúcich kritérií ({n_skipped}/8, potrebné min. 4)"],
+            "skipped_criteria": skipped,
+        }
+
+    final_score = int(round(earned / n_available * 8)) if n_available > 0 else 0
+    flags = [f"Piotroski F-score: {final_score} z 8 (renormalizované z {earned}/{n_available} dostupných kritérií)"]
 
     # Sektorovo-špecifická poznámka pre finančné inštitúcie
     is_fin_inst = _is_financial_institution(curr) or _is_financial_institution(prev)
@@ -1125,19 +1151,19 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         # — IFRS súvaha nemá štandardnú klasifikáciu obežného majetku.
         # Namiesto penalizácie priradíme neutrálne skóre a hodnotíme solventnosť
         # cez equity_to_debt (vlastné imanie vs. záväzky).
-        p1_raw += 10
+        p1_raw += 12
         p1_flags.append("Current ratio: N/A — finančná inštitúcia (likvidita sa nehodnotí cez bežný pomer)")
     elif cr is None:
-        p1_raw += 6
+        p1_raw += 7
         p1_flags.append("Current ratio: N/A (bez dát)")
     elif cr >= 1.5:
-        p1_raw += 12
+        p1_raw += 15
         p1_flags.append(f"Current ratio: {cr:.2f} — výborná likvidita (≥1.5)")
     elif cr >= 1.0:
-        p1_raw += 8
+        p1_raw += 10
         p1_flags.append(f"Current ratio: {cr:.2f} — dostatočná likvidita (1.0–1.5)")
     elif cr >= 0.5:
-        p1_raw += 4
+        p1_raw += 5
         p1_flags.append(f"Current ratio: {cr:.2f} — problematická likvidita (0.5–1.0)")
     else:
         p1_flags.append(f"Current ratio: {cr:.2f} — kritická likvidita (<0.5)")
@@ -1149,39 +1175,27 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     if is_financial_inst:
         _eq = _get(sorted_stmts_raw[-1], "equity", None)
         if _eq is not None and _eq > 0:
-            p1_raw += 12
+            p1_raw += 15
             de_str = f"{debt_to_equity:.2f}" if debt_to_equity is not None else "N/A"
             p1_flags.append(f"Vlastné imanie: kladné (D/E = {de_str})")
         elif _eq is not None and _eq < 0:
             p1_flags.append(f"Vlastné imanie: ZÁPORNÉ — predĺženie")
         else:
-            p1_raw += 6
+            p1_raw += 8
             p1_flags.append("Vlastné imanie: N/A")
     elif equity_to_debt is None:
-        p1_raw += 6
+        p1_raw += 8
         p1_flags.append("Vlastné imanie: N/A")
     elif equity_to_debt > 0:
-        p1_raw += 12
+        p1_raw += 15
         de_str = f"{debt_to_equity:.2f}" if debt_to_equity is not None else "N/A"
         p1_flags.append(f"Vlastné imanie: kladné (D/E = {de_str})")
     else:
         p1_flags.append(f"Vlastné imanie: ZÁPORNÉ — predĺženie")
 
-    # Exekúcie degradované
-    crit_events_penalty = 0
-    for e in vestnik_events:
-        sev = e.get("severityLevel") if isinstance(e, dict) else getattr(e, "severityLevel", "")
-        if sev in ("CRITICAL", "HIGH"):
-            crit_events_penalty += compute_vestnik_degradation(e)
-            
-    if crit_events_penalty == 0:
-        p1_raw += 6
-        p1_flags.append("Vestník: žiadne kritické udalosti")
-    elif crit_events_penalty < 1.0:
-        p1_raw += 3
-        p1_flags.append("Vestník: staré kritické/vysoké udalosti (znížená váha)")
-    else:
-        p1_flags.append(f"Vestník: aktívne kritické/vysoké udalosti (penalizácia {crit_events_penalty:.1f}x)")
+    # Vestnik events were previously penalized here AND in P5 (double-counting).
+    # Removed from P1 — vestnik penalization is now exclusively in P5 (Právna bezúhonnosť).
+    # The 6 raw points were redistributed: current ratio 12→15, equity 12→15.
 
     p1_raw = max(0, min(30, p1_raw))
     p1_score = int(round((p1_raw / 30.0) * nace_w["P1"]))
@@ -1200,43 +1214,48 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         ))
 
     # ══════════════════════════════════════════════════════════════════════════
-    # PILIER 2 — Finančné zdravie — Altman Z'' & Piotroski (raw max 30)
+    # PILIER 2 — Finančné zdravie — hierarchický scoring (raw max 30)
     # ══════════════════════════════════════════════════════════════════════════
+    # Architektúra:
+    #   Tier 1: Altman Z'' + Piotroski (keď sú oba dostupné)
+    #   Tier 2: Ratio-based fallback (keď Altman N/A ale máme ratios)
+    #   Tier 3: Data void (minimum)
+    #
+    # N/A znamená "nevieme posúdiť", nie "firma je zlá".
+    # Confidence sa znižuje pri fallback, nie score.
     p2_raw = 0
     p2_flags = []
+    p2_method = "altman_piotroski"  # sleduje, ktorá metóda sa použila
 
     z_score_val = last_z.get("z_score")
     z_zone = last_z.get("zone", "N/A")
+    pio_score = piotroski.get("score")
 
     if startup_info.get("is_startup"):
         p2_raw += 15
         eq = startup_info.get("equity", 0)
         p2_flags.append(f"STARTUP profil: Altman Z'' neaplikovateľné (pre-revenue firma s imaním {eq:,.0f} €)".replace(",", " "))
+        p2_method = "startup"
     elif is_financial_inst:
         # Finančné inštitúcie: Altman Z'' a Piotroski dLiq/dMargin nie sú aplikovateľné.
         # Hodnotíme len ROA, ziskovosť a solventnosť (equity ratio).
         p2_raw += 15  # neutrálne — Altman sa nehodnotí
         p2_flags.append("Altman Z'': N/A — finančná inštitúcia (model nie je aplikovateľný pre IFRS súvahy poisťovní/bankovníctva)")
 
-        # Piotroski F-score (max 10 raw) — neutralizované sektorovo-špecifické kritériá
-        pio_score = piotroski.get("score")
         if pio_score is not None:
-            # Pre finančné inštitúcie je Piotroski čiastočne relevantný (ROA, CFO, ziskovosť),
-            # ale dLiq/dMargin sú neutralizované. Priradíme proporčne s vysvetlením.
             p2_raw += min(10, int((pio_score / 8.0) * 10))
             p2_flags.extend(piotroski.get("flags", []))
             p2_flags.append("Pozn.: Piotroski obmedzene aplikovateľný — dLiq/dMargin neutralizované (IFRS súvaha bez obežného majetku/hrubej marže)")
         else:
             p2_flags.append("Piotroski F-score: N/A")
+        p2_method = "financial_institution"
     elif data_void:
         p2_raw = 0
         p2_flags.append("DATA VOID: Kľúčové finančné metriky nedostupné")
-    else:
-        # Altman Z'' (max 20 raw)
-        if z_score_val is None:
-            p2_raw += 5
-            p2_flags.append("Altman Z'': N/A")
-        elif z_zone == "SAFE":
+        p2_method = "data_void"
+    elif z_score_val is not None and pio_score is not None:
+        # ── Tier 1: Altman + Piotroski (plné dáta) ──
+        if z_zone == "SAFE":
             p2_raw += min(20, int(15 + (z_score_val - 2.6) / (5.0 - 2.6) * 5))
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Bezpečná zóna ✓")
         elif z_zone == "GREY":
@@ -1246,22 +1265,115 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             p2_raw += max(0, min(4, int((z_score_val / 1.1) * 4)))
             p2_flags.append(f"Altman Z'' = {z_score_val:.2f} — Núdzová zóna ✗")
 
-        # Piotroski F-score (max 10 raw)
-        pio_score = piotroski.get("score")
-        if pio_score is not None:
-            p2_raw += min(10, int((pio_score / 8.0) * 10))
-            p2_flags.extend(piotroski.get("flags", []))
-            if pio_score <= 4:
-                p2_flags.append(f"Pozn.: Piotroski {pio_score}/8 indikuje stagnáciu v niektorých oblastiach, ale celkové skóre odráža silné fundamentals (Altman, likvidita, zadlženosť)")
+        p2_raw += min(10, int((pio_score / 8.0) * 10))
+        p2_flags.extend(piotroski.get("flags", []))
+        if pio_score <= 4:
+            p2_flags.append(f"Pozn.: Piotroski {pio_score}/8 indikuje stagnáciu v niektorých oblastiach, ale celkové skóre odráža silné fundamentals (Altman, likvidita, zadlženosť)")
+        p2_method = "altman_piotroski"
+    else:
+        # ── Tier 2: Ratio-based fallback (Altman N/A alebo Piotroski N/A) ──
+        # N/A znamená "nevieme posúdiť", nie "firma je zlá".
+        # Použijeme dostupné ratios na ratio-based financial health assessment.
+        p2_raw_fallback = 0
+        fallback_components = []
+
+        # ROA (max 6 raw)
+        roa = last_ratios.get("roa_pct")
+        if roa is not None:
+            if roa >= 10: p2_raw_fallback += 6
+            elif roa >= 5: p2_raw_fallback += 5
+            elif roa >= 2: p2_raw_fallback += 4
+            elif roa >= 0: p2_raw_fallback += 3
+            elif roa >= -5: p2_raw_fallback += 1
+            # else: 0 (strata)
+            fallback_components.append(f"ROA {roa:.1f}%")
         else:
-            p2_flags.append("Piotroski F-score: N/A")
+            fallback_components.append("ROA N/A")
+
+        # Equity / Total Assets (max 6 raw)
+        _eq = _get(sorted_stmts_raw[-1], "equity") if sorted_stmts_raw else None
+        _ta = _get(sorted_stmts_raw[-1], "totalAssets") if sorted_stmts_raw else None
+        if _eq is not None and _ta is not None and _ta > 0:
+            eq_ratio = _eq / _ta
+            if eq_ratio >= 0.5: p2_raw_fallback += 6
+            elif eq_ratio >= 0.3: p2_raw_fallback += 5
+            elif eq_ratio >= 0.15: p2_raw_fallback += 4
+            elif eq_ratio >= 0.05: p2_raw_fallback += 3
+            elif eq_ratio >= 0: p2_raw_fallback += 2
+            # else: 0 (záporné equity)
+            fallback_components.append(f"Equity/TA {eq_ratio:.0%}")
+        else:
+            fallback_components.append("Equity/TA N/A")
+
+        # Debt-to-Equity (max 6 raw)
+        de = last_ratios.get("debt_to_equity")
+        if de is not None and _eq is not None and _eq > 0:
+            if de <= 0.5: p2_raw_fallback += 6
+            elif de <= 1.0: p2_raw_fallback += 5
+            elif de <= 2.0: p2_raw_fallback += 4
+            elif de <= 3.0: p2_raw_fallback += 3
+            elif de <= 5.0: p2_raw_fallback += 2
+            else: p2_raw_fallback += 1
+            fallback_components.append(f"D/E {de:.1f}")
+        elif _eq is not None and _eq <= 0:
+            p2_raw_fallback += 0  # záporné equity = 0 bodov
+            fallback_components.append("D/E: záporné equity")
+        else:
+            fallback_components.append("D/E N/A")
+
+        # Current ratio (max 6 raw)
+        cr = last_ratios.get("current_ratio")
+        if cr is not None:
+            if cr >= 2.0: p2_raw_fallback += 6
+            elif cr >= 1.5: p2_raw_fallback += 5
+            elif cr >= 1.0: p2_raw_fallback += 4
+            elif cr >= 0.5: p2_raw_fallback += 2
+            # else: 0
+            fallback_components.append(f"CR {cr:.2f}")
+        else:
+            fallback_components.append("CR N/A")
+
+        # Profitability / CF stability (max 6 raw)
+        _np = _get(sorted_stmts_raw[-1], "netProfitLoss") if sorted_stmts_raw else None
+        _cf = _get(sorted_stmts_raw[-1], "operatingCashFlow") if sorted_stmts_raw else None
+        if _np is not None and _cf is not None:
+            if _np > 0 and _cf > 0:
+                p2_raw_fallback += 6
+                fallback_components.append("Zisk+CF kladný")
+            elif _np > 0 and _cf is not None and _cf <= 0:
+                p2_raw_fallback += 3
+                fallback_components.append("Zisk ale CF záporný")
+            elif _np <= 0 and _cf > 0:
+                p2_raw_fallback += 2
+                fallback_components.append("Strata ale CF kladný")
+            else:
+                p2_raw_fallback += 0
+                fallback_components.append("Strata+CF záporný")
+        elif _np is not None:
+            if _np > 0:
+                p2_raw_fallback += 4
+                fallback_components.append("Zisk (CF N/A)")
+            else:
+                p2_raw_fallback += 0
+                fallback_components.append("Strata (CF N/A)")
+        else:
+            fallback_components.append("Zisk/CF N/A")
+
+        p2_raw = p2_raw_fallback
+        p2_flags.append(f"P2 Fallback (ratio-based): {' | '.join(fallback_components)}")
+        if z_score_val is None:
+            p2_flags.append("Altman Z'': N/A — použitý ratio-based fallback")
+        if pio_score is None:
+            p2_flags.append("Piotroski F-score: N/A — použitý ratio-based fallback")
+        p2_method = "ratio_fallback"
 
     p2_raw = max(0, min(30, p2_raw))
     p2_score = int(round((p2_raw / 30.0) * nace_w["P2"]))
+    p2_detail = f"[{p2_method}] " + (" | ".join(p2_flags[:2]) if p2_flags else "")
     pillars.append(ScorecardPillar(
         name="Finančné zdravie",
         score=p2_score, max_score=nace_w["P2"],
-        detail=" | ".join(p2_flags[:2]) if p2_flags else "", flags=p2_flags
+        detail=p2_detail, flags=p2_flags
     ))
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1296,12 +1408,13 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
             p3_raw = max(0, p3_raw - min(10, consecutive_losses * 3))
             p3_flags.append(f"Penalizácia: {consecutive_losses} roky strata")
 
-        # Cash Flow (max 15)
+        # Cash Flow (max 15) — jeden integrovaný mechanizmus
         # Finančné inštitúcie (banky, poisťovne): záporný prevádzkový CF je štandardný
         # — vyplýva z financovania úverového portfólia a IFRS vykazovania.
         # Neutralizujeme len penalizáciu za záporný CF, nie hodnotenie kladného CF.
         op_cf_raw = _get(sorted_stmts_raw[-1], "operatingCashFlow", None)
         rev = _get(sorted_stmts_raw[-1], "mainActivityRevenue", 0) or 0
+        _dso = last_ratios.get("dso_days")
         if is_financial_inst and op_cf_raw is not None and op_cf_raw < 0:
             # Záporný CF u banky/poisťovne = štandardný, nehodnotíme
             p3_raw += 12
@@ -1316,7 +1429,12 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
                 else:
                     p3_flags.append(f"Cash Flow: Kladný")
             else:
+                # Záporný CF — 0 bodov (už bez +7)
                 p3_flags.append(f"Cash Flow: Záporný (riziko)")
+                # F7 fix: DSO >150 + záporný CF = stronger penalty (integrované, nie samostatný pillar)
+                if _dso is not None and _dso > 150:
+                    p3_raw = max(0, p3_raw - 5)
+                    p3_flags.append(f"⚠ Záporný CF + DSO {_dso:.0f} dní = papierový zisk (−5b)")
         else:
             p3_raw += 7
             p3_flags.append("Cash Flow: N/A")
@@ -1538,27 +1656,8 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
         ))
         total_score = max(0, total_score - orsr_forensic_penalty)
 
-    # ── Cash Flow / DSO Stress penalizácia ──────────────────────────────────
-    # Záporný prevádzkový cash flow + vysoké DSO (>150 dní) = papierový zisk,
-    # firma reálne stráca hotovosť. Táto kombinácia si vyžaduje tvrdší postih.
-    cf_dso_penalty = 0
-    cf_dso_flags = []
-    if sorted_stmts_raw:
-        _latest = sorted_stmts_raw[-1]
-        _op_cf = _get(_latest, "operatingCashFlow", None)
-        _dso = last_ratios.get("dso_days")
-        if _op_cf is not None and _op_cf < 0 and _dso is not None and _dso > 150:
-            cf_dso_penalty = 5
-            cf_dso_flags.append(
-                f"Záporný CF ({_op_cf:,.0f} €) + DSO {_dso:.0f} dní = papierový zisk (−5b)"
-            )
-    if cf_dso_penalty > 0:
-        pillars.append(ScorecardPillar(
-            name="Cash Flow / DSO Stress", score=-cf_dso_penalty, max_score=0,
-            detail="Firma vykazuje zisk, ale reálne stráca hotovosť pri extrémnej dobe splatnosti.",
-            flags=cf_dso_flags
-        ))
-        total_score = max(0, total_score - cf_dso_penalty)
+    # F7 fix: CF/DSO Stress penalizácia bola integrovaná do P3 (jeden mechanizmus).
+    # Samostatný pillar bol odstránený — zabránilo sa double-counting.
 
     if dq_mult < 1.0:
         pillars.append(ScorecardPillar(
@@ -1574,12 +1673,35 @@ def compute_forensic_scorecard(company_dict: dict, trends: dict) -> "ScorecardRe
     if hard_stop_triggered:
         total_score = 0
 
+    # ── Confidence calculation ──
+    # Confidence = ako spoľahlivé je skóre (nižšie pri N/A fallback).
+    # N/A znamená "nevieme posúdiť", nie "firma je zlá".
+    # Confidence sa znižuje pri:
+    #   - P2 ratio_fallback (Altman alebo Piotroski N/A)
+    #   - DQ multiplier < 1.0 (málo výkazov, bez auditu)
+    #   - Piotroski N/A
+    confidence = 100
+    if p2_method == "ratio_fallback":
+        confidence -= 20  # P2 fallback = nižšia confidence
+    elif p2_method == "data_void":
+        confidence -= 40  # data void = veľmi nízka confidence
+    elif p2_method == "startup":
+        confidence -= 15  # startup = obmedzená confidence
+    if pio_score is None and p2_method != "data_void":
+        confidence -= 10  # Piotroski N/A
+    if z_score_val is None and p2_method not in ("ratio_fallback", "data_void", "startup", "financial_institution"):
+        confidence -= 10  # Altman N/A (v Tier 1 kontexte)
+    if dq_mult < 1.0:
+        confidence -= int((1.0 - dq_mult) * 30)  # DQ penalizácia znižuje confidence
+    confidence = max(20, min(100, confidence))
+
     return ScorecardResult(
         total_score=total_score,
         pillars=pillars,
         risk_category=_risk_category(total_score),
         hard_stop=hard_stop_triggered,
-        score_version="v2"
+        score_version="v3-frozen",
+        confidence=confidence,
     )
 
 
