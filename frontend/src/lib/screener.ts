@@ -807,6 +807,7 @@ export async function queryScreener(
   const select = getSelectForTier(tier);
 
   // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
+  const _qt0 = Date.now();
   const companies = await prisma.company.findMany({
     where,
     select,
@@ -814,6 +815,8 @@ export async function queryScreener(
     skip,
     take,
   });
+  const _qt1 = Date.now();
+  console.log(`[screener-query] findMany=${_qt1-_qt0}ms where=${JSON.stringify(where)} orderBy=${JSON.stringify(orderBy)}`);
 
   // Use approximate count for all queries — real COUNT on 518K rows takes 14-21s
   // (PostgreSQL prefers seq scan over index for COUNT even when index exists).
