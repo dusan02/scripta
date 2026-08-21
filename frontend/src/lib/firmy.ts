@@ -151,31 +151,12 @@ export async function queryFirmy(
   });
 
   // Approximate count from pg_class — real COUNT on 518K rows takes 14-21s
-  // (PostgreSQL prefers seq scan over index for COUNT even when index exists).
-  // For filtered queries with selective filters (city, status, sizeCategory),
-  // real count is fast — use it. For non-selective or no filters, use approximate.
-  const hasFilters = Object.keys(where).length > 0;
-  let total: number;
-  if (!hasFilters) {
-    const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
-      SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
-    `;
-    total = Number(approx[0]?.estimate ?? 0);
-  } else {
-    // Selective filters use index scan → fast count.
-    // Non-selective filters (legalForm) cause seq scan → use approximate.
-    const isSelectiveFilter = Object.keys(where).some(k =>
-      ["city", "status", "sizeCategory", "naceCode", "latestRevenue", "latestProfit"].includes(k)
-    );
-    if (isSelectiveFilter) {
-      total = await prisma.company.count({ where });
-    } else {
-      const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
-        SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
-      `;
-      total = Number(approx[0]?.estimate ?? 0);
-    }
-  }
+  // regardless of filters (PostgreSQL prefers seq scan for COUNT).
+  // Approximate count is instant and accurate enough for pagination UI.
+  const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
+    SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
+  `;
+  const total = Number(approx[0]?.estimate ?? 0);
 
   return {
     firms: firms.map((f) => ({
