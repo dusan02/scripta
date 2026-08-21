@@ -510,5 +510,23 @@ export const getCompanyData = cache(async (ico: string) => {
     }
   }
 
+  // Re-seed from ORSR if never synced — picks up active/inactive statutory status
+  if (company && !company.orsrSyncedAt) {
+    try {
+      await seedFromOrsr(ico);
+      company = await prisma.company.findUnique({
+        where: { ico },
+        include: {
+          financialStatements: { orderBy: { year: "desc" }, take: 5 },
+          vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
+          companyPersons: { where: { isActive: true }, orderBy: { rawName: "asc" }, take: 50 },
+          companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
+        },
+      });
+    } catch {
+      // ignore ORSR re-seed errors — serve existing data
+    }
+  }
+
   return company;
 });
