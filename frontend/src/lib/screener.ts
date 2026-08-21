@@ -911,24 +911,36 @@ async function getApproxCountFromMV(
   const mv = rows[0];
   if (!mv) return 0;
 
+  // Helper: extract string[] from sanitized value (parseMulti returns arrays)
+  const asStrArr = (v: ParsedValue | ParsedValue[] | undefined): string[] => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
+    if (typeof v === "string") return [v];
+    return [];
+  };
+
   const counts: number[] = [];
 
-  // Kraj count from MV
+  // Kraj count from MV (sum counts for multi-select)
   if (appliedFilters.includes("kraj")) {
-    const krajVal = sanitized.kraj;
-    if (typeof krajVal === "string") {
-      const entry = mv.kraje.find(k => k.kraj === krajVal);
-      if (entry) counts.push(entry.cnt);
+    const kraje = asStrArr(sanitized.kraj);
+    let sum = 0;
+    for (const k of kraje) {
+      const entry = mv.kraje.find(e => e.kraj === k);
+      if (entry) sum += entry.cnt;
     }
+    if (sum > 0) counts.push(sum);
   }
 
-  // Legal form count from MV
+  // Legal form count from MV (sum counts for multi-select)
   if (appliedFilters.includes("legalForm")) {
-    const lfVal = sanitized.legalForm;
-    if (typeof lfVal === "string") {
-      const entry = mv.legal_forms.find(l => l.legalForm === lfVal);
-      if (entry) counts.push(entry.cnt);
+    const forms = asStrArr(sanitized.legalForm);
+    let sum = 0;
+    for (const f of forms) {
+      const entry = mv.legal_forms.find(e => e.legalForm === f);
+      if (entry) sum += entry.cnt;
     }
+    if (sum > 0) counts.push(sum);
   }
 
   // If we have counts from MV, use the minimum (best upper bound for combined filters)
