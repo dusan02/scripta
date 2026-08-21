@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { slugify } from "@/lib/slug";
 
 type Company = {
@@ -156,11 +156,21 @@ function ColumnToggle({
 
 // ── Main table component ────────────────────────────────────────────────────
 
-export function ScreenerTable({ companies }: { companies: Company[] }) {
+export function ScreenerTable({
+  companies,
+  searchParams,
+}: {
+  companies: Company[];
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const currentSort = searchParams.get("sort") || "latestRevenue";
-  const currentDir = searchParams.get("dir") || "desc";
+  const spStr = (key: string) => {
+    const v = searchParams[key];
+    if (!v) return "";
+    return typeof v === "string" ? v : v[0] || "";
+  };
+  const currentSort = spStr("sort") || "latestRevenue";
+  const currentDir = spStr("dir") || "desc";
 
   // Load saved column preferences from localStorage + server
   const [visibleCols, setVisibleCols] = useState<ColKey[]>(DEFAULT_COLUMNS);
@@ -221,7 +231,12 @@ export function ScreenerTable({ companies }: { companies: Company[] }) {
   };
 
   const toggleSort = (field: string) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value === undefined) continue;
+      const s = typeof value === "string" ? value : value[0];
+      if (s) params.set(key, s);
+    }
     if (currentSort === field) {
       params.set("dir", currentDir === "asc" ? "desc" : "asc");
     } else {

@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { queryScreener, resolveTier, getScreenerFilterOptions, type ScreenerTier } from "@/lib/screener";
 import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey } from "@/lib/rateLimit";
@@ -45,31 +44,6 @@ function buildPaginationUrl(
   }
   const qs = params.toString();
   return `/screener${qs ? `?${qs}` : ""}`;
-}
-
-// ── Loading fallbacks ────────────────────────────────────────────────────────
-
-function FiltersFallback() {
-  return (
-    <div className="space-y-3 animate-pulse">
-      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
-      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
-      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
-      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
-    </div>
-  );
-}
-
-function TableFallback() {
-  return (
-    <div className="space-y-2 animate-pulse p-4">
-      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
-      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
-      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
-      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
-      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
-    </div>
-  );
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -176,13 +150,12 @@ export default async function ScreenerPage({
                 border: "1px solid var(--border)",
               }}
             >
-              <Suspense fallback={<FiltersFallback />}>
-                <ScreenerFilters
-                  options={options}
-                  tier={tier}
-                  appliedFilters={appliedFilters}
-                />
-              </Suspense>
+              <ScreenerFilters
+                options={options}
+                tier={tier}
+                appliedFilters={appliedFilters}
+                searchParams={searchParams}
+              />
             </div>
           </aside>
 
@@ -221,9 +194,7 @@ export default async function ScreenerPage({
                   background: "var(--surface)",
                 }}
               >
-                <Suspense fallback={<TableFallback />}>
-                  <ScreenerTable companies={companies} />
-                </Suspense>
+                <ScreenerTable companies={companies} searchParams={searchParams} />
               </div>
             ) : (
               <div

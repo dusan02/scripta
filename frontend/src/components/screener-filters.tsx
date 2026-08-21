@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScreenerTier } from "@/lib/screener";
 
@@ -17,6 +17,7 @@ type Props = {
   };
   tier: ScreenerTier;
   appliedFilters: string[];
+  searchParams: Record<string, string | string[] | undefined>;
 };
 
 const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border";
@@ -24,11 +25,28 @@ const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border";
 // AUTH filter keys — locked for FREE tier, redirect to login on click
 const AUTH_FILTER_KEYS = ["konkurz", "likvidacia", "restrukturalizacia", "vestnikClean"];
 
-export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
+// Convert searchParams prop to URLSearchParams for URL building
+function toURLSearchParams(sp: Record<string, string | string[] | undefined>): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp)) {
+    if (value === undefined) continue;
+    const s = typeof value === "string" ? value : value[0];
+    if (s) params.set(key, s);
+  }
+  return params;
+}
+
+export function ScreenerFilters({ options, tier, appliedFilters, searchParams }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [savedSearches, setSavedSearches] = useState<Array<{ id: string; name: string; filters: Record<string, string> }>>([]);
   const [showSaved, setShowSaved] = useState(false);
+
+  // Helper: get string value from searchParams prop
+  const sp = (key: string): string => {
+    const v = searchParams[key];
+    if (!v) return "";
+    return typeof v === "string" ? v : v[0] || "";
+  };
 
   // Fetch saved searches on mount (only for authenticated users)
   useEffect(() => {
@@ -41,7 +59,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
 
   const applyFilter = useCallback(
     (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = toURLSearchParams(searchParams);
       if (value) {
         params.set(key, value);
       } else {
@@ -61,7 +79,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         return;
       }
       // Toggle boolean filter
-      const params = new URLSearchParams(searchParams.toString());
+      const params = toURLSearchParams(searchParams);
       if (params.get(key) === "1") {
         params.delete(key);
       } else {
@@ -76,7 +94,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
   const applySort = useCallback(
     (sortVal: string) => {
       const [field, dir] = sortVal.split("-");
-      const params = new URLSearchParams(searchParams.toString());
+      const params = toURLSearchParams(searchParams);
       if (field === "latestRevenue" && dir === "desc") {
         params.delete("sort");
         params.delete("dir");
@@ -90,7 +108,6 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
     [router, searchParams],
   );
 
-  const sp = (key: string) => searchParams.get(key) || "";
   const currentSort = sp("sort") || "latestRevenue";
   const currentDir = sp("dir") || "desc";
   const selectedKraj = sp("kraj");
@@ -117,6 +134,9 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
   const [numInputs, setNumInputs] = useState<Record<string, string>>({});
   const numTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  // Build a stable string key for searchParams to use as effect dependency
+  const spKey = JSON.stringify(searchParams);
+
   // Sync local inputs when URL changes externally (e.g. clear filters, back button)
   useEffect(() => {
     setQInput(sp("q"));
@@ -124,7 +144,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
     for (const k of numericKeys) next[k] = sp(k);
     setNumInputs(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [spKey]);
 
   // Debounce fulltext
   useEffect(() => {
@@ -300,7 +320,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("kraj")}
           onChange={(e) => {
-            const params = new URLSearchParams(searchParams.toString());
+            const params = toURLSearchParams(searchParams);
             const val = e.target.value;
             if (val) {
               params.set("kraj", val);
@@ -512,7 +532,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           onClick={() => {
             const name = prompt("Názov vyhľadávania:", "Moje vyhľadávanie");
             if (!name) return;
-            const params = new URLSearchParams(searchParams.toString());
+            const params = toURLSearchParams(searchParams);
             params.delete("page");
             fetch("/api/saved-searches", {
               method: "POST",
