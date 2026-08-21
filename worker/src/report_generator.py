@@ -245,7 +245,7 @@ def _build_forensic_findings(stmts_sorted, auditor_opinion, i18n_strings):
             prev_narrative = _get_narrative_risk(prev_stmt)
 
             # Related parties trend
-            if findings.get("related_parties", {}).get("status") == "identified" and prev_notes:
+            if (findings.get("related_parties") or {}).get("status") == "identified" and prev_notes:
                 prev_rpt = _clean(prev_notes.get("relatedPartyTransactions") or prev_notes.get("related_party_transactions"))
                 if prev_rpt:
                     findings["related_parties"]["trend_warning"] = i18n_strings.get(
@@ -254,7 +254,7 @@ def _build_forensic_findings(stmts_sorted, auditor_opinion, i18n_strings):
                     ).format(prev_year=prev_year)
 
             # Going concern trend
-            if findings.get("going_concern", {}).get("status") == "identified":
+            if (findings.get("going_concern") or {}).get("status") == "identified":
                 prev_gc = None
                 if prev_narrative:
                     prev_gc = _clean(prev_narrative.get("goingConcernDoubts") or prev_narrative.get("going_concern_doubts"))
