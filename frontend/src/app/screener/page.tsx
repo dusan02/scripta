@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { queryScreener, resolveTier, getScreenerFilterOptions, type ScreenerTier } from "@/lib/screener";
 import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey } from "@/lib/rateLimit";
@@ -24,6 +25,50 @@ function getClientIp(): string {
     h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     h.get("x-real-ip") ||
     "unknown"
+  );
+}
+
+function buildPaginationUrl(
+  searchParams: Record<string, string | string[] | undefined>,
+  page: number,
+): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value === undefined) continue;
+    const s = typeof value === "string" ? value : value[0];
+    if (s) params.set(key, s);
+  }
+  if (page > 1) {
+    params.set("page", String(page));
+  } else {
+    params.delete("page");
+  }
+  const qs = params.toString();
+  return `/screener${qs ? `?${qs}` : ""}`;
+}
+
+// ── Loading fallbacks ────────────────────────────────────────────────────────
+
+function FiltersFallback() {
+  return (
+    <div className="space-y-3 animate-pulse">
+      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
+      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
+      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
+      <div className="h-9 rounded-lg" style={{ background: "var(--bg-muted)" }} />
+    </div>
+  );
+}
+
+function TableFallback() {
+  return (
+    <div className="space-y-2 animate-pulse p-4">
+      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
+      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
+      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
+      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
+      <div className="h-8 rounded" style={{ background: "var(--bg-muted)" }} />
+    </div>
   );
 }
 
@@ -131,11 +176,13 @@ export default async function ScreenerPage({
                 border: "1px solid var(--border)",
               }}
             >
-              <ScreenerFilters
-                options={options}
-                tier={tier}
-                appliedFilters={appliedFilters}
-              />
+              <Suspense fallback={<FiltersFallback />}>
+                <ScreenerFilters
+                  options={options}
+                  tier={tier}
+                  appliedFilters={appliedFilters}
+                />
+              </Suspense>
             </div>
           </aside>
 
@@ -168,13 +215,15 @@ export default async function ScreenerPage({
             {/* Results table */}
             {companies.length > 0 ? (
               <div
-                className="rounded-xl"
+                className="rounded-xl overflow-hidden"
                 style={{
                   border: "1px solid var(--border)",
                   background: "var(--surface)",
                 }}
               >
-                <ScreenerTable companies={companies} />
+                <Suspense fallback={<TableFallback />}>
+                  <ScreenerTable companies={companies} />
+                </Suspense>
               </div>
             ) : (
               <div
@@ -245,26 +294,6 @@ export default async function ScreenerPage({
       </div>
     </div>
   );
-}
-
-// ── Pagination URL builder ───────────────────────────────────────────────────
-function buildPaginationUrl(
-  searchParams: Record<string, string | string[] | undefined>,
-  page: number,
-): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (value === undefined) continue;
-    const s = typeof value === "string" ? value : value[0];
-    if (s) params.set(key, s);
-  }
-  if (page > 1) {
-    params.set("page", String(page));
-  } else {
-    params.delete("page");
-  }
-  const qs = params.toString();
-  return `/screener${qs ? `?${qs}` : ""}`;
 }
 
 // ── SEO metadata ─────────────────────────────────────────────────────────────

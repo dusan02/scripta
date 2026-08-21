@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { slugify } from "@/lib/slug";
@@ -17,8 +18,7 @@ type Company = {
   latestYear: number | null;
 };
 
-// Display in thousands of euros (tis. eur) — no € sign, 3 fewer zeros
-// Example: 1 234 567 → "1 235"
+// Display in thousands of euros (tis. eur)
 function fmtEur(val: string | null): string {
   if (!val) return "—";
   const n = parseFloat(val);
@@ -33,25 +33,128 @@ function fmtEstablished(establishedAt: Date | null): string {
   return String(year);
 }
 
-type Col = {
-  key: string;
+// ── Column definitions ──────────────────────────────────────────────────────
+
+type ColKey =
+  | "name" | "ico" | "legalForm" | "city" | "establishedAt"
+  | "latestRevenue" | "latestProfit" | "latestAssets" | "latestEquity";
+
+type ColDef = {
+  key: ColKey;
   label: string;
-  sortField?: string; // if set, column is sortable
+  shortLabel?: string;
+  sortField?: string;
   align: "left" | "right";
-  className?: string;
+  minWidth?: string;
 };
 
-const COLUMNS: Col[] = [
-  { key: "name", label: "Firma", sortField: "name", align: "left" },
-  { key: "ico", label: "IČO", align: "left" },
-  { key: "legalForm", label: "Právna forma", align: "left", className: "hidden xl:table-cell" },
-  { key: "city", label: "Mesto", sortField: "city", align: "left" },
-  { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", className: "hidden lg:table-cell" },
-  { key: "latestRevenue", label: "Tržby (tis. €)", sortField: "latestRevenue", align: "right" },
-  { key: "latestProfit", label: "Zisk (tis. €)", sortField: "latestProfit", align: "right" },
-  { key: "latestAssets", label: "Aktíva (tis. €)", sortField: "latestAssets", align: "right", className: "hidden xl:table-cell" },
-  { key: "latestEquity", label: "Imanie (tis. €)", sortField: "latestEquity", align: "right", className: "hidden xl:table-cell" },
+const ALL_COLUMNS: ColDef[] = [
+  { key: "name", label: "Firma", sortField: "name", align: "left", minWidth: "180px" },
+  { key: "ico", label: "IČO", align: "left", minWidth: "90px" },
+  { key: "legalForm", label: "Právna forma", shortLabel: "Forma", align: "left", minWidth: "100px" },
+  { key: "city", label: "Mesto", sortField: "city", align: "left", minWidth: "100px" },
+  { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", minWidth: "80px" },
+  { key: "latestRevenue", label: "Tržby (tis. €)", shortLabel: "Tržby", sortField: "latestRevenue", align: "right", minWidth: "100px" },
+  { key: "latestProfit", label: "Zisk (tis. €)", shortLabel: "Zisk", sortField: "latestProfit", align: "right", minWidth: "90px" },
+  { key: "latestAssets", label: "Aktíva (tis. €)", shortLabel: "Aktíva", sortField: "latestAssets", align: "right", minWidth: "90px" },
+  { key: "latestEquity", label: "Imanie (tis. €)", shortLabel: "Imanie", sortField: "latestEquity", align: "right", minWidth: "90px" },
 ];
+
+const DEFAULT_COLUMNS: ColKey[] = ["name", "ico", "city", "establishedAt", "latestRevenue", "latestProfit", "latestAssets", "latestEquity"];
+
+// ── Cell renderer ───────────────────────────────────────────────────────────
+
+function Cell({ col, c }: { col: ColDef; c: Company }) {
+  switch (col.key) {
+    case "name":
+      return (
+        <Link
+          href={`/firma/${c.ico}-${slugify(c.name)}`}
+          className="font-medium hover:underline"
+          style={{ color: "var(--accent)" }}
+          title={c.name || c.ico}
+        >
+          {c.name || c.ico}
+        </Link>
+      );
+    case "ico":
+      return <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>{c.ico}</span>;
+    case "legalForm":
+      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{c.legalForm || "—"}</span>;
+    case "city":
+      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{c.city || "—"}</span>;
+    case "establishedAt":
+      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{fmtEstablished(c.establishedAt)}</span>;
+    case "latestRevenue":
+      return <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEur(c.latestRevenue)}</span>;
+    case "latestProfit":
+      return <span style={{ color: "var(--text)" }}>{fmtEur(c.latestProfit)}</span>;
+    case "latestAssets":
+      return <span style={{ color: "var(--text)" }}>{fmtEur(c.latestAssets)}</span>;
+    case "latestEquity":
+      return <span style={{ color: "var(--text)" }}>{fmtEur(c.latestEquity)}</span>;
+  }
+}
+
+// ── Column toggle dropdown ──────────────────────────────────────────────────
+
+function ColumnToggle({
+  columns, visibleCols, onToggle,
+}: {
+  columns: ColDef[];
+  visibleCols: ColKey[];
+  onToggle: (key: ColKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+        style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+        title="Nastaviť stĺpce"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <line x1="9" y1="3" x2="9" y2="21" />
+          <line x1="15" y1="3" x2="15" y2="21" />
+        </svg>
+        Stĺpce
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="absolute right-0 top-9 z-50 w-52 rounded-lg shadow-lg overflow-hidden p-2"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          >
+            <div className="text-xs font-semibold mb-1.5 px-1" style={{ color: "var(--text-muted)" }}>
+              Viditeľné stĺpce
+            </div>
+            {columns.map((col) => (
+              <label
+                key={col.key}
+                className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: "var(--text)" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visibleCols.includes(col.key)}
+                  onChange={() => onToggle(col.key)}
+                  className="accent-[var(--accent)]"
+                />
+                <span className="text-xs">{col.label}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Main table component ────────────────────────────────────────────────────
 
 export function ScreenerTable({ companies }: { companies: Company[] }) {
   const router = useRouter();
@@ -59,14 +162,70 @@ export function ScreenerTable({ companies }: { companies: Company[] }) {
   const currentSort = searchParams.get("sort") || "latestRevenue";
   const currentDir = searchParams.get("dir") || "desc";
 
+  // Load saved column preferences from localStorage + server
+  const [visibleCols, setVisibleCols] = useState<ColKey[]>(DEFAULT_COLUMNS);
+
+  useEffect(() => {
+    // 1. Load from localStorage first (instant)
+    try {
+      const saved = localStorage.getItem("screener-columns");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setVisibleCols(parsed.filter((k: string) => ALL_COLUMNS.some(c => c.key === k)));
+        }
+      }
+    } catch {}
+
+    // 2. Sync from server (if authenticated, overrides localStorage)
+    fetch("/api/user/prefs")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.prefs?.columns && Array.isArray(data.prefs.columns) && data.prefs.columns.length > 0) {
+          const cols = data.prefs.columns.filter((k: string) => ALL_COLUMNS.some(c => c.key === k));
+          if (cols.length > 0) {
+            setVisibleCols(cols);
+            try { localStorage.setItem("screener-columns", JSON.stringify(cols)); } catch {}
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Save column preferences + sync to API for authenticated users
+  const toggleColumn = (key: ColKey) => {
+    setVisibleCols(prev => {
+      // Always keep at least name column
+      if (prev.includes(key)) {
+        if (prev.length === 1) return prev;
+        const next = prev.filter(k => k !== key);
+        saveColumns(next);
+        return next;
+      } else {
+        // Insert in original order
+        const next = ALL_COLUMNS.filter(c => [...prev, key].includes(c.key)).map(c => c.key);
+        saveColumns(next);
+        return next;
+      }
+    });
+  };
+
+  const saveColumns = (cols: ColKey[]) => {
+    try { localStorage.setItem("screener-columns", JSON.stringify(cols)); } catch {}
+    // Fire-and-forget sync to server (401 = anonymous, silently ignore)
+    fetch("/api/user/prefs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ screenerColumns: cols }),
+    }).catch(() => {});
+  };
+
   const toggleSort = (field: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (currentSort === field) {
-      // Same field — toggle direction
       params.set("dir", currentDir === "asc" ? "desc" : "asc");
     } else {
       params.set("sort", field);
-      // Financials default DESC (biggest first), name/city default ASC (A→Z)
       params.set("dir", field === "name" || field === "city" ? "asc" : "desc");
     }
     params.delete("page");
@@ -76,72 +235,70 @@ export function ScreenerTable({ companies }: { companies: Company[] }) {
   const sortIndicator = (field?: string) => {
     if (!field) return null;
     if (currentSort !== field) {
-      return <span className="ml-1 opacity-0 group-hover:opacity-40 transition-opacity">↕</span>;
+      return <span className="ml-1 opacity-30 group-hover:opacity-60 transition-opacity">↕</span>;
     }
-    return (
-      <span className="ml-1" style={{ color: "var(--accent)" }}>
-        {currentDir === "asc" ? "↑" : "↓"}
-      </span>
-    );
+    return <span className="ml-1" style={{ color: "var(--accent)" }}>{currentDir === "asc" ? "↑" : "↓"}</span>;
   };
 
+  const activeCols = ALL_COLUMNS.filter(c => visibleCols.includes(c.key));
+
   return (
-    <table className="w-full text-sm" style={{ tableLayout: "auto" }}>
-      <thead>
-        <tr style={{ borderBottom: "1px solid var(--border)" }}>
-          {COLUMNS.map((col) => (
-            <th
-              key={col.key}
-              className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-wide ${col.align === "right" ? "text-right" : "text-left"} ${col.className || ""} ${col.sortField ? "cursor-pointer select-none group" : ""}`}
-              style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}
-              onClick={col.sortField ? () => toggleSort(col.sortField!) : undefined}
-              title={col.sortField ? "Kliknite pre zoradenie" : undefined}
-            >
-              {col.label}
-              {sortIndicator(col.sortField)}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {companies.map((c, i) => (
-          <tr
-            key={c.ico}
-            style={{
-              borderTop: i > 0 ? "1px solid var(--border)" : "none",
-              transition: "background 0.1s",
-            }}
-            className="hover:bg-[var(--surface-hover)]"
-          >
-            <td className="px-3 py-2.5 max-w-0">
-              <Link
-                href={`/firma/${c.ico}-${slugify(c.name)}`}
-                className="font-medium hover:underline block truncate"
-                style={{ color: "var(--accent)" }}
-                title={c.name || c.ico}
+    <div>
+      {/* Toolbar: column toggle */}
+      <div className="flex items-center justify-end px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+        <ColumnToggle columns={ALL_COLUMNS} visibleCols={visibleCols} onToggle={toggleColumn} />
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" style={{ tableLayout: "fixed", minWidth: "700px" }}>
+          <colgroup>
+            {activeCols.map(col => (
+              <col key={col.key} style={{ width: col.minWidth }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border)" }}>
+              {activeCols.map(col => (
+                <th
+                  key={col.key}
+                  className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-wide ${col.align === "right" ? "text-right" : "text-left"} ${col.sortField ? "cursor-pointer select-none group" : ""}`}
+                  style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}
+                  onClick={col.sortField ? () => toggleSort(col.sortField!) : undefined}
+                  title={col.sortField ? "Kliknite pre zoradenie" : undefined}
+                >
+                  {col.label}
+                  {sortIndicator(col.sortField)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {companies.map((c, i) => (
+              <tr
+                key={c.ico}
+                style={{ borderTop: i > 0 ? "1px solid var(--border)" : "none" }}
+                className="hover:bg-[var(--surface-hover)] transition-colors"
               >
-                {c.name || c.ico}
-              </Link>
-            </td>
-            <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>{c.ico}</td>
-            <td className="px-3 py-2.5 text-xs hidden xl:table-cell whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{c.legalForm || "—"}</td>
-            <td className="px-3 py-2.5 text-xs max-w-[140px] truncate" style={{ color: "var(--text-secondary)" }} title={c.city || ""}>{c.city || "—"}</td>
-            <td className="px-3 py-2.5 text-right text-xs hidden lg:table-cell whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{fmtEstablished(c.establishedAt)}</td>
-            <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap" style={{ color: "var(--text)" }}>
-              {fmtEur(c.latestRevenue)}
-            </td>
-            <td className="px-3 py-2.5 text-right whitespace-nowrap" style={{ color: "var(--text)" }}>
-              {fmtEur(c.latestProfit)}
-            </td>
-            <td className="px-3 py-2.5 text-right hidden xl:table-cell whitespace-nowrap" style={{ color: "var(--text)" }}>
-              {fmtEur(c.latestAssets)}
-            </td>
-            <td className="px-3 py-2.5 text-right hidden xl:table-cell whitespace-nowrap" style={{ color: "var(--text)" }}>
-              {fmtEur(c.latestEquity)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+                {activeCols.map(col => (
+                  <td
+                    key={col.key}
+                    className={`px-3 py-2.5 ${col.align === "right" ? "text-right" : "text-left"} ${col.key === "name" ? "overflow-hidden" : ""} whitespace-nowrap`}
+                  >
+                    {col.key === "name" ? (
+                      <div className="overflow-hidden text-ellipsis">
+                        <Cell col={col} c={c} />
+                      </div>
+                    ) : (
+                      <Cell col={col} c={c} />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

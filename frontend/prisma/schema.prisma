@@ -29,6 +29,7 @@ model User {
   defaultSources   String[]        @default([]) // Predvolené registre pre používateľa
   reportLanguage   String          @default("sk") // sk | en | de — jazyk PDF reportu
   attachmentsConfig Json?          // User default: {obchodny_register: true, zivnostensky_register: true, auditorska_sprava: false, uctovna_zavierka_a_poznámky: false}
+  screenerPrefs     Json?          // {columns: ["name","ico","city",...], pageSize: 50}
   tokenVersion     Int             @default(0)
   planName           String?         // Názov paušálu (start, freelance, firma, korporat)
   planRenewalDate    DateTime?       // Dátum obnovenia paušálu
