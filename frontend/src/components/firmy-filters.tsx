@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { toURLSearchParams, spStr } from "@/lib/url";
 
 type FilterOption = { value: string; label: string; count?: number };
 
@@ -13,6 +14,7 @@ type Props = {
   statuses: FilterOption[];
   revenueRanges: FilterOption[];
   profitRanges: FilterOption[];
+  searchParams: Record<string, string | string[] | undefined>;
 };
 
 const SELECT_STYLE = "rounded-lg px-3 py-2 text-sm border";
@@ -25,13 +27,13 @@ export function FirmyFilters({
   statuses,
   revenueRanges,
   profitRanges,
+  searchParams,
 }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const applyFilter = useCallback(
     (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = toURLSearchParams(searchParams);
       if (value) {
         params.set(key, value);
       } else {
@@ -46,7 +48,7 @@ export function FirmyFilters({
   const applySort = useCallback(
     (sortVal: string) => {
       const [field, dir] = sortVal.split("-");
-      const params = new URLSearchParams(searchParams.toString());
+      const params = toURLSearchParams(searchParams);
       if (field === "nazov" && dir === "asc") {
         params.delete("sort");
         params.delete("dir");
@@ -60,7 +62,7 @@ export function FirmyFilters({
     [router, searchParams]
   );
 
-  const sp = (key: string) => searchParams.get(key) || "";
+  const sp = (key: string) => spStr(searchParams, key);
   const currentSort = sp("sort") || "nazov";
   const currentDir = sp("dir") || "asc";
 

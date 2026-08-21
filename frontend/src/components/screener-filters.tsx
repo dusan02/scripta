@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScreenerTier } from "@/lib/screener";
+import { toURLSearchParams } from "@/lib/url";
 
 type FilterOption = { value: string; label: string; count?: number };
 
@@ -25,17 +26,7 @@ const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border";
 // AUTH filter keys — locked for FREE tier, redirect to login on click
 const AUTH_FILTER_KEYS = ["konkurz", "likvidacia", "restrukturalizacia", "vestnikClean"];
 
-// Convert searchParams prop to URLSearchParams for URL building
-function toURLSearchParams(sp: Record<string, string | string[] | undefined>): URLSearchParams {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(sp)) {
-    if (value === undefined) continue;
-    const s = typeof value === "string" ? value : value[0];
-    if (s) params.set(key, s);
-  }
-  return params;
-}
-
+// Helper: get string value from searchParams prop
 export function ScreenerFilters({ options, tier, appliedFilters, searchParams }: Props) {
   const router = useRouter();
   const [savedSearches, setSavedSearches] = useState<Array<{ id: string; name: string; filters: Record<string, string> }>>([]);

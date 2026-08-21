@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { slugify } from "@/lib/slug";
+import { fmtEurK, fmtYear } from "@/lib/format";
+import { spStr } from "@/lib/url";
 
 type Company = {
   ico: string;
@@ -18,21 +20,6 @@ type Company = {
   latestYear: number | null;
 };
 
-// Display in thousands of euros (tis. eur)
-function fmtEur(val: string | null): string {
-  if (!val) return "—";
-  const n = parseFloat(val);
-  if (isNaN(n)) return "—";
-  return Math.round(n / 1000).toLocaleString("sk-SK");
-}
-
-function fmtEstablished(establishedAt: Date | null): string {
-  if (!establishedAt) return "—";
-  const year = new Date(establishedAt).getFullYear();
-  if (isNaN(year) || year < 1900) return "—";
-  return String(year);
-}
-
 // ── Column definitions ──────────────────────────────────────────────────────
 
 type ColKey =
@@ -42,7 +29,6 @@ type ColKey =
 type ColDef = {
   key: ColKey;
   label: string;
-  shortLabel?: string;
   sortField?: string;
   align: "left" | "right";
   minWidth?: string;
@@ -51,13 +37,13 @@ type ColDef = {
 const ALL_COLUMNS: ColDef[] = [
   { key: "name", label: "Firma", sortField: "name", align: "left", minWidth: "180px" },
   { key: "ico", label: "IČO", align: "left", minWidth: "90px" },
-  { key: "legalForm", label: "Právna forma", shortLabel: "Forma", align: "left", minWidth: "100px" },
+  { key: "legalForm", label: "Právna forma", align: "left", minWidth: "100px" },
   { key: "city", label: "Mesto", sortField: "city", align: "left", minWidth: "100px" },
   { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", minWidth: "80px" },
-  { key: "latestRevenue", label: "Tržby (tis. €)", shortLabel: "Tržby", sortField: "latestRevenue", align: "right", minWidth: "100px" },
-  { key: "latestProfit", label: "Zisk (tis. €)", shortLabel: "Zisk", sortField: "latestProfit", align: "right", minWidth: "90px" },
-  { key: "latestAssets", label: "Aktíva (tis. €)", shortLabel: "Aktíva", sortField: "latestAssets", align: "right", minWidth: "90px" },
-  { key: "latestEquity", label: "Imanie (tis. €)", shortLabel: "Imanie", sortField: "latestEquity", align: "right", minWidth: "90px" },
+  { key: "latestRevenue", label: "Tržby", sortField: "latestRevenue", align: "right", minWidth: "100px" },
+  { key: "latestProfit", label: "Zisk", sortField: "latestProfit", align: "right", minWidth: "90px" },
+  { key: "latestAssets", label: "Aktíva", sortField: "latestAssets", align: "right", minWidth: "90px" },
+  { key: "latestEquity", label: "Imanie", sortField: "latestEquity", align: "right", minWidth: "90px" },
 ];
 
 const DEFAULT_COLUMNS: ColKey[] = ["name", "ico", "city", "establishedAt", "latestRevenue", "latestProfit", "latestAssets", "latestEquity"];
@@ -84,15 +70,15 @@ function Cell({ col, c }: { col: ColDef; c: Company }) {
     case "city":
       return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{c.city || "—"}</span>;
     case "establishedAt":
-      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{fmtEstablished(c.establishedAt)}</span>;
+      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{fmtYear(c.establishedAt)}</span>;
     case "latestRevenue":
-      return <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEur(c.latestRevenue)}</span>;
+      return <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEurK(c.latestRevenue)}</span>;
     case "latestProfit":
-      return <span style={{ color: "var(--text)" }}>{fmtEur(c.latestProfit)}</span>;
+      return <span style={{ color: "var(--text)" }}>{fmtEurK(c.latestProfit)}</span>;
     case "latestAssets":
-      return <span style={{ color: "var(--text)" }}>{fmtEur(c.latestAssets)}</span>;
+      return <span style={{ color: "var(--text)" }}>{fmtEurK(c.latestAssets)}</span>;
     case "latestEquity":
-      return <span style={{ color: "var(--text)" }}>{fmtEur(c.latestEquity)}</span>;
+      return <span style={{ color: "var(--text)" }}>{fmtEurK(c.latestEquity)}</span>;
   }
 }
 
@@ -164,13 +150,8 @@ export function ScreenerTable({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   const router = useRouter();
-  const spStr = (key: string) => {
-    const v = searchParams[key];
-    if (!v) return "";
-    return typeof v === "string" ? v : v[0] || "";
-  };
-  const currentSort = spStr("sort") || "latestRevenue";
-  const currentDir = spStr("dir") || "desc";
+  const currentSort = spStr(searchParams, "sort") || "latestRevenue";
+  const currentDir = spStr(searchParams, "dir") || "desc";
 
   // Load saved column preferences from localStorage + server
   const [visibleCols, setVisibleCols] = useState<ColKey[]>(DEFAULT_COLUMNS);
@@ -259,8 +240,11 @@ export function ScreenerTable({
 
   return (
     <div>
-      {/* Toolbar: column toggle */}
-      <div className="flex items-center justify-end px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+      {/* Toolbar: unit hint + column toggle */}
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          Finančné ukazovatele v tis. €
+        </span>
         <ColumnToggle columns={ALL_COLUMNS} visibleCols={visibleCols} onToggle={toggleColumn} />
       </div>
 

@@ -220,26 +220,8 @@ const hu: Dict = {
   "company.descNace": ". Főtevékenység: {nace}",
   "company.descLatestYear": " A legfrissebb elérhető pénzügyi kimutatások a(z) {year} évre vonatkoznak.",
   "firma.zakladneTrendy": "Főbb trendek",
-  "firma.ctaTitle": "Ingyenesen ellenőrizze ezt a céget",
-  "firma.ctaDesc": "Regisztráció után ingyenesen kapja meg első teljes Verifa jelentését — végrehajtások, fizetésképtelenségek, csődeljárások, könyvvizsgálói jelentés és kockázati értékelés 26 szlovák nyilvántartásból.",
-  "firma.ctaButton": "Cég ingyenes ellenőrzése →",
-  "firma.ctaTrust": "Adatok szlovák nyilvános nyilvántartásokból · pénzügyi kimutatások · jogi adatok · céges események",
+  "firma.ctaTrust": "Nyilvános szlovák nyilvántartások adatai · pénzügyi kimutatások · jogi adatok · cégesemények",
   "firma.ctaTrust2": "Első jelentés ingyenes · bankkártya nélkül",
-
-  // ── Inline CTA (MetricCards után) ──
-  "firma.inlineCta1Title": "Szeretné ellenőrizni ezt a céget üzletkötés előtt?",
-  "firma.inlineCta1Desc": "A nyilvános pénzügyi adatok csak a kép egy részét mutatják. A Verifa automatikusan ellenőrzi az elérhető nyilvántartásokat és azonosítja a potenciális kockázatokat.",
-  "firma.inlineCta1Button": "Cég ellenőrzése →",
-
-  // ── Inline CTA (táblázatok után) ──
-  "firma.inlineCta2Title": "A pénzügyi eredmények csak a kép egy része",
-  "firma.inlineCta2Desc": "A teljes Business Risk Report automatikusan ellenőrzi az elérhető nyilvános nyilvántartásokat — adótartozások, végrehajtások, csődeljárás, tulajdonosi szerkezet és egyéb kockázati jelek.",
-  "firma.inlineCta2Button": "Business Risk Report generálása →",
-
-  // ── Risk teaser ──
-  "firma.riskTeaserTitle": "Business Risk Analysis",
-  "firma.riskTeaserDesc": "A pénzügyi adatok csak a cégellenőrzés egy részét képezik. A Verifa teljes jelentésében ellenőrzi az elérhető nyilvános nyilvántartásokat, pénzügyi mutatókat és egyéb kockázati jeleket.",
-  "firma.riskTeaserButton": "Kockázatelemzés feloldása →",
 
   // ── FAQ ──
   "firma.faqTitle": "Gyakran keresett információk",

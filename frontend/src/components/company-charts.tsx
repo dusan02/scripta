@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/components/LanguageProvider";
+import { fmtEUR } from "@/lib/format";
 
 function useIsPrint() {
   const [isPrint, setIsPrint] = useState(false);
@@ -26,14 +27,6 @@ function useIsPrint() {
     };
   }, []);
   return isPrint;
-}
-
-function fmtEUR(val: number | null | undefined): string {
-  if (val === null || val === undefined) return "—";
-  const abs = Math.abs(val);
-  if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(2)} mil. €`;
-  if (abs >= 1_000) return `${(val / 1_000).toFixed(1)} tis. €`;
-  return `${val.toFixed(0)} €`;
 }
 
 type ChartData = {

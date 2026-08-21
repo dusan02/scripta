@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   num,
   fmtEUR,
+  fmtEurK,
   fmtNum,
   fmtYear,
   formatCompanyName,
@@ -77,6 +78,52 @@ describe("format.ts — fmtEUR()", () => {
 
   it("handles zero", () => {
     assert.equal(fmtEUR(0), "0 €");
+  });
+});
+
+describe("format.ts — fmtEurK()", () => {
+  it("returns em-dash for null/undefined", () => {
+    assert.equal(fmtEurK(null), "—");
+    assert.equal(fmtEurK(undefined), "—");
+  });
+
+  it("returns em-dash for empty string", () => {
+    assert.equal(fmtEurK(""), "—");
+  });
+
+  it("returns em-dash for NaN string", () => {
+    assert.equal(fmtEurK("abc"), "—");
+  });
+
+  it("formats millions as thousands (no € sign, 3 fewer zeros)", () => {
+    const result = fmtEurK("1234567");
+    assert.ok(result.includes("1 235") || result.includes("1\u00a0235"));
+    assert.ok(!result.includes("€"));
+  });
+
+  it("formats exact thousands", () => {
+    const result = fmtEurK("1000000");
+    assert.ok(result.includes("1 000") || result.includes("1\u00a0000"));
+  });
+
+  it("handles small numbers (< 1000)", () => {
+    const result = fmtEurK("500");
+    assert.equal(result, "1"); // 500/1000 = 0.5 → rounds to 1
+  });
+
+  it("handles zero", () => {
+    const result = fmtEurK("0");
+    assert.equal(result, "0");
+  });
+
+  it("handles negative numbers", () => {
+    const result = fmtEurK("-1500000");
+    assert.ok(result.includes("-1 500") || result.includes("-1\u00a0500"));
+  });
+
+  it("accepts number input directly", () => {
+    const result = fmtEurK(2500000);
+    assert.ok(result.includes("2 500") || result.includes("2\u00a0500"));
   });
 });
 

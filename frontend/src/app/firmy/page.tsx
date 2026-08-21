@@ -1,19 +1,10 @@
 import { queryFirmy, getFirmyFilterOptions, type FirmyFilters, type FirmySort } from "@/lib/firmy";
-import { fmtEUR } from "@/lib/format";
+import { fmtEurK } from "@/lib/format";
 import { FirmyFilters as FirmyFiltersClient } from "@/components/firmy-filters";
 import { slugify } from "@/lib/slug";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-
-function fmtEur(val: string | null): string {
-  if (!val) return "—";
-  const n = parseFloat(val);
-  if (isNaN(n)) return "—";
-  if (n >= 1000000) return `€${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `€${(n / 1000).toFixed(0)}k`;
-  return `€${n.toFixed(0)}`;
-}
 
 function parseFilters(searchParams: Record<string, string | string[] | undefined>): FirmyFilters {
   return {
@@ -121,6 +112,7 @@ export default async function FirmyPage({
           statuses={options.statuses}
           revenueRanges={options.revenueRanges}
           profitRanges={options.profitRanges}
+          searchParams={searchParams}
         />
 
         <div className="flex items-center justify-between mb-4 mt-4">
@@ -154,7 +146,7 @@ export default async function FirmyPage({
                   <td className="px-4 py-3 text-right" style={{ color: "var(--text)" }}>
                     {f.latestRevenue ? (
                       <span>
-                        {fmtEur(f.latestRevenue)}
+                        {fmtEurK(f.latestRevenue)}
                         <span className="text-xs ml-1" style={{ color: "var(--text-muted)" }}>· {f.latestYear}</span>
                       </span>
                     ) : "—"}
@@ -162,7 +154,7 @@ export default async function FirmyPage({
                   <td className="px-4 py-3 text-right" style={{ color: "var(--text)" }}>
                     {f.latestProfit ? (
                       <span>
-                        {fmtEur(f.latestProfit)}
+                        {fmtEurK(f.latestProfit)}
                         <span className="text-xs ml-1" style={{ color: "var(--text-muted)" }}>· {f.latestYear}</span>
                       </span>
                     ) : "—"}

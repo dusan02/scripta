@@ -31,6 +31,18 @@ export function fmtNum(val: Decimal | number | null | undefined): string {
   return Number(s).toLocaleString("sk-SK").replace(/\u00a0/g, "\u00a0");
 }
 
+/**
+ * Format a value (string | number | null) as thousands of euros.
+ * No € sign, 3 fewer zeros: 1 234 567 → "1 235"
+ * Used by screener table.
+ */
+export function fmtEurK(val: string | number | null | undefined): string {
+  if (val === null || val === undefined) return "—";
+  const n = typeof val === "string" ? parseFloat(val) : val;
+  if (Number.isNaN(n)) return "—";
+  return Math.round(n / 1000).toLocaleString("sk-SK");
+}
+
 export function fmtYear(date: Date | null | undefined): string {
   if (!date) return "—";
   return new Date(date).getFullYear().toString();
