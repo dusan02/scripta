@@ -35,15 +35,15 @@ type ColDef = {
 };
 
 const ALL_COLUMNS: ColDef[] = [
-  { key: "name", label: "Firma", sortField: "name", align: "left", minWidth: "260px" },
-  { key: "ico", label: "IČO", sortField: "ico", align: "left", minWidth: "90px" },
-  { key: "legalForm", label: "Právna forma", sortField: "legalForm", align: "left", minWidth: "100px" },
-  { key: "city", label: "Mesto", sortField: "city", align: "left", minWidth: "120px" },
-  { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", minWidth: "80px" },
-  { key: "latestRevenue", label: "Tržby", sortField: "latestRevenue", align: "right", minWidth: "100px" },
-  { key: "latestProfit", label: "Zisk", sortField: "latestProfit", align: "right", minWidth: "90px" },
-  { key: "latestAssets", label: "Aktíva", sortField: "latestAssets", align: "right", minWidth: "90px" },
-  { key: "latestEquity", label: "Imanie", sortField: "latestEquity", align: "right", minWidth: "90px" },
+  { key: "name", label: "Firma", sortField: "name", align: "left", minWidth: "320px" },
+  { key: "ico", label: "IČO", sortField: "ico", align: "left", minWidth: "100px" },
+  { key: "legalForm", label: "Právna forma", sortField: "legalForm", align: "left", minWidth: "110px" },
+  { key: "city", label: "Mesto", sortField: "city", align: "left", minWidth: "140px" },
+  { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", minWidth: "90px" },
+  { key: "latestRevenue", label: "Tržby", sortField: "latestRevenue", align: "right", minWidth: "110px" },
+  { key: "latestProfit", label: "Zisk", sortField: "latestProfit", align: "right", minWidth: "100px" },
+  { key: "latestAssets", label: "Aktíva", sortField: "latestAssets", align: "right", minWidth: "100px" },
+  { key: "latestEquity", label: "Imanie", sortField: "latestEquity", align: "right", minWidth: "100px" },
 ];
 
 const DEFAULT_COLUMNS: ColKey[] = ["name", "ico", "city", "establishedAt", "latestRevenue", "latestProfit", "latestAssets", "latestEquity"];
