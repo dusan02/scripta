@@ -818,7 +818,10 @@ export async function queryScreener(
   // Use approximate count for all queries — real COUNT on 518K rows takes 14-21s
   // (PostgreSQL prefers seq scan over index for COUNT even when index exists).
   // Approximate count from pg_class is instant and accurate enough for UI pagination.
-  const hasFilters = Object.keys(where).length > 0;
+  // Note: where.ico = { notIn: ["", "00000000"] } is always present (ENT-001), so we
+  // check for user-applied filters by excluding the default ico filter.
+  const userFilterKeys = Object.keys(where).filter(k => k !== "ico" && k !== "AND");
+  const hasFilters = userFilterKeys.length > 0;
   let total: number;
   if (!hasFilters) {
     const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
@@ -826,18 +829,16 @@ export async function queryScreener(
     `;
     total = Number(approx[0]?.estimate ?? 0);
   } else {
-    // For filtered queries, use EXPLAIN to get planner's row estimate (instant, no scan)
-    const plan = await prisma.$queryRaw<Array<{ QUERY: string }>>`EXPLAIN (FORMAT JSON) SELECT 1 FROM "Company" WHERE 1=1`;
-    // Fallback: use real count but with a cap to prevent full scan
-    // If the filter is selective enough (okres, city), real count is fast (<1s)
-    // If not (kraj, legalForm), it's slow — use approximate instead
-    const filterKeys = Object.keys(where);
-    const isSelectiveFilter = filterKeys.some(k => ["okres", "city", "ico", "naceCode", "ownershipType"].includes(k));
+    // For filtered queries, check if the filter is selective enough for real count.
+    // Selective filters (okres, city, naceCode, ownershipType) use index scan → fast.
+    // Non-selective filters (kraj, legalForm) cause seq scan → slow, use approximate.
+    const isSelectiveFilter = userFilterKeys.some(k =>
+      ["okres", "city", "naceCode", "ownershipType", "establishedAt", "status"].includes(k)
+    );
     if (isSelectiveFilter) {
       total = await prisma.company.count({ where });
     } else {
-      // Non-selective filter (kraj, legalForm) — use approximate count from pg_stats
-      // For simplicity, use the total row count as upper bound and let UI handle it
+      // Non-selective filter (kraj, legalForm) — use approximate count
       const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
         SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
       `;
