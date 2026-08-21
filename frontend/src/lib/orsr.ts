@@ -504,6 +504,10 @@ export async function seedFromOrsr(ico: string): Promise<{
           street: address.street || undefined,
           zipCode: address.zipCode || undefined,
           status,
+          statusNormalized: status === "ACTIVE" ? "ACTIVE"
+            : status === "LIQUIDATION" ? "LIQUIDATION"
+            : status === "DISSOLVED" ? "DISSOLVED"
+            : "UNKNOWN",
           establishedAt: establishedAt || undefined,
           shareCapital: shareCapital || undefined,
           businessActivity: businessActivity || undefined,

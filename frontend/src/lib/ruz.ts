@@ -314,6 +314,46 @@ const SIZE_MAP: Record<string, string> = {
   "32": "Veľká", "33": "Veľká",
 };
 
+/**
+ * Normalize sizeCategory to canonical enum based on employeeCount.
+ * employeeCount is perfectly correlated with sizeCategory (per audit).
+ * Returns: micro | small | medium | large | unknown
+ */
+function normalizeSizeCategory(employeeCount: number | null, sizeCategory: string | null): string {
+  if (employeeCount !== null && employeeCount !== undefined) {
+    if (employeeCount <= 9) return "micro";
+    if (employeeCount <= 49) return "small";
+    if (employeeCount <= 249) return "medium";
+    return "large";
+  }
+  // Fallback: map from sizeCategory text
+  if (sizeCategory) {
+    const micro = ["0 zamestnancov", "1 zamestnanec", "2 zamestnanci", "3-4 zamestnanci", "5-9 zamestnancov", "Mikro"];
+    const small = ["10-19 zamestnancov", "20-24 zamestnancov", "25-49 zamestnancov", "Malá"];
+    const medium = ["50-99 zamestnancov", "100-149 zamestnancov", "150-199 zamestnancov", "200-249 zamestnancov", "Stredná"];
+    const large = ["250-499 zamestnancov", "500-999 zamestnancov", "1000-1999 zamestnancov", "2000-2999 zamestnancov", "3000-3999 zamestnancov", "4000-4999 zamestnancov", "5000-9999 zamestnancov", "10000-19999 zamestnancov", "Veľká"];
+    if (micro.includes(sizeCategory)) return "micro";
+    if (small.includes(sizeCategory)) return "small";
+    if (medium.includes(sizeCategory)) return "medium";
+    if (large.includes(sizeCategory)) return "large";
+  }
+  return "unknown";
+}
+
+/**
+ * Normalize status to canonical enum.
+ * Returns: ACTIVE | LIQUIDATION | BANKRUPT | DISSOLVED | UNKNOWN
+ */
+function normalizeStatus(rawStatus: string | null): string {
+  if (!rawStatus) return "UNKNOWN";
+  const active = ["ruz_active", "ruz_checked", "active", "ACTIVE"];
+  if (active.includes(rawStatus)) return "ACTIVE";
+  if (rawStatus === "LIQUIDATION" || rawStatus.includes("likvid")) return "LIQUIDATION";
+  if (rawStatus === "BANKRUPT" || rawStatus.includes("konkurz")) return "BANKRUPT";
+  if (rawStatus === "DISSOLVED" || rawStatus.includes("vymaz") || rawStatus.includes("zruš")) return "DISSOLVED";
+  return "UNKNOWN";
+}
+
 // ═══════════════════════════════════════════════════════════════
 // DB helpers
 // ═══════════════════════════════════════════════════════════════
@@ -394,10 +434,12 @@ export async function seedFromRuz(ico: string) {
     country: entity.krajina || "Slovensko",
     establishedAt: entity.datumZalozenia ? new Date(entity.datumZalozenia) : null,
     status: "active",
+    statusNormalized: "ACTIVE",
     naceCode: entity.skNace || null,
     naceText,
     ownershipType: OWNERSHIP_MAP[entity.druhVlastnictva] || entity.druhVlastnictva || null,
     sizeCategory: SIZE_MAP[entity.velkostOrganizacie] || entity.velkostOrganizacie || null,
+    sizeCategoryNormalized: normalizeSizeCategory(entity.pocetZamestnancov ?? null, SIZE_MAP[entity.velkostOrganizacie] || entity.velkostOrganizacie || null),
     employeeCount: entity.pocetZamestnancov ?? null,
     kraj: entity.kraj || null,
     okres: entity.okres || null,

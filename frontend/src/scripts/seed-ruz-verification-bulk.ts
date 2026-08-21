@@ -20,6 +20,14 @@
 import { PrismaClient } from "@prisma/client";
 import * as fs from "fs";
 
+/** Normalize employeeCount to canonical size category. */
+function normalizeSizeCategory(employeeCount: number, sizeCategory?: string): string {
+  if (employeeCount <= 9) return "micro";
+  if (employeeCount <= 49) return "small";
+  if (employeeCount <= 249) return "medium";
+  return "large";
+}
+
 const prisma = new PrismaClient();
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -212,16 +220,22 @@ async function processEntity(entityId: number): Promise<{ verified: boolean; has
   // Entity is active in 2026 if it has závierky and was modified since 2026-01-01
   const hasZavierky = (detail.idUctovnychZavierok || []).length > 0;
 
+  const sizeCat = SIZE_MAP[detail.velkostOrganizacie] || detail.velkostOrganizacie;
+  const empCount = EMPLOYEE_COUNT_MAP[detail.velkostOrganizacie] ?? 0;
+  const rawStatus = hasZavierky ? "ruz_active" : "ruz_checked";
+
   await prisma.company.update({
     where: { ico: detail.ico },
     data: {
       ruzEntityId: detail.id,
-      sizeCategory: SIZE_MAP[detail.velkostOrganizacie] || detail.velkostOrganizacie,
-      employeeCount: EMPLOYEE_COUNT_MAP[detail.velkostOrganizacie] ?? 0,
+      sizeCategory: sizeCat,
+      sizeCategoryNormalized: normalizeSizeCategory(empCount, sizeCat),
+      employeeCount: empCount,
       naceCode: detail.skNace || undefined,
       ownershipType: detail.druhVlastnictva || undefined,
       ruzSyncedAt: new Date(),
-      status: hasZavierky ? "ruz_active" : "ruz_checked",
+      status: rawStatus,
+      statusNormalized: "ACTIVE",
     },
   });
 

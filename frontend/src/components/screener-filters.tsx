@@ -503,6 +503,9 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
           Vestník udalosti
         </h3>
+        <p className="text-xs mb-2 px-2 py-1.5 rounded" style={{ color: "var(--text-muted)", background: "var(--surface-hover)" }}>
+          ⚠️ Vestník dáta sa pripravujú. Filtre môžu vrátiť obmedzené výsledky.
+        </p>
         <div className="space-y-2">
           {AUTH_FILTER_KEYS.map((key) => {
             const isActive = sp(key) === "1";

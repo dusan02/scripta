@@ -356,6 +356,8 @@ async function upsertBatch(records: RpoRecord[]): Promise<{ companies: number; p
           country: addr.country || "Slovenská republika",
           establishedAt: establishedAt || undefined,
           status: "active",
+          statusNormalized: "ACTIVE",
+          sizeCategoryNormalized: "unknown",
           businessActivity: activities || undefined,
         },
         update: {
@@ -367,6 +369,8 @@ async function upsertBatch(records: RpoRecord[]): Promise<{ companies: number; p
           country: addr.country || undefined,
           establishedAt: establishedAt || undefined,
           status: "active",
+          statusNormalized: "ACTIVE",
+          sizeCategoryNormalized: "unknown",
           businessActivity: activities || undefined,
         },
       });

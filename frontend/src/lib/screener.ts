@@ -244,35 +244,22 @@ export function getOwnershipTypeOptions() {
 const IMPLAUSIBLE_DATE_THRESHOLD = new Date("1900-01-01T00:00:00Z");
 
 // ── Size category + status filter options ────────────────────────────────────
-// sizeCategory in DB uses RÚZ raw values like "1 zamestnanec", "5-9 zamestnancov", etc.
-// We map 4 logical categories to the actual DB values.
-const SIZE_CATEGORY_MAP: Record<string, string[]> = {
-  micro: ["0 zamestnancov", "1 zamestnanec", "2 zamestnanci", "3-4 zamestnanci", "5-9 zamestnancov", "Mikro"],
-  small: ["10-19 zamestnancov", "20-24 zamestnancov", "25-49 zamestnancov", "Malá"],
-  medium: ["50-99 zamestnancov", "100-149 zamestnancov", "150-199 zamestnancov", "200-249 zamestnancov", "Stredná"],
-  large: ["250-499 zamestnancov", "500-999 zamestnancov", "1000-1999 zamestnancov", "2000-2999 zamestnancov", "3000-3999 zamestnancov", "4000-4999 zamestnancov", "5000-9999 zamestnancov", "10000-19999 zamestnancov", "Veľká"],
-};
-
+// Filters operate on normalized fields (sizeCategoryNormalized, statusNormalized)
+// which are canonical enums populated at seed time and via migration.
 const SIZE_CATEGORIES: Array<{ value: string; label: string; count: number }> = [
-  { value: "micro", label: "Mikro (0-9)", count: 0 },
+  { value: "micro", label: "Mikro (0-9 zamestnancov)", count: 0 },
   { value: "small", label: "Malá (10-49)", count: 0 },
   { value: "medium", label: "Stredná (50-249)", count: 0 },
   { value: "large", label: "Veľká (250+)", count: 0 },
+  { value: "unknown", label: "Nezistená", count: 0 },
 ];
 
-// status in DB uses RÚZ raw values: "ruz_active", "ruz_checked", "active", "ACTIVE"
-const STATUS_MAP: Record<string, string[]> = {
-  active: ["ruz_active", "ruz_checked", "active", "ACTIVE"],
-  liquidation: ["v likvidácii", "ruz_likvidacia"],
-  bankrupt: ["v konkurze", "ruz_konkurz"],
-  dissolved: ["zrušená", "ruz_zrusena"],
-};
-
 const STATUSES: Array<{ value: string; label: string; count: number }> = [
-  { value: "active", label: "Aktívna", count: 0 },
-  { value: "liquidation", label: "V likvidácii", count: 0 },
-  { value: "bankrupt", label: "V konkurze", count: 0 },
-  { value: "dissolved", label: "Zrušená", count: 0 },
+  { value: "ACTIVE", label: "Aktívna", count: 0 },
+  { value: "LIQUIDATION", label: "V likvidácii", count: 0 },
+  { value: "BANKRUPT", label: "V konkurze", count: 0 },
+  { value: "DISSOLVED", label: "Zrušená", count: 0 },
+  { value: "UNKNOWN", label: "Nezistený", count: 0 },
 ];
 
 /** Returns company age in years, or null if establishedAt is missing or implausible. */
@@ -562,7 +549,7 @@ const FREE_FILTERS: FilterDef[] = [
     },
   },
 
-  // 13. Veľkosť firmy (sizeCategory) — maps logical categories to DB values
+  // 13. Veľkosť firmy (sizeCategoryNormalized) — canonical enum
   {
     key: "sizeCategory",
     accessLevel: "FREE",
@@ -570,18 +557,11 @@ const FREE_FILTERS: FilterDef[] = [
     parse: parseMulti,
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
-      // Expand logical categories (micro/small/medium/large) to actual DB values
-      const dbValues: string[] = [];
-      for (const v of value as string[]) {
-        const mapped = SIZE_CATEGORY_MAP[v];
-        if (mapped) dbValues.push(...mapped);
-        else dbValues.push(v); // pass-through if already a DB value
-      }
-      return { sizeCategory: { in: dbValues } };
+      return { sizeCategoryNormalized: { in: value as string[] } };
     },
   },
 
-  // 14. Status firmy — maps logical categories to DB values
+  // 14. Status firmy (statusNormalized) — canonical enum
   {
     key: "status",
     accessLevel: "FREE",
@@ -589,13 +569,7 @@ const FREE_FILTERS: FilterDef[] = [
     parse: parseMulti,
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
-      const dbValues: string[] = [];
-      for (const v of value as string[]) {
-        const mapped = STATUS_MAP[v];
-        if (mapped) dbValues.push(...mapped);
-        else dbValues.push(v);
-      }
-      return { status: { in: dbValues } };
+      return { statusNormalized: { in: value as string[] } };
     },
   },
 ];
@@ -663,7 +637,9 @@ const AUTH_FILTERS: FilterDef[] = [
     },
   },
 
-  // 16. vestnikClean (NOT EXISTS — no VestnikEvent at all)
+  // 16. vestnikClean (synced AND no VestnikEvent — safe interpretation)
+  // Requires vestnikSyncedAt != NULL to avoid false positives.
+  // Without this guard, returns ~518K firms (99.9% never checked) — dangerous.
   {
     key: "vestnikClean",
     accessLevel: "AUTH",
@@ -676,7 +652,10 @@ const AUTH_FILTERS: FilterDef[] = [
     buildWhere: (value) => {
       if (value !== true) return null;
       return {
-        vestnikEvents: { none: {} },
+        AND: [
+          { vestnikSyncedAt: { not: null } },
+          { vestnikEvents: { none: {} } },
+        ],
       };
     },
   },
@@ -965,7 +944,7 @@ export async function queryScreener(
     // For non-selective filters, use pre-computed counts from ScreenerFilterOptions MV
     // instead of pg_class (~518K). MV has per-kraj and per-legalForm counts (instant).
     const isSelectiveFilter = appliedFilters.some(k =>
-      ["okres", "city", "naceCode", "ownershipType", "establishedAt", "status", "sizeCategory"].includes(k)
+      ["okres", "city", "naceCode", "ownershipType", "establishedAt", "status", "sizeCategory", "vestnikClean"].includes(k)
     );
     if (isSelectiveFilter) {
       total = await prisma.company.count({ where });
