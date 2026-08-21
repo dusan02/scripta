@@ -19,6 +19,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { okresName } from "@/lib/okres-map";
+import { unstable_cache } from "next/cache";
 
 // ═══════════════════════════════════════════════════════════════
 // Access tiers
@@ -122,6 +123,12 @@ export function getNaceSections() {
   }));
 }
 
+export function getNaceSectionLabel(section: string | null): string | null {
+  if (!section) return null;
+  const entry = NACE_SECTION_MAP.find((e) => e.section === section.toUpperCase());
+  return entry?.sectionName || null;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // kraj (NUTS3) labels — official Slovak region codes (public standard)
 // ═══════════════════════════════════════════════════════════════
@@ -188,6 +195,21 @@ export function getOwnershipTypeOptions() {
 // ═══════════════════════════════════════════════════════════════
 
 const IMPLAUSIBLE_DATE_THRESHOLD = new Date("1900-01-01T00:00:00Z");
+
+// ── Size category + status filter options ────────────────────────────────────
+const SIZE_CATEGORIES: Array<{ value: string; label: string; count: number }> = [
+  { value: "micro", label: "Mikro (0-9 zamestnancov)", count: 0 },
+  { value: "small", label: "Malá (10-49 zamestnancov)", count: 0 },
+  { value: "medium", label: "Stredná (50-249 zamestnancov)", count: 0 },
+  { value: "large", label: "Veľká (250+ zamestnancov)", count: 0 },
+];
+
+const STATUSES: Array<{ value: string; label: string; count: number }> = [
+  { value: "active", label: "Aktívna", count: 0 },
+  { value: "liquidation", label: "V likvidácii", count: 0 },
+  { value: "bankrupt", label: "V konkurze", count: 0 },
+  { value: "dissolved", label: "Zrušená", count: 0 },
+];
 
 /** Returns company age in years, or null if establishedAt is missing or implausible. */
 export function computeCompanyAge(establishedAt: Date | null, now: Date = new Date()): number | null {
@@ -473,6 +495,30 @@ const FREE_FILTERS: FilterDef[] = [
     buildWhere: (value) => {
       if (typeof value !== "number") return null;
       return { latestYear: { gte: value } };
+    },
+  },
+
+  // 13. Veľkosť firmy (sizeCategory)
+  {
+    key: "sizeCategory",
+    accessLevel: "FREE",
+    label: "Veľkosť firmy",
+    parse: parseMulti,
+    buildWhere: (value) => {
+      if (!Array.isArray(value) || value.length === 0) return null;
+      return { sizeCategory: { in: value as string[] } };
+    },
+  },
+
+  // 14. Status firmy
+  {
+    key: "status",
+    accessLevel: "FREE",
+    label: "Status firmy",
+    parse: parseMulti,
+    buildWhere: (value) => {
+      if (!Array.isArray(value) || value.length === 0) return null;
+      return { status: { in: value as string[] } };
     },
   },
 ];
@@ -890,6 +936,8 @@ export type ScreenerFilterOptions = {
   cities: Array<{ value: string; label: string; count: number; kraj?: string }>;
   kraje: Array<{ value: string; label: string; count: number }>;
   okresy: Array<{ value: string; label: string; count: number }>;
+  sizeCategories: Array<{ value: string; label: string; count: number }>;
+  statuses: Array<{ value: string; label: string; count: number }>;
 };
 
 /**
@@ -959,7 +1007,7 @@ async function getApproxCountFromMV(
   return Number(approx[0]?.estimate ?? 0);
 }
 
-export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
+async function _getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
   const rows = await prisma.$queryRaw<Array<{
     legal_forms: Array<{ legalForm: string; cnt: number }>;
     cities: Array<{ city: string; cnt: number; kraj: string }>;
@@ -992,8 +1040,17 @@ export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions>
       label: okresName(o.okres),
       count: Number(o.cnt),
     })),
+    sizeCategories: SIZE_CATEGORIES,
+    statuses: STATUSES,
   };
 }
+
+// Cached version — revalidate every hour (filter options rarely change)
+export const getScreenerFilterOptions = unstable_cache(
+  _getScreenerFilterOptions,
+  ["screener-filter-options"],
+  { revalidate: 3600 },
+);
 
 // ═══════════════════════════════════════════════════════════════
 // URL builder for shareable/crawlable URLs (ADR-003)

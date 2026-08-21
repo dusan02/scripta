@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { glossaryTerms } from "@/lib/glossary";
 import { VALID_LANGS, localizePath, HREFLANG_MAP } from "@/lib/i18n";
 import { slugify } from "@/lib/slug";
+import { getKrajOptions, getNaceSections } from "@/lib/screener";
 
 export const revalidate = 3600; // Regenerate every hour
 export const dynamic = "force-dynamic";
@@ -20,6 +21,33 @@ const STATIC_PATHS = [
   "/", "/pricing", "/register", "/documents", "/slovnik",
   "/terms", "/privacy", "/dpa", "/firmy", "/screener",
 ];
+
+// SEO landing pages for screener — 8 kraje + 21 NACE sections = 29 URLs
+function buildScreenerLandingPages(): MetadataRoute.Sitemap {
+  const pages: MetadataRoute.Sitemap = [];
+
+  // Kraj landing pages: /screener/kraj/SK010
+  for (const k of getKrajOptions()) {
+    pages.push({
+      url: `${BASE_URL}/screener/kraj/${k.value}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    });
+  }
+
+  // NACE section landing pages: /screener/odvetvie/C
+  for (const s of getNaceSections()) {
+    pages.push({
+      url: `${BASE_URL}/screener/odvetvie/${s.section}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    });
+  }
+
+  return pages;
+}
 
 function buildStaticPages(): MetadataRoute.Sitemap {
   return STATIC_PATHS.flatMap((path) =>
@@ -98,9 +126,9 @@ export default async function sitemap({
 }: {
   id: number;
 }): Promise<MetadataRoute.Sitemap> {
-  // Sitemap 0: static + glossary pages (always small, ~100 URLs)
+  // Sitemap 0: static + glossary + screener landing pages
   if (id === 0) {
-    return [...buildStaticPages(), ...buildGlossaryPages()];
+    return [...buildStaticPages(), ...buildScreenerLandingPages(), ...buildGlossaryPages()];
   }
 
   // Sitemap 1..N: company pages (8000 companies each)

@@ -23,7 +23,7 @@ type Company = {
 // ── Column definitions ──────────────────────────────────────────────────────
 
 type ColKey =
-  | "name" | "ico" | "legalForm" | "city" | "establishedAt"
+  | "name" | "ico" | "legalForm" | "city" | "establishedAt" | "latestYear"
   | "latestRevenue" | "latestProfit" | "latestAssets" | "latestEquity";
 
 type ColDef = {
@@ -40,13 +40,14 @@ const ALL_COLUMNS: ColDef[] = [
   { key: "legalForm", label: "Právna forma", sortField: "legalForm", align: "left", minWidth: "110px" },
   { key: "city", label: "Mesto", sortField: "city", align: "left", minWidth: "140px" },
   { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", minWidth: "90px" },
+  { key: "latestYear", label: "Rok dát", sortField: undefined, align: "right", minWidth: "70px" },
   { key: "latestRevenue", label: "Tržby", sortField: "latestRevenue", align: "right", minWidth: "110px" },
   { key: "latestProfit", label: "Zisk", sortField: "latestProfit", align: "right", minWidth: "100px" },
   { key: "latestAssets", label: "Aktíva", sortField: "latestAssets", align: "right", minWidth: "100px" },
   { key: "latestEquity", label: "Imanie", sortField: "latestEquity", align: "right", minWidth: "100px" },
 ];
 
-const DEFAULT_COLUMNS: ColKey[] = ["name", "ico", "city", "establishedAt", "latestRevenue", "latestProfit", "latestAssets", "latestEquity"];
+const DEFAULT_COLUMNS: ColKey[] = ["name", "ico", "city", "establishedAt", "latestYear", "latestRevenue", "latestProfit", "latestAssets", "latestEquity"];
 
 // ── Cell renderer ───────────────────────────────────────────────────────────
 
@@ -71,6 +72,8 @@ function Cell({ col, c }: { col: ColDef; c: Company }) {
       return <span className="text-xs" style={{ color: "var(--text-secondary)" }} title={c.city || undefined}>{c.city || "—"}</span>;
     case "establishedAt":
       return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{fmtYear(c.establishedAt)}</span>;
+    case "latestYear":
+      return <span className="text-xs" style={{ color: "var(--text-muted)" }}>{c.latestYear || "—"}</span>;
     case "latestRevenue":
       return <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEurK(c.latestRevenue)}</span>;
     case "latestProfit": {

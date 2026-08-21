@@ -15,6 +15,8 @@ type Props = {
     cities: Array<FilterOption & { kraj?: string }>;
     kraje: FilterOption[];
     okresy: FilterOption[];
+    sizeCategories: FilterOption[];
+    statuses: FilterOption[];
   };
   tier: ScreenerTier;
   appliedFilters: string[];
@@ -167,8 +169,23 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
     };
   }, []);
 
+  // Mobile filter toggle
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <div className="space-y-3">
+      {/* Mobile toggle button — visible only on small screens */}
+      <button
+        onClick={() => setMobileOpen(!mobileOpen)}
+        className="lg:hidden w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium"
+        style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+      >
+        Filtre {appliedFilters.length > 0 && `(${appliedFilters.length})`}
+        <span>{mobileOpen ? "▴" : "▾"}</span>
+      </button>
+
+      {/* Filter content — always visible on desktop, toggle on mobile */}
+      <div className={mobileOpen ? "block" : "hidden lg:block"}>
       {/* Saved searches — quick access for authenticated users */}
       {tier !== "FREE" && savedSearches.length > 0 && (
         <div className="pb-3 border-b" style={{ borderColor: "var(--border)" }}>
@@ -301,6 +318,46 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
           {options.ownershipTypes.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 5b. Veľkosť firmy */}
+      <div>
+        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+          Veľkosť firmy
+        </label>
+        <select
+          className={SELECT_STYLE}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          value={sp("sizeCategory")}
+          onChange={(e) => applyFilter("sizeCategory", e.target.value)}
+        >
+          <option value="">Všetky</option>
+          {options.sizeCategories.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 5c. Status firmy */}
+      <div>
+        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+          Status
+        </label>
+        <select
+          className={SELECT_STYLE}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          value={sp("status")}
+          onChange={(e) => applyFilter("status", e.target.value)}
+        >
+          <option value="">Všetky</option>
+          {options.statuses.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>
@@ -615,6 +672,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { queryScreener, resolveTier, getScreenerFilterOptions, type ScreenerTier } from "@/lib/screener";
+import { queryScreener, resolveTier, getScreenerFilterOptions, getKrajLabel, getNaceSectionLabel, type ScreenerTier } from "@/lib/screener";
 import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey } from "@/lib/rateLimit";
 import { headers } from "next/headers";
@@ -6,6 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ScreenerFilters } from "@/components/screener-filters";
 import { ScreenerTable } from "@/components/screener-table";
+import { ActiveFilterChips } from "@/components/screener-chips";
+import { ScreenerPresets } from "@/components/screener-presets";
 
 export const dynamic = "force-dynamic";
 
@@ -128,15 +130,20 @@ export default async function ScreenerPage({
           <span style={{ color: "var(--text)" }}>Screener</span>
         </nav>
 
-        {/* Heading */}
+        {/* Heading — dynamic H1 based on active filters */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-1.5" style={{ color: "var(--text)" }}>
-            Screener firiem
+            {buildDynamicH1(searchParams)}
           </h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            Vyhľadávajte firmy podľa odvetvia, právnej formy, finančných ukazovateľov a ďalších kritérií.
+            {buildDynamicSubtitle(searchParams, total)}
             {tier === "FREE" && " Prihláste sa pre viac výsledkov a pokročilé filtre."}
           </p>
+        </div>
+
+        {/* Quick presets */}
+        <div className="mb-4">
+          <ScreenerPresets />
         </div>
 
         {/* Layout: sidebar + results */}
@@ -161,6 +168,12 @@ export default async function ScreenerPage({
 
           {/* Results */}
           <div className="flex-1 min-w-0">
+            {/* Active filter chips */}
+            <ActiveFilterChips
+              searchParams={searchParams}
+              options={options}
+            />
+
             {/* Result count + tier badge */}
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -262,16 +275,216 @@ export default async function ScreenerPage({
             )}
           </div>
         </div>
+
+        {/* SEO text — dynamic based on active filters */}
+        <div className="mt-8 max-w-none prose prose-sm" style={{ color: "var(--text-secondary)" }}>
+          <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text)" }}>
+            {buildDynamicH1(searchParams)} — prehľad
+          </h2>
+          <p className="text-sm leading-relaxed">
+            {buildSeoText(searchParams, total, companies)}
+          </p>
+          <p className="text-sm leading-relaxed mt-2">
+            Screener firiem Verifa.sk umožňuje filtrovanie podľa odvetvia (NACE), právnej formy, regiónu, mesta, finančných ukazovateľov (tržby, zisk, aktíva, vlastné imanie) a roku založenia. Dáta pochádzajú z Registru účtovných jednotiek (RÚZ) a Obchodného registra SR (ORSR).
+          </p>
+        </div>
+
+        {/* JSON-LD ItemList — structured data for search engines */}
+        {companies.length > 0 && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(buildItemListJsonLd(companies, searchParams)),
+            }}
+          />
+        )}
       </div>
     </div>
   );
 }
 
 // ── SEO metadata ─────────────────────────────────────────────────────────────
-export async function generateMetadata() {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  const sp = (key: string): string => {
+    const v = searchParams[key];
+    if (!v) return "";
+    return typeof v === "string" ? v : v[0] || "";
+  };
+
+  const krajLabel = getKrajLabel(sp("kraj"));
+  const naceLabel = getNaceSectionLabel(sp("naceSection"));
+  const city = sp("city");
+  const legalForm = sp("legalForm");
+  const q = sp("q");
+
+  // Build dynamic title parts
+  const parts: string[] = [];
+  if (q) parts.push(`"${q}"`);
+  if (krajLabel) parts.push(krajLabel);
+  if (city) parts.push(city);
+  if (naceLabel) parts.push(naceLabel);
+  if (legalForm) parts.push(legalForm);
+
+  const hasFilters = parts.length > 0;
+  const filterStr = parts.join(", ");
+
+  // Title: "Firmy v Bratislavskom kraji — Priemyselná výroba | Verifa.sk"
+  // Default: "Screener firiem na Slovensku | Verifa.sk"
+  const title = hasFilters
+    ? `Firmy${filterStr ? ` — ${filterStr}` : ""} | Verifa.sk`
+    : "Screener firiem na Slovensku | Verifa.sk";
+
+  // Description
+  let description: string;
+  if (hasFilters) {
+    const descParts: string[] = [];
+    if (krajLabel) descParts.push(`v ${krajLabel.toLowerCase()}`);
+    if (city) descParts.push(`v meste ${city}`);
+    if (naceLabel) descParts.push(`v odvetví ${naceLabel.toLowerCase()}`);
+    if (legalForm) descParts.push(`právna forma ${legalForm}`);
+    description = `Zoznam firiem ${descParts.join(", ")}. Filtrovanie podľa tržieb, zisku, aktív, imania a roku založenia. Dáta z RÚZ a ORSR.`;
+  } else {
+    description = "Vyhľadávajte firmy na Slovensku podľa odvetvia, právnej formy, mesta, finančných ukazovateľov a roku založenia. Dáta z RÚZ a ORSR.";
+  }
+
+  // Canonical — clean URL without sort/dir defaults
+  const canonicalParts: string[] = [];
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value === undefined) continue;
+    const s = typeof value === "string" ? value : value[0];
+    if (s && key !== "sort" && key !== "dir" && key !== "page") {
+      canonicalParts.push(`${key}=${encodeURIComponent(s)}`);
+    }
+  }
+  const canonical = `https://verifa.sk/screener${canonicalParts.length > 0 ? `?${canonicalParts.join("&")}` : ""}`;
+
   return {
-    title: "Screener firiem | Verifa.sk",
-    description: "Vyhľadávajte firmy na Slovensku podľa odvetvia, právnej formy, mesta, finančných ukazovateľov a roku založenia.",
+    title,
+    description,
     robots: { index: true, follow: true },
+    alternates: { canonical },
+  };
+}
+
+// ── Dynamic H1 builder ───────────────────────────────────────────────────────
+function buildDynamicH1(searchParams: Record<string, string | string[] | undefined>): string {
+  const sp = (key: string): string => {
+    const v = searchParams[key];
+    if (!v) return "";
+    return typeof v === "string" ? v : v[0] || "";
+  };
+
+  const krajLabel = getKrajLabel(sp("kraj"));
+  const naceLabel = getNaceSectionLabel(sp("naceSection"));
+  const city = sp("city");
+  const legalForm = sp("legalForm");
+  const q = sp("q");
+
+  if (q) return `Firmy vyhľadávané "${q}"`;
+
+  const parts: string[] = [];
+  if (krajLabel) parts.push(krajLabel);
+  if (city) parts.push(city);
+  if (naceLabel) parts.push(naceLabel);
+  if (legalForm) parts.push(legalForm);
+
+  if (parts.length === 0) return "Screener firiem na Slovensku";
+  return `Firmy — ${parts.join(", ")}`;
+}
+
+function buildDynamicSubtitle(searchParams: Record<string, string | string[] | undefined>, total: number): string {
+  const sp = (key: string): string => {
+    const v = searchParams[key];
+    if (!v) return "";
+    return typeof v === "string" ? v : v[0] || "";
+  };
+
+  const hasFilters = Object.keys(searchParams).some(k =>
+    k !== "sort" && k !== "dir" && k !== "page" && sp(k)
+  );
+
+  if (hasFilters) {
+    return `Nájdených ${total.toLocaleString("sk-SK")} firiem zodpovedajúcich zvoleným filtrom.`;
+  }
+  return "Vyhľadávajte firmy podľa odvetvia, právnej formy, finančných ukazovateľov a ďalších kritérií.";
+}
+
+function buildSeoText(
+  searchParams: Record<string, string | string[] | undefined>,
+  total: number,
+  companies: Array<{ name?: string | null; ico: string; latestRevenue?: string | null; city?: string | null }>,
+): string {
+  const sp = (key: string): string => {
+    const v = searchParams[key];
+    if (!v) return "";
+    return typeof v === "string" ? v : v[0] || "";
+  };
+
+  const krajLabel = getKrajLabel(sp("kraj"));
+  const naceLabel = getNaceSectionLabel(sp("naceSection"));
+  const city = sp("city");
+
+  const parts: string[] = [];
+  if (krajLabel) parts.push(`v ${krajLabel.toLowerCase()}`);
+  if (city) parts.push(`v meste ${city}`);
+  if (naceLabel) parts.push(`v odvetví ${naceLabel.toLowerCase()}`);
+
+  const location = parts.length > 0 ? parts.join(", ") : "na Slovensku";
+
+  // Top companies mention
+  const topNames = companies
+    .slice(0, 3)
+    .map(c => c.name)
+    .filter(Boolean)
+    .slice(0, 3);
+
+  if (topNames.length > 0) {
+    return `Vyhľadávaním bolo nájdených ${total.toLocaleString("sk-SK")} firiem ${location}. Medzi najvýznamnejšie patria ${topNames.join(", ")}. Filtrovanie umožňuje obmedziť výsledky podľa finančných ukazovateľov a roku založenia.`;
+  }
+
+  return `Vyhľadávaním bolo nájdených ${total.toLocaleString("sk-SK")} firiem ${location}. Filtrovanie umožňuje obmedziť výsledky podľa finančných ukazovateľov a roku založenia.`;
+}
+
+function buildItemListJsonLd(
+  companies: Array<{ name?: string | null; ico: string; latestRevenue?: string | null; city?: string | null }>,
+  searchParams: Record<string, string | string[] | undefined>,
+): object {
+  const sp = (key: string): string => {
+    const v = searchParams[key];
+    if (!v) return "";
+    return typeof v === "string" ? v : v[0] || "";
+  };
+
+  const h1 = buildDynamicH1(searchParams);
+  const canonicalParts: string[] = [];
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value === undefined) continue;
+    const s = typeof value === "string" ? value : value[0];
+    if (s && key !== "sort" && key !== "dir" && key !== "page") {
+      canonicalParts.push(`${key}=${encodeURIComponent(s)}`);
+    }
+  }
+  const url = `https://verifa.sk/screener${canonicalParts.length > 0 ? `?${canonicalParts.join("&")}` : ""}`;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: h1,
+    url,
+    numberOfItems: companies.length,
+    itemListElement: companies.slice(0, 20).map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      item: {
+        "@type": "Organization",
+        name: c.name || c.ico,
+        identifier: c.ico,
+        url: `https://verifa.sk/firma/${c.ico}`,
+      },
+    })),
   };
 }
