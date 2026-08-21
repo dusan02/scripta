@@ -131,12 +131,12 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+    <div className="space-y-3">
+      <h2 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
         Filtre
       </h2>
 
-      {/* 1. Fulltext (debounced — 400ms) */}
+      {/* 1. Fulltext (debounced) */}
       <div>
         <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
           Fulltext (názov / IČO)
@@ -144,7 +144,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         <input
           type="text"
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="Zadajte názov alebo IČO…"
           value={qInput}
           onChange={(e) => setQInput(e.target.value)}
@@ -158,7 +158,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("naceSection")}
           onChange={(e) => applyFilter("naceSection", e.target.value)}
         >
@@ -179,7 +179,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         <input
           type="text"
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="napr. 6201"
           value={numInputs.naceCode ?? ""}
           onChange={(e) => setNum("naceCode", e.target.value)}
@@ -193,7 +193,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("legalForm")}
           onChange={(e) => applyFilter("legalForm", e.target.value)}
         >
@@ -213,7 +213,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("ownershipType")}
           onChange={(e) => applyFilter("ownershipType", e.target.value)}
         >
@@ -233,7 +233,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("city")}
           onChange={(e) => applyFilter("city", e.target.value)}
         >
@@ -253,7 +253,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("kraj")}
           onChange={(e) => applyFilter("kraj", e.target.value)}
         >
@@ -273,7 +273,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("okres")}
           onChange={(e) => applyFilter("okres", e.target.value)}
         >
@@ -296,7 +296,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
             type="number"
             min="0"
             className={SELECT_STYLE}
-            style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+            style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
             placeholder="0"
             value={numInputs.ageMin ?? ""}
             onChange={(e) => setNum("ageMin", e.target.value)}
@@ -310,7 +310,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
             type="number"
             min="0"
             className={SELECT_STYLE}
-            style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+            style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
             placeholder="∞"
             value={numInputs.ageMax ?? ""}
             onChange={(e) => setNum("ageMax", e.target.value)}
@@ -334,7 +334,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           min="2000"
           max="2030"
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="napr. 2023"
           value={numInputs.latestYear ?? ""}
           onChange={(e) => setNum("latestYear", e.target.value)}
@@ -342,7 +342,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
       </div>
 
       {/* AUTH filters — Vestník (13-16) */}
-      <div className="pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="pt-3 border-t" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
           Vestník udalosti
         </h3>
@@ -386,13 +386,13 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
       </div>
 
       {/* Sort */}
-      <div className="pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="pt-3 border-t" style={{ borderColor: "var(--border)" }}>
         <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
           Zoradiť
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={`${currentSort}-${currentDir}`}
           onChange={(e) => applySort(e.target.value)}
         >
@@ -451,7 +451,7 @@ function FinancialRange({
         <input
           type="number"
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="min"
           value={numInputs[minKey] ?? ""}
           onChange={(e) => setNum(minKey, e.target.value)}
@@ -459,7 +459,7 @@ function FinancialRange({
         <input
           type="number"
           className={SELECT_STYLE}
-          style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="max"
           value={numInputs[maxKey] ?? ""}
           onChange={(e) => setNum(maxKey, e.target.value)}

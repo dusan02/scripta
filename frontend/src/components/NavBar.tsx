@@ -13,6 +13,7 @@ import { HamburgerButton, MobileMenuBackdrop } from "@/components/NavShared";
 import {
   LogOutIcon,
   SearchIcon,
+  ShieldCheckIcon,
   ClockIcon,
   CreditCardIcon,
   SettingsIcon,
@@ -23,7 +24,7 @@ import {
 
 const NAV_ITEMS = [
   { href: "/landing", key: "nav.landing", icon: HomeIcon },
-  { href: "/dashboard", key: "nav.overenie", icon: SearchIcon },
+  { href: "/dashboard", key: "nav.overenie", icon: ShieldCheckIcon },
   { href: "/screener", key: "nav.screener", icon: SearchIcon },
   { href: "/history", key: "nav.historia", icon: ClockIcon },
   { href: "/credits", key: "nav.kredity", icon: CreditCardIcon },
