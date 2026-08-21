@@ -576,9 +576,11 @@ export type ScreenerSort = {
 const VALID_SORT_FIELDS: SortField[] = ["name", "latestRevenue", "latestProfit", "latestAssets", "latestEquity", "establishedAt", "city"];
 
 function parseSort(searchParams: Record<string, string | string[] | undefined>): ScreenerSort {
-  const fieldRaw = typeof searchParams.sort === "string" ? searchParams.sort : "name";
-  const dirRaw = typeof searchParams.dir === "string" ? searchParams.dir : "asc";
-  const field = (VALID_SORT_FIELDS.includes(fieldRaw as SortField) ? fieldRaw : "name") as SortField;
+  // Default sort: latestRevenue DESC — uses index (Company_latestRevenue_desc_idx)
+  // name ASC default would cause 16s full scan + sort on 518K rows (no index on name)
+  const fieldRaw = typeof searchParams.sort === "string" ? searchParams.sort : "latestRevenue";
+  const dirRaw = typeof searchParams.dir === "string" ? searchParams.dir : "desc";
+  const field = (VALID_SORT_FIELDS.includes(fieldRaw as SortField) ? fieldRaw : "latestRevenue") as SortField;
   const dir = (dirRaw === "desc" ? "desc" : "asc") as SortDir;
   return { field, dir };
 }
@@ -807,7 +809,6 @@ export async function queryScreener(
   const select = getSelectForTier(tier);
 
   // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
-  const _qt0 = Date.now();
   const companies = await prisma.company.findMany({
     where,
     select,
@@ -815,8 +816,6 @@ export async function queryScreener(
     skip,
     take,
   });
-  const _qt1 = Date.now();
-  console.log(`[screener-query] findMany=${_qt1-_qt0}ms where=${JSON.stringify(where)} orderBy=${JSON.stringify(orderBy)}`);
 
   // Use approximate count for all queries — real COUNT on 518K rows takes 14-21s
   // (PostgreSQL prefers seq scan over index for COUNT even when index exists).
