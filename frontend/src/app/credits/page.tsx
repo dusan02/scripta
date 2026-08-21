@@ -230,11 +230,11 @@ export default function CreditsPage() {
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
             {t("plan.zostava")}
           </span>
-          {data.rolloverCredits && data.rolloverCredits > 0 && (
+          {data.rolloverCredits && data.rolloverCredits > 0 ? (
             <span className="text-[10px] mt-0.5" style={{ color: "var(--info)" }}>
               ({data.rolloverCredits} prenesených)
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Used (successful) */}
