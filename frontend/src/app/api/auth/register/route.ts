@@ -102,7 +102,7 @@ async function sendAdminRegistrationNotification(email: string, userId: string):
 }
 
 export async function POST(req: NextRequest) {
-  const rl = await rateLimit(req, { windowMs: 60 * 60 * 1000, maxRequests: 5 });
+  const rl = await rateLimit(req, { windowMs: 60 * 60 * 1000, maxRequests: 5, failClosed: true });
   if (!rl.allowed) return rateLimitResponse(rl);
 
   try {
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     const { email, password } = result.data;
 
     // Email-based rate limit: 3 registrations per email per 24h
-    const emailRl = await rateLimitByKey(`register:${email}`, { windowMs: 24 * 60 * 60 * 1000, maxRequests: 3 });
+    const emailRl = await rateLimitByKey(`register:${email}`, { windowMs: 24 * 60 * 60 * 1000, maxRequests: 3, failClosed: true });
     if (!emailRl.allowed) return rateLimitResponse(emailRl);
 
     // Check if user exists

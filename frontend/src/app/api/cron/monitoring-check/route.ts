@@ -42,6 +42,7 @@ async function runMonitoringCheck(): Promise<NextResponse> {
     }
 
     let alertsCreated = 0;
+    const createdAlertIds: string[] = [];
 
     for (const w of watched) {
       try {
@@ -85,6 +86,7 @@ async function runMonitoringCheck(): Promise<NextResponse> {
               riskScore: severity === "HIGH" ? 80 : severity === "MEDIUM" ? 50 : 20,
             },
           });
+          createdAlertIds.push(alert.id);
 
           // Create AlertDelivery for all users watching this company
           const watchers = await prisma.watchedCompany.findMany({
@@ -110,11 +112,13 @@ async function runMonitoringCheck(): Promise<NextResponse> {
       }
     }
 
-    // Mark all checked alerts as notified
-    await prisma.alertEvent.updateMany({
-      where: { notifiedAt: null, deletedAt: null },
-      data: { notifiedAt: new Date() },
-    });
+    // Mark only alerts created in this run as notified (not all un-notified alerts)
+    if (createdAlertIds.length > 0) {
+      await prisma.alertEvent.updateMany({
+        where: { id: { in: createdAlertIds }, deletedAt: null },
+        data: { notifiedAt: new Date() },
+      });
+    }
 
     return NextResponse.json({
       ok: true,

@@ -7,7 +7,7 @@ import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET(req: NextRequest) {
   // Rate limit: 20 attempts per 15 min per IP (prevents token brute-force, even though 32-byte tokens are impractical to guess)
-  const rl = await rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 20 });
+  const rl = await rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 20, failClosed: true });
   if (!rl.allowed) return rateLimitResponse(rl);
 
   const token = req.nextUrl.searchParams.get("token");
@@ -64,8 +64,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "Používateľ neexistuje." }, { status: 400 });
   }
 
-  // Grant 1 free trial credit via CreditBatch (has its own transaction)
-  await addCreditBatch(user.id, 1, "trial");
+  // Grant 1 free trial credit via CreditBatch (has its own transaction).
+  // Idempotency: check if user already has a trial batch before granting.
+  // This handles the race condition where the server crashes between
+  // email verification and credit grant — a retry will find the existing
+  // batch and skip re-granting.
+  try {
+    const existingTrial = await prisma.creditBatch.findFirst({
+      where: { userId: user.id, source: "trial" },
+      select: { id: true },
+    });
+    if (!existingTrial) {
+      await addCreditBatch(user.id, 1, "trial");
+    }
+  } catch (err) {
+    // Log error but don't fail the verification — user is already verified.
+    // Admin can manually grant credits if needed.
+    console.error(`[verify-email] Failed to grant trial credit to ${user.id}:`, err);
+  }
 
   return NextResponse.json({ message: "Účet bol úspešne aktivovaný. Môžete sa prihlásiť." });
 }

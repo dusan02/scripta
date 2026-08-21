@@ -9,7 +9,7 @@ import { forgotPasswordSchema } from "@/lib/api-schemas";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
-  const rl = await rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 5 });
+  const rl = await rateLimit(req, { windowMs: 15 * 60 * 1000, maxRequests: 5, failClosed: true });
   if (!rl.allowed) return rateLimitResponse(rl);
 
   try {

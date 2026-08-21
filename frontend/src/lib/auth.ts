@@ -131,8 +131,8 @@ export const authOptions: NextAuthOptions = {
         const ipKey = `login:${ipAddress}`;
 
         const [emailLimit, ipLimit] = await Promise.all([
-          rateLimitByKey(emailKey, { windowMs: 15 * 60 * 1000, maxRequests: 10 }),
-          rateLimitByKey(ipKey, { windowMs: 15 * 60 * 1000, maxRequests: 20 }),
+          rateLimitByKey(emailKey, { windowMs: 15 * 60 * 1000, maxRequests: 10, failClosed: true }),
+          rateLimitByKey(ipKey, { windowMs: 15 * 60 * 1000, maxRequests: 20, failClosed: true }),
         ]);
 
         if (!emailLimit.allowed || !ipLimit.allowed) {
@@ -213,8 +213,20 @@ export const authOptions: NextAuthOptions = {
             },
             select: { id: true, tokenVersion: true },
           });
-          // Create succeeded → new user → grant 1 trial credit
-          await addCreditBatch(newUser.id, 1, "trial");
+          // Create succeeded → new user → grant 1 trial credit.
+          // Idempotency: check if user already has a trial batch (handles
+          // crash-recovery scenario where user was created but credit grant failed).
+          try {
+            const existingTrial = await prisma.creditBatch.findFirst({
+              where: { userId: newUser.id, source: "trial" },
+              select: { id: true },
+            });
+            if (!existingTrial) {
+              await addCreditBatch(newUser.id, 1, "trial");
+            }
+          } catch (err) {
+            console.error(`[auth] Failed to grant trial credit to ${newUser.id}:`, err);
+          }
           token.id = newUser.id;
           token.tokenVersion = newUser.tokenVersion;
 

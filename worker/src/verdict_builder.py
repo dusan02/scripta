@@ -348,6 +348,11 @@ def _apply_orsr_override(
                 wh_refund += abs(p.score)
                 logger.info(f"[MGMT ANOMALY OVERRIDE] IČO {ico}: LLM dismissed mgmt anomaly risk — refunding {abs(p.score)}b ORSR penalty")
         if wh_refund > 0:
+            # Cap refund at 50% of ORSR penalty to prevent score inflation.
+            # Without this cap, a fraudulent company with many ORSR anomalies
+            # could get a large refund that pushes score to 100, masking
+            # real risks from other pillars.
+            wh_refund = min(wh_refund, 15)  # hard cap at 15 points
             deterministic_score = min(100, deterministic_score + wh_refund)
     return wh_refund, deterministic_score
 

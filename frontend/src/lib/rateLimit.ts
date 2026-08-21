@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 interface RateLimitOptions {
   windowMs: number;
   maxRequests: number;
+  failClosed?: boolean; // If true, deny all requests when Redis is unavailable (for auth endpoints)
 }
 
 interface RateLimitResult {
@@ -65,6 +66,11 @@ async function redisRateLimit(key: string, options: RateLimitOptions): Promise<R
   });
 
   if (!res.ok) {
+    // Fail-closed for auth endpoints (login, register, password reset) — deny all
+    // Fail-open for general endpoints — allow all (don't block entire site for Redis outage)
+    if (options.failClosed) {
+      return { allowed: false, remaining: 0, resetTime };
+    }
     return { allowed: true, remaining: options.maxRequests - 1, resetTime };
   }
 
@@ -164,7 +170,10 @@ export async function rateLimit(
     try {
       return await redisRateLimit(key, options);
     } catch (err) {
-      console.error("[rateLimit] Upstash Redis failed — failing open:", err);
+      console.error("[rateLimit] Upstash Redis failed — failing " + (options.failClosed ? "closed" : "open") + ":", err);
+      if (options.failClosed) {
+        return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+      }
       return { allowed: true, remaining: options.maxRequests - 1, resetTime: Date.now() + options.windowMs };
     }
   }
@@ -198,7 +207,10 @@ export async function rateLimitByKey(
     try {
       return await redisRateLimit(rateLimitKey, options);
     } catch (err) {
-      console.error("[rateLimit] Upstash Redis failed — failing open:", err);
+      console.error("[rateLimit] Upstash Redis failed — failing " + (options.failClosed ? "closed" : "open") + ":", err);
+      if (options.failClosed) {
+        return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+      }
       return { allowed: true, remaining: options.maxRequests - 1, resetTime: Date.now() + options.windowMs };
     }
   }
