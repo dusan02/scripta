@@ -86,22 +86,22 @@ export default async function ScreenerPage({
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      {/* Header — standalone for anonymous users (NavBar shown for authenticated) */}
-      <header className="glass-nav sticky top-0 z-50">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" aria-label="Verifa.sk" style={{ textDecoration: "none" }}>
-              <Image
-                src="/logo-verifa.png"
-                alt="Verifa.sk"
-                width={120}
-                height={40}
-                style={{ height: 40, width: "auto", display: "block" }}
-                priority
-              />
-            </Link>
-            <div className="flex items-center gap-3">
-              {tier === "FREE" ? (
+      {/* Header — standalone only for anonymous users (NavBar shown for authenticated) */}
+      {!session?.user && (
+        <header className="glass-nav sticky top-0 z-50">
+          <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
+            <div className="flex items-center justify-between h-16">
+              <Link href="/" aria-label="Verifa.sk" style={{ textDecoration: "none" }}>
+                <Image
+                  src="/logo-verifa.png"
+                  alt="Verifa.sk"
+                  width={120}
+                  height={40}
+                  style={{ height: 40, width: "auto", display: "block" }}
+                  priority
+                />
+              </Link>
+              <div className="flex items-center gap-3">
                 <Link
                   href="/login"
                   className="text-xs sm:text-sm font-medium px-4 py-2 rounded-lg transition-opacity hover:opacity-90"
@@ -109,19 +109,11 @@ export default async function ScreenerPage({
                 >
                   Prihlásiť sa
                 </Link>
-              ) : (
-                <Link
-                  href="/dashboard"
-                  className="text-xs sm:text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  style={{ border: "1px solid var(--border)", color: "var(--text)" }}
-                >
-                  Dashboard
-                </Link>
-              )}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Main content — max-w matches dashboard/landing */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">

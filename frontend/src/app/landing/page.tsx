@@ -1,5 +1,8 @@
 "use client";
 
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import LandingJsonLd from "@/components/LandingJsonLd";
 import LandingNav from "@/components/landing/LandingNav";
 import HeroSection from "@/components/landing/HeroSection";
@@ -17,6 +20,16 @@ import StickyCta from "@/components/landing/StickyCta";
 import LandingFooter from "@/components/landing/LandingFooter";
 
 export default function LandingPageRoute() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Redirect authenticated users to dashboard — landing is for anonymous visitors
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      router.replace("/dashboard");
+    }
+  }, [status, session, router]);
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <LandingJsonLd />
