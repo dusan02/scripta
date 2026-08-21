@@ -59,6 +59,8 @@ type PersonInfo = {
   zipCode: string | null;
   role: string;
   functionStart: Date | null;
+  functionEnd: Date | null;
+  isActive: boolean;
 };
 
 function decodeWindows1250(buffer: ArrayBuffer): string {
@@ -267,13 +269,20 @@ function parsePersonsFromSection(text: string, sectionLabel: string, role: strin
     let street: string | null = null;
     let zipCode: string | null = null;
     let functionStart: Date | null = null;
+    let functionEnd: Date | null = null;
     for (let j = i + 1; j < Math.min(i + 5, sectionLines.length); j++) {
       const addrLine = sectionLines[j];
-      // Check for "od:" date line (function start)
-      const odMatch = addrLine.match(/\(od:\s*(\d{2}\.\d{2}\.\d{4})\)/);
+      // Check for "od:" date line (function start) and "do:" date line (function end)
+      // Format: (od: 10.07.2000 do: 16.09.2025) or (od: 17.09.2025) or (do: 31.12.2024)
+      const odMatch = addrLine.match(/\(od:\s*(\d{2}\.\d{2}\.\d{4})/);
       if (odMatch) {
         const [d, m, y] = odMatch[1].split(".");
         functionStart = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+      }
+      const doMatch = addrLine.match(/do:\s*(\d{2}\.\d{2}\.\d{4})\)/);
+      if (doMatch) {
+        const [d, m, y] = doMatch[1].split(".");
+        functionEnd = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
       }
       const zipMatch = addrLine.match(ZIP_RE);
       if (zipMatch) {
@@ -295,7 +304,8 @@ function parsePersonsFromSection(text: string, sectionLabel: string, role: strin
       }
     }
 
-    persons.push({ rawName, cleanName, city, street, zipCode, role, functionStart });
+    const isActive = functionEnd === null;
+    persons.push({ rawName, cleanName, city, street, zipCode, role, functionStart, functionEnd, isActive });
     i++;
   }
 
@@ -514,6 +524,8 @@ export async function seedFromOrsr(ico: string): Promise<{
             street: p.street,
             zipCode: p.zipCode,
             functionStart: p.functionStart,
+            functionEnd: p.functionEnd,
+            isActive: p.isActive,
           })),
         });
       }

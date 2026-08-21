@@ -95,12 +95,17 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
             data=company_update,
         )
 
-        # Update CompanyPerson records — NON-DESTRUCTIVE.
+        # Update CompanyPerson records — NON-DESTRUCTIVE with isActive tracking.
         # RPO import already populated statutar persons (1.99M records).
-        # ORSR adds spolocnik + functionStart data. We upsert by (companyIco, cleanName, role)
-        # to avoid duplicates without deleting RPO-sourced records.
+        # ORSR adds spolocnik + functionStart/functionEnd/isActive data.
+        # We upsert by (companyIco, cleanName, role) to avoid duplicates.
+        # Persons NOT in the ORSR extract are marked isActive=false (no longer current).
         if result.persons:
+            # Collect (cleanName, role) pairs from ORSR extract — these are current
+            seen_keys = set()
             for p in result.persons:
+                key = (p.clean_name, p.role)
+                seen_keys.add(key)
                 existing = await db.companyperson.find_first(
                     where={
                         "companyIco": ico,
@@ -109,12 +114,15 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
                     },
                 )
                 if existing:
-                    # Update with ORSR-enriched data (city, zipCode, functionStart)
+                    # Update with ORSR-enriched data (city, zipCode, functionStart, functionEnd, isActive)
                     await db.companyperson.update(
                         where={"id": existing.id},
                         data={
                             "city": p.city or existing.city,
                             "zipCode": p.zip_code or existing.zipCode,
+                            "functionStart": p.function_start or existing.functionStart,
+                            "functionEnd": p.function_end,
+                            "isActive": p.is_active,
                         },
                     )
                 else:
@@ -126,8 +134,25 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
                             "role": p.role,
                             "city": p.city,
                             "zipCode": p.zip_code,
+                            "functionStart": p.function_start,
+                            "functionEnd": p.function_end,
+                            "isActive": p.is_active,
                         },
                     )
+
+            # Mark persons NOT in the ORSR extract as inactive (they left the company)
+            # Only applies to the roles that were in this extract (statutar/spolocnik/dozorna_rada)
+            roles_in_extract = {p.role for p in result.persons}
+            for role in roles_in_extract:
+                existing_persons = await db.companyperson.find_many(
+                    where={"companyIco": ico, "role": role, "isActive": True},
+                )
+                for ep in existing_persons:
+                    if (ep.cleanName, role) not in seen_keys:
+                        await db.companyperson.update(
+                            where={"id": ep.id},
+                            data={"isActive": False},
+                        )
 
         return {
             "ico": ico,

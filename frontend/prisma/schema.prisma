@@ -387,6 +387,8 @@ model CompanyPerson {
   street        String?
   zipCode       String?
   functionStart DateTime? // Dátum vzniku funkcie (z ORSR)
+  functionEnd   DateTime? // Dátum zániku funkcie (z ORSR "(do: ...)")
+  isActive      Boolean   @default(true) // false = bývalý štatutár/spoločník
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -394,6 +396,7 @@ model CompanyPerson {
 
   @@index([companyIco])
   @@index([role])
+  @@index([companyIco, isActive])
 }
 
 model NaceCode {

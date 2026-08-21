@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
@@ -44,6 +45,9 @@ class PersonInfo(BaseModel):
     role: str               # "statutar" | "spolocnik" | "dozorna_rada"
     capital_contribution: Optional[float] = None  # Vklad v EUR (pre spoločníkov)
     capital_paid: Optional[float] = None           # Splatené v EUR
+    function_start: Optional[datetime] = None      # Dátum vzniku funkcie (z ORSR "(od: ...)")
+    function_end: Optional[datetime] = None        # Dátum zániku funkcie (z ORSR "(do: ...)")
+    is_active: bool = True                          # False = bývalý štatutár/spoločník
 
 
 class OrsrForensics(BaseModel):

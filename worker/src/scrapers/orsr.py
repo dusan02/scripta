@@ -3,6 +3,7 @@ import asyncio
 import logging
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -604,9 +605,23 @@ class OrsrScraper(BaseScraper):
                         )
                         if cm:
                             city = cm.group(1)
+                    # Extract function dates: (od: DD.MM.YYYY do: DD.MM.YYYY) or (od: DD.MM.YYYY)
+                    function_start = None
+                    function_end = None
+                    od_match = re.search(r'\(od:\s*(\d{2}\.\d{2}\.\d{4})', full)
+                    if od_match:
+                        d, m, y = od_match.group(1).split(".")
+                        function_start = datetime(int(y), int(m), int(d))
+                    do_match = re.search(r'do:\s*(\d{2}\.\d{2}\.\d{4})\)', full)
+                    if do_match:
+                        d, m, y = do_match.group(1).split(".")
+                        function_end = datetime(int(y), int(m), int(d))
+                    is_active = function_end is None
                     persons.append(PersonInfo(
                         raw_name=raw_name, clean_name=clean_name,
                         city=city, zip_code=zip_code, role=role,
+                        function_start=function_start, function_end=function_end,
+                        is_active=is_active,
                     ))
         return persons
 
@@ -744,8 +759,19 @@ class OrsrScraper(BaseScraper):
             # Hľadať adresu v nasledujúcich riadkoch
             city = None
             zip_code = None
+            function_start = None
+            function_end = None
             for j in range(i + 1, min(i + 4, len(section_lines))):
                 addr_line = section_lines[j]
+                # Check for "od:" / "do:" date line
+                od_match = re.search(r'\(od:\s*(\d{2}\.\d{2}\.\d{4})', addr_line)
+                if od_match:
+                    d, m, y = od_match.group(1).split(".")
+                    function_start = datetime(int(y), int(m), int(d))
+                do_match = re.search(r'do:\s*(\d{2}\.\d{2}\.\d{4})\)', addr_line)
+                if do_match:
+                    d, m, y = do_match.group(1).split(".")
+                    function_end = datetime(int(y), int(m), int(d))
                 # Ak ďalší riadok vyzerá ako ďalšie meno (nie adresa), skonči
                 if addr_line[0].isalpha() and not ZIP_RE.search(addr_line) and "," not in addr_line and " " in addr_line:
                     # Skontroluj či to nie je len mestský názov bez PSČ
@@ -765,12 +791,16 @@ class OrsrScraper(BaseScraper):
                 if addr_line[0].isalpha() and not any(c.isdigit() for c in addr_line):
                     city = addr_line.strip()
 
+            is_active = function_end is None
             persons.append(PersonInfo(
                 raw_name=raw_name,
                 clean_name=clean_name,
                 city=city,
                 zip_code=zip_code,
                 role=role,
+                function_start=function_start,
+                function_end=function_end,
+                is_active=is_active,
             ))
             i += 1
 
