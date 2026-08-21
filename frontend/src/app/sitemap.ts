@@ -134,24 +134,30 @@ export default async function sitemap({
   // Sitemap 1..N: company pages (8000 companies each)
   const skip = (id - 1) * COMPANIES_PER_SITEMAP;
 
-  const companies = await prisma.company.findMany({
-    where: {
-      financialStatements: { some: {} },
-    },
-    select: {
-      ico: true,
-      name: true,
-      auditVerdict: { select: { createdAt: true } },
-      _count: { select: { financialStatements: true } },
-    },
-    skip,
-    take: COMPANIES_PER_SITEMAP,
-    orderBy: { ico: "asc" },
-  });
+  try {
+    const companies = await prisma.company.findMany({
+      where: {
+        financialStatements: { some: {} },
+      },
+      select: {
+        ico: true,
+        name: true,
+        auditVerdict: { select: { createdAt: true } },
+        _count: { select: { financialStatements: true } },
+      },
+      skip,
+      take: COMPANIES_PER_SITEMAP,
+      orderBy: { ico: "asc" },
+    });
 
-  // Filter to ≥2 financial statements (quality gate)
-  const filtered = companies.filter((c) => c._count.financialStatements >= 2);
-  return buildCompanyPages(
-    filtered.map((c) => ({ ico: c.ico, name: c.name, auditVerdict: c.auditVerdict }))
-  );
+    // Filter to ≥2 financial statements (quality gate)
+    const filtered = companies.filter((c) => c._count.financialStatements >= 2);
+    return buildCompanyPages(
+      filtered.map((c) => ({ ico: c.ico, name: c.name, auditVerdict: c.auditVerdict }))
+    );
+  } catch {
+    // DB unavailable during build prerender — return empty sitemap.
+    // Sitemap will be regenerated at runtime (revalidate = 3600).
+    return [];
+  }
 }
