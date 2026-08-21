@@ -554,7 +554,11 @@ const FREE_FILTERS: FilterDef[] = [
     key: "sizeCategory",
     accessLevel: "FREE",
     label: "Veľkosť firmy",
-    parse: parseMulti,
+    parse: (raw) => {
+      const arr = parseMulti(raw);
+      if (!arr) return null;
+      return arr.map((v) => v.toLowerCase());
+    },
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
       return { sizeCategoryNormalized: { in: value as string[] } };
@@ -566,7 +570,11 @@ const FREE_FILTERS: FilterDef[] = [
     key: "status",
     accessLevel: "FREE",
     label: "Status firmy",
-    parse: parseMulti,
+    parse: (raw) => {
+      const arr = parseMulti(raw);
+      if (!arr) return null;
+      return arr.map((v) => v.toUpperCase());
+    },
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
       return { statusNormalized: { in: value as string[] } };
