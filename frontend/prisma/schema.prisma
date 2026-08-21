@@ -365,7 +365,6 @@ model Company {
   @@index([naceCode])
   @@index([status])
   @@index([establishedAt])
-  @@index([latestRevenue])
   @@index([latestRevenue(sort: Desc, nulls: Last)])
   @@index([latestProfit(sort: Desc, nulls: Last)])
   @@index([latestAssets(sort: Desc, nulls: Last)])
