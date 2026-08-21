@@ -870,76 +870,42 @@ export type ScreenerFilterOptions = {
 
 /**
  * Get filter options for UI dropdowns.
- * Uses raw $queryRaw for performance on 518K rows.
- * Only fetches options for FREE filters (AUTH filters are boolean toggles, no dropdowns).
- * Cached for 1 hour at module level — facet data changes rarely.
+ * Reads from a pre-computed materialized view (0.1ms vs 60s for 4× GROUP BY on 518K rows).
+ * The MV must be refreshed after seeding new companies: REFRESH MATERIALIZED VIEW "ScreenerFilterOptions"
  */
-let _filterOptionsCache: { data: ScreenerFilterOptions; ts: number } | null = null;
-const FILTER_OPTIONS_TTL_MS = 60 * 60 * 1000; // 1 hour
-
 export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
-  if (_filterOptionsCache && Date.now() - _filterOptionsCache.ts < FILTER_OPTIONS_TTL_MS) {
-    return _filterOptionsCache.data;
-  }
+  const rows = await prisma.$queryRaw<Array<{
+    legal_forms: Array<{ legalForm: string; cnt: number }>;
+    cities: Array<{ city: string; cnt: number }>;
+    kraje: Array<{ kraj: string; cnt: number }>;
+    okresy: Array<{ okres: string; cnt: number }>;
+  }>>`SELECT * FROM "ScreenerFilterOptions" LIMIT 1`;
 
-  const legalForms = await prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
-      SELECT "legalForm", COUNT(*) as cnt
-      FROM "Company"
-      WHERE "legalForm" IS NOT NULL AND "legalForm" != ''
-      GROUP BY "legalForm"
-      ORDER BY cnt DESC
-      LIMIT 20
-    `;
-  const cities = await prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
-      SELECT city, COUNT(*) as cnt
-      FROM "Company"
-      WHERE city IS NOT NULL AND city != ''
-      GROUP BY city
-      ORDER BY cnt DESC
-      LIMIT 50
-    `;
-  const kraje = await prisma.$queryRaw<Array<{ kraj: string; cnt: bigint }>>`
-      SELECT kraj, COUNT(*) as cnt
-      FROM "Company"
-      WHERE kraj IS NOT NULL AND kraj != '' AND kraj != 'SKZZZ'
-      GROUP BY kraj
-      ORDER BY cnt DESC
-    `;
-  const okresy = await prisma.$queryRaw<Array<{ okres: string; cnt: bigint }>>`
-      SELECT okres, COUNT(*) as cnt
-      FROM "Company"
-      WHERE okres IS NOT NULL AND okres != ''
-      GROUP BY okres
-      ORDER BY cnt DESC
-    `;
-
-  const data: ScreenerFilterOptions = {
+  const r = rows[0];
+  return {
     naceSections: getNaceSections(),
-    legalForms: legalForms.map((l) => ({
+    legalForms: (r?.legal_forms || []).map((l) => ({
       value: l.legalForm,
       label: l.legalForm,
       count: Number(l.cnt),
     })),
     ownershipTypes: getOwnershipTypeOptions(),
-    cities: cities.map((c) => ({
+    cities: (r?.cities || []).map((c) => ({
       value: c.city,
       label: c.city,
       count: Number(c.cnt),
     })),
-    kraje: kraje.map((k) => ({
+    kraje: (r?.kraje || []).map((k) => ({
       value: k.kraj,
       label: getKrajLabel(k.kraj) || k.kraj,
       count: Number(k.cnt),
     })),
-    okresy: okresy.map((o) => ({
+    okresy: (r?.okresy || []).map((o) => ({
       value: o.okres,
       label: o.okres,
       count: Number(o.cnt),
     })),
   };
-
-  _filterOptionsCache = { data, ts: Date.now() };
-  return data;
 }
 
 // ═══════════════════════════════════════════════════════════════
