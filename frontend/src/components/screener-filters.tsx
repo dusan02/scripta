@@ -66,7 +66,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
     (sortVal: string) => {
       const [field, dir] = sortVal.split("-");
       const params = new URLSearchParams(searchParams.toString());
-      if (field === "name" && dir === "asc") {
+      if (field === "latestRevenue" && dir === "desc") {
         params.delete("sort");
         params.delete("dir");
       } else {
@@ -80,32 +80,55 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
   );
 
   const sp = (key: string) => searchParams.get(key) || "";
-  const currentSort = sp("sort") || "name";
-  const currentDir = sp("dir") || "asc";
+  const currentSort = sp("sort") || "latestRevenue";
+  const currentDir = sp("dir") || "desc";
 
-  // ── Debounced fulltext ──────────────────────────────────────────────────────
-  // Avoid server render on every keystroke. Local state + 400ms debounce → router.push.
+  // ── Debounced inputs ────────────────────────────────────────────────────────
+  // All text/number inputs use local state + debounce to avoid router.push on
+  // every keystroke, which would cause SSR rerender and scroll-to-top.
+  const DEBOUNCE_MS = 500;
+
   const [qInput, setQInput] = useState(sp("q"));
   const qTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync local input when URL changes externally (e.g. clear filters, back button)
+  // Numeric filter inputs — local state, debounced router.push
+  const numericKeys = ["naceCode", "ageMin", "ageMax", "revenueMin", "revenueMax", "profitMin", "profitMax", "assetsMin", "assetsMax", "equityMin", "equityMax", "latestYear"];
+  const [numInputs, setNumInputs] = useState<Record<string, string>>({});
+  const numTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Sync local inputs when URL changes externally (e.g. clear filters, back button)
   useEffect(() => {
     setQInput(sp("q"));
+    const next: Record<string, string> = {};
+    for (const k of numericKeys) next[k] = sp(k);
+    setNumInputs(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Debounce fulltext
   useEffect(() => {
     if (qTimer.current) clearTimeout(qTimer.current);
-    // Only push if value actually changed from what's in URL
     if (qInput === sp("q")) return;
-    qTimer.current = setTimeout(() => {
-      applyFilter("q", qInput);
-    }, 400);
-    return () => {
-      if (qTimer.current) clearTimeout(qTimer.current);
-    };
+    qTimer.current = setTimeout(() => applyFilter("q", qInput), DEBOUNCE_MS);
+    return () => { if (qTimer.current) clearTimeout(qTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qInput]);
+
+  // Update a numeric input locally (no router push yet)
+  const setNum = useCallback((key: string, value: string) => {
+    setNumInputs(prev => ({ ...prev, [key]: value }));
+    if (numTimers.current[key]) clearTimeout(numTimers.current[key]);
+    numTimers.current[key] = setTimeout(() => {
+      applyFilter(key, value);
+    }, DEBOUNCE_MS);
+  }, [applyFilter]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      for (const t of Object.values(numTimers.current)) clearTimeout(t);
+    };
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -158,8 +181,8 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           className={SELECT_STYLE}
           style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="napr. 6201"
-          value={sp("naceCode")}
-          onChange={(e) => applyFilter("naceCode", e.target.value)}
+          value={numInputs.naceCode ?? ""}
+          onChange={(e) => setNum("naceCode", e.target.value)}
         />
       </div>
 
@@ -267,7 +290,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-            Vek min (rokov)
+            Založenie od (rokov)
           </label>
           <input
             type="number"
@@ -275,13 +298,13 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
             className={SELECT_STYLE}
             style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
             placeholder="0"
-            value={sp("ageMin")}
-            onChange={(e) => applyFilter("ageMin", e.target.value)}
+            value={numInputs.ageMin ?? ""}
+            onChange={(e) => setNum("ageMin", e.target.value)}
           />
         </div>
         <div>
           <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-            Vek max
+            Založenie do (rokov)
           </label>
           <input
             type="number"
@@ -289,17 +312,17 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
             className={SELECT_STYLE}
             style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
             placeholder="∞"
-            value={sp("ageMax")}
-            onChange={(e) => applyFilter("ageMax", e.target.value)}
+            value={numInputs.ageMax ?? ""}
+            onChange={(e) => setNum("ageMax", e.target.value)}
           />
         </div>
       </div>
 
       {/* 8-11. Financial filters (min/max) */}
-      <FinancialRange label="Tržby (€)" minKey="revenueMin" maxKey="revenueMax" sp={sp} applyFilter={applyFilter} />
-      <FinancialRange label="Zisk (€)" minKey="profitMin" maxKey="profitMax" sp={sp} applyFilter={applyFilter} />
-      <FinancialRange label="Aktíva (€)" minKey="assetsMin" maxKey="assetsMax" sp={sp} applyFilter={applyFilter} />
-      <FinancialRange label="Vlastné imanie (€)" minKey="equityMin" maxKey="equityMax" sp={sp} applyFilter={applyFilter} />
+      <FinancialRange label="Tržby (€)" minKey="revenueMin" maxKey="revenueMax" numInputs={numInputs} setNum={setNum} />
+      <FinancialRange label="Zisk (€)" minKey="profitMin" maxKey="profitMax" numInputs={numInputs} setNum={setNum} />
+      <FinancialRange label="Aktíva (€)" minKey="assetsMin" maxKey="assetsMax" numInputs={numInputs} setNum={setNum} />
+      <FinancialRange label="Vlastné imanie (€)" minKey="equityMin" maxKey="equityMax" numInputs={numInputs} setNum={setNum} />
 
       {/* 12. Latest year */}
       <div>
@@ -313,8 +336,8 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           className={SELECT_STYLE}
           style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="napr. 2023"
-          value={sp("latestYear")}
-          onChange={(e) => applyFilter("latestYear", e.target.value)}
+          value={numInputs.latestYear ?? ""}
+          onChange={(e) => setNum("latestYear", e.target.value)}
         />
       </div>
 
@@ -383,8 +406,8 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           <option value="latestAssets-asc">Aktíva ↑</option>
           <option value="latestEquity-desc">Imanie ↓</option>
           <option value="latestEquity-asc">Imanie ↑</option>
-          <option value="establishedAt-desc">Vek ↓ (najstaršie)</option>
-          <option value="establishedAt-asc">Vek ↑ (najmladšie)</option>
+          <option value="establishedAt-desc">Založenie ↓ (najstaršie)</option>
+          <option value="establishedAt-asc">Založenie ↑ (najmladšie)</option>
           <option value="city-asc">Mesto A–Z</option>
           <option value="city-desc">Mesto Z–A</option>
         </select>
@@ -409,14 +432,14 @@ function FinancialRange({
   label,
   minKey,
   maxKey,
-  sp,
-  applyFilter,
+  numInputs,
+  setNum,
 }: {
   label: string;
   minKey: string;
   maxKey: string;
-  sp: (key: string) => string;
-  applyFilter: (key: string, value: string) => void;
+  numInputs: Record<string, string>;
+  setNum: (key: string, value: string) => void;
 }) {
   const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border";
   return (
@@ -430,16 +453,16 @@ function FinancialRange({
           className={SELECT_STYLE}
           style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="min"
-          value={sp(minKey)}
-          onChange={(e) => applyFilter(minKey, e.target.value)}
+          value={numInputs[minKey] ?? ""}
+          onChange={(e) => setNum(minKey, e.target.value)}
         />
         <input
           type="number"
           className={SELECT_STYLE}
           style={{ background: "var(--surface)", borderColor: "var(--border)", color: "var(--text)" }}
           placeholder="max"
-          value={sp(maxKey)}
-          onChange={(e) => applyFilter(maxKey, e.target.value)}
+          value={numInputs[maxKey] ?? ""}
+          onChange={(e) => setNum(maxKey, e.target.value)}
         />
       </div>
     </div>

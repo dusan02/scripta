@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey } from "@/lib/rateLimit";
 import { headers } from "next/headers";
 import Link from "next/link";
+import Image from "next/image";
 import { ScreenerFilters } from "@/components/screener-filters";
 import { slugify } from "@/lib/slug";
 
@@ -42,14 +43,11 @@ function fmtEur(val: string | null): string {
   return `€${n.toFixed(0)}`;
 }
 
-function fmtAge(establishedAt: Date | null): string {
+function fmtEstablished(establishedAt: Date | null): string {
   if (!establishedAt) return "—";
-  const now = new Date();
-  const diffMs = now.getTime() - establishedAt.getTime();
-  if (diffMs < 0) return "—"; // future date — invalid
-  const years = Math.floor(diffMs / (365.25 * 24 * 60 * 60 * 1000));
-  if (years < 0) return "—"; // before 1900 threshold — implausible, sanitized
-  return `${years} r`;
+  const year = establishedAt.getFullYear();
+  if (isNaN(year) || year < 1900) return "—";
+  return String(year);
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -108,8 +106,15 @@ export default async function ScreenerPage({
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <header className="sticky top-0 z-50 border-b" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold" style={{ color: "var(--text)" }}>
-            Verifa.sk
+          <Link href="/" aria-label="Verifa.sk" style={{ textDecoration: "none" }}>
+            <Image
+              src="/logo-verifa.png"
+              alt="Verifa.sk"
+              width={120}
+              height={40}
+              style={{ height: 40, width: "auto", display: "block" }}
+              priority
+            />
           </Link>
           <div className="flex items-center gap-3">
             {tier === "FREE" ? (
@@ -194,7 +199,7 @@ export default async function ScreenerPage({
                       <th className="text-left px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>IČO</th>
                       <th className="text-left px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>Právna forma</th>
                       <th className="text-left px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>Mesto</th>
-                      <th className="text-right px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>Vek</th>
+                      <th className="text-right px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>Založenie</th>
                       <th className="text-right px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>Tržby</th>
                       <th className="text-right px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>Zisk</th>
                       <th className="text-right px-4 py-3 font-semibold" style={{ color: "var(--text)" }}>Aktíva</th>
@@ -216,14 +221,9 @@ export default async function ScreenerPage({
                         <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>{c.ico}</td>
                         <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{c.legalForm || "—"}</td>
                         <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{c.city || "—"}</td>
-                        <td className="px-4 py-3 text-right" style={{ color: "var(--text-secondary)" }}>{fmtAge(c.establishedAt)}</td>
+                        <td className="px-4 py-3 text-right" style={{ color: "var(--text-secondary)" }}>{fmtEstablished(c.establishedAt)}</td>
                         <td className="px-4 py-3 text-right" style={{ color: "var(--text)" }}>
-                          {c.latestRevenue ? (
-                            <span>
-                              {fmtEur(c.latestRevenue)}
-                              <span className="text-xs ml-1" style={{ color: "var(--text-muted)" }}>· {c.latestYear}</span>
-                            </span>
-                          ) : "—"}
+                          {c.latestRevenue ? fmtEur(c.latestRevenue) : "—"}
                         </td>
                         <td className="px-4 py-3 text-right" style={{ color: "var(--text)" }}>
                           {c.latestProfit ? fmtEur(c.latestProfit) : "—"}

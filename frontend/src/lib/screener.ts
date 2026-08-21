@@ -18,6 +18,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { okresName } from "@/lib/okres-map";
 
 // ═══════════════════════════════════════════════════════════════
 // Access tiers
@@ -922,7 +923,7 @@ export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions>
     })),
     okresy: (r?.okresy || []).map((o) => ({
       value: o.okres,
-      label: o.okres,
+      label: okresName(o.okres),
       count: Number(o.cnt),
     })),
   };
