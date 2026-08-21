@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
 import { ScreenerFilters } from "@/components/screener-filters";
-import { slugify } from "@/lib/slug";
+import { ScreenerTable } from "@/components/screener-table";
 
 export const dynamic = "force-dynamic";
 
@@ -25,22 +25,6 @@ function getClientIp(): string {
     h.get("x-real-ip") ||
     "unknown"
   );
-}
-
-function fmtEur(val: string | null): string {
-  if (!val) return "—";
-  const n = parseFloat(val);
-  if (isNaN(n)) return "—";
-  if (n >= 1000000) return `€${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `€${(n / 1000).toFixed(0)}k`;
-  return `€${n.toFixed(0)}`;
-}
-
-function fmtEstablished(establishedAt: Date | null): string {
-  if (!establishedAt) return "—";
-  const year = establishedAt.getFullYear();
-  if (isNaN(year) || year < 1900) return "—";
-  return String(year);
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -127,7 +111,7 @@ export default async function ScreenerPage({
 
         {/* Heading */}
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-black mb-1.5" style={{ color: "var(--text)" }}>
+          <h1 className="text-2xl font-bold mb-1.5" style={{ color: "var(--text)" }}>
             Screener firiem
           </h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -141,7 +125,7 @@ export default async function ScreenerPage({
           {/* Filter sidebar */}
           <aside className="lg:w-60 flex-shrink-0">
             <div
-              className="rounded-xl p-4 lg:sticky lg:top-20"
+              className="rounded-xl p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
               style={{
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
@@ -184,65 +168,13 @@ export default async function ScreenerPage({
             {/* Results table */}
             {companies.length > 0 ? (
               <div
-                className="overflow-x-auto rounded-xl"
+                className="rounded-xl"
                 style={{
                   border: "1px solid var(--border)",
                   background: "var(--surface)",
                 }}
               >
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Firma</th>
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>IČO</th>
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Právna forma</th>
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Mesto</th>
-                      <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Založenie</th>
-                      <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Tržby</th>
-                      <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Zisk</th>
-                      <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Aktíva</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>Imanie</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {companies.map((c, i) => (
-                      <tr
-                        key={c.ico}
-                        style={{
-                          borderTop: i > 0 ? "1px solid var(--border)" : "none",
-                          transition: "background 0.1s",
-                        }}
-                        className="hover:bg-[var(--surface-hover)]"
-                      >
-                        <td className="px-4 py-2.5">
-                          <Link
-                            href={`/firma/${c.ico}-${slugify(c.name)}`}
-                            className="font-medium hover:underline"
-                            style={{ color: "var(--accent)" }}
-                          >
-                            {c.name || c.ico}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--text-muted)" }}>{c.ico}</td>
-                        <td className="px-3 py-2.5 text-xs" style={{ color: "var(--text-secondary)" }}>{c.legalForm || "—"}</td>
-                        <td className="px-3 py-2.5 text-xs" style={{ color: "var(--text-secondary)" }}>{c.city || "—"}</td>
-                        <td className="px-3 py-2.5 text-right text-xs" style={{ color: "var(--text-secondary)" }}>{fmtEstablished(c.establishedAt)}</td>
-                        <td className="px-3 py-2.5 text-right font-medium" style={{ color: "var(--text)" }}>
-                          {c.latestRevenue ? fmtEur(c.latestRevenue) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5 text-right" style={{ color: "var(--text)" }}>
-                          {c.latestProfit ? fmtEur(c.latestProfit) : "—"}
-                        </td>
-                        <td className="px-3 py-2.5 text-right" style={{ color: "var(--text)" }}>
-                          {c.latestAssets ? fmtEur(c.latestAssets) : "—"}
-                        </td>
-                        <td className="px-4 py-2.5 text-right" style={{ color: "var(--text)" }}>
-                          {c.latestEquity ? fmtEur(c.latestEquity) : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ScreenerTable companies={companies} />
               </div>
             ) : (
               <div
