@@ -267,3 +267,11 @@ export function ShieldCheckIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

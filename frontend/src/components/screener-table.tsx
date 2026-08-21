@@ -17,12 +17,13 @@ type Company = {
   latestYear: number | null;
 };
 
-// sk-SK thousand separators: €1 234 567
+// Display in thousands of euros (tis. eur) — no € sign, 3 fewer zeros
+// Example: 1 234 567 → "1 235"
 function fmtEur(val: string | null): string {
   if (!val) return "—";
   const n = parseFloat(val);
   if (isNaN(n)) return "—";
-  return "€" + Math.round(n).toLocaleString("sk-SK");
+  return Math.round(n / 1000).toLocaleString("sk-SK");
 }
 
 function fmtEstablished(establishedAt: Date | null): string {
@@ -46,10 +47,10 @@ const COLUMNS: Col[] = [
   { key: "legalForm", label: "Právna forma", align: "left", className: "hidden xl:table-cell" },
   { key: "city", label: "Mesto", sortField: "city", align: "left" },
   { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", className: "hidden lg:table-cell" },
-  { key: "latestRevenue", label: "Tržby", sortField: "latestRevenue", align: "right" },
-  { key: "latestProfit", label: "Zisk", sortField: "latestProfit", align: "right" },
-  { key: "latestAssets", label: "Aktíva", sortField: "latestAssets", align: "right", className: "hidden xl:table-cell" },
-  { key: "latestEquity", label: "Imanie", sortField: "latestEquity", align: "right", className: "hidden xl:table-cell" },
+  { key: "latestRevenue", label: "Tržby (tis. €)", sortField: "latestRevenue", align: "right" },
+  { key: "latestProfit", label: "Zisk (tis. €)", sortField: "latestProfit", align: "right" },
+  { key: "latestAssets", label: "Aktíva (tis. €)", sortField: "latestAssets", align: "right", className: "hidden xl:table-cell" },
+  { key: "latestEquity", label: "Imanie (tis. €)", sortField: "latestEquity", align: "right", className: "hidden xl:table-cell" },
 ];
 
 export function ScreenerTable({ companies }: { companies: Company[] }) {
