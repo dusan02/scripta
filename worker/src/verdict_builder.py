@@ -458,9 +458,9 @@ def _compute_deterministic_adjustment(
         breakdown["critical_events"] = -ev_penalty
         reasons.append(f"critical_events ({critical_events} × -3, capped -{ev_penalty})")
 
-    # Clamp to -10..+10 (aligned with Chief Auditor prompt which promises ±10)
+    # Clamp to -5..+5 (v3 — less aggressive than original ±10)
     raw_adj = adj
-    adj = max(-10, min(10, adj))
+    adj = max(-5, min(5, adj))
 
     # Scale breakdown if clamped
     if adj != raw_adj and raw_adj < 0:
