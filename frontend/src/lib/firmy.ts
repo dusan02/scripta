@@ -114,12 +114,13 @@ export async function queryFirmy(
     where.status = { in: filters.status.split(",") };
   }
 
-  // Sorting — default: name A-Z (not revenue, since coverage is low)
-  // NULLs always go last so financial sorts don't show empty rows first
+  // Sorting — default: trzby DESC (uses Company_latestRevenue_desc_idx, ~1.4ms).
+  // name ASC default would cause 16s full scan + sort on 518K rows (no index on name).
+  // NULLs always go last so financial sorts don't show empty rows first.
   let orderBy: Record<string, unknown> = {};
   switch (sort.field) {
-    case "trzby":
-      orderBy = { latestRevenue: { sort: sort.dir, nulls: "last" } };
+    case "nazov":
+      orderBy = { name: sort.dir };
       break;
     case "zisk":
       orderBy = { latestProfit: { sort: sort.dir, nulls: "last" } };
@@ -128,28 +129,53 @@ export async function queryFirmy(
       orderBy = { city: { sort: sort.dir, nulls: "last" } };
       break;
     default:
-      orderBy = { name: sort.dir };
+      orderBy = { latestRevenue: { sort: sort.dir, nulls: "last" } };
   }
 
-  const [firms, total] = await Promise.all([
-    prisma.company.findMany({
-      where,
-      select: {
-        ico: true,
-        name: true,
-        naceText: true,
-        sizeCategory: true,
-        city: true,
-        latestRevenue: true,
-        latestProfit: true,
-        latestYear: true,
-      },
-      orderBy,
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.company.count({ where }),
-  ]);
+  // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
+  const firms = await prisma.company.findMany({
+    where,
+    select: {
+      ico: true,
+      name: true,
+      naceText: true,
+      sizeCategory: true,
+      city: true,
+      latestRevenue: true,
+      latestProfit: true,
+      latestYear: true,
+    },
+    orderBy,
+    skip: (page - 1) * PAGE_SIZE,
+    take: PAGE_SIZE,
+  });
+
+  // Approximate count from pg_class — real COUNT on 518K rows takes 14-21s
+  // (PostgreSQL prefers seq scan over index for COUNT even when index exists).
+  // For filtered queries with selective filters (city, status, sizeCategory),
+  // real count is fast — use it. For non-selective or no filters, use approximate.
+  const hasFilters = Object.keys(where).length > 0;
+  let total: number;
+  if (!hasFilters) {
+    const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
+      SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
+    `;
+    total = Number(approx[0]?.estimate ?? 0);
+  } else {
+    // Selective filters use index scan → fast count.
+    // Non-selective filters (legalForm) cause seq scan → use approximate.
+    const isSelectiveFilter = Object.keys(where).some(k =>
+      ["city", "status", "sizeCategory", "naceCode", "latestRevenue", "latestProfit"].includes(k)
+    );
+    if (isSelectiveFilter) {
+      total = await prisma.company.count({ where });
+    } else {
+      const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
+        SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
+      `;
+      total = Number(approx[0]?.estimate ?? 0);
+    }
+  }
 
   return {
     firms: firms.map((f) => ({
@@ -168,75 +194,41 @@ export async function queryFirmy(
   };
 }
 
-// Get distinct filter values for dropdowns
+// Get distinct filter values for dropdowns.
+// Reads from pre-computed materialized view (0.1ms vs 60s for 5× GROUP BY on 518K rows).
+// The MV must be refreshed after seeding: REFRESH MATERIALIZED VIEW "FirmyFilterOptions"
 export async function getFirmyFilterOptions() {
-  const [naceSections, sizeCategories, cities, legalForms, statuses] = await Promise.all([
-    // NACE sections with counts
-    prisma.$queryRaw<Array<{ section: string; sectionName: string; cnt: bigint }>>`
-      SELECT n.section, n."sectionName", COUNT(*) as cnt
-      FROM "Company" c
-      JOIN "NaceCode" n ON c."naceCode" = n.code
-      GROUP BY n.section, n."sectionName"
-      ORDER BY cnt DESC
-    `,
-    // Size categories with counts
-    prisma.$queryRaw<Array<{ sizeCategory: string; cnt: bigint }>>`
-      SELECT "sizeCategory", COUNT(*) as cnt
-      FROM "Company"
-      WHERE "sizeCategory" IS NOT NULL AND "sizeCategory" != ''
-      GROUP BY "sizeCategory"
-      ORDER BY cnt DESC
-    `,
-    // Top cities with counts
-    prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
-      SELECT city, COUNT(*) as cnt
-      FROM "Company"
-      WHERE city IS NOT NULL AND city != ''
-      GROUP BY city
-      ORDER BY cnt DESC
-      LIMIT 20
-    `,
-    // Legal forms with counts
-    prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
-      SELECT "legalForm", COUNT(*) as cnt
-      FROM "Company"
-      WHERE "legalForm" IS NOT NULL AND "legalForm" != ''
-      GROUP BY "legalForm"
-      ORDER BY cnt DESC
-      LIMIT 10
-    `,
-    // Statuses with counts
-    prisma.$queryRaw<Array<{ status: string; cnt: bigint }>>`
-      SELECT status, COUNT(*) as cnt
-      FROM "Company"
-      WHERE status IS NOT NULL AND status != ''
-      GROUP BY status
-      ORDER BY cnt DESC
-    `,
-  ]);
+  const rows = await prisma.$queryRaw<Array<{
+    nace_sections: Array<{ section: string; sectionName: string; cnt: number }> | null;
+    size_categories: Array<{ sizeCategory: string; cnt: number }>;
+    cities: Array<{ city: string; cnt: number }>;
+    legal_forms: Array<{ legalForm: string; cnt: number }>;
+    statuses: Array<{ status: string; cnt: number }>;
+  }>>`SELECT * FROM "FirmyFilterOptions" LIMIT 1`;
 
+  const r = rows[0];
   return {
-    naceSections: naceSections.map((s) => ({
+    naceSections: (r?.nace_sections || []).map((s) => ({
       value: s.section,
       label: `${s.section} — ${s.sectionName}`,
       count: Number(s.cnt),
     })),
-    sizeCategories: sizeCategories.map((s) => ({
+    sizeCategories: (r?.size_categories || []).map((s) => ({
       value: s.sizeCategory,
       label: s.sizeCategory,
       count: Number(s.cnt),
     })),
-    cities: cities.map((c) => ({
+    cities: (r?.cities || []).map((c) => ({
       value: c.city,
       label: c.city,
       count: Number(c.cnt),
     })),
-    legalForms: legalForms.map((l) => ({
+    legalForms: (r?.legal_forms || []).map((l) => ({
       value: l.legalForm,
       label: l.legalForm,
       count: Number(l.cnt),
     })),
-    statuses: statuses.map((s) => ({
+    statuses: (r?.statuses || []).map((s) => ({
       value: s.status,
       label: s.status === "active" ? "Aktívna" : s.status,
       count: Number(s.cnt),

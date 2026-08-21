@@ -28,11 +28,13 @@ function parseFilters(searchParams: Record<string, string | string[] | undefined
 }
 
 function parseSort(searchParams: Record<string, string | string[] | undefined>): FirmySort {
-  const field = typeof searchParams.sort === "string" ? searchParams.sort : "nazov";
-  const dir = typeof searchParams.dir === "string" ? searchParams.dir : "asc";
+  // Default sort: trzby DESC — uses Company_latestRevenue_desc_idx (~1.4ms).
+  // nazov ASC default would cause 16s full scan + sort on 518K rows (no index on name).
+  const field = typeof searchParams.sort === "string" ? searchParams.sort : "trzby";
+  const dir = typeof searchParams.dir === "string" ? searchParams.dir : "desc";
   return {
-    field: (["nazov", "trzby", "zisk", "mesto"].includes(field) ? field : "nazov") as FirmySort["field"],
-    dir: (["asc", "desc"].includes(dir) ? dir : "asc") as FirmySort["dir"],
+    field: (["nazov", "trzby", "zisk", "mesto"].includes(field) ? field : "trzby") as FirmySort["field"],
+    dir: (["asc", "desc"].includes(dir) ? dir : "desc") as FirmySort["dir"],
   };
 }
 
@@ -50,7 +52,7 @@ function buildUrl(filters: FirmyFilters, sort: FirmySort, page: number): string 
   if (filters.lokalita) params.set("lokalita", filters.lokalita);
   if (filters.pravnaForma) params.set("pravnaForma", filters.pravnaForma);
   if (filters.status) params.set("status", filters.status);
-  if (sort.field !== "nazov" || sort.dir !== "asc") {
+  if (sort.field !== "trzby" || sort.dir !== "desc") {
     params.set("sort", sort.field);
     params.set("dir", sort.dir);
   }
@@ -68,10 +70,10 @@ export default async function FirmyPage({
   const sort = parseSort(searchParams);
   const page = parsePage(searchParams);
 
-  const [result, options] = await Promise.all([
-    queryFirmy(filters, sort, page),
-    getFirmyFilterOptions(),
-  ]);
+  // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
+  // Parallel queryFirmy (findMany + count) + getFirmyFilterOptions (5× queryRaw) = 7 concurrent → pool timeout.
+  const result = await queryFirmy(filters, sort, page);
+  const options = await getFirmyFilterOptions();
 
   const { firms, total, totalPages } = result;
 
