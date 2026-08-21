@@ -66,19 +66,28 @@ function Cell({ col, c }: { col: ColDef; c: Company }) {
     case "ico":
       return <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>{c.ico}</span>;
     case "legalForm":
-      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{c.legalForm || "—"}</span>;
+      return <span className="text-xs" style={{ color: "var(--text-secondary)" }} title={c.legalForm || undefined}>{c.legalForm || "—"}</span>;
     case "city":
-      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{c.city || "—"}</span>;
+      return <span className="text-xs" style={{ color: "var(--text-secondary)" }} title={c.city || undefined}>{c.city || "—"}</span>;
     case "establishedAt":
       return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{fmtYear(c.establishedAt)}</span>;
     case "latestRevenue":
       return <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEurK(c.latestRevenue)}</span>;
-    case "latestProfit":
-      return <span style={{ color: "var(--text)" }}>{fmtEurK(c.latestProfit)}</span>;
-    case "latestAssets":
-      return <span style={{ color: "var(--text)" }}>{fmtEurK(c.latestAssets)}</span>;
-    case "latestEquity":
-      return <span style={{ color: "var(--text)" }}>{fmtEurK(c.latestEquity)}</span>;
+    case "latestProfit": {
+      const val = c.latestProfit ? Number(c.latestProfit) : null;
+      const isNeg = val !== null && val < 0;
+      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestProfit)}</span>;
+    }
+    case "latestAssets": {
+      const val = c.latestAssets ? Number(c.latestAssets) : null;
+      const isNeg = val !== null && val < 0;
+      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestAssets)}</span>;
+    }
+    case "latestEquity": {
+      const val = c.latestEquity ? Number(c.latestEquity) : null;
+      const isNeg = val !== null && val < 0;
+      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestEquity)}</span>;
+    }
   }
 }
 
@@ -234,9 +243,9 @@ export function ScreenerTable({
   const sortIndicator = (field?: string) => {
     if (!field) return null;
     if (currentSort !== field) {
-      return <span className="ml-1 opacity-30 group-hover:opacity-60 transition-opacity">↕</span>;
+      return <span className="ml-1 opacity-25 group-hover:opacity-50 transition-opacity">↕</span>;
     }
-    return <span className="ml-1" style={{ color: "var(--accent)" }}>{currentDir === "asc" ? "↑" : "↓"}</span>;
+    return <span className="ml-1 font-bold" style={{ color: "var(--accent)" }}>{currentDir === "asc" ? "↑" : "↓"}</span>;
   };
 
   const activeCols = ALL_COLUMNS.filter(c => visibleCols.includes(c.key));
@@ -252,7 +261,7 @@ export function ScreenerTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
         <table className="w-full text-sm" style={{ tableLayout: "fixed", minWidth: "700px" }}>
           <colgroup>
             {activeCols.map(col => (
@@ -261,18 +270,30 @@ export function ScreenerTable({
           </colgroup>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {activeCols.map(col => (
-                <th
-                  key={col.key}
-                  className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-wide ${col.align === "right" ? "text-right" : "text-left"} ${col.sortField ? "cursor-pointer select-none group" : ""}`}
-                  style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}
-                  onClick={col.sortField ? () => toggleSort(col.sortField!) : undefined}
-                  title={col.sortField ? "Kliknite pre zoradenie" : undefined}
-                >
-                  {col.label}
-                  {sortIndicator(col.sortField)}
-                </th>
-              ))}
+              {activeCols.map(col => {
+                const isActive = col.sortField && currentSort === col.sortField;
+                return (
+                  <th
+                    key={col.key}
+                    className={`px-3 py-2.5 text-xs uppercase tracking-wide ${col.align === "right" ? "text-right" : "text-left"} ${col.sortField ? "cursor-pointer select-none group" : ""}`}
+                    style={{
+                      color: isActive ? "var(--text)" : "var(--text-muted)",
+                      fontWeight: isActive ? 700 : 600,
+                      whiteSpace: "nowrap",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 10,
+                      background: "var(--surface)",
+                      borderBottom: isActive ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    }}
+                    onClick={col.sortField ? () => toggleSort(col.sortField!) : undefined}
+                    title={col.sortField ? "Kliknite pre zoradenie" : undefined}
+                  >
+                    {col.label}
+                    {sortIndicator(col.sortField)}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -282,20 +303,19 @@ export function ScreenerTable({
                 style={{ borderTop: i > 0 ? "1px solid var(--border)" : "none" }}
                 className="hover:bg-[var(--surface-hover)] transition-colors"
               >
-                {activeCols.map(col => (
-                  <td
-                    key={col.key}
-                    className={`px-3 py-2.5 ${col.align === "right" ? "text-right" : "text-left"} ${col.key === "name" ? "overflow-hidden" : ""} whitespace-nowrap`}
-                  >
-                    {col.key === "name" ? (
-                      <div className="overflow-hidden text-ellipsis">
-                        <Cell col={col} c={c} />
-                      </div>
-                    ) : (
+                {activeCols.map(col => {
+                  // Text columns that need ellipsis truncation
+                  const isTextCol = col.key === "name" || col.key === "city" || col.key === "legalForm";
+                  return (
+                    <td
+                      key={col.key}
+                      className={`px-3 py-2.5 ${col.align === "right" ? "text-right" : "text-left"} whitespace-nowrap`}
+                      style={isTextCol ? { overflow: "hidden", textOverflow: "ellipsis" } : undefined}
+                    >
                       <Cell col={col} c={c} />
-                    )}
-                  </td>
-                ))}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
