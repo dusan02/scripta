@@ -18,7 +18,6 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { unstable_cache } from "next/cache";
 
 // ═══════════════════════════════════════════════════════════════
 // Access tiers
@@ -808,7 +807,6 @@ export async function queryScreener(
   const select = getSelectForTier(tier);
 
   // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
-  // Parallel findMany + count + 4× queryRaw from getScreenerFilterOptions = 6 concurrent → pool timeout.
   const companies = await prisma.company.findMany({
     where,
     select,
@@ -816,7 +814,19 @@ export async function queryScreener(
     skip,
     take,
   });
-  const total = await prisma.company.count({ where });
+
+  // Use approximate count from pg_class when no filters are applied (518K rows = 21s full scan).
+  // With filters, use real count (filtered result set is much smaller).
+  const hasFilters = Object.keys(where).length > 0;
+  let total: number;
+  if (!hasFilters) {
+    const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
+      SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
+    `;
+    total = Number(approx[0]?.estimate ?? 0);
+  } else {
+    total = await prisma.company.count({ where });
+  }
 
   // 7. Serialize Decimals to strings (Prisma returns Decimal objects)
   const serialized: ScreenerResult[] = companies.map((c) => ({
@@ -862,12 +872,17 @@ export type ScreenerFilterOptions = {
  * Get filter options for UI dropdowns.
  * Uses raw $queryRaw for performance on 518K rows.
  * Only fetches options for FREE filters (AUTH filters are boolean toggles, no dropdowns).
- * Cached for 1 hour via unstable_cache — facet data (legalForms, cities, kraje, okresy)
- * changes rarely (only when new companies are seeded).
+ * Cached for 1 hour at module level — facet data changes rarely.
  */
-export const getScreenerFilterOptions = unstable_cache(
-  async (): Promise<ScreenerFilterOptions> => {
-    const legalForms = await prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
+let _filterOptionsCache: { data: ScreenerFilterOptions; ts: number } | null = null;
+const FILTER_OPTIONS_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
+  if (_filterOptionsCache && Date.now() - _filterOptionsCache.ts < FILTER_OPTIONS_TTL_MS) {
+    return _filterOptionsCache.data;
+  }
+
+  const legalForms = await prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
       SELECT "legalForm", COUNT(*) as cnt
       FROM "Company"
       WHERE "legalForm" IS NOT NULL AND "legalForm" != ''
@@ -898,7 +913,7 @@ export const getScreenerFilterOptions = unstable_cache(
       ORDER BY cnt DESC
     `;
 
-  return {
+  const data: ScreenerFilterOptions = {
     naceSections: getNaceSections(),
     legalForms: legalForms.map((l) => ({
       value: l.legalForm,
@@ -922,10 +937,10 @@ export const getScreenerFilterOptions = unstable_cache(
       count: Number(o.cnt),
     })),
   };
-},
-  ["screener-filter-options"],
-  { revalidate: 3600 } // 1 hour — facet data changes rarely
-);
+
+  _filterOptionsCache = { data, ts: Date.now() };
+  return data;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // URL builder for shareable/crawlable URLs (ADR-003)
