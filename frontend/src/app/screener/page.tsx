@@ -60,13 +60,17 @@ export default async function ScreenerPage({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   // 1. Tier resolution from session
+  const _t0 = Date.now();
   const session = await getServerSession();
+  const _t1 = Date.now();
   const tier = await resolveTier(session);
+  const _t2 = Date.now();
 
   // 2. Rate limiting — per IP, per tier
   const ip = getClientIp();
   const rateLimitKey = `screener:${tier}:${ip}`;
   const rateLimitResult = await rateLimitByKey(rateLimitKey, RATE_LIMITS[tier]);
+  const _t3 = Date.now();
 
   if (!rateLimitResult.allowed) {
     // Rate limited — render a 429-style page (not a redirect, to preserve crawlability)
@@ -96,7 +100,11 @@ export default async function ScreenerPage({
   // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
   // Parallel execution of findMany + count + 4× queryRaw = 6 concurrent queries → pool timeout.
   const result = await queryScreener(searchParams, tier);
+  const _t4 = Date.now();
   const options = await getScreenerFilterOptions();
+  const _t5 = Date.now();
+
+  console.log(`[screener-timing] session=${_t1-_t0}ms tier=${_t2-_t1}ms rateLimit=${_t3-_t2}ms query=${_t4-_t3}ms filterOptions=${_t5-_t4}ms total=${_t5-_t0}ms`);
 
   const { companies, total, page, totalPages, appliedFilters, resultLimit } = result;
 
