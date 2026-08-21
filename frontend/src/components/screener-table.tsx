@@ -157,6 +157,7 @@ export function ScreenerTable({
   const [visibleCols, setVisibleCols] = useState<ColKey[]>(DEFAULT_COLUMNS);
 
   useEffect(() => {
+    let cancelled = false;
     // 1. Load from localStorage first (instant)
     try {
       const saved = localStorage.getItem("screener-columns");
@@ -172,6 +173,7 @@ export function ScreenerTable({
     fetch("/api/user/prefs")
       .then(r => r.ok ? r.json() : null)
       .then(data => {
+        if (cancelled) return;
         if (data?.prefs?.columns && Array.isArray(data.prefs.columns) && data.prefs.columns.length > 0) {
           const cols = data.prefs.columns.filter((k: string) => ALL_COLUMNS.some(c => c.key === k));
           if (cols.length > 0) {
@@ -181,6 +183,7 @@ export function ScreenerTable({
         }
       })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   // Save column preferences + sync to API for authenticated users

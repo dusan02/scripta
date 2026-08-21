@@ -821,10 +821,10 @@ export async function queryScreener(
   // Use approximate count for all queries — real COUNT on 518K rows takes 14-21s
   // (PostgreSQL prefers seq scan over index for COUNT even when index exists).
   // Approximate count from pg_class is instant and accurate enough for UI pagination.
-  // Note: where.ico = { notIn: ["", "00000000"] } is always present (ENT-001), so we
-  // check for user-applied filters by excluding the default ico filter.
-  const userFilterKeys = Object.keys(where).filter(k => k !== "ico" && k !== "AND");
-  const hasFilters = userFilterKeys.length > 0;
+  // Use appliedFilters (from parseAndAuthorizeParams) instead of inspecting where
+  // object — when 2+ filters are applied, Prisma wraps them in where.AND, so
+  // Object.keys(where) would only show { ico, AND } and miss the actual filter keys.
+  const hasFilters = appliedFilters.length > 0;
   let total: number;
   if (!hasFilters) {
     const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
@@ -834,18 +834,17 @@ export async function queryScreener(
   } else {
     // For filtered queries, check if the filter is selective enough for real count.
     // Selective filters (okres, city, naceCode, ownershipType) use index scan → fast.
-    // Non-selective filters (kraj, legalForm) cause seq scan → slow, use approximate.
-    const isSelectiveFilter = userFilterKeys.some(k =>
+    // Non-selective filters (kraj, legalForm) cause seq scan → slow (15s on 518K rows).
+    // For non-selective filters, use pre-computed counts from ScreenerFilterOptions MV
+    // instead of pg_class (~518K). MV has per-kraj and per-legalForm counts (instant).
+    const isSelectiveFilter = appliedFilters.some(k =>
       ["okres", "city", "naceCode", "ownershipType", "establishedAt", "status"].includes(k)
     );
     if (isSelectiveFilter) {
       total = await prisma.company.count({ where });
     } else {
-      // Non-selective filter (kraj, legalForm) — use approximate count
-      const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
-        SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
-      `;
-      total = Number(approx[0]?.estimate ?? 0);
+      // Non-selective filter (kraj, legalForm) — use MV counts (instant, accurate)
+      total = await getApproxCountFromMV(appliedFilters, sanitized);
     }
   }
 
@@ -894,6 +893,56 @@ export type ScreenerFilterOptions = {
  * Reads from a pre-computed materialized view (0.1ms vs 60s for 4× GROUP BY on 518K rows).
  * The MV must be refreshed after seeding new companies: REFRESH MATERIALIZED VIEW "ScreenerFilterOptions"
  */
+
+/**
+ * Get approximate count for non-selective filters (kraj, legalForm) from the MV.
+ * Real COUNT on 518K rows takes 15s (seq scan), MV lookup is instant.
+ * For combined non-selective filters, returns the minimum count (upper bound).
+ */
+async function getApproxCountFromMV(
+  appliedFilters: string[],
+  sanitized: Record<string, ParsedValue | ParsedValue[]>,
+): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{
+    legal_forms: Array<{ legalForm: string; cnt: number }>;
+    kraje: Array<{ kraj: string; cnt: number }>;
+  }>>`SELECT legal_forms, kraje FROM "ScreenerFilterOptions" LIMIT 1`;
+
+  const mv = rows[0];
+  if (!mv) return 0;
+
+  const counts: number[] = [];
+
+  // Kraj count from MV
+  if (appliedFilters.includes("kraj")) {
+    const krajVal = sanitized.kraj;
+    if (typeof krajVal === "string") {
+      const entry = mv.kraje.find(k => k.kraj === krajVal);
+      if (entry) counts.push(entry.cnt);
+    }
+  }
+
+  // Legal form count from MV
+  if (appliedFilters.includes("legalForm")) {
+    const lfVal = sanitized.legalForm;
+    if (typeof lfVal === "string") {
+      const entry = mv.legal_forms.find(l => l.legalForm === lfVal);
+      if (entry) counts.push(entry.cnt);
+    }
+  }
+
+  // If we have counts from MV, use the minimum (best upper bound for combined filters)
+  if (counts.length > 0) {
+    return Math.min(...counts);
+  }
+
+  // Fallback: pg_class approximation
+  const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
+    SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
+  `;
+  return Number(approx[0]?.estimate ?? 0);
+}
+
 export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
   const rows = await prisma.$queryRaw<Array<{
     legal_forms: Array<{ legalForm: string; cnt: number }>;

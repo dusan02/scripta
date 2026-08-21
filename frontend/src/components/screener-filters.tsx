@@ -39,6 +39,11 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
     return typeof v === "string" ? v : v[0] || "";
   };
 
+  // Save search modal state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "error" | "unauth">("idle");
+
   // Fetch saved searches on mount (only for authenticated users)
   useEffect(() => {
     if (tier === "FREE") return;
@@ -521,27 +526,9 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         )}
         <button
           onClick={() => {
-            const name = prompt("Názov vyhľadávania:", "Moje vyhľadávanie");
-            if (!name) return;
-            const params = toURLSearchParams(searchParams);
-            params.delete("page");
-            fetch("/api/saved-searches", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name, filters: Object.fromEntries(params.entries()) }),
-            }).then(async r => {
-              if (r.ok) {
-                const data = await r.json();
-                setSavedSearches(prev => [{ id: data.id, name: data.name, filters: Object.fromEntries(params.entries()) }, ...prev]);
-                setShowSaved(true);
-                alert("Vyhľadávanie uložené!");
-              } else if (r.status === 401) {
-                alert("Pre uloženie vyhľadávania sa prihláste.");
-              } else {
-                const err = await r.json().catch(() => null);
-                alert(err?.error || "Chyba pri ukladaní.");
-              }
-            });
+            setSaveName("Moje vyhľadávanie");
+            setSaveStatus("idle");
+            setShowSaveModal(true);
           }}
           className="w-full px-3 py-2 text-sm rounded-lg font-medium transition-colors hover:bg-[var(--surface-hover)]"
           style={{ border: "1px solid var(--accent)", color: "var(--accent)" }}
@@ -549,6 +536,85 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
           Uložiť vyhľadávanie
         </button>
       </div>
+
+      {/* Save search modal */}
+      {showSaveModal && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setShowSaveModal(false)}
+          />
+          <div
+            className="fixed bottom-4 left-4 right-4 sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72 z-50 rounded-xl p-4 shadow-lg"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          >
+            <h4 className="text-sm font-bold mb-3" style={{ color: "var(--text)" }}>
+              Uložiť vyhľadávanie
+            </h4>
+            <input
+              type="text"
+              autoFocus
+              value={saveName}
+              onChange={(e) => { setSaveName(e.target.value); setSaveStatus("idle"); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && saveName.trim()) {
+                  e.preventDefault();
+                  (e.currentTarget as HTMLInputElement).nextElementSibling?.dispatchEvent(new MouseEvent("click"));
+                }
+                if (e.key === "Escape") setShowSaveModal(false);
+              }}
+              placeholder="Názov vyhľadávania"
+              className="w-full px-3 py-2 text-sm rounded-lg mb-3"
+              style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--text)" }}
+            />
+            {saveStatus === "error" && (
+              <p className="text-xs mb-2" style={{ color: "var(--danger)" }}>Chyba pri ukladaní. Skúste znova.</p>
+            )}
+            {saveStatus === "unauth" && (
+              <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>Pre uloženie sa prihláste.</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="flex-1 px-3 py-2 text-xs rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+              >
+                Zrušiť
+              </button>
+              <button
+                onClick={() => {
+                  if (!saveName.trim()) return;
+                  setSaveStatus("saving");
+                  const params = toURLSearchParams(searchParams);
+                  params.delete("page");
+                  const filters = Object.fromEntries(params.entries());
+                  fetch("/api/saved-searches", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: saveName.trim(), filters }),
+                  }).then(async r => {
+                    if (r.ok) {
+                      const data = await r.json();
+                      setSavedSearches(prev => [{ id: data.id, name: data.name, filters }, ...prev]);
+                      setShowSaved(true);
+                      setShowSaveModal(false);
+                    } else if (r.status === 401) {
+                      setSaveStatus("unauth");
+                    } else {
+                      setSaveStatus("error");
+                    }
+                  }).catch(() => setSaveStatus("error"));
+                }}
+                disabled={!saveName.trim() || saveStatus === "saving"}
+                className="flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-opacity disabled:opacity-50"
+                style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+              >
+                {saveStatus === "saving" ? "Ukladám…" : "Uložiť"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
