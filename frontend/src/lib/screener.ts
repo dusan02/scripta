@@ -18,6 +18,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
 
 // ═══════════════════════════════════════════════════════════════
 // Access tiers
@@ -861,11 +862,12 @@ export type ScreenerFilterOptions = {
  * Get filter options for UI dropdowns.
  * Uses raw $queryRaw for performance on 518K rows.
  * Only fetches options for FREE filters (AUTH filters are boolean toggles, no dropdowns).
+ * Cached for 1 hour via unstable_cache — facet data (legalForms, cities, kraje, okresy)
+ * changes rarely (only when new companies are seeded).
  */
-export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
-  // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
-  // 4 parallel queryRaw + findMany + count from queryScreener = 6 concurrent → pool timeout.
-  const legalForms = await prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
+export const getScreenerFilterOptions = unstable_cache(
+  async (): Promise<ScreenerFilterOptions> => {
+    const legalForms = await prisma.$queryRaw<Array<{ legalForm: string; cnt: bigint }>>`
       SELECT "legalForm", COUNT(*) as cnt
       FROM "Company"
       WHERE "legalForm" IS NOT NULL AND "legalForm" != ''
@@ -920,7 +922,10 @@ export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions>
       count: Number(o.cnt),
     })),
   };
-}
+},
+  ["screener-filter-options"],
+  { revalidate: 3600 } // 1 hour — facet data changes rarely
+);
 
 // ═══════════════════════════════════════════════════════════════
 // URL builder for shareable/crawlable URLs (ADR-003)
