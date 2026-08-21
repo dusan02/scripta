@@ -122,10 +122,11 @@ type FAQProps = {
   foundedYear?: number | null;
   latestRevenue?: string | null;
   latestProfit?: string | null;
+  latestProfitRaw?: number | null;
   latestYear?: number | null;
 };
 
-export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestRevenue, latestProfit, latestYear }: FAQProps) {
+export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestRevenue, latestProfit, latestProfitRaw, latestYear }: FAQProps) {
   const t = useT();
   const faqs: { q: string; a: string }[] = [];
 
@@ -136,9 +137,10 @@ export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestReve
     });
   }
   if (latestProfit && latestYear) {
+    const isLoss = latestProfitRaw !== null && latestProfitRaw !== undefined && latestProfitRaw < 0;
     faqs.push({
-      q: `Aký bol zisk ${name}?`,
-      a: `Čistý zisk (resp. strata) spoločnosti ${name} za rok ${latestYear} bol ${latestProfit}.`,
+      q: `Aký bol hospodársky výsledok ${name}?`,
+      a: `${name} vykázala za rok ${latestYear} ${isLoss ? "stratu" : "zisk"} vo výške ${latestProfit}.`,
     });
   }
   if (foundedYear) {

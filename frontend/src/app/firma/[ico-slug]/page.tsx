@@ -421,6 +421,7 @@ export default async function CompanyPage({ params }: Params) {
           foundedYear={company.establishedAt ? new Date(company.establishedAt).getFullYear() : null}
           latestRevenue={latest ? fmtEUR(latest.mainActivityRevenue) : null}
           latestProfit={latest ? fmtEUR(latest.netProfitLoss) : null}
+          latestProfitRaw={latest ? Number(latest.netProfitLoss) : null}
           latestYear={latest?.year}
         />
 
