@@ -54,6 +54,7 @@ model User {
   auditLogs          AdminAuditLog[]    @relation("AdminAuditLogs")
   watchedCompanies   WatchedCompany[]   @relation("WatchedCompanies")
   alertDeliveries    AlertDelivery[]    @relation("AlertDeliveries")
+  savedSearches      SavedSearch[]      @relation("SavedSearches")
 }
 
 model ReportRequest {
@@ -273,6 +274,21 @@ model WatchedCompany {
   @@index([deletedAt])
 }
 
+model SavedSearch {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String    @db.VarChar(200)
+  filters     Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user        User      @relation("SavedSearches", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deletedAt])
+}
+
 model AlertEvent {
   id          String    @id @default(cuid())
   companyId   String
@@ -283,7 +299,7 @@ model AlertEvent {
   description String    @db.Text
   metadata    Json?
   riskScore   Int?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
   notifiedAt  DateTime?
   deletedAt   DateTime?
 

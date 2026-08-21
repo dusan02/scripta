@@ -5,6 +5,7 @@ import ReportsTable from "@/components/ReportsTable";
 import AddonCredits from "@/components/AddonCredits";
 import NewUserBanner from "@/components/NewUserBanner";
 import WatchedCompanies from "@/components/WatchedCompanies";
+import SavedSearches from "@/components/SavedSearches";
 
 import { getServerSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -131,6 +132,7 @@ export default async function DashboardPage() {
 
       <SearchSection />
       <ReportsTable reports={serializedReports} />
+      <SavedSearches />
       <WatchedCompanies initialWatched={watchedCompanies} />
     </div>
   );

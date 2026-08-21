@@ -884,7 +884,7 @@ export type ScreenerFilterOptions = {
   naceSections: Array<{ section: string; sectionName: string }>;
   legalForms: Array<{ value: string; label: string; count: number }>;
   ownershipTypes: Array<{ value: string; label: string }>;
-  cities: Array<{ value: string; label: string; count: number }>;
+  cities: Array<{ value: string; label: string; count: number; kraj?: string }>;
   kraje: Array<{ value: string; label: string; count: number }>;
   okresy: Array<{ value: string; label: string; count: number }>;
 };
@@ -897,7 +897,7 @@ export type ScreenerFilterOptions = {
 export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
   const rows = await prisma.$queryRaw<Array<{
     legal_forms: Array<{ legalForm: string; cnt: number }>;
-    cities: Array<{ city: string; cnt: number }>;
+    cities: Array<{ city: string; cnt: number; kraj: string }>;
     kraje: Array<{ kraj: string; cnt: number }>;
     okresy: Array<{ okres: string; cnt: number }>;
   }>>`SELECT * FROM "ScreenerFilterOptions" LIMIT 1`;
@@ -915,6 +915,7 @@ export async function getScreenerFilterOptions(): Promise<ScreenerFilterOptions>
       value: c.city,
       label: c.city,
       count: Number(c.cnt),
+      kraj: c.kraj,
     })),
     kraje: (r?.kraje || []).map((k) => ({
       value: k.kraj,

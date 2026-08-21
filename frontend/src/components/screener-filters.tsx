@@ -11,7 +11,7 @@ type Props = {
     naceSections: Array<{ section: string; sectionName: string }>;
     legalForms: FilterOption[];
     ownershipTypes: Array<{ value: string; label: string }>;
-    cities: FilterOption[];
+    cities: Array<FilterOption & { kraj?: string }>;
     kraje: FilterOption[];
     okresy: FilterOption[];
   };
@@ -27,6 +27,17 @@ const AUTH_FILTER_KEYS = ["konkurz", "likvidacia", "restrukturalizacia", "vestni
 export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [savedSearches, setSavedSearches] = useState<Array<{ id: string; name: string; filters: Record<string, string> }>>([]);
+  const [showSaved, setShowSaved] = useState(false);
+
+  // Fetch saved searches on mount (only for authenticated users)
+  useEffect(() => {
+    if (tier === "FREE") return;
+    fetch("/api/saved-searches")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.searches) setSavedSearches(data.searches); })
+      .catch(() => {});
+  }, [tier]);
 
   const applyFilter = useCallback(
     (key: string, value: string) => {
@@ -82,6 +93,16 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
   const sp = (key: string) => searchParams.get(key) || "";
   const currentSort = sp("sort") || "latestRevenue";
   const currentDir = sp("dir") || "desc";
+  const selectedKraj = sp("kraj");
+
+  // Cascading: filter okresy and cities by selected kraj
+  // Okres code prefix (first 5 chars) = kraj code (e.g. SK0101 → SK010)
+  const filteredOkresy = selectedKraj
+    ? options.okresy.filter(o => o.value.startsWith(selectedKraj))
+    : options.okresy;
+  const filteredCities = selectedKraj
+    ? options.cities.filter(c => c.kraj === selectedKraj)
+    : options.cities;
 
   // ── Debounced inputs ────────────────────────────────────────────────────────
   // All text/number inputs use local state + debounce to avoid router.push on
@@ -132,6 +153,49 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
 
   return (
     <div className="space-y-3">
+      {/* Saved searches — quick access for authenticated users */}
+      {tier !== "FREE" && savedSearches.length > 0 && (
+        <div className="pb-3 border-b" style={{ borderColor: "var(--border)" }}>
+          <button
+            onClick={() => setShowSaved(!showSaved)}
+            className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wide"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Uložené vyhľadávania
+            <span>{showSaved ? "▾" : "▸"}</span>
+          </button>
+          {showSaved && (
+            <div className="mt-2 space-y-1">
+              {savedSearches.map((s) => {
+                const qs = new URLSearchParams(s.filters).toString();
+                return (
+                  <div key={s.id} className="flex items-center gap-1">
+                    <button
+                      onClick={() => router.push(`/screener?${qs}`)}
+                      className="flex-1 text-left px-2 py-1.5 text-xs rounded transition-colors hover:bg-[var(--surface-hover)]"
+                      style={{ color: "var(--text)" }}
+                    >
+                      {s.name}
+                    </button>
+                    <button
+                      onClick={() => {
+                        fetch(`/api/saved-searches?id=${s.id}`, { method: "DELETE" })
+                          .then(r => { if (r.ok) setSavedSearches(prev => prev.filter(x => x.id !== s.id)); });
+                      }}
+                      className="text-xs px-1.5 py-1 rounded transition-colors hover:bg-[var(--surface-hover)]"
+                      style={{ color: "var(--text-muted)" }}
+                      title="Odstrániť"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <h2 className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
         Filtre
       </h2>
@@ -226,27 +290,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </select>
       </div>
 
-      {/* 6. City */}
-      <div>
-        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
-          Mesto
-        </label>
-        <select
-          className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
-          value={sp("city")}
-          onChange={(e) => applyFilter("city", e.target.value)}
-        >
-          <option value="">Všetky</option>
-          {options.cities.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label} ({c.count})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* 6b. Kraj */}
+      {/* 6b. Kraj — first, cascades to Okres + Mesto */}
       <div>
         <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
           Kraj
@@ -255,7 +299,27 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           className={SELECT_STYLE}
           style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
           value={sp("kraj")}
-          onChange={(e) => applyFilter("kraj", e.target.value)}
+          onChange={(e) => {
+            const params = new URLSearchParams(searchParams.toString());
+            const val = e.target.value;
+            if (val) {
+              params.set("kraj", val);
+              // Clear okres/city if they don't belong to the new kraj
+              const curOkres = params.get("okres") || "";
+              const curCity = params.get("city") || "";
+              if (curOkres && !curOkres.startsWith(val)) params.delete("okres");
+              if (curCity) {
+                const cityKraj = options.cities.find(c => c.value === curCity)?.kraj;
+                if (cityKraj && cityKraj !== val) params.delete("city");
+              }
+            } else {
+              params.delete("kraj");
+              params.delete("okres");
+              params.delete("city");
+            }
+            params.delete("page");
+            router.push(`/screener?${params.toString()}`);
+          }}
         >
           <option value="">Všetky</option>
           {options.kraje.map((k) => (
@@ -266,7 +330,7 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </select>
       </div>
 
-      {/* 6c. Okres */}
+      {/* 6c. Okres — cascades from Kraj */}
       <div>
         <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
           Okres
@@ -278,9 +342,29 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
           onChange={(e) => applyFilter("okres", e.target.value)}
         >
           <option value="">Všetky</option>
-          {options.okresy.map((o) => (
+          {filteredOkresy.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label} ({o.count})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* 6. City — cascades from Kraj */}
+      <div>
+        <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+          Mesto
+        </label>
+        <select
+          className={SELECT_STYLE}
+          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          value={sp("city")}
+          onChange={(e) => applyFilter("city", e.target.value)}
+        >
+          <option value="">Všetky</option>
+          {filteredCities.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label} ({c.count})
             </option>
           ))}
         </select>
@@ -413,16 +497,47 @@ export function ScreenerFilters({ options, tier, appliedFilters }: Props) {
         </select>
       </div>
 
-      {/* Clear filters */}
-      {(appliedFilters.length > 0 || sp("sort") || sp("dir")) && (
+      {/* Actions: Reset + Save */}
+      <div className="pt-3 border-t space-y-2" style={{ borderColor: "var(--border)" }}>
+        {(appliedFilters.length > 0 || sp("sort") || sp("dir")) && (
+          <button
+            onClick={() => router.push("/screener")}
+            className="w-full px-3 py-2 text-sm rounded-lg font-medium transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+          >
+            Zrušiť filtre
+          </button>
+        )}
         <button
-          onClick={() => router.push("/screener")}
-          className="w-full px-3 py-2 text-sm rounded-lg border"
-          style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+          onClick={() => {
+            const name = prompt("Názov vyhľadávania:", "Moje vyhľadávanie");
+            if (!name) return;
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("page");
+            fetch("/api/saved-searches", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name, filters: Object.fromEntries(params.entries()) }),
+            }).then(async r => {
+              if (r.ok) {
+                const data = await r.json();
+                setSavedSearches(prev => [{ id: data.id, name: data.name, filters: Object.fromEntries(params.entries()) }, ...prev]);
+                setShowSaved(true);
+                alert("Vyhľadávanie uložené!");
+              } else if (r.status === 401) {
+                alert("Pre uloženie vyhľadávania sa prihláste.");
+              } else {
+                const err = await r.json().catch(() => null);
+                alert(err?.error || "Chyba pri ukladaní.");
+              }
+            });
+          }}
+          className="w-full px-3 py-2 text-sm rounded-lg font-medium transition-colors hover:bg-[var(--surface-hover)]"
+          style={{ border: "1px solid var(--accent)", color: "var(--accent)" }}
         >
-          Zrušiť filtre
+          Uložiť vyhľadávanie
         </button>
-      )}
+      </div>
     </div>
   );
 }
