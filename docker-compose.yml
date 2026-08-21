@@ -49,7 +49,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}?connection_limit=15
       DATABASE_URL_UNPOOLED: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       # No insecure default — app refuses to start in production without NEXTAUTH_SECRET
