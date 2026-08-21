@@ -517,7 +517,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
             >
               <option value="">Všetky</option>
               <option value="VERIFIED">Má závierky</option>
-              <option value="NOT_FOUND">Bez závierok</option>
+              <option value="NOT-FOUND">Bez závierok</option>
               <option value="UNKNOWN">RÚZ nekontrolované</option>
             </select>
           </div>

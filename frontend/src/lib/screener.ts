@@ -595,6 +595,8 @@ const FREE_FILTERS: FilterDef[] = [
   },
 
   // 15. RÚZ reporting status (ruzReportingStatus)
+  // URL values use hyphens (VERIFIED, NOT-FOUND, UNKNOWN) to avoid Next.js searchParams
+  // parsing issues with underscores. Mapped to DB enum values in buildWhere.
   {
     key: "ruzReporting",
     accessLevel: "FREE",
@@ -602,7 +604,8 @@ const FREE_FILTERS: FilterDef[] = [
     parse: (raw) => {
       const arr = parseMulti(raw);
       if (!arr) return null;
-      return arr.map((v) => v.toUpperCase());
+      // Normalize: replace hyphens with underscores for DB enum
+      return arr.map((v) => v.toUpperCase().replace(/-/g, "_"));
     },
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
