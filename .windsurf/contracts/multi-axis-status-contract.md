@@ -58,13 +58,15 @@ enum LegalStatus:
    → eventType likvidácia → LIQUIDATION
    (only if ORSR didn't already set a more specific status)
 
-3. RÚZ (ruzSyncedAt != null) — FALLBACK ONLY, never overrides ORSR
-   → datumZrusenia != null → DISSOLVED  (only if ORSR not checked)
-   → otherwise             → (no legal status claim — RÚZ doesn't certify legal activity)
+3. RÚZ — NEVER sets legalStatus
+   → ruzDissolutionDate stored as evidence-only field
+   → legalStatus remains UNKNOWN until ORSR/Vestník confirms
 
 4. None checked
    → UNKNOWN
 ```
+
+**RÚZ never sets legalStatus.** RÚZ is not the commercial register. `datumZrusenia` means "dátum zrušenia registrácie účtovnej jednotky" — this can mean dissolution, transfer, legal form change, or administrative change. It is NOT an authoritative legal act. It is stored as `ruzDissolutionDate` (evidence-only) for display and potential future use, but never propagated to `legalStatus`.
 
 **Conflict resolution rules (explicit):**
 
@@ -72,8 +74,9 @@ enum LegalStatus:
 ORSR = DISSOLVED                    → DISSOLVED (final, no override)
 ORSR = ACTIVE + Vestník konkurz     → ACTIVE (ORSR wins for legalStatus)
                                       + hasVestnikEvent = true (separate flag)
-ORSR = ACTIVE + RÚZ datumZrusenia   → ACTIVE (ORSR wins, RÚZ never overrides)
-ORSR not checked + RÚZ datumZrusenia → DISSOLVED (RÚZ fallback)
+ORSR = ACTIVE + RÚZ datumZrusenia   → ACTIVE (ORSR wins, RÚZ never sets legalStatus)
+ORSR not checked + RÚZ datumZrusenia → UNKNOWN (RÚZ evidence stored, legalStatus unchanged)
+                                        ruzDissolutionDate = datumZrusenia
 ORSR not checked + Vestník konkurz  → BANKRUPT
 ORSR not checked + nothing          → UNKNOWN
 ```
@@ -191,9 +194,10 @@ ruzReporting=unknown     → ruzReportingStatus = UNKNOWN
 
 ```prisma
 legalStatus             String?    // ACTIVE | LIQUIDATION | BANKRUPT | RESTRUCTURING | DISSOLVED | UNKNOWN
-legalStatusSource       String?    // ORSR | VESTNIK | RUZ | NONE — which source set legalStatus
+legalStatusSource       String?    // ORSR | VESTNIK | NONE — which source set legalStatus (never RUZ)
 legalStatusObservedAt   DateTime?  // When the source was last checked (for freshness display)
 ruzReportingStatus      String?    // VERIFIED | NOT_FOUND | UNKNOWN
+ruzDissolutionDate      DateTime?  // RÚZ datumZrusenia — evidence only, never sets legalStatus
 ```
 
 **Note:** `legalStatusObservedAt` is the timestamp when the source was checked. It is used for UI freshness display ("ORSR verified 91 days ago"), NOT for automatic degradation to UNKNOWN. The truth value of `legalStatus` is preserved regardless of age.
@@ -252,7 +256,7 @@ UPDATE "Company" SET
 ### Phase 2: Update seed/sync scripts
 
 - `orsr.ts`: set `legalStatus`, `legalStatusSource = 'ORSR'`, `legalStatusObservedAt = now()`
-- `ruz.ts` / `seed-ruz-verification-bulk.ts`: set `ruzReportingStatus`, do NOT set `legalStatus` (RÚZ doesn't certify legal status). Exception: if `datumZrusenia != null` AND `orsrSyncedAt = null`, set `legalStatus = DISSOLVED`, `legalStatusSource = 'RUZ'`
+- `ruz.ts` / `seed-ruz-verification-bulk.ts`: set `ruzReportingStatus` + `ruzDissolutionDate` (if datumZrusenia present). NEVER set `legalStatus` or `legalStatusSource` from RÚZ.
 - `seed-rpo-dump.ts`: set `legalStatus = 'UNKNOWN'`, `ruzReportingStatus = 'UNKNOWN'`
 - Vestník scraper: set `legalStatus` only if ORSR hasn't been checked (source precedence #2)
 

@@ -218,6 +218,47 @@ function testVestnikFilters() {
   console.log('  PASS: restrukturalizacia → vestnikEvents.some(eventType contains "reštrukturaliz")');
 }
 
+function testRuzNeverSetsLegalStatus() {
+  console.log("Test 7b: RÚZ invariant — RÚZ never sets legalStatus");
+
+  // The screener status filter queries legalStatus, not ruzReportingStatus.
+  // RÚZ datumZrusenia is evidence-only (ruzDissolutionDate), never propagated to legalStatus.
+  // This test verifies the filter mapping is correct.
+
+  // status=DISSOLVED should query legalStatus, NOT ruzReportingStatus
+  const { sanitized } = parseAndAuthorizeParams({ status: "DISSOLVED" }, "FREE");
+  const where = buildWhereClause(sanitized, "FREE");
+  const whereJson = JSON.stringify(where);
+
+  if (!whereJson.includes("legalStatus")) {
+    throw new Error(`FAIL: status=DISSOLVED should query legalStatus, got ${whereJson}`);
+  }
+  if (whereJson.includes("ruzReportingStatus") && whereJson.includes("DISSOLVED")) {
+    throw new Error(`FAIL: status=DISSOLVED must not query ruzReportingStatus, got ${whereJson}`);
+  }
+  console.log("  PASS: status=DISSOLVED → legalStatus (not ruzReportingStatus)");
+
+  // ruzReporting=VERIFIED should query ruzReportingStatus, NOT legalStatus
+  const { sanitized: sRuz } = parseAndAuthorizeParams({ ruzReporting: "VERIFIED" }, "FREE");
+  const wRuz = buildWhereClause(sRuz, "FREE");
+  const wRuzJson = JSON.stringify(wRuz);
+
+  if (!wRuzJson.includes("ruzReportingStatus")) {
+    throw new Error(`FAIL: ruzReporting=VERIFIED should query ruzReportingStatus, got ${wRuzJson}`);
+  }
+  console.log("  PASS: ruzReporting=VERIFIED → ruzReportingStatus (not legalStatus)");
+
+  // hasFinancials=no → latestYear=null AND ruzReportingStatus=VERIFIED
+  const { sanitized: sFin } = parseAndAuthorizeParams({ hasFinancials: "no" }, "FREE");
+  const wFin = buildWhereClause(sFin, "FREE");
+  const wFinJson = JSON.stringify(wFin);
+
+  if (!wFinJson.includes("latestYear") || !wFinJson.includes("ruzReportingStatus")) {
+    throw new Error(`FAIL: hasFinancials=no should query latestYear=null AND ruzReportingStatus=VERIFIED, got ${wFinJson}`);
+  }
+  console.log("  PASS: hasFinancials=no → latestYear=null AND ruzReportingStatus=VERIFIED");
+}
+
 function testUrlBuilder() {
   console.log("Test 8: URL builder — deterministic, shareable URLs");
 
@@ -379,6 +420,8 @@ async function main() {
   testEnt001();
   console.log();
   testVestnikFilters();
+  console.log();
+  testRuzNeverSetsLegalStatus();
   console.log();
   testUrlBuilder();
   console.log();

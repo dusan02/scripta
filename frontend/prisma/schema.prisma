@@ -337,9 +337,10 @@ model Company {
   status              String?              // DEPRECATED — replaced by legalStatus + ruzReportingStatus
   statusNormalized    String?              // DEPRECATED — replaced by legalStatus
   legalStatus         String?              // ACTIVE | LIQUIDATION | BANKRUPT | RESTRUCTURING | DISSOLVED | UNKNOWN
-  legalStatusSource   String?              // ORSR | VESTNIK | RUZ | NONE — which source set legalStatus
+  legalStatusSource   String?              // ORSR | VESTNIK | NONE — which source set legalStatus (never RUZ)
   legalStatusObservedAt DateTime?          // When the source was last checked (for freshness display, NOT degradation)
   ruzReportingStatus  String?              // VERIFIED | NOT_FOUND | UNKNOWN
+  ruzDissolutionDate  DateTime?            // RÚZ datumZrusenia — evidence only, never sets legalStatus
   naceCode            String?
   naceText            String?
   ownershipType       String?              // Druh vlastníctva (súkromné, štátne, zmiešané...)
