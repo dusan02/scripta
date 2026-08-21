@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getKrajLabel, getKrajOptions } from "@/lib/screener";
+import { getKrajLabel, getKrajLabelLocative, getKrajOptions } from "@/lib/screener";
 
 // Static params for all 8 kraje
 export function generateStaticParams() {
@@ -8,11 +8,12 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: { params: { kraj: string } }) {
   const label = getKrajLabel(params.kraj);
-  if (!label) return { title: "Kraj nenájdený | Verifa.sk" };
+  const locative = getKrajLabelLocative(params.kraj);
+  if (!label) return { title: "Kraj nenájdený" };
 
   return {
-    title: `Firmy v ${label} | Screener | Verifa.sk`,
-    description: `Zoznam firiem v ${label.toLowerCase()} — filtrovanie podľa odvetvia, právnej formy, tržieb, zisku a ďalších ukazovateľov. Dáta z RÚZ a ORSR.`,
+    title: `Firmy v ${locative || label}`,
+    description: `Zoznam firiem v ${(locative || label).toLowerCase()} — filtrovanie podľa odvetvia, právnej formy, tržieb, zisku a ďalších ukazovateľov. Dáta z RÚZ a ORSR.`,
     robots: { index: true, follow: true },
     alternates: { canonical: `https://verifa.sk/screener/kraj/${params.kraj}` },
   };

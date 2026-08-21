@@ -129,6 +129,36 @@ export function getNaceSectionLabel(section: string | null): string | null {
   return entry?.sectionName || null;
 }
 
+// Genitívne tvary pre NACE sekcie (pre použitie v vetách: "v odvetví priemyselnej výroby")
+const NACE_SECTION_GENITIVE: Record<string, string> = {
+  A: "poľnohospodárstva, lesníctva a rybárstva",
+  B: "ťažby a dobývania",
+  C: "priemyselnej výroby",
+  D: "výroby a rozvodu elektriny, plynu a vody",
+  E: "zásobovania vodou a odvod odpadových vôd",
+  F: "stavebníctva",
+  G: "veľkoobchodu a maloobchodu",
+  H: "dopravy a skladovania",
+  I: "ubytovania a stravovania",
+  J: "informačných a komunikačných technológií",
+  K: "finančných a poisťovacích činností",
+  L: "činností súvisiacich s nehnuteľnosťami",
+  M: "profesionálnych, vedeckých a technických činností",
+  N: "administratívnych a podporných služieb",
+  O: "verejnej správy a obrany",
+  P: "vzdelávania",
+  Q: "zdravotníctva a sociálnej pomoci",
+  R: "kultúry, umenia a zábavy",
+  S: "ostatných činností služieb",
+  T: "činností domácností ako zamestnávateľov",
+  U: "činností extrateritoriálnych organizácií",
+};
+
+export function getNaceSectionGenitive(section: string | null): string | null {
+  if (!section) return null;
+  return NACE_SECTION_GENITIVE[section.toUpperCase()] || getNaceSectionLabel(section);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // kraj (NUTS3) labels — official Slovak region codes (public standard)
 // ═══════════════════════════════════════════════════════════════
@@ -144,6 +174,23 @@ const KRAJ_LABELS: Record<string, string> = {
   "SK042": "Košický kraj",
   "SKZZZ": "Nezistené",
 };
+
+// Lokálne tvary pre kraj (pre použitie v vetách: "v Bratislavskom kraji")
+const KRAJ_LABELS_LOCATIVE: Record<string, string> = {
+  "SK010": "Bratislavskom kraji",
+  "SK021": "Trnavskom kraji",
+  "SK022": "Nitrianskom kraji",
+  "SK023": "Trenčianskom kraji",
+  "SK031": "Žilinskom kraji",
+  "SK032": "Banskobystrickom kraji",
+  "SK041": "Prešovskom kraji",
+  "SK042": "Košickom kraji",
+};
+
+export function getKrajLabelLocative(value: string | null): string | null {
+  if (!value) return null;
+  return KRAJ_LABELS_LOCATIVE[value] || KRAJ_LABELS[value] || value;
+}
 
 export function getKrajLabel(value: string | null): string | null {
   if (!value) return null;

@@ -1,4 +1,4 @@
-import { queryScreener, resolveTier, getScreenerFilterOptions, getKrajLabel, getNaceSectionLabel, type ScreenerTier } from "@/lib/screener";
+import { queryScreener, resolveTier, getScreenerFilterOptions, getKrajLabel, getKrajLabelLocative, getNaceSectionLabel, getNaceSectionGenitive, type ScreenerTier } from "@/lib/screener";
 import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey } from "@/lib/rateLimit";
 import { headers } from "next/headers";
@@ -316,7 +316,9 @@ export async function generateMetadata({
   };
 
   const krajLabel = getKrajLabel(sp("kraj"));
+  const krajLocative = getKrajLabelLocative(sp("kraj"));
   const naceLabel = getNaceSectionLabel(sp("naceSection"));
+  const naceGenitive = getNaceSectionGenitive(sp("naceSection"));
   const city = sp("city");
   const legalForm = sp("legalForm");
   const q = sp("q");
@@ -332,19 +334,19 @@ export async function generateMetadata({
   const hasFilters = parts.length > 0;
   const filterStr = parts.join(", ");
 
-  // Title: "Firmy v Bratislavskom kraji — Priemyselná výroba | Verifa.sk"
-  // Default: "Screener firiem na Slovensku | Verifa.sk"
+  // Title: "Firmy — Bratislavský kraj, Priemyselná výroba" (layout adds | Verifa.sk)
+  // Default: "Screener firiem na Slovensku" (layout adds | Verifa.sk)
   const title = hasFilters
-    ? `Firmy${filterStr ? ` — ${filterStr}` : ""} | Verifa.sk`
-    : "Screener firiem na Slovensku | Verifa.sk";
+    ? `Firmy — ${filterStr}`
+    : "Screener firiem na Slovensku";
 
-  // Description
+  // Description — uses grammatically correct locative/genitive
   let description: string;
   if (hasFilters) {
     const descParts: string[] = [];
-    if (krajLabel) descParts.push(`v ${krajLabel.toLowerCase()}`);
+    if (krajLocative) descParts.push(`v ${krajLocative.toLowerCase()}`);
     if (city) descParts.push(`v meste ${city}`);
-    if (naceLabel) descParts.push(`v odvetví ${naceLabel.toLowerCase()}`);
+    if (naceGenitive) descParts.push(`v odvetví ${naceGenitive}`);
     if (legalForm) descParts.push(`právna forma ${legalForm}`);
     description = `Zoznam firiem ${descParts.join(", ")}. Filtrovanie podľa tržieb, zisku, aktív, imania a roku založenia. Dáta z RÚZ a ORSR.`;
   } else {
@@ -424,14 +426,14 @@ function buildSeoText(
     return typeof v === "string" ? v : v[0] || "";
   };
 
-  const krajLabel = getKrajLabel(sp("kraj"));
-  const naceLabel = getNaceSectionLabel(sp("naceSection"));
+  const krajLocative = getKrajLabelLocative(sp("kraj"));
+  const naceGenitive = getNaceSectionGenitive(sp("naceSection"));
   const city = sp("city");
 
   const parts: string[] = [];
-  if (krajLabel) parts.push(`v ${krajLabel.toLowerCase()}`);
+  if (krajLocative) parts.push(`v ${krajLocative.toLowerCase()}`);
   if (city) parts.push(`v meste ${city}`);
-  if (naceLabel) parts.push(`v odvetví ${naceLabel.toLowerCase()}`);
+  if (naceGenitive) parts.push(`v odvetví ${naceGenitive}`);
 
   const location = parts.length > 0 ? parts.join(", ") : "na Slovensku";
 
