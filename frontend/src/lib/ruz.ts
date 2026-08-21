@@ -435,6 +435,7 @@ export async function seedFromRuz(ico: string) {
     establishedAt: entity.datumZalozenia ? new Date(entity.datumZalozenia) : null,
     status: "active",
     statusNormalized: "ACTIVE",
+    ruzReportingStatus: (entity.idUctovnychZavierok || []).length > 0 ? "VERIFIED" : "NOT_FOUND",
     naceCode: entity.skNace || null,
     naceText,
     ownershipType: OWNERSHIP_MAP[entity.druhVlastnictva] || entity.druhVlastnictva || null,

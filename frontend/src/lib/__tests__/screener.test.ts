@@ -131,10 +131,11 @@ function testFilterCount() {
   const freeLogical = new Set(freeKeys.map((k) => k.replace(/(Min|Max)$/, "")));
   const authLogical = new Set(authKeys);
 
-  // 16 FREE logical filters: q, naceSection, naceCode, legalForm, ownershipType, city,
-  //   kraj, okres, age, revenue, profit, assets, equity, latestYear, sizeCategory, status
-  if (freeLogical.size !== 16) {
-    throw new Error(`FAIL: Expected 16 FREE logical filters, got ${freeLogical.size}: ${Array.from(freeLogical).join(", ")}`);
+  // 18 FREE logical filters: q, naceSection, naceCode, legalForm, ownershipType, city,
+  //   kraj, okres, age, revenue, profit, assets, equity, latestYear, sizeCategory,
+  //   status, ruzReporting, hasFinancials
+  if (freeLogical.size !== 18) {
+    throw new Error(`FAIL: Expected 18 FREE logical filters, got ${freeLogical.size}: ${Array.from(freeLogical).join(", ")}`);
   }
   if (authLogical.size !== 4) {
     throw new Error(`FAIL: Expected 4 AUTH logical filters, got ${authLogical.size}: ${Array.from(authLogical).join(", ")}`);
@@ -142,7 +143,7 @@ function testFilterCount() {
   if (premiumKeys.length !== 0) {
     throw new Error(`FAIL: Expected 0 PREMIUM filters in MVP, got ${premiumKeys.length}`);
   }
-  console.log(`  PASS: 16 FREE + 4 AUTH + 0 PREMIUM = 20 logical filters (${freeKeys.length} + ${authKeys.length} URL params)`);
+  console.log(`  PASS: 18 FREE + 4 AUTH + 0 PREMIUM = 22 logical filters (${freeKeys.length} + ${authKeys.length} URL params)`);
 }
 
 function testNullNotZero() {

@@ -236,6 +236,13 @@ async function processEntity(entityId: number): Promise<{ verified: boolean; has
       ruzSyncedAt: new Date(),
       status: rawStatus,
       statusNormalized: "ACTIVE",
+      ruzReportingStatus: hasZavierky ? "VERIFIED" : "NOT_FOUND",
+      // RÚZ fallback: if datumZrusenia is set and ORSR hasn't been checked, mark DISSOLVED
+      ...(detail.datumZrusenia ? {
+        legalStatus: "DISSOLVED",
+        legalStatusSource: "RUZ",
+        legalStatusObservedAt: new Date(),
+      } : {}),
     },
   });
 

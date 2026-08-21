@@ -498,6 +498,49 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         />
       </div>
 
+      {/* RÚZ reporting + Financials */}
+      <div className="pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+        <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
+          RÚZ &amp; Finančné dáta
+        </h3>
+        <div className="space-y-2">
+          {/* RÚZ reporting */}
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+              RÚZ závierky
+            </label>
+            <select
+              className={SELECT_STYLE}
+              style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+              value={sp("ruzReporting") ?? ""}
+              onChange={(e) => applyFilter("ruzReporting", e.target.value)}
+            >
+              <option value="">Všetky</option>
+              <option value="VERIFIED">Má závierky</option>
+              <option value="NOT_FOUND">Bez závierok</option>
+              <option value="UNKNOWN">RÚZ nekontrolované</option>
+            </select>
+          </div>
+          {/* Has financials */}
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
+              Finančné dáta
+            </label>
+            <select
+              className={SELECT_STYLE}
+              style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+              value={sp("hasFinancials") ?? ""}
+              onChange={(e) => applyFilter("hasFinancials", e.target.value)}
+            >
+              <option value="">Všetky</option>
+              <option value="yes">S finančnými dátami</option>
+              <option value="no">Bez dát (závierky existujú)</option>
+              <option value="unknown">Finančné dáta neznáme</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* AUTH filters — Vestník (13-16) */}
       <div className="pt-3 border-t" style={{ borderColor: "var(--border)" }}>
         <h3 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>

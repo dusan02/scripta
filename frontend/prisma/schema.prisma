@@ -334,8 +334,12 @@ model Company {
   zipCode             String?
   country             String?
   establishedAt       DateTime?
-  status              String?
-  statusNormalized    String?              // Canonical status: ACTIVE | LIQUIDATION | BANKRUPT | DISSOLVED | UNKNOWN
+  status              String?              // DEPRECATED — replaced by legalStatus + ruzReportingStatus
+  statusNormalized    String?              // DEPRECATED — replaced by legalStatus
+  legalStatus         String?              // ACTIVE | LIQUIDATION | BANKRUPT | RESTRUCTURING | DISSOLVED | UNKNOWN
+  legalStatusSource   String?              // ORSR | VESTNIK | RUZ | NONE — which source set legalStatus
+  legalStatusObservedAt DateTime?          // When the source was last checked (for freshness display, NOT degradation)
+  ruzReportingStatus  String?              // VERIFIED | NOT_FOUND | UNKNOWN
   naceCode            String?
   naceText            String?
   ownershipType       String?              // Druh vlastníctva (súkromné, štátne, zmiešané...)
@@ -381,6 +385,8 @@ model Company {
   @@index([statusNormalized])
   @@index([sizeCategoryNormalized])
   @@index([vestnikSyncedAt])
+  @@index([legalStatus])
+  @@index([ruzReportingStatus])
   updatedAt           DateTime             @updatedAt
 }
 

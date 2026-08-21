@@ -508,6 +508,9 @@ export async function seedFromOrsr(ico: string): Promise<{
             : status === "LIQUIDATION" ? "LIQUIDATION"
             : status === "DISSOLVED" ? "DISSOLVED"
             : "UNKNOWN",
+          legalStatus: status,
+          legalStatusSource: "ORSR",
+          legalStatusObservedAt: new Date(),
           establishedAt: establishedAt || undefined,
           shareCapital: shareCapital || undefined,
           businessActivity: businessActivity || undefined,

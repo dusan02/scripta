@@ -258,8 +258,21 @@ const STATUSES: Array<{ value: string; label: string; count: number }> = [
   { value: "ACTIVE", label: "Aktívna", count: 0 },
   { value: "LIQUIDATION", label: "V likvidácii", count: 0 },
   { value: "BANKRUPT", label: "V konkurze", count: 0 },
+  { value: "RESTRUCTURING", label: "V reštrukturalizácii", count: 0 },
   { value: "DISSOLVED", label: "Zrušená", count: 0 },
   { value: "UNKNOWN", label: "Nezistený", count: 0 },
+];
+
+const RUZ_REPORTING_OPTIONS: Array<{ value: string; label: string; count: number }> = [
+  { value: "VERIFIED", label: "Má závierky v RÚZ", count: 0 },
+  { value: "NOT_FOUND", label: "Bez závierok v RÚZ", count: 0 },
+  { value: "UNKNOWN", label: "RÚZ nekontrolované", count: 0 },
+];
+
+const HAS_FINANCIALS_OPTIONS: Array<{ value: string; label: string; count: number }> = [
+  { value: "yes", label: "S finančnými dátami", count: 0 },
+  { value: "no", label: "Bez finančných dát (závierky existujú)", count: 0 },
+  { value: "unknown", label: "Finančné dáta neznáme", count: 0 },
 ];
 
 /** Returns company age in years, or null if establishedAt is missing or implausible. */
@@ -565,11 +578,11 @@ const FREE_FILTERS: FilterDef[] = [
     },
   },
 
-  // 14. Status firmy (statusNormalized) — canonical enum
+  // 14. Legal status (legalStatus) — multi-axis: ORSR > Vestník > RÚZ > NONE
   {
     key: "status",
     accessLevel: "FREE",
-    label: "Status firmy",
+    label: "Právny status",
     parse: (raw) => {
       const arr = parseMulti(raw);
       if (!arr) return null;
@@ -577,7 +590,38 @@ const FREE_FILTERS: FilterDef[] = [
     },
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
-      return { statusNormalized: { in: value as string[] } };
+      return { legalStatus: { in: value as string[] } };
+    },
+  },
+
+  // 15. RÚZ reporting status (ruzReportingStatus)
+  {
+    key: "ruzReporting",
+    accessLevel: "FREE",
+    label: "RÚZ závierky",
+    parse: (raw) => {
+      const arr = parseMulti(raw);
+      if (!arr) return null;
+      return arr.map((v) => v.toUpperCase());
+    },
+    buildWhere: (value) => {
+      if (!Array.isArray(value) || value.length === 0) return null;
+      return { ruzReportingStatus: { in: value as string[] } };
+    },
+  },
+
+  // 16. Has financials (derived tri-state)
+  {
+    key: "hasFinancials",
+    accessLevel: "FREE",
+    label: "Finančné dáta",
+    parse: parseSingle,
+    buildWhere: (value) => {
+      const s = value as string;
+      if (s === "yes") return { latestYear: { not: null } };
+      if (s === "no") return { latestYear: null, ruzReportingStatus: "VERIFIED" };
+      if (s === "unknown") return { latestYear: null, ruzReportingStatus: { not: "VERIFIED" } };
+      return null;
     },
   },
 ];
@@ -952,7 +996,7 @@ export async function queryScreener(
     // For non-selective filters, use pre-computed counts from ScreenerFilterOptions MV
     // instead of pg_class (~518K). MV has per-kraj and per-legalForm counts (instant).
     const isSelectiveFilter = appliedFilters.some(k =>
-      ["okres", "city", "naceCode", "ownershipType", "establishedAt", "status", "sizeCategory", "vestnikClean"].includes(k)
+      ["okres", "city", "naceCode", "ownershipType", "establishedAt", "status", "sizeCategory", "vestnikClean", "ruzReporting", "hasFinancials"].includes(k)
     );
     if (isSelectiveFilter) {
       total = await prisma.company.count({ where });
