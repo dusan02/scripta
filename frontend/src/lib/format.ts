@@ -34,13 +34,17 @@ export function fmtNum(val: Decimal | number | null | undefined): string {
 /**
  * Format a value (string | number | null) as thousands of euros.
  * No € sign, 3 fewer zeros: 1 234 567 → "1 235"
+ * Uses regular space (U+0020) as thousands separator for consistent rendering.
  * Used by screener table.
  */
 export function fmtEurK(val: string | number | null | undefined): string {
   if (val === null || val === undefined) return "—";
   const n = typeof val === "string" ? parseFloat(val) : val;
   if (Number.isNaN(n)) return "—";
-  return Math.round(n / 1000).toLocaleString("sk-SK");
+  // Round to thousands, format with regular space as separator
+  const rounded = Math.round(n / 1000);
+  // Use regular space instead of non-breaking space for consistent width
+  return rounded.toLocaleString("sk-SK").replace(/[\u00a0\u202f]/g, " ");
 }
 
 export function fmtYear(date: Date | null | undefined): string {

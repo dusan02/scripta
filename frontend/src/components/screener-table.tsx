@@ -71,25 +71,25 @@ function Cell({ col, c }: { col: ColDef; c: Company }) {
     case "city":
       return <span className="text-xs" style={{ color: "var(--text-secondary)" }} title={c.city || undefined}>{c.city || "—"}</span>;
     case "establishedAt":
-      return <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{fmtYear(c.establishedAt)}</span>;
+      return <span className="text-xs" style={{ color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{fmtYear(c.establishedAt)}</span>;
     case "latestYear":
-      return <span className="text-xs" style={{ color: "var(--text-muted)" }}>{c.latestYear || "—"}</span>;
+      return <span className="text-xs" style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{c.latestYear || "—"}</span>;
     case "latestRevenue":
-      return <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEurK(c.latestRevenue)}</span>;
+      return <span className="font-medium" style={{ color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{fmtEurK(c.latestRevenue)}</span>;
     case "latestProfit": {
       const val = c.latestProfit ? Number(c.latestProfit) : null;
       const isNeg = val !== null && val < 0;
-      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestProfit)}</span>;
+      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)", fontVariantNumeric: "tabular-nums" }}>{fmtEurK(c.latestProfit)}</span>;
     }
     case "latestAssets": {
       const val = c.latestAssets ? Number(c.latestAssets) : null;
       const isNeg = val !== null && val < 0;
-      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestAssets)}</span>;
+      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)", fontVariantNumeric: "tabular-nums" }}>{fmtEurK(c.latestAssets)}</span>;
     }
     case "latestEquity": {
       const val = c.latestEquity ? Number(c.latestEquity) : null;
       const isNeg = val !== null && val < 0;
-      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestEquity)}</span>;
+      return <span style={{ color: isNeg ? "var(--danger)" : "var(--text)", fontVariantNumeric: "tabular-nums" }}>{fmtEurK(c.latestEquity)}</span>;
     }
   }
 }

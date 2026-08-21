@@ -374,6 +374,7 @@ model Company {
   @@index([ruzSyncedAt])
   @@index([kraj])
   @@index([okres])
+  @@index([sizeCategory])
   updatedAt           DateTime             @updatedAt
 }
 
