@@ -7,6 +7,7 @@ services:
     container_name: verifa_postgres
     restart: unless-stopped
     mem_limit: 2g
+    shm_size: 1g
     pids_limit: 200
     # No ports exposed — Postgres is only accessible from within the Docker network.
     # To access from host for debugging, use: docker exec -it verifa_postgres psql -U verifa
