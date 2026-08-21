@@ -566,7 +566,7 @@ export const ALL_FILTERS: FilterDef[] = [...FREE_FILTERS, ...AUTH_FILTERS];
 // Sorting
 // ═══════════════════════════════════════════════════════════════
 
-export type SortField = "name" | "latestRevenue" | "latestProfit" | "latestAssets" | "latestEquity" | "establishedAt" | "city";
+export type SortField = "name" | "ico" | "legalForm" | "latestRevenue" | "latestProfit" | "latestAssets" | "latestEquity" | "establishedAt" | "city";
 export type SortDir = "asc" | "desc";
 
 export type ScreenerSort = {
@@ -574,7 +574,7 @@ export type ScreenerSort = {
   dir: SortDir;
 };
 
-const VALID_SORT_FIELDS: SortField[] = ["name", "latestRevenue", "latestProfit", "latestAssets", "latestEquity", "establishedAt", "city"];
+const VALID_SORT_FIELDS: SortField[] = ["name", "ico", "legalForm", "latestRevenue", "latestProfit", "latestAssets", "latestEquity", "establishedAt", "city"];
 
 function parseSort(searchParams: Record<string, string | string[] | undefined>): ScreenerSort {
   // Default sort: latestRevenue DESC — uses index (Company_latestRevenue_desc_idx)
@@ -792,6 +792,10 @@ export async function queryScreener(
   const orderBy: Prisma.CompanyOrderByWithRelationInput =
     sort.field === "name"
       ? { name: sort.dir }
+      : sort.field === "ico"
+      ? { ico: sort.dir }
+      : sort.field === "legalForm"
+      ? { legalForm: { sort: sort.dir, nulls: "last" } }
       : sort.field === "city"
       ? { city: { sort: sort.dir, nulls: "last" } }
       : { [sort.field]: { sort: sort.dir, nulls: "last" } } as Prisma.CompanyOrderByWithRelationInput;
