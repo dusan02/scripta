@@ -191,52 +191,73 @@ async def scrape_and_save_orsr_v2(
             ico,
         )
 
-        # Update CompanyPerson records — NON-DESTRUCTIVE with isActive tracking
+        # Update CompanyPerson records — NON-DESTRUCTIVE with isActive tracking.
+        # Use raw SQL because the container's Prisma client may be outdated
+        # (missing functionEnd, isActive, street fields in generated types).
         if result.persons:
             seen_keys = set()
             for p in result.persons:
                 key = (p.clean_name, p.role)
                 seen_keys.add(key)
-                existing = await db.companyperson.find_first(
-                    where={"companyIco": ico, "cleanName": p.clean_name, "role": p.role},
+
+                # Check if person already exists
+                existing_rows = await db.query_raw(
+                    'SELECT id, city, "zipCode", "functionStart" FROM "CompanyPerson" WHERE "companyIco" = $1 AND "cleanName" = $2 AND role = $3',
+                    ico, p.clean_name, p.role,
                 )
-                if existing:
-                    await db.companyperson.update(
-                        where={"id": existing.id},
-                        data={
-                            "city": p.city or existing.city,
-                            "zipCode": p.zip_code or existing.zipCode,
-                            "functionStart": p.function_start or existing.functionStart,
-                            "functionEnd": p.function_end,
-                            "isActive": p.is_active,
-                        },
+
+                fs_iso = p.function_start.isoformat() if p.function_start else None
+                fe_iso = p.function_end.isoformat() if p.function_end else None
+
+                if existing_rows:
+                    existing = existing_rows[0]
+                    await db.execute_raw(
+                        """
+                        UPDATE "CompanyPerson" SET
+                            city = COALESCE($1, city),
+                            "zipCode" = COALESCE($2, "zipCode"),
+                            "functionStart" = COALESCE($3::timestamp, "functionStart"),
+                            "functionEnd" = $4::timestamp,
+                            "isActive" = $5,
+                            "updatedAt" = NOW()
+                        WHERE id = $6
+                        """,
+                        p.city,
+                        p.zip_code,
+                        fs_iso,
+                        fe_iso,
+                        p.is_active,
+                        existing["id"],
                     )
                 else:
-                    await db.companyperson.create(
-                        data={
-                            "companyIco": ico,
-                            "rawName": p.raw_name,
-                            "cleanName": p.clean_name,
-                            "role": p.role,
-                            "city": p.city,
-                            "zipCode": p.zip_code,
-                            "functionStart": p.function_start,
-                            "functionEnd": p.function_end,
-                            "isActive": p.is_active,
-                        },
+                    await db.execute_raw(
+                        """
+                        INSERT INTO "CompanyPerson" ("id", "companyIco", "rawName", "cleanName", "role", "city", "zipCode", "functionStart", "functionEnd", "isActive", "createdAt", "updatedAt")
+                        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7::timestamp, $8::timestamp, $9, NOW(), NOW())
+                        """,
+                        ico,
+                        p.raw_name,
+                        p.clean_name,
+                        p.role,
+                        p.city,
+                        p.zip_code,
+                        fs_iso,
+                        fe_iso,
+                        p.is_active,
                     )
 
             # Mark persons NOT in ORSR extract as inactive
             roles_in_extract = {p.role for p in result.persons}
             for role in roles_in_extract:
-                existing_persons = await db.companyperson.find_many(
-                    where={"companyIco": ico, "role": role, "isActive": True},
+                existing_persons = await db.query_raw(
+                    'SELECT id, "cleanName" FROM "CompanyPerson" WHERE "companyIco" = $1 AND role = $2 AND "isActive" = TRUE',
+                    ico, role,
                 )
                 for ep in existing_persons:
-                    if (ep.cleanName, role) not in seen_keys:
-                        await db.companyperson.update(
-                            where={"id": ep.id},
-                            data={"isActive": False},
+                    if (ep["cleanName"], role) not in seen_keys:
+                        await db.execute_raw(
+                            'UPDATE "CompanyPerson" SET "isActive" = FALSE, "updatedAt" = NOW() WHERE id = $1',
+                            ep["id"],
                         )
 
         return {
