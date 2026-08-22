@@ -415,11 +415,20 @@ model CompanyPerson {
 
 model NaceCode {
   code        String   @id  // SK NACE kód (napr. "49410")
-  description String       // Popis (napr. "Cestná doprava osobná")
-  section     String?     // Sekcia (A–Q)
-  sectionName String?     // Názov sekcie
+  description String       // SK názov (napr. "Cestná doprava osobná")
+  descriptionEn String?   // EN názov (napr. "Passenger land transport")
+  section     String?     // Sekcia (A–U)
+  sectionName String?     // SK názov sekcie
+  sectionNameEn String?   // EN názov sekcie
+  division    String?     // 2-miestny kód divízie (napr. "49")
+  divisionName String?    // SK názov divízie
+  group       String?     // 3-miestny kód skupiny (napr. "494")
+  groupName   String?     // SK názov skupiny
+  class       String?     // 4-miestny kód triedy (napr. "4941")
+  className   String?     // SK názov triedy
 
   @@index([section])
+  @@index([division])
 }
 
 model CompanyEvent {
