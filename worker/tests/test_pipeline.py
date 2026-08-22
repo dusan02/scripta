@@ -542,11 +542,11 @@ class TestApplyOrsrOverride:
         assert new_score == 50
 
     def test_score_capped_at_100(self):
-        """Ak by refund presiahol 100, skóre sa capne na 100."""
+        """Ak by refund presiahol 100, skóre sa capne na 100. Refund je capnutý na 15b."""
         scorecard = self._scorecard_with_orsr_penalty(penalty=-30)
         wh_refund, new_score = _apply_orsr_override(True, scorecard, 85, "12345678")
-        assert wh_refund == 30
-        assert new_score == 100  # 85 + 30 = 115, cap na 100
+        assert wh_refund == 15  # cap at 15 points (safety guard against score inflation)
+        assert new_score == 100  # 85 + 15 = 100
 
     def test_no_scorecard_no_refund(self):
         """Ak scorecard je None, žiadny refund."""
