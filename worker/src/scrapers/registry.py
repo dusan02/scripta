@@ -170,8 +170,10 @@ async def run_scrapers(
             else:
                 semaphores = [global_semaphore]
             # Queue timeout — ak scraper čaká na semafor príliš dlho, vráť UNAVAILABLE
-            # namiesto čakania až do per-scraper timeoutu (90s)
-            _SEMAPHORE_QUEUE_TIMEOUT = 90  # sekundy max na čakanie semaforu (match per-scraper timeout)
+            # namiesto čakania nekonečne. 150s dáva dependent scraperom (FINANCNA_SPRAVA,
+            # RPO, DISKVALIFIKACIE — závisia na ORSR) šancu získať slot po uvoľnení
+            # dlho bežiacich scraperov (DOVERA, SP_DLZNICI trvajú 80-120s).
+            _SEMAPHORE_QUEUE_TIMEOUT = 150
             for sem in semaphores:
                 try:
                     await asyncio.wait_for(sem.acquire(), timeout=_SEMAPHORE_QUEUE_TIMEOUT)
