@@ -33,7 +33,7 @@ def _sanitize_stmt_numeric(stmt: Any) -> Any:
     Returns a dict with float values for all numeric fields."""
     _NUMERIC_FIELDS = (
         'mainActivityRevenue', 'totalAssets', 'currentAssets', 'equity',
-        'netProfitLoss', 'shortTermLiabilities', 'longTermLiabilities',
+        'netProfitLoss', 'shortTermLiabilities', 'longTermLiabilities', 'totalLiabilities',
         'operatingCashFlow', 'grossProfit', 'depreciation', 'inventory',
         'tradeReceivables', 'tradePayables', 'staffCosts', 'interestExpense',
         'incomeTax', 'investingCashFlow', 'financingCashFlow',

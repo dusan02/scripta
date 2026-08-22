@@ -103,7 +103,47 @@ def get_scraper(source_type: str) -> Type[BaseScraper]:
 
 
 # Per-scraper timeout — jeden pomalý register nezrúši celý batch
-_SCRAPER_TIMEOUT = 90  # sekundy na jeden scraper
+# Default 180s (zvýšené z 90s — slovenské štátne weby sú pomalé, najmä Dovera, SP, RPO).
+# Pomalé browser scrapery dostávajú viac času; API scrapery menej.
+_SCRAPER_TIMEOUT_DEFAULT = 180
+_SCRAPER_TIMEOUTS: Dict[str, int] = {
+    # API scrapery — rýchle, nepotrebujú browser
+    "REGISTER_UZ": 60,
+    "OBCHODNY_VESTNIK": 30,
+    "ROZHODNUTIA": 45,
+    # Rýchle browser scrapery
+    "ORSR": 60,
+    "ZRSR": 90,
+    "INSOLVENCY": 90,
+    "RPVS": 90,
+    "UVO": 90,
+    "CRZ": 90,
+    "POVERENIA": 120,
+    "NCRZP": 120,
+    "NCRD": 120,
+    "DISKVALIFIKACIE": 120,
+    # FS scrapery — zdieľajú server, pomalé
+    "FINANCNA_SPRAVA": 150,
+    "FS_DPH_RUSENIE": 150,
+    "FS_DPH_VYMAZANI": 150,
+    "FS_DANOVE_SUBJEKTY": 150,
+    "FS_DAN_Z_PRIJMOV": 150,
+    "FS_DPH_NADMERNY_ODPOCET": 150,
+    "FS_DPH_REGISTROVANI": 150,
+    "FS_DAN_PRIJMOV_REG": 150,
+    # Najpomalsie browser scrapery — štátne dlžnícke registre
+    "SP_DLZNICI": 180,
+    "VSZP_DLZNICI": 180,
+    "DOVERA_DLZNICI": 180,
+    "UNION_DLZNICI": 180,
+    # RPO — React SPA, pomalé načítanie
+    "RPO": 180,
+}
+
+
+def _get_scraper_timeout(source_type: str) -> int:
+    """Vráti per-scraper timeout v sekundách."""
+    return _SCRAPER_TIMEOUTS.get(source_type, _SCRAPER_TIMEOUT_DEFAULT)
 
 
 async def run_scrapers(
@@ -118,20 +158,27 @@ async def run_scrapers(
     rozhodnutia_date_from: Optional[str] = None,
     on_source_done: Optional[Callable[[ScrapedSource], None]] = None,
     report_language: str = "sk",
+    disable_circuit_breaker: bool = False,
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
     dependencia skončí (paralelne s ostatnými nezávislými).
     Ak je zadaný on_source_done, zavolá sa ihneď po dokončení každého scraperu.
 
     Pri CancelledError (napr. globálny timeout) vráti už dokončené čiastočné výsledky
-    namiesto zahodenia všetkého."""
+    namiesto zahodenia všetkého.
+
+    disable_circuit_breaker: Ak True, circuit breaker sa ignoruje — každý scraper
+    sa skúsi aspoň raz. Používa sa pre single-report mode (user čaká na výsledok),
+    na rozdiel od bulk processing kde circuit breaker šetrí API calls."""
 
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
-    # FS semaphore 4 — 7 FS scraperov zdieľa rovnaký server, 4 súbežné = 2 vlny (4+3)
-    fs_semaphore = asyncio.Semaphore(4)
-    # Všetky browser scrapery — 8 slotov (hard limit = browserless MAX_CONCURRENT_SESSIONS)
-    # FS scrapery potrebujú global AJ fs (dvojitý gate), takže max súbežných = 8
-    global_semaphore = asyncio.Semaphore(8)
+    # FS semaphore 3 — 7 FS scraperov zdieľa rovnaký server, 3 súbežné = 3 vlny (3+3+1)
+    # Redukované z 4 na 3 — FS server je pomalý a rate-limituje pri 4+ súbežných.
+    fs_semaphore = asyncio.Semaphore(3)
+    # Všetky browser scrapery — 5 slotov (redukované z 8 — 8GB server s browserless
+    # a Playwright contexts má RAM pressure pri 8 súbežných, čo spôsobuje timeouty).
+    # FS scrapery potrebujú global AJ fs (dvojitý gate), takže max súbežných = 5
+    global_semaphore = asyncio.Semaphore(5)
 
     # Rozdelíme na nezávislé a závislé scrapery
     independent = [s for s in sources if s not in _DEPENDS_ON]
@@ -140,9 +187,11 @@ async def run_scrapers(
     results_by_source: Dict[str, ScrapedSource] = {}
 
     async def run_one(source_type: str, **extra_kwargs) -> ScrapedSource:
-        # Circuit breaker — ak register/API je nedostupný, preskoč
+        # Circuit breaker — ak register/API je nedostupný, preskoč.
+        # V single-report mode (disable_circuit_breaker=True) sa ignoruje —
+        # user čaká na výsledok a chce maximálnu úspešnosť, nie skip.
         from .base import circuit_is_open, circuit_record_success, circuit_record_failure
-        if circuit_is_open(source_type):
+        if not disable_circuit_breaker and circuit_is_open(source_type):
             logger.info(f"[CircuitBreaker] {source_type} je otvorený — preskakujem.")
             result = ScrapedSource(
                 source_type=source_type,
@@ -189,6 +238,7 @@ async def run_scrapers(
                 if _t_run - _t_start > 0.05:
                     logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
                 # Per-scraper timeout — jeden pomalý register nezrúši celý batch
+                _scraper_timeout = _get_scraper_timeout(source_type)
                 result = await asyncio.wait_for(
                     scraper.run(
                         output_dir=output_dir,
@@ -200,14 +250,14 @@ async def run_scrapers(
                         report_language=report_language,
                         **extra_kwargs,
                     ),
-                    timeout=_SCRAPER_TIMEOUT,
+                    timeout=_scraper_timeout,
                 )
             except asyncio.TimeoutError:
-                logger.warning(f"[TIMING] ✗ {source_type} TIMEOUT po {_SCRAPER_TIMEOUT}s")
+                logger.warning(f"[TIMING] ✗ {source_type} TIMEOUT po {_scraper_timeout}s")
                 return ScrapedSource(
                     source_type=source_type,
                     status="FAILED",
-                    status_message=f"Scraper timeout ({_SCRAPER_TIMEOUT}s)",
+                    status_message=f"Scraper timeout ({_scraper_timeout}s)",
                 )
             finally:
                 for sem in reversed(semaphores):

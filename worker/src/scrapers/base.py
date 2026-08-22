@@ -355,15 +355,16 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         """Go to URL with unified retry; mark as UNAVAILABLE on persistent failures.
 
         Používa exponential backoff s jitterom zo unified retry helpera.
-        Timeouty: 20s goto + 10s domcontentloaded — slovenské štátne registre
-        (ORSR, ZRSR, VšZP) často odpovedajú 5-15s.
+        Timeout: 40s goto — slovenské štátne registre (RPO, Dovera, SP, FS)
+        často odpovedajú 15-30s, najmä počas pracovných hodín.
+        Zvýšené z 20s na 40s pre maximálnu úspešnosť scraperov.
         """
         attempts = (retries or settings.scraper_retries) + 1
         delay = settings.scraper_retry_delay
         last_error: Optional[Exception] = None
         for attempt in range(1, attempts + 1):
             try:
-                await page.goto(url, timeout=20000, wait_until="domcontentloaded")
+                await page.goto(url, timeout=40000, wait_until="domcontentloaded")
                 return
             except Exception as e:
                 last_error = e

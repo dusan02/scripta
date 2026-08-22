@@ -257,12 +257,13 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     crz_date_from=task.crz_date_from,
                     rozhodnutia_date_from=task.rozhodnutia_date_from,
                     on_source_done=_on_source_done,
+                    disable_circuit_breaker=True,  # Single-report mode: skús každý scraper
                 )
             )
             try:
-                sources = await asyncio.wait_for(scraper_task, timeout=180)
+                sources = await asyncio.wait_for(scraper_task, timeout=300)
             except asyncio.TimeoutError:
-                _log.warning(f"[{_rid}] Scraperi prekročili 180s limit — ruším bežiace scrapery, zachovávam dostupné výsledky.")
+                _log.warning(f"[{_rid}] Scraperi prekročili 300s limit — ruším bežiace scrapery, zachovávam dostupné výsledky.")
                 scraper_task.cancel()
                 try:
                     # run_scrapers pri CancelledError vráti čiastočné výsledky
@@ -297,12 +298,13 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
             # ── Retry failed/unavailable scrapers (exponential backoff with jitter) ──
             # 3c: Retry aj UNAVAILABLE (register bol nedostupný — presne to čo retry rieši)
-            # 3a: Exponential backoff: ~2s, ~5s, ~15s, ~30s (with ±30% jitter) — max 4 pokusy
-            # 3b: Total retry budget 300s — skip ďalšie passy ak sme nad limit
+            # 3a: Exponential backoff: ~2s, ~5s, ~15s, ~30s, ~60s (with ±30% jitter) — max 5 pokusov
+            # 3b: Total retry budget 600s — skip ďalšie passy ak sme nad limit
             # 3d: Retry len UNAVAILABLE a TIMEOUT (network issues) — nie FAILED z interných chýb
             # 3h: Browser health check pred každým retry passom
-            _RETRY_DELAYS = [2, 5, 15, 30]
-            _RETRY_TOTAL_BUDGET = 300  # sekundy — max čas na všetky retry passy
+            # 5. pass (60s delay) — pre veľmi pomalé registre ktoré sa zotavujú pomaly
+            _RETRY_DELAYS = [2, 5, 15, 30, 60]
+            _RETRY_TOTAL_BUDGET = 600  # sekundy — max čas na všetky retry passy
             _retry_elapsed = 0.0
             retry_pass = 0
             for retry_pass, base_delay in enumerate(_RETRY_DELAYS):
@@ -355,6 +357,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     orsr_extract_type=task.orsr_extract_type,
                     crz_date_from=task.crz_date_from,
                     rozhodnutia_date_from=task.rozhodnutia_date_from,
+                    disable_circuit_breaker=True,  # Retry pass: skús aj circuit-open scrapery
                 )
 
                 # Merge retry results back into sources
