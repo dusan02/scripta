@@ -208,64 +208,47 @@ export function ChartCard({ title, children, className }: { title: string; child
 // Financial Ratios — indebtedness & current liquidity
 // ═══════════════════════════════════════════════════════════════
 
-function safeDiv(a: number | null | undefined, b: number | null | undefined): number | null {
-  if (a == null || b == null || b === 0) return null;
-  return a / b;
-}
-
-function toNum(v: any): number | null {
-  if (v == null) return null;
-  if (typeof v === "number") return v;
-  const n = Number(v);
-  return isNaN(n) ? null : n;
-}
-
-function fmtPct(v: number | null): string {
-  if (v == null) return "—";
-  return `${(v * 100).toFixed(1)}%`;
-}
-
-function fmtRatio(v: number | null): string {
-  if (v == null) return "—";
-  return v.toFixed(2);
-}
+import {
+  computeFinancialIndicators,
+  fmtPct,
+  fmtRatio,
+} from "@/lib/financial-indicators";
 
 export function FinancialRatios({ stmts }: { stmts: any[] }) {
   const t = useT();
+
+  // Single source of truth: compute all ratios via shared helper.
+  // The chart component uses the same function — chart and table are guaranteed identical.
+  const indicators = computeFinancialIndicators(stmts);
+
+  // Build a lookup so renderValue can find the precomputed row by year
+  const byYear = new Map(indicators.map((r) => [r.year, r]));
 
   const ratioRows: BaseTableRow[] = [
     {
       label: t("firma.zadlzenost"),
       tooltip: t("firma.zadlzenostFormula"),
-      renderValue: (s) => {
-        const stl = toNum(s.shortTermLiabilities);
-        const ltl = toNum(s.longTermLiabilities);
-        const ta = toNum(s.totalAssets);
-        // At least one liability source must be present, treat null as 0
-        if (stl == null && ltl == null) return fmtPct(null);
-        if (ta == null) return fmtPct(null);
-        return fmtPct(safeDiv((stl ?? 0) + (ltl ?? 0), ta));
-      },
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.debt ?? null),
     },
     {
       label: t("firma.beznaLikvidita"),
       tooltip: t("firma.beznaLikviditaFormula"),
-      renderValue: (s) => fmtRatio(safeDiv(toNum(s.currentAssets), toNum(s.shortTermLiabilities))),
+      renderValue: (s) => fmtRatio(byYear.get(s.year)?.currentRatio ?? null),
     },
     {
       label: "ROE",
       tooltip: "Čistý zisk / Vlastné imanie",
-      renderValue: (s) => fmtPct(safeDiv(toNum(s.netProfitLoss), toNum(s.equity))),
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.roe ?? null),
     },
     {
       label: "ROA",
       tooltip: "Čistý zisk / Celkové aktíva",
-      renderValue: (s) => fmtPct(safeDiv(toNum(s.netProfitLoss), toNum(s.totalAssets))),
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.roa ?? null),
     },
     {
       label: "Zisková marža",
       tooltip: "Čistý zisk / Tržby",
-      renderValue: (s) => fmtPct(safeDiv(toNum(s.netProfitLoss), toNum(s.mainActivityRevenue))),
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.margin ?? null),
     },
   ];
 

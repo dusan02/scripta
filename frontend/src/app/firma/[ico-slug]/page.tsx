@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
 import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, FinancialRatios } from "@/components/firma-ui";
+import { FinancialIndicatorsCharts } from "@/components/financial-indicators-charts";
+import { computeFinancialIndicators } from "@/lib/financial-indicators";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
 import { CompanyHeader } from "@/components/company-header";
@@ -394,12 +396,17 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Financial ratios — keep on page 2 with P&L */}
+        {/* Financial ratios — charts left (5/12), table right (7/12) */}
         {stmts.length > 0 && (
           <div className="mb-6 sm:mb-8 print-section print-break-before-avoid">
-            <ChartCard title="Finančné ukazovatele">
-              <FinancialRatios stmts={stmts} />
-            </ChartCard>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <ChartCard title="Finančné ukazovatele — grafy" className="md:col-span-5">
+                <FinancialIndicatorsCharts data={computeFinancialIndicators(stmts)} />
+              </ChartCard>
+              <ChartCard title="Finančné ukazovatele" className="md:col-span-7">
+                <FinancialRatios stmts={stmts} />
+              </ChartCard>
+            </div>
             <p className="text-[11px] mt-2 no-print" style={{ color: "var(--text-muted)" }}>
               {t("firma.metodologia")} {/* */}
               <Link href="/slovnik" className="underline hover:no-underline">{t("firma.metodologiaLink")}</Link>
