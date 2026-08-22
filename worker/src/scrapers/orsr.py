@@ -55,7 +55,7 @@ class OrsrScraper(BaseScraper):
 
     # ── Public ───────────────────────────────────────────────────────
 
-    async def run(self, *, ico: str, output_dir: Path, orsr_extract_type: str = "CURRENT", **kwargs) -> ScrapedSource:
+    async def run(self, *, ico: str, output_dir: Path, orsr_extract_type: str = "CURRENT", skip_pdf: bool = False, **kwargs) -> ScrapedSource:
         try:
             # Validate IČO format before scraping (defense-in-depth)
             if not ico or not _ICO_PATTERN.match(ico):
@@ -124,18 +124,21 @@ class OrsrScraper(BaseScraper):
                 elif orsr_extract_type == "FULL":
                     full_extract_text = self._html_to_text(detail_html)
 
-                # 6. Generate PDF from HTML
+                # 6. Generate PDF from HTML (skip for bulk mode)
                 pdf_output = output_dir / f"orsr_{ico}.pdf"
-                try:
-                    pdf_ok = await self._html_to_pdf(detail_html, pdf_output, ico)
-                    if pdf_ok == 0:
-                        logger.error(f"[{self.source_type}] PDF validácia zlyhala — prázdne PDF.")
-                        return self._make_result(status="FAILED", status_message="ORSR PDF je prázdne alebo neúplné — stránka sa nepodarila načítať.")
-                    logger.debug(f"[{self.source_type}] ⏱ pdf gen: {time.perf_counter() - _t:.2f}s")
-                    logger.info(f"[{self.source_type}] PDF: {pdf_output}")
-                except Exception as e:
-                    logger.error(f"[{self.source_type}] PDF zlyhalo: {e}")
-                    return self._make_result(status="FAILED", status_message=f"Chyba pri generovaní PDF z ORSR: {e}")
+                if skip_pdf:
+                    logger.debug(f"[{self.source_type}] Skipping PDF generation (bulk mode)")
+                else:
+                    try:
+                        pdf_ok = await self._html_to_pdf(detail_html, pdf_output, ico)
+                        if pdf_ok == 0:
+                            logger.error(f"[{self.source_type}] PDF validácia zlyhala — prázdne PDF.")
+                            return self._make_result(status="FAILED", status_message="ORSR PDF je prázdne alebo neúplné — stránka sa nepodarila načítať.")
+                        logger.debug(f"[{self.source_type}] ⏱ pdf gen: {time.perf_counter() - _t:.2f}s")
+                        logger.info(f"[{self.source_type}] PDF: {pdf_output}")
+                    except Exception as e:
+                        logger.error(f"[{self.source_type}] PDF zlyhalo: {e}")
+                        return self._make_result(status="FAILED", status_message=f"Chyba pri generovaní PDF z ORSR: {e}")
 
                 # 7. Extract findings + persons + structured fields
                 body_text = self._html_to_text(detail_html)
@@ -147,8 +150,8 @@ class OrsrScraper(BaseScraper):
                 logger.info(f"[{self.source_type}] ORSR hotový za {time.perf_counter() - _t:.1f}s")
                 return self._make_result(
                     status="SUCCESS",
-                    file_path=str(pdf_output),
-                    page_count=1,
+                    file_path=None if skip_pdf else str(pdf_output),
+                    page_count=0 if skip_pdf else 1,
                     status_message="Výpis z ORSR úspešne stiahnutý.",
                     findings=findings,
                     company_name=company_name,
