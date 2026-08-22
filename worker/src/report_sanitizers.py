@@ -29,6 +29,8 @@ def sanitize_llm_text(text: str) -> str:
     - Detekuje a nahradzuje garbled text z PDF extrakcie
     - Konvertuje Unicode znaky, ktoré by sa mohli skomiť
     """
+    if not isinstance(text, str):
+        return text if text is None else ""
     if not text:
         return text
     # Garbled text detection — PDF extraction artefacts with mixed scripts
