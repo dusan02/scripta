@@ -194,7 +194,9 @@ async def scrape_and_save_orsr_v2(
             ico=ico,
             output_dir=tmp_dir,
             orsr_extract_type="CURRENT",
-            skip_pdf=True,  # V2: skip PDF for bulk
+            skip_pdf=True,          # V2: skip PDF for bulk
+            skip_full_extract=True,  # V2: skip Úplný výpis (saves 1 HTTP request per company)
+            shared_client=True,      # V2: reuse TCP/TLS connection across companies
         )
 
         db = get_db()
@@ -471,6 +473,7 @@ async def main(args):
                 checkpoint["not_found_icos"] = checkpoint.get("not_found_icos", []) + retry_checkpoint["not_found_icos"]
                 save_checkpoint(checkpoint)
             finally:
+                await OrsrScraper.close_shared_client()
                 await scraper._close()
                 await disconnect_db()
 
@@ -488,6 +491,7 @@ async def main(args):
             companies = await get_companies_batch_cursor("", ico_filter=args.ico)
             if not companies:
                 logger.info(f"Company {args.ico} not found or already synced.")
+                await OrsrScraper.close_shared_client()
                 await scraper._close()
                 await disconnect_db()
                 return
@@ -505,6 +509,7 @@ async def main(args):
                     checkpoint["failed_count"] += 1
                     checkpoint["failed_icos"].append(c["ico"])
             save_checkpoint(checkpoint)
+            await OrsrScraper.close_shared_client()
             await scraper._close()
             await disconnect_db()
             _print_summary(checkpoint)
@@ -572,6 +577,7 @@ async def main(args):
                 last_ico = checkpoint["last_ico"]
 
         finally:
+            await OrsrScraper.close_shared_client()
             await scraper._close()
             await disconnect_db()
 

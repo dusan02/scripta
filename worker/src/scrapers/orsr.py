@@ -53,9 +53,14 @@ class OrsrScraper(BaseScraper):
     source_type = "ORSR"
     base_url = _SEARCH_URL
 
+    # Shared HTTP client for bulk mode — avoids per-company TCP/TLS handshake.
+    # Initialized lazily by the first run() call when shared_client=True.
+    _shared_client: httpx.AsyncClient | None = None
+    _shared_client_lock = asyncio.Lock()
+
     # ── Public ───────────────────────────────────────────────────────
 
-    async def run(self, *, ico: str, output_dir: Path, orsr_extract_type: str = "CURRENT", skip_pdf: bool = False, **kwargs) -> ScrapedSource:
+    async def run(self, *, ico: str, output_dir: Path, orsr_extract_type: str = "CURRENT", skip_pdf: bool = False, skip_full_extract: bool = False, shared_client: bool = False, **kwargs) -> ScrapedSource:
         try:
             # Validate IČO format before scraping (defense-in-depth)
             if not ico or not _ICO_PATTERN.match(ico):
@@ -69,7 +74,15 @@ class OrsrScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Začínam pre IČO: {ico} (typ: {orsr_extract_type})")
             _t = time.perf_counter()
 
-            async with httpx.AsyncClient(timeout=30, headers=_HEADERS, follow_redirects=True) as client:
+            # Use shared client (bulk mode) or create per-call client (single mode)
+            if shared_client:
+                client = await self._get_shared_client()
+                owns_client = False
+            else:
+                client = httpx.AsyncClient(timeout=30, headers=_HEADERS, follow_redirects=True)
+                owns_client = True
+
+            try:
                 # 1. Search by IČO
                 search_html = await self._fetch_search_page(client, ico)
                 logger.debug(f"[{self.source_type}] ⏱ search fetch: {time.perf_counter() - _t:.2f}s")
@@ -112,8 +125,11 @@ class OrsrScraper(BaseScraper):
                 _t = time.perf_counter()
 
                 # 5. For CURRENT extract: also fetch FULL extract for analysis
+                #    Skip when skip_full_extract=True (bulk mode) — saves 1 HTTP request per company
                 full_extract_text = None
-                if orsr_extract_type == "CURRENT":
+                if skip_full_extract:
+                    logger.debug(f"[{self.source_type}] Skipping full extract fetch (bulk mode)")
+                elif orsr_extract_type == "CURRENT":
                     full_links = self._find_extract_links(search_html, ico, link_name="Úplný")
                     if full_links:
                         full_html, _ = await self._fetch_detail_with_fallback(
@@ -161,6 +177,9 @@ class OrsrScraper(BaseScraper):
                     signing_authority=structured["signing_authority"],
                     business_activity=structured["business_activity"],
                 )
+            finally:
+                if owns_client:
+                    await client.aclose()
 
         except httpx.TimeoutException:
             logger.error(f"[{self.source_type}] Timeout pri načítaní ORSR.")
@@ -171,6 +190,31 @@ class OrsrScraper(BaseScraper):
         except Exception as e:
             logger.error(f"[{self.source_type}] Nečakaná chyba: {e}", exc_info=True)
             return self._make_result(status="FAILED", status_message=f"{type(e).__name__}: {e}")
+
+    @classmethod
+    async def _get_shared_client(cls) -> httpx.AsyncClient:
+        """Get or create the shared HTTP client for bulk mode.
+
+        The client uses connection pooling (httpx default) with keep-alive,
+        so subsequent requests to orsr.sk reuse the same TCP/TLS connection.
+        """
+        async with cls._shared_client_lock:
+            if cls._shared_client is None or cls._shared_client.is_closed:
+                cls._shared_client = httpx.AsyncClient(
+                    timeout=30,
+                    headers=_HEADERS,
+                    follow_redirects=True,
+                    limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+                )
+            return cls._shared_client
+
+    @classmethod
+    async def close_shared_client(cls) -> None:
+        """Close the shared HTTP client. Call after bulk processing is done."""
+        async with cls._shared_client_lock:
+            if cls._shared_client is not None and not cls._shared_client.is_closed:
+                await cls._shared_client.aclose()
+            cls._shared_client = None
 
     # ── HTTP helpers ─────────────────────────────────────────────────
 
