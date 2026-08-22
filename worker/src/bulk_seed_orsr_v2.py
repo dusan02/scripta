@@ -9,6 +9,8 @@ Key improvements over V1 (bulk_seed_orsr.py):
   5. Idempotent checkpoint with last_ico cursor
   6. Bounded concurrency with asyncio.Semaphore
   7. DB is the final idempotency guard: orsrSyncedAt IS NOT NULL
+  8. Single-worker lock via flock (prevents concurrent V2 instances)
+  9. Atomic Company + CompanyPerson writes via DB transaction
 
 Usage:
   python -m src.bulk_seed_orsr_v2 --max 500              # Pilot: 500 companies
@@ -16,6 +18,7 @@ Usage:
   python -m src.bulk_seed_orsr_v2 --ico 36000019          # Single company
   python -m src.bulk_seed_orsr_v2 --concurrency 5         # 5 parallel workers
   python -m src.bulk_seed_orsr_v2 --max 500 --resume      # Resume, cap at 500 more
+  python -m src.bulk_seed_orsr_v2 --retry-failed          # Retry failed ICOs from checkpoint
 
 Checkpoint format (output/orsr_v2_checkpoint.json):
   {
@@ -32,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import fcntl
 import json
 import logging
 import re
@@ -42,9 +46,50 @@ from pathlib import Path
 logger = logging.getLogger("bulk_seed_orsr_v2")
 
 _CHECKPOINT_FILE = Path("output/orsr_v2_checkpoint.json")
+_LOCK_FILE = Path("output/orsr_v2.lock")
 _LEGAL_FORMS = ["s.r.o.", "a.s.", "v.o.s.", "k.s."]
 _DELAY_BETWEEN_REQUESTS = 0.3  # seconds — stealth tempo
 _ICO_PATTERN = re.compile(r"^\d{8}$")
+
+
+# ── Single-worker lock ────────────────────────────────────────────────
+
+class WorkerLock:
+    """flock-based lock to ensure only one V2 instance runs at a time.
+
+    Acquires an exclusive lock on _LOCK_FILE. If another V2 process
+    holds the lock, this process exits immediately with an error.
+    The lock is automatically released when the file descriptor is closed
+    (process exit, crash, kill — all release the lock).
+    """
+
+    def __init__(self):
+        self._fd = None
+
+    def acquire(self) -> bool:
+        """Try to acquire exclusive lock. Returns True if acquired."""
+        _LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        self._fd = open(_LOCK_FILE, "w")
+        try:
+            fcntl.flock(self._fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._fd.write(str(__import__("os").getpid()))
+            self._fd.flush()
+            return True
+        except (IOError, OSError):
+            # Another process holds the lock
+            self._fd.close()
+            self._fd = None
+            return False
+
+    def release(self):
+        """Release the lock."""
+        if self._fd:
+            try:
+                fcntl.flock(self._fd.fileno(), fcntl.LOCK_UN)
+            except (IOError, OSError):
+                pass
+            self._fd.close()
+            self._fd = None
 
 
 # ── Checkpoint ────────────────────────────────────────────────────────
@@ -134,6 +179,10 @@ async def scrape_and_save_orsr_v2(
 
     Uses the provided OrsrScraper instance (reusable, no per-company instantiation).
     Skips PDF generation for bulk mode (data extraction only).
+
+    Company + CompanyPerson writes are wrapped in a single DB transaction
+    (db.tx()) — if CompanyPerson fails, Company UPDATE is rolled back too.
+    This prevents partial records (orsrSyncedAt set without persons).
     """
     from src.db_client import get_db
 
@@ -166,99 +215,103 @@ async def scrape_and_save_orsr_v2(
 
         now_iso = datetime.now(timezone.utc).isoformat()
 
-        # Parameterized UPDATE — no string concatenation
-        # Cast timestamp params explicitly (Prisma passes as text by default)
-        await db.execute_raw(
-            """
-            UPDATE "Company" SET
-                "orsrSyncedAt" = $1::timestamp,
-                "legalStatus" = $2,
-                "legalStatusSource" = 'ORSR',
-                "legalStatusObservedAt" = $3::timestamp,
-                "shareCapital" = COALESCE($4::numeric, "shareCapital"),
-                "signingAuthority" = COALESCE($5, "signingAuthority"),
-                "businessActivity" = COALESCE($6, "businessActivity"),
-                "updatedAt" = $7::timestamp
-            WHERE ico = $8
-            """,
-            now_iso,
-            legal_status,
-            now_iso,
-            result.share_capital,
-            result.signing_authority,
-            result.business_activity,
-            now_iso,
-            ico,
-        )
+        # ── Atomic transaction: Company + CompanyPerson ──
+        # If any CompanyPerson write fails, the entire transaction rolls back,
+        # including the Company UPDATE. This prevents partial records.
+        async with db.tx() as tx:
+            # 1. Update Company
+            await tx.execute_raw(
+                """
+                UPDATE "Company" SET
+                    "orsrSyncedAt" = $1::timestamp,
+                    "legalStatus" = $2,
+                    "legalStatusSource" = 'ORSR',
+                    "legalStatusObservedAt" = $3::timestamp,
+                    "shareCapital" = COALESCE($4::numeric, "shareCapital"),
+                    "signingAuthority" = COALESCE($5, "signingAuthority"),
+                    "businessActivity" = COALESCE($6, "businessActivity"),
+                    "updatedAt" = $7::timestamp
+                WHERE ico = $8
+                """,
+                now_iso,
+                legal_status,
+                now_iso,
+                result.share_capital,
+                result.signing_authority,
+                result.business_activity,
+                now_iso,
+                ico,
+            )
 
-        # Update CompanyPerson records — NON-DESTRUCTIVE with isActive tracking.
-        # Use raw SQL because the container's Prisma client may be outdated
-        # (missing functionEnd, isActive, street fields in generated types).
-        if result.persons:
-            seen_keys = set()
-            for p in result.persons:
-                key = (p.clean_name, p.role)
-                seen_keys.add(key)
+            # 2. Update CompanyPerson records — NON-DESTRUCTIVE with isActive tracking.
+            #    Use raw SQL because the container's Prisma client may be outdated
+            #    (missing functionEnd, isActive, street fields in generated types).
+            if result.persons:
+                seen_keys = set()
+                for p in result.persons:
+                    key = (p.clean_name, p.role)
+                    seen_keys.add(key)
 
-                # Check if person already exists
-                existing_rows = await db.query_raw(
-                    'SELECT id, city, "zipCode", "functionStart" FROM "CompanyPerson" WHERE "companyIco" = $1 AND "cleanName" = $2 AND role = $3',
-                    ico, p.clean_name, p.role,
-                )
-
-                fs_iso = p.function_start.isoformat() if p.function_start else None
-                fe_iso = p.function_end.isoformat() if p.function_end else None
-
-                if existing_rows:
-                    existing = existing_rows[0]
-                    await db.execute_raw(
-                        """
-                        UPDATE "CompanyPerson" SET
-                            city = COALESCE($1, city),
-                            "zipCode" = COALESCE($2, "zipCode"),
-                            "functionStart" = COALESCE($3::timestamp, "functionStart"),
-                            "functionEnd" = $4::timestamp,
-                            "isActive" = $5,
-                            "updatedAt" = NOW()
-                        WHERE id = $6
-                        """,
-                        p.city,
-                        p.zip_code,
-                        fs_iso,
-                        fe_iso,
-                        p.is_active,
-                        existing["id"],
-                    )
-                else:
-                    await db.execute_raw(
-                        """
-                        INSERT INTO "CompanyPerson" ("id", "companyIco", "rawName", "cleanName", "role", "city", "zipCode", "functionStart", "functionEnd", "isActive", "createdAt", "updatedAt")
-                        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7::timestamp, $8::timestamp, $9, NOW(), NOW())
-                        """,
-                        ico,
-                        p.raw_name,
-                        p.clean_name,
-                        p.role,
-                        p.city,
-                        p.zip_code,
-                        fs_iso,
-                        fe_iso,
-                        p.is_active,
+                    # Check if person already exists
+                    existing_rows = await tx.query_raw(
+                        'SELECT id, city, "zipCode", "functionStart" FROM "CompanyPerson" WHERE "companyIco" = $1 AND "cleanName" = $2 AND role = $3',
+                        ico, p.clean_name, p.role,
                     )
 
-            # Mark persons NOT in ORSR extract as inactive
-            roles_in_extract = {p.role for p in result.persons}
-            for role in roles_in_extract:
-                existing_persons = await db.query_raw(
-                    'SELECT id, "cleanName" FROM "CompanyPerson" WHERE "companyIco" = $1 AND role = $2 AND "isActive" = TRUE',
-                    ico, role,
-                )
-                for ep in existing_persons:
-                    if (ep["cleanName"], role) not in seen_keys:
-                        await db.execute_raw(
-                            'UPDATE "CompanyPerson" SET "isActive" = FALSE, "updatedAt" = NOW() WHERE id = $1',
-                            ep["id"],
+                    fs_iso = p.function_start.isoformat() if p.function_start else None
+                    fe_iso = p.function_end.isoformat() if p.function_end else None
+
+                    if existing_rows:
+                        existing = existing_rows[0]
+                        await tx.execute_raw(
+                            """
+                            UPDATE "CompanyPerson" SET
+                                city = COALESCE($1, city),
+                                "zipCode" = COALESCE($2, "zipCode"),
+                                "functionStart" = COALESCE($3::timestamp, "functionStart"),
+                                "functionEnd" = $4::timestamp,
+                                "isActive" = $5,
+                                "updatedAt" = NOW()
+                            WHERE id = $6
+                            """,
+                            p.city,
+                            p.zip_code,
+                            fs_iso,
+                            fe_iso,
+                            p.is_active,
+                            existing["id"],
                         )
+                    else:
+                        await tx.execute_raw(
+                            """
+                            INSERT INTO "CompanyPerson" ("id", "companyIco", "rawName", "cleanName", "role", "city", "zipCode", "functionStart", "functionEnd", "isActive", "createdAt", "updatedAt")
+                            VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7::timestamp, $8::timestamp, $9, NOW(), NOW())
+                            """,
+                            ico,
+                            p.raw_name,
+                            p.clean_name,
+                            p.role,
+                            p.city,
+                            p.zip_code,
+                            fs_iso,
+                            fe_iso,
+                            p.is_active,
+                        )
+
+                # 3. Mark persons NOT in ORSR extract as inactive
+                roles_in_extract = {p.role for p in result.persons}
+                for role in roles_in_extract:
+                    existing_persons = await tx.query_raw(
+                        'SELECT id, "cleanName" FROM "CompanyPerson" WHERE "companyIco" = $1 AND role = $2 AND "isActive" = TRUE',
+                        ico, role,
+                    )
+                    for ep in existing_persons:
+                        if (ep["cleanName"], role) not in seen_keys:
+                            await tx.execute_raw(
+                                'UPDATE "CompanyPerson" SET "isActive" = FALSE, "updatedAt" = NOW() WHERE id = $1',
+                                ep["id"],
+                            )
+        # ── Transaction committed atomically ──
 
         return {
             "ico": ico,
@@ -335,123 +388,227 @@ async def main(args):
     from src.db_client import connect_db, disconnect_db
     from src.scrapers.orsr import OrsrScraper
 
-    await connect_db()
-
-    # Load checkpoint
-    checkpoint = load_checkpoint() if args.resume else {
-        "last_ico": "",
-        "processed_count": 0,
-        "failed_count": 0,
-        "not_found_count": 0,
-        "last_run": None,
-        "failed_icos": [],
-        "not_found_icos": [],
-    }
-
-    # Single-company mode
-    if args.ico:
-        if not _ICO_PATTERN.match(args.ico):
-            logger.error(f"Invalid IČO format: {args.ico}")
-            await disconnect_db()
-            return
-
-        scraper = OrsrScraper(browser=None)
-        companies = await get_companies_batch_cursor("", ico_filter=args.ico)
-        if not companies:
-            logger.info(f"Company {args.ico} not found or already synced.")
-            await scraper._close()
-            await disconnect_db()
-            return
-
-        results = await process_batch(companies, concurrency=1, scraper=scraper)
-        for r, c in zip(results, companies):
-            status = r.get("status")
-            if status == "SUCCESS":
-                checkpoint["processed_count"] += 1
-                checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
-            elif status == "NOT_FOUND":
-                checkpoint["not_found_count"] += 1
-                checkpoint["not_found_icos"].append(c["ico"])
-            else:
-                checkpoint["failed_count"] += 1
-                checkpoint["failed_icos"].append(c["ico"])
-        save_checkpoint(checkpoint)
-        await scraper._close()
-        await disconnect_db()
-        _print_summary(checkpoint)
+    # ── Single-worker lock ──
+    # Prevents two V2 instances from running concurrently and overwriting
+    # each other's checkpoint. The lock is released on process exit/crash.
+    lock = WorkerLock()
+    if not lock.acquire():
+        logger.error(
+            f"Another ORSR V2 process is already running "
+            f"(lock file: {_LOCK_FILE}). Only one instance allowed at a time."
+        )
+        logger.error("If no process is running, remove the lock file manually: rm output/orsr_v2.lock")
         return
 
-    # Cursor-based bulk mode
-    last_ico = checkpoint.get("last_ico", "")
-    total_target = args.max
-    batch_size = 100
-    start_time = time.perf_counter()
-
-    # Single reusable scraper instance
-    scraper = OrsrScraper(browser=None)
+    logger.info(f"Lock acquired (PID {__import__('os').getpid()})")
 
     try:
-        while checkpoint["processed_count"] + checkpoint["failed_count"] + checkpoint["not_found_count"] < total_target:
-            remaining = total_target - (
-                checkpoint["processed_count"]
-                + checkpoint["failed_count"]
-                + checkpoint["not_found_count"]
-            )
-            fetch_size = min(batch_size, remaining)
-            if fetch_size <= 0:
-                break
+        await connect_db()
 
-            logger.info(
-                f"Fetching batch of {fetch_size} companies (cursor: ico > {last_ico or 'START'})..."
-            )
-            companies = await get_companies_batch_cursor(last_ico, batch_size=fetch_size)
+        # Load checkpoint
+        checkpoint = load_checkpoint() if args.resume else {
+            "last_ico": "",
+            "processed_count": 0,
+            "failed_count": 0,
+            "not_found_count": 0,
+            "last_run": None,
+            "failed_icos": [],
+            "not_found_icos": [],
+        }
 
-            if not companies:
-                logger.info("No more companies to process.")
-                break
+        # ── Retry-failed mode ──
+        # Re-process ICOs that failed in the previous run.
+        # Does NOT advance the cursor — only retries failed_icos.
+        if args.retry_failed:
+            failed_icos = checkpoint.get("failed_icos", [])
+            if not failed_icos:
+                logger.info("No failed ICOs to retry.")
+                await disconnect_db()
+                return
 
-            logger.info(
-                f"Processing {len(companies)} companies "
-                f"(total so far: {checkpoint['processed_count'] + checkpoint['failed_count'] + checkpoint['not_found_count']})"
-            )
+            logger.info(f"Retrying {len(failed_icos)} failed ICOs...")
+            # Reset failed counters for this retry pass
+            retry_checkpoint = {
+                "last_ico": checkpoint.get("last_ico", ""),
+                "processed_count": 0,
+                "failed_count": 0,
+                "not_found_count": 0,
+                "last_run": None,
+                "failed_icos": [],
+                "not_found_icos": [],
+            }
 
-            # Process in sub-batches of 10 for checkpoint granularity
-            sub_batch_size = 10
-            for i in range(0, len(companies), sub_batch_size):
-                sub = companies[i:i + sub_batch_size]
-                results = await process_batch(sub, concurrency=args.concurrency, scraper=scraper)
+            # Fetch company names for failed ICOs
+            from src.db_client import get_db
+            db = get_db()
+            companies = []
+            for ico in failed_icos:
+                rows = await db.query_raw(
+                    'SELECT ico, name FROM "Company" WHERE ico = $1',
+                    ico,
+                )
+                if rows:
+                    companies.append({"ico": rows[0]["ico"], "name": rows[0]["name"]})
+                else:
+                    companies.append({"ico": ico, "name": ico})
 
-                for r, c in zip(results, sub):
+            scraper = OrsrScraper(browser=None)
+            try:
+                results = await process_batch(companies, concurrency=args.concurrency, scraper=scraper)
+                for r, c in zip(results, companies):
                     status = r.get("status")
                     if status == "SUCCESS":
-                        checkpoint["processed_count"] += 1
-                        checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
+                        retry_checkpoint["processed_count"] += 1
                     elif status == "NOT_FOUND":
-                        checkpoint["not_found_count"] += 1
-                        checkpoint["not_found_icos"].append(c["ico"])
-                        # Advance cursor even for not-found (they were processed)
-                        checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
+                        retry_checkpoint["not_found_count"] += 1
+                        retry_checkpoint["not_found_icos"].append(c["ico"])
                     else:
-                        checkpoint["failed_count"] += 1
-                        checkpoint["failed_icos"].append(c["ico"])
-                        # Advance cursor even for failed (retry separately later)
-                        checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
+                        retry_checkpoint["failed_count"] += 1
+                        retry_checkpoint["failed_icos"].append(c["ico"])
 
+                # Merge retry results back into checkpoint
+                checkpoint["failed_icos"] = retry_checkpoint["failed_icos"]
+                checkpoint["not_found_icos"] = checkpoint.get("not_found_icos", []) + retry_checkpoint["not_found_icos"]
                 save_checkpoint(checkpoint)
+            finally:
+                await scraper._close()
+                await disconnect_db()
 
-            # Update cursor for next batch
-            last_ico = checkpoint["last_ico"]
+            _print_summary(retry_checkpoint, title="RETRY FAILED")
+            return
+
+        # Single-company mode
+        if args.ico:
+            if not _ICO_PATTERN.match(args.ico):
+                logger.error(f"Invalid IČO format: {args.ico}")
+                await disconnect_db()
+                return
+
+            scraper = OrsrScraper(browser=None)
+            companies = await get_companies_batch_cursor("", ico_filter=args.ico)
+            if not companies:
+                logger.info(f"Company {args.ico} not found or already synced.")
+                await scraper._close()
+                await disconnect_db()
+                return
+
+            results = await process_batch(companies, concurrency=1, scraper=scraper)
+            for r, c in zip(results, companies):
+                status = r.get("status")
+                if status == "SUCCESS":
+                    checkpoint["processed_count"] += 1
+                    checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
+                elif status == "NOT_FOUND":
+                    checkpoint["not_found_count"] += 1
+                    checkpoint["not_found_icos"].append(c["ico"])
+                else:
+                    checkpoint["failed_count"] += 1
+                    checkpoint["failed_icos"].append(c["ico"])
+            save_checkpoint(checkpoint)
+            await scraper._close()
+            await disconnect_db()
+            _print_summary(checkpoint)
+            return
+
+        # Cursor-based bulk mode
+        last_ico = checkpoint.get("last_ico", "")
+        total_target = args.max
+        batch_size = 100
+        start_time = time.perf_counter()
+
+        # Single reusable scraper instance
+        scraper = OrsrScraper(browser=None)
+
+        try:
+            while checkpoint["processed_count"] + checkpoint["failed_count"] + checkpoint["not_found_count"] < total_target:
+                remaining = total_target - (
+                    checkpoint["processed_count"]
+                    + checkpoint["failed_count"]
+                    + checkpoint["not_found_count"]
+                )
+                fetch_size = min(batch_size, remaining)
+                if fetch_size <= 0:
+                    break
+
+                logger.info(
+                    f"Fetching batch of {fetch_size} companies (cursor: ico > {last_ico or 'START'})..."
+                )
+                companies = await get_companies_batch_cursor(last_ico, batch_size=fetch_size)
+
+                if not companies:
+                    logger.info("No more companies to process.")
+                    break
+
+                logger.info(
+                    f"Processing {len(companies)} companies "
+                    f"(total so far: {checkpoint['processed_count'] + checkpoint['failed_count'] + checkpoint['not_found_count']})"
+                )
+
+                # Process in sub-batches of 10 for checkpoint granularity
+                sub_batch_size = 10
+                for i in range(0, len(companies), sub_batch_size):
+                    sub = companies[i:i + sub_batch_size]
+                    results = await process_batch(sub, concurrency=args.concurrency, scraper=scraper)
+
+                    for r, c in zip(results, sub):
+                        status = r.get("status")
+                        if status == "SUCCESS":
+                            checkpoint["processed_count"] += 1
+                            checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
+                        elif status == "NOT_FOUND":
+                            checkpoint["not_found_count"] += 1
+                            checkpoint["not_found_icos"].append(c["ico"])
+                            # Advance cursor even for not-found (they were processed)
+                            checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
+                        else:
+                            checkpoint["failed_count"] += 1
+                            checkpoint["failed_icos"].append(c["ico"])
+                            # Advance cursor even for failed (retry separately later)
+                            checkpoint["last_ico"] = max(checkpoint["last_ico"], c["ico"])
+
+                    save_checkpoint(checkpoint)
+
+                # Update cursor for next batch
+                last_ico = checkpoint["last_ico"]
+
+        finally:
+            await scraper._close()
+            await disconnect_db()
+
+        elapsed = time.perf_counter() - start_time
+        total = checkpoint["processed_count"] + checkpoint["failed_count"] + checkpoint["not_found_count"]
+        throughput = (total / elapsed * 60) if elapsed > 0 else 0
+        logger.info(f"Throughput: {throughput:.1f} companies/min ({total} in {elapsed:.0f}s)")
+
+        _print_summary(checkpoint)
 
     finally:
-        await scraper._close()
-        await disconnect_db()
+        lock.release()
+        logger.info("Lock released")
 
-    elapsed = time.perf_counter() - start_time
-    total = checkpoint["processed_count"] + checkpoint["failed_count"] + checkpoint["not_found_count"]
-    throughput = (total / elapsed * 60) if elapsed > 0 else 0
-    logger.info(f"Throughput: {throughput:.1f} companies/min ({total} in {elapsed:.0f}s)")
 
-    _print_summary(checkpoint)
+def _print_summary(checkpoint: dict, title: str = "SUMMARY"):
+    print("\n" + "=" * 60)
+    print(f"  ORSR BULK SEED V2 — {title}")
+    print(f"  Processed:    {checkpoint['processed_count']}")
+    print(f"  Not found:    {checkpoint['not_found_count']}")
+    print(f"  Failed:       {checkpoint['failed_count']}")
+    print(f"  Total:        {checkpoint['processed_count'] + checkpoint['failed_count'] + checkpoint['not_found_count']}")
+    print(f"  Last ICO:     {checkpoint.get('last_ico', '')}")
+    print(f"  Checkpoint:   {_CHECKPOINT_FILE}")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="ORSR Bulk Seed V2 — cursor-based pagination")
+    parser.add_argument("--max", type=int, default=999999, help="Max companies (default: all)")
+    parser.add_argument("--ico", type=str, default=None, help="Single IČO (8 digits)")
+    parser.add_argument("--concurrency", type=int, default=5, help="Parallel workers (default: 5)")
+    parser.add_argument("--resume", action="store_true", help="Resume from V2 checkpoint")
+    parser.add_argument("--retry-failed", action="store_true", help="Retry failed ICOs from checkpoint")
+    args = parser.parse_args()
+
+    asyncio.run(main(args))
 
 
 def _print_summary(checkpoint: dict):

@@ -8,6 +8,8 @@ Tests focus on:
   - Restart from last_ico does not skip records
   - Failed company can be retried
   - Checkpoint save/load roundtrip
+  - Single-worker lock prevents concurrent instances
+  - Transaction wraps Company + CompanyPerson atomically
 """
 import json
 import os
@@ -22,7 +24,9 @@ from src.bulk_seed_orsr_v2 import (
     load_checkpoint,
     save_checkpoint,
     get_companies_batch_cursor,
+    WorkerLock,
     _CHECKPOINT_FILE,
+    _LOCK_FILE,
 )
 
 
@@ -109,9 +113,9 @@ class TestCursorPagination:
     async def test_cursor_excludes_synced_companies(self):
         """Companies with orsrSyncedAt IS NOT NULL are excluded by the query."""
         mock_db = MagicMock()
-        mock_db.execute_raw = AsyncMock(return_value=[
-            ("00500001", "Test s.r.o."),
-            ("00500002", "Test2 a.s."),
+        mock_db.query_raw = AsyncMock(return_value=[
+            {"ico": "00500001", "name": "Test s.r.o."},
+            {"ico": "00500002", "name": "Test2 a.s."},
         ])
 
         with patch("src.db_client.get_db", return_value=mock_db):
@@ -122,7 +126,7 @@ class TestCursorPagination:
         assert companies[1]["ico"] == "00500002"
 
         # Verify the SQL uses cursor (ico > $2) not OFFSET
-        call_args = mock_db.execute_raw.call_args
+        call_args = mock_db.query_raw.call_args
         sql = call_args[0][0]
         assert "ico > $2" in sql
         assert "OFFSET" not in sql.upper()
@@ -133,12 +137,12 @@ class TestCursorPagination:
     async def test_cursor_uses_last_ico_parameter(self):
         """The last_ico is passed as parameter $2, not concatenated into SQL."""
         mock_db = MagicMock()
-        mock_db.execute_raw = AsyncMock(return_value=[])
+        mock_db.query_raw = AsyncMock(return_value=[])
 
         with patch("src.db_client.get_db", return_value=mock_db):
             await get_companies_batch_cursor(last_ico="00689785", batch_size=50)
 
-        call_args = mock_db.execute_raw.call_args
+        call_args = mock_db.query_raw.call_args
         # Parameters: legal_forms, last_ico, batch_size
         assert call_args[0][2] == "00689785"  # last_ico
         assert call_args[0][3] == 50           # batch_size
@@ -147,7 +151,7 @@ class TestCursorPagination:
     async def test_cursor_empty_result(self):
         """Empty result when no more companies to process."""
         mock_db = MagicMock()
-        mock_db.execute_raw = AsyncMock(return_value=[])
+        mock_db.query_raw = AsyncMock(return_value=[])
 
         with patch("src.db_client.get_db", return_value=mock_db):
             companies = await get_companies_batch_cursor(last_ico="99999999", batch_size=100)
@@ -168,16 +172,16 @@ class TestCursorPagination:
 
         assert len(companies) == 1
         assert companies[0]["ico"] == "36000019"
-        # Should use find_many, not execute_raw
+        # Should use find_many, not query_raw
         mock_db.company.find_many.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_restart_from_checkpoint_does_not_skip(self):
         """Resuming from last_ico fetches companies AFTER the cursor, not before."""
         mock_db = MagicMock()
-        mock_db.execute_raw = AsyncMock(return_value=[
-            ("00689786", "Next s.r.o."),
-            ("00689787", "Next2 a.s."),
+        mock_db.query_raw = AsyncMock(return_value=[
+            {"ico": "00689786", "name": "Next s.r.o."},
+            {"ico": "00689787", "name": "Next2 a.s."},
         ])
 
         with patch("src.db_client.get_db", return_value=mock_db):
@@ -191,12 +195,12 @@ class TestCursorPagination:
     async def test_no_offset_in_sql(self):
         """Critical: SQL must NOT contain OFFSET keyword."""
         mock_db = MagicMock()
-        mock_db.execute_raw = AsyncMock(return_value=[])
+        mock_db.query_raw = AsyncMock(return_value=[])
 
         with patch("src.db_client.get_db", return_value=mock_db):
             await get_companies_batch_cursor(last_ico="", batch_size=100)
 
-        sql = mock_db.execute_raw.call_args[0][0]
+        sql = mock_db.query_raw.call_args[0][0]
         assert "OFFSET" not in sql.upper(), "V2 must NOT use OFFSET pagination"
         assert "SKIP" not in sql.upper(), "V2 must NOT use SKIP pagination"
 
@@ -256,3 +260,134 @@ class TestIdempotency:
         assert loaded["last_ico"] == "00500001"
         assert loaded["not_found_count"] == 1
         # Next batch will fetch ico > 00500001, skipping the not-found company
+
+
+class TestWorkerLock:
+    """Single-worker lock prevents concurrent V2 instances."""
+
+    def test_lock_acquire_and_release(self, tmp_path, monkeypatch):
+        """Lock can be acquired and released."""
+        monkeypatch.setattr("src.bulk_seed_orsr_v2._LOCK_FILE", tmp_path / "orsr_v2.lock")
+        lock = WorkerLock()
+        assert lock.acquire() is True
+        assert lock._fd is not None
+        lock.release()
+        assert lock._fd is None
+
+    def test_lock_prevents_second_acquire(self, tmp_path, monkeypatch):
+        """A second lock on the same file fails (non-blocking)."""
+        monkeypatch.setattr("src.bulk_seed_orsr_v2._LOCK_FILE", tmp_path / "orsr_v2.lock")
+        lock1 = WorkerLock()
+        lock2 = WorkerLock()
+
+        assert lock1.acquire() is True
+        # Second lock should fail — another process holds it
+        assert lock2.acquire() is False
+
+        lock1.release()
+        # Now lock2 can acquire
+        assert lock2.acquire() is True
+        lock2.release()
+
+    def test_lock_released_on_release_call(self, tmp_path, monkeypatch):
+        """Explicit release allows re-acquire."""
+        monkeypatch.setattr("src.bulk_seed_orsr_v2._LOCK_FILE", tmp_path / "orsr_v2.lock")
+        lock = WorkerLock()
+        lock.acquire()
+        lock.release()
+        # Should be able to acquire again
+        assert lock.acquire() is True
+        lock.release()
+
+    def test_lock_file_created(self, tmp_path, monkeypatch):
+        """Lock file is created on acquire."""
+        lock_file = tmp_path / "orsr_v2.lock"
+        monkeypatch.setattr("src.bulk_seed_orsr_v2._LOCK_FILE", lock_file)
+        lock = WorkerLock()
+        lock.acquire()
+        assert lock_file.exists()
+        lock.release()
+
+
+class TestTransaction:
+    """Atomic Company + CompanyPerson writes via db.tx()."""
+
+    @pytest.mark.asyncio
+    async def test_transaction_used_for_company_write(self):
+        """scrape_and_save_orsr_v2 uses db.tx() for atomic writes."""
+        from src.bulk_seed_orsr_v2 import scrape_and_save_orsr_v2
+
+        mock_db = MagicMock()
+        mock_tx = MagicMock()
+        mock_tx.execute_raw = AsyncMock(return_value=1)
+        mock_tx.query_raw = AsyncMock(return_value=[])
+
+        # db.tx() is an async context manager
+        mock_tx.__aenter__ = AsyncMock(return_value=mock_tx)
+        mock_tx.__aexit__ = AsyncMock(return_value=False)
+        mock_db.tx.return_value = mock_tx
+
+        mock_scraper = MagicMock()
+        mock_result = MagicMock()
+        mock_result.status = "SUCCESS"
+        mock_result.status_message = "OK"
+        mock_result.findings = "Aktívna spoločnosť"
+        mock_result.share_capital = 5000.0
+        mock_result.signing_authority = "Konateľ"
+        mock_result.business_activity = "Obchod"
+        mock_result.persons = []
+        mock_scraper.run = AsyncMock(return_value=mock_result)
+
+        with patch("src.db_client.get_db", return_value=mock_db):
+            result = await scrape_and_save_orsr_v2("31351361", "Test s.r.o.", mock_scraper)
+
+        assert result["status"] == "SUCCESS"
+        # Verify tx() was used
+        mock_db.tx.assert_called_once()
+        # Verify Company UPDATE was inside transaction
+        assert mock_tx.execute_raw.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_transaction_rollback_on_person_failure(self):
+        """If CompanyPerson write fails, Company UPDATE is rolled back."""
+        from src.bulk_seed_orsr_v2 import scrape_and_save_orsr_v2
+
+        mock_db = MagicMock()
+        mock_tx = MagicMock()
+        mock_tx.execute_raw = AsyncMock(side_effect=[
+            1,  # Company UPDATE succeeds
+            Exception("CompanyPerson write failed"),  # Person INSERT fails
+        ])
+        mock_tx.query_raw = AsyncMock(return_value=[])
+
+        mock_tx.__aenter__ = AsyncMock(return_value=mock_tx)
+        mock_tx.__aexit__ = AsyncMock(return_value=False)
+        mock_db.tx.return_value = mock_tx
+
+        mock_person = MagicMock()
+        mock_person.clean_name = "Ján Test"
+        mock_person.role = "statutar"
+        mock_person.raw_name = "Ján Test"
+        mock_person.city = None
+        mock_person.zip_code = None
+        mock_person.function_start = None
+        mock_person.function_end = None
+        mock_person.is_active = True
+
+        mock_scraper = MagicMock()
+        mock_result = MagicMock()
+        mock_result.status = "SUCCESS"
+        mock_result.status_message = "OK"
+        mock_result.findings = "Aktívna spoločnosť"
+        mock_result.share_capital = 5000.0
+        mock_result.signing_authority = "Konateľ"
+        mock_result.business_activity = "Obchod"
+        mock_result.persons = [mock_person]
+        mock_scraper.run = AsyncMock(return_value=mock_result)
+
+        with patch("src.db_client.get_db", return_value=mock_db):
+            result = await scrape_and_save_orsr_v2("31351361", "Test s.r.o.", mock_scraper)
+
+        # Should return ERROR, not SUCCESS — transaction rolled back
+        assert result["status"] == "ERROR"
+        assert "CompanyPerson write failed" in result["message"]
