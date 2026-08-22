@@ -111,7 +111,9 @@
     <div class="w-full mt-2">
         <div class="text-center">
             <p class="text-xs text-slate-500 font-semibold">{{ i18n.coverage_auto }}: {{ coverage_successful }} / {{ coverage_total }} {{ i18n.coverage_sources }}</p>
-            <p class="text-[10px] text-slate-400">{{ i18n.coverage_uncontrolled }}: {{ coverage_uncontrolled }}</p>
+            {% if coverage_uncontrolled is defined and coverage_uncontrolled > 0 %}
+            <p class="text-[10px] text-slate-400">{{ i18n.coverage_uncontrolled }}: {{ coverage_uncontrolled }} ({{ i18n.not_automatic | default('nie súčasťou automatického preverenia') }})</p>
+            {% endif %}
         </div>
     </div>
 </div>

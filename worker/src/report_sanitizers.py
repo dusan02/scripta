@@ -36,19 +36,33 @@ def sanitize_llm_text(text: str) -> str:
     # Garbled text detection — PDF extraction artefacts with mixed scripts
     if _is_garbled(text):
         return ""
-    # LaTeX $...$ → plain text (zachová vnútro)
+    # LaTeX $...$ → plain text (non-greedy, handles multiple $...$ pairs)
     text = re.sub(r'\$([^$]+)\$', r'\1', text)
-    # LaTeX ^{...} a _{...} → plain text
+    # Stray single $ signs (unpaired) — remove them
+    text = text.replace('$', '')
+    # LaTeX ^{...} and _{...} → plain text
     text = re.sub(r'\^[\{]([^}]+)[\}]', r'\1', text)
     text = re.sub(r'\^\{([^}]+)\}', r'\1', text)
-    text = re.sub(r'\\prime\\prime', "''", text)
+    text = re.sub(r'_[\{]([^}]+)[\}]', r'\1', text)
+    text = re.sub(r'_\{([^}]+)\}', r'\1', text)
+    # LaTeX commands → plain text
+    text = re.sub(r"\\prime\\prime", "''", text)
     text = re.sub(r"\\prime", "'", text)
+    text = re.sub(r"\\rightarrow", "->", text)
+    text = re.sub(r"\\to", "->", text)
     text = re.sub(r"\\pm", "+/-", text)
     text = re.sub(r"\\times", "x", text)
     text = re.sub(r"\\leq", "<=", text)
     text = re.sub(r"\\geq", ">=", text)
     text = re.sub(r"\\neq", "!=", text)
     text = re.sub(r"\\approx", "~", text)
+    text = re.sub(r"\\alpha", "alpha", text)
+    text = re.sub(r"\\beta", "beta", text)
+    text = re.sub(r"\\gamma", "gamma", text)
+    text = re.sub(r"\\delta", "delta", text)
+    text = re.sub(r"\\sigma", "sigma", text)
+    # Remove any remaining backslash-letter sequences (LaTeX commands without args)
+    text = re.sub(r'\\([a-zA-Z]+)', r'\1', text)
     # Bežné preklepy z LLM
     text = text.replace("dižnik", "dlžník").replace("dižníkov", "dlžníkov").replace("dižníci", "dlžníci")
     text = text.replace("dihoch", "dlhoch").replace("dihodobo", "dlhodobo")
@@ -87,4 +101,3 @@ def sanitize_llm_text(text: str) -> str:
     # Force lowercase "ale" — LLM často ignoruje prompt inštrukciu
     text = re.sub(r'\bALE\b', 'ale', text)
     return text
-

@@ -77,6 +77,8 @@ PRAVIDLÁ VÝSTUPU:
 - Musíš vyplniť Pydantic schému `AuditVerdict`.
 - `verifa_score` = `algorithmic_prescore` (bez zmeny — porušenie tohto pravidla spôsobí chybu).
 - ZÁKAZ HALUCINOVANIA: NIKDY neuvádzaj vo verdikte čísla (napr. počet zmien štatutárov, výšky tržieb), ktoré nie sú EXPLICITNE uvedené v poskytnutých zdrojových dátach. Ak vstupné dáta hovoria o 37 zmenách štatutárov, nepoužívaj svoje externé znalosti na úpravu tohto čísla (napr. na 107). Použi výlučne poskytnuté údaje.
+- DOKONČENÉ VETY: Každá veta musí byť úplná. Nikdy neodsekávaj vetu na konci odseku alebo tabuľky. Ak píšeš "v roku 2024 to bolo až 231 689", dokonči ju: "v roku 2024 to bolo až 231 689 tis. EUR". Nikdy nenechávaj otvorené zátvorky alebo nedokončené porovnania.
+- **ZÁKAZ SPOMÍNANIA SKÓRE ADJUSTMENTU V TEXTE:** V poliach `executive_summary`, `final_verdict`, `keyRisk` a `zdovodnenie` NIKDY nepíš o tom, že si "upravil skóre", "pridal body", "navýšil skóre", "korigoval algoritmus" alebo podobne. Tvoje `llm_score_adjustment` je čisto technické pole pre engine — používateľ ho nevidí v naratíve. Ak napíšeš "odôvodňujem navýšenie skóre o 5 bodov", používateľ to uvidí ako konflikt s tabuľkou, ktorá ukazuje 0. NAMIESTO TOHO píš o rizikách a silných stránkach priamo — napr. "Napriek algoritmickej penalizácii za vysoký počet zmien štatutárov spoločnosť vykazuje stabilnú ziskovosť a silný cash flow, čo znižuje reálne riziko úpadku."
 
 PLACEHOLDRE PRE FINANČNÉ METRIKY:
 Pre konkrétne finančné hodnoty v `executive_summary`, `keyRisk` a `finalVerdict` VŽDY používaj placeholdre z tohto zoznamu. NIKDY nepíš konkrétne EUR hodnoty, percentá alebo pomery priamo — systém ich nahradí presnými hodnotami z databázy.
@@ -129,12 +131,14 @@ PRÍKLADY SPRÁVNEHO POUŽITIA:
 ✗ "Tržby klesli o 13,2 %, ale prevádzkový cash flow zostáva pozitívny na úrovni 11,7 mil. €." (konkrétne čísla = halucinácia)
 ✗ "EBITDA dosiahla 5,2 mil. €" (konkrétne čísla = halucinácia)
 
+KRITICKÉ PRAVIDLO PRE PLACEHOLDRE: Po nahradení placeholdrov systémom NESMIE v texte ostať prázdne miesto. Ak placeholder nie je nahradený hodnotou, veta musí byť zmysluplná aj bez neho. NIKDY nepíš "vo výške {{{{SOME_VAR}}}}" bez záložného textu — radšej napíš "vo výške nad 100 mil. €" alebo úplne vynechaj konkrétnu sumu. Kontroluj, že každá veta je po nahradení placeholdrov gramaticky a sémanticky úplná.
+
 KRITICKÉ PRAVIDLO PRE REGISTRE DLŽNÍKOV: V `registryStatusSummary` nájdeš explicitný zoznam stavu každého registra. Ak je pre register (napr. SP_DLZNICI, DOVERA_DLZNICI, VSZP_DLZNICI, UNION_DLZNICI, FINANCNA_SPRAVA, POVERENIA) uvedené 'CLEAN', znamená to že firma NEMÁ žiadny záznam v tom registri. NIKDY neuvádzaj v texte konkrétne sumy dlhov voči týmto inštitúciám, ak je register označený ako CLEAN. Neuvádzaj ani exekúcie, ak POVERENIA je CLEAN. Tieto registre sú autoritatívne — ak nehovoria o dlhu, dlh neexistuje.
 - V poli 'zdovodnenie' vrátiš zoznam objektov `EvidenceItem`.
 - Pre každý `EvidenceItem` MUSÍŠ priradiť správny `impact` (POSITIVE pre dobré správy, WARNING pre varovania, CRITICAL pre exekúcie, tunelenie a vážný finančný stres, NEUTRAL pre neutrálne info).
 - Ku každému z 5 pilierov nájdi aspoň jeden silný dôkaz.
 - EVIDENCE ITEMS = IBA HISTORICKÉ FAKTY: Každý EvidenceItem v `zdovodnenie` musí obsahovať iba overiteľné historické fakty z poskytnutých dát (čísla z závierky, udalosti z registrov, citácie z PDF). NIKDY neuvádzaj predikcie, prognózy ani odhady budúceho vývoja (napr. "predikovaný pokles ziskovosti") ako evidence item. Budúce trendy môžeš spomenúť v `executive_summary`, ale nie ako samostatný dôkaz v tabuľke.
-- V poli `zdovodnenie` vysvetli `llm_score_adjustment`: ak je nenulový, uvedie jeden EvidenceItem opisujúci, prečo by si score korigoval (napr. "PDF dlhy neobsahujú aktívne exekúcie, llm_score_adjustment = 0").
+- V poli `zdovodnenie` NEPÍŠ o `llm_score_adjustment` ani o úprave skóre. Píš iba o faktoch a rizikách. Hodnota `llm_score_adjustment` je technické pole, ktoré používateľ nevidí v naratíve — tabuľka ju zobrazí samostatne.
 - Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), zvol 'INSUFFICIENT_DATA' v risk_category.
 
 {COMMON_TEXT_QUALITY_RULES['sk']}"""

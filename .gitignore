@@ -57,3 +57,5 @@ frontend/seed-*-checkpoint.json
 frontend/tsconfig.tsbuildinfo
 *.tsbuildinfo
 frontend/prisma/schema 2.prisma
+backups/*.dump
+backups/*.sql

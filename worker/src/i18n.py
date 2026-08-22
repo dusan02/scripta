@@ -59,6 +59,8 @@ I18N_STRINGS = {
         "final_score": "FINÁLNE SKÓRE",
         "pillar_weights_note": "Váhy pilierov sú dynamicky prispôsobené odvetviu podľa NACE kódu. Finálne skóre môže byť upravené audítorom o +/-10 bodov na základe úsudku, alebo -30 bodov ak sú v PDF výpisoch nájdené aktívne exekúcie alebo chronické dlhy voči štátu.",
         "pillar_profile": "Profil pilierov",
+        "financial_basis_consolidated": "Základ: Konsolidované",
+        "financial_basis_individual": "Základ: Individuálne",
 
         # Main assessment
         "main_assessment": "Hlavný posudok",
@@ -356,9 +358,9 @@ I18N_STRINGS = {
         "net_margin": "Čistá marža",
         "working_capital": "Pracovný kapitál",
         "cf_to_profit": "CF/Zisk",
-        "liq_current": "Current Ratio",
-        "liq_quick": "Quick Ratio",
-        "liq_cash": "Cash Ratio",
+        "liq_current": "Bežná likvidita",
+        "liq_quick": "Rýchla likvidita",
+        "liq_cash": "Hotovostná likvidita",
         "chart_average": "Priemer",
         "negative_equity_warning": "Záporné vlastné imanie",
         "negative_equity_desc": "Firma vykazuje záporné vlastné imanie — prevádzkové straty prekročili kapitál. Ide o kritický indikátor finančného stresu a potenciálnej insolvencie.",
@@ -882,6 +884,8 @@ I18N_STRINGS = {
         "final_score": "FINAL SCORE",
         "pillar_weights_note": "Pillar weights are dynamically adjusted by industry according to NACE code. The final score may be adjusted by the auditor by ±10 points based on judgment, or −30 points if active executions or chronic state debts are found in PDF extracts.",
         "pillar_profile": "Pillar profile",
+        "financial_basis_consolidated": "Basis: Consolidated",
+        "financial_basis_individual": "Basis: Individual",
 
         # Main assessment
         "main_assessment": "Main Assessment",
@@ -1700,6 +1704,8 @@ I18N_STRINGS = {
         "final_score": "ENDPUNKTZAHL",
         "pillar_weights_note": "Säulengewichte werden dynamisch nach Branche gemäß NACE-Code angepasst. Die Endpunktzahl kann vom Prüfer um ±10 Punkte basierend auf Urteilsvermögen angepasst werden, oder −30 Punkte wenn aktive Zwangsvollstreckungen oder chronische Staatsschulden in PDF-Auszügen gefunden werden.",
         "pillar_profile": "Säulenprofil",
+        "financial_basis_consolidated": "Basis: Konsolidiert",
+        "financial_basis_individual": "Basis: Einzel",
 
         # Main assessment
         "main_assessment": "Hauptgutachten",
@@ -2513,6 +2519,8 @@ I18N_STRINGS = {
     "final_score": "FINÁLNÍ SKÓRE",
     "pillar_weights_note": "Váhy pilířů jsou dynamicky přizpůsobeny odvětví podle NACE kódu. Finální skóre může být upraveno auditorem o +/-10 bodů na základě úsudku, nebo -30 bodů, pokud jsou v PDF výpisech nalezeny aktivní exekuce nebo chronické dluhy vůči státu.",
     "pillar_profile": "Profil pilířů",
+    "financial_basis_consolidated": "Základ: Konsolidované",
+    "financial_basis_individual": "Základ: Individuální",
     "main_assessment": "Hlavní posudek",
     "executive_summary": "Manažerské shrnutí",
     "analysis_reliability": "Spolehlivost analýzy",
@@ -3231,6 +3239,8 @@ I18N_STRINGS = {
     "final_score": "VÉGLEGES PONTOSZÁM",
     "pillar_weights_note": "A pillérek súlyozását az iparág dinamikusan igazítja a NACE kód alapján. A végső pontszámot az auditor bírálat alapján ±10 ponttal módosíthatja, vagy −30 ponttal csökkentheti, ha aktív végrehajtások vagy krónikus állami tartozások találhatók a PDF kivonatokban.",
     "pillar_profile": "Pillér-profil",
+    "financial_basis_consolidated": "Alap: Konszolidált",
+    "financial_basis_individual": "Alap: Egyéni",
     "main_assessment": "Fő értékelés",
     "executive_summary": "Vezetői összefoglaló",
     "analysis_reliability": "Elemzés megbízhatósága",
@@ -3949,6 +3959,8 @@ I18N_STRINGS = {
     "final_score": "WYNIK KOŃCOWY",
     "pillar_weights_note": "Wagi filarów są dynamicznie dostosowywane według branży zgodnie z kodem NACE. Wynik końcowy może zostać skorygowany przez audytora o ±10 punktów na podstawie oceny lub o −30 punktów w przypadku wykrycia aktywnych egzekucji lub przewlekłych długów publicznoprawnych w wypisach PDF.",
     "pillar_profile": "Profil filarów",
+    "financial_basis_consolidated": "Podstawa: Skonsolidowane",
+    "financial_basis_individual": "Podstawa: Indywidualne",
     "main_assessment": "Główna ocena",
     "executive_summary": "Podsumowanie dla zarządu",
     "analysis_reliability": "Wiarygodność analizy",

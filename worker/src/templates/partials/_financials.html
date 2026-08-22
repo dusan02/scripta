@@ -156,9 +156,9 @@
                     <p class="report-caption text-slate-500">
                         {{ i18n.pillar_weights_note }}
                         {% if financial_basis == 'consolidated' %}
-                            <br><span class="text-slate-400">Financial basis: Consolidated</span>
+                            <br><span class="text-slate-400">{{ i18n.financial_basis_consolidated | default('Základ: Konsolidované') }}</span>
                         {% elif financial_basis == 'individual' %}
-                            <br><span class="text-slate-400">Financial basis: Individual</span>
+                            <br><span class="text-slate-400">{{ i18n.financial_basis_individual | default('Základ: Individuálne') }}</span>
                         {% endif %}
                         {% if has_mixed_consolidation %}
                             <br><span class="text-amber-500">⚠ Historical statement type changed; trend analysis may have limited comparability.</span>

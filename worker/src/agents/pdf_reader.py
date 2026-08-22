@@ -92,6 +92,7 @@ PDF_READER_PROMPT_SK = """Si PDF Reader Agent @ Verifa.sk. Tvojou úlohou je pre
 - Verejné obstarávanie z UVO: uveď názov obstarávania a hodnotu.
 - Daňové nedoplatky: uveď presnú sumu a obdobie.
 - Poisťovne: uveď presnú sumu nedoplatku.
+- **SÚDNE ROZHODNUTIA — FILTER FALSE POSITIVES:** Vytvor event SUDNE_ROZHODNUTIE IBA ak je preverovaná firma (IČO) priamo účastníkom konania (žalovaný, žalobca, obžalovaný). Ak je firma v texte rozhodnutia spomenutá len ako tretia strana (napr. zamestnávateľ výplaty mzdy, svedok, notár, sprostredkovateľ), NEVYTVÁRAJ event. Tieto prípady nie sú rizikom pre firmu a ich flagovanie je false positive.
 """
 
 PDF_READER_PROMPT_EN = """You are PDF Reader Agent @ Verifa.sk. Your task is to read text extracted from PDF documents of state registries and create a structured list of events (CompanyEvent[]).
@@ -138,6 +139,7 @@ PDF_READER_PROMPT_EN = """You are PDF Reader Agent @ Verifa.sk. Your task is to 
 - Public procurement (UVO): state procurement name and value.
 - Tax arrears: state exact amount and period.
 - Insurance: state exact arrears amount.
+- **COURT DECISIONS — FILTER FALSE POSITIVES:** Only create a SUDNE_ROZHODNUTIE event if the verified company (IČO) is a direct party to the proceedings (defendant, plaintiff, accused). If the company is mentioned in the decision text only as a third party (e.g. employer for wage garnishment, witness, notary, intermediary), DO NOT create an event. These cases are not a risk for the company and flagging them is a false positive.
 """
 
 PDF_READER_PROMPT_DE = """Sie sind PDF Reader Agent @ Verifa.sk. Ihre Aufgabe ist es, aus PDF-Dokumenten staatlicher Register extrahierten Text zu lesen und eine strukturierte Liste von Ereignissen (CompanyEvent[]) zu erstellen.
