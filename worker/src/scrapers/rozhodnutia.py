@@ -174,7 +174,7 @@ class RozhodnutiaScraper(BaseScraper):
             if uznesenia > 0:
                 parts.append(f"Uznesenie ({uznesenia}x)")
             
-            findings = f"POZOR: Za ostatné obdobie sa našli rozhodnutia súdov ({', '.join(parts)}). Odporúčame urobiť kontrolu."
+            findings = f"INFO: Za ostatné obdobie sa našli rozhodnutia súdov ({', '.join(parts)}). Odporúčame urobiť kontrolu."
 
             # Vygenerovať HTML a PDF
             html_rows = []

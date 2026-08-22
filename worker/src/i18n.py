@@ -319,7 +319,7 @@ I18N_STRINGS = {
         "interest_coverage_short": "Int. Cov.",
         "interest_coverage_no_debt": "Bez úrokového zaťaženia",
         "equity_ratio": "Samofinancovací pomer",
-        "equity_ratio_short": "Equity Ratio",
+        "equity_ratio_short": "Samofin.",
         "asset_turnover": "Obrat aktív",
         "asset_turnover_short": "A. Turnover",
         "effective_tax_rate": "Efektívna daňová sadzba",
@@ -529,7 +529,7 @@ I18N_STRINGS = {
 
         # Sankey / infographic labels
         "sankey_revenue": "Tržby",
-        "sankey_cogs": "Priame náklady (COGS)",
+        "sankey_cogs": "Priame náklady",
         "sankey_gross_margin": "Hrubá marža",
         "sankey_staff": "Osobné náklady",
         "sankey_depreciation": "Odpisy",
@@ -661,11 +661,11 @@ I18N_STRINGS = {
         "pillar_orsr_forensic": "ORSR Forenzná penalizácia",
 
         # Scorecard detail/flag strings
-        "flag_cr_na": "Current ratio: N/A (bez dát)",
-        "flag_cr_excellent": "Current ratio: {val} — výborná likvidita (≥1.5)",
-        "flag_cr_sufficient": "Current ratio: {val} — dostatočná likvidita (1.0–1.5)",
-        "flag_cr_problematic": "Current ratio: {val} — problematická likvidita (0.5–1.0)",
-        "flag_cr_critical": "Current ratio: {val} — kritická likvidita (<0.5)",
+        "flag_cr_na": "Bežná likvidita: N/A (bez dát)",
+        "flag_cr_excellent": "Bežná likvidita: {val} — výborná likvidita (≥1.5)",
+        "flag_cr_sufficient": "Bežná likvidita: {val} — dostatočná likvidita (1.0–1.5)",
+        "flag_cr_problematic": "Bežná likvidita: {val} — problematická likvidita (0.5–1.0)",
+        "flag_cr_critical": "Bežná likvidita: {val} — kritická likvidita (<0.5)",
         "flag_equity_na": "Vlastné imanie: N/A",
         "flag_equity_positive": "Vlastné imanie: kladné (D/E = {val})",
         "flag_equity_negative": "Vlastné imanie: ZÁPORNÉ (D/E = {val}) — predĺženie",
