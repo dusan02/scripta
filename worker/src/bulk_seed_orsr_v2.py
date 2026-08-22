@@ -101,7 +101,8 @@ async def get_companies_batch_cursor(
         return [{"ico": c.ico, "name": c.name} for c in companies]
 
     # Cursor-based: use raw SQL for precise control over the cursor condition
-    rows = await db.execute_raw(
+    # query_raw returns actual rows (execute_raw returns row count)
+    rows = await db.query_raw(
         """
         SELECT ico, name FROM "Company"
         WHERE "orsrSyncedAt" IS NULL
@@ -118,7 +119,8 @@ async def get_companies_batch_cursor(
     if not rows:
         return []
 
-    return [{"ico": r[0], "name": r[1]} for r in rows]
+    # Prisma query_raw returns list of dicts (not tuples)
+    return [{"ico": r["ico"], "name": r["name"]} for r in rows]
 
 
 # ── Scrape + Save ─────────────────────────────────────────────────────
