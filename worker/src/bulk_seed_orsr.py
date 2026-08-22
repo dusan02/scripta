@@ -79,21 +79,40 @@ async def scrape_and_save_orsr(ico: str, name: str) -> dict:
         # Write to DB (connection already open)
         db = get_db()
 
-        # Update Company
-        company_update = {
-            "orsrSyncedAt": datetime.now(timezone.utc),
-        }
-        if result.share_capital is not None:
-            company_update["shareCapital"] = result.share_capital
-        if result.signing_authority:
-            company_update["signingAuthority"] = result.signing_authority
-        if result.business_activity:
-            company_update["businessActivity"] = result.business_activity
+        # Derive legalStatus from ORSR findings (per frozen multi-axis contract)
+        # ORSR is the authoritative commercial register.
+        # ORSR always wins over Vestník for legalStatus.
+        # findings: "POZOR: Spoločnosť je v likvidácii." → LIQUIDATION
+        #           "POZOR: Spoločnosť je vymazaná z ORSR." → DISSOLVED
+        #           "Aktívna spoločnosť v ORSR..." → ACTIVE
+        legal_status = "ACTIVE"
+        if "likvidácii" in (result.findings or "").lower():
+            legal_status = "LIQUIDATION"
+        elif "vymazaná" in (result.findings or "").lower():
+            legal_status = "DISSOLVED"
 
-        await db.company.update(
-            where={"ico": ico},
-            data=company_update,
-        )
+        # Update Company — use raw SQL for legalStatus fields (Prisma Python client
+        # may not have the latest schema fields after migration)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        # Build SET clause
+        set_parts = [
+            '"orsrSyncedAt" = ' + "'" + now_iso + "'",
+            '"legalStatus" = ' + "'" + legal_status + "'",
+            '"legalStatusSource" = ' + "'ORSR'",
+            '"legalStatusObservedAt" = ' + "'" + now_iso + "'",
+        ]
+        if result.share_capital is not None:
+            set_parts.append('"shareCapital" = ' + str(result.share_capital))
+        if result.signing_authority:
+            escaped = result.signing_authority.replace("'", "''")[:5000]
+            set_parts.append('"signingAuthority" = ' + "'" + escaped + "'")
+        if result.business_activity:
+            escaped = result.business_activity.replace("'", "''")[:5000]
+            set_parts.append('"businessActivity" = ' + "'" + escaped + "'")
+
+        set_clause = ", ".join(set_parts)
+        sql = 'UPDATE "Company" SET ' + set_clause + " WHERE ico = '" + ico + "'"
+        await db.execute_raw(sql)
 
         # Update CompanyPerson records — NON-DESTRUCTIVE with isActive tracking.
         # RPO import already populated statutar persons (1.99M records).
