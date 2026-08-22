@@ -2277,9 +2277,20 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
 
     # Zoradiť vzostupne podľa roku (najstaršie prvé)
     sorted_stmts = sorted(sanitized, key=lambda x: _get(x, 'year', 0) or 0)
-    
-    first = sorted_stmts[0]
-    last = sorted_stmts[-1]
+
+    # Filter: pre trend/CAGR analýzu používať len ročné výkazy (monthsInPeriod=12).
+    # Krátke obdobia (3-mesačné, PARTIAL) sa nesmú použiť ako ročné dáta —
+    # CAGR z 3M revenue by bol nesprávny (napr. 100M Q1 × 4 ≠ 400M FY).
+    # Balance sheet ratios (Altman, likvidita) môžu použiť všetky výkazy
+    # (súvaha je stav k dátumu, nie prietok).
+    annual_stmts = [s for s in sorted_stmts if (_get(s, 'monthsInPeriod', 12) or 12) == 12]
+
+    # Ak nemáme aspoň 2 ročné výkazy, použijeme všetky (fallback) —
+    # ale CAGR bude None (nespoľahlivé).
+    trend_stmts = annual_stmts if len(annual_stmts) >= 2 else sorted_stmts
+
+    first = trend_stmts[0]
+    last = trend_stmts[-1]
     first_year = _get(first, 'year', 0)
     last_year = _get(last, 'year', 0)
     years_span = last_year - first_year
@@ -2290,7 +2301,7 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
         "profit_trend": [],
         "equity_trend": [],
         "cagr_revenue": None,
-        "average_profit": sum((_get(s, 'netProfitLoss', 0) or 0) for s in sorted_stmts) / len(sorted_stmts) if sorted_stmts else 0,
+        "average_profit": sum((_get(s, 'netProfitLoss', 0) or 0) for s in annual_stmts) / len(annual_stmts) if annual_stmts else 0,
         "consecutive_losses": 0,
         "bankruptcy_risk_indicators": [],
         # Nové: Altman Z-score pre každý rok
@@ -2301,15 +2312,18 @@ def compute_financial_trends(statements: List[Any]) -> Dict[str, Any]:
     }
     
     # Výpočet CAGR (Zložená ročná miera rastu) pre Tržby
-    first_rev = _get(first, 'mainActivityRevenue', None) or 0
-    last_rev = _get(last, 'mainActivityRevenue', None) or 0
-    if years_span > 0 and first_rev > 0 and last_rev > 0:
-        cagr = ((last_rev / first_rev) ** (1 / years_span)) - 1
-        trends["cagr_revenue"] = round(cagr * 100, 2)
+    # CAGR sa počíta IBA z ročných výkazov (monthsInPeriod=12).
+    # Ak nemáme aspoň 2 ročné výkazy, CAGR = None (UNKNOWN).
+    if len(annual_stmts) >= 2 and years_span > 0:
+        first_rev = _get(first, 'mainActivityRevenue', None) or 0
+        last_rev = _get(last, 'mainActivityRevenue', None) or 0
+        if first_rev > 0 and last_rev > 0:
+            cagr = ((last_rev / first_rev) ** (1 / years_span)) - 1
+            trends["cagr_revenue"] = round(cagr * 100, 2)
         
-    # Počet po sebe idúcich strát od konca
+    # Počet po sebe idúcich strát od konca (iba ročné výkazy — 3M strata ≠ FY strata)
     losses = 0
-    for s in reversed(sorted_stmts):
+    for s in reversed(annual_stmts if annual_stmts else sorted_stmts):
         if (_get(s, 'netProfitLoss', 0) or 0) < 0:
             losses += 1
         else:

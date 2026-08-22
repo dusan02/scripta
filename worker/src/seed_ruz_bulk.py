@@ -342,13 +342,23 @@ async def download_financials(
     if not zavierka_ids:
         return 0
 
-    # Sort závierky by obdobieDo descending (newest first)
+    # Sort závierky: prefer annual (X-12) non-consolidated, then annual consolidated,
+    # then short-period non-consolidated, then short-period consolidated.
+    # Within each tier, sort by obdobieDo descending (newest first).
+    def _zavierka_sort_key(z):
+        obd = z.get("obdobieDo", "")
+        is_annual = obd.endswith("-12")
+        is_consol = z.get("konsolidovana", False)
+        # Tier: 0=annual non-consol, 1=annual consol, 2=short non-consol, 3=short consol
+        tier = (0 if is_annual else 2) + (1 if is_consol else 0)
+        return (tier, obd)
+
     zavierky = []
     for zid in zavierka_ids:
         z = await ruz_get(client, "uctovna-zavierka", {"id": zid})
         if z:
             zavierky.append(z)
-    zavierky.sort(key=lambda z: z.get("obdobieDo", ""), reverse=True)
+    zavierky.sort(key=_zavierka_sort_key)
 
     stmts = []
     seen_years: set[int] = set()
@@ -357,13 +367,28 @@ async def download_financials(
         if len(stmts) >= 5:
             break
         import re
-        year_match = re.search(r'20\d{2}', str(z.get("obdobieDo", "")))
+        obdobie_do = str(z.get("obdobieDo", ""))
+        year_match = re.search(r'20\d{2}', obdobie_do)
         if not year_match:
             continue
         year = int(year_match.group())
         if year in seen_years:
             continue
-        seen_years.add(year)
+
+        # Determine period metadata from RÚZ API
+        is_annual = obdobie_do.endswith("-12")
+        is_consol = bool(z.get("konsolidovana", False))
+        # Extract months from obdobieOd/obdobieDo (e.g. "2018-01" to "2018-03" = 3 months)
+        months_in_period = 12  # default
+        obd_od = str(z.get("obdobieOd", ""))
+        if obd_od and obdobie_do:
+            try:
+                from datetime import datetime
+                d_od = datetime.strptime(obd_od, "%Y-%m")
+                d_do = datetime.strptime(obdobie_do, "%Y-%m")
+                months_in_period = (d_do.year - d_od.year) * 12 + (d_do.month - d_od.month) + 1
+            except (ValueError, TypeError):
+                months_in_period = 12 if is_annual else 3
 
         # Fetch all výkazy for this závierka
         all_tables: list = []
@@ -419,6 +444,18 @@ async def download_financials(
         if hruba_marza is None and has_income:
             hruba_marza = _income_val(ordered, 28)
 
+        # Determine data quality status
+        if is_annual and not is_consol:
+            data_quality = "AVAILABLE"
+        elif is_annual and is_consol:
+            data_quality = "AVAILABLE"  # Consolidated annual — still usable
+        elif not is_annual and not is_consol:
+            data_quality = "PARTIAL"  # Short period non-consolidated
+        else:
+            data_quality = "PARTIAL"  # Short period consolidated
+
+        seen_years.add(year)
+
         stmts.append({
             "year": year,
             "totalAssets": _activ_val(ordered, 1),
@@ -447,8 +484,9 @@ async def download_financials(
             "taxLiabilities": _pasiv_val(ordered, 133),
             "employeeLiabilities": _pasiv_val(ordered, 131),
             "statementType": "SK_GAAP",
-            "monthsInPeriod": 12,
-            "isConsolidated": False,
+            "monthsInPeriod": months_in_period,
+            "isConsolidated": is_consol,
+            "dataQualityStatus": data_quality,
         })
 
     if not stmts:
@@ -488,6 +526,9 @@ async def download_financials(
                     "socialInsuranceLiabilities": s["socialInsuranceLiabilities"],
                     "taxLiabilities": s["taxLiabilities"],
                     "employeeLiabilities": s["employeeLiabilities"],
+                    "monthsInPeriod": s["monthsInPeriod"],
+                    "isConsolidated": s["isConsolidated"],
+                    "dataQualityStatus": s["dataQualityStatus"],
                 },
             },
         )
