@@ -167,17 +167,18 @@ async def scrape_and_save_orsr_v2(
         now_iso = datetime.now(timezone.utc).isoformat()
 
         # Parameterized UPDATE — no string concatenation
+        # Cast timestamp params explicitly (Prisma passes as text by default)
         await db.execute_raw(
             """
             UPDATE "Company" SET
-                "orsrSyncedAt" = $1,
+                "orsrSyncedAt" = $1::timestamp,
                 "legalStatus" = $2,
                 "legalStatusSource" = 'ORSR',
-                "legalStatusObservedAt" = $3,
-                "shareCapital" = COALESCE($4, "shareCapital"),
+                "legalStatusObservedAt" = $3::timestamp,
+                "shareCapital" = COALESCE($4::numeric, "shareCapital"),
                 "signingAuthority" = COALESCE($5, "signingAuthority"),
                 "businessActivity" = COALESCE($6, "businessActivity"),
-                "updatedAt" = $7
+                "updatedAt" = $7::timestamp
             WHERE ico = $8
             """,
             now_iso,
