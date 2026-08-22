@@ -357,6 +357,7 @@ def compute_altman_z_score(stmt: Any, force_financial_inst: bool = False) -> Dic
         interest_expense = _get(stmt, 'interestExpense')
         short_liabilities = _get(stmt, 'shortTermLiabilities')
         long_liabilities = _get(stmt, 'longTermLiabilities')
+        total_liabilities_exact = _get(stmt, 'totalLiabilities')  # row 101 — zahŕňa rezervy + všetky záväzky
 
         if total_assets is None or total_assets <= 0 or net_profit is None or equity is None or short_liabilities is None:
             return {"z_score": None, "zone": "N/A", "reason": "Nedostatok dát pre výpočet"}
@@ -375,14 +376,18 @@ def compute_altman_z_score(stmt: Any, force_financial_inst: bool = False) -> Dic
         else:
             working_capital = (total_assets * 0.6) - short_liabilities
 
-        # Presné total_liabilities: shortTerm + longTerm ak máme oba, inak bilančná rovnica
-        raw_liabilities = short_liabilities + long_liabilities
-        if raw_liabilities < 0:
-            total_liabilities = max(total_assets - equity, 1)  # fallback
-        elif short_liabilities > 0 or long_liabilities > 0:
-            total_liabilities = max(raw_liabilities, 1)
+        # Presné total_liabilities: prefer row 101 (totalLiabilities) ktoré zahŕňa
+        # rezervy a všetky ostatné pasíva. Fallback na shortTerm + longTerm.
+        if total_liabilities_exact is not None and total_liabilities_exact > 0:
+            total_liabilities = max(total_liabilities_exact, 1)
         else:
-            total_liabilities = max(total_assets - equity, 1)  # fallback bilančná rovnica
+            raw_liabilities = short_liabilities + long_liabilities
+            if raw_liabilities < 0:
+                total_liabilities = max(total_assets - equity, 1)  # fallback
+            elif short_liabilities > 0 or long_liabilities > 0:
+                total_liabilities = max(raw_liabilities, 1)
+            else:
+                total_liabilities = max(total_assets - equity, 1)  # fallback bilančná rovnica
 
         # EBIT approx: net profit + interest expense (absolute value, since it may be stored negative)
         ebit = net_profit + abs(interest_expense) if interest_expense is not None else net_profit
@@ -486,9 +491,13 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         financial_result = _get(stmt, 'financialResult', None)  # Výsledok z fin. činnosti (r.55)
         income_tax = _get(stmt, 'incomeTax', None)
 
-        # Total liabilities: shortTerm + longTerm ak dostupné, inak bilančná rovnica
+        # Total liabilities: prefer row 101 (totalLiabilities) ktoré zahŕňa rezervy
+        # a všetky ostatné pasíva. Fallback na shortTerm + longTerm, prípadne bilančnú rovnicu.
+        total_liabilities_exact = _get(stmt, 'totalLiabilities', None)
         computed_liabilities = total_assets - equity
-        if short_liabilities > 0 or long_liabilities > 0 or computed_liabilities < 0:
+        if total_liabilities_exact is not None and total_liabilities_exact > 0:
+            total_liabilities = max(total_liabilities_exact, 1)
+        elif short_liabilities > 0 or long_liabilities > 0 or computed_liabilities < 0:
             total_liabilities = max(short_liabilities + long_liabilities, 1)
         else:
             total_liabilities = max(computed_liabilities, 1)

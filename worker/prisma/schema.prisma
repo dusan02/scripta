@@ -433,6 +433,7 @@ model FinancialStatement {
   equity                                Decimal?  @db.Decimal(15, 2)
   shortTermLiabilities                  Decimal?  @db.Decimal(15, 2)
   longTermLiabilities                   Decimal?  @db.Decimal(15, 2)        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
+  totalLiabilities                      Decimal?  @db.Decimal(15, 2)        // Celkové cudzie zdroje (r.101) — zahŕňa rezervy + všetky záväzky. Primárny zdroj pre bilančnú kontrolu.
   mainActivityRevenue                   Decimal?  @db.Decimal(15, 2)
   grossProfit                           Decimal?  @db.Decimal(15, 2)        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
   netProfitLoss                         Decimal?  @db.Decimal(15, 2)

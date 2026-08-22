@@ -222,6 +222,9 @@ async def scrape_and_save_orsr_v2(
         # including the Company UPDATE. This prevents partial records.
         async with db.tx() as tx:
             # 1. Update Company
+            #    name: ORSR aktuálny výpis obsahuje platné obchodné meno (najnovšie).
+            #    Updatujeme len ak sa líši od súčasného — nemažeme historické informácie,
+            #    len synchronizujeme na aktuálny stav z ORSR.
             await tx.execute_raw(
                 """
                 UPDATE "Company" SET
@@ -232,6 +235,7 @@ async def scrape_and_save_orsr_v2(
                     "shareCapital" = COALESCE($4::numeric, "shareCapital"),
                     "signingAuthority" = COALESCE($5, "signingAuthority"),
                     "businessActivity" = COALESCE($6, "businessActivity"),
+                    "name" = COALESCE(NULLIF($9, ''), "name"),
                     "updatedAt" = $7::timestamp
                 WHERE ico = $8
                 """,
@@ -243,6 +247,7 @@ async def scrape_and_save_orsr_v2(
                 result.business_activity,
                 now_iso,
                 ico,
+                result.company_name,
             )
 
             # 2. Update CompanyPerson records — NON-DESTRUCTIVE with isActive tracking.

@@ -950,6 +950,7 @@ def parse_tables_to_metrics(
         vlastne_imanie_celkom=vlastne_imanie,
         kratkodobe_zavazky=kratkodobe_zavazky,
         dlhodobe_zavazky=dlhodobe_zavazky,
+        celkove_cudzie_zdroje=celkove_cudzie_zdroje,
         trzby_z_hlavnej_cinnosti=trzby,
         hruba_marza=hruba_marza,
         zisk_alebo_strata_po_zdaneni=zisk_po_zdaneni,
