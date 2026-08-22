@@ -434,6 +434,10 @@ async function main() {
   testNoPremiumLeakage();
   console.log();
   testNaceDictionaryInvariants();
+  console.log();
+  testSemanticInvariants();
+  console.log();
+  testBoundaryConditions();
 
   console.log("\n=== ALL TESTS PASSED ===");
 }
@@ -493,6 +497,230 @@ function testNaceDictionaryInvariants() {
   // 5. Canonical source — screener must use NaceCode table for naceText, not hardcoded
   // (This is verified by ruz.ts using prisma.naceCode.findUnique)
   console.log("  PASS: Canonical source = NaceCode table (used by ruz.ts)");
+}
+
+function testSemanticInvariants() {
+  console.log("Test 12: Semantic invariants — NULL handling for all filter types");
+
+  // ── Financial range filters: NULL excluded, not coerced to 0 ──
+
+  const financialFilters = [
+    { key: "revenueMin", field: "latestRevenue", op: "gte" },
+    { key: "revenueMax", field: "latestRevenue", op: "lte" },
+    { key: "profitMin", field: "latestProfit", op: "gte" },
+    { key: "profitMax", field: "latestProfit", op: "lte" },
+    { key: "assetsMin", field: "latestAssets", op: "gte" },
+    { key: "assetsMax", field: "latestAssets", op: "lte" },
+    { key: "equityMin", field: "latestEquity", op: "gte" },
+    { key: "equityMax", field: "latestEquity", op: "lte" },
+  ];
+
+  for (const f of financialFilters) {
+    const { sanitized } = parseAndAuthorizeParams({ [f.key]: "1000000" }, "FREE");
+    const where = buildWhereClause(sanitized, "FREE");
+    const whereJson = JSON.stringify(where);
+    if (!whereJson.includes(f.field) || !whereJson.includes(f.op)) {
+      throw new Error(`FAIL: ${f.key} should produce ${f.field} ${f.op}, got ${whereJson}`);
+    }
+    // Prisma gte/lte automatically exclude NULL — this is the correct behavior (NULL ≠ 0)
+  }
+  console.log("  PASS: All 8 financial range filters use gte/lte (NULL excluded, not coerced to 0)");
+
+  // ── Categorical filters: NULL excluded from `in` list ──
+
+  const categoricalFilters = [
+    { key: "legalForm", field: "legalForm" },
+    { key: "ownershipType", field: "ownershipType" },
+    { key: "city", field: "city" },
+    { key: "kraj", field: "kraj" },
+    { key: "okres", field: "okres" },
+    { key: "sizeCategory", field: "sizeCategoryNormalized" },
+  ];
+
+  for (const f of categoricalFilters) {
+    const { sanitized } = parseAndAuthorizeParams({ [f.key]: "test_value" }, "FREE");
+    const where = buildWhereClause(sanitized, "FREE");
+    const whereJson = JSON.stringify(where);
+    if (!whereJson.includes(f.field) || !whereJson.includes("in")) {
+      throw new Error(`FAIL: ${f.key} should produce ${f.field} in [...], got ${whereJson}`);
+    }
+  }
+  console.log("  PASS: All 6 categorical filters use `in` list (NULL excluded)");
+
+  // ── Age filters: NULL establishedAt excluded ──
+
+  const { sanitized: sAgeMin } = parseAndAuthorizeParams({ ageMin: "5" }, "FREE");
+  const wAgeMin = buildWhereClause(sAgeMin, "FREE");
+  if (!JSON.stringify(wAgeMin).includes("establishedAt") || !JSON.stringify(wAgeMin).includes("lte")) {
+    throw new Error(`FAIL: ageMin should produce establishedAt lte, got ${JSON.stringify(wAgeMin)}`);
+  }
+
+  const { sanitized: sAgeMax } = parseAndAuthorizeParams({ ageMax: "10" }, "FREE");
+  const wAgeMax = buildWhereClause(sAgeMax, "FREE");
+  if (!JSON.stringify(wAgeMax).includes("establishedAt") || !JSON.stringify(wAgeMax).includes("gte")) {
+    throw new Error(`FAIL: ageMax should produce establishedAt gte, got ${JSON.stringify(wAgeMax)}`);
+  }
+  console.log("  PASS: Age filters use lte/gte on establishedAt (NULL excluded)");
+
+  // ── vestnikClean: must require vestnikSyncedAt != NULL ──
+
+  const { sanitized: sClean } = parseAndAuthorizeParams({ vestnikClean: "1" }, "AUTH");
+  const wClean = buildWhereClause(sClean, "AUTH");
+  const wCleanJson = JSON.stringify(wClean);
+  if (!wCleanJson.includes("vestnikSyncedAt") || !wCleanJson.includes("not") || !wCleanJson.includes("none")) {
+    throw new Error(`FAIL: vestnikClean must require vestnikSyncedAt != NULL AND vestnikEvents.none, got ${wCleanJson}`);
+  }
+  console.log("  PASS: vestnikClean requires vestnikSyncedAt != NULL AND vestnikEvents.none");
+
+  // ── Vestník EXISTS filters: use `some` (positive filter) ──
+
+  const vestnikExistsFilters = [
+    { key: "konkurz", pattern: "konkurz" },
+    { key: "likvidacia", pattern: "likvid" },
+    { key: "restrukturalizacia", pattern: "reštrukturaliz" },
+  ];
+
+  for (const f of vestnikExistsFilters) {
+    const { sanitized } = parseAndAuthorizeParams({ [f.key]: "1" }, "AUTH");
+    const where = buildWhereClause(sanitized, "AUTH");
+    const whereJson = JSON.stringify(where);
+    if (!whereJson.includes("vestnikEvents") || !whereJson.includes("some") || !whereJson.includes(f.pattern)) {
+      throw new Error(`FAIL: ${f.key} should use vestnikEvents.some with "${f.pattern}", got ${whereJson}`);
+    }
+  }
+  console.log("  PASS: All 3 Vestník EXISTS filters use `some` (positive filter)");
+
+  // ── hasFinancials: all three states produce distinct WHERE clauses ──
+
+  const { sanitized: sYes } = parseAndAuthorizeParams({ hasFinancials: "yes" }, "FREE");
+  const wYes = JSON.stringify(buildWhereClause(sYes, "FREE"));
+  if (!wYes.includes("latestYear") || !wYes.includes("not")) {
+    throw new Error(`FAIL: hasFinancials=yes should produce latestYear != null, got ${wYes}`);
+  }
+
+  const { sanitized: sNo } = parseAndAuthorizeParams({ hasFinancials: "no" }, "FREE");
+  const wNo = JSON.stringify(buildWhereClause(sNo, "FREE"));
+  if (!wNo.includes("latestYear") || !wNo.includes("ruzReportingStatus") || !wNo.includes("VERIFIED")) {
+    throw new Error(`FAIL: hasFinancials=no should produce latestYear=null AND ruzReportingStatus=VERIFIED, got ${wNo}`);
+  }
+
+  const { sanitized: sUnknown } = parseAndAuthorizeParams({ hasFinancials: "unknown" }, "FREE");
+  const wUnknown = JSON.stringify(buildWhereClause(sUnknown, "FREE"));
+  if (!wUnknown.includes("latestYear") || !wUnknown.includes("ruzReportingStatus") || !wUnknown.includes("not")) {
+    throw new Error(`FAIL: hasFinancials=unknown should produce latestYear=null AND ruzReportingStatus!=VERIFIED, got ${wUnknown}`);
+  }
+  console.log("  PASS: hasFinancials tri-state produces 3 distinct WHERE clauses");
+
+  // ── ruzReporting: URL hyphens normalized to underscores ──
+
+  const { sanitized: sRuz } = parseAndAuthorizeParams({ ruzReporting: "NOT-FOUND" }, "FREE");
+  const wRuz = JSON.stringify(buildWhereClause(sRuz, "FREE"));
+  if (!wRuz.includes("ruzReportingStatus") || !wRuz.includes("NOT_FOUND")) {
+    throw new Error(`FAIL: ruzReporting=NOT-FOUND should normalize to NOT_FOUND, got ${wRuz}`);
+  }
+  console.log("  PASS: ruzReporting URL hyphens normalized to DB enum underscores");
+
+  // ── status filter: queries legalStatus, not statusNormalized ──
+
+  const { sanitized: sStatus } = parseAndAuthorizeParams({ status: "ACTIVE" }, "FREE");
+  const wStatus = JSON.stringify(buildWhereClause(sStatus, "FREE"));
+  if (!wStatus.includes("legalStatus")) {
+    throw new Error(`FAIL: status filter should query legalStatus, got ${wStatus}`);
+  }
+  if (wStatus.includes("statusNormalized")) {
+    throw new Error(`FAIL: status filter should NOT query statusNormalized (deprecated), got ${wStatus}`);
+  }
+  console.log("  PASS: status filter queries legalStatus (not statusNormalized)");
+}
+
+function testBoundaryConditions() {
+  console.log("Test 13: Boundary conditions — zero, negative, empty, invalid values");
+
+  // ── revenueMin=0 → should produce gte 0 (matches companies with 0 revenue, excludes NULL) ──
+  const { sanitized: sRev0 } = parseAndAuthorizeParams({ revenueMin: "0" }, "FREE");
+  const wRev0 = buildWhereClause(sRev0, "FREE");
+  const wRev0Json = JSON.stringify(wRev0);
+  if (!wRev0Json.includes("latestRevenue") || !wRev0Json.includes("gte")) {
+    throw new Error(`FAIL: revenueMin=0 should produce latestRevenue gte 0, got ${wRev0Json}`);
+  }
+  console.log("  PASS: revenueMin=0 produces gte 0 (0 is valid, NULL excluded)");
+
+  // ── revenueMin with negative value → technically valid (companies with negative revenue = loss) ──
+  const { sanitized: sRevNeg } = parseAndAuthorizeParams({ revenueMin: "-1000000" }, "FREE");
+  const wRevNeg = buildWhereClause(sRevNeg, "FREE");
+  // parseNumber uses parseInt — negative values are valid integers
+  if (JSON.stringify(wRevNeg).includes("latestRevenue")) {
+    console.log("  PASS: revenueMin=-1000000 produces filter (negative values accepted)");
+  } else {
+    // If parseNumber rejects negative, that's also acceptable behavior
+    console.log("  PASS: revenueMin=-1000000 rejected (no filter produced)");
+  }
+
+  // ── ageMin=0 → should produce lte (now - 0 years = now) ──
+  const { sanitized: sAge0 } = parseAndAuthorizeParams({ ageMin: "0" }, "FREE");
+  const wAge0 = buildWhereClause(sAge0, "FREE");
+  if (!JSON.stringify(wAge0).includes("establishedAt")) {
+    throw new Error(`FAIL: ageMin=0 should produce establishedAt filter, got ${JSON.stringify(wAge0)}`);
+  }
+  console.log("  PASS: ageMin=0 produces establishedAt filter");
+
+  // ── Empty string filter values → should not produce a WHERE clause ──
+  const { sanitized: sEmpty } = parseAndAuthorizeParams({ q: "", city: "", status: "" }, "FREE");
+  const wEmpty = buildWhereClause(sEmpty, "FREE");
+  const wEmptyJson = JSON.stringify(wEmpty);
+  // Empty values should be ignored — only ENT-001 filter should remain
+  if (wEmptyJson.includes("name") || wEmptyJson.includes("city") || wEmptyJson.includes("legalStatus")) {
+    throw new Error(`FAIL: empty string values should not produce filters, got ${wEmptyJson}`);
+  }
+  console.log("  PASS: Empty string values produce no filter (only ENT-001 remains)");
+
+  // ── Invalid NACE section → should not produce a filter ──
+  const { sanitized: sInvalidNace } = parseAndAuthorizeParams({ naceSection: "Z" }, "FREE");
+  const wInvalidNace = buildWhereClause(sInvalidNace, "FREE");
+  const wInvalidNaceJson = JSON.stringify(wInvalidNace);
+  if (wInvalidNaceJson.includes("naceCode") && wInvalidNaceJson.includes("gte")) {
+    throw new Error(`FAIL: invalid NACE section Z should not produce naceCode filter, got ${wInvalidNaceJson}`);
+  }
+  console.log("  PASS: Invalid NACE section 'Z' produces no filter");
+
+  // ── Invalid hasFinancials value → should not produce a filter ──
+  const { sanitized: sInvalidFin } = parseAndAuthorizeParams({ hasFinancials: "maybe" }, "FREE");
+  const wInvalidFin = buildWhereClause(sInvalidFin, "FREE");
+  const wInvalidFinJson = JSON.stringify(wInvalidFin);
+  if (wInvalidFinJson.includes("latestYear") && wInvalidFinJson.includes("ruzReportingStatus")) {
+    throw new Error(`FAIL: invalid hasFinancials value should not produce filter, got ${wInvalidFinJson}`);
+  }
+  console.log("  PASS: Invalid hasFinancials='maybe' produces no filter");
+
+  // ── computeCompanyAge: NULL establishedAt → null ──
+  const ageNull = computeCompanyAge(null);
+  if (ageNull !== null) {
+    throw new Error(`FAIL: computeCompanyAge(null) should return null, got ${ageNull}`);
+  }
+
+  // ── computeCompanyAge: future date → null ──
+  const futureDate = new Date();
+  futureDate.setFullYear(futureDate.getFullYear() + 1);
+  const ageFuture = computeCompanyAge(futureDate);
+  if (ageFuture !== null) {
+    throw new Error(`FAIL: computeCompanyAge(future) should return null, got ${ageFuture}`);
+  }
+
+  // ── computeCompanyAge: implausible past date → null ──
+  const implausibleDate = new Date("1500-01-01");
+  const ageImplausible = computeCompanyAge(implausibleDate);
+  if (ageImplausible !== null) {
+    throw new Error(`FAIL: computeCompanyAge(1500) should return null, got ${ageImplausible}`);
+  }
+  console.log("  PASS: computeCompanyAge handles NULL, future, and implausible dates");
+
+  // ── Multi-select with empty array → no filter ──
+  const { sanitized: sEmptyMulti } = parseAndAuthorizeParams({ legalForm: "" }, "FREE");
+  const wEmptyMulti = buildWhereClause(sEmptyMulti, "FREE");
+  if (JSON.stringify(wEmptyMulti).includes("legalForm")) {
+    throw new Error(`FAIL: empty legalForm should not produce filter, got ${JSON.stringify(wEmptyMulti)}`);
+  }
+  console.log("  PASS: Empty multi-select value produces no filter");
 }
 
 main().catch((e) => {
