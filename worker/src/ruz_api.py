@@ -86,11 +86,15 @@ def _year_from_period(period: str) -> str:
 def _dedup_by_period(items: list[dict], max_count: int) -> list[dict]:
     """Vyber unikátne obdobia (top max_count), zoradené najnovšie prvé.
 
-    Pre každé obdobie preferuje konsolidovanú závierku (IFRS) nad
-    nekonsolidovanou (SK_GAAP) — banky a veľké firmy majú často
-    prázdne nekonsolidované tabuľky, ale plné konsolidované IFRS.
+    Pre každé obdobie preferuje nekonsolidovanú závierku (SK_GAAP) nad
+    konsolidovanou (IFRS) — SK_GAAP má štruktúrované JSON tabuľky z RÚZ API,
+    ktoré sa parsujú presne bez LLM. IFRS závierky sú PDF-only a vyžadujú
+    LLM extrakciu (menej spoľahlivé, náchylnejšie na chyby/fallback).
+
+    Cross-type fallback v download_ifrs_reports() sa postará o prípady,
+    kde SK_GAAP tabuľky sú prázdne — skúsi IFRS PDF pre ten istý rok.
     """
-    seen: set[str] = {}
+    seen: dict[str, dict] = {}
     result = []
     for item in items:
         p = _period_from_dict(item)
@@ -98,10 +102,11 @@ def _dedup_by_period(items: list[dict], max_count: int) -> list[dict]:
             seen[p] = item
             result.append(item)
         else:
-            # Prefer konsolidovaná (IFRS) over nekonsolidovaná (SK_GAAP)
+            # Prefer nekonsolidovaná (SK_GAAP) over konsolidovaná (IFRS)
+            # — SK_GAAP has JSON tables, IFRS is PDF-only
             existing = seen[p]
-            if item.get("konsolidovana", False) and not existing.get("konsolidovana", False):
-                # Replace with consolidated version
+            if not item.get("konsolidovana", False) and existing.get("konsolidovana", False):
+                # Replace IFRS with SK_GAAP version
                 idx = result.index(existing)
                 result[idx] = item
                 seen[p] = item
@@ -428,16 +433,21 @@ async def download_ifrs_reports(
         # ── Cross-type fallback: pre roky s prázdnymi dátami skús druhý typ závierky ──
         if _empty_years:
             logger.info(f"[RUZ_API] Cross-type fallback: prázdne roky {_empty_years} — skúšam alternatívny typ závierky")
-            # Nájdi alternatívne závierky pre prázdne roky (opačný kons/nekons typ)
+            # Nájdi alternatívne závierky pre prázdne roky (opačný kons/nekons typ).
+            # Pozor: dve závierky pre ten istý rok majú ROVNAKÉ obdobieDo,
+            # takže ich nemožno filtrovať podľa obdobia. Namiesto toho
+            # hľadáme závierku s opačným konsolidovana flagom pre ten istý rok.
             _alt_zavierky = []
-            _seen_periods = {z.get("obdobieDo", "") for z in top_zavierky}
+            _top_kons_flags = {(z.get("obdobieDo", ""), z.get("konsolidovana", False)) for z in top_zavierky}
             for z in zavierky:
                 year = _year_from_period(_period_from_dict(z))
                 if year in _empty_years:
-                    p = _period_from_dict(z)
-                    if p not in _seen_periods:
+                    p = z.get("obdobieDo", "")
+                    kons = z.get("konsolidovana", False)
+                    # Pridaj ak má opačný kons flag (t.j. nie je duplikát toho čo už máme)
+                    if (p, kons) not in _top_kons_flags:
                         _alt_zavierky.append(z)
-                        _seen_periods.add(p)
+                        _top_kons_flags.add((p, kons))
             
             if _alt_zavierky:
                 logger.info(f"[RUZ_API] Cross-type: nájdených {len(_alt_zavierky)} alternatívnych závierok")
