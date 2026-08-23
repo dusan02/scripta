@@ -134,6 +134,10 @@ const sk: Dict = {
   "firma.zadlzenost": "Zadlženosť",
   "firma.beznaLikvidita": "Bežná likvidita",
   "firma.financneUkazovatele": "Finančné ukazovatele",
+  "firma.rentabilita": "Rentabilita",
+  "firma.financnaStabilita": "Finančná stabilita",
+  "firma.podielKratkodobych": "Podiel krátkodobých záväzkov",
+  "firma.podielDlhodobych": "Podiel dlhodobých záväzkov",
   "firma.zadlzenostFormula": "Vzorec: (Krátkodobé záväzky + Dlhodobé záväzky) / Celkové aktíva",
   "firma.beznaLikviditaFormula": "Vzorec: Obežný majetok / Krátkodobé záväzky",
 

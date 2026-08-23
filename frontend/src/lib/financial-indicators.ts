@@ -7,6 +7,8 @@
  * Calculations match the original inline logic in firma-ui.tsx:
  *   - Zadlženosť: (shortTermLiabilities + longTermLiabilities) / totalAssets
  *     (at least one liability source must be present; null treated as 0)
+ *   - Podiel krátkodobých záväzkov: shortTermLiabilities / totalAssets
+ *   - Podiel dlhodobých záväzkov: longTermLiabilities / totalAssets
  *   - Bežná likvidita: currentAssets / shortTermLiabilities
  *   - ROE: netProfitLoss / equity
  *   - ROA: netProfitLoss / totalAssets
@@ -45,6 +47,10 @@ export type FinancialIndicatorRow = {
   year: number;
   /** Zadlženosť — fraction (0.392 = 39.2%) or null */
   debt: number | null;
+  /** Podiel krátkodobých záväzkov — fraction or null */
+  shortTermDebt: number | null;
+  /** Podiel dlhodobých záväzkov — fraction or null */
+  longTermDebt: number | null;
   /** Bežná likvidita — decimal (1.72) or null */
   currentRatio: number | null;
   /** ROE — fraction or null */
@@ -93,9 +99,17 @@ export function computeFinancialIndicators(
         }
       }
 
+      // Podiel krátkodobých záväzkov: shortTermLiabilities / totalAssets
+      const shortTermDebt = safeDiv(stl, ta);
+
+      // Podiel dlhodobých záväzkov: longTermLiabilities / totalAssets
+      const longTermDebt = safeDiv(ltl, ta);
+
       return {
         year: s.year,
         debt,
+        shortTermDebt,
+        longTermDebt,
         currentRatio: safeDiv(ca, stl),
         roe: safeDiv(np, eq),
         roa: safeDiv(np, ta),

@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
-import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, FinancialRatios, RentabilityRatios, LiquidityRatios } from "@/components/firma-ui";
-import { TopFinancialChart, BottomFinancialChart } from "@/components/financial-indicators-charts";
+import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, RentabilityRatios, StabilityRatios } from "@/components/firma-ui";
+import { RentabilityChart, StabilityChart } from "@/components/financial-indicators-charts";
 import { computeFinancialIndicators } from "@/lib/financial-indicators";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -396,26 +396,26 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Financial ratios — 2 columns: chart + table per column */}
+        {/* Financial ratios — 2 columns: Rentabilita | Finančná stabilita */}
         {stmts.length > 0 && (
           <div className="mb-6 sm:mb-8 print-section print-break-before-avoid">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Left: Rentabilita & Zadlženosť — chart + table */}
+              {/* Left: Rentabilita — chart + table */}
               <div className="flex flex-col gap-3">
-                <ChartCard title="Rentabilita & Zadlženosť">
-                  <TopFinancialChart data={computeFinancialIndicators(stmts)} />
+                <ChartCard title={t("firma.rentabilita")}>
+                  <RentabilityChart data={computeFinancialIndicators(stmts)} />
                 </ChartCard>
-                <ChartCard title="Finančné ukazovatele">
+                <ChartCard title={t("firma.financneUkazovatele")}>
                   <RentabilityRatios stmts={stmts} />
                 </ChartCard>
               </div>
-              {/* Right: Likvidita & Marža — chart + table */}
+              {/* Right: Finančná stabilita — chart + table */}
               <div className="flex flex-col gap-3">
-                <ChartCard title="Likvidita & Marža">
-                  <BottomFinancialChart data={computeFinancialIndicators(stmts)} />
+                <ChartCard title={t("firma.financnaStabilita")}>
+                  <StabilityChart data={computeFinancialIndicators(stmts)} />
                 </ChartCard>
-                <ChartCard title="Finančné ukazovatele">
-                  <LiquidityRatios stmts={stmts} />
+                <ChartCard title={t("firma.financneUkazovatele")}>
+                  <StabilityRatios stmts={stmts} />
                 </ChartCard>
               </div>
             </div>
