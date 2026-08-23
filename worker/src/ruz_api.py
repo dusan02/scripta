@@ -967,10 +967,11 @@ async def _process_zavierka(
                 extracted_tables.append(text)
             else:
                 # Tables exist but are empty (0 rows) — fallback to PDF prílohy
-                pdfs = await _download_prilohy(vykaz.get("prilohy", []))
+                # POZOR: `or []` — API môže vrátiť "prilohy": null (get default nestačí)
+                pdfs = await _download_prilohy(vykaz.get("prilohy") or [])
                 downloaded_pdfs.extend(pdfs)
         else:
-            pdfs = await _download_prilohy(vykaz.get("prilohy", []))
+            pdfs = await _download_prilohy(vykaz.get("prilohy") or [])
             downloaded_pdfs.extend(pdfs)
 
     # ── Direct JSON parsing for SK GAAP (non-consolidated) ──
@@ -1060,7 +1061,7 @@ async def _process_vs(
     year = _year_from_period(period) or str(v.get("obdobieDo", "")[:4] or "")
     ftype = "VS"
 
-    prilohy = v.get("prilohy", [])
+    prilohy = v.get("prilohy") or []
     logger.info(f"[RUZ_API] Výročná správa {year}: {len(prilohy)} príloh")
 
     downloaded_pdfs = await _download_prilohy(prilohy)
@@ -1110,12 +1111,12 @@ def _format_vykaz_tables(vykaz: dict) -> str:
 
         # Detect flat data format (scalars instead of lists)
         if data and not isinstance(data[0], list):
-            # Determine column count from table name
-            nazov_lower = nazov.lower()
-            if "akt" in nazov_lower:
-                cols = 4
-            else:
-                cols = 2
+            # Determine column count — prefer table metadata (micro-firm 687
+            # aktív má 2 stĺpce, standard 699 aktív má 4), fallback na názov
+            cols = tab.get("pocetDatovychStlpcov")
+            if not isinstance(cols, int) or cols < 1:
+                nazov_lower = nazov.lower()
+                cols = 4 if "akt" in nazov_lower else 2
             # Reshape flat array into rows
             for i in range(0, len(data), cols):
                 row = data[i : i + cols]

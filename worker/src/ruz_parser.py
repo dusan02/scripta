@@ -914,7 +914,6 @@ def parse_tables_to_metrics(
 
     # ── Estimate operating CF (indirect method) using current + previous period ──
     # Previous period values are available in the same závierka JSON (Netto3 / Predchádzajúce columns)
-    peniaze_prev = _get_activ_value(ordered, ROW_CASH, current=False)
     zasoby_prev = _get_activ_value(ordered, ROW_INVENTORY, current=False)
     pohladavky_prev = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES, current=False)
     zavazky_obchod_prev = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES, current=False)
@@ -1059,19 +1058,33 @@ def parse_zavierka_to_metrics(
     all_tables = []
     ts = titulna_strana or {}
     id_sablony: Optional[int] = None
+    _sablony_seen: set[int] = set()
 
     for vykaz in vykazy:
         obsah = vykaz.get("obsah", {})
         tables = obsah.get("tabulky", [])
         if tables:
             all_tables.extend(tables)
+            _vs = vykaz.get("idSablony")
+            if _vs is not None:
+                _sablony_seen.add(_vs)
             # Capture idSablony from the first výkaz that has tables
             if id_sablony is None:
-                id_sablony = vykaz.get("idSablony")
+                id_sablony = _vs
         if not ts:
             ts = obsah.get("titulnaStrana", {})
 
     if not all_tables:
+        return None
+
+    # Mixed šablóny (napr. aktív z 699, pasív z 687) majú rôzne row offsety —
+    # jeden id_sablony pre všetky tabuľky by čítal nesprávne riadky.
+    # Bezpečnejšie je vrátiť None → HTML scrape / PDF+LLM fallback.
+    if len(_sablony_seen) > 1:
+        logger.warning(
+            f"[RUZ_PARSER] IČO {ico}: výkazy majú rôzne šablóny {sorted(_sablony_seen)} — "
+            "preskakujem JSON parsing (row offsety by boli nesprávne), použije sa fallback"
+        )
         return None
 
     return parse_tables_to_metrics(all_tables, ts, ico, id_sablony=id_sablony)
