@@ -247,10 +247,22 @@ def chunk_pdf_by_pages(pdf_path: str, chunk_size: int = 5, overlap: int = 1, max
     return chunks
 
 
-def slice_narrative_pdf(pdf_path: str, max_pages: int = 20) -> str:
+def slice_narrative_pdf(pdf_path: str, max_pages: int = 50) -> str:
     """
-    Oreže výročnú správu (VS) na prvých X strán, pretože manažérska správa
-    (naratíva) sa zvyčajne nachádza úplne na začiatku. Zvyšok (tabuľky) nepotrebujeme.
+    Inteligentne oreže výročnú správu (VS) pre narrative extraction.
+
+    Pôvodná logika (slepý limit 20 strán) mohla stratiť dôležité informácie
+    (litigation, financing, subsequent events, akvizície) nachádzajúce sa
+    na stranách 40-70 veľkých IFRS výročných správ.
+
+    Nová logika (2026-08):
+    - ≤ max_pages (default 50): vráti None → celý PDF sa pošle do LLM
+    - > max_pages: inteligentný slicing:
+      * Vždy zachovať prvých 15 strán (executive summary, management report)
+      * Keyword-based detection pre neskoršie stránky (financing, investments,
+        acquisitions, litigation, subsequent events, going concern, strategy, risks)
+      * Limit na max_pages (50) + deduplikácia
+    - Scanned PDF (< 1000 chars): vždy celý PDF do Gemini Vision
     """
     if not pdf_path.lower().endswith(".pdf"):
         return None
@@ -260,7 +272,7 @@ def slice_narrative_pdf(pdf_path: str, max_pages: int = 20) -> str:
 
     if total_pages <= max_pages:
         doc.close()
-        return None # Netreba orezávať
+        return None  # Netreba orezávať — pošleme celý PDF
 
     # Scanned PDF detection: ak PDF má < 1000 znakov textu, je to naskenovaný dokument.
     # Neorezávaj — pošleme celý PDF do Gemini Vision (model vie čítať obrázky).
@@ -275,20 +287,93 @@ def slice_narrative_pdf(pdf_path: str, max_pages: int = 20) -> str:
         )
         return None
 
+    # ── Inteligentný slicing pre veľké VS (> 50 strán) ────────────────────
+    # Vždy zachovať prvých 15 strán (executive summary, management report,
+    # strategy, business development). Potom keyword scan pre zvyšné stránky.
+    front_pages = 15
+    narrative_section_keywords = re.compile(
+        r"(?i)"
+        # Financing / úvery / dlh
+        r"(financovan|úver|uver|dlhopis|bond|loan|borrowing|credit\s+facility"
+        r"|refinanc|leasing|lízing|interest[-\s]bearing|debt\s+to"
+        r"|capital\s+structure|financ(?:ial|ing)\s+(risk|policy|strategy))"
+        # Investments / CAPEX
+        r"|(invest[íi]c|obstaran|CAPEX|capital\s+expenditure"
+        r"|acquisition\s+of\s+(PPE|property|equipment|intangible)"
+        r"|purchase\s+of\s+(property|equipment|machinery)"
+        r"|investment\s+(plan|program|commitment|property))"
+        # Acquisitions / disposals / business combinations
+        r"|(akviz[íi]c|prevzat|k[úu]pa\s+(spoločn|podniku|podiel)"
+        r"|predaj\s+(spoločn|podniku|podiel|dcérsk|akci[íi])"
+        r"|business\s+combination|acquisition|disposal"
+        r"|consolidat(?:ion|ed)\s+(acquisition|investment|subsidiar))"
+        # Litigation / súdne spory / právne riziká
+        r"|(súdn\w+\s+spor|litigation|legal\s+proceed|súdny\s+disput"
+        r"|claim|dispute|arbitration|contingent\s+liabilit"
+        r"|kontingent|pr[áa]vne\s+rizik|legal\s+risk)"
+        # Subsequent events / udalosti po súvahovom dni
+        r"|(udalost(?:i|iam)?\s+po|po\s+súvahov(?:om|ej)\s+dn"
+        r"|subsequent\s+event|events\s+after\s+(reporting|balance\s+sheet)"
+        r"|post[-\s]balance\s+sheet|non[-\s]adjusting)"
+        # Going concern / continuity
+        r"|(going\s+concern|continuit|pokračov(?:an|ov)\s+(?:v\s+činnost|podnikan)"
+        r"|upadnut|insolvenc|reštruktural|bankrot|likvidác"
+        r"|going\s+concern\s+(risk|doubt|uncertaint))"
+        # Strategy / outlook / future plans
+        r"|(strat[ée]g|outlook|future\s+(plan|development|outlook|prospect)"
+        r"|pl[áa]novan(?:é|ie|á)\s+(invest|rozvoj|expanz|akviz)"
+        r"|rozvoj\s+(podnikan|obchod|výrob|trh)"
+        r"|pl[áa]n\s+(rozvoja|investíci|expanz))"
+        # Risk factors / riziká
+        r"|(risk\s+factor|hlavn[ée]\s+rizik[áa]|kľúčov[ée]\s+rizik[áa]"
+        r"|pr[íi]nos(?:né|ové)\s+rizik|risk\s+management"
+        r"|riadenie\s+rizik|risk(?:s|y)\s+(and|a)\s+(challenge|uncertaint))"
+        # Management / governance / zmeny
+        r"|(management\s+report|spr[áa]va\s+(predstavenstv|manažment|konateľ)"
+        r"|zmen[ay]\s+(v\s+predstavenstv|v\s+manažment|štatut[áa]r)"
+        r"|board\s+of\s+(director|governor)|governance|corporate\s+governance)"
+        # Restructuring / reorganization
+        r"|(reštrukturaliz[áa]c|reorganiz[áa]c|transform[áa]c"
+        r"|restructuring|reorganization)"
+        # Capital changes / emisia akcií
+        r"|(nav[ýy]š(?:en(?:ie|ia)|ov)\s+kapit[áa]l|emis(?:ia|ie)\s+(akci[íi]|cenn[ýy]ch)"
+        r"|capital\s+increase|share\s+issuance|rights\s+issue"
+        r"|registered\s+capital|základn[ée]\s+imanie)"
+    )
+
+    relevant_pages = set(range(min(front_pages, total_pages)))
+    keyword_hits = 0
+    for i in range(front_pages, total_pages):
+        page_text = doc[i].get_text("text")
+        if narrative_section_keywords.search(page_text):
+            relevant_pages.add(i)
+            keyword_hits += 1
+            # Pridáme 1 stranu pred a po pre kontext
+            if i > 0:
+                relevant_pages.add(i - 1)
+            if i < total_pages - 1:
+                relevant_pages.add(i + 1)
+
+    pages_to_extract = sorted(relevant_pages)
+    # Hard limit: max_pages (50) — ak je viac, odrežeme z konca
+    if len(pages_to_extract) > max_pages:
+        pages_to_extract = pages_to_extract[:max_pages]
+
     new_pdf_path = pdf_path.replace(".pdf", "_sliced_vs.pdf")
     new_doc = fitz.open()
-
-    for i in range(max_pages):
-        new_doc.insert_pdf(doc, from_page=i, to_page=i)
+    for page_num in pages_to_extract:
+        new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
 
     new_doc.save(new_pdf_path)
     new_doc.close()
     doc.close()
-    
-    import logging
-    logging.getLogger(__name__).info(
+
+    logger.info(
         f"[PDF VS Slicing] {os.path.basename(pdf_path)} | "
-        f"strán_celkom={total_pages} | extrahovaných={max_pages}"
+        f"INTELLIGENT | strán_celkom={total_pages} | "
+        f"front_pages={min(front_pages, total_pages)} | "
+        f"keyword_hits={keyword_hits} | "
+        f"extrahovaných={len(pages_to_extract)}"
     )
 
     return new_pdf_path
@@ -354,10 +439,47 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
         r"|antikorup|corrupt|bribe|úplat)"
     )
 
+    # ── Narrative/business keywords (P0 rozšírenie 2026-08) ───────────────
+    # Zachytáva informácie, ktoré sú v Notes PDF, ale pôvodný forensic filter
+    # ich neobsahoval: CAPEX, financovanie, subsequent events, rezervy,
+    # akvizície, navýšenie kapitálu, reštrukturalizácia.
+    # Bez tohto sa tieto informácie nikdy nedostanú do LLM inputu.
+    narrative_keywords = re.compile(
+        r"(?i)"
+        # CAPEX / investície / obstaranie majetku
+        r"(invest[íi]c|obstaran|dlhodob[ýý]\s+(majetok|nehmotn|hmotn)"
+        r"|CAPEX|capital\s+expenditure|acquisition\s+of\s+(PPE|property)"
+        r"|purchase\s+of\s+(property|equipment|machinery|intangible)"
+        r"|pr[íi]cun\s+invest|prírastok|nadobudnut)"
+        # Úvery / financovanie / refinancovanie / leasing / dlhopisy
+        r"|(úver|uver|financovan|refinanc|dlhopis|bond|loan|borrowing"
+        r"|bankov[ýý]\s+úver|leasing|lízing|hire\s+purchase"
+        r"|credit\s+facility|term\s+loan|financial\s+liabilit)"
+        # Subsequent events / udalosti po súvahovom dni
+        r"|(udalost(?:i|iam)?\s+po|po\s+súvahov(?:om|ej)\s+dn"
+        r"|subsequent\s+event|events\s+after\s+(reporting|balance\s+sheet)"
+        r"|non[-\s]adjusting|post[-\s]balance)"
+        # Rezervy / provisions (okrem kontingent — ten je v forensic)
+        r"|(rezerv(?:a|y|ou|ám)?\s+(?:na|z)|tvorba\s+rezerv"
+        r"|provision\s+for|reserve\s+for|rezervov(?:an[áé]|anie))"
+        # Akvizície / predaje / business combinations
+        r"|(akviz[íi]c|prevzat|k[úu]pa\s+(spoločn|podniku|podiel)"
+        r"|predaj\s+(spoločn|podniku|podiel|dcérsk|akci[íi])"
+        r"|business\s+combination|acquisition\s+(of|costs)"
+        r"|disposal\s+(of|group)|consolidat(?:ion|ed)\s+(acquisition|investment))"
+        # Navýšenie kapitálu / emisia akcií
+        r"|(nav[ýy]š(?:en(?:ie|ia)|ov)\s+kapit[áa]l|emis(?:ia|ie)\s+(akci[íi]|cenn[ýy]ch)"
+        r"|capital\s+increase|share\s+issuance|rights\s+issue"
+        r"|registered\s+capital|základn[ée]\s+imanie)"
+        # Reštrukturalizácia (širšie než forensic — aj prevádzková)
+        r"|(reštrukturaliz[áa]c|reorganiz[áa]c|transform[áa]c"
+        r"|restructuring|reorganization)"
+    )
+
     relevant_pages = set()
     for i in range(notes_start_page, total_pages):
         page_text = doc[i].get_text("text")
-        if forensic_keywords.search(page_text):
+        if forensic_keywords.search(page_text) or narrative_keywords.search(page_text):
             relevant_pages.add(i)
             # Pridáme 1 stranu pred a po pre kontext
             if i > notes_start_page:
@@ -381,7 +503,7 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
 
         logger.info(
             f"[PDF Notes Slicing] {os.path.basename(pdf_path)} | "
-            f"KEYWORD-BASED | od_strany={notes_start_page} | "
+            f"KEYWORD-BASED (forensic+narrative) | od_strany={notes_start_page} | "
             f"relevantných_strán={len(pages_to_extract)} | "
             f"strany={pages_to_extract[:10]}{'...' if len(pages_to_extract) > 10 else ''}"
         )
@@ -476,4 +598,41 @@ def extract_relevant_pdf_chunks(pdf_path: str) -> str:
         result = result[:_MAX_CHARS_PER_PDF] + "\n[... text skrátený ...]\n"
 
     return result
+
+
+def format_page_range(pages: list[int]) -> str:
+    """
+    Konvertuje zoznam strán na kompaktný reťazec.
+    Príklad: [1,2,3,5,6,7,10] → "1-3,5-7,10"
+    Prázdny zoznam → ""
+    """
+    if not pages:
+        return ""
+    sorted_pages = sorted(set(pages))
+    ranges = []
+    start = sorted_pages[0]
+    end = sorted_pages[0]
+    for p in sorted_pages[1:]:
+        if p == end + 1:
+            end = p
+        else:
+            ranges.append(f"{start}-{end}" if start != end else str(start))
+            start = p
+            end = p
+    ranges.append(f"{start}-{end}" if start != end else str(start))
+    return ",".join(ranges)
+
+
+def get_sliced_pdf_page_range(pdf_path: str) -> str:
+    """
+    Vráti page range string pre sliced PDF (napr. "1-15" alebo "1-3,5-7,10").
+    Pre sliced PDF sú strány 1-indexed (prvá strana sliced PDF = strana 1).
+    """
+    try:
+        doc = fitz.open(pdf_path)
+        pages = list(range(1, len(doc) + 1))
+        doc.close()
+        return format_page_range(pages)
+    except Exception:
+        return ""
 

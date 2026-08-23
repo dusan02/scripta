@@ -521,6 +521,9 @@ model NarrativeRiskAnalysis {
   plannedInvestments       String?            @db.Text
   profitabilityExplanation String?            @db.Text
   forensicRedFlags         String[]
+  businessDevelopments     String?            @db.Text
+  strengthsAndOpportunities String?           @db.Text
+  sourcePages              String?
   synthesis                String             @db.Text
   createdAt                DateTime           @default(now())
 
@@ -533,6 +536,14 @@ model NotesRiskAnalysis {
   relatedPartyTransactions String?           @db.Text
   offBalanceSheetLiabilities String?         @db.Text
   contingentRisks         String?            @db.Text
+  significantInvestments   String?           @db.Text
+  financingActivities      String?           @db.Text
+  acquisitionsAndDisposals String?           @db.Text
+  provisionsAndReserves    String?           @db.Text
+  restructuringActivities  String?           @db.Text
+  capitalChanges           String?           @db.Text
+  subsequentEvents         String?           @db.Text
+  sourcePages              String?
   createdAt               DateTime           @default(now())
 
   statement               FinancialStatement @relation(fields: [financialStatementId], references: [id])
@@ -551,10 +562,51 @@ model AuditVerdict {
   scorecardBreakdown Json?
   llmScoreAdjustment Int? @default(0)
   llmAnalysisStatus String @default("LLM_ANALYZED")
+  findings        Json?
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])
   snapshots       ScoringSnapshot[]
+}
+
+// ── LLM Extraction Cache ────────────────────────────────────────────────────
+// Caches LLM-extracted financial data keyed by (pdfHash, model, promptVersion,
+// schemaVersion). Ensures the same PDF always produces identical structured
+// output across report regenerations — eliminates LLM variability for IFRS
+// firms where RÚZ API provides no structured JSON tables (templates 709/703).
+//
+// Cache key: pdfHash + extractor + model + promptVersion + schemaVersion
+// Invalidation: bump promptVersion or schemaVersion when prompt/schema changes.
+model ExtractionCache {
+  id              String   @id @default(uuid())
+  pdfHash         String   // SHA-256 of source PDF/TXT file
+  companyIco      String   // For auditability (not part of cache key)
+  fileName        String   // Original filename (e.g. SKGAAP_00214973_2023_2.pdf)
+  extractor       String   // "GEMINI_FINANCIAL_ANALYST" | "GEMINI_VERIFY" | ...
+  model           String   // e.g. "gemini-3.5-flash-lite"
+  promptVersion   String   // e.g. "v3" — bump when SYSTEM_PROMPT changes
+  schemaVersion   String   // e.g. "v1" — bump when FinancialMetrics schema changes
+  temperature     Float    @default(0.0)
+
+  // Cached extraction result (full CompanyFinancialExtraction JSON)
+  rawResponse     Json     // Full LLM JSON response
+  normalizedData  Json     // Normalized FinancialMetrics fields
+
+  // Quality metadata
+  confidence      String   @default("UNKNOWN") // HIGH | MEDIUM | LOW | UNKNOWN
+  warnings        String[] @default([])        // e.g. ["multiple plausible interest lines"]
+  missingFields   String[] @default([])        // Fields that LLM returned null for
+
+  // Source document metadata
+  sourceSize      Int      // File size in bytes
+  sourceType      String   // "PDF" | "TXT"
+
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime? // Optional TTL; null = no expiry
+
+  @@unique([pdfHash, extractor, model, promptVersion, schemaVersion])
+  @@index([companyIco])
+  @@index([createdAt])
 }
 
 model ScoringSnapshot {

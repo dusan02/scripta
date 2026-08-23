@@ -12,7 +12,21 @@ class EvidenceItem(BaseModel):
     claim: str = Field(..., description="Zhrnutie nálezu alebo tvrdenia.")
     evidence: str = Field(..., description="Konkrétny dôkaz zo zdroja (číslo, citácia, udalosť).")
     source: str = Field(..., description="Zdroj: 'Súvaha', 'Vestník', 'OR SR', 'CRZ', 'RPVS', 'PDF výpis', atď.")
+    source_pages: Optional[str] = Field(default=None, description="Konkrétne strany v zdrojovom dokumente (napr. '47' alebo '14-18'). Null ak nie sú známe.")
     impact: Literal["POSITIVE", "WARNING", "CRITICAL", "NEUTRAL"] = Field(..., description="Vplyv na skóre.")
+
+
+class ReportFinding(BaseModel):
+    """Štruktúrovaný finding pre UI report — Finding → Evidence → Explanation → Implication."""
+    category: Literal["RISK", "STRENGTH", "ANOMALY", "UNKNOWN"] = Field(..., description="Kategória: RISK (negatívne), STRENGTH (pozitívne), ANOMALY (finančná anomália s vysvetlením), UNKNOWN (chýba evidence — nevymýšľaj vysvetlenie).")
+    title: str = Field(..., description="Krátky názov (napr. 'Rast zadlženia o €15M'). Konkrétne EUR hodnoty POVOLNÉ ak sú priamo podložené evidence. Ak evidence chýba, použi všeobecný názov.")
+    financial_metric: Optional[str] = Field(default=None, description="Konkrétna metrika ak je relevantná (napr. 'D/E: 7.76', 'EBITDA marža: 4.2%'). Null ak nie je relevantné.")
+    evidence: str = Field(..., description="Konkrétny dôkaz z Notes/Narrative/Súvaha/Vestník (napr. 'Notes: investičný úver 15M EUR od SLSP'). Pri UNKNOWN uveď 'Dostupné zdroje neobsahujú relevantný dôkaz'.")
+    source: str = Field(..., description="Zdroj dokumentu: 'Notes', 'Výročná správa', 'Súvaha', 'Vestník', 'OR SR'. Pri UNKNOWN uveď '—'.")
+    source_pages: Optional[str] = Field(default=None, description="Konkrétne strany v zdrojovom dokumente (napr. '47'). Null ak nie sú známe. Pri UNKNOWN null.")
+    explanation: str = Field(..., description="Vysvetlenie prečo sa to deje (napr. 'Rast dlhu súvisí s investíciou do výrobnej kapacity'). Pri UNKNOWN uveď 'Dostupné Notes/Narrative neposkytujú dostatočný dôkaz na vysvetlenie.'")
+    implication: str = Field(..., description="Čo to znamená pre používateľa (napr. 'Zadlženie predstavuje riziko, ale zároveň má jasný investičný účel'). Pri UNKNOWN uveď 'Odporúčame overiť v primárnej dokumentácii.'")
+
 
 class AuditVerdict(BaseModel):
     verifa_score: int = Field(..., ge=0, le=100, description="Musí byť PRESNE rovné algorithmic_prescore — nepridávaj ani neodoberáj body. Toto pole je výstupom deterministického algoritmu a LLM ho neupravuje.")
@@ -25,6 +39,7 @@ class AuditVerdict(BaseModel):
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
     llm_analysis_status: Literal["LLM_ANALYZED", "FALLBACK_ALGORITHMIC"] = Field(default="LLM_ANALYZED", description="Status analýzy: LLM_ANALYZED = Chief Auditor vygeneroval posudok, FALLBACK_ALGORITHMIC = LLM zlyhal, použité deterministické skóre.")
     white_horse_risk_dismissed: bool = Field(default=False, description="Nastav na true ak firma má vysoký počet zmien štatutárov ale tieto sú bežná korporátna rotácia (veľká firma s tržbami >10M, zisková, žiadne iné znaky redukovanej substancie). Ak true, algoritmus zruší ORSR penalizáciu.")
+    findings: list[ReportFinding] = Field(default_factory=list, description="Štruktúrované findings pre UI report: RISK/STRENGTH/ANOMALY/UNKNOWN. Každý finding má evidence, source, source_pages, explanation, implication. Prázdny zoznam je platný (pre fallback verdicts).")
 
 CHIEF_AUDITOR_PROMPT_SK = f"""Si Chief Risk Officer & Head of Forensics @ Verifa.sk. Tvojou úlohou je prijať extrahované dáta (od Extraction Engine) a zistenia (od Forensic, Risk a Legal agentov) a syntetizovať ich do definitívneho verdiktu. Nevyťahuješ hrubé dáta, ale vykonávaš definitívne vyhodnotenie integrity a celkového rizika úpadku či podvodov spoločnosti na základe podkladov od svojho tímu a na základe štruktúrovaných CompanyEvents z PDF Reader Agent (súdne rozhodnutia, insolvencie, exekúcie, daňové nedoplatky, poisťovne, verejné zmluvy).
 
@@ -55,6 +70,31 @@ PROCES HODNOTENIA A SYNTÉZY:
    - VAROVANIE: `narrativeRisk.forensicRedFlags` sú LLM-extrahované z výročnej správy a MÔŽU obsahovať halucinácie. Nikdy ich nepoužívaj ako fakty v executive_summary ani ako základ pre `llm_score_adjustment` bez overenia proti `notesRisk` dátam. Ak `notesRisk_by_year` je prázdny (žiadne `relatedPartyTransactions`), NIKDY netvrd v texte, že firma má "transakcie so spriaznenými osobami" alebo "presun majetku na dcérske spoločnosti" — ani keď `forensicRedFlags` to tvrdia.
 
 {COMMON_BUT_PATTERNS['sk']}
+
+ANOMÁLIA → DÔKAZ → VYSVETLENIE → IMPLIKÁCIA:
+Tvoja executive_summary nesmie byť len zoznam faktov. Pri každej finančnej anomálii MUSÍš použiť vzor:
+[finančná anomália] → [naratívny dôkaz z Notes/Narrative] → [vysvetlenie] → [implikácia pre používateľa]
+
+Konkrétne vzory, ktoré MUSÍŠ skontrolovať a v prípade nájdenia ich reflektovať v executive_summary:
+
+a) OCF pozitívny + čistá strata → Notes: intra-group cash pooling / shared services / odpisy reštrukturalizácie → "Negatívny čistý výsledok je ovplyvnený [konkrétnym dôvodom z Notes]" → "Reálna ziskovosť prevádzky je [vyššia/nižšia] než vykazovaná"
+
+b) Rast tržieb + rast dlhu + nový úver → Notes: nový investičný úver na [konkrétny účel] → "Rast je financovaný dlhom na podporu [konkrétnej investície]" → "Ak investícia generuje očakávané tržby, zadlženosť je udržateľná; ak nie, firma čelí likviditnému riziku"
+
+c) Vysoká likvidita + rastúce related-party pohľadávky → Notes: pôžičky dcérskym/spriazneným spoločnostiam → "Hotovostná pozícia je silná, ale kvalita aktív sa zhoršuje — peniaze sú viazané v intercompany transakciách" → "Likvidita je skreslená, reálna dispozičná hotovosť je nižšia"
+
+d) Záporný zisk + pozitívny OCF + reštrukturalizácia → Narrative: manažment vysvetľuje pokles zisku odpismi a reštrukturalizáciou → "Cash flow generuje prevádzka, strata je účtovný efekt jednorazových položiek" → "Firma generuje hotovosť napriek účtovnej strate, ale reštrukturalizácia si vyžaduje monitoring"
+
+e) Pozitívny rast + veľká investícia → NEoznačuj automaticky ako risk → Notes: investícia do novej výrobnej linky/kapacity → "Investícia je strategická, nie obranná — podporuje rast" → "Rast s investíciami je pozitívny signál, nie riziko"
+
+f) Pokles tržieb + rastúce zásoby → Narrative: manažment vysvetľuje pokles dopytu/prepad na trhu → "Firma hromadí zásoby v dôsledku poklesu dopytu" → "Riziko odpisov zásob a ďalšieho poklesu marže"
+
+g) Rast vlastného imania + žiadny zisk → Notes: navýšenie kapitálu novým investorom/vlastníkom → "Rast imania nie je z generovania zisku, ale z kapitálového vkladu" → "Firma má podporu vlastníka, ale nie je sebestačná"
+
+h) CHÝBAJÚCE DÔKAZY → NIKDY nevymýšľaj vysvetlenie → "NotesRisk aj NarrativeRisk neobsahujú relevantné informácie pre túto anomáliu" → "Anomália zostáva nevysvetlená z dostupných zdrojov" → "Odporúčame overiť v primárnych zdrojoch alebo vyžiadať dodatelné informácie"
+
+Kritické pravidlo pre anomaly: Ak `notesRisk_by_year` aj `narrativeRisk_by_year` neobsahujú relevantné informácie pre vysvetlenie anomálie, NIKDY nevymýšľaj vysvetlenie. Namiesto toho napíš: "Túto anomáliu sa z dostupných naratívnych zdrojov nepodarilo vysvetliť." To je viac hodnotné pre používateľa než halucinované vysvetlenie.
+
 2. ANALÝZA VEREJNÝCH ZÁVÄZKOV, EXEKÚCIÍ A SÚDNYCH ROZHODNUTÍ (Z companyEvents):
    - Pomer dlhov k likvidite: Porovnaj celkovú sumu dlhov voči poisťovniam/štátu (z companyEvents s eventType=POISTOVNA_DLUH, DAN_NEDOPLATOK) s aktuálnou hotovosťou.
    - História záväzkov: Ak sú exekúcie staršieho dáta a stále trvajú, je to signál chronickej platobnej neschopnosti.
@@ -142,6 +182,26 @@ KRITICKÉ PRAVIDLO PRE REGISTRE DLŽNÍKOV: V `registryStatusSummary` nájdeš e
 - V poli `zdovodnenie` NEPÍŠ o `llm_score_adjustment` ani o úprave skóre. Píš iba o faktoch a rizikách. Hodnota `llm_score_adjustment` je technické pole, ktoré používateľ nevidí v naratíve — tabuľka ju zobrazí samostatne.
 - Ak nemáš dostatok dát (chýbajúce PDF pre dané IČO), zvol 'INSUFFICIENT_DATA' v risk_category.
 
+FINDINGS (pre UI report — pole `findings`):
+Okrem executive_summary a zdovodnenie, vygeneruj štruktúrovaný zoznam findings pre používateľský report.
+Pre každý finding uveď:
+- category: RISK (negatívne zistenie), STRENGTH (pozitívne zistenie), ANOMALY (finančná anomália s vysvetlením), UNKNOWN (chýba evidence — nevymýšľaj vysvetlenie)
+- title: Krátky názov (napr. "Rast zadlženia o €15M"). Konkrétne EUR hodnoty POVOLNÉ v title, ak sú priamo podložené evidence z Notes/Narrative. Ak evidence chýba, použi všeobecný názov (napr. "Rast zadlženia").
+- financial_metric: Konkrétna metrika ak je relevantná (napr. "D/E: 7.76", "EBITDA marža: 4.2%"). Null ak nie je relevantné.
+- evidence: Konkrétny dôkaz z Notes/Narrative/Súvaha/Vestník (napr. "Notes: investičný úver 15M EUR od SLSP na financovanie novej linky"). Pri UNKNOWN uveď "Dostupné zdroje neobsahujú relevantný dôkaz".
+- source: Zdroj dokumentu: "Notes", "Výročná správa", "Súvaha", "Vestník", "OR SR". Pri UNKNOWN uveď "—".
+- source_pages: Konkrétne strany v zdrojovom dokumente (napr. "47"). Null ak nie sú známe. Pri UNKNOWN null.
+- explanation: Vysvetlenie prečo sa to deje (napr. "Rast dlhu súvisí s investíciou do výrobnej kapacity"). Pri UNKNOWN uveď "Dostupné Notes/Narrative neposkytujú dostatočný dôkaz na vysvetlenie."
+- implication: Čo to znamená pre používateľa (napr. "Zadlženie predstavuje riziko, ale zároveň má jasný investičný účel"). Pri UNKNOWN uveď "Odporúčame overiť v primárnej dokumentácii."
+
+Pravidlá pre findings:
+1. GROUNDING: Každý finding (okrem UNKNOWN) MUSÍ byť podložený konkrétnym dôkazom z Notes/Narrative/Súvaha/Vestník. NIKDY nevymýšľaj dôkaz.
+2. EUR HODNOTY: Konkrétne čísla v title a evidence POVOLNÉ, ak sú priamo uvedené v zdrojovom dokumente. LLM nesmie číslo odvodiť alebo vypočítať — iba citovať z dokumentu.
+3. UNKNOWN je FIRST-CLASS výstup: Ak nemáš evidence pre anomáliu, vytvor finding s category=UNKNOWN. NIKDY nevymýšľaj vysvetlenie. To je hodnotnejšie pre používateľa než halucinované vysvetlenie.
+4. POZITÍVNE FINDINGS: Nezabudaj na STRENGTH findings. Ak firma rastie, investuje, expanzuje — uveď to ako STRENGTH.
+5. POČET: 5-15 findings ideálne. Pokry všetky 4 kategórie (RISK, STRENGTH, ANOMALY, UNKNOWN) ak sú relevantné.
+6. ANOMALY → EVIDENCE → EXPLANATION → IMPLICATION: Pri ANOMALY findings použi vzor z sekcie "ANOMÁLIA → DÔKAZ → VYSVETLENIE → IMPLIKÁCIA" vyššie.
+
 {COMMON_TEXT_QUALITY_RULES['sk']}"""
 
 CHIEF_AUDITOR_PROMPT_EN = f"""You are Chief Risk Officer & Head of Forensics @ Verifa.sk. Your task is to receive extracted data (from Extraction Engine) and findings (from Forensic, Risk and Legal agents) and synthesize them into a definitive verdict. You do not pull raw data, but perform definitive assessment of integrity and overall risk of insolvency or fraud of the company based on submissions from your team and structured CompanyEvents from PDF Reader Agent (court decisions, insolvencies, enforcement actions, tax arrears, insurance, public contracts).
@@ -173,6 +233,31 @@ EVALUATION AND SYNTHESIS PROCESS:
    - WARNING: `narrativeRisk.forensicRedFlags` are LLM-extracted from the annual report and MAY contain hallucinations. Never use them as facts in executive_summary or as basis for `llm_score_adjustment` without cross-checking against `notesRisk` data. If `notesRisk_by_year` is empty (no `relatedPartyTransactions`), NEVER claim in text that the company has "related party transactions" or "asset transfers to subsidiaries" — even if `forensicRedFlags` say so.
 
 {COMMON_BUT_PATTERNS['en']}
+
+ANOMALY → EVIDENCE → EXPLANATION → IMPLICATION:
+Your executive_summary must not be just a list of facts. For every financial anomaly you MUST use the pattern:
+[financial anomaly] → [narrative evidence from Notes/Narrative] → [explanation] → [implication for the user]
+
+Specific patterns you MUST check and reflect in executive_summary if found:
+
+a) Positive OCF + net loss → Notes: intra-group cash pooling / shared services / restructuring write-offs → "The negative net result is driven by [specific reason from Notes]" → "Real operating profitability is [higher/lower] than reported"
+
+b) Revenue growth + debt growth + new loan → Notes: new investment loan for [specific purpose] → "Growth is financed by debt to support [specific investment]" → "If the investment generates expected revenue, leverage is sustainable; if not, the company faces liquidity risk"
+
+c) High liquidity + growing related-party receivables → Notes: loans to subsidiaries/related parties → "Cash position is strong, but asset quality is deteriorating — money is tied up in intercompany transactions" → "Liquidity is distorted, real disposable cash is lower"
+
+d) Net loss + positive OCF + restructuring → Narrative: management explains profit decline by write-offs and restructuring → "Cash flow is generated by operations, loss is an accounting effect of one-off items" → "The company generates cash despite accounting loss, but restructuring requires monitoring"
+
+e) Positive growth + large investment → DO NOT automatically flag as risk → Notes: investment in new production line/capacity → "Investment is strategic, not defensive — it supports growth" → "Growth with investment is a positive signal, not a risk"
+
+f) Revenue decline + growing inventory → Narrative: management explains demand decline/market downturn → "The company is accumulating inventory due to declining demand" → "Risk of inventory write-offs and further margin decline"
+
+g) Equity growth + no profit → Notes: capital increase by new investor/owner → "Equity growth is not from profit generation, but from capital contribution" → "The company has owner support but is not self-sustaining"
+
+h) MISSING EVIDENCE → NEVER fabricate explanation → "Both NotesRisk and NarrativeRisk contain no relevant information for this anomaly" → "The anomaly remains unexplained from available sources" → "We recommend verifying in primary sources or requesting additional information"
+
+Critical rule for anomalies: If both `notesRisk_by_year` and `narrativeRisk_by_year` contain no relevant information to explain an anomaly, NEVER fabricate an explanation. Instead write: "This anomaly could not be explained from available narrative sources." That is more valuable to the user than a hallucinated explanation.
+
 2. ANALYSIS OF PUBLIC LIABILITIES, ENFORCEMENT ACTIONS AND COURT DECISIONS (from companyEvents):
    - Debt-to-liquidity ratio: Compare total debts to insurance/government (from companyEvents with eventType=POISTOVNA_DLUH, DAN_NEDOPLATOK) with current cash.
    - Liability history: If enforcement actions are older but still ongoing, it is a sign of chronic insolvency.
@@ -254,6 +339,26 @@ CRITICAL RULE FOR DEBT REGISTERS: In `registryStatusSummary` you will find an ex
 - EVIDENCE ITEMS = HISTORICAL FACTS ONLY: Each EvidenceItem in `zdovodnenie` must contain only verifiable historical facts from the provided data (financial statement numbers, registry events, PDF citations). NEVER include predictions, forecasts or estimates of future performance (e.g. "predicted decline in profitability") as an evidence item. Future trends may be mentioned in `executive_summary`, but not as a standalone evidence in the table.
 - In the `zdovodnenie` field, explain `llm_score_adjustment`: if non-zero, include one EvidenceItem describing why you would adjust the score (e.g. "PDF debts do not contain active enforcement actions, llm_score_adjustment = 0").
 - If you lack sufficient data (missing PDFs for the given IČO), select 'INSUFFICIENT_DATA' in risk_category.
+
+FINDINGS (for UI report — field `findings`):
+In addition to executive_summary and justification, generate a structured list of findings for the user report.
+For each finding provide:
+- category: RISK (negative finding), STRENGTH (positive finding), ANOMALY (financial anomaly with explanation), UNKNOWN (missing evidence — do not fabricate explanation)
+- title: Short name (e.g. "Debt growth of €15M"). Concrete EUR values ALLOWED in title if directly supported by evidence from Notes/Narrative. If evidence is missing, use a generic name (e.g. "Debt growth").
+- financial_metric: Specific metric if relevant (e.g. "D/E: 7.76", "EBITDA margin: 4.2%"). Null if not relevant.
+- evidence: Concrete evidence from Notes/Narrative/Súvaha/Vestník (e.g. "Notes: investment loan 15M EUR from SLSP to finance new production line"). For UNKNOWN state "Available sources contain no relevant evidence".
+- source: Source document: "Notes", "Annual Report", "Balance Sheet", "Bulletin", "OR SR". For UNKNOWN state "—".
+- source_pages: Specific pages in the source document (e.g. "47"). Null if unknown. For UNKNOWN null.
+- explanation: Explanation of why this is happening (e.g. "Debt growth is related to investment in production capacity"). For UNKNOWN state "Available Notes/Narrative do not provide sufficient evidence to explain."
+- implication: What it means for the user (e.g. "Leverage represents a risk, but it has a clear investment purpose"). For UNKNOWN state "We recommend verifying in primary documentation."
+
+Rules for findings:
+1. GROUNDING: Every finding (except UNKNOWN) MUST be supported by concrete evidence from Notes/Narrative/Súvaha/Vestník. NEVER fabricate evidence.
+2. EUR VALUES: Concrete numbers in title and evidence ALLOWED if directly stated in the source document. LLM must not derive or calculate numbers — only quote from the document.
+3. UNKNOWN is a FIRST-CLASS output: If you have no evidence for an anomaly, create a finding with category=UNKNOWN. NEVER fabricate an explanation. That is more valuable to the user than a hallucinated explanation.
+4. POSITIVE FINDINGS: Do not forget STRENGTH findings. If the company is growing, investing, expanding — report it as STRENGTH.
+5. COUNT: 5-15 findings ideally. Cover all 4 categories (RISK, STRENGTH, ANOMALY, UNKNOWN) if relevant.
+6. ANOMALY → EVIDENCE → EXPLANATION → IMPLICATION: For ANOMALY findings, use the pattern from the "ANOMALY → EVIDENCE → EXPLANATION → IMPLICATION" section above.
 
 {COMMON_TEXT_QUALITY_RULES['en']}"""
 

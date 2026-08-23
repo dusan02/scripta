@@ -958,6 +958,58 @@ const sk: Dict = {
   "docs.dpaDesc": "Dohoda o spracúvaní osobných údajov medzi Verifa.sk a klientom podľa čl. 28 GDPR.",
   "docs.zobrazit": "Zobraziť",
   "docs.spatDomov": "Späť domov",
+
+  // ── Company Signals ──
+  "signals.title": "Čo z verejných dát vyplýva",
+  "signals.subtitle": "Deterministické signály z finančných závierok a verejných registrov",
+  "signals.noSignals": "Žiadne varovné signály z dostupných finančných dát",
+  "signals.noFinancialData": "Finančná analýza nedostupná",
+  "signals.noFinancialDataDesc": "Pre túto firmu neboli nájdené dostatočné účtovné závierky",
+  "signals.viewFullAnalysis": "Zobraziť kompletnú analýzu",
+  "signals.criticalIssue": "kritický signál",
+  "signals.criticalIssues": "kritické signály",
+  "signals.warningSignal": "varovný signál",
+  "signals.warningSignals": "varovné signály",
+  "signals.positiveIndicator": "pozitívny indikátor",
+  "signals.positiveIndicators": "pozitívne indikátory",
+
+  // Risk signals
+  "signals.negativeCfDespiteProfit.title": "Záporný prevádzkový cash flow napriek kladnému zisku",
+  "signals.negativeCfDespiteProfit.description": "Firma vykázala zisk, ale prevádzkový cash flow bol záporný",
+  "signals.lowCfQuality.title": "Nízka kvalita cash flow",
+  "signals.lowCfQuality.description": "Prevádzkový cash flow výrazne zaostáva za vykázaným ziskom",
+  "signals.highLeverage.title": "Vysoká zadlženosť",
+  "signals.highLeverage.description": "Záväzky tvoria vysoký podiel celkových aktív",
+  "signals.inventoryConcentration.title": "Vysoká koncentrácia zásob",
+  "signals.inventoryConcentration.description": "Zásoby tvoria neobvykle vysoký podiel obežného majetku",
+  "signals.liabilitiesSurge.title": "Rýchly rast záväzkov",
+  "signals.liabilitiesSurge.description": "Záväzky vzrástli medziročne o výraznú hodnotu",
+  "signals.revenueDecline.title": "Pokles tržieb",
+  "signals.revenueDecline.description": "Tržby medziročne poklesli",
+  "signals.negativeEquity.title": "Záporné vlastné imanie",
+  "signals.negativeEquity.description": "Záväzky prevyšujú vykázané vlastné imanie",
+  "signals.negativeCfStreak.title": "Trvalo záporný cash flow",
+  "signals.negativeCfStreak.description": "Prevádzkový cash flow bol záporný 3 po sebe idúce roky",
+  "signals.vestnikKonkurz.title": "Konkurz / Reštrukturalizácia",
+  "signals.vestnikKonkurz.description": "V Obchodnom vestníku je evidované konkurzné konanie",
+  "signals.vestnikLikvidacia.title": "Likvidácia",
+  "signals.vestnikLikvidacia.description": "V Obchodnom vestníku je evidovaná likvidácia",
+  "signals.vestnikExecution.title": "Exekúcia",
+  "signals.vestnikExecution.description": "V Obchodnom vestníku je evidovaná exekúcia",
+
+  // Diagnostic signals
+  "signals.highRoeDiagnostic.title": "Neobvykle vysoké ROE",
+  "signals.highRoeDiagnostic.description": "Vysoké ROE si zaslúži preverenie kapitálovej štruktúry",
+  "signals.vestnikDissolution.title": "Zrušenie / Vymazanie",
+  "signals.vestnikDissolution.description": "V Obchodnom vestníku je evidované zrušenie alebo vymazanie",
+
+  // Positive signals
+  "signals.revenueGrowthStreak.title": "Tržby rastú 3 roky po sebe",
+  "signals.revenueGrowthStreak.description": "Tržby vzrástli 3 po sebe idúce roky",
+  "signals.equityGrowthStreak.title": "Vlastné imanie rastie",
+  "signals.equityGrowthStreak.description": "Vlastné imanie vzrástlo 2 po sebe idúce roky",
+  "signals.profitableStreak.title": "Zisk kladný 2 roky po sebe",
+  "signals.profitableStreak.description": "Firma vykázala kladný zisk 2 po sebe idúce roky",
 };
 
 export default sk;

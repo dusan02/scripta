@@ -441,7 +441,11 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
                     'litigationRisks': narrative.litigation_risks,
                     'goingConcernDoubts': narrative.going_concern_doubts,
                     'plannedInvestments': narrative.planned_investments,
+                    'profitabilityExplanation': narrative.profitability_explanation,
                     'forensicRedFlags': narrative.forensic_red_flags,
+                    'businessDevelopments': narrative.business_developments,
+                    'strengthsAndOpportunities': narrative.strengths_and_opportunities,
+                    'sourcePages': narrative.source_pages,
                     'synthesis': narrative.synthesis
                 },
                 'update': {
@@ -449,7 +453,11 @@ async def save_narrative_to_db(ico: str, year: int, narrative: NarrativeRiskAnal
                     'litigationRisks': narrative.litigation_risks,
                     'goingConcernDoubts': narrative.going_concern_doubts,
                     'plannedInvestments': narrative.planned_investments,
+                    'profitabilityExplanation': narrative.profitability_explanation,
                     'forensicRedFlags': narrative.forensic_red_flags,
+                    'businessDevelopments': narrative.business_developments,
+                    'strengthsAndOpportunities': narrative.strengths_and_opportunities,
+                    'sourcePages': narrative.source_pages,
                     'synthesis': narrative.synthesis
                 }
             }
@@ -483,12 +491,28 @@ async def save_notes_to_db(ico: str, year: int, notes_risk):
                     'financialStatementId': statement.id,
                     'relatedPartyTransactions': notes_risk.related_party_transactions,
                     'offBalanceSheetLiabilities': notes_risk.off_balance_sheet_liabilities,
-                    'contingentRisks': notes_risk.contingent_risks
+                    'contingentRisks': notes_risk.contingent_risks,
+                    'significantInvestments': notes_risk.significant_investments,
+                    'financingActivities': notes_risk.financing_activities,
+                    'acquisitionsAndDisposals': notes_risk.acquisitions_and_disposals,
+                    'provisionsAndReserves': notes_risk.provisions_and_reserves,
+                    'restructuringActivities': notes_risk.restructuring_activities,
+                    'capitalChanges': notes_risk.capital_changes,
+                    'subsequentEvents': notes_risk.subsequent_events,
+                    'sourcePages': notes_risk.source_pages
                 },
                 'update': {
                     'relatedPartyTransactions': notes_risk.related_party_transactions,
                     'offBalanceSheetLiabilities': notes_risk.off_balance_sheet_liabilities,
-                    'contingentRisks': notes_risk.contingent_risks
+                    'contingentRisks': notes_risk.contingent_risks,
+                    'significantInvestments': notes_risk.significant_investments,
+                    'financingActivities': notes_risk.financing_activities,
+                    'acquisitionsAndDisposals': notes_risk.acquisitions_and_disposals,
+                    'provisionsAndReserves': notes_risk.provisions_and_reserves,
+                    'restructuringActivities': notes_risk.restructuring_activities,
+                    'capitalChanges': notes_risk.capital_changes,
+                    'subsequentEvents': notes_risk.subsequent_events,
+                    'sourcePages': notes_risk.source_pages
                 }
             }
         )

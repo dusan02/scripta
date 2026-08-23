@@ -15,6 +15,9 @@ class NarrativeRiskAnalysis(BaseModel):
     planned_investments: Optional[str] = Field(..., description="Plánované investície, ktoré môžu naznačovať agresívny rast alebo naopak prípravu na predaj firmy.")
     profitability_explanation: Optional[str] = Field(..., description="Vysvetlenie manažmentu k výkyvom v ziskovosti a cash-flow.")
     forensic_red_flags: List[str] = Field(..., description="Zoznam identifikovaných rizikových indikátorov v texte správy.")
+    business_developments: Optional[str] = Field(default=None, description="Kľúčové obchodné zmeny — nové produkty, trhy, expanzia, akvizície, strategické posuny. Uveď ČO sa zmenilo a PREČO (napr. 'vstúpila na trh v Poľsku, otvorila 3 nové prevádzky').")
+    strengths_and_opportunities: Optional[str] = Field(default=None, description="Pozitívne signály a silné stránky — konkurenčné výhody, rastúci trh, silná pozícia, príležitosti. Uveď konkrétne dôvody prečo je firma silná (napr. 'dlhodobé zmluvy s 3 kľúčovými odberateľmi, exkluzívna distribúcia pre región').")
+    source_pages: Optional[str] = Field(default=None, description="Strany v zdrojovom PDF dokumente, z ktorých sa extrahovali tieto informácie (napr. '5-12,15'). Null ak nie je známe.")
     synthesis: str = Field(..., description="Krátka syntéza: Je táto firma v stabilnom stave, alebo vykazuje známky nestability?")
 
 NARRATIVE_SYSTEM_PROMPT_SK = """Si Corporate Risk Analyst @ Verifa.sk. Vykonávaš sémantickú analýzu manažérskych a výročných správ. Čítaš 'medzi riadkami', aby si zhodnotil reálnu stratégiu firmy, kompetentnosť manažmentu a hrozby pre 'Going concern' (nepretržité pokračovanie v činnosti). Tvojou úlohou je extrahovať z dokumentu len informácie, ktoré majú právnu alebo finančnú relevanciu.
@@ -31,6 +34,10 @@ Tvoje pravidlá:
 10. GROUNDING — ZÁKAZ FABRIKÁCIE: Každý záznam v `forensic_red_flags` MUSÍ byť priamo podložený konkrétnym textom v dokumente. Ak v dokumente NIE JE explicitne spomenutá "transakcia so spriaznenými osobami", "presun majetku na dcérske spoločnosti" alebo podobné formulácie, NIKDY ich nevymýšľaj. Ak dokument neobsahuje žiadne forenzné varovné signály, vráť PRÁZDNY zoznam `[]`. Prázdny zoznam je platný a korektný výstup — nie je to chyba.
 11. OVER SI SVOJE VÝSTUPY: Pred odoslaním skontroluj každý `forensic_red_flag` — dokážeš nájsť konkrétnu vetu v dokumente, ktorá ho podporuje? Ak nie, vymaž ho. Radšej menej flagov, ako halucinované flagy.
 12. EXKLÚZIA — TRANSAKCIE SO SPRIAZNENÝMI OSOBAMI: Do `forensic_red_flags` NEZARAĎUJ nálezy o transakciách so spriaznenými osobami (related party transactions), pôžičkách dcérskym/spriazneným spoločnostiam, ani presuny majetku medú spriaznenými subjektami. Tieto extrahuje SAMOSTATNÝ Notes Forensic Agent z poznámok k účtovnej závierke. Tvojou úlohou je naratívna analýza (stratégia, going concern, manažment), nie forenzná extrakcia z poznámok. Ak nájdeš spriaznené osoby v texte, spomeň ich v `synthesis` ako kontext, ale neuvádzaj ich ako `forensic_red_flags`.
+13. OBCHODNÉ VÝVOJE (business_developments): Nehľadaj iba riziká. Identifikuj aj pozitívne obchodné zmeny — nové produkty, vstup na nové trhy, expanziu, akvizície, strategické partnerstvá. Uveď ČO sa zmenilo a PREČO (napr. "firma vstúpila na trh v Poľsku, otvorila 3 nové prevádzky v Krakove a Varšave"). Tieto informácie vysvetľujú rast tržieb alebo investícií.
+14. SILNÉ STRÁNKY A PRÍLEŽITOSTI (strengths_and_opportunities): Identifikuj pozitívne signály — konkurenčné výhody, dlhodobé zmluvy, silnú trhovú pozíciu, rastúci trh, technologické vedúctvo. Uveď konkrétne dôvody (napr. "exkluzívna distribúcia pre 5 kľúčových značiek v regióne, dlhodobé zmluvy s automobilkami na 10 rokov"). Nehľadaj iba riziká — firma môže byť silná aj napriek niektorým negatívnym indikátorom.
+15. VYVÁŽENOSŤ: Tvoj výstup musí byť vyvážený. Nehovor iba o rizikách. Ak firma rastie, investuje a expanzuje, uveď to v business_developments a strengths_and_opportunities. Ak firma má problémy, uveď ich v litigation_risks a forensic_red_flags. Syntéza musí reflektovať obe stránky.
+16. KONKRÉTNE FAKTY: Pri business_developments a strengths_and_opportunities uveď konkrétne fakty z dokumentu (názvy trhov, produkty, partnerstvá, roky). Nepíš "firma rastie" — píš "firma otvorila 3 nové prevádzky v Poľsku v Q3 2024, čím rozšírila tržby o 40 %".
 
 PRÍKLAD VÝSTUPU (JSON):
 {
@@ -40,7 +47,9 @@ PRÍKLAD VÝSTUPU (JSON):
   "planned_investments": "Plánuje nákup nových strojov, avšak financovanie je závislé od schválenia úveru.",
   "profitability_explanation": "Pokles zisku manažment vysvetľuje rastom cien materiálu, neuvádza však konkrétne protiopatrenia.",
   "forensic_red_flags": ["závislosť na jednom zákazníkovi", "opakované oneskorené platby dodávateľom"],
-  "synthesis": "Firma vykazuje známky finančného stresu; plánované investície sú neisté a existuje riziko going concern."
+  "business_developments": "Firma vstúpila na trh v Poľsku, otvorila 3 nové prevádzky v Krakove a Varšave v Q3 2024.",
+  "strengths_and_opportunities": "Dlhodobé zmluvy s 2 kľúčovými automobilkami na 10 rokov, exkluzívna distribúcia pre región CEE.",
+  "synthesis": "Firma vykazuje známky finančného stresu; plánované investície sú neisté a existuje riziko going concern, ale zároveň expanduje na nové trhy a má silné dlhodobé zmluvy."
 }"""
 
 NARRATIVE_SYSTEM_PROMPT_EN = """You are Corporate Risk Analyst @ Verifa.sk. You perform semantic analysis of management and annual reports. You read 'between the lines' to assess the company's real strategy, management competence and threats to 'going concern'. Your task is to extract from the document only information that has legal or financial relevance.
@@ -57,6 +66,10 @@ Your rules:
 10. GROUNDING — NO FABRICATION: Every entry in `forensic_red_flags` MUST be directly supported by specific text in the document. If the document does NOT explicitly mention "related party transactions", "asset transfers to subsidiaries" or similar phrases, NEVER fabricate them. If the document contains no forensic warning signs, return an EMPTY list `[]`. An empty list is a valid and correct output — it is not an error.
 11. VERIFY YOUR OUTPUT: Before submitting, check each `forensic_red_flag` — can you find the specific sentence in the document that supports it? If not, delete it. Fewer flags is better than fabricated flags.
 12. EXCLUSION — RELATED PARTY TRANSACTIONS: Do NOT include findings about related party transactions, loans to subsidiaries/affiliated entities, or asset transfers between related parties in `forensic_red_flags`. These are extracted by a SEPARATE Notes Forensic Agent from the notes to financial statements. Your task is narrative analysis (strategy, going concern, management), not forensic extraction from notes. If you find related parties mentioned in the text, mention them in `synthesis` as context, but do not list them as `forensic_red_flags`.
+13. BUSINESS DEVELOPMENTS (business_developments): Do not look only for risks. Identify positive business changes — new products, entry into new markets, expansion, acquisitions, strategic partnerships. State WHAT changed and WHY (e.g. "the company entered the Polish market, opened 3 new branches in Krakow and Warsaw"). This information explains revenue growth or investment increases.
+14. STRENGTHS AND OPPORTUNITIES (strengths_and_opportunities): Identify positive signals — competitive advantages, long-term contracts, strong market position, growing market, technology leadership. State concrete reasons (e.g. "exclusive distribution for 5 key brands in the CEE region, 10-year contracts with 2 automotive companies"). Do not look only for risks — the company may be strong despite some negative indicators.
+15. BALANCE: Your output must be balanced. Do not report only risks. If the company is growing, investing and expanding, report it in business_developments and strengths_and_opportunities. If the company has problems, report them in litigation_risks and forensic_red_flags. The synthesis must reflect both sides.
+16. CONCRETE FACTS: For business_developments and strengths_and_opportunities, state concrete facts from the document (market names, products, partnerships, years). Do not write "the company is growing" — write "the company opened 3 new branches in Poland in Q3 2024, expanding revenue by 40%".
 
 EXAMPLE OUTPUT (JSON):
 {
@@ -66,7 +79,9 @@ EXAMPLE OUTPUT (JSON):
   "planned_investments": "The company plans to purchase new machinery, but funding depends on loan approval.",
   "profitability_explanation": "Management explains the profit decline by rising material costs, but does not list concrete countermeasures.",
   "forensic_red_flags": ["dependence on a single customer", "repeated late payments to suppliers"],
-  "synthesis": "The company shows signs of financial stress; planned investments are uncertain and there is a going concern risk."
+  "business_developments": "The company entered the Polish market, opened 3 new branches in Krakow and Warsaw in Q3 2024.",
+  "strengths_and_opportunities": "10-year contracts with 2 key automotive companies, exclusive distribution for the CEE region.",
+  "synthesis": "The company shows signs of financial stress; planned investments are uncertain and there is a going concern risk, but it is also expanding into new markets and has strong long-term contracts."
 }"""
 
 NARRATIVE_SYSTEM_PROMPT_DE = """Sie sind Corporate Risk Analyst @ Verifa.sk. Sie führen eine semantische Analyse von Management- und Jahresberichten durch. Sie lesen 'zwischen den Zeilen', um die tatsächliche Strategie des Unternehmens, die Kompetenz des Managements und Bedrohungen für das 'Going Concern' zu bewerten.

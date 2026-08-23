@@ -30,6 +30,10 @@ from src.log_helpers import (
     log_llm_call, log_llm_retry, get_correlation_id,
 )
 from src.ruz_api import download_ifrs_reports
+from src.extraction_cache import (
+    cache_lookup, cache_store,
+    EXTRACTOR_FINANCIAL_ANALYST, EXTRACTOR_FINANCIAL_VERIFY,
+)
 from src.llm_extractor import (
     CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, EvidenceItem,
     evaluate_audit_verdict, extract_financial_data,
@@ -461,6 +465,20 @@ async def process_company(
                     reason = "žiadny metrics sidecar" if parsed_metrics is None else "parser extrahoval None hodnoty (prázdne tabuľky)"
                     logger.warning(f"[SK_GAAP] {file_name} — {reason}, používam LLM extrakciu")
 
+            # ── Extraction cache: check if we already extracted this PDF ──
+            # Cache key: pdfHash + extractor + model + promptVersion + schemaVersion
+            # HIT → return cached result (0 LLM calls, 100% deterministic)
+            # MISS → call LLM, store result in cache
+            cached_data = await cache_lookup(
+                file_path,
+                extractor=EXTRACTOR_FINANCIAL_ANALYST,
+                model=_MODEL_IFRS,
+            )
+            if cached_data is not None:
+                logger.info(f"[CACHE] Using cached extraction for {file_name} — skipping LLM")
+                _ifrs_results.append(cached_data)
+                return
+
             async with sem:
                 if file_path.lower().endswith(".pdf"):
                     data, verify_data = await asyncio.gather(
@@ -479,6 +497,17 @@ async def process_company(
                         model=_MODEL_IFRS, label=f"Financial Statements Analyst:{file_name}"
                     )
                     verify_data = None
+
+            # ── Cache the LLM extraction result ──
+            if data:
+                await cache_store(
+                    file_path,
+                    company_ico=ico,
+                    extractor=EXTRACTOR_FINANCIAL_ANALYST,
+                    model=_MODEL_IFRS,
+                    data=data,
+                    confidence="UNKNOWN",  # Will be refined by verification below
+                )
 
             if data:
                 if verify_data:

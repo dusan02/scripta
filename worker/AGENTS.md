@@ -239,3 +239,44 @@ All P0/P1 bugs fixed, empirically verified, and acceptance tested:
 - FOUND: 3,146 | CHECKED_NO_EVENT: 515,645 | NO_DATA: 0
 - Orphan FK: 0 | Duplicates: 0
 - Checkpoint: lastId=2155342, lastRunSuccess=true
+
+## Extraction Cache — IFRS Determinism (2026-08-23)
+
+**Problem:** IFRS firms (template 709/703) have no RÚZ JSON tables — `obsah: {}`, only PDF attachments. All financial extraction goes through LLM (gemini-3.5-flash-lite, temp=0.0). While 13/15 fields are stable, `interest` and `gross_profit` showed variability across runs (same PDF → different values).
+
+**Solution:** Two-layer fix:
+
+1. **Prompt v4** (`src/agents/financial_analyst.py`):
+   - `gross_profit`: Removed "Pridaná hodnota" (Value added) as proxy — IFRS/SK GAAP must have explicit "Gross profit" row, else return null.
+   - `interest`: Disambiguated "Finance costs" (broader IFRS category) from "Interest expense" — must use explicit interest line, else return null.
+
+2. **ExtractionCache** (`src/extraction_cache.py` + `ExtractionCache` DB table):
+   - Cache key: `pdfHash + extractor + model + promptVersion + schemaVersion`
+   - HIT → return cached result (0 LLM calls, 100% deterministic)
+   - MISS → call LLM, store result, return
+   - Invalidation: bump `PROMPT_VERSION` or `SCHEMA_VERSION` in `extraction_cache.py`
+   - Stores: `rawResponse` (full LLM JSON), `normalizedData` (FinancialMetrics), `confidence`, `warnings`, `missingFields`
+
+**Acceptance test (Danucem 2023 PDF, 3× runs):**
+- Run 1: CACHE MISS → LLM → STORE
+- Run 2: CACHE HIT → 0 LLM calls
+- Run 3: CACHE HIT → 0 LLM calls
+- 15/15 fields STABLE, 1 LLM call total
+
+**DB schema note:** `ExtractionCache` table created via raw SQL (not `prisma migrate`). Project uses `db push` workflow, not migration files. Table is introspected by Prisma client correctly.
+
+**Version constants:**
+- `PROMPT_VERSION = "v4"` — bump when `SYSTEM_PROMPT` in `financial_analyst.py` changes
+- `SCHEMA_VERSION = "v1"` — bump when `FinancialMetrics` Pydantic schema changes
+
+**Cache invalidation procedure:**
+1. Edit prompt in `financial_analyst.py` or schema in `shared.py`
+2. Bump `PROMPT_VERSION` or `SCHEMA_VERSION` in `extraction_cache.py`
+3. Deploy — next report run will re-extract all IFRS PDFs with new prompt/schema
+4. Old cache entries remain in DB (audit trail) but are never matched
+
+**Files:**
+- `src/extraction_cache.py` — cache lookup/store/stats module
+- `src/agents/financial_analyst.py` — SYSTEM_PROMPT with v4 fixes
+- `src/pipeline.py` — cache integration in `_process_ifrs()`
+- `prisma/schema.prisma` — `ExtractionCache` model

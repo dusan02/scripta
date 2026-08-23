@@ -12,7 +12,7 @@
  *   7. Result limits per tier
  */
 
-import { queryScreener, resolveTier, parseAndAuthorizeParams, buildWhereClause, naceSectionToPrefixFilter, computeCompanyAge, ALL_FILTERS, buildScreenerUrl, getOwnershipTypeLabel, getNaceSections } from "../screener";
+import { queryScreener, resolveTier, parseAndAuthorizeParams, buildWhereClause, buildWhereClauseForCount, naceSectionToPrefixFilter, computeCompanyAge, ALL_FILTERS, buildScreenerUrl, getOwnershipTypeLabel, getNaceSections } from "../screener";
 
 // Mock tier resolution — we test authorization logic, not DB
 async function testTierAuthorization() {
@@ -438,6 +438,20 @@ async function main() {
   testSemanticInvariants();
   console.log();
   testBoundaryConditions();
+  console.log();
+  testCountWhereExcludesIcoNotIn();
+  console.log();
+  testResultWhereStillHasIcoNotIn();
+  console.log();
+  testCountWherePreservesAllOtherFilters();
+  console.log();
+  testFinancialFiltersAreSelective();
+  console.log();
+  testAgeFiltersAreSelective();
+  console.log();
+  testCountWhereTierAuthorizationPreserved();
+  console.log();
+  testCountWhereNoExtraCompaniesVsResult();
 
   console.log("\n=== ALL TESTS PASSED ===");
 }
@@ -721,6 +735,184 @@ function testBoundaryConditions() {
     throw new Error(`FAIL: empty legalForm should not produce filter, got ${JSON.stringify(wEmptyMulti)}`);
   }
   console.log("  PASS: Empty multi-select value produces no filter");
+}
+
+// ── P0 regression tests: COUNT-specific WHERE + financial filter selectivity ──
+
+function testCountWhereExcludesIcoNotIn() {
+  console.log("Test P0-A: buildWhereClauseForCount omits ico NOT IN");
+
+  // No filters — count WHERE must NOT contain ico notIn
+  const { sanitized: sEmpty } = parseAndAuthorizeParams({}, "FREE");
+  const wCountEmpty = buildWhereClauseForCount(sEmpty, "FREE");
+  const wCountEmptyJson = JSON.stringify(wCountEmpty);
+  if (wCountEmptyJson.includes("notIn") || wCountEmptyJson.includes("00000000")) {
+    throw new Error(`FAIL: count WHERE without filters must not contain ico notIn, got ${wCountEmptyJson}`);
+  }
+  // Should be empty object (no filters, no ico exclusion)
+  if (Object.keys(wCountEmpty).length !== 0) {
+    throw new Error(`FAIL: count WHERE without filters should be empty {}, got ${wCountEmptyJson}`);
+  }
+  console.log("  PASS: count WHERE (no filters) is empty {} — no ico NOT IN");
+
+  // With filter — count WHERE must have filter but NOT ico notIn
+  const { sanitized: sRev } = parseAndAuthorizeParams({ revenueMin: "1000000" }, "FREE");
+  const wCountRev = buildWhereClauseForCount(sRev, "FREE");
+  const wCountRevJson = JSON.stringify(wCountRev);
+  if (wCountRevJson.includes("notIn") || wCountRevJson.includes("00000000")) {
+    throw new Error(`FAIL: count WHERE with revenueMin must not contain ico notIn, got ${wCountRevJson}`);
+  }
+  if (!wCountRevJson.includes("latestRevenue") || !wCountRevJson.includes("gte")) {
+    throw new Error(`FAIL: count WHERE should still contain revenueMin filter, got ${wCountRevJson}`);
+  }
+  console.log("  PASS: count WHERE (revenueMin) has filter but no ico NOT IN");
+}
+
+function testResultWhereStillHasIcoNotIn() {
+  console.log("Test P0-B: buildWhereClause (result query) still has ico NOT IN");
+
+  const { sanitized } = parseAndAuthorizeParams({ revenueMin: "1000000" }, "FREE");
+  const where = buildWhereClause(sanitized, "FREE");
+  const whereJson = JSON.stringify(where);
+
+  if (!whereJson.includes("notIn") || !whereJson.includes("00000000")) {
+    throw new Error(`FAIL: result WHERE must still contain ico notIn, got ${whereJson}`);
+  }
+  if (!whereJson.includes("latestRevenue")) {
+    throw new Error(`FAIL: result WHERE must contain revenueMin filter, got ${whereJson}`);
+  }
+  console.log("  PASS: result WHERE has both ico NOT IN and revenueMin filter");
+}
+
+function testCountWherePreservesAllOtherFilters() {
+  console.log("Test P0-C: count WHERE preserves all non-ico filters");
+
+  // Multi-filter: count WHERE should have all filters except ico NOT IN
+  const sp = { kraj: "SK010", revenueMin: "1000000", legalForm: "Akciová spoločnosť" };
+  const { sanitized } = parseAndAuthorizeParams(sp, "FREE");
+  const wResult = buildWhereClause(sanitized, "FREE");
+  const wCount = buildWhereClauseForCount(sanitized, "FREE");
+
+  const wResultJson = JSON.stringify(wResult);
+  const wCountJson = JSON.stringify(wCount);
+
+  // Both should contain kraj, revenueMin, legalForm
+  for (const key of ["kraj", "latestRevenue", "legalForm"]) {
+    if (!wResultJson.includes(key)) {
+      throw new Error(`FAIL: result WHERE missing ${key}, got ${wResultJson}`);
+    }
+    if (!wCountJson.includes(key)) {
+      throw new Error(`FAIL: count WHERE missing ${key}, got ${wCountJson}`);
+    }
+  }
+
+  // Result has ico NOT IN, count does not
+  if (!wResultJson.includes("00000000")) {
+    throw new Error(`FAIL: result WHERE should have ico NOT IN, got ${wResultJson}`);
+  }
+  if (wCountJson.includes("00000000")) {
+    throw new Error(`FAIL: count WHERE should NOT have ico NOT IN, got ${wCountJson}`);
+  }
+
+  console.log("  PASS: count WHERE has all filters except ico NOT IN");
+}
+
+function testFinancialFiltersAreSelective() {
+  console.log("Test P0-D: financial filters produce real WHERE conditions (not pg_class fallback)");
+
+  // Each financial filter must produce a non-empty WHERE condition
+  // (otherwise it wouldn't be in appliedFilters and wouldn't trigger real COUNT)
+  const cases: Array<{ key: string; value: string; expectedField: string }> = [
+    { key: "revenueMin", value: "1000000", expectedField: "latestRevenue" },
+    { key: "revenueMax", value: "5000000", expectedField: "latestRevenue" },
+    { key: "profitMin", value: "100000", expectedField: "latestProfit" },
+    { key: "profitMax", value: "500000", expectedField: "latestProfit" },
+    { key: "assetsMin", value: "1000000", expectedField: "latestAssets" },
+    { key: "assetsMax", value: "10000000", expectedField: "latestAssets" },
+    { key: "equityMin", value: "500000", expectedField: "latestEquity" },
+    { key: "equityMax", value: "5000000", expectedField: "latestEquity" },
+    { key: "latestYear", value: "2023", expectedField: "latestYear" },
+  ];
+
+  for (const tc of cases) {
+    const { sanitized, appliedFilters } = parseAndAuthorizeParams({ [tc.key]: tc.value }, "FREE");
+    if (!appliedFilters.includes(tc.key)) {
+      throw new Error(`FAIL: ${tc.key}=${tc.value} should be in appliedFilters`);
+    }
+    const where = buildWhereClauseForCount(sanitized, "FREE");
+    const whereJson = JSON.stringify(where);
+    if (!whereJson.includes(tc.expectedField)) {
+      throw new Error(`FAIL: ${tc.key} should produce WHERE with ${tc.expectedField}, got ${whereJson}`);
+    }
+  }
+  console.log("  PASS: all 9 financial filters produce real WHERE conditions");
+}
+
+function testAgeFiltersAreSelective() {
+  console.log("Test P0-E: ageMin/ageMax produce establishedAt WHERE conditions");
+
+  const { sanitized: sMin, appliedFilters: afMin } = parseAndAuthorizeParams({ ageMin: "5" }, "FREE");
+  if (!afMin.includes("ageMin")) {
+    throw new Error("FAIL: ageMin=5 should be in appliedFilters");
+  }
+  const wMin = buildWhereClauseForCount(sMin, "FREE");
+  if (!JSON.stringify(wMin).includes("establishedAt")) {
+    throw new Error(`FAIL: ageMin should produce establishedAt filter, got ${JSON.stringify(wMin)}`);
+  }
+
+  const { sanitized: sMax, appliedFilters: afMax } = parseAndAuthorizeParams({ ageMax: "10" }, "FREE");
+  if (!afMax.includes("ageMax")) {
+    throw new Error("FAIL: ageMax=10 should be in appliedFilters");
+  }
+  const wMax = buildWhereClauseForCount(sMax, "FREE");
+  if (!JSON.stringify(wMax).includes("establishedAt")) {
+    throw new Error(`FAIL: ageMax should produce establishedAt filter, got ${JSON.stringify(wMax)}`);
+  }
+  console.log("  PASS: ageMin/ageMax produce establishedAt WHERE conditions");
+}
+
+function testCountWhereTierAuthorizationPreserved() {
+  console.log("Test P0-F: count WHERE respects tier authorization (FREE strips AUTH)");
+
+  // FREE tier with konkurz=1 — count WHERE must NOT contain vestnikEvents
+  const { sanitized, appliedFilters } = parseAndAuthorizeParams({ konkurz: "1", revenueMin: "100" }, "FREE");
+  if (appliedFilters.includes("konkurz")) {
+    throw new Error("FAIL: FREE tier should strip konkurz from appliedFilters");
+  }
+  const wCount = buildWhereClauseForCount(sanitized, "FREE");
+  const wCountJson = JSON.stringify(wCount);
+  if (wCountJson.includes("vestnikEvents")) {
+    throw new Error(`FAIL: count WHERE for FREE tier must not contain vestnikEvents, got ${wCountJson}`);
+  }
+  if (!wCountJson.includes("latestRevenue")) {
+    throw new Error(`FAIL: count WHERE should still contain revenueMin, got ${wCountJson}`);
+  }
+  console.log("  PASS: count WHERE strips AUTH filters for FREE tier, keeps FREE filters");
+}
+
+function testCountWhereNoExtraCompaniesVsResult() {
+  console.log("Test P0-G: count WHERE is a superset of result WHERE (no extra exclusions)");
+
+  // The count WHERE differs from result WHERE ONLY by omitting ico NOT IN.
+  // This means count >= result count always (count is an upper bound).
+  // Verify: every key in count WHERE is also in result WHERE (except ico).
+  const sp = { q: "test", revenueMin: "100", kraj: "SK010" };
+  const { sanitized } = parseAndAuthorizeParams(sp, "FREE");
+  const wResult = buildWhereClause(sanitized, "FREE");
+  const wCount = buildWhereClauseForCount(sanitized, "FREE");
+
+  // Remove ico from result WHERE for comparison
+  const wResultNoIco = { ...wResult };
+  delete (wResultNoIco as Record<string, unknown>).ico;
+
+  // count WHERE should equal result WHERE minus ico
+  const countJson = JSON.stringify(wCount);
+  const resultNoIcoJson = JSON.stringify(wResultNoIco);
+
+  if (countJson !== resultNoIcoJson) {
+    throw new Error(`FAIL: count WHERE should equal result WHERE minus ico.\n  count: ${countJson}\n  result-no-ico: ${resultNoIcoJson}`);
+  }
+  console.log("  PASS: count WHERE === result WHERE minus ico (count is upper bound)");
 }
 
 main().catch((e) => {

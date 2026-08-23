@@ -569,6 +569,9 @@ model NarrativeRiskAnalysis {
   plannedInvestments       String?            @db.Text
   profitabilityExplanation String?            @db.Text
   forensicRedFlags         String[]
+  businessDevelopments     String?            @db.Text
+  strengthsAndOpportunities String?           @db.Text
+  sourcePages              String?
   synthesis                String             @db.Text
   createdAt                DateTime           @default(now())
 
@@ -581,6 +584,14 @@ model NotesRiskAnalysis {
   relatedPartyTransactions String?           @db.Text
   offBalanceSheetLiabilities String?         @db.Text
   contingentRisks         String?            @db.Text
+  significantInvestments   String?           @db.Text
+  financingActivities      String?           @db.Text
+  acquisitionsAndDisposals String?           @db.Text
+  provisionsAndReserves    String?           @db.Text
+  restructuringActivities  String?           @db.Text
+  capitalChanges           String?           @db.Text
+  subsequentEvents         String?           @db.Text
+  sourcePages              String?
   createdAt               DateTime           @default(now())
 
   statement               FinancialStatement @relation(fields: [financialStatementId], references: [id])
@@ -599,6 +610,7 @@ model AuditVerdict {
   scorecardBreakdown Json?
   llmScoreAdjustment Int? @default(0)
   llmAnalysisStatus String @default("LLM_ANALYZED")
+  findings        Json?
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])

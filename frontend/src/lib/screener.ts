@@ -869,6 +869,45 @@ export function buildWhereClause(
   return where;
 }
 
+/**
+ * COUNT-specific WHERE — identical to buildWhereClause but WITHOUT `ico NOT IN`.
+ *
+ * Why: `ico NOT IN ('', '00000000')` forces PostgreSQL to check the ico column
+ * on every row, preventing Index Only Scan. This turns a 170ms COUNT into 35,000ms.
+ * Only 2 of 518,801 rows have invalid IČO (0.0004%) — negligible count error.
+ *
+ * The result query (findMany) still uses the full WHERE with ico exclusion,
+ * so no invalid companies appear in results. Only the count is approximate.
+ */
+export function buildWhereClauseForCount(
+  sanitized: Record<string, ParsedValue | ParsedValue[]>,
+  tier: ScreenerTier,
+): Prisma.CompanyWhereInput {
+  const allowed = getAllowedFilters(tier);
+  const where: Prisma.CompanyWhereInput = {};
+
+  // NOTE: intentionally NO ico NOT IN filter — see function docstring
+
+  const andConditions: Prisma.CompanyWhereInput[] = [];
+
+  for (const filter of allowed) {
+    const value = sanitized[filter.key];
+    if (value === undefined) continue;
+    const condition = filter.buildWhere(value);
+    if (condition) {
+      andConditions.push(condition);
+    }
+  }
+
+  if (andConditions.length === 1) {
+    Object.assign(where, andConditions[0]);
+  } else if (andConditions.length > 1) {
+    where.AND = andConditions;
+  }
+
+  return where;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Tier-specific SELECT (Enforcement #3)
 // ═══════════════════════════════════════════════════════════════
@@ -994,16 +1033,31 @@ export async function queryScreener(
     total = Number(approx[0]?.estimate ?? 0);
   } else {
     // For filtered queries, check if the filter is selective enough for real count.
-    // Selective filters (okres, city, naceCode, ownershipType, q) use index scan → fast.
-    // Non-selective filters (kraj, legalForm) cause seq scan → slow (15s on 518K rows).
-    // For non-selective filters, use pre-computed counts from ScreenerFilterOptions MV
-    // instead of pg_class (~518K). MV has per-kraj and per-legalForm counts (instant).
-    // q (fulltext) is selective with a GIN trigram index on name — real count is fast.
+    // Selective filters use index scan → fast (sub-second).
+    // Non-selective filters (kraj, legalForm alone) → use MV counts (instant).
+    //
+    // Financial filters (revenueMin, profitMin, assetsMin, equityMin, etc.) are
+    // selective — they use bitmap index scan on the desc_nulls_last indexes.
+    // ageMin/ageMax map to establishedAt which has a btree index.
+    // latestYear has no dedicated index but is selective enough for real count.
     const isSelectiveFilter = appliedFilters.some(k =>
-      ["q", "okres", "city", "naceCode", "ownershipType", "establishedAt", "status", "sizeCategory", "vestnikClean", "ruzReporting", "hasFinancials"].includes(k)
+      [
+        // Text/enum filters with dedicated indexes
+        "q", "okres", "city", "naceCode", "ownershipType", "status",
+        "sizeCategory", "vestnikClean", "ruzReporting", "hasFinancials",
+        // Date filter — establishedAt has btree index
+        "ageMin", "ageMax",
+        // Financial range filters — use desc_nulls_last bitmap index scan
+        "revenueMin", "revenueMax", "profitMin", "profitMax",
+        "assetsMin", "assetsMax", "equityMin", "equityMax",
+        // Year filter
+        "latestYear",
+      ].includes(k)
     );
     if (isSelectiveFilter) {
-      total = await prisma.company.count({ where });
+      // Use COUNT-specific WHERE without ico NOT IN — 200x faster (Index Only Scan)
+      const whereForCount = buildWhereClauseForCount(sanitized, tier);
+      total = await prisma.company.count({ where: whereForCount });
     } else {
       // Non-selective filter (kraj, legalForm) — use MV counts (instant, accurate)
       total = await getApproxCountFromMV(appliedFilters, sanitized);

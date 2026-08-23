@@ -30,7 +30,7 @@ export default async function DashboardPage({
       auditVerdict: true,
       financialStatements: {
         orderBy: { year: "desc" },
-        include: { auditorOpinion: true, narrativeRisk: true },
+        include: { auditorOpinion: true, narrativeRisk: true, notesRisk: true },
       },
       vestnikEvents: {
         orderBy: { publishedAt: "desc" },
@@ -266,6 +266,69 @@ export default async function DashboardPage({
           </section>
         )}
 
+        {/* Findings — Risk / Strength / Anomaly / Unknown */}
+        {company.auditVerdict?.findings && Array.isArray(company.auditVerdict.findings) && (company.auditVerdict.findings as any[]).length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold mb-6">Analýza &amp; Nálezy</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(company.auditVerdict.findings as any[]).map((f, i) => {
+                const cat = f.category || "UNKNOWN";
+                let bgClass = "bg-neutral-500/5 border-neutral-500/20";
+                let icon = "⚪";
+                let label = "Nedostatok dôkazov";
+                let labelColor = "text-neutral-400";
+                if (cat === "RISK") {
+                  bgClass = "bg-rose-500/5 border-rose-500/20";
+                  icon = "🔴";
+                  label = "Riziko";
+                  labelColor = "text-rose-400";
+                } else if (cat === "STRENGTH") {
+                  bgClass = "bg-emerald-500/5 border-emerald-500/20";
+                  icon = "🟢";
+                  label = "Silná stránka";
+                  labelColor = "text-emerald-400";
+                } else if (cat === "ANOMALY") {
+                  bgClass = "bg-amber-500/5 border-amber-500/20";
+                  icon = "🟠";
+                  label = "Finančná anomália";
+                  labelColor = "text-amber-400";
+                }
+                return (
+                  <div key={i} className={`p-5 rounded-xl border ${bgClass}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">{icon}</span>
+                      <span className={`text-xs font-bold uppercase tracking-wider ${labelColor}`}>{label}</span>
+                      {f.financialMetric && (
+                        <span className="ml-auto text-xs font-mono text-neutral-500">{f.financialMetric}</span>
+                      )}
+                    </div>
+                    <h3 className="text-base font-semibold text-white mb-2">{f.title}</h3>
+                    {f.evidence && f.evidence !== "Dostupné zdroje neobsahujú relevantný dôkaz" && f.evidence !== "Available sources contain no relevant evidence" && (
+                      <div className="mb-2">
+                        <p className="text-xs text-neutral-500 uppercase tracking-wider mb-0.5">Dôkaz</p>
+                        <p className="text-sm text-neutral-300">{f.evidence}</p>
+                      </div>
+                    )}
+                    <div className="mb-2">
+                      <p className="text-xs text-neutral-500 uppercase tracking-wider mb-0.5">Vysvetlenie</p>
+                      <p className="text-sm text-neutral-300">{f.explanation}</p>
+                    </div>
+                    <div className="mb-3">
+                      <p className="text-xs text-neutral-500 uppercase tracking-wider mb-0.5">Čo to znamená</p>
+                      <p className="text-sm text-neutral-200">{f.implication}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="px-2 py-0.5 rounded bg-black/30 border border-white/5 text-neutral-400 font-mono uppercase tracking-wider">
+                        Zdroj: {f.source}{f.sourcePages ? `, str. ${f.sourcePages}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Debt Exposure Meter */}
         {company.auditVerdict && company.auditVerdict.debtExposureRating !== null && (
           <section className="mb-12">
@@ -378,6 +441,18 @@ export default async function DashboardPage({
                       <p className="text-rose-200/80 text-sm">{latestStatement.narrativeRisk.litigationRisks}</p>
                     </div>
                   )}
+                  {latestStatement.narrativeRisk.businessDevelopments && (
+                    <div className="md:col-span-2">
+                      <h4 className="text-sm text-emerald-400 mb-1">Obchodné vývoje</h4>
+                      <p className="text-emerald-200/80 text-sm">{latestStatement.narrativeRisk.businessDevelopments}</p>
+                    </div>
+                  )}
+                  {latestStatement.narrativeRisk.strengthsAndOpportunities && (
+                    <div className="md:col-span-2">
+                      <h4 className="text-sm text-emerald-400 mb-1">Silné stránky &amp; Príležitosti</h4>
+                      <p className="text-emerald-200/80 text-sm">{latestStatement.narrativeRisk.strengthsAndOpportunities}</p>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -409,6 +484,84 @@ export default async function DashboardPage({
                 </div>
               </div>
             </div>
+          </section>
+        )}
+
+        {/* Notes Forensic — Poznámky k účtovnej závierke */}
+        {latestStatement.notesRisk && (
+          <section className="mb-12 mt-12 bg-white/5 border border-white/10 rounded-2xl p-8">
+            <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+              Forenzná analýza poznámok <span className="text-neutral-500 text-lg font-normal">(Notes)</span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {latestStatement.notesRisk.relatedPartyTransactions && (
+                <div>
+                  <h4 className="text-sm text-amber-400 mb-1">Transakcie so spriaznenými osobami</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.relatedPartyTransactions}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.offBalanceSheetLiabilities && (
+                <div>
+                  <h4 className="text-sm text-amber-400 mb-1">Podsúvahové záväzky</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.offBalanceSheetLiabilities}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.contingentRisks && (
+                <div className="md:col-span-2">
+                  <h4 className="text-sm text-rose-400 mb-1">Súdne spory / Contingent risks</h4>
+                  <p className="text-rose-200/80 text-sm">{latestStatement.notesRisk.contingentRisks}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.significantInvestments && (
+                <div>
+                  <h4 className="text-sm text-sky-400 mb-1">Významné investície (CAPEX)</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.significantInvestments}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.financingActivities && (
+                <div>
+                  <h4 className="text-sm text-sky-400 mb-1">Financovanie</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.financingActivities}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.acquisitionsAndDisposals && (
+                <div className="md:col-span-2">
+                  <h4 className="text-sm text-sky-400 mb-1">Akvizície a predaje</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.acquisitionsAndDisposals}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.provisionsAndReserves && (
+                <div>
+                  <h4 className="text-sm text-amber-400 mb-1">Rezervy a provisions</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.provisionsAndReserves}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.restructuringActivities && (
+                <div>
+                  <h4 className="text-sm text-amber-400 mb-1">Reštrukturalizácia</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.restructuringActivities}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.capitalChanges && (
+                <div>
+                  <h4 className="text-sm text-sky-400 mb-1">Kapitálové zmeny</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.capitalChanges}</p>
+                </div>
+              )}
+              {latestStatement.notesRisk.subsequentEvents && (
+                <div className="md:col-span-2">
+                  <h4 className="text-sm text-amber-400 mb-1">Udalosti po súvahovom dni</h4>
+                  <p className="text-neutral-300 text-sm">{latestStatement.notesRisk.subsequentEvents}</p>
+                </div>
+              )}
+            </div>
+            {latestStatement.notesRisk.sourcePages && (
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <span className="px-2 py-0.5 rounded bg-black/30 border border-white/5 text-[10px] text-neutral-400 font-mono uppercase tracking-wider">
+                  Zdroj: Notes, str. {latestStatement.notesRisk.sourcePages}
+                </span>
+              </div>
+            )}
           </section>
         )}
 

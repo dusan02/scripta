@@ -396,10 +396,28 @@
 
     {# ── KĽÚČOVÉ POZNÁMKY POD ČIAROU ── #}
     {% if latest_stmt and latest_stmt.notesRisk %}
-    {% if latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks %}
+    {% if latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks or latest_stmt.notesRisk.significantInvestments or latest_stmt.notesRisk.financingActivities or latest_stmt.notesRisk.acquisitionsAndDisposals or latest_stmt.notesRisk.provisionsAndReserves or latest_stmt.notesRisk.restructuringActivities or latest_stmt.notesRisk.capitalChanges or latest_stmt.notesRisk.subsequentEvents %}
     <div class="mb-2">
         <h3 class="subsection-title-sm mb-1">{{ i18n.key_footnotes }}</h3>
         <div class="grid grid-cols-1 gap-1.5">
+            {% if latest_stmt.notesRisk.significantInvestments %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200">
+                <p class="report-label text-sky-600">{{ i18n.significant_investments }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.significantInvestments | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.financingActivities %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200">
+                <p class="report-label text-sky-600">{{ i18n.financing_activities }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.financingActivities | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.acquisitionsAndDisposals %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200">
+                <p class="report-label text-sky-600">{{ i18n.acquisitions_and_disposals }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.acquisitionsAndDisposals | sanitize_llm }}</p>
+            </div>
+            {% endif %}
             {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
             <div class="p-2 bg-slate-50 rounded border border-slate-200">
                 <p class="report-label text-slate-500">{{ i18n.off_balance }}</p>
@@ -412,7 +430,34 @@
                 <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</p>
             </div>
             {% endif %}
+            {% if latest_stmt.notesRisk.provisionsAndReserves %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200">
+                <p class="report-label text-amber-600">{{ i18n.provisions_and_reserves }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.provisionsAndReserves | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.restructuringActivities %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200">
+                <p class="report-label text-amber-600">{{ i18n.restructuring_activities }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.restructuringActivities | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.capitalChanges %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200">
+                <p class="report-label text-sky-600">{{ i18n.capital_changes }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.capitalChanges | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.subsequentEvents %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200">
+                <p class="report-label text-amber-600">{{ i18n.subsequent_events }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.subsequentEvents | sanitize_llm }}</p>
+            </div>
+            {% endif %}
         </div>
+        {% if latest_stmt.notesRisk.sourcePages %}
+        <p class="text-[10px] text-slate-400 mt-1 font-mono">Zdroj: Notes, str. {{ latest_stmt.notesRisk.sourcePages }}</p>
+        {% endif %}
     </div>
     {% endif %}
     {% endif %}
@@ -451,6 +496,12 @@
             {% endif %}
             {% if latest_stmt.narrativeRisk.litigationRisks %}
             <div class="col-span-2"><p class="report-label text-rose-500">{{ i18n.litigation_risks }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks | sanitize_llm }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.businessDevelopments %}
+            <div class="col-span-2"><p class="report-label text-emerald-600">{{ i18n.business_developments }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.businessDevelopments | sanitize_llm }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.strengthsAndOpportunities %}
+            <div class="col-span-2"><p class="report-label text-emerald-600">{{ i18n.strengths_and_opportunities }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.strengthsAndOpportunities | sanitize_llm }}</p></div>
             {% endif %}
         </div>
     </div>

@@ -623,6 +623,8 @@ class TestSaveNarrativeToDbDataQualityStatus:
             planned_investments=None,
             profitability_explanation=None,
             forensic_red_flags=[],
+            business_developments=None,
+            strengths_and_opportunities=None,
             synthesis="test",
         )
 

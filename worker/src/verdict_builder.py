@@ -628,10 +628,14 @@ async def run_and_save_audit_verdict(
         for stmt in company_dict.get("financialStatements", []):
             nr = stmt.get("narrativeRisk")
             if nr:
-                narrative_by_year.append({"rok": stmt.get("year"), "narrativeRisk": nr})
+                # nr môže byť Pydantic model (NarrativeRiskAnalysis) — konvertuj na dict
+                nr_dict = nr.model_dump() if hasattr(nr, "model_dump") else nr
+                narrative_by_year.append({"rok": stmt.get("year"), "narrativeRisk": nr_dict})
             notes = stmt.get("notesRisk")
             if notes:
-                notes_by_year.append({"rok": stmt.get("year"), "notesRisk": notes})
+                # notes môže byť Pydantic model (NotesRiskAnalysis) — konvertuj na dict
+                notes_dict = notes.model_dump() if hasattr(notes, "model_dump") else notes
+                notes_by_year.append({"rok": stmt.get("year"), "notesRisk": notes_dict})
             # Kľúčové metriky pre krížovú analýzu (nie plné výkazy, len pomery a absolúty)
             key_metrics_by_year.append({
                 "rok": stmt.get("year"),
@@ -828,11 +832,14 @@ async def run_and_save_audit_verdict(
             )
 
             # ── Expert Mode: 2-pass (draft → refine) ──
+            # Refine dostáva IBA draft_verdict + cross_summary + instruction.
+            # NEposielame znova company_data (~32K chars) — draft_verdict už
+            # obsahuje všetky faktické závery z company_data. Refine má zlepšiť
+            # text/logiku, nie re-analyzovať zdroj. Znižuje input z ~37K na ~6-9K chars.
             if _cfg.chief_auditor_two_pass and verdict:
                 try:
                     draft_json = json.dumps(verdict.model_dump(), default=str, ensure_ascii=False)
                     refine_input = json.dumps({
-                        "company_data": json.loads(auditor_input_json),
                         "draft_verdict": json.loads(draft_json),
                         "cross_analysis_summary": cross_summary,
                         "instruction": "Refine the draft verdict. Improve logical flow, remove repetitions, deepen analysis of hidden connections, and make recommendations more specific and actionable. Keep all factual numbers unchanged. CRITICAL: Keep all {{PLACEHOLDER}} tags (like {{REVENUE}}, {{OCF}}, {{ALTMAN_Z}}) exactly as they are — do NOT replace them with numbers.",
@@ -949,6 +956,7 @@ async def run_and_save_audit_verdict(
             'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
             'keyRisk': _sanitize_verdict_text(verdict.kľúčové_riziko),
             'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
+            'findings': Json([f.model_dump() for f in verdict.findings]) if verdict.findings else None,
             'llmScoreAdjustment': det_adj,
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
