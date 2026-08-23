@@ -99,8 +99,13 @@ def _dedup_by_period(items: list[dict], max_count: int) -> list[dict]:
     for item in items:
         p = _period_from_dict(item)
         if p not in seen:
-            seen[p] = item
-            result.append(item)
+            # Nové obdobie pridávame len ak ešte nemáme max_count období.
+            # POZOR: nesmieme tu break-núť — SK_GAAP verzia pre už vybrané
+            # obdobie môže byť v zozname ďalej (poradie v rámci obdobia je
+            # arbitrárne) a musí mať šancu nahradiť IFRS verziu.
+            if len(result) < max_count:
+                seen[p] = item
+                result.append(item)
         else:
             # Prefer nekonsolidovaná (SK_GAAP) over konsolidovaná (IFRS)
             # — SK_GAAP has JSON tables, IFRS is PDF-only
@@ -110,8 +115,6 @@ def _dedup_by_period(items: list[dict], max_count: int) -> list[dict]:
                 idx = result.index(existing)
                 result[idx] = item
                 seen[p] = item
-        if len(result) >= max_count:
-            break
     return result
 
 
@@ -325,9 +328,14 @@ async def download_ifrs_reports(
 
     if existing:
         # Extract years from cached filenames (e.g. SKGAAP_36168301_2025_0.txt → 2025)
+        # VS_ súbory nepočítame — výročná správa pre rok X neznamená, že máme
+        # závierku pre rok X (inak by stale cache nikdy nebola invalidovaná).
         cached_years = set()
         for fp in existing:
-            m = _re.search(r'_(20\d{2})_', os.path.basename(fp))
+            _bn = os.path.basename(fp)
+            if _bn.startswith("VS_"):
+                continue
+            m = _re.search(r'_(20\d{2})_', _bn)
             if m:
                 cached_years.add(int(m.group(1)))
         max_cached_year = max(cached_years) if cached_years else 0
@@ -344,7 +352,10 @@ async def download_ifrs_reports(
                     if _entity:
                         _zavierka_ids = _entity.get("idUctovnychZavierok", [])
                         if _zavierka_ids:
-                            _latest = await _api_get(_check_client, "uctovna-zavierka", {"id": _zavierka_ids[0]})
+                            # max(ids) = najnovšia závierka — RÚZ ID rastú chronologicky.
+                            # Poradie v idUctovnychZavierok nie je garantované ([0] môže
+                            # byť najstaršia), preto berieme najvyššie ID.
+                            _latest = await _api_get(_check_client, "uctovna-zavierka", {"id": max(_zavierka_ids)})
                             if _latest:
                                 _latest_period = _period_from_dict(_latest)
                                 _latest_year = _year_from_period(_latest_period)
@@ -492,9 +503,14 @@ async def download_ifrs_reports(
     logger.info(f"[RUZ_API] Stiahnutých {len(downloaded_files)} súborov pre IČO {ico}")
 
     # ── Per-year summary log ──
+    # Počítame len súbory závierok (SKGAAP_/IFRS_) — VS_ súbory nie sú
+    # finančné dáta a nesmú maskovať chýbajúci rok závierky.
     _ok_years = set()
     for fp in downloaded_files:
-        m = re.search(r'_(20\d{2})_', os.path.basename(fp))
+        _bn = os.path.basename(fp)
+        if _bn.startswith("VS_"):
+            continue
+        m = re.search(r'_(20\d{2})_', _bn)
         if m:
             _ok_years.add(int(m.group(1)))
     _all_years = sorted(_processed_years | {str(y) for y in _ok_years}, reverse=True)
@@ -520,10 +536,15 @@ async def download_ifrs_reports(
             return ["__DATA_NOT_PUBLIC__"]
 
     # ── Playwright fallback: ak chýba najnovší rok, skús doplniť z webu ──
+    # Kontrolujeme len súbory závierok (SKGAAP_/IFRS_) — VS_ súbor pre daný rok
+    # neznamená že máme finančné dáta, fallback sa musí spustiť aj tak.
     if top_zavierky:
         _api_years = set()
         for fp in downloaded_files:
-            m = re.search(r'_(20\d{2})_', os.path.basename(fp))
+            _bn = os.path.basename(fp)
+            if _bn.startswith("VS_"):
+                continue
+            m = re.search(r'_(20\d{2})_', _bn)
             if m:
                 _api_years.add(int(m.group(1)))
         _newest_period = _period_from_dict(top_zavierky[0])
@@ -925,14 +946,17 @@ async def _process_zavierka(
     for vykaz in vykaz_results:
         if not isinstance(vykaz, dict):
             continue
-        all_vykazy.append(vykaz)
 
         # Detekcia neverejných dát — pobočky zahraničných spoločností,
-        # banky a poisťovne majú často výkazy označené ako "Neverejné"
+        # banky a poisťovne majú často výkazy označené ako "Neverejné".
+        # Kontrola MUSÍ byť pred all_vykazy.append — inak by JSON parser
+        # parsoval neverejné (prázdne) dáta.
         pristupnost = vykaz.get("pristupnostDat", "")
         if pristupnost and pristupnost.lower().startswith("neverejn"):
             logger.info(f"[RUZ_API] Výkaz {vykaz.get('id')} rok {year}: pristupnostDat={pristupnost} — preskakujem")
             continue
+
+        all_vykazy.append(vykaz)
 
         obsah = vykaz.get("obsah", {})
         tabs = obsah.get("tabulky", [])
