@@ -43,21 +43,38 @@ export default function ReportDetailPage() {
   const etaRef = useRef<number | null>(null);
 
   const fetchReport = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/reports/${params.id}`, { cache: "no-store" });
-      if (!res.ok) {
-        if (res.status === 404) setError(t("report.nenajdeny"));
-        else if (res.status === 403) setError(t("report.nemaPristup"));
-        else setError(t("report.chybaNacitania"));
+    // Retry na transient network errors (Next.js streaming bug, connection reset, etc.)
+    // Ak zlyhá aj po 3 pokusoch, zobrazí "Sieťová chyba" — ale normálne 2. pokus uspeje.
+    const _MAX_RETRIES = 3;
+    const _RETRY_DELAY_MS = 1500;
+    for (let attempt = 1; attempt <= _MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(`/api/reports/${params.id}`, { cache: "no-store" });
+        if (!res.ok) {
+          if (res.status === 404) { setError(t("report.nenajdeny")); return; }
+          if (res.status === 403) { setError(t("report.nemaPristup")); return; }
+          // 5xx — retry, môže byť transient
+          if (res.status >= 500 && attempt < _MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, _RETRY_DELAY_MS));
+            continue;
+          }
+          setError(t("report.chybaNacitania"));
+          return;
+        }
+        const data = await res.json();
+        setReport(data);
+        setError(null); // vyčist chybu ak predtým bola
         return;
+      } catch {
+        // Network-level error (fetch throw) — retry s delay
+        if (attempt < _MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, _RETRY_DELAY_MS));
+          continue;
+        }
+        setError(t("report.sietovaChyba"));
       }
-      const data = await res.json();
-      setReport(data);
-    } catch {
-      setError(t("report.sietovaChyba"));
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, [params.id]);
 
   useEffect(() => {
