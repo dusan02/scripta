@@ -98,6 +98,7 @@ const cz: Dict = {
   "firma.udajeNedostupne": "Údaje o súvahy nejsou dostupné",
   "firma.trzby": "Tržby",
   "firma.hrubaMarza": "Hrubá marže",
+  "firma.ziskovaMarza": "Zisková marže",
   "firma.osobneNaklady": "Osobní náklady",
   "firma.odpisy": "Odpisy",
   "firma.uroky": "Úroky",

@@ -113,6 +113,7 @@ const sk: Dict = {
   "firma.udajeNedostupne": "Údaje o súvahy nie sú dostupné",
   "firma.trzby": "Tržby",
   "firma.hrubaMarza": "Hrubá marža",
+  "firma.ziskovaMarza": "Zisková marža",
   "firma.osobneNaklady": "Osobné náklady",
   "firma.odpisy": "Odpisy",
   "firma.uroky": "Úroky",

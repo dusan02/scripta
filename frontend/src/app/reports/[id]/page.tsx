@@ -316,8 +316,8 @@ export default function ReportDetailPage() {
   const canCancel = !isFinished && cancelCountdown > 0 && report.status !== "CANCELLED" && reportAgeSec < 15;
 
   const score = report.verifaScore ?? 100;
-  const scoreColor = score < 50 ? "var(--danger)" : score < 80 ? "var(--warning)" : "var(--success)";
-  const scoreBgColor = score < 50 ? "var(--danger-bg)" : score < 80 ? "var(--warning-bg)" : "var(--success-bg)";
+  const scoreColor = score < 40 ? "var(--danger)" : score < 70 ? "var(--warning)" : "var(--success)";
+  const scoreBgColor = score < 40 ? "var(--danger-bg)" : score < 70 ? "var(--warning-bg)" : "var(--success-bg)";
 
   return (
     <div className="max-w-[1000px] mx-auto px-4 sm:px-6 animate-fade-in" style={{ minHeight: "calc(100vh - 56px)" }}>

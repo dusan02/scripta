@@ -199,6 +199,7 @@ const pl: Dict = {
   "firma.beznaLikviditaFormula": "Wzór: Aktywa obrotowe / Zobowiązania krótkoterminowe",
   "firma.trzby": "Przychody",
   "firma.hrubaMarza": "Marża brutto",
+  "firma.ziskovaMarza": "Marża zysku",
   "firma.osobneNaklady": "Koszty pracownicze",
   "firma.odpisy": "Amortyzacja",
   "firma.uroky": "Odsetki",

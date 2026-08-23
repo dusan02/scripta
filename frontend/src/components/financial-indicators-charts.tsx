@@ -275,9 +275,22 @@ function LegendButton({
   );
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Shared constants ─────────────────────────────────────────────────────────
 
-export function FinancialIndicatorsCharts({
+const axisColor = "var(--text-muted)";
+const gridColor = "var(--border)";
+const tooltipStyle = {
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  fontSize: 12,
+};
+const pctTickFormatter = (v: number) => `${v.toFixed(0)}%`;
+const ratioTickFormatter = (v: number) => v.toFixed(2);
+
+// ── Top chart: ROE, ROA, Zadlženosť ──────────────────────────────────────────
+
+export function TopFinancialChart({
   data,
 }: {
   data: FinancialIndicatorRow[];
@@ -293,30 +306,14 @@ export function FinancialIndicatorsCharts({
     [t],
   );
 
-  const bottomSeries: SeriesConfig[] = useMemo(
-    () => [
-      { key: "currentRatio", label: t("firma.beznaLikvidita"), color: "#8b5cf6" },
-      { key: "margin", label: t("firma.hrubaMarza"), color: "#f59e0b" },
-    ],
-    [t],
-  );
-
   const [topVisibility, setTopVisibility] = useState<TopVisibility>({
     debt: true,
     roe: true,
     roa: true,
   });
 
-  const [bottomVisibility, setBottomVisibility] = useState<BottomVisibility>({
-    currentRatio: true,
-    margin: true,
-  });
-
   const toggleTop = (key: TopSeriesKey) =>
     setTopVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
-
-  const toggleBottom = (key: BottomSeriesKey) =>
-    setBottomVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const visibleTopKeys = useMemo(
     () => topSeries.filter((s) => topVisibility[s.key as TopSeriesKey]).map((s) => s.key as TopSeriesKey),
@@ -328,23 +325,8 @@ export function FinancialIndicatorsCharts({
     [data, visibleTopKeys],
   );
 
-  const ratioDomain = useMemo(
-    () => computeRatioDomain(data),
-    [data],
-  );
-
-  const marginDomain = useMemo(
-    () => computeMarginDomain(data),
-    [data],
-  );
-
   const hasTopData = visibleTopKeys.length > 0;
-  const hasBottomData =
-    data.some((d) => d.currentRatio != null) || data.some((d) => d.margin != null);
 
-  // Scale percentage series ×100 for chart rendering.
-  // FinancialIndicatorRow stores fractions (0.91 = 91%), but the Y-axis domain
-  // and tick formatter work in percentage points (0–100).
   const topChartData = useMemo(
     () =>
       data.map((row) => ({
@@ -356,7 +338,132 @@ export function FinancialIndicatorsCharts({
     [data],
   );
 
-  // Bottom chart: currentRatio (raw) + margin (×100)
+  return (
+    <div>
+      <div
+        className="flex flex-wrap gap-x-3 gap-y-1.5 mb-2"
+        role="group"
+        aria-label="Viditeľnosť ukazovateľov"
+      >
+        {topSeries.map((s) => (
+          <LegendButton
+            key={s.key}
+            label={s.label}
+            color={s.color}
+            visible={topVisibility[s.key as TopSeriesKey]}
+            onClick={() => toggleTop(s.key as TopSeriesKey)}
+            axisColor={axisColor}
+          />
+        ))}
+      </div>
+
+      {hasTopData ? (
+        <ResponsiveContainer width="100%" height={220} minHeight={220}>
+          <LineChart
+            data={topChartData}
+            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={gridColor}
+              vertical={false}
+              strokeOpacity={0.5}
+            />
+            <XAxis
+              dataKey="year"
+              tick={{ fill: axisColor, fontSize: 11 }}
+              axisLine={{ stroke: gridColor }}
+              tickLine={false}
+            />
+            <YAxis
+              domain={pctDomain}
+              tickFormatter={pctTickFormatter}
+              tick={{ fill: axisColor, fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={42}
+            />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              content={
+                <TopTooltip
+                  series={topSeries}
+                  visibility={topVisibility}
+                />
+              }
+              cursor={{ stroke: gridColor, strokeOpacity: 0.5 }}
+            />
+            {topSeries.map((s) => (
+              <Line
+                key={s.key}
+                type="monotone"
+                dataKey={s.key}
+                stroke={s.color}
+                strokeWidth={2}
+                dot={{ fill: s.color, r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5, strokeWidth: 0 }}
+                connectNulls={false}
+                hide={!topVisibility[s.key as TopSeriesKey]}
+                isAnimationActive={false}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <div
+          className="flex items-center justify-center text-xs"
+          style={{
+            height: 220,
+            color: axisColor,
+            border: `1px solid ${gridColor}`,
+            borderRadius: 8,
+          }}
+        >
+          Žiadne viditeľné ukazovatele — zapnite aspoň jeden v legende.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Bottom chart: Bežná likvidita + Zisková marža ────────────────────────────
+
+export function BottomFinancialChart({
+  data,
+}: {
+  data: FinancialIndicatorRow[];
+}) {
+  const t = useT();
+
+  const bottomSeries: SeriesConfig[] = useMemo(
+    () => [
+      { key: "currentRatio", label: t("firma.beznaLikvidita"), color: "#8b5cf6" },
+      { key: "margin", label: t("firma.ziskovaMarza"), color: "#f59e0b" },
+    ],
+    [t],
+  );
+
+  const [bottomVisibility, setBottomVisibility] = useState<BottomVisibility>({
+    currentRatio: true,
+    margin: true,
+  });
+
+  const toggleBottom = (key: BottomSeriesKey) =>
+    setBottomVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const ratioDomain = useMemo(
+    () => computeRatioDomain(data),
+    [data],
+  );
+
+  const marginDomain = useMemo(
+    () => computeMarginDomain(data),
+    [data],
+  );
+
+  const hasBottomData =
+    data.some((d) => d.currentRatio != null) || data.some((d) => d.margin != null);
+
   const bottomChartData = useMemo(
     () =>
       data.map((row) => ({
@@ -367,214 +474,128 @@ export function FinancialIndicatorsCharts({
     [data],
   );
 
-  const axisColor = "var(--text-muted)";
-  const gridColor = "var(--border)";
-  const tooltipStyle = {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 8,
-    fontSize: 12,
-  };
+  return (
+    <div>
+      <div
+        className="flex flex-wrap gap-x-3 gap-y-1.5 mb-2"
+        role="group"
+        aria-label="Viditeľnosť ukazovateľov"
+      >
+        {bottomSeries.map((s) => (
+          <LegendButton
+            key={s.key}
+            label={s.label}
+            color={s.color}
+            visible={bottomVisibility[s.key as BottomSeriesKey]}
+            onClick={() => toggleBottom(s.key as BottomSeriesKey)}
+            axisColor={axisColor}
+          />
+        ))}
+      </div>
 
-  const pctTickFormatter = (v: number) => `${v.toFixed(0)}%`;
-  const ratioTickFormatter = (v: number) => v.toFixed(2);
+      {hasBottomData ? (
+        <ResponsiveContainer width="100%" height={220} minHeight={220}>
+          <LineChart
+            data={bottomChartData}
+            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={gridColor}
+              vertical={false}
+              strokeOpacity={0.5}
+            />
+            <XAxis
+              dataKey="year"
+              tick={{ fill: axisColor, fontSize: 11 }}
+              axisLine={{ stroke: gridColor }}
+              tickLine={false}
+            />
+            {/* Left Y-axis: Bežná likvidita (ratio) */}
+            <YAxis
+              yAxisId="ratio"
+              domain={ratioDomain}
+              tickFormatter={ratioTickFormatter}
+              tick={{ fill: "#8b5cf6", fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={42}
+            />
+            {/* Right Y-axis: Zisková marža (percentage) */}
+            <YAxis
+              yAxisId="pct"
+              orientation="right"
+              domain={marginDomain}
+              tickFormatter={pctTickFormatter}
+              tick={{ fill: "#f59e0b", fontSize: 10 }}
+              axisLine={false}
+              tickLine={false}
+              width={42}
+            />
+            <Tooltip
+              contentStyle={tooltipStyle}
+              content={
+                <BottomTooltip
+                  series={bottomSeries}
+                  visibility={bottomVisibility}
+                />
+              }
+              cursor={{ stroke: gridColor, strokeOpacity: 0.5 }}
+            />
+            <Line
+              yAxisId="ratio"
+              type="monotone"
+              dataKey="currentRatio"
+              stroke="#8b5cf6"
+              strokeWidth={2}
+              dot={{ fill: "#8b5cf6", r: 3, strokeWidth: 0 }}
+              activeDot={{ r: 5, strokeWidth: 0 }}
+              connectNulls={false}
+              hide={!bottomVisibility.currentRatio}
+              isAnimationActive={false}
+            />
+            <Line
+              yAxisId="pct"
+              type="monotone"
+              dataKey="margin"
+              stroke="#f59e0b"
+              strokeWidth={2}
+              dot={{ fill: "#f59e0b", r: 3, strokeWidth: 0 }}
+              activeDot={{ r: 5, strokeWidth: 0 }}
+              connectNulls={false}
+              hide={!bottomVisibility.margin}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <div
+          className="flex items-center justify-center text-xs"
+          style={{
+            height: 220,
+            color: axisColor,
+            border: `1px solid ${gridColor}`,
+            borderRadius: 8,
+          }}
+        >
+          Údaje nedostupné
+        </div>
+      )}
+    </div>
+  );
+}
 
+// ── Combined component (backwards compatible) ────────────────────────────────
+
+export function FinancialIndicatorsCharts({
+  data,
+}: {
+  data: FinancialIndicatorRow[];
+}) {
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Chart 1: ROE, ROA, Zadlženosť (percentá) ────────────────────── */}
-      <div>
-        <div
-          className="flex flex-wrap gap-x-3 gap-y-1.5 mb-2"
-          role="group"
-          aria-label="Viditeľnosť ukazovateľov"
-        >
-          {topSeries.map((s) => (
-            <LegendButton
-              key={s.key}
-              label={s.label}
-              color={s.color}
-              visible={topVisibility[s.key as TopSeriesKey]}
-              onClick={() => toggleTop(s.key as TopSeriesKey)}
-              axisColor={axisColor}
-            />
-          ))}
-        </div>
-
-        {hasTopData ? (
-          <ResponsiveContainer width="100%" height={220} minHeight={220}>
-            <LineChart
-              data={topChartData}
-              margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={gridColor}
-                vertical={false}
-                strokeOpacity={0.5}
-              />
-              <XAxis
-                dataKey="year"
-                tick={{ fill: axisColor, fontSize: 11 }}
-                axisLine={{ stroke: gridColor }}
-                tickLine={false}
-              />
-              <YAxis
-                domain={pctDomain}
-                tickFormatter={pctTickFormatter}
-                tick={{ fill: axisColor, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={42}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                content={
-                  <TopTooltip
-                    series={topSeries}
-                    visibility={topVisibility}
-                  />
-                }
-                cursor={{ stroke: gridColor, strokeOpacity: 0.5 }}
-              />
-              {topSeries.map((s) => (
-                <Line
-                  key={s.key}
-                  type="monotone"
-                  dataKey={s.key}
-                  stroke={s.color}
-                  strokeWidth={2}
-                  dot={{ fill: s.color, r: 3, strokeWidth: 0 }}
-                  activeDot={{ r: 5, strokeWidth: 0 }}
-                  connectNulls={false}
-                  hide={!topVisibility[s.key as TopSeriesKey]}
-                  isAnimationActive={false}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div
-            className="flex items-center justify-center text-xs"
-            style={{
-              height: 220,
-              color: axisColor,
-              border: `1px solid ${gridColor}`,
-              borderRadius: 8,
-            }}
-          >
-            Žiadne viditeľné ukazovatele — zapnite aspoň jeden v legende.
-          </div>
-        )}
-      </div>
-
-      {/* ── Chart 2: Bežná likvidita + Zisková marža (dual Y-axis) ──────── */}
-      <div>
-        <div
-          className="flex flex-wrap gap-x-3 gap-y-1.5 mb-2"
-          role="group"
-          aria-label="Viditeľnosť ukazovateľov"
-        >
-          {bottomSeries.map((s) => (
-            <LegendButton
-              key={s.key}
-              label={s.label}
-              color={s.color}
-              visible={bottomVisibility[s.key as BottomSeriesKey]}
-              onClick={() => toggleBottom(s.key as BottomSeriesKey)}
-              axisColor={axisColor}
-            />
-          ))}
-        </div>
-
-        {hasBottomData ? (
-          <ResponsiveContainer width="100%" height={180} minHeight={180}>
-            <LineChart
-              data={bottomChartData}
-              margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={gridColor}
-                vertical={false}
-                strokeOpacity={0.5}
-              />
-              <XAxis
-                dataKey="year"
-                tick={{ fill: axisColor, fontSize: 11 }}
-                axisLine={{ stroke: gridColor }}
-                tickLine={false}
-              />
-              {/* Left Y-axis: Bežná likvidita (ratio) */}
-              <YAxis
-                yAxisId="ratio"
-                domain={ratioDomain}
-                tickFormatter={ratioTickFormatter}
-                tick={{ fill: "#8b5cf6", fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={42}
-              />
-              {/* Right Y-axis: Zisková marža (percentage) */}
-              <YAxis
-                yAxisId="pct"
-                orientation="right"
-                domain={marginDomain}
-                tickFormatter={pctTickFormatter}
-                tick={{ fill: "#f59e0b", fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                width={42}
-              />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                content={
-                  <BottomTooltip
-                    series={bottomSeries}
-                    visibility={bottomVisibility}
-                  />
-                }
-                cursor={{ stroke: gridColor, strokeOpacity: 0.5 }}
-              />
-              <Line
-                yAxisId="ratio"
-                type="monotone"
-                dataKey="currentRatio"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                dot={{ fill: "#8b5cf6", r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5, strokeWidth: 0 }}
-                connectNulls={false}
-                hide={!bottomVisibility.currentRatio}
-                isAnimationActive={false}
-              />
-              <Line
-                yAxisId="pct"
-                type="monotone"
-                dataKey="margin"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                dot={{ fill: "#f59e0b", r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5, strokeWidth: 0 }}
-                connectNulls={false}
-                hide={!bottomVisibility.margin}
-                isAnimationActive={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div
-            className="flex items-center justify-center text-xs"
-            style={{
-              height: 180,
-              color: axisColor,
-              border: `1px solid ${gridColor}`,
-              borderRadius: 8,
-            }}
-          >
-            Údaje nedostupné
-          </div>
-        )}
-      </div>
+      <TopFinancialChart data={data} />
+      <BottomFinancialChart data={data} />
     </div>
   );
 }

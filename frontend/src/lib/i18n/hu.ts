@@ -199,6 +199,7 @@ const hu: Dict = {
   "firma.beznaLikviditaFormula": "Képlet: Forgóeszközök / Rövid lejáratú kötelezettségek",
   "firma.trzby": "Árbevétel",
   "firma.hrubaMarza": "Bruttó árrés",
+  "firma.ziskovaMarza": "Nyereségmarzs",
   "firma.osobneNaklady": "Személyi jellegű ráfordítások",
   "firma.odpisy": "Értékcsökkenés",
   "firma.uroky": "Kamatok",

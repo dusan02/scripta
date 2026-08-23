@@ -16,17 +16,6 @@
     {% set score = verdict.verifaScore if verdict else 0 %}
     {% set gauge_color = "#5b9279" if score >= 70 else "#f59e0b" if score >= 40 else "#e11d48" %}
 
-    {# ── Key Risk Highlight (dynamický z AI verdict) ── #}
-    {% set key_risk = verdict.keyRisk if verdict and verdict.keyRisk else '' %}
-    {% if key_risk %}
-    <div class="max-w-md mb-10 px-6 py-4 bg-slate-50 border-l-4 rounded-r-lg" style="border-color: {{ gauge_color }};">
-        <p class="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">{{ i18n.key_risk_label | default('Kľúčové riziko') }}</p>
-        <p class="text-sm text-slate-700 leading-snug">{{ key_risk }}</p>
-    </div>
-    {% else %}
-    <div class="mb-10"></div>
-    {% endif %}
-
     <div class="flex flex-col items-center justify-center mb-16">
         {# ── Pečiatka: VERIFA SKÓRE (Zväčšená) ── #}
         <div style="transform: rotate(4deg);">
@@ -99,16 +88,6 @@
                 </div>
                 {% endif %}
             </div>
-        </div>
-    </div>
-
-    {# ── Coverage summary ── #}
-    <div class="w-full mt-2">
-        <div class="text-center">
-            <p class="text-xs text-slate-500 font-semibold">{{ i18n.coverage_auto }}: {{ coverage_successful }} / {{ coverage_total }} {{ i18n.coverage_sources }}</p>
-            {% if coverage_uncontrolled is defined and coverage_uncontrolled > 0 %}
-            <p class="text-[10px] text-slate-400">{{ i18n.coverage_uncontrolled }}: {{ coverage_uncontrolled }} ({{ i18n.not_automatic | default('nie súčasťou automatického preverenia') }})</p>
-            {% endif %}
         </div>
     </div>
 </div>

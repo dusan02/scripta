@@ -113,6 +113,7 @@ const en: Dict = {
   "firma.udajeNedostupne": "Balance sheet data not available",
   "firma.trzby": "Revenue",
   "firma.hrubaMarza": "Gross margin",
+  "firma.ziskovaMarza": "Profit margin",
   "firma.osobneNaklady": "Staff costs",
   "firma.odpisy": "Depreciation",
   "firma.uroky": "Interest",

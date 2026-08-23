@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
 import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, FinancialRatios } from "@/components/firma-ui";
-import { FinancialIndicatorsCharts } from "@/components/financial-indicators-charts";
+import { TopFinancialChart, BottomFinancialChart } from "@/components/financial-indicators-charts";
 import { computeFinancialIndicators } from "@/lib/financial-indicators";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -396,14 +396,17 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Financial ratios — charts left (5/12), table right (7/12) */}
+        {/* Financial ratios — 3 columns: chart 1 | chart 2 | table */}
         {stmts.length > 0 && (
           <div className="mb-6 sm:mb-8 print-section print-break-before-avoid">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <ChartCard title="Finančné ukazovatele — grafy" className="md:col-span-5">
-                <FinancialIndicatorsCharts data={computeFinancialIndicators(stmts)} />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <ChartCard title="Rentabilita & Zadlženosť" className="lg:col-span-4">
+                <TopFinancialChart data={computeFinancialIndicators(stmts)} />
               </ChartCard>
-              <ChartCard title="Finančné ukazovatele" className="md:col-span-7">
+              <ChartCard title="Likvidita & Marža" className="lg:col-span-4">
+                <BottomFinancialChart data={computeFinancialIndicators(stmts)} />
+              </ChartCard>
+              <ChartCard title="Finančné ukazovatele" className="lg:col-span-4">
                 <FinancialRatios stmts={stmts} />
               </ChartCard>
             </div>

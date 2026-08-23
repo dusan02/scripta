@@ -126,6 +126,7 @@ const de: Dict = {
   "firma.beznaLikviditaFormula": "Formel: Umlaufvermögen / Kurzfristige Verbindlichkeiten",
   "firma.trzby": "Umsatz",
   "firma.hrubaMarza": "Rohergebnis",
+  "firma.ziskovaMarza": "Gewinnmarge",
   "firma.osobneNaklady": "Personalkosten",
   "firma.odpisy": "Abschreibungen",
   "firma.uroky": "Zinsen",
