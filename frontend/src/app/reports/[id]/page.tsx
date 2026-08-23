@@ -52,6 +52,11 @@ export default function ReportDetailPage() {
         try {
           const res = await fetch(`/api/reports/${params.id}`, { cache: "no-store" });
           if (!res.ok) {
+            if (res.status === 401) {
+              // Session expirovala → redirect na login s návratom
+              router.replace(`/login?callbackUrl=/reports/${params.id}`);
+              return;
+            }
             if (res.status === 404) { setError(t("report.nenajdeny")); return; }
             if (res.status === 403) { setError(t("report.nemaPristup")); return; }
             // 5xx — retry, môže byť transient
