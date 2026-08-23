@@ -155,6 +155,9 @@ def _check_cross_year_unit_consistency(results: list[CompanyFinancialExtraction]
         "vysledok_beziaceho_roka", "dlhodobe_rezervy", "kratkodobe_rezervy",
         "bezne_bankove_uvery", "kratkodobe_financne_vypomoci",
         "prevod_podielov_spolocnikom",
+        # Total liabilities (row 101 — zahŕňa rezervy + všetky záväzky)
+        # Mapuje sa na totalLiabilities v DB — musí byť fixnuté spolu s ostatnými
+        "celkove_cudzie_zdroje",
     ]
 
     for data in results:
@@ -356,6 +359,7 @@ async def process_company(
     _t_start = time.perf_counter()
     _ifrs_count = 0
     _vs_count = 0
+    _llm_quota_exhausted = False  # True ak Gemini vrátil 429 RESOURCE_EXHAUSTED
 
     from src.db_repository import get_avg_completion_seconds, get_report_request_company_name, upsert_company_name, update_ai_status
     
@@ -531,7 +535,13 @@ async def process_company(
             else:
                 logger.warning(f"[IFRS EMPTY] {file_name} → safe_llm_call vrátil None")
         except Exception as e:
-            logger.error(f"Chyba pri spracovaní súboru {file_name}: {e}", exc_info=True)
+            error_str = str(e).lower()
+            if "429" in error_str or "resource_exhausted" in error_str or "all models failed" in error_str:
+                nonlocal _llm_quota_exhausted
+                _llm_quota_exhausted = True
+                logger.error(f"[IFRS LLM_QUOTA] {file_name} → Gemini 429 RESOURCE_EXHAUSTED — extrakcia zlyhala kvôli vyčerpaným kreditom")
+            else:
+                logger.error(f"Chyba pri spracovaní súboru {file_name}: {e}", exc_info=True)
 
     async def _process_vs(file_path: str, sem: asyncio.Semaphore):
         """Spracuje jeden VS PDF: Gemini naratívna analýza → DB save."""
@@ -672,18 +682,35 @@ async def process_company(
 
     # CRITICAL CHECK: ak neboli extrahované žiadne finančné údaje, ulož varovanie
     if not _ifrs_results:
-        logger.error(f"[PIPELINE] CRITICAL: Žiadne finančné údaje extrahované pre IČO {ico} — report bude bez finančnej analýzy! (ifrs_files={len(ifrs_files)}, vs_files={len(vs_files)})")
-        try:
-            from src.db_repository import append_company_event_to_db
-            await append_company_event_to_db(ico, {
-                "source": "PIPELINE",
-                "eventType": "FINANCIAL_DATA_MISSING",
-                "severity": "CRITICAL",
-                "description": "Nepodarilo sa získať finančné údaje z RÚZ — report je bez finančnej analýzy.",
-                "metadata": {"ifrs_files": len(ifrs_files), "vs_files": len(vs_files)},
-            })
-        except Exception as e:
-            logger.warning(f"[PIPELINE] Nepodarilo sa uložiť FINANCIAL_DATA_MISSING event: {e}")
+        if _llm_quota_exhausted and ifrs_files:
+            # LLM bol nedostupný (429 RESOURCE_EXHAUSTED) — dáta existujú v PDF,
+            # ale extrakcia zlyhala. Firma môže byť bezpečne reprocessovaná
+            # keď sa Gemini credits doplnia.
+            logger.error(f"[PIPELINE] EXTRACTION_PENDING: IČO {ico} — PDF súbory existujú ({len(ifrs_files)}) ale Gemini LLM je nedostupný (429). Reprocessovať po doplnení kreditov.")
+            try:
+                from src.db_repository import append_company_event_to_db
+                await append_company_event_to_db(ico, {
+                    "source": "PIPELINE",
+                    "eventType": "EXTRACTION_PENDING",
+                    "severity": "HIGH",
+                    "description": "Finančné výkazy boli stiahnuté z RÚZ, ale extrakcia zlyhala — Gemini API credits vyčerpané (429 RESOURCE_EXHAUSTED). Reprocessovať po doplnení kreditov.",
+                    "metadata": {"ifrs_files": len(ifrs_files), "vs_files": len(vs_files), "reason": "LLM_QUOTA_EXHAUSTED"},
+                })
+            except Exception as e:
+                logger.warning(f"[PIPELINE] Nepodarilo sa uložiť EXTRACTION_PENDING event: {e}")
+        else:
+            logger.error(f"[PIPELINE] CRITICAL: Žiadne finančné údaje extrahované pre IČO {ico} — report bude bez finančnej analýzy! (ifrs_files={len(ifrs_files)}, vs_files={len(vs_files)})")
+            try:
+                from src.db_repository import append_company_event_to_db
+                await append_company_event_to_db(ico, {
+                    "source": "PIPELINE",
+                    "eventType": "FINANCIAL_DATA_MISSING",
+                    "severity": "CRITICAL",
+                    "description": "Nepodarilo sa získať finančné údaje z RÚZ — report je bez finančnej analýzy.",
+                    "metadata": {"ifrs_files": len(ifrs_files), "vs_files": len(vs_files)},
+                })
+            except Exception as e:
+                logger.warning(f"[PIPELINE] Nepodarilo sa uložiť FINANCIAL_DATA_MISSING event: {e}")
 
     # Uloženie do DB po duplicate checku
     for data in _ifrs_results:
