@@ -326,6 +326,11 @@ def save_results(results: list[dict], output_dir: str):
         f.write(f"| Imbalance < 30% | <30% | {imbalance_count}/{total} ({imbalance_count/total*100:.0f}%) | {'✅' if imbalance_count/total < 0.3 else '❌'} |\n")
         f.write(f"| UNKNOWN discipline | >0 firms | {with_unknown}/{total} | {'✅' if with_unknown > 0 else '⚠️'} |\n")
         f.write(f"| Score unchanged | deterministic | — | ✅ (verified by tests) |\n")
+        f.write(f"\n")
+        f.write(f"**Note:** NotesRisk/NarrativeRisk coverage is NOT a quality gate. `null` for fields\n")
+        f.write(f"the firm genuinely doesn't have (e.g. acquisitions, restructuring) is correct —\n")
+        f.write(f"**precision matters more than forced field filling.** Coverage is shown for\n")
+        f.write(f"information only, to identify extraction gaps vs. legitimate absences.\n")
 
     print(f"\n=== Výsledky uložené do {output_dir} ===")
     print(f"  summary.csv — tabuľka s metrics")
