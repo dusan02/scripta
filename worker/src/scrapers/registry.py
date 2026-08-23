@@ -110,7 +110,8 @@ _SCRAPER_TIMEOUT_DEFAULT = 180
 _SCRAPER_TIMEOUTS: Dict[str, int] = {
     # API scrapery — rýchle, nepotrebujú browser
     "REGISTER_UZ": 60,
-    "OBCHODNY_VESTNIK": 60,
+    # Vestník: 50 strán × 0.5s delay + HTTP = ~40s. 90s dáva margin pre pomalé API.
+    "OBCHODNY_VESTNIK": 90,
     "ROZHODNUTIA": 45,
     # Rýchle browser scrapery
     "ORSR": 60,

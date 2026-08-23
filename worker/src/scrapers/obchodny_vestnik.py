@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 _API_BASE = "https://datahub.ekosystem.slovensko.digital/api/data/ov"
 _MAX_PAGES = 50
-_RATE_LIMIT_DELAY = 1.2  # sekundy medzi requestami (60 req/min limit)
+# API limit: 60 req/min = 1 req/s. S HTTP latency ~0.3-0.5s/page je 0.5s delay
+# bezpečné (efektívne ~0.6-0.7 req/s). 50 strán × 0.5s = 25s + HTTP = ~40s celkom.
+_RATE_LIMIT_DELAY = 0.5  # sekundy medzi requestami (60 req/min limit)
 
 
 class ObchodnyVestnikXmlScraper(BaseScraper):
@@ -45,7 +47,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
         found_events = []
 
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            async with httpx.AsyncClient(timeout=30) as client:
                 # 1. Konkurz/reštrukturalizácia/likvidácia — najkritické
                 found_events.extend(
                     await self._fetch_and_filter(client, "konkurz_restrukturalizacia_issues", ico_int, ico_clean)
