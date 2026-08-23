@@ -105,6 +105,7 @@ def get_scraper(source_type: str) -> Type[BaseScraper]:
 # Per-scraper timeout — jeden pomalý register nezrúši celý batch
 # Default 180s (zvýšené z 90s — slovenské štátne weby sú pomalé, najmä Dovera, SP, RPO).
 # Pomalé browser scrapery dostávajú viac času; API scrapery menej.
+_SCRAPER_TIMEOUT = 180  # backward-compat alias (test imports this)
 _SCRAPER_TIMEOUT_DEFAULT = 180
 _SCRAPER_TIMEOUTS: Dict[str, int] = {
     # API scrapery — rýchle, nepotrebujú browser

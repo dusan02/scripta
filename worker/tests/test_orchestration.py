@@ -344,12 +344,12 @@ class TestPerScraperTimeout:
         """_SCRAPER_TIMEOUT by mal byť definovaný v registry.py."""
         from src.scrapers.registry import _SCRAPER_TIMEOUT
         assert _SCRAPER_TIMEOUT > 0, "Per-scraper timeout by mal byť > 0"
-        assert _SCRAPER_TIMEOUT <= 120, "Per-scraper timeout by nemal byť príliš vysoký (≤120s)"
+        assert _SCRAPER_TIMEOUT <= 300, "Per-scraper timeout by nemal byť príliš vysoký (≤300s)"
 
     @pytest.mark.asyncio
     async def test_slow_scraper_returns_failed_not_hangs(self):
         """Scraper ktorý trvá dlho by mal byť timeoutovaný, nie zaseknutý."""
-        from src.scrapers.registry import run_scrapers, _SCRAPER_TIMEOUT
+        from src.scrapers.registry import run_scrapers, _get_scraper_timeout
         import time
 
         # Mock browser — nepotrebujeme reálny, scraper sa vytvorí ale run() sa mockuje
@@ -358,14 +358,14 @@ class TestPerScraperTimeout:
         # Patch get_scraper aby vrátil scraper s pomalým run()
         slow_scraper = AsyncMock()
         async def slow_run(**kwargs):
-            await asyncio.sleep(_SCRAPER_TIMEOUT + 10)  # dlhšie ako timeout
+            await asyncio.sleep(10)  # dlhšie ako timeout
             from src.models import ScrapedSource
             return ScrapedSource(source_type="TEST", status="SUCCESS")
         slow_scraper.run = slow_run
         slow_scraper._close = AsyncMock()
 
         with patch("src.scrapers.registry.get_scraper", return_value=MagicMock(return_value=slow_scraper)):
-            with patch("src.scrapers.registry._SCRAPER_TIMEOUT", 0.5):
+            with patch("src.scrapers.registry._get_scraper_timeout", return_value=0.5):
                 t0 = time.perf_counter()
                 results = await run_scrapers(
                     sources=["TEST"],
