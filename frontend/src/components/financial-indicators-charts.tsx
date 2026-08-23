@@ -13,39 +13,36 @@ import {
 import { useT } from "@/components/LanguageProvider";
 import {
   type FinancialIndicatorRow,
-  fmtPct,
   fmtRatio,
 } from "@/lib/financial-indicators";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type PctSeriesKey = "debt" | "roe" | "roa" | "margin";
+type TopSeriesKey = "debt" | "roe" | "roa";
+type BottomSeriesKey = "currentRatio" | "margin";
 
-type PctSeriesConfig = {
-  key: PctSeriesKey;
+type SeriesConfig = {
+  key: TopSeriesKey | BottomSeriesKey;
   label: string;
   color: string;
 };
 
-type Visibility = Record<PctSeriesKey, boolean>;
-
-// ── Chart data adapter ───────────────────────────────────────────────────────
-// Recharts expects { year, debt, roe, roa, margin } objects.
-// Our FinancialIndicatorRow already matches this shape.
+type TopVisibility = Record<TopSeriesKey, boolean>;
+type BottomVisibility = Record<BottomSeriesKey, boolean>;
 
 // ── Dynamic Y-axis domain ────────────────────────────────────────────────────
 
 function computePctDomain(
   data: FinancialIndicatorRow[],
-  visibleKeys: PctSeriesKey[],
+  keys: TopSeriesKey[],
 ): [number, number] | undefined {
-  if (visibleKeys.length === 0) return undefined;
+  if (keys.length === 0) return undefined;
 
   const values: number[] = [];
   for (const row of data) {
-    for (const key of visibleKeys) {
+    for (const key of keys) {
       const v = row[key];
-      if (v != null) values.push(v * 100); // work in percentage points
+      if (v != null) values.push(v * 100);
     }
   }
 
@@ -54,21 +51,17 @@ function computePctDomain(
   let min = Math.min(...values);
   let max = Math.max(...values);
 
-  // If only one distinct value, expand around it
   if (min === max) {
     const pad = Math.max(Math.abs(min) * 0.1, 1);
     min -= pad;
     max += pad;
   }
 
-  // Visual padding so lines don't touch the boundary
   const range = max - min;
   const pad = range * 0.1;
   min -= pad;
   max += pad;
 
-  // Don't go below -100% or above 100% by default (debt can't exceed 100%,
-  // but ROE can be very negative with negative equity — allow natural range)
   return [min, max];
 }
 
@@ -97,9 +90,35 @@ function computeRatioDomain(
   return [min, max];
 }
 
-// ── Custom tooltip ───────────────────────────────────────────────────────────
+function computeMarginDomain(
+  data: FinancialIndicatorRow[],
+): [number, number] | undefined {
+  const values = data
+    .map((d) => d.margin)
+    .filter((v): v is number => v != null)
+    .map((v) => v * 100);
+  if (values.length === 0) return undefined;
 
-function PctTooltip({
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+
+  if (min === max) {
+    const pad = Math.max(Math.abs(min) * 0.1, 1);
+    min -= pad;
+    max += pad;
+  }
+
+  const range = max - min;
+  const pad = range * 0.1;
+  min -= pad;
+  max += pad;
+
+  return [min, max];
+}
+
+// ── Custom tooltips ──────────────────────────────────────────────────────────
+
+function TopTooltip({
   active,
   payload,
   label,
@@ -109,12 +128,12 @@ function PctTooltip({
   active?: boolean;
   payload?: any[];
   label?: string | number;
-  series: PctSeriesConfig[];
-  visibility: Visibility;
+  series: SeriesConfig[];
+  visibility: TopVisibility;
 }) {
   if (!active || !payload || payload.length === 0) return null;
 
-  const visibleSeries = series.filter((s) => visibility[s.key]);
+  const visibleSeries = series.filter((s) => visibility[s.key as TopSeriesKey]);
 
   return (
     <div
@@ -144,7 +163,7 @@ function PctTooltip({
             />
             <span>{s.label}:</span>
             <span style={{ fontWeight: 600, marginLeft: "auto" }}>
-              {v == null ? "—" : fmtPct(v)}
+              {v == null ? "—" : `${v.toFixed(1)}%`}
             </span>
           </div>
         );
@@ -153,17 +172,25 @@ function PctTooltip({
   );
 }
 
-function RatioTooltip({
+function BottomTooltip({
   active,
   payload,
   label,
+  series,
+  visibility,
 }: {
   active?: boolean;
   payload?: any[];
   label?: string | number;
+  series: SeriesConfig[];
+  visibility: BottomVisibility;
 }) {
   if (!active || !payload || payload.length === 0) return null;
-  const v = payload[0]?.value as number | null | undefined;
+
+  const visibleSeries = series.filter(
+    (s) => visibility[s.key as BottomSeriesKey],
+  );
+
   return (
     <div
       style={{
@@ -176,22 +203,75 @@ function RatioTooltip({
       }}
     >
       <div style={{ fontWeight: 700, marginBottom: 2 }}>{label}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span
-          style={{
-            display: "inline-block",
-            width: 8,
-            height: 8,
-            borderRadius: 2,
-            background: "#8b5cf6",
-          }}
-        />
-        <span>Bežná likvidita:</span>
-        <span style={{ fontWeight: 600, marginLeft: "auto" }}>
-          {v == null ? "—" : fmtRatio(v)}
-        </span>
-      </div>
+      {visibleSeries.map((s) => {
+        const entry = payload.find((p: any) => p.dataKey === s.key);
+        const v = entry?.value as number | null | undefined;
+        const isRatio = s.key === "currentRatio";
+        return (
+          <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                background: s.color,
+              }}
+            />
+            <span>{s.label}:</span>
+            <span style={{ fontWeight: 600, marginLeft: "auto" }}>
+              {v == null
+                ? "—"
+                : isRatio
+                  ? fmtRatio(v)
+                  : `${v.toFixed(1)}%`}
+            </span>
+          </div>
+        );
+      })}
     </div>
+  );
+}
+
+// ── Legend button ────────────────────────────────────────────────────────────
+
+function LegendButton({
+  label,
+  color,
+  visible,
+  onClick,
+  axisColor,
+}: {
+  label: string;
+  color: string;
+  visible: boolean;
+  onClick: () => void;
+  axisColor: string;
+}) {
+  return (
+    <button
+      key={label}
+      type="button"
+      onClick={onClick}
+      aria-pressed={visible}
+      className="flex items-center gap-1.5 text-xs cursor-pointer rounded px-1 py-0.5 transition-opacity"
+      style={{
+        opacity: visible ? 1 : 0.4,
+        color: axisColor,
+        outlineOffset: 2,
+      }}
+      title={visible ? `Skryť ${label}` : `Zobraziť ${label}`}
+    >
+      <span
+        className="inline-block w-2.5 h-2.5 rounded-sm"
+        style={{
+          background: visible ? color : "var(--border)",
+          border: `1.5px solid ${color}`,
+        }}
+        aria-hidden="true"
+      />
+      {label}
+    </button>
   );
 }
 
@@ -204,34 +284,48 @@ export function FinancialIndicatorsCharts({
 }) {
   const t = useT();
 
-  const series: PctSeriesConfig[] = useMemo(
+  const topSeries: SeriesConfig[] = useMemo(
     () => [
       { key: "debt", label: t("firma.zadlzenost"), color: "#ef4444" },
       { key: "roe", label: "ROE", color: "#10b981" },
       { key: "roa", label: "ROA", color: "#3b82f6" },
-      { key: "margin", label: "Zisková marža", color: "#f59e0b" },
     ],
     [t],
   );
 
-  const [visibility, setVisibility] = useState<Visibility>({
+  const bottomSeries: SeriesConfig[] = useMemo(
+    () => [
+      { key: "currentRatio", label: t("firma.beznaLikvidita"), color: "#8b5cf6" },
+      { key: "margin", label: t("firma.hrubaMarza"), color: "#f59e0b" },
+    ],
+    [t],
+  );
+
+  const [topVisibility, setTopVisibility] = useState<TopVisibility>({
     debt: true,
     roe: true,
     roa: true,
+  });
+
+  const [bottomVisibility, setBottomVisibility] = useState<BottomVisibility>({
+    currentRatio: true,
     margin: true,
   });
 
-  const toggle = (key: PctSeriesKey) =>
-    setVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleTop = (key: TopSeriesKey) =>
+    setTopVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const visibleKeys = useMemo(
-    () => series.filter((s) => visibility[s.key]).map((s) => s.key),
-    [series, visibility],
+  const toggleBottom = (key: BottomSeriesKey) =>
+    setBottomVisibility((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const visibleTopKeys = useMemo(
+    () => topSeries.filter((s) => topVisibility[s.key as TopSeriesKey]).map((s) => s.key as TopSeriesKey),
+    [topSeries, topVisibility],
   );
 
   const pctDomain = useMemo(
-    () => computePctDomain(data, visibleKeys),
-    [data, visibleKeys],
+    () => computePctDomain(data, visibleTopKeys),
+    [data, visibleTopKeys],
   );
 
   const ratioDomain = useMemo(
@@ -239,8 +333,39 @@ export function FinancialIndicatorsCharts({
     [data],
   );
 
-  const hasVisibleSeries = visibleKeys.length > 0;
-  const hasRatioData = data.some((d) => d.currentRatio != null);
+  const marginDomain = useMemo(
+    () => computeMarginDomain(data),
+    [data],
+  );
+
+  const hasTopData = visibleTopKeys.length > 0;
+  const hasBottomData =
+    data.some((d) => d.currentRatio != null) || data.some((d) => d.margin != null);
+
+  // Scale percentage series ×100 for chart rendering.
+  // FinancialIndicatorRow stores fractions (0.91 = 91%), but the Y-axis domain
+  // and tick formatter work in percentage points (0–100).
+  const topChartData = useMemo(
+    () =>
+      data.map((row) => ({
+        year: row.year,
+        debt: row.debt != null ? row.debt * 100 : null,
+        roe: row.roe != null ? row.roe * 100 : null,
+        roa: row.roa != null ? row.roa * 100 : null,
+      })),
+    [data],
+  );
+
+  // Bottom chart: currentRatio (raw) + margin (×100)
+  const bottomChartData = useMemo(
+    () =>
+      data.map((row) => ({
+        year: row.year,
+        currentRatio: row.currentRatio,
+        margin: row.margin != null ? row.margin * 100 : null,
+      })),
+    [data],
+  );
 
   const axisColor = "var(--text-muted)";
   const gridColor = "var(--border)";
@@ -256,48 +381,29 @@ export function FinancialIndicatorsCharts({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Chart 1: Percentage metrics ─────────────────────────────────── */}
+      {/* ── Chart 1: ROE, ROA, Zadlženosť (percentá) ────────────────────── */}
       <div>
-        {/* Custom interactive legend */}
         <div
           className="flex flex-wrap gap-x-3 gap-y-1.5 mb-2"
           role="group"
           aria-label="Viditeľnosť ukazovateľov"
         >
-          {series.map((s) => {
-            const isVisible = visibility[s.key];
-            return (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => toggle(s.key)}
-                aria-pressed={isVisible}
-                className="flex items-center gap-1.5 text-xs cursor-pointer rounded px-1 py-0.5 transition-opacity"
-                style={{
-                  opacity: isVisible ? 1 : 0.4,
-                  color: axisColor,
-                  outlineOffset: 2,
-                }}
-                title={isVisible ? `Skryť ${s.label}` : `Zobraziť ${s.label}`}
-              >
-                <span
-                  className="inline-block w-2.5 h-2.5 rounded-sm"
-                  style={{
-                    background: isVisible ? s.color : "var(--border)",
-                    border: `1.5px solid ${s.color}`,
-                  }}
-                  aria-hidden="true"
-                />
-                {s.label}
-              </button>
-            );
-          })}
+          {topSeries.map((s) => (
+            <LegendButton
+              key={s.key}
+              label={s.label}
+              color={s.color}
+              visible={topVisibility[s.key as TopSeriesKey]}
+              onClick={() => toggleTop(s.key as TopSeriesKey)}
+              axisColor={axisColor}
+            />
+          ))}
         </div>
 
-        {hasVisibleSeries ? (
+        {hasTopData ? (
           <ResponsiveContainer width="100%" height={220} minHeight={220}>
             <LineChart
-              data={data}
+              data={topChartData}
               margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
             >
               <CartesianGrid
@@ -323,14 +429,14 @@ export function FinancialIndicatorsCharts({
               <Tooltip
                 contentStyle={tooltipStyle}
                 content={
-                  <PctTooltip
-                    series={series}
-                    visibility={visibility}
+                  <TopTooltip
+                    series={topSeries}
+                    visibility={topVisibility}
                   />
                 }
                 cursor={{ stroke: gridColor, strokeOpacity: 0.5 }}
               />
-              {series.map((s) => (
+              {topSeries.map((s) => (
                 <Line
                   key={s.key}
                   type="monotone"
@@ -340,7 +446,7 @@ export function FinancialIndicatorsCharts({
                   dot={{ fill: s.color, r: 3, strokeWidth: 0 }}
                   activeDot={{ r: 5, strokeWidth: 0 }}
                   connectNulls={false}
-                  hide={!visibility[s.key]}
+                  hide={!topVisibility[s.key as TopSeriesKey]}
                   isAnimationActive={false}
                 />
               ))}
@@ -361,18 +467,29 @@ export function FinancialIndicatorsCharts({
         )}
       </div>
 
-      {/* ── Chart 2: Bežná likvidita ────────────────────────────────────── */}
+      {/* ── Chart 2: Bežná likvidita + Zisková marža (dual Y-axis) ──────── */}
       <div>
-        <h4
-          className="text-xs font-semibold mb-1.5"
-          style={{ color: axisColor }}
+        <div
+          className="flex flex-wrap gap-x-3 gap-y-1.5 mb-2"
+          role="group"
+          aria-label="Viditeľnosť ukazovateľov"
         >
-          {t("firma.beznaLikvidita")}
-        </h4>
-        {hasRatioData ? (
-          <ResponsiveContainer width="100%" height={140} minHeight={140}>
+          {bottomSeries.map((s) => (
+            <LegendButton
+              key={s.key}
+              label={s.label}
+              color={s.color}
+              visible={bottomVisibility[s.key as BottomSeriesKey]}
+              onClick={() => toggleBottom(s.key as BottomSeriesKey)}
+              axisColor={axisColor}
+            />
+          ))}
+        </div>
+
+        {hasBottomData ? (
+          <ResponsiveContainer width="100%" height={180} minHeight={180}>
             <LineChart
-              data={data}
+              data={bottomChartData}
               margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
             >
               <CartesianGrid
@@ -387,20 +504,39 @@ export function FinancialIndicatorsCharts({
                 axisLine={{ stroke: gridColor }}
                 tickLine={false}
               />
+              {/* Left Y-axis: Bežná likvidita (ratio) */}
               <YAxis
+                yAxisId="ratio"
                 domain={ratioDomain}
                 tickFormatter={ratioTickFormatter}
-                tick={{ fill: axisColor, fontSize: 10 }}
+                tick={{ fill: "#8b5cf6", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                width={42}
+              />
+              {/* Right Y-axis: Zisková marža (percentage) */}
+              <YAxis
+                yAxisId="pct"
+                orientation="right"
+                domain={marginDomain}
+                tickFormatter={pctTickFormatter}
+                tick={{ fill: "#f59e0b", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 width={42}
               />
               <Tooltip
                 contentStyle={tooltipStyle}
-                content={<RatioTooltip />}
+                content={
+                  <BottomTooltip
+                    series={bottomSeries}
+                    visibility={bottomVisibility}
+                  />
+                }
                 cursor={{ stroke: gridColor, strokeOpacity: 0.5 }}
               />
               <Line
+                yAxisId="ratio"
                 type="monotone"
                 dataKey="currentRatio"
                 stroke="#8b5cf6"
@@ -408,6 +544,19 @@ export function FinancialIndicatorsCharts({
                 dot={{ fill: "#8b5cf6", r: 3, strokeWidth: 0 }}
                 activeDot={{ r: 5, strokeWidth: 0 }}
                 connectNulls={false}
+                hide={!bottomVisibility.currentRatio}
+                isAnimationActive={false}
+              />
+              <Line
+                yAxisId="pct"
+                type="monotone"
+                dataKey="margin"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                dot={{ fill: "#f59e0b", r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5, strokeWidth: 0 }}
+                connectNulls={false}
+                hide={!bottomVisibility.margin}
                 isAnimationActive={false}
               />
             </LineChart>
@@ -416,7 +565,7 @@ export function FinancialIndicatorsCharts({
           <div
             className="flex items-center justify-center text-xs"
             style={{
-              height: 140,
+              height: 180,
               color: axisColor,
               border: `1px solid ${gridColor}`,
               borderRadius: 8,

@@ -11,31 +11,23 @@
     <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">{{ i18n.due_diligence_report }}</h2>
     {% set display_name = company.name if company.name and company.name not in ('Nezistené', 'Nezisten', 'N/A', 'n/a', '-', 'Neznáma spoločnosť', 'NEUVEDENÉ', 'Neuvedené', 'Neuveden', 'Unknown', 'unknown', 'Not stated', 'Not provided') else i18n.cover_ico_prefix ~ ' ' ~ company.ico %}
     {% set display_name_html = display_name | replace('\n', ' ') | replace('  ', ' ') | replace('  ', ' ') | replace(' s. r. o.', '<br>s. r. o.') | replace(' s.r.o.', '<br>s.r.o.') | replace(' a. s.', '<br>a. s.') | replace(' a.s.', '<br>a.s.') | replace(' v. o. s.', '<br>v. o. s.') | replace(' v.o.s.', '<br>v.o.s.') | replace(' k. s.', '<br>k. s.') | replace(' k.s.', '<br>k.s.') | replace(' (od:', '<br>(od:') %}
-    <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-6 leading-tight">{{ display_name_html | safe }}</h3>
-    
-    <div class="bg-slate-50 border border-slate-200 rounded-lg px-8 py-4 text-center mb-8">
-        <p class="text-sm text-slate-500 uppercase tracking-widest font-bold mb-1">{{ i18n.identification_number }}</p>
-        <p class="text-2xl font-black text-slate-800">{{ company.ico }}</p>
-    </div>
+    <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-8 leading-tight">{{ display_name_html | safe }}</h3>
 
-    {% if nace_code or nace_text %}
-    <div class="flex items-center gap-3 mb-16">
-        <div class="bg-slate-50 border border-slate-200 rounded-lg px-5 py-2 text-center">
-            <p class="report-label text-slate-400 mb-0.5">NACE</p>
-            <p class="text-sm font-bold text-slate-700">{{ nace_code }}</p>
-        </div>
-        {% if nace_text %}
-        <p class="text-sm text-slate-500">{{ nace_text }}</p>
-        {% endif %}
+    {% set score = verdict.verifaScore if verdict else 0 %}
+    {% set gauge_color = "#5b9279" if score >= 70 else "#f59e0b" if score >= 40 else "#e11d48" %}
+
+    {# ── Key Risk Highlight (dynamický z AI verdict) ── #}
+    {% set key_risk = verdict.keyRisk if verdict and verdict.keyRisk else '' %}
+    {% if key_risk %}
+    <div class="max-w-md mb-10 px-6 py-4 bg-slate-50 border-l-4 rounded-r-lg" style="border-color: {{ gauge_color }};">
+        <p class="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-1">{{ i18n.key_risk_label | default('Kľúčové riziko') }}</p>
+        <p class="text-sm text-slate-700 leading-snug">{{ key_risk }}</p>
     </div>
     {% else %}
-    <div class="mb-16"></div>
+    <div class="mb-10"></div>
     {% endif %}
 
     <div class="flex flex-col items-center justify-center mb-16">
-        {% set score = verdict.verifaScore %}
-        {% set gauge_color = "#5b9279" if score >= 80 else "#f59e0b" if score >= 50 else "#e11d48" %}
-
         {# ── Pečiatka: VERIFA SKÓRE (Zväčšená) ── #}
         <div style="transform: rotate(4deg);">
             <div class="relative w-48 h-48 flex items-center justify-center">
@@ -58,6 +50,9 @@
             <!-- Left: Meta -->
             <div class="space-y-1">
                 <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.ico_label }}</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
+                {% if nace_code %}
+                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">NACE</span> <span class="text-sm font-bold">{{ nace_code }}{% if nace_text %} <span class="font-normal text-slate-500">{{ nace_text }}</span>{% endif %}</span></div>
+                {% endif %}
                 <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.generated }}</span> <span class="text-sm font-bold">{{ generated_at }}</span></div>
                 <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.page_count }}</span> <span class="text-sm font-bold">{{ total_pages }}</span></div>
             </div>
