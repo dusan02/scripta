@@ -254,3 +254,52 @@ export function FinancialRatios({ stmts }: { stmts: any[] }) {
 
   return <BaseFinancialTable stmts={stmts} rows={ratioRows} />;
 }
+
+/** Rentability ratios — Zadlženosť, ROE, ROA (matches TopFinancialChart) */
+export function RentabilityRatios({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const indicators = computeFinancialIndicators(stmts);
+  const byYear = new Map(indicators.map((r) => [r.year, r]));
+
+  const rows: BaseTableRow[] = [
+    {
+      label: t("firma.zadlzenost"),
+      tooltip: t("firma.zadlzenostFormula"),
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.debt ?? null),
+    },
+    {
+      label: "ROE",
+      tooltip: "Čistý zisk / Vlastné imanie",
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.roe ?? null),
+    },
+    {
+      label: "ROA",
+      tooltip: "Čistý zisk / Celkové aktíva",
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.roa ?? null),
+    },
+  ];
+
+  return <BaseFinancialTable stmts={stmts} rows={rows} />;
+}
+
+/** Liquidity ratios — Bežná likvidita, Zisková marža (matches BottomFinancialChart) */
+export function LiquidityRatios({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const indicators = computeFinancialIndicators(stmts);
+  const byYear = new Map(indicators.map((r) => [r.year, r]));
+
+  const rows: BaseTableRow[] = [
+    {
+      label: t("firma.beznaLikvidita"),
+      tooltip: t("firma.beznaLikviditaFormula"),
+      renderValue: (s) => fmtRatio(byYear.get(s.year)?.currentRatio ?? null),
+    },
+    {
+      label: t("firma.ziskovaMarza") || "Zisková marža",
+      tooltip: "Čistý zisk / Tržby",
+      renderValue: (s) => fmtPct(byYear.get(s.year)?.margin ?? null),
+    },
+  ];
+
+  return <BaseFinancialTable stmts={stmts} rows={rows} />;
+}

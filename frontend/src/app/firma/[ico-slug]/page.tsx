@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
-import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, FinancialRatios } from "@/components/firma-ui";
+import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, FinancialRatios, RentabilityRatios, LiquidityRatios } from "@/components/firma-ui";
 import { TopFinancialChart, BottomFinancialChart } from "@/components/financial-indicators-charts";
 import { computeFinancialIndicators } from "@/lib/financial-indicators";
 import Logo from "@/components/Logo";
@@ -396,19 +396,28 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Financial ratios — 3 columns: chart 1 | chart 2 | table */}
+        {/* Financial ratios — 2 columns: chart + table per column */}
         {stmts.length > 0 && (
           <div className="mb-6 sm:mb-8 print-section print-break-before-avoid">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-              <ChartCard title="Rentabilita & Zadlženosť" className="lg:col-span-4">
-                <TopFinancialChart data={computeFinancialIndicators(stmts)} />
-              </ChartCard>
-              <ChartCard title="Likvidita & Marža" className="lg:col-span-4">
-                <BottomFinancialChart data={computeFinancialIndicators(stmts)} />
-              </ChartCard>
-              <ChartCard title="Finančné ukazovatele" className="lg:col-span-4">
-                <FinancialRatios stmts={stmts} />
-              </ChartCard>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Left: Rentabilita & Zadlženosť — chart + table */}
+              <div className="flex flex-col gap-3">
+                <ChartCard title="Rentabilita & Zadlženosť">
+                  <TopFinancialChart data={computeFinancialIndicators(stmts)} />
+                </ChartCard>
+                <ChartCard title="Finančné ukazovatele">
+                  <RentabilityRatios stmts={stmts} />
+                </ChartCard>
+              </div>
+              {/* Right: Likvidita & Marža — chart + table */}
+              <div className="flex flex-col gap-3">
+                <ChartCard title="Likvidita & Marža">
+                  <BottomFinancialChart data={computeFinancialIndicators(stmts)} />
+                </ChartCard>
+                <ChartCard title="Finančné ukazovatele">
+                  <LiquidityRatios stmts={stmts} />
+                </ChartCard>
+              </div>
             </div>
             <p className="text-[11px] mt-2 no-print" style={{ color: "var(--text-muted)" }}>
               {t("firma.metodologia")} {/* */}
