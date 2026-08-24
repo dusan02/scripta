@@ -54,24 +54,24 @@
             {% endif %}
             <tr class="border-b border-slate-100" style="{{ row_bg }} page-break-inside: avoid; break-inside: avoid;">
                 {# ── Column 1: Kategória + Skóre (merged) ── #}
-                <td class="py-1.5 px-2 align-top">
-                    <div class="font-semibold text-slate-800 report-body-sm"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</div>
-                    <div class="mt-1 flex items-center gap-2">
-                        <span class="font-black report-body-sm {{ score_color }}">
+                <td class="py-2.5 px-3 align-top">
+                    <div class="font-semibold text-slate-800 report-body-sm" style="margin-bottom: 6px;"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="font-black report-body-sm {{ score_color }}" style="white-space: nowrap; min-width: 42px;">
                             {% if is_penalty %}{{ pillar.score }}b{% else %}{{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>{% endif %}
                         </span>
                         {% if not is_penalty %}
-                        <div class="flex-1 bg-slate-200 rounded-full" style="height:6px;">
-                            <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
+                        <div class="flex-1 bg-slate-200 rounded-full" style="height:7px; min-width: 60px;">
+                            <div class="rounded-full" style="height:7px; width:{{ pct }}%; background:{{ bar_color }};"></div>
                         </div>
-                        <span class="report-caption text-slate-400">{{ pct }}%</span>
+                        <span class="report-caption text-slate-400" style="white-space: nowrap; min-width: 32px; text-align: right;">{{ pct }}%</span>
                         {% else %}
                         <span class="report-caption text-violet-500">{{ i18n.penalty_label }}</span>
                         {% endif %}
                     </div>
                 </td>
                 {# ── Column 2: Hlavný nález (deduplicated — bullets only) ── #}
-                <td class="py-1.5 px-2 text-slate-600 report-body-sm leading-normal align-top">
+                <td class="py-2.5 px-3 text-slate-600 report-body-sm leading-normal align-top">
                     {% if pillar.flags and pillar.flags|length > 0 %}
                     <ul class="space-y-0">
                         {% for flag in pillar.flags %}
@@ -133,9 +133,9 @@
                 </td>
             </tr>
             {% endif %}
-            <tr class="bg-slate-100 border-t-2 border-slate-400" style="page-break-inside: avoid; break-inside: avoid;">
-                <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide">{{ i18n.final_score }}</td>
-                <td class="py-3 px-3 text-right">
+            <tr class="border-t-2 border-slate-400" style="background: #f8f9fa; page-break-inside: avoid; break-inside: avoid;">
+                <td class="py-3.5 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide">{{ i18n.final_score }}</td>
+                <td class="py-3.5 px-3 text-right">
                     <span class="font-black text-xl
                         {% if verdict.verifaScore >= 80 %}text-emerald-700
                         {% elif verdict.verifaScore >= 50 %}text-amber-600
@@ -170,9 +170,9 @@
     </table>
     {# ── Radar chart: centered below the table ── #}
     {% if radar_chart_base64 %}
-    <div class="flex flex-col items-center mt-3" style="page-break-inside: avoid; break-inside: avoid;">
-        <p class="report-caption text-slate-400 text-center mb-1">{{ i18n.pillar_profile }}</p>
-        <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 220px; height: auto;">
+    <div class="flex flex-col items-center mt-4" style="page-break-inside: avoid; break-inside: avoid;">
+        <p class="report-caption text-slate-400 text-center mb-2">{{ i18n.pillar_profile }}</p>
+        <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 320px; height: auto;">
     </div>
     {% endif %}
 </div>
