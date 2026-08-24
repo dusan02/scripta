@@ -24,8 +24,8 @@
 <table class="w-full text-xs border-collapse">
     <thead>
         <tr class="bg-slate-100">
-            <th class="text-left py-1 px-2 font-bold text-slate-600 w-[30%]">{{ i18n.col_category_score | default(i18n.col_category) }}</th>
-            <th class="text-left py-1 px-2 font-bold text-slate-600 w-[70%]">{{ i18n.col_finding }}</th>
+            <th class="text-left py-1 px-2 font-bold text-slate-600 w-[40%]">{{ i18n.col_category_score | default(i18n.col_category) }}</th>
+            <th class="text-left py-1 px-2 font-bold text-slate-600 w-[60%]">{{ i18n.col_finding }}</th>
         </tr>
     </thead>
     <tbody>
@@ -48,7 +48,7 @@
         <tr class="border-b border-slate-100 {{ row_bg }}" style="page-break-inside: avoid; break-inside: avoid;">
             {# ── Stĺpec 1: Kategória + Skóre + Progress bar ── #}
             <td class="py-1.5 px-2 align-top">
-                <div class="font-semibold text-slate-700" style="margin-bottom: 4px;">
+                <div class="font-semibold text-slate-700 whitespace-nowrap" style="margin-bottom: 4px;">
                     <span class="{{ icon_class }} mr-1">{{ icon }}</span>{{ pillar.name }}
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -104,8 +104,8 @@
 
         {# ── Algoritmické skóre ── #}
         <tr class="bg-slate-50 border-t-2 border-slate-300" style="page-break-inside: avoid; break-inside: avoid;">
-            <td class="py-1.5 px-2 font-semibold text-slate-700">{{ i18n.algorithmic_score }}</td>
-            <td class="py-1.5 px-2 text-right" style="white-space: nowrap;">
+            <td class="py-1.5 px-2 font-semibold text-slate-700 whitespace-nowrap">{{ i18n.algorithmic_score }}</td>
+            <td class="py-1.5 px-2 text-right whitespace-nowrap">
                 <span class="font-bold text-slate-700 text-base">{{ algorithmic_total }}<span class="text-slate-400 font-normal text-[10px]">/100</span></span>
                 <span class="text-slate-400 text-[10px] ml-2">{{ i18n.base_model }}</span>
             </td>
@@ -113,8 +113,8 @@
 
         {# ── Korekcia audítora ── #}
         <tr class="bg-slate-50 border-b border-slate-100" style="page-break-inside: avoid; break-inside: avoid;">
-            <td class="py-1.5 px-2 font-semibold text-slate-700">{{ i18n.auditor_correction }}</td>
-            <td class="py-1.5 px-2 text-right" style="white-space: nowrap;">
+            <td class="py-1.5 px-2 font-semibold text-slate-700 whitespace-nowrap">{{ i18n.auditor_correction }}</td>
+            <td class="py-1.5 px-2 text-right whitespace-nowrap">
                 <span class="font-bold text-base
                     {% if verdict.llmScoreAdjustment > 0 %}text-emerald-600
                     {% elif verdict.llmScoreAdjustment < 0 %}text-rose-600
@@ -128,8 +128,8 @@
         {# ── Hard stop (ak existuje) ── #}
         {% if hard_stop %}
         <tr class="bg-rose-50 border-b border-rose-200" style="page-break-inside: avoid; break-inside: avoid;">
-            <td class="py-1.5 px-2 font-semibold text-rose-700">⛔ {{ i18n.hard_stop_penalty }}</td>
-            <td class="py-1.5 px-2 text-right" style="white-space: nowrap;">
+            <td class="py-1.5 px-2 font-semibold text-rose-700 whitespace-nowrap">⛔ {{ i18n.hard_stop_penalty }}</td>
+            <td class="py-1.5 px-2 text-right whitespace-nowrap">
                 <span class="font-bold text-base text-rose-600">−{{ algorithmic_total }}</span>
                 <span class="text-rose-400 text-[10px] ml-2">{{ i18n.hard_stop_penalty_desc }}</span>
             </td>

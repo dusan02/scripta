@@ -196,7 +196,7 @@
     {# ── KĽÚČOVÉ POZNÁMKY POD ČIAROU ── #}
     {% if latest_stmt and latest_stmt.notesRisk %}
     {% if latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks or latest_stmt.notesRisk.significantInvestments or latest_stmt.notesRisk.financingActivities or latest_stmt.notesRisk.acquisitionsAndDisposals or latest_stmt.notesRisk.provisionsAndReserves or latest_stmt.notesRisk.restructuringActivities or latest_stmt.notesRisk.capitalChanges or latest_stmt.notesRisk.subsequentEvents %}
-    <div class="mb-2">
+    <div class="mb-2" style="page-break-inside: avoid; break-inside: avoid;">
         <h3 class="subsection-title-sm mb-1" style="page-break-after: avoid; break-after: avoid;">{{ i18n.key_footnotes }}</h3>
         <div class="grid grid-cols-1 gap-1.5">
             {% if latest_stmt.notesRisk.significantInvestments %}
@@ -351,7 +351,7 @@
 
     {# ── YoY SÚHRNNÁ TABUĽKA ── #}
     {% if yoy_table and yoy_table.rows|length > 0 %}
-    <div class="mb-3" style="page-break-before: always; break-before: page;">
+    <div class="mb-3" style="page-break-inside: avoid; break-inside: avoid;">
         <h3 class="subsection-title-sm mb-1.5">{{ i18n.yoy_key_indicators }}</h3>
         <p class="report-caption mb-2">{{ i18n.values_in_millions }}</p>
         <div class="overflow-x-auto">
