@@ -43,7 +43,7 @@ from src.llm_extractor import (
 )
 from src.scrapers.obchodny_vestnik import ObchodnyVestnikXmlScraper, save_vestnik_events_to_db
 from src.report_generator import generate_forensic_pdf_report
-from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf, extract_relevant_pdf_chunks
+from src.pdf_ingestion import extract_core_financials, slice_narrative_pdf, slice_notes_pdf, extract_relevant_pdf_chunks, get_sliced_pdf_page_range
 from src.llm_orchestrator import safe_llm_call, _MODEL_IFRS, _MODEL_NARRATIVE, _MODEL_NOTES, _MODEL_VESTNIK, check_pro_model_available, get_chief_auditor_model
 from src.agents.pdf_reader import extract_company_events
 from src.analytics import sanitize_cash_flow_fields, estimate_missing_cash_flow, compute_financial_trends, compute_forensic_scorecard
@@ -591,6 +591,9 @@ async def process_company(
                 )
                 if narrative:
                     _strip_narrative_financial_metrics(narrative)
+                    # F4.1: Nastav source_pages z sliced PDF pre evidence grounding
+                    if sliced_path and not narrative.source_pages:
+                        narrative.source_pages = get_sliced_pdf_page_range(sliced_path)
                     logger.info(f"[NARRATIVE OK] {file_name} → DB uložené")
                     await save_narrative_to_db(ico, narrative_year, narrative)
                 else:
@@ -628,11 +631,15 @@ async def process_company(
                 logger.info(f"[NOTES] Spracovávam poznámky pre rok {year} z {file_name}")
                 try:
                     async with sem:
-                        return year, await safe_llm_call(
+                        notes_data = await safe_llm_call(
                             extract_notes_risks, sliced_path,
                             model=_MODEL_NOTES, label=f"Footnotes Analyst:{file_name}",
                             report_language=report_language,
                         )
+                        # F4.1: Nastav source_pages z sliced PDF pre evidence grounding
+                        if notes_data and not notes_data.source_pages:
+                            notes_data.source_pages = get_sliced_pdf_page_range(sliced_path)
+                        return year, notes_data
                 finally:
                     try:
                         os.remove(sliced_path)
