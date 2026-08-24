@@ -16,8 +16,8 @@
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
 <div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">
     <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
-    <div class="flex gap-3 items-start">
-    <div class="{% if radar_chart_base64 %}w-[58%]{% else %}w-full{% endif %}">
+    <div class="flex gap-2 items-start">
+    <div class="{% if radar_chart_base64 %}w-[72%]{% else %}w-full{% endif %}">
     <table class="w-full border-collapse text-[11px]">
         <thead>
             <tr class="bg-slate-100">
@@ -173,9 +173,9 @@
     </table>
     </div>{# /.w-[60%] #}
     {% if radar_chart_base64 %}
-    <div class="w-[42%] flex flex-col items-center pt-1" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="w-[28%] flex flex-col items-center pt-1" style="page-break-inside: avoid; break-inside: avoid;">
         <p class="report-caption text-slate-400 text-center mb-1">{{ i18n.pillar_profile }}</p>
-        <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 210px; height: auto;">
+        <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 160px; height: auto;">
     </div>
     {% endif %}
     </div>{# /.flex #}
