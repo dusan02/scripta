@@ -130,6 +130,15 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% elif det_breakdown %}
+                <div class="mt-1 space-y-0.5">
+                    {% for key, val in det_breakdown.items() if val != 0 %}
+                    <div class="text-[10px] text-slate-500 leading-tight">
+                        <span class="font-semibold {% if val < -5 %}text-rose-500{% elif val < 0 %}text-amber-600{% endif %}">{{ val > 0 and '+' or '' }}{{ val }}b:</span>
+                        {{ key }}
+                    </div>
+                    {% endfor %}
+                </div>
                 {% else %}
                 <span class="text-slate-400 text-[10px] ml-2">{{ i18n.based_on_registers }}</span>
                 {% endif %}

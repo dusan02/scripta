@@ -737,13 +737,13 @@ def audit_llm_adjustment():
     print(f"  Final adj (clamped): {adj}")
 
     # Raw: -3 (going_concern) -2 (litigation) -2 (related_party) -2 (contingent) -1 (off_balance) -6 (2 critical events) = -16
-    # Clamped to -10 (F5 fix — aligned with LLM prompt ±10)
-    if adj == -10:
-        audit.pass_("Det adj clamp -10", f"Raw=-16, clamped=-10 (zosúladené s promptom ±10)")
-    elif adj <= -10:
+    # Clamped to -5 (v3 — menej agresívne ako pôvodné ±10)
+    if adj == -5:
+        audit.pass_("Det adj clamp -5", f"Raw=-16, clamped=-5 (v3 menej agresívne)")
+    elif adj <= -5:
         audit.pass_("Det adj clamp", f"adj={adj} — clamp funguje")
     else:
-        audit.fail("Det adj clamp", f"adj={adj}, očakávané -10 (raw -16 clamped na -10)")
+        audit.fail("Det adj clamp", f"adj={adj}, očakávané -5 (raw -16 clamped na -5)")
 
     # ── 6b. LLM adj je len informatívne (F6 fix — prompt aktualizovaný) ──
     print("\n── 6b. LLM llm_score_adjustment je len informatívne (F6 fix) ──")

@@ -670,6 +670,15 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     except Exception as e:
         logger.warning(f"Nepodarilo sa naparsovať evidence z verdict.justification: {e}")
 
+    # ── Deterministický adjustment breakdown (pre transparentnosť v scorecard) ──
+    det_breakdown = {}
+    try:
+        if verdict and getattr(verdict, 'adjustmentBreakdown', None):
+            det_breakdown = json.loads(verdict.adjustmentBreakdown)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        pass
+        logger.warning(f"Nepodarilo sa naparsovať evidence z verdict.justification: {e}")
+
     # ── i18n override for fallback verdict ──
     # When LLM was unavailable, the verdict was stored with Slovak strings.
     # Replace them with i18n versions based on report_language.
@@ -1134,6 +1143,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "labels": {k: i18n_strings.get(v, k) for k, v in SOURCE_LABEL_I18N_KEYS.items()},
         "scorecard_breakdown": scorecard_breakdown,
         "algorithmic_total": algorithmic_total,
+        "det_breakdown": det_breakdown,
         "hard_stop": any("HARD STOP" in (p.get("detail") or "") for p in scorecard_breakdown),
         "altman_scores": altman_scores,
         "is_financial_institution": is_financial_institution,

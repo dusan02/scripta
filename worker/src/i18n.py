@@ -448,7 +448,7 @@ I18N_STRINGS = {
         "conf_history": "Dĺžka histórie",
         "conf_history_desc": "5+ rokov = plný podiel, 2–4 roky = −10 %, 1 rok = −20 %",
         "conf_coverage": "Pokrytie registrov",
-        "conf_coverage_desc": "% úspešne načítaných zdrojov",
+        "conf_coverage_desc": "% úspešne načítaných zdrojov; −8 % za každý nedostupný kritický register dlžníkov",
         "conf_system": "Systémová analýza",
         "conf_system_desc": "automatický audítor dokončil cross-analysis bez fallbacku",
 
@@ -1293,7 +1293,7 @@ I18N_STRINGS = {
         "conf_history": "History length",
         "conf_history_desc": "5+ years = full share, 2–4 years = −10%, 1 year = −20%",
         "conf_coverage": "Register coverage",
-        "conf_coverage_desc": "% of successfully retrieved sources",
+        "conf_coverage_desc": "% of successfully retrieved sources; −8% per unavailable critical debt registry",
         "conf_system": "System analysis",
         "conf_system_desc": "automated auditor completed cross-analysis without fallback",
 

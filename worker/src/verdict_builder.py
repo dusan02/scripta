@@ -385,6 +385,7 @@ def _compute_deterministic_adjustment(
     company_events: list,
     ico: str,
     is_consolidated: bool = False,
+    registry_sources: list | None = None,
 ) -> tuple:
     """
     Deterministický forenzný adjustment namiesto LLM ±10.
@@ -400,8 +401,9 @@ def _compute_deterministic_adjustment(
     - contingent_risks (non-empty) → -2
     - off_balance_sheet_liabilities (non-empty) → -1
     - CompanyEvent CRITICAL (SUDNE_ROZHODNUTIE, INSOLVENCIA) → -3 each (max -6)
+    - Aktívne poverenie na exekúciu (POVERENIA source with RECORD_FOUND) → -15 (mimo cap)
     - forensic_red_flags: IGNORED (too noisy, already filtered in fraud heatmap)
-    - Cap: -5 (v3 — menej agresívne ako pôvodné ±10)
+    - Cap: -5 (v3 — menej agresívne ako pôvodné ±10), poverenia penalty je mimo cap
     """
     adj = 0
     reasons = []
@@ -412,6 +414,7 @@ def _compute_deterministic_adjustment(
         "contingent_risks": 0,
         "off_balance": 0,
         "critical_events": 0,
+        "active_execution": 0,
     }
 
     # ── NarrativeRiskAnalysis ──
@@ -494,6 +497,32 @@ def _compute_deterministic_adjustment(
         scale = adj / raw_adj
         for k in breakdown:
             breakdown[k] = int(round(breakdown[k] * scale))
+
+    # ── Aktívne poverenie na exekúciu (mimo cap) ──────────────────────────────
+    # Poverenia scraper nájde záznamy v registri poverení na vykonanie exekúcie.
+    # Toto je vážny signál platobnej neschopnosti — penalizácia -15 bodov (mimo cap).
+    # Metodika uvádza -30, ale -15 je rozumnejšie (neposúva firmu automaticky do C).
+    poverenia_penalty = 0
+    for src in (registry_sources or []):
+        if not src:
+            continue
+        src_type = getattr(src, 'source_type', 'UNKNOWN')
+        src_status = getattr(src, 'status', 'UNKNOWN')
+        src_findings = (getattr(src, 'findings', None) or "").lower()
+        if src_type == "POVERENIA" and src_status == "SUCCESS":
+            # Ak findings neobsahuje "žiadne poverenie" / "nebolo nájdené" → záznam existuje
+            is_clean = any(kw in src_findings for kw in [
+                "žiadne poverenie", "nebolo nájdené", "no enforcement",
+                "no record", "not in the list",
+            ])
+            if not is_clean:
+                poverenia_penalty = -15
+                reasons.append("active_execution (-15 — poverenie na exekúciu)")
+                break
+
+    if poverenia_penalty != 0:
+        breakdown["active_execution"] = poverenia_penalty
+        adj += poverenia_penalty  # mimo cap
 
     if adj != 0:
         logger.info(f"[DET_ADJ] IČO {ico}: deterministic adjustment = {adj:+d} ({'; '.join(reasons)})")
@@ -944,6 +973,7 @@ async def run_and_save_audit_verdict(
             company_dict.get("companyEvents", []),
             ico,
             is_consolidated=company_dict.get("_financial_basis") == "consolidated",
+            registry_sources=registry_sources,
         )
 
         logger.info(
@@ -986,6 +1016,7 @@ async def run_and_save_audit_verdict(
             'findings': Json([f.model_dump() for f in _enrich_findings_source_pages(verdict.findings)]) if verdict.findings else None,
             'llmScoreAdjustment': det_adj,
             'llmAnalysisStatus': verdict.llm_analysis_status,
+            'adjustmentBreakdown': json.dumps(det_breakdown, ensure_ascii=False),
         }
 
         # ── Deterministická injekcia placeholderov z DB ──

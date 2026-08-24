@@ -611,6 +611,7 @@ model AuditVerdict {
   scorecardBreakdown Json?
   llmScoreAdjustment Int? @default(0)
   llmAnalysisStatus String @default("LLM_ANALYZED")
+  adjustmentBreakdown String? @db.Text
   findings        Json?
   createdAt       DateTime @default(now())
 

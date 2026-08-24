@@ -170,6 +170,7 @@ Finančné pomery:
   {{{{DEBT_EQUITY}}}} — pomer dlhu k imaniu (napr. "7,76")
   {{{{NET_MARGIN}}}} — čistá marža (napr. "-2,4 %")
   {{{{GROSS_MARGIN}}}} — hrubá marža (napr. "-6,9 %")
+  {{{{CAGR}}}} — priemerný ročný rast tržieb (napr. "9,9 %")
 
 Kontext:
   {{{{EMPLOYEE_COUNT}}}} — počet zamestnancov
@@ -337,6 +338,7 @@ Financial ratios:
   {{{{DEBT_EQUITY}}}} — debt-to-equity ratio (e.g. "7.76")
   {{{{NET_MARGIN}}}} — net margin (e.g. "-2.4%")
   {{{{GROSS_MARGIN}}}} — gross margin (e.g. "-6.9%")
+  {{{{CAGR}}}} — compound annual growth rate of revenue (e.g. "9.9%")
 
 Context:
   {{{{EMPLOYEE_COUNT}}}} — employee count

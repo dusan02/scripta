@@ -216,16 +216,23 @@ def build_metric_placeholders(
         ph["{{ALTMAN_Z}}"] = "N/A"
         ph["{{ALTMAN_ZONE}}"] = "N/A"
 
-    # D/E = (ST + LT liabilities) / equity
-    # Ak ST+LT = 0 (banky/IFRS bez klasifikácie), použiť bilančnú rovnicu
+    # D/E = total_liabilities / equity
+    # Prefer totalLiabilities (row 101 — zahŕňa rezervy + všetky záväzky), fallback na ST+LT, potom bilančná rovnica.
+    # KONZISTENTNÉ s compute_ratios() v analytics.py — inak LLM a scorecard ukazujú rozdielne D/E.
     _eq = latest.get("equity")
     if _eq is not None and float(_eq) > 0:
         _st_liab = float(latest.get("shortTermLiabilities", 0) or 0)
         _lt_liab = float(latest.get("longTermLiabilities", 0) or 0)
-        _total_liab = _st_liab + _lt_liab
-        if _total_liab == 0 and latest.get("totalAssets"):
-            # Fallback: bilančná rovnica (totalAssets - equity = total liabilities)
-            _total_liab = float(latest["totalAssets"]) - float(_eq)
+        _total_liab_exact = latest.get("totalLiabilities")
+        _total_assets = latest.get("totalAssets")
+        if _total_liab_exact is not None and float(_total_liab_exact) > 0:
+            _total_liab = float(_total_liab_exact)
+        elif _st_liab > 0 or _lt_liab > 0:
+            _total_liab = _st_liab + _lt_liab
+        elif _total_assets is not None:
+            _total_liab = float(_total_assets) - float(_eq)  # bilančná rovnica
+        else:
+            _total_liab = 0
         ph["{{DEBT_EQUITY}}"] = _format_ratio(_total_liab / float(_eq)) if _total_liab > 0 else "N/A"
     else:
         ph["{{DEBT_EQUITY}}"] = "N/A"
@@ -327,6 +334,8 @@ _METRIC_PATTERNS = [
     (re.compile(r'\s+na\s+úrovni(?=\s*[,.;]|\s+(?:ale|a|avšak|pričom|čo|ktor|v|s|na|firma|spoločnosť|prevádzkový)\b)', re.IGNORECASE), ''),
     (re.compile(r'\s+na\s+úrovni\s*$', re.IGNORECASE), ''),
     (re.compile(r'\s+na\s+úrovni\s*\.', re.IGNORECASE), '.'),
+    # "na úrovni za posledné roky" (dangling CAGR — LLM nepoužil placeholder)
+    (re.compile(r'\s+na\s+úrovni\s+(?:za\s+posledné\s+roky|za\s+posledných\s+rokov|v\s+posledných\s+rokoch)\b', re.IGNORECASE), ''),
     # "nad predstavuje" → "predstavuje" (leftover "nad X mil. € predstavuje")
     (re.compile(r'\s+nad\s+(?=(?:predstavuje|ukazuje|svedčí|indikuje)\b)', re.IGNORECASE), ' '),
     # "dosiahol, zatiaľ čo" → ", zatiaľ čo" (dangling "dosiahol" bez hodnoty)
