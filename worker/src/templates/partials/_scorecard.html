@@ -20,6 +20,9 @@
 
 <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
 
+{# ════════ KONTAJNER: tabuľka + radar graf spolu — zabraňuje odtrhnutiu ════════ #}
+<div style="page-break-inside: avoid; break-inside: avoid;">
+
 {# ════════ PILIER TABUĽKA — rovnaký štýl ako súvaha/P&L/CF/YoY ════════ #}
 <table class="w-full text-xs border-collapse">
     <thead>
@@ -195,12 +198,14 @@
     </tfoot>
 </table>
 
-{# ════════ RADAR CHART — pod tabuľkou, malý aby sa vošiel na stranu ════════ #}
+{# ════════ RADAR CHART — pod tabuľkou, v rovnakom kontajneri ════════ #}
 {% if radar_chart_base64 %}
-<div class="flex flex-col items-center mt-3 mb-4" style="page-break-inside: avoid; break-inside: avoid;">
+<div class="flex flex-col items-center mt-3 mb-4">
     <p class="report-caption text-slate-400 text-center mb-1">{{ i18n.pillar_profile }}</p>
     <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 220px; height: auto;">
 </div>
 {% endif %}
+
+</div>{# /KONTAJNER tabuľka + radar #}
 
 {% endif %}

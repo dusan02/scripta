@@ -463,15 +463,20 @@ def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str],
     Deterministická anti-halucinácia: skenuje verdict text pre konkrétne EUR sumy
     spomenuté v kontexte dlhov voči registrom, ktoré sú CLEAN.
     Ak nájde pasáž kde LLM tvrdí konkrétny dlh voči CLEAN registru, nahradí ju.
+
+    Tiež odstraňuje pozitívne tvrdenia ("nie je v registri dlžníkov", "nemá dlh")
+    pre UNVERIFIED registre — LLM si nesmie domýšľať pozitívny výsledok keď scraper zlyhal.
     """
     clean_registries = set()
+    unverified_registries = set()
     for s in (registry_status_summary or []):
+        reg_name = s.split(":")[0].strip()
         if "CLEAN" in s:
-            # Extract registry name before colon
-            reg_name = s.split(":")[0].strip()
             clean_registries.add(reg_name)
+        elif "UNVERIFIED" in s:
+            unverified_registries.add(reg_name)
 
-    if not clean_registries:
+    if not clean_registries and not unverified_registries:
         return payload
 
     # Map registry names to keywords that would appear in verdict text
@@ -485,6 +490,12 @@ def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str],
         "POVERENIA": ["exekúcia", "exekúcie", "poverenie na vykonanie exekúcie"],
     }
 
+    # Pozitívne tvrdenia, ktoré LLM nesmie použiť pre UNVERIFIED registre
+    # (napr. "Firma nie je v registri dlžníkov SP" keď SP scraper zlyhal)
+    positive_claim_patterns = [
+        re.compile(r'(nie\s+je\s+v\s+registri\s+dlžníkov|nemá\s+dlh|bez\s+dlhu|bez\s+záznamu\s+v\s+registri|nie\s+je\s+dlžník|bez\s+nedoplatkov)', re.IGNORECASE),
+    ]
+
     # Pattern to find EUR amounts: "578 397,78 EUR" or "578397.78 €" or "160 000 €" etc.
     eur_pattern = re.compile(r'(\d[\d\s]*[.,]?\d*\s*(?:EUR|€|Eur))', re.IGNORECASE)
 
@@ -497,6 +508,8 @@ def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str],
             continue
 
         original_text = text
+
+        # ── CLEAN registries: odstráň EUR sumy blízko kľúčových slov ──
         for reg_name in clean_registries:
             keywords = registry_keywords.get(reg_name, [])
             if not keywords:
@@ -533,6 +546,37 @@ def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str],
                         break  # Don't search for more occurrences of this keyword
                     kw_pos = text_lower.find(kw_lower, kw_pos + 1)
 
+        # ── UNVERIFIED registries: odstráň pozitívne tvrdenia ──
+        # LLM nesmie tvrdiť "nie je v registri dlžníkov SP" keď SP scraper zlyhal
+        for reg_name in unverified_registries:
+            keywords = registry_keywords.get(reg_name, [])
+            if not keywords:
+                continue
+
+            for kw in keywords:
+                kw_lower = kw.lower()
+                text_lower = text.lower()
+                kw_pos = text_lower.find(kw_lower)
+                while kw_pos != -1:
+                    # Look for positive claim within 200 chars of the keyword
+                    window_start = max(0, kw_pos - 200)
+                    window_end = min(len(text), kw_pos + len(kw) + 200)
+                    window = text[window_start:window_end]
+                    for pat in positive_claim_patterns:
+                        if pat.search(window):
+                            logger.warning(
+                                f"[ANTI-HALLUCINATION] IČO {ico}: Found positive claim near "
+                                f"'{kw}' (registry {reg_name} is UNVERIFIED) — stripping from {field}"
+                            )
+                            sent_start = text.rfind('.', 0, kw_pos)
+                            sent_start = sent_start + 1 if sent_start != -1 else max(0, kw_pos - 100)
+                            sent_end = text.find('.', kw_pos + len(kw))
+                            sent_end = sent_end + 1 if sent_end != -1 else min(len(text), kw_pos + 200)
+                            text = text[:sent_start] + text[sent_end:]
+                            modified = True
+                            break
+                    kw_pos = text_lower.find(kw_lower, kw_pos + 1)
+
         if text != original_text:
             payload[field] = text
 
@@ -567,7 +611,47 @@ def _strip_hallucinated_debts(payload: dict, registry_status_summary: list[str],
             pass
 
     if modified:
-        logger.warning(f"[ANTI-HALLUCINATION] IČO {ico}: Verdict text bol upravený — odstránené halucinované dlhy z CLEAN registrov")
+        logger.warning(f"[ANTI-HALLUCINATION] IČO {ico}: Verdict text bol upravený — odstránené halucinované dlhy/tvrdenia z registrov")
+
+    # ── executiveSections: skenuj points v každej sekcii ──
+    # Halucinácia "Firma nie je v registri dlžníkov SP" sa často objaví v executive_sections
+    es = payload.get('executiveSections', '')
+    if es and isinstance(es, str):
+        try:
+            sections = json.loads(es)
+            es_modified = False
+            for sec in sections:
+                if not isinstance(sec, dict):
+                    continue
+                points = sec.get('points', [])
+                if not isinstance(points, list):
+                    continue
+                for pi, pt in enumerate(points):
+                    if not isinstance(pt, str):
+                        continue
+                    pt_original = pt
+                    for reg_name in unverified_registries:
+                        keywords = registry_keywords.get(reg_name, [])
+                        for kw in keywords:
+                            if kw.lower() in pt.lower():
+                                for pat in positive_claim_patterns:
+                                    if pat.search(pt):
+                                        logger.warning(
+                                            f"[ANTI-HALLUCINATION] IČO {ico}: Found positive claim in "
+                                            f"executiveSections near '{kw}' (registry {reg_name} is UNVERIFIED) — stripping"
+                                        )
+                                        pt = pt_original.replace(
+                                            re.search(pat, pt_original).group(0),
+                                            "stav v registri nebol overený (scraper zlyhal)"
+                                        )
+                                        es_modified = True
+                                        break
+                    if pt != pt_original:
+                        points[pi] = pt
+            if es_modified:
+                payload['executiveSections'] = json.dumps(sections, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
 
     return payload
 
