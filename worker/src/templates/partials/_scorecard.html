@@ -49,7 +49,7 @@
             {# ── Stĺpec 1: Kategória + Skóre + Progress bar ── #}
             <td class="py-1.5 px-2 align-top">
                 <div class="font-semibold text-slate-700 whitespace-nowrap" style="margin-bottom: 4px;">
-                    <span class="{{ icon_class }} mr-1">{{ icon }}</span>{{ pillar.name }}
+                    <span class="{{ icon_class }} mr-1">{{ icon }}</span>{{ pillar.name | sanitize_llm }}
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <span class="font-bold {{ score_class }}" style="white-space: nowrap; min-width: 44px;">
@@ -114,14 +114,25 @@
         {# ── Korekcia audítora ── #}
         <tr class="bg-slate-50 border-b border-slate-100" style="page-break-inside: avoid; break-inside: avoid;">
             <td class="py-1.5 px-2 font-semibold text-slate-700 whitespace-nowrap">{{ i18n.auditor_correction }}</td>
-            <td class="py-1.5 px-2 text-left whitespace-nowrap">
+            <td class="py-1.5 px-2 text-left">
                 <span class="font-bold text-base
                     {% if verdict.llmScoreAdjustment > 0 %}text-emerald-600
                     {% elif verdict.llmScoreAdjustment < 0 %}text-rose-600
                     {% else %}text-slate-500{% endif %}">
                     {% if verdict.llmScoreAdjustment > 0 %}+{% endif %}{{ verdict.llmScoreAdjustment }}
                 </span>
+                {% if verdict.llmScoreAdjustment != 0 and evidence_list %}
+                <div class="mt-1 space-y-0.5">
+                    {% for item in evidence_list if item.get('impact') in ['CRITICAL', 'WARNING'] %}
+                    <div class="text-[10px] text-slate-500 leading-tight">
+                        <span class="font-semibold {% if item.get('impact') == 'CRITICAL' %}text-rose-500{% else %}text-amber-600{% endif %}">{{ item.get('impact') }}:</span>
+                        {{ (item.get('tvrdenie') or item.get('claim') or '') | sanitize_llm }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
                 <span class="text-slate-400 text-[10px] ml-2">{{ i18n.based_on_registers }}</span>
+                {% endif %}
             </td>
         </tr>
 

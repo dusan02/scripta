@@ -249,6 +249,29 @@ def build_metric_placeholders(
     ph["{{COMPANY_NAME}}"] = company_name or "N/A"
     ph["{{LATEST_YEAR}}"] = str(latest.get("year", "")) if latest.get("year") else "N/A"
 
+    # ── CAPEX (investing cash flow — záporné, zobrazujeme absolútnu hodnotu) ──
+    _icf = latest.get("investingCashFlow")
+    if _icf is not None:
+        ph["{{CAPEX}}"] = _format_eur(abs(float(_icf)))
+    else:
+        ph["{{CAPEX}}"] = "N/A"
+
+    # ── Working capital = currentAssets - shortTermLiabilities ──
+    if _ca is not None and _stl is not None:
+        _wc = float(_ca) - float(_stl)
+        ph["{{WORKING_CAPITAL}}"] = _format_eur(_wc)
+    else:
+        ph["{{WORKING_CAPITAL}}"] = "N/A"
+
+    # ── CAGR (compound annual growth rate) — tržby cez všetky roky ──
+    _revenues = [float(s.get("mainActivityRevenue", 0) or 0) for s in sorted_stmts if s.get("mainActivityRevenue") and float(s["mainActivityRevenue"]) > 0]
+    if len(_revenues) >= 2 and _revenues[0] > 0:
+        _n_years = len(_revenues) - 1
+        _cagr = ((_revenues[-1] / _revenues[0]) ** (1.0 / _n_years) - 1) * 100
+        ph["{{CAGR}}"] = _format_pct(_cagr)
+    else:
+        ph["{{CAGR}}"] = "N/A"
+
     return ph
 
 
@@ -310,6 +333,21 @@ _METRIC_PATTERNS = [
     (re.compile(r'\s+dosiahol\s*,\s*(?=(?:zatiaľ|čo|pričom|ale|a)\b)', re.IGNORECASE), ', '),
     # "nárast ," → "," (dangling "nárast" bez hodnoty)
     (re.compile(r'\s+nárast\s*,(?=\s*(?:čo|a|ale|pričom)\b)', re.IGNORECASE), ','),
+    # ── Dangling cleanup pre nenahradené placeholdre ──
+    # "vo výške viac než." / "vo výške takmer." / "vo výške." (placeholder nebol nahradený)
+    (re.compile(r'\s+vo\s+výške\s+(?:viac\s+než|takmer|nad|približne|cca)\s*[.,;]', re.IGNORECASE), '.'),
+    (re.compile(r'\s+vo\s+výške\s*[.,;]', re.IGNORECASE), '.'),
+    (re.compile(r'\s+vo\s+výške\s*$', re.IGNORECASE), ''),
+    # "o na" (dangling — "rast tržieb o {{X}}% na..." → "rast tržieb na...")
+    (re.compile(r'\s+o\s+na\s+', re.IGNORECASE), ' '),
+    # "dosahuje." / "dosahuje " na konci vety (dangling CAGR placeholder)
+    (re.compile(r'\s+dosahuje\s*[.,;]', re.IGNORECASE), '.'),
+    (re.compile(r'\s+dosahuje\s*$', re.IGNORECASE), ''),
+    # "(-)" (dangling working capital placeholder)
+    (re.compile(r'\(\s*[-−]\s*\)'), ''),
+    # "stratu -" / "stratu -." (dangling net loss placeholder)
+    (re.compile(r'\s+stratu\s+[-−]\s*[.,;]', re.IGNORECASE), ' stratu.'),
+    (re.compile(r'\s+[-−]\s+(?=v\s+roku)', re.IGNORECASE), ' '),
 ]
 
 

@@ -65,6 +65,46 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         ),
       },
       {
+        heading: "5a. Zdroje údajov a ich povaha",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+              Služba získava údaje z verejne dostupných štátnych registrov a informačných systémov Slovenskej republiky, najmä, no nielen: Obchodný register SR (ORSR), Register účtovných závierok (RUZ), Finančnú správu SR, zdravotné poisťovne (VšZP, Dôvera, Union), Register exekúcií, Obchodný vestník, Register partnerov verejného sektora (RPVS), Notársky centrálny register záložných práv (NCRZP) a ďalšie.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Verejný charakter údajov.</strong> Všetky údaje získavané Službou sú verejne dostupné v zmysle príslušných právnych predpisov SR (zákon o registri ekonomických subjektov, zákon o účtovníctve, zákon o slobodnom prístupe k informáciám a ďalšie). Tieto registre sú povinne zverejňované na základe zákona za účelom verejnej kontroly a transparentnosti obchodného prostredia.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Preberanie údajov „tak, ako sú&ldquo;.</strong> Verifa.sk preberá údaje z verejných registrov v stave, v akom ich register poskytuje. Prevádzkovateľ nezodpovedá za chyby, nepresnosti, neaktuálnosť ani nezrovnalosti v údajoch, ktoré majú pôvod v zdrojovom registri. Verifa.sk neoveruje a nemôže overovať správnosť údajov voči primárnym zdrojom nad rámec automatizovaného spracovania. Prevádzkovateľ taktiež nezodpovedá za dočasnú nedostupnosť Služby alebo neúplnosť reportu spôsobenú výpadkom na strane zdrojových štátnych registrov.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Autorské právo a databáza.</strong> Verifa.sk si nenárokuje autorské právo na údaje získané z verejných registrov. Tieto údaje sú verejným majetkom v zmysle príslušných zákonov. Služba vytvára vlastnú analýzu, hodnotenie a syntézu týchto údajov, ktoré sú chránené autorským právom Prevádzkovateľa.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "5b. Oprávnený záujem na spracúvanie (GDPR čl. 6 ods. 1 písm. f)",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+              V zmysle čl. 6 ods. 1 písm. f) nariadenia GDPR spracúva Prevádzkovateľ osobné údaje (mená statutárov, adresy sídiel, identifikačné údaje) na základe oprávneného záujmu. Tento oprávnený záujem spočíva v:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 8 }}>
+              (a) poskytovaní služby due diligence a posúdenia obchodného rizika pre B2B používateľov, ktorí overujú svojich obchodných partnerov, dodávateľov alebo klientov;<br />
+              (b) ochrane oprávnených ekonomických záujmov používateľa pred škodami vyplývajúcimi z obchodných vzťahov s nespoľahlivými subjektmi;<br />
+              (c) plnení účelu verejných registrov, ktoré boli zriadené práve za účelom verejnej kontroly a transparentnosti obchodného prostredia.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Vyváženie záujmov.</strong> Prevádzkovateľ vykonal vyváženie záujmov podľa čl. 6 ods. 1 písm. f) GDPR a dospel k záveru, že oprávnený záujem používateľa na overovaní obchodných partnerov prevažuje nad právami dotknutých osôb, najmä pretože: údaje sú verejne dostupné, spracúvajú sa len pre právnické osoby a SZČO (nie pre súkromné osoby v súkromnom kontexte), a spracúvanie slúži legitímnemu obchodnému účelu.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Použitie používateľom.</strong> Používateľ potvrdzuje, že údaje získané prostredníctvom Služby použije výhradne na účely overenia obchodného partnera v rámci existujúceho alebo plánovaného obchodného vzťahu, a nie na účely diskriminácie, prenasledovania ani iného neoprávneneého spracúvania.
+            </p>
+          </>
+        ),
+      },
+      {
         heading: "6. Verifa Score",
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
@@ -184,6 +224,46 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             Verifa.sk endeavours to provide accurate and up-to-date data but does not guarantee its completeness or accuracy. Data is obtained from public sources and may be outdated or inaccurate. The User should verify key information directly in the relevant registers.
           </p>
+        ),
+      },
+      {
+        heading: "5a. Data Sources and Their Nature",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+              The Service obtains data from publicly available state registers and information systems of the Slovak Republic, including but not limited to: Commercial Register of SR (ORSR), Register of Financial Statements (RUZ), Financial Administration of SR, health insurance companies (VšZP, Dôvera, Union), Register of Executions, Commercial Bulletin, Register of Public Sector Partners (RPVS), Notarial Central Register of Pledge Rights (NCRZP), and others.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Public nature of data.</strong> All data obtained by the Service is publicly available pursuant to the relevant legal regulations of the Slovak Republic (Act on the Register of Economic Entities, Act on Accounting, Act on Free Access to Information, and others). These registers are mandatorily published by law for the purpose of public control and transparency of the business environment.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Data provided &ldquo;as is&rdquo;.</strong> Verifa.sk obtains data from public registers in the state in which the register provides it. The Operator is not liable for errors, inaccuracies, obsolescence, or inconsistencies in data originating from the source register. Verifa.sk does not verify and cannot verify the correctness of data against primary sources beyond automated processing. The Operator is also not liable for temporary unavailability of the Service or incompleteness of a report caused by an outage of the source state registers.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Copyright and database.</strong> Verifa.sk does not claim copyright over data obtained from public registers. This data is public property under the relevant laws. The Service creates its own analysis, scoring, and synthesis of this data, which is protected by the Operator&rsquo;s copyright.
+            </p>
+          </>
+        ),
+      },
+      {
+        heading: "5b. Legitimate Interest for Processing (GDPR Art. 6(1)(f))",
+        body: (
+          <>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+              Pursuant to Art. 6(1)(f) of the GDPR, the Operator processes personal data (names of statutory representatives, registered addresses, identification data) on the basis of legitimate interest. This legitimate interest consists of:
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 8 }}>
+              (a) providing due diligence and business risk assessment services to B2B users verifying their business partners, suppliers, or clients;<br />
+              (b) protecting the legitimate economic interests of the User against damages arising from business relationships with unreliable entities;<br />
+              (c) fulfilling the purpose of public registers, which were established precisely for the purpose of public control and transparency of the business environment.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Balance of interests.</strong> The Operator has conducted a balance of interests assessment under Art. 6(1)(f) GDPR and concluded that the User&rsquo;s legitimate interest in verifying business partners outweighs the rights of the data subjects, particularly because: the data is publicly available, it is processed only for legal entities and sole traders (not for private individuals in a private context), and the processing serves a legitimate business purpose.
+            </p>
+            <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: 12 }}>
+              <strong>Use by the User.</strong> The User confirms that data obtained through the Service will be used exclusively for the purpose of verifying a business partner within an existing or planned business relationship, and not for purposes of discrimination, harassment, or other unlawful processing.
+            </p>
+          </>
         ),
       },
       {
