@@ -11,174 +11,192 @@
 </div>
 {% endif %}
 
-{# ── 5-PILIEROVÝ SCORECARD (moved from _summary.html) ── #}
-{# Layout: tabuľka (100% width) + radar graf (centered below) #}
-{# Table flows naturally across pages; radar is separate page-break block #}
+{# ════════════════════════════════════════════════════════════════════ #}
+{# 5-PILIEROVÝ SCORECARD                                                #}
+{# Layout: tabuľka 100% width (2 stĺpce) + radar graf pod tabuľkou      #}
+{# Footer: 3 stĺpce (label 50% | score 20% | note 30%) pre zarovnanie   #}
+{# ════════════════════════════════════════════════════════════════════ #}
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
-<div class="mb-6">
-    <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
-    <table class="w-full border-collapse text-[11px]" style="border: 1px solid #cbd5e1;">
-        <thead>
-            <tr class="bg-slate-200" style="border-bottom: 2px solid #94a3b8;">
-                <th class="text-left py-2 px-3 font-bold text-slate-700 w-[30%] report-body-sm">{{ i18n.col_category_score | default(i18n.col_category) }}</th>
-                <th class="text-left py-2 px-3 font-bold text-slate-700 w-[70%] report-body-sm" style="border-left: 1px solid #cbd5e1;">{{ i18n.col_finding }}</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for pillar in scorecard_breakdown %}
-            {% set is_penalty = pillar.max_score == 0 %}
-            {% set pct = (not is_penalty and pillar.max_score > 0) and ((pillar.score / pillar.max_score) * 100) | int %}
-            {% if is_penalty %}
-                {% set bar_color = "#8b5cf6" %}
-                {% set score_color = "text-violet-700" %}
-                {% set row_bg = "background: #faf5ff;" %}
-                {% set icon = "⚠" %}
-                {% set icon_color = "text-violet-500" %}
-            {% elif pct >= 70 %}
-                {% set bar_color = "#5b9279" %}
-                {% set score_color = "text-emerald-700" %}
-                {% set row_bg = "" %}
-                {% set icon = "✓" %}
-                {% set icon_color = "text-emerald-500" %}
-            {% elif pct >= 40 %}
-                {% set bar_color = "#f59e0b" %}
-                {% set score_color = "text-amber-600" %}
-                {% set row_bg = "" %}
-                {% set icon = "⚠" %}
-                {% set icon_color = "text-amber-500" %}
-            {% else %}
-                {% set bar_color = "#ef4444" %}
-                {% set score_color = "text-rose-600" %}
-                {% set row_bg = "background: #fff5f5;" %}
-                {% set icon = "✗" %}
-                {% set icon_color = "text-rose-500" %}
-            {% endif %}
-            <tr style="{{ row_bg }} border-bottom: 1px solid #e2e8f0; page-break-inside: avoid; break-inside: avoid;">
-                {# ── Column 1: Kategória + Skóre (merged) ── #}
-                <td class="py-3 px-3 align-top" style="border-right: 1px solid #e2e8f0;">
-                    <div class="font-semibold text-slate-800 report-body-sm" style="margin-bottom: 8px;"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="font-black report-body-sm {{ score_color }}" style="white-space: nowrap; min-width: 48px;">
-                            {% if is_penalty %}{{ pillar.score }}b{% else %}{{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>{% endif %}
-                        </span>
-                        {% if not is_penalty %}
-                        <div style="flex: 1; background: #e2e8f0; border-radius: 9999px; height: 7px; min-width: 60px;">
-                            <div style="border-radius: 9999px; height: 7px; width:{{ pct }}%; background:{{ bar_color }};"></div>
-                        </div>
-                        <span class="report-caption text-slate-500" style="white-space: nowrap; min-width: 34px; text-align: right; font-weight: 600;">{{ pct }}%</span>
-                        {% else %}
-                        <span class="report-caption text-violet-500" style="font-weight: 600;">{{ i18n.penalty_label }}</span>
-                        {% endif %}
+
+{# ── Helper: farby podľa percenta ── #}
+{# Definované ako premenné, nie Tailwind class — inline CSS pre PDF render #}
+
+<h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
+
+{# ════════ PILIER TABUĽKA ════════ #}
+<table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #94a3b8;">
+    {# ── Header ── #}
+    <thead>
+        <tr style="background: #e2e8f0; border-bottom: 2px solid #64748b;">
+            <th style="text-align: left; padding: 8px 10px; font-weight: 700; color: #334155; width: 30%; border-right: 1px solid #94a3b8;">
+                {{ i18n.col_category_score | default(i18n.col_category) }}
+            </th>
+            <th style="text-align: left; padding: 8px 10px; font-weight: 700; color: #334155; width: 70%;">
+                {{ i18n.col_finding }}
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for pillar in scorecard_breakdown %}
+        {% set is_penalty = pillar.max_score == 0 %}
+        {% set pct = (not is_penalty and pillar.max_score > 0) and ((pillar.score / pillar.max_score) * 100) | int %}
+        {% if is_penalty %}
+            {% set bar_color = "#8b5cf6" %}{% set score_color = "#6d28d9" %}{% set row_bg = "#faf5ff" %}
+            {% set icon = "⚠" %}{% set icon_color = "#8b5cf6" %}
+        {% elif pct >= 70 %}
+            {% set bar_color = "#5b9279" %}{% set score_color = "#047857" %}{% set row_bg = "#ffffff" %}
+            {% set icon = "✓" %}{% set icon_color = "#10b981" %}
+        {% elif pct >= 40 %}
+            {% set bar_color = "#f59e0b" %}{% set score_color = "#d97706" %}{% set row_bg = "#ffffff" %}
+            {% set icon = "⚠" %}{% set icon_color = "#f59e0b" %}
+        {% else %}
+            {% set bar_color = "#ef4444" %}{% set score_color = "#dc2626" %}{% set row_bg = "#fff5f5" %}
+            {% set icon = "✗" %}{% set icon_color = "#ef4444" %}
+        {% endif %}
+        <tr style="background: {{ row_bg }}; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid; break-inside: avoid;">
+            {# ── Stĺpec 1: Kategória + Skóre + Progress bar ── #}
+            <td style="padding: 10px 10px; vertical-align: top; border-right: 1px solid #cbd5e1;">
+                {# Názov kategórie #}
+                <div style="font-weight: 600; color: #1e293b; font-size: 12px; margin-bottom: 8px;">
+                    <span style="color: {{ icon_color }}; margin-right: 4px;">{{ icon }}</span>{{ pillar.name }}
+                </div>
+                {# Skóre + progress bar + % v jednom flex riadku #}
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 800; color: {{ score_color }}; white-space: nowrap; min-width: 50px; font-size: 12px;">
+                        {% if is_penalty %}{{ pillar.score }}b{% else %}{{ pillar.score }}<span style="color: #94a3b8; font-weight: 400; font-size: 10px;">/{{ pillar.max_score }}</span>{% endif %}
+                    </span>
+                    {% if not is_penalty %}
+                    <div style="flex: 1; background: #e2e8f0; border-radius: 9999px; height: 8px; min-width: 50px;">
+                        <div style="border-radius: 9999px; height: 8px; width: {{ pct }}%; background: {{ bar_color }};"></div>
                     </div>
-                </td>
-                {# ── Column 2: Hlavný nález (deduplicated — bullets only) ── #}
-                <td class="py-3 px-3 text-slate-600 report-body-sm leading-normal align-top">
-                    {% if pillar.flags and pillar.flags|length > 0 %}
-                    <ul style="margin: 0; padding: 0; list-style: none;">
-                        {% for flag in pillar.flags %}
-                        <li style="leading-tight; padding-bottom: 2px;">• {{ flag | sanitize_llm }}</li>
-                        {% endfor %}
-                    </ul>
+                    <span style="color: #64748b; white-space: nowrap; min-width: 36px; text-align: right; font-size: 10px; font-weight: 600;">{{ pct }}%</span>
                     {% else %}
-                    {{ pillar.detail | sanitize_llm }}
+                    <span style="color: #8b5cf6; font-size: 10px; font-weight: 600;">{{ i18n.penalty_label }}</span>
                     {% endif %}
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-        <tfoot>
-            {% set positive_total = namespace(val=0) %}
-            {% set penalty_total = namespace(val=0) %}
-            {% for p in scorecard_breakdown %}
-                {% if p.max_score > 0 %}
-                    {% set positive_total.val = positive_total.val + p.score %}
+                </div>
+            </td>
+            {# ── Stĺpec 2: Hlavný nález (len bullets) ── #}
+            <td style="padding: 10px 10px; vertical-align: top; color: #475569; font-size: 12px; line-height: 1.5;">
+                {% if pillar.flags and pillar.flags|length > 0 %}
+                <ul style="margin: 0; padding: 0; list-style: none;">
+                    {% for flag in pillar.flags %}
+                    <li style="line-height: 1.4; padding-bottom: 3px;">• {{ flag | sanitize_llm }}</li>
+                    {% endfor %}
+                </ul>
                 {% else %}
-                    {% set penalty_total.val = penalty_total.val + p.score %}
+                {{ pillar.detail | sanitize_llm }}
                 {% endif %}
-            {% endfor %}
-            {% if penalty_total.val != 0 %}
-            <tr class="bg-slate-50" style="border-top: 1px solid #cbd5e1; page-break-inside: avoid; break-inside: avoid;">
-                <td class="py-1.5 px-3 report-caption text-slate-500" style="border-right: 1px solid #e2e8f0;">{{ i18n.subtotal_pillars }}</td>
-                <td class="py-1.5 px-3 report-caption text-slate-500 text-right" style="font-weight: 600;">{{ positive_total.val }}b</td>
-            </tr>
-            <tr class="bg-slate-50" style="border-bottom: 1px solid #e2e8f0; page-break-inside: avoid; break-inside: avoid;">
-                <td class="py-1.5 px-3 report-caption text-slate-500" style="border-right: 1px solid #e2e8f0;">{{ i18n.subtotal_penalties }}</td>
-                <td class="py-1.5 px-3 report-caption text-slate-500 text-right" style="font-weight: 600;">{{ penalty_total.val }}b</td>
-            </tr>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+    {# ════════ FOOTER: 3 stĺpce pre zarovnanie ════════ #}
+    {# label (50%) | score (20%, right) | note (30%) — skóre zvislo zarovnané #}
+    <tfoot>
+        {% set positive_total = namespace(val=0) %}
+        {% set penalty_total = namespace(val=0) %}
+        {% for p in scorecard_breakdown %}
+            {% if p.max_score > 0 %}
+                {% set positive_total.val = positive_total.val + p.score %}
+            {% else %}
+                {% set penalty_total.val = penalty_total.val + p.score %}
             {% endif %}
-            {# ── Footer: 3-column layout for aligned scores ── #}
-            {# Col 1 = label (55%), Col 2 = score (20%, right-aligned), Col 3 = note (25%) #}
-            <tr style="background: #f1f5f9; border-top: 2px solid #94a3b8; page-break-inside: avoid; break-inside: avoid;">
-                <td class="py-2 px-3 font-semibold text-slate-700 report-body-sm" style="border-right: 1px solid #e2e8f0;">{{ i18n.algorithmic_score }}</td>
-                <td class="py-2 px-3 text-right" style="white-space: nowrap;">
-                    <span class="font-bold text-slate-700 text-lg" style="display: inline-block; min-width: 55px; text-align: right;">{{ algorithmic_total }}<span class="text-slate-400 font-normal report-caption">/100</span></span>
-                    <span class="report-caption text-slate-400" style="margin-left: 10px;">{{ i18n.base_model }}</span>
-                </td>
-            </tr>
-            <tr style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0; page-break-inside: avoid; break-inside: avoid;">
-                <td class="py-2 px-3 font-semibold text-slate-700 report-body-sm" style="border-right: 1px solid #e2e8f0;">{{ i18n.auditor_correction }}</td>
-                <td class="py-2 px-3 text-right" style="white-space: nowrap;">
-                    <span class="font-bold text-lg
-                        {% if verdict.llmScoreAdjustment > 0 %}text-emerald-600
-                        {% elif verdict.llmScoreAdjustment < 0 %}text-rose-600
-                        {% else %}text-slate-500{% endif %}" style="display: inline-block; min-width: 55px; text-align: right;">
-                        {% if verdict.llmScoreAdjustment > 0 %}+{% endif %}{{ verdict.llmScoreAdjustment }}
-                    </span>
-                    <span class="report-caption text-slate-400" style="margin-left: 10px;">{{ i18n.based_on_registers }}</span>
-                </td>
-            </tr>
-            {% if hard_stop %}
-            <tr style="background: #fff1f2; border-bottom: 1px solid #fecaca; page-break-inside: avoid; break-inside: avoid;">
-                <td class="py-2 px-3 font-semibold text-rose-700 report-body-sm" style="border-right: 1px solid #fecaca;">⛔ {{ i18n.hard_stop_penalty }}</td>
-                <td class="py-2 px-3 text-right" style="white-space: nowrap;">
-                    <span class="font-bold text-lg text-rose-600" style="display: inline-block; min-width: 55px; text-align: right;">−{{ algorithmic_total }}</span>
-                    <span class="report-caption text-rose-400" style="margin-left: 10px;">{{ i18n.hard_stop_penalty_desc }}</span>
-                </td>
-            </tr>
-            {% endif %}
-            <tr style="background: #f8f9fa; border-top: 2px solid #475569; page-break-inside: avoid; break-inside: avoid;">
-                <td class="py-3.5 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide" style="border-right: 1px solid #e2e8f0;">{{ i18n.final_score }}</td>
-                <td class="py-3.5 px-3 text-right" style="white-space: nowrap;">
-                    <span class="font-black text-xl
-                        {% if verdict.verifaScore >= 80 %}text-emerald-700
-                        {% elif verdict.verifaScore >= 50 %}text-amber-600
-                        {% else %}text-rose-600{% endif %}" style="display: inline-block; min-width: 55px; text-align: right;">
-                        {{ verdict.verifaScore }}<span class="text-slate-400 font-normal report-caption">/100</span>
-                    </span>
-                    <span class="font-bold report-body-sm px-2 py-1 rounded shadow-sm" style="margin-left: 10px;
-                        {% if verdict.riskCategory == 'AAA' %}background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0;
-                        {% elif verdict.riskCategory == 'A' %}background: #ecfdf5; color: #047857; border: 1px solid #d1fae5;
-                        {% elif verdict.riskCategory == 'B' %}background: #fffbeb; color: #b45309; border: 1px solid #fef3c7;
-                        {% else %}background: #fff1f2; color: #be123c; border: 1px solid #fecaca;{% endif %}">
-                        {{ verdict.riskCategory }}
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <td colspan="2" class="py-2 px-3 bg-white" style="border-top: 1px solid #e2e8f0;">
-                    <p class="report-caption text-slate-500">
-                        {{ i18n.pillar_weights_note }}
-                        {% if financial_basis == 'consolidated' %}
-                            <br><span class="text-slate-400">{{ i18n.financial_basis_consolidated | default('Základ: Konsolidované') }}</span>
-                        {% elif financial_basis == 'individual' %}
-                            <br><span class="text-slate-400">{{ i18n.financial_basis_individual | default('Základ: Individuálne') }}</span>
-                        {% endif %}
-                        {% if has_mixed_consolidation %}
-                            <br><span class="text-amber-500">⚠ Historical statement type changed; trend analysis may have limited comparability.</span>
-                        {% endif %}
-                    </p>
-                </td>
-            </tr>
-        </tfoot>
-    </table>
-</div>
-{# ── Radar chart: SEPARATE block — centered below the table, own page-break ── #}
+        {% endfor %}
+        {% if penalty_total.val != 0 %}
+        <tr style="background: #f8fafc; border-top: 1px solid #94a3b8; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 5px 10px; font-size: 10px; color: #64748b; border-right: 1px solid #cbd5e1;">{{ i18n.subtotal_pillars }}</td>
+            <td style="padding: 5px 10px; font-size: 10px; color: #64748b; text-align: right; font-weight: 600;">{{ positive_total.val }}b</td>
+        </tr>
+        <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 5px 10px; font-size: 10px; color: #64748b; border-right: 1px solid #cbd5e1;">{{ i18n.subtotal_penalties }}</td>
+            <td style="padding: 5px 10px; font-size: 10px; color: #64748b; text-align: right; font-weight: 600;">{{ penalty_total.val }}b</td>
+        </tr>
+        {% endif %}
+
+        {# ── Algoritmické skóre ── #}
+        <tr style="background: #f1f5f9; border-top: 2px solid #64748b; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 8px 10px; font-weight: 600; color: #334155; font-size: 12px; border-right: 1px solid #cbd5e1;">
+                {{ i18n.algorithmic_score }}
+            </td>
+            <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
+                <span style="font-weight: 700; color: #334155; font-size: 16px;">{{ algorithmic_total }}<span style="color: #94a3b8; font-weight: 400; font-size: 10px;">/100</span></span>
+                <span style="color: #94a3b8; font-size: 10px; margin-left: 12px;">{{ i18n.base_model }}</span>
+            </td>
+        </tr>
+
+        {# ── Korekcia audítora ── #}
+        {% set adj_color = "#dc2626" if verdict.llmScoreAdjustment < 0 else ("#059669" if verdict.llmScoreAdjustment > 0 else "#64748b") %}
+        <tr style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 8px 10px; font-weight: 600; color: #334155; font-size: 12px; border-right: 1px solid #cbd5e1;">
+                {{ i18n.auditor_correction }}
+            </td>
+            <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
+                <span style="font-weight: 700; color: {{ adj_color }}; font-size: 16px;">
+                    {% if verdict.llmScoreAdjustment > 0 %}+{% endif %}{{ verdict.llmScoreAdjustment }}
+                </span>
+                <span style="color: #94a3b8; font-size: 10px; margin-left: 12px;">{{ i18n.based_on_registers }}</span>
+            </td>
+        </tr>
+
+        {# ── Hard stop (ak existuje) ── #}
+        {% if hard_stop %}
+        <tr style="background: #fff1f2; border-bottom: 1px solid #fecaca; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 8px 10px; font-weight: 600; color: #be123c; font-size: 12px; border-right: 1px solid #fecaca;">
+                ⛔ {{ i18n.hard_stop_penalty }}
+            </td>
+            <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
+                <span style="font-weight: 700; color: #dc2626; font-size: 16px;">−{{ algorithmic_total }}</span>
+                <span style="color: #f87171; font-size: 10px; margin-left: 12px;">{{ i18n.hard_stop_penalty_desc }}</span>
+            </td>
+        </tr>
+        {% endif %}
+
+        {# ── Finálne skóre (highlighted) ── #}
+        {% set final_color = "#dc2626" if verdict.verifaScore < 50 else ("#d97706" if verdict.verifaScore < 80 else "#047857") %}
+        {% set cat_bg = "#fff1f2" if verdict.riskCategory not in ['AAA','A','B'] else ("#fffbeb" if verdict.riskCategory == 'B' else ("#ecfdf5" if verdict.riskCategory == 'A' else "#d1fae5")) %}
+        {% set cat_fg = "#be123c" if verdict.riskCategory not in ['AAA','A','B'] else ("#b45309" if verdict.riskCategory == 'B' else ("#047857" if verdict.riskCategory == 'A' else "#065f46")) %}
+        {% set cat_border = "#fecaca" if verdict.riskCategory not in ['AAA','A','B'] else ("#fef3c7" if verdict.riskCategory == 'B' else ("#d1fae5" if verdict.riskCategory == 'A' else "#a7f3d0")) %}
+        <tr style="background: #f8f9fa; border-top: 2px solid #334155; page-break-inside: avoid; break-inside: avoid;">
+            <td style="padding: 12px 10px; font-weight: 800; color: #0f172a; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-right: 1px solid #cbd5e1;">
+                {{ i18n.final_score }}
+            </td>
+            <td style="padding: 12px 10px; text-align: right; white-space: nowrap;">
+                <span style="font-weight: 800; color: {{ final_color }}; font-size: 20px;">
+                    {{ verdict.verifaScore }}<span style="color: #94a3b8; font-weight: 400; font-size: 11px;">/100</span>
+                </span>
+                <span style="font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px; margin-left: 12px; background: {{ cat_bg }}; color: {{ cat_fg }}; border: 1px solid {{ cat_border }};">
+                    {{ verdict.riskCategory }}
+                </span>
+            </td>
+        </tr>
+
+        {# ── Poznámka pod tabuľkou ── #}
+        <tr>
+            <td colspan="2" style="padding: 8px 10px; background: #ffffff; border-top: 1px solid #e2e8f0;">
+                <p style="font-size: 10px; color: #64748b; margin: 0;">
+                    {{ i18n.pillar_weights_note }}
+                    {% if financial_basis == 'consolidated' %}
+                        <br><span style="color: #94a3b8;">{{ i18n.financial_basis_consolidated | default('Základ: Konsolidované') }}</span>
+                    {% elif financial_basis == 'individual' %}
+                        <br><span style="color: #94a3b8;">{{ i18n.financial_basis_individual | default('Základ: Individuálne') }}</span>
+                    {% endif %}
+                    {% if has_mixed_consolidation %}
+                        <br><span style="color: #f59e0b;">⚠ Historical statement type changed; trend analysis may have limited comparability.</span>
+                    {% endif %}
+                </p>
+            </td>
+        </tr>
+    </tfoot>
+</table>
+
+{# ════════ RADAR CHART — samostatný blok pod tabuľkou ════════ #}
 {% if radar_chart_base64 %}
-<div class="flex flex-col items-center mb-6" style="page-break-inside: avoid; break-inside: avoid;">
-    <p class="report-caption text-slate-400 text-center mb-2">{{ i18n.pillar_profile }}</p>
+<div style="text-align: center; margin-top: 16px; margin-bottom: 24px; page-break-inside: avoid; break-inside: avoid;">
+    <p style="font-size: 10px; color: #94a3b8; margin-bottom: 8px;">{{ i18n.pillar_profile }}</p>
     <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 300px; height: auto;">
 </div>
 {% endif %}
+
 {% endif %}
 
 {# ── FINANČNÝ POSUDOK — nadpis nad KPI kartami ── #}
