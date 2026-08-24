@@ -105,8 +105,9 @@
     </div>
     {% endif %}
 
-    {# ── EVIDENCE TABLE (Tvrdenie / Dôkaz) — moved before SW box for logical flow ── #}
-    <div class="page-break"></div>
+    {# ── EVIDENCE TABLE (Tvrdenie / Dôkaz) — fallback keď F3 Findings neexistujú ── #}
+    {# Keď existujú F3 Findings (Analýza & Nálezy), Evidence Table je redundantná ── #}
+    {% if not verdict.findings or verdict.findings|length == 0 %}
     <div class="flex gap-6 mb-6">
         <div class="flex-1">
             {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
@@ -146,6 +147,7 @@
             {% endif %}
         </div>
     </div>
+    {% endif %}
 
     {# ── STRENGTHS & WEAKNESSES BOX (moved after evidence table) ── #}
     {% if strengths_weaknesses and strengths_weaknesses.has_data %}
