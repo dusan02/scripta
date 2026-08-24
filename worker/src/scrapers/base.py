@@ -386,11 +386,14 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
             "button:has-text('Rozumiem')",
             "button:has-text('Accept all')",
             "button:has-text('Prijať všetko')",
+            "button:has-text('Prijať všetky')",
             "button:has-text('Akceptovať všetky cookies')",
             "button:has-text('OK')",
+            "#consent-accept-all",
             "#cookie-accept",
             ".cookie-banner button",
             "[id*='cookie'] button:first-child",
+            "[id*='consent'] button:first-child",
         ]
         for selector in cookie_selectors:
             try:
