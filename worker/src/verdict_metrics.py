@@ -108,7 +108,13 @@ def build_metric_placeholders(
         Dict placeholder → str hodnota (napr. {"{{REVENUE}}": "111,6 mil. €", ...})
     """
     if not stmts:
-        return {}
+        # Aj bez finančných výkazov musíme nahradiť kontextové placeholdre
+        # (STATUTAR_CHANGES, COMPANY_NAME) — inak LLM text obsahuje {{...}}
+        return {
+            "{{STATUTAR_CHANGES}}": str(statutar_changes) if statutar_changes is not None else "N/A",
+            "{{COMPANY_NAME}}": company_name or "N/A",
+            "{{LATEST_YEAR}}": "N/A",
+        }
 
     # Zoradiť podľa roku (najstarší → najnovší) — bezpečné pre akékoľvek poradie vstupu
     sorted_stmts = sorted(stmts, key=lambda s: s.get("year", 0) or 0)
