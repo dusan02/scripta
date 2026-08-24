@@ -34,6 +34,8 @@ from .db_repository import (
     create_bug_report,
     get_verifa_score,
     save_company_persons,
+    check_report_cancelled,
+    ReportCancelledError,
 )
 from .models import ReportTask
 from .pdf.compiler import PdfCompiler
@@ -397,6 +399,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
         _log.info(f"[{_rid}] Scraper lock released")
 
+        # ── Cancellation check #1: before AI pipeline (most expensive phase) ──
+        await check_report_cancelled(task.report_request_id)
+
         company_name = _extract_company_name(sources, task.target_type)
 
         # 3h: Browser health check — ak browser spadol počas scrapovania, re-launch
@@ -484,6 +489,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
         _ai_ms = int((t_ai_done - t_ai_wait) * 1000)
         await save_phase_duration(task.report_request_id, "ai", _ai_ms)
 
+        # ── Cancellation check #2: before Chief Auditor + compile ──
+        await check_report_cancelled(task.report_request_id)
+
         # ETA update: Chief Auditor + kompilácia — phase-aware z historických dát
         hist_auditor = _phase_historical.get('auditor') if _phase_historical else None
         hist_compile = _phase_historical.get('compile') if _phase_historical else None
@@ -548,6 +556,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
         await update_report_ai_status(task.report_request_id, "ai.risk_synthesis", compile_eta + 5)
         await asyncio.sleep(2)
         await update_report_ai_status(task.report_request_id, "ai.compiling", compile_eta)
+
+        # ── Cancellation check #3: before PDF compile + S3 upload ──
+        await check_report_cancelled(task.report_request_id)
 
         compiler = PdfCompiler(settings.results_dir)
         t_compile_start = time.perf_counter()

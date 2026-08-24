@@ -39,6 +39,26 @@ async def disconnect_db() -> None:
         _db = None
 
 
+async def reconnect_db() -> None:
+    """Force reconnect the Prisma client after connection timeout.
+
+    The Prisma query engine communicates via HTTP on localhost.
+    After long-running tasks (15+ min LLM pipelines), the HTTP connection
+    can idle-timeout with httpcore.ConnectTimeout. This function tears down
+    the stale client and creates a fresh connection.
+    """
+    global _db
+    logger.warning("Reconnecting Prisma client (stale connection recovery)")
+    try:
+        if _db is not None:
+            await _db.disconnect()
+    except Exception as e:
+        logger.warning(f"Error during stale disconnect: {e}")
+    _db = Prisma()
+    await _db.connect()
+    logger.info("Prisma client reconnected successfully")
+
+
 def get_db() -> Prisma:
     """Return the shared Prisma client instance.
 

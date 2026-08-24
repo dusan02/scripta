@@ -90,6 +90,12 @@ async def execute_report_task(ctx, task_dict: dict):
         await _execute_report_inner(task)
         logger.info(f"Úloha pre IČO {ico} bola úspešne dokončená.")
     except Exception as e:
+        # ReportCancelledError — user zrušil report, nereťartuj
+        from src.db_repository import ReportCancelledError
+        if isinstance(e, ReportCancelledError):
+            logger.info(f"[{report_request_id}] Report cancelled — skipping retry. IČO: {ico}")
+            return
+
         logger.error(f"Chyba pri spracovaní IČO {ico}: {e}", exc_info=True)
         if sentry_dsn:
             sentry_sdk.capture_exception(e)

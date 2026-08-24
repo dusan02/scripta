@@ -7,10 +7,42 @@ from prisma import Prisma
 from prisma.errors import PrismaError
 import httpx
 from src.llm_extractor import CompanyFinancialExtraction, NarrativeRiskAnalysis
-from src.db_client import get_db
+from src.db_client import get_db, reconnect_db
 from src.ruz_parser import compute_data_quality_status
 
 logger = logging.getLogger(__name__)
+
+
+def _is_connection_error(exc: Exception) -> bool:
+    """Check if an exception is a Prisma/httpx connection-related error."""
+    if isinstance(exc, (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout)):
+        return True
+    # httpcore errors wrapped by Prisma
+    exc_str = str(exc).lower()
+    if "connecttimeout" in exc_str or "connection" in exc_str and "refused" in exc_str:
+        return True
+    return False
+
+
+async def _retry_with_reconnect(func, *args, max_retries=2, **kwargs):
+    """Retry a DB operation with Prisma reconnect on connection errors."""
+    last_exc: Exception | None = None
+    for attempt in range(max_retries + 1):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            if _is_connection_error(exc) and attempt < max_retries:
+                logger.warning(f"DB connection error (attempt {attempt + 1}/{max_retries + 1}): {exc} — reconnecting")
+                try:
+                    await reconnect_db()
+                except Exception as reconnect_err:
+                    logger.error(f"Reconnect failed: {reconnect_err}")
+                    raise
+                await asyncio.sleep(1)
+                continue
+            raise
+    raise last_exc  # type: ignore[misc]
 
 
 def _is_garbled(text: str) -> bool:
@@ -724,8 +756,8 @@ async def update_report_status(
     company_name: Optional[str] = None,
     verifa_score: Optional[int] = None,
 ) -> None:
-    db = get_db()
-    try:
+    async def _do_update():
+        db = get_db()
         data = {"status": status}
         if result_file_path is not None:
             data["resultFilePath"] = result_file_path
@@ -735,17 +767,40 @@ async def update_report_status(
             data["companyName"] = company_name
         if verifa_score is not None:
             data["verifaScore"] = verifa_score
-        
         await db.reportrequest.update(
             where={"id": report_request_id},
             data=data
         )
+    try:
+        await _retry_with_reconnect(_do_update)
     except PrismaError as e:
         logger.error(f"DB error updating report status for {report_request_id}: {e}")
         raise
     except Exception as e:
         logger.error(f"Unexpected error updating report status for {report_request_id}: {e}", exc_info=True)
         raise
+
+
+class ReportCancelledError(Exception):
+    """Raised when a report has been cancelled or marked FAILED externally."""
+    pass
+
+
+async def check_report_cancelled(report_request_id: str) -> None:
+    """Check if report status is FAILED or CANCELLED. Raises ReportCancelledError if so."""
+    db = get_db()
+    try:
+        req = await db.reportrequest.find_unique(
+            where={'id': report_request_id},
+        )
+        if req and req.status in ("FAILED", "CANCELLED"):
+            raise ReportCancelledError(f"Report {report_request_id} cancelled (status={req.status})")
+    except ReportCancelledError:
+        raise
+    except PrismaError as e:
+        logger.error(f"DB error checking cancellation for {report_request_id}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error checking cancellation for {report_request_id}: {e}")
 
 
 async def get_avg_phase_durations(limit: int = 20) -> Optional[dict]:
@@ -791,8 +846,8 @@ async def get_avg_phase_durations(limit: int = 20) -> Optional[dict]:
 
 
 async def save_phase_duration(report_request_id: str, phase: str, duration_ms: int) -> None:
-    db = get_db()
-    try:
+    async def _do_save():
+        db = get_db()
         col_map = {"scrapers": "scrapersMs", "ai": "aiMs", "auditor": "auditorMs", "compile": "compileMs"}
         col = col_map.get(phase)
         if not col:
@@ -801,12 +856,12 @@ async def save_phase_duration(report_request_id: str, phase: str, duration_ms: i
             where={"id": report_request_id},
             data={col: duration_ms}
         )
+    try:
+        await _retry_with_reconnect(_do_save)
     except PrismaError as e:
         logger.error(f"DB error saving phase duration for {report_request_id}: {e}")
     except Exception as e:
         logger.error(f"Unexpected error saving phase duration for {report_request_id}: {e}", exc_info=True)
-    finally:
-        pass
 
 
 async def upsert_report_sources(report_request_id: str, sources: list) -> None:
@@ -853,8 +908,8 @@ async def upsert_single_report_source(report_request_id: str, source) -> None:
 
 
 async def update_source_page_counts(report_request_id: str, sources: list) -> None:
-    db = get_db()
-    try:
+    async def _do_update_counts():
+        db = get_db()
         for source in sources:
             if source.status == "SUCCESS" and source.page_count and source.page_count > 0:
                 await db.reportsource.update(
@@ -866,12 +921,12 @@ async def update_source_page_counts(report_request_id: str, sources: list) -> No
                     },
                     data={"pageCount": source.page_count}
                 )
+    try:
+        await _retry_with_reconnect(_do_update_counts)
     except PrismaError as e:
         logger.error(f"DB error updating page counts for {report_request_id}: {e}")
     except Exception as e:
         logger.error(f"Unexpected error updating page counts for {report_request_id}: {e}", exc_info=True)
-    finally:
-        pass
 
 
 async def create_bug_report(report_request_id: str, error_details: str) -> None:
