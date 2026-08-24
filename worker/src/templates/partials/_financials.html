@@ -60,7 +60,7 @@
                 <td class="py-1.5 px-2 font-semibold text-slate-800 report-body-sm"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</td>
                 <td class="py-1.5 px-2 text-slate-600 report-body-sm leading-normal">
                     {{ pillar.detail | sanitize_llm }}
-                    {% if pillar.flags and pillar.flags|length > 0 %}
+                    {% if pillar.flags and pillar.flags|length > 0 and not radar_chart_base64 %}
                     <ul class="mt-1 space-y-0">
                         {% for flag in pillar.flags %}
                         <li class="report-caption text-slate-400 leading-tight">• {{ flag }}</li>
