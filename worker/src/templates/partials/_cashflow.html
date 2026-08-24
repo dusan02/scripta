@@ -1,6 +1,5 @@
 <!-- ===== PAGE 3: CASH FLOW ===== -->
-<div class="page-break"></div>
-<div class="flex flex-col" style="height: 255mm; page-break-inside: avoid; overflow: hidden;">
+<div class="flex flex-col" style="height: 255mm; page-break-before: always; page-break-inside: avoid; overflow: hidden;">
     <h2 id="cash_flow" class="section-title mb-4 flex-shrink-0">{{ i18n.cash_flow }}</h2>
     {% if company.financialStatements and company.financialStatements|length >= 1 %}
     {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
