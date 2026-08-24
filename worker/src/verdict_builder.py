@@ -282,6 +282,28 @@ async def run_orsr_forensics_agent(ico: str, sources: list, report_language: str
         return False
 
 
+def _enrich_findings_source_pages(findings: list) -> list:
+    """F4.3: Enrich findings source_pages for Súvaha/Balance Sheet sources.
+
+    LLM Chief Auditor generates source_pages=null for Súvaha findings because
+    it doesn't know which page the balance sheet is on in the PDF. This function
+    sets a deterministic label for balance-sheet-sourced findings so the PDF
+    report shows "Zdroj: Súvaha, str. 1" instead of just "Zdroj: Súvaha".
+
+    Notes/Vestník/OR SR findings keep their LLM-generated source_pages unchanged.
+
+    Does NOT touch scoring, business rules, or finding content — only source_pages.
+    """
+    BALANCE_SHEET_SOURCES = {"Súvaha", "Balance Sheet", "Súvaha a Výkaz ziskov a strát"}
+    for f in findings:
+        source = getattr(f, 'source', None) or ''
+        source_pages = getattr(f, 'source_pages', None)
+        # Only enrich if source is balance-sheet AND source_pages is null/empty
+        if source in BALANCE_SHEET_SOURCES and not source_pages:
+            f.source_pages = "1"
+    return findings
+
+
 def _sanitize_verdict_text(text: str) -> str:
     """Sanitizuje LLM text pred uložením do DB.
     Aplikuje sa pri ukladaní verdictu — druhá vrstva je template filter sanitize_llm."""
@@ -956,7 +978,7 @@ async def run_and_save_audit_verdict(
             'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
             'keyRisk': _sanitize_verdict_text(verdict.kľúčové_riziko),
             'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
-            'findings': Json([f.model_dump() for f in verdict.findings]) if verdict.findings else None,
+            'findings': Json([f.model_dump() for f in _enrich_findings_source_pages(verdict.findings)]) if verdict.findings else None,
             'llmScoreAdjustment': det_adj,
             'llmAnalysisStatus': verdict.llm_analysis_status,
         }
