@@ -53,7 +53,7 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
             key={l.code}
             onClick={() => switchTo(l.code)}
             style={{
-              padding: "6px 10px",
+              padding: "10px 14px",
               borderRadius: "6px",
               background: lang === l.code ? "var(--accent)" : "rgba(255, 255, 255, 0.8)",
               color: lang === l.code ? "#fff" : "#374151",
@@ -63,6 +63,7 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
               fontWeight: 500,
               cursor: "pointer",
               transition: "all 0.2s",
+              minHeight: "44px",
             }}
           >
             {l.code.toUpperCase()}
@@ -84,10 +85,11 @@ export default function AuthPageShell({ children, maxWidth = 400, variant = "cen
               textDecoration: "none",
               fontWeight: 500,
               transition: "color 0.2s",
-              padding: "6px 12px",
+              padding: "10px 14px",
               borderRadius: "8px",
               background: "rgba(0,0,0,0.4)",
               backdropFilter: "blur(4px)",
+              minHeight: "44px",
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

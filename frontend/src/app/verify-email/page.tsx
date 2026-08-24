@@ -86,7 +86,7 @@ export default function VerifyEmailPage() {
                 onClick={() => router.push("/login")}
                 style={{
                   width: "100%",
-                  padding: "10px",
+                  padding: "12px",
                   background: "var(--accent)",
                   color: "var(--accent-button-text)",
                   fontWeight: 500,
@@ -111,7 +111,7 @@ export default function VerifyEmailPage() {
                 style={{
                   display: "block",
                   width: "100%",
-                  padding: "10px",
+                  padding: "12px",
                   background: "var(--surface-hover)",
                   color: "var(--text)",
                   fontWeight: 500,

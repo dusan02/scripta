@@ -96,7 +96,7 @@ export default function RegisterPage() {
             href="/login"
             style={{
               display: "block",
-              padding: "10px",
+              padding: "12px",
               background: "var(--surface-hover)",
               color: "var(--text)",
               fontWeight: 500,
@@ -154,7 +154,7 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               className="input"
-              style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}
+              style={{ width: "100%", padding: "12px 14px", boxSizing: "border-box" }}
             />
           </div>
 
@@ -208,7 +208,7 @@ export default function RegisterPage() {
             type="submit"
             disabled={loading}
             className="btn-primary"
-            style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
+            style={{ width: "100%", marginTop: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
           >
             {loading ? (
               <><Spinner /> {t("register.spracuvam")}</>

@@ -45,7 +45,7 @@ export default function PasswordInput({
             : { defaultValue: defaultValue ?? "" })}
           disabled={disabled}
           className="input"
-          style={{ width: "100%", padding: "10px 36px 10px 12px", boxSizing: "border-box" }}
+          style={{ width: "100%", padding: "12px 36px 12px 14px", boxSizing: "border-box", minHeight: "44px" }}
         />
         <button
           type="button"
@@ -58,7 +58,9 @@ export default function PasswordInput({
             right: "10px",
             top: "50%",
             transform: "translateY(-50%)",
-            padding: "4px",
+            padding: "8px",
+            minHeight: "44px",
+            minWidth: "44px",
             background: "transparent",
             border: "none",
             cursor: "pointer",

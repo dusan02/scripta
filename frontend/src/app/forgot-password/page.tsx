@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
                 className="input"
-                style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "12px 14px", boxSizing: "border-box" }}
               />
             </div>
 
@@ -91,7 +91,7 @@ export default function ForgotPasswordPage() {
               type="submit"
               disabled={loading}
               className="btn-primary"
-              style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
+              style={{ width: "100%", marginTop: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
             >
               {loading ? (
                 <><Spinner /> {t("forgot.odosielam")}</>

@@ -138,7 +138,7 @@ function AdminFeedbackContent() {
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-xs border"
+            className="px-3 py-2.5 rounded-lg text-xs border"
             style={{
               background: "var(--surface)",
               borderColor: "var(--border)",
@@ -157,7 +157,7 @@ function AdminFeedbackContent() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-xs border"
+            className="px-3 py-2.5 rounded-lg text-xs border"
             style={{
               background: "var(--surface)",
               borderColor: "var(--border)",
@@ -269,7 +269,7 @@ function AdminFeedbackContent() {
                     <select
                       value={feedback.status}
                       onChange={(e) => updateStatus(feedback.id, e.target.value)}
-                      className="px-2 py-1 rounded text-[10px] border"
+                      className="px-2.5 py-1.5 rounded text-[10px] border"
                       style={{
                         background: "var(--surface)",
                         borderColor: "var(--border)",

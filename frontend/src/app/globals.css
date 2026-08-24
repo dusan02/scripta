@@ -942,15 +942,12 @@ textarea:focus-visible {
 
 /* ── Mobile touch target & text size fixes (WCAG 2.5.5) ── */
 @media (max-width: 768px) {
-  /* Min 44px touch targety pre všetky interaktívne elementy */
-  button,
-  a[class*="btn"],
-  a[class*="action-btn"],
+  /* Min 44px touch targety pre buttony s textom (nie icon-only) */
+  button:not(.icon-only):not(.action-btn):not(.chip):not([class*="w-9"]):not([class*="w-10"]):not([class*="h-9"]):not([class*="h-10"]),
+  a[class*="btn"]:not(.chip):not(.icon-only),
   input[type="submit"],
-  input[type="button"],
-  .action-btn {
+  input[type="button"] {
     min-height: 44px;
-    min-width: 44px;
   }
 
   /* Text size floor — nič menšie ako 11px na mobile */
@@ -978,5 +975,13 @@ textarea:focus-visible {
   .legend-btn {
     min-height: 36px !important;
     padding: 6px 10px !important;
+  }
+
+  /* Výnimky: icon-only buttony, action buttony v tabuľkách, chip buttony — ostávajú kompaktné */
+  .action-btn,
+  .chip,
+  .icon-only {
+    min-height: auto !important;
+    min-width: auto !important;
   }
 }

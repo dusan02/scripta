@@ -84,7 +84,7 @@ function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input"
-              style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}
+              style={{ width: "100%", padding: "12px 14px", boxSizing: "border-box", minHeight: "44px" }}
             />
           </div>
 
@@ -110,7 +110,7 @@ function LoginForm() {
             style={{
               width: "100%",
               marginTop: "4px",
-              padding: "10px",
+              padding: "12px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",

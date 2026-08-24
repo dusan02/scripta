@@ -109,7 +109,7 @@ function ColumnToggle({
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+        className="chip flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
         style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
         title="Nastaviť stĺpce"
       >

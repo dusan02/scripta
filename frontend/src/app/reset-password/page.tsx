@@ -96,7 +96,7 @@ function ResetPasswordForm() {
               type="submit"
               disabled={loading || !token}
               className="btn-primary"
-              style={{ width: "100%", marginTop: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
+              style={{ width: "100%", marginTop: "12px", padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxSizing: "border-box" }}
             >
               {loading ? (
                 <><Spinner /> {t("reset.ukladam")}</>

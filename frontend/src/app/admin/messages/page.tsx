@@ -180,7 +180,7 @@ function AdminMessagesContent() {
         </div>
         <button
           onClick={() => { resetCompose(); setShowCompose(!showCompose); }}
-          className="px-4 py-2 rounded-lg text-sm font-semibold"
+          className="px-4 py-2.5 rounded-lg text-sm font-semibold"
           style={{
             background: "var(--accent)",
             color: "var(--accent-button-text)",
@@ -261,7 +261,7 @@ function AdminMessagesContent() {
             <button
               onClick={sendMessage}
               disabled={sending || !composeTitle.trim() || !composeBody.trim()}
-              className="px-4 py-2 rounded-lg text-sm font-semibold self-start"
+              className="px-4 py-2.5 rounded-lg text-sm font-semibold self-start"
               style={{
                 background: sending ? "var(--bg-muted)" : "var(--accent)",
                 color: sending ? "var(--text-muted)" : "var(--accent-button-text)",
@@ -279,7 +279,7 @@ function AdminMessagesContent() {
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setFilter("inbox")}
-          className="px-4 py-2 rounded-lg text-sm font-medium"
+          className="px-4 py-2.5 rounded-lg text-sm font-medium"
           style={{
             background: filter === "inbox" ? "var(--accent)" : "var(--surface)",
             color: filter === "inbox" ? "var(--accent-button-text)" : "var(--text-secondary)",
@@ -291,7 +291,7 @@ function AdminMessagesContent() {
         </button>
         <button
           onClick={() => setFilter("sent")}
-          className="px-4 py-2 rounded-lg text-sm font-medium"
+          className="px-4 py-2.5 rounded-lg text-sm font-medium"
           style={{
             background: filter === "sent" ? "var(--accent)" : "var(--surface)",
             color: filter === "sent" ? "var(--accent-button-text)" : "var(--text-secondary)",
@@ -363,7 +363,7 @@ function AdminMessagesContent() {
               {filter === "inbox" && msg.type === "USER" && msg.senderId && (
                 <button
                   onClick={() => startReply(msg)}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg"
+                  className="text-xs font-medium px-3 py-2.5 rounded-lg"
                   style={{
                     background: "var(--accent-light)",
                     color: "var(--accent)",

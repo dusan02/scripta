@@ -64,7 +64,7 @@ function DownloadButton({ href, label }: { href: string; label: string }) {
     <a
       href={href}
       download
-      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 hover:opacity-90"
+      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:opacity-90"
       style={{
         background: "var(--accent)",
         color: "var(--accent-button-text)",
@@ -80,7 +80,7 @@ function ViewButton({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 hover:opacity-90"
+      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 hover:opacity-90"
       style={{
         background: "transparent",
         color: "var(--accent)",

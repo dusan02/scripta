@@ -109,7 +109,7 @@ export function ActiveFilterChips({ searchParams, options }: Props) {
         <button
           key={chip.key}
           onClick={() => removeFilter(chip.key)}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors hover:opacity-80"
+          className="chip inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors hover:opacity-80"
           style={{
             background: "var(--accent-light)",
             color: "var(--accent)",
@@ -123,7 +123,7 @@ export function ActiveFilterChips({ searchParams, options }: Props) {
       ))}
       <button
         onClick={clearAll}
-        className="text-xs px-2 py-1 rounded-full transition-colors hover:opacity-80"
+        className="chip text-xs px-2 py-1 rounded-full transition-colors hover:opacity-80"
         style={{ color: "var(--text-muted)" }}
       >
         Zrušiť všetky

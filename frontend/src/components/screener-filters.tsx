@@ -205,7 +205,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
                   <div key={s.id} className="flex items-center gap-1">
                     <button
                       onClick={() => router.push(`/screener?${qs}`)}
-                      className="flex-1 text-left px-2 py-1.5 text-xs rounded transition-colors hover:bg-[var(--surface-hover)]"
+                      className="chip flex-1 text-left px-2 py-1.5 text-xs rounded transition-colors hover:bg-[var(--surface-hover)]"
                       style={{ color: "var(--text)" }}
                     >
                       {s.name}
@@ -215,7 +215,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
                         fetch(`/api/saved-searches?id=${s.id}`, { method: "DELETE" })
                           .then(r => { if (r.ok) setSavedSearches(prev => prev.filter(x => x.id !== s.id)); });
                       }}
-                      className="text-xs px-1.5 py-1 rounded transition-colors hover:bg-[var(--surface-hover)]"
+                      className="icon-only text-xs px-1.5 py-1 rounded transition-colors hover:bg-[var(--surface-hover)]"
                       style={{ color: "var(--text-muted)" }}
                       title="Odstrániť"
                     >
