@@ -5,7 +5,7 @@
     {% if logo_base64 %}
     <img src="data:image/png;base64,{{ logo_base64 }}" alt="Verifa Logo" class="h-24 mb-10">
     {% else %}
-    <h1 class="text-5xl font-black text-[#5b9279] mb-10">Verifa.sk</h1>
+    <h1 class="text-5xl font-black text-[var(--brand)] mb-10">Verifa.sk</h1>
     {% endif %}
     
     <h2 class="text-xl font-bold uppercase tracking-[0.3em] text-slate-400 mb-4">{{ i18n.due_diligence_report }}</h2>
@@ -14,7 +14,7 @@
     <h3 class="text-4xl font-black text-slate-900 tracking-tight text-center mb-8 leading-tight">{{ display_name_html | safe }}</h3>
 
     {% set score = verdict.verifaScore if verdict else 0 %}
-    {% set gauge_color = "#5b9279" if score >= 70 else "#f59e0b" if score >= 40 else "#e11d48" %}
+    {% set gauge_color = "var(--brand)" if score >= 70 else "var(--warning)" if score >= 40 else "var(--danger)" %}
 
     <div class="flex flex-col items-center justify-center mb-16">
         {# ── Pečiatka: VERIFA SKÓRE (Zväčšená) ── #}
@@ -97,10 +97,9 @@
     <div class="flex items-start gap-2">
         <span class="text-amber-600 font-bold text-sm flex-shrink-0">⚠</span>
         <div>
-            <p class="font-semibold mb-1">Upozornenie o kvalite analýzy</p>
+            <p class="font-semibold mb-1">{{ i18n.critical_fallback_title }}</p>
             <p class="leading-relaxed">
-                Kritický analytický agent bežal na núdzovom modeli ({{ critical_fallbacks[0].fallback_model }}) namiesto {{ critical_fallbacks[0].original_model }}.
-                Obsah reportu môže obsahovať nepresnosti. Odporúčame preveriť kľúčové nálezy.
+                {{ i18n.critical_fallback_desc.format(fallback_model=critical_fallbacks[0].fallback_model, original_model=critical_fallbacks[0].original_model) }}
             </p>
         </div>
     </div>

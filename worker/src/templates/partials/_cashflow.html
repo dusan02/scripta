@@ -1,0 +1,80 @@
+<!-- ===== PAGE 3: CASH FLOW ===== -->
+<div class="page-break"></div>
+<div class="flex flex-col" style="height: 255mm; page-break-inside: avoid; overflow: hidden;">
+    <h2 id="cash_flow" class="section-title mb-4 flex-shrink-0">{{ i18n.cash_flow }}</h2>
+    {% if company.financialStatements and company.financialStatements|length >= 1 %}
+    {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
+
+    {% if cashflow_chart_base64 %}
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3 flex-shrink-0">
+        <img src="data:image/png;base64,{{ cashflow_chart_base64 }}" alt="{{ i18n.cashflow_chart_alt }}" class="max-w-full h-auto" style="height: 220px;">
+    </div>
+    {% elif not has_cashflow_data %}
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 report-body-sm text-amber-800">
+        <strong>{{ i18n.cashflow_data_unavailable }}</strong>
+    </div>
+    {% endif %}
+
+    {% if has_cashflow_data %}
+    <table class="w-full text-xs border-collapse mb-4">
+        <thead>
+            <tr class="bg-slate-100">
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600">{{ i18n.col_item }}</th>
+                {% for stmt in stmts_sorted %}
+                <th class="py-1.5 px-2 font-bold text-slate-600">
+                    <div class="flex justify-end items-center">
+                        <span>{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</span>
+                        <span class="w-3 inline-block flex-shrink-0 ml-0.5"></span>
+                    </div>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% set cf_rows = [
+                (i18n.row_cash_equiv, 'cashAndEquivalents'),
+                (i18n.row_operating_cf, 'operatingCashFlow'),
+                (i18n.row_investing_cf, 'investingCashFlow'),
+                (i18n.row_financing_cf, 'financingCashFlow'),
+            ] %}
+            {% for label, field in cf_rows %}
+            <tr class="border-b border-slate-100">
+                <td class="py-2 px-2 font-semibold text-slate-700">{{ label }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set val = stmt[field] if stmt[field] is defined else none %}
+                {% if val is none %}
+                <td class="py-2 px-2 text-slate-500"><div class="flex justify-end items-center"><span>—</span></div></td>
+                {% else %}
+                {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
+                {% set prev_val = prev_stmt and prev_stmt[field] or none %}
+                <td class="py-2 px-2 {% if val is not none and val != 0 and val < 0 %}text-rose-600{% else %}text-slate-700{% endif %}"><div class="flex justify-end items-center"><span>{{ val | format_cf_millions }}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if has_non_standard_months %}
+    <p class="report-caption text-amber-500 mb-4">{{ i18n.non_standard_months_note }}</p>
+    {% endif %}
+    {% if cashflow_estimated %}
+    <p class="report-caption text-slate-400 mb-4">{{ i18n.cashflow_est_note }}</p>
+    {% endif %}
+    {% endif %}
+
+    {% if cf_waterfall_base64 %}
+    <div class="flex flex-col mt-3 gap-4 flex-1 min-h-0">
+        <div class="flex-1 flex flex-col min-h-0">
+            <div class="border border-slate-200 rounded-lg overflow-visible bg-white shadow-sm p-3 flex items-center justify-center flex-1 min-h-0">
+                <img src="data:image/png;base64,{{ cf_waterfall_base64 }}" alt="{{ i18n.cash_flow }}" class="w-full h-auto object-contain" style="max-height: 300px;">
+            </div>
+            <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — {{ i18n.cash_flow }} {{ latest_stmt.year }} · RÚZ</p>
+        </div>
+    </div>
+    {% endif %}
+    {% elif not latest_stmt %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
+        {{ i18n.no_financial_data }}
+    </div>
+    {% endif %}
+</div>

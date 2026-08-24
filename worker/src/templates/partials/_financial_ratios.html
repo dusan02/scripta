@@ -1,0 +1,215 @@
+{# ════════════════════════════════════════════════════════════════════ #}
+{# ── PAGE: FINANČNÉ UKAZOVATELE — samostatný blok                      #}
+{# ════════════════════════════════════════════════════════════════════ #}
+{% if latest_ratios and latest_stmt %}
+<div class="page-break"></div>
+<div class="mb-4 pt-6">
+    <h2 id="financne_ukazovatele" class="section-title mb-3">{{ i18n.financial_health }} ({{ latest_stmt.year }})</h2>
+
+    {# Dvojstĺpcový layout: Grafy (vľavo) a Metriky (vpravo) #}
+    <div class="flex flex-row gap-4 items-stretch mt-3">
+        
+        {# ĽAVÝ STĹPEC: GRAFY (~65%) #}
+        <div class="flex flex-col gap-4" style="width: 65%;">
+            
+            {# Graf Likvidity #}
+            {% if liquidity_chart_base64 %}
+            <div class="w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex items-center justify-center">
+                <img src="data:image/png;base64,{{ liquidity_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 180px;" alt="{{ i18n.liquidity_chart_alt }}">
+            </div>
+            {% endif %}
+            
+            {# Graf Rentability #}
+            {% if ratios_chart_base64 %}
+            <div class="w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex items-center justify-center">
+                <img src="data:image/png;base64,{{ ratios_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 180px;" alt="{{ i18n.ratios_chart_alt }}">
+            </div>
+            {% endif %}
+
+            {# Altman Z-Score mergnutý #}
+            {% if latest_stmt and is_financial_institution %}
+            <div class="p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+                <p class="subsection-title-sm">{{ i18n.altman_z_score }}</p>
+                <div class="bg-blue-50 text-blue-700 report-body-sm p-2 rounded border border-blue-200">
+                    {{ i18n.altman_not_applicable }}
+                </div>
+            </div>
+            {% elif is_startup %}
+            <div class="p-3 rounded-lg border" style="border-color: #e2e8f0; background: #f8fafc;">
+                <p class="subsection-title-sm">{{ i18n.startup_profile }}</p>
+                <div class="bg-amber-50 text-amber-800 report-body-sm p-2 rounded border border-amber-200">
+                    <strong>{{ i18n.startup_detected }}</strong>
+                    <p class="mt-0.5">{{ i18n.startup_altman_note }}</p>
+                    {% if startup_info and startup_info.equity %}
+                    <p class="mt-0.5 text-amber-600">{{ i18n.startup_equity }}: <strong>{{ startup_info.equity | format_number_millions }} mil. &#8364;</strong> · {{ i18n.startup_statements }}: {{ startup_info.n_years }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif altman_scores and altman_scores|length > 0 %}
+            {% if altman_chart_base64 %}
+            <div class="w-full rounded-lg border border-slate-200 bg-white p-3 shadow-sm flex flex-col items-center justify-center" style="page-break-inside: avoid;">
+                <img src="data:image/png;base64,{{ altman_chart_base64 }}" alt="{{ i18n.altman_chart_alt }}" class="w-full h-auto object-contain" style="max-height: 180px;">
+                <p class="report-caption mt-2 text-center w-full">{{ i18n.altman_interpretation }}</p>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        {# PRAVÝ STĹPEC: METRIKY (~35%) #}
+        <div class="flex flex-col gap-3" style="width: 35%;">
+            
+            {# Pracovný cyklus — CCC (DSO + DIO - DPO) alebo fallback na DSO vs DPO #}
+            {% set dso = latest_ratios.dso_days or 0 %}
+            {% set dpo = latest_ratios.dpo_days or 0 %}
+            {% set dio = latest_ratios.dio_days if latest_ratios.dio_days is defined else none %}
+            {% set ccc = latest_ratios.ccc_days if latest_ratios.ccc_days is defined else none %}
+            {% if ccc is not none and dso > 0 %}
+            {# ── Full CCC: DSO + DIO - DPO ── #}
+            <div class="p-3 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col justify-center">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.working_cycle_ccc }}</p>
+                {% set total_cycle = dso + (dio or 0) + dpo %}
+                <div class="flex items-center w-full h-5 rounded-full overflow-hidden bg-slate-100">
+                    <div class="h-full bg-emerald-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dso / total_cycle * 100) }}%;">
+                        {% if (dso / total_cycle * 100) > 12 %}{{ i18n.ccc_dso_label }} {{ dso|round|int }}d{% endif %}
+                    </div>
+                    {% if dio and dio > 0 %}
+                    <div class="h-full bg-amber-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dio / total_cycle * 100) }}%;">
+                        {% if (dio / total_cycle * 100) > 12 %}{{ i18n.ccc_dio_label }} {{ dio|round|int }}d{% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="h-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dpo / total_cycle * 100) }}%;">
+                        {% if (dpo / total_cycle * 100) > 12 %}{{ i18n.ccc_dpo_label }} {{ dpo|round|int }}d{% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mt-1.5">
+                    <p class="text-[9px] text-slate-500">{{ i18n.ccc_net_label }}</p>
+                    <p class="text-[11px] font-black {% if ccc > 60 %}text-rose-600{% elif ccc > 30 %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ ccc|round|int }} {{ i18n.ccc_days }}</p>
+                </div>
+            </div>
+            {% elif dso > 0 and dpo > 0 %}
+            {# ── Fallback: DSO vs DPO (ak DIO nie je dostupné) ── #}
+            <div class="p-3 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col justify-center">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.working_cycle }}</p>
+                <div class="flex items-center w-full h-5 rounded-full overflow-hidden bg-slate-100">
+                    <div class="h-full bg-emerald-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dso / (dso + dpo) * 100) }}%;">
+                        {% if (dso / (dso + dpo) * 100) > 15 %}DSO {{ dso|round|int }}d{% endif %}
+                    </div>
+                    <div class="h-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dpo / (dso + dpo) * 100) }};">
+                        {% if (dpo / (dso + dpo) * 100) > 15 %}DPO {{ dpo|round|int }}d{% endif %}
+                    </div>
+                </div>
+                <p class="text-[9px] text-slate-500 mt-1.5 text-center">{% if dso < dpo %}{{ i18n.dso_dpo_note_customers_pay }} <span class="font-bold text-emerald-600">{{ (dpo - dso)|round|int }} {{ i18n.dso_dpo_note_earlier }}</span> {{ i18n.dso_dpo_note_than_suppliers }}{% elif dso > dpo %}{{ i18n.dso_dpo_note }} <span class="font-bold text-rose-600">{{ (dso - dpo)|round|int }} {{ i18n.dso_dpo_note_earlier }}</span> {{ i18n.dso_dpo_note_than }}{% else %}{{ i18n.dso_dpo_note_equal }}{% endif %}</p>
+            </div>
+            {% endif %}
+
+            {# Detailné finančné ukazovatele #}
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col gap-2 flex-grow">
+                <h3 class="subsection-title-sm mb-1 text-slate-600">{{ i18n.detailed_financials }}</h3>
+                {% set gross_margin = ((latest_stmt.grossProfit or 0) / latest_stmt.mainActivityRevenue * 100) | round(1) if latest_stmt.mainActivityRevenue and latest_stmt.mainActivityRevenue > 0 else None %}
+                
+                {# Zlúčená karta pre Marže #}
+                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
+                    <p class="report-label text-slate-400 mb-1.5">{{ i18n.margins }}</p>
+                    <div class="space-y-1 w-full">
+                        {% set marze = [
+                            (i18n.gross_margin_short, gross_margin),
+                            (i18n.ebitda_margin, latest_ratios.ebitda_margin_pct if latest_ratios.ebitda_margin_pct is defined else None),
+                            (i18n.net_margin, latest_ratios.net_profit_margin_pct)
+                        ] %}
+                        {% for m_label, m_val in marze %}
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="text-slate-500 font-medium uppercase tracking-wider">{{ m_label }}</span>
+                            {% if m_val is not none %}
+                            <span class="font-bold {% if m_val < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ m_val }}%</span>
+                            {% else %}
+                            <span class="font-bold text-slate-400">—</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# Piotroski F #}
+                {% if piotroski_score is not none %}
+                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
+                    <p class="report-label text-slate-400 mb-1">Piotroski F</p>
+                    <p class="text-base font-black {% if piotroski_score >= 6 %}text-emerald-700{% elif piotroski_score >= 4 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ piotroski_score }} <span class="text-slate-400 text-sm font-normal">{{ i18n.out_of_8 }}</span></p>
+                    <div class="w-full bg-slate-100 rounded-full mt-1.5" style="height: 3px;">
+                        <div class="rounded-full" style="height: 3px; width: {{ piotroski_score / 8 * 100 }}%; background: {% if piotroski_score >= 6 %}var(--brand){% elif piotroski_score >= 4 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Beneish M-Score #}
+                {% if beneish_m_score is not none %}
+                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
+                    <p class="report-label text-slate-400 mb-1">{{ i18n.beneish_m_score }}</p>
+                    <p class="text-base font-black {% if beneish_is_manipulator %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ "%.2f"|format(beneish_m_score) }}</p>
+                    <p class="text-[9px] mt-0.5 {% if beneish_is_manipulator %}text-rose-500{% else %}text-emerald-500{% endif %}">{% if beneish_is_manipulator %}{{ i18n.beneish_manipulator }}{% else %}{{ i18n.beneish_clean }}{% endif %}</p>
+                </div>
+                {% endif %}
+
+                {# Likvidita + Solventnosť (Equity Ratio) #}
+                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
+                    <p class="report-label text-slate-400 mb-1.5">{{ i18n.liquidity }}</p>
+                    <div class="space-y-1 w-full">
+                        {% set lik_ratios = [
+                            (i18n.liq_current, latest_ratios.current_ratio),
+                            (i18n.liq_quick, latest_ratios.quick_ratio),
+                            (i18n.liq_cash, latest_ratios.cash_ratio),
+                            (i18n.equity_ratio_short, latest_ratios.equity_ratio_pct if latest_ratios.equity_ratio_pct is defined else none)
+                        ] %}
+                        {% for l_label, l_val in lik_ratios %}
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="text-slate-500 font-medium uppercase tracking-wider">{{ l_label }}</span>
+                            {% if l_val is not none %}
+                            {% if l_label == i18n.equity_ratio_short %}
+                            <span class="font-bold {% if l_val < 20 %}text-rose-600{% elif l_val < 40 %}text-amber-600{% else %}text-emerald-700{% endif %}">{{ l_val }}%</span>
+                            {% else %}
+                            <span class="font-bold text-slate-800">{% if l_val > 0 and l_val < 0.01 %}&lt;0.01{% else %}{{ l_val }}{% endif %}</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="font-bold text-slate-400">—</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                {# Pracovný kapitál #}
+                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
+                    <p class="report-label text-slate-400 mb-1">{{ i18n.working_capital }}</p>
+                    {% if latest_ratios.working_capital is not none %}
+                    <p class="text-base font-black text-slate-800">{{ latest_ratios.working_capital | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
+                    {% else %}
+                    <p class="text-base font-black text-slate-400">—</p>
+                    {% endif %}
+                </div>
+                
+                {# Cash Flow #}
+                <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center flex flex-col justify-center">
+                    <p class="report-label text-slate-400 mb-1.5">{{ i18n.cash_flow }}</p>
+                    <div class="space-y-1 w-full">
+                        {% set new_cf_cards = [
+                            (i18n.row_operating_cf, latest_stmt.operatingCashFlow, 'format_number_millions'),
+                            (i18n.row_investing_cf, latest_stmt.investingCashFlow, 'format_number_millions'),
+                            (i18n.row_financing_cf, latest_stmt.financingCashFlow, 'format_number_millions'),
+                            (i18n.cf_to_profit, latest_ratios.cashflow_to_profit if latest_ratios else None, '×'),
+                        ] %}
+                        {% for label, value, suffix in new_cf_cards %}
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="text-slate-500 font-medium uppercase tracking-wider">{{ label }}</span>
+                            {% if value is not none %}
+                            <span class="font-bold {% if value < 0 and suffix != '×' %}text-rose-600{% elif value > 0 and suffix != '×' %}text-emerald-700{% elif suffix == '×' and value >= 1.0 %}text-emerald-700{% elif suffix == '×' and value < 0.5 %}text-rose-600{% else %}text-slate-800{% endif %}">{% if suffix == 'format_number_millions' %}{{ value | format_number_millions }}{% elif suffix == '×' %}{{ "%.1f"|format(value) }}×{% else %}{{ value }}{% endif %}</span>
+                            {% else %}
+                            <span class="font-bold text-slate-400">—</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %} {# closes financial ratios section #}

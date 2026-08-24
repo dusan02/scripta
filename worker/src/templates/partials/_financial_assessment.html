@@ -1,0 +1,523 @@
+{# ── FINANČNÝ POSUDOK — nadpis nad KPI kartami ── #}
+<h2 id="financny_posudok" class="section-title">{{ i18n.financial_assessment }}</h2>
+<p class="report-body-sm text-slate-600 mb-3">{{ i18n.analytical_assessment_desc }}</p>
+
+{# ── KPI SNAPSHOT: Rýchle kľúčové metriky hneď za Scorecard ── #}
+{% if latest_ratios and latest_stmt %}
+<div class="mb-4" style="page-break-inside: avoid; break-inside: avoid;">
+    {# ── Company info: zamestnanci, tržby/zamestnanca, sídlo, rok vzniku ── #}
+    <div class="mb-2 flex flex-wrap items-center gap-2">
+        {% if employee_count is not none and employee_count > 0 %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <svg class="w-4 h-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+            </svg>
+            <span class="report-body-sm font-bold text-slate-700">{% if employee_count_estimated %}~{% endif %}{{ employee_count }}</span>
+            <span class="report-caption text-slate-400">{{ i18n.employees_short }}</span>
+        </div>
+        {% endif %}
+        {% if revenue_per_employee is not none and revenue_per_employee > 0 %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <span class="report-body-sm font-bold text-slate-700">{{ "{:,}".format(revenue_per_employee).replace(",", " ") }}</span>
+            <span class="report-caption text-slate-400">{{ i18n.revenue_per_employee }}</span>
+        </div>
+        {% endif %}
+        {% if company_city %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <svg class="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+            </svg>
+            <span class="report-body-sm font-bold text-slate-700">{{ company_city }}</span>
+        </div>
+        {% endif %}
+        {% if company_founded_year %}
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+            <span class="report-body-sm font-bold text-slate-700">{{ company_founded_year }}</span>
+            <span class="report-caption text-slate-400">{{ i18n.founded_year }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Kľúčové metriky na jeden pohľad ── #}
+    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+        <h3 class="subsection-title-sm mb-2 text-slate-600">{{ i18n.key_metrics_overview }}</h3>
+        <div class="grid grid-cols-5 gap-2">
+            {% set rev = latest_stmt.mainActivityRevenue or 0 %}
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">{{ i18n.revenue }}</p>
+                <p class="text-base font-black text-slate-800">{{ rev | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
+                {% if yoy_revenue_growth is not none %}
+                <p class="mt-1"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold {% if yoy_revenue_growth < 0 %}border-rose-300 text-rose-600 bg-rose-50 border{% else %}border-slate-200 text-slate-500 bg-slate-50 border{% endif %}">{% if yoy_revenue_growth > 0 %}▲ +{% endif %}{{ yoy_revenue_growth }}% YoY</span></p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">{{ i18n.net_profit_short }}</p>
+                {% set profit = latest_stmt.netProfitLoss or 0 %}
+                <p class="text-base font-black {% if profit >= 0 %}text-emerald-700{% else %}text-rose-600{% endif %}">{{ profit | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
+                {% if yoy_profit_growth is not none %}
+                <p class="mt-1"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold {% if yoy_profit_growth < 0 %}border-rose-300 text-rose-600 bg-rose-50 border{% else %}border-slate-200 text-slate-500 bg-slate-50 border{% endif %}">{% if yoy_profit_growth > 0 %}▲ +{% endif %}{{ yoy_profit_growth }}% YoY</span></p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">EBITDA</p>
+                {% if latest_ratios.ebitda is not none %}
+                <p class="text-base font-black text-slate-800">{{ latest_ratios.ebitda | format_number_millions }}<span class="block text-xs font-bold text-slate-500 mt-0.5">mil. &#8364;</span></p>
+                {% else %}
+                <p class="text-base font-black text-slate-400">—</p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">ROE</p>
+                {% if latest_ratios.roe_pct is not none %}
+                <p class="text-base font-black {% if latest_ratios.roe_pct >= 0 %}text-emerald-700{% else %}text-rose-600{% endif %}">{{ latest_ratios.roe_pct }}%</p>
+                {% else %}
+                <p class="text-base font-black text-slate-400">—</p>
+                {% endif %}
+            </div>
+            <div class="p-1.5 rounded-lg border border-slate-200 bg-white text-center">
+                <p class="report-label text-slate-400">{{ i18n.interest_coverage_short }}</p>
+                {% if latest_ratios.interest_coverage is not none %}
+                {% set icov = latest_ratios.interest_coverage %}
+                <p class="text-base font-black {% if icov < 1.5 %}text-rose-600{% elif icov < 3 %}text-amber-600{% else %}text-emerald-700{% endif %}">{{ "%.1f"|format(icov) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">×</span></p>
+                {% else %}
+                <p class="text-base font-black text-slate-400">—</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ── FINANČNÝ POSUDOK — warnings a auditor opinion (nadpis je vyššie, nad KPI) ── #}
+<div class="mb-6">
+    {% if latest_ratios and latest_ratios.negative_equity %}
+    <div class="mb-3 p-3 rounded-lg border-l-4 border-rose-500 bg-rose-50 flex items-start gap-3">
+        <span class="text-rose-500 text-lg flex-shrink-0">⚠</span>
+        <div>
+            <strong class="block text-rose-800 mb-0.5">{{ i18n.negative_equity_warning }}</strong>
+            <p class="report-body-sm text-rose-700">{{ i18n.negative_equity_desc }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if auditor_opinion and auditor_opinion.going_concern_risk %}
+    <div class="mb-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-50 flex items-start gap-3">
+        <span class="text-amber-500 text-lg flex-shrink-0">⚠</span>
+        <div>
+            <strong class="block text-amber-800 mb-0.5">{{ i18n.going_concern_warning }}</strong>
+            <p class="report-body-sm text-amber-700">{{ i18n.going_concern_desc }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if verdict %}
+    {% if gross_profit_estimated %}
+    <div class="mb-2 p-2 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2">
+        <span class="text-slate-400 text-sm flex-shrink-0">ℹ</span>
+        <p class="report-caption text-slate-500 leading-normal">{{ i18n.gross_profit_est_note_short }}</p>
+    </div>
+    {% endif %}
+    {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
+    <div class="mb-2 p-2 rounded-lg border border-amber-300 bg-amber-50 flex items-center gap-2">
+        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"/></svg>
+        <p class="report-caption text-amber-700 leading-normal">{{ i18n.fallback_algorithmic_note }}</p>
+    </div>
+    {% endif %}
+
+    {# ── NÁZOR AUDÍTORA ── #}
+    {% set has_auditor = latest_stmt and latest_stmt.auditorOpinion and (latest_stmt.auditorOpinion.opinionType|string|lower != 'null') %}
+    {% if has_auditor %}
+    <div class="mb-2 p-2 rounded-lg border flex gap-3" style="border-color: #e2e8f0; background: #f8fafc; page-break-inside: avoid; break-inside: avoid;">
+        <div class="flex items-center gap-2">
+            <div class="flex-shrink-0">
+                {% if 'bez výhrad' in auditor_opinion.opinion_type|lower or 'unqualified' in auditor_opinion.opinion_type|lower or 'ohne vorbehalt' in auditor_opinion.opinion_type|lower %}
+                <div class="w-7 h-7 rounded-full bg-emerald-100 border-2 border-emerald-400 flex items-center justify-center">
+                    <span class="text-emerald-600 font-bold text-xs">✓</span>
+                </div>
+                {% elif 'výhrad' in auditor_opinion.opinion_type|lower or 'qualified' in auditor_opinion.opinion_type|lower or 'adverse' in auditor_opinion.opinion_type|lower or 'vorbehalt' in auditor_opinion.opinion_type|lower %}
+                <div class="w-7 h-7 rounded-full bg-rose-100 border-2 border-rose-400 flex items-center justify-center">
+                    <span class="text-rose-600 font-bold text-xs">✗</span>
+                </div>
+                {% else %}
+                <div class="w-7 h-7 rounded-full bg-amber-100 border-2 border-amber-400 flex items-center justify-center">
+                    <span class="text-amber-600 font-bold text-xs">!</span>
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                <p class="subsection-title-sm">{{ i18n.auditor_opinion_label }} ({{ latest_stmt.year }})</p>
+                <p class="text-xs font-bold text-slate-800">{{ auditor_opinion.opinion_type }}</p>
+                {% if latest_stmt.auditorOpinion.goingConcernRisk %}
+                <p class="report-body-sm text-rose-600 font-medium">⚠ {{ i18n.sw_going_concern_doubt }}</p>
+                {% endif %}
+                {% if latest_stmt.auditorOpinion.reservationText and latest_stmt.auditorOpinion.reservationText is not none and latest_stmt.auditorOpinion.reservationText != 'null' and latest_stmt.auditorOpinion.reservationText|trim|length > 0 %}
+                <p class="report-body-sm text-slate-600 leading-normal">{{ latest_stmt.auditorOpinion.reservationText }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── KĽÚČOVÉ RIZIKO ── #}
+    {% if verdict and verdict.keyRisk %}
+    <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-2">
+        <p class="report-caption text-rose-500 font-bold uppercase">{{ i18n.risk_label }}</p>
+        <p class="report-body-sm text-rose-700">{{ verdict.keyRisk | sanitize_llm }}</p>
+    </div>
+    {% endif %}
+
+    {# ── VNÚTROSKUPINOVÉ TRANSAKCIE A RIZIKO TUNELOVANIA ── #}
+    {% set intragroup_items = [] %}
+    {% for stmt in stmts_sorted %}
+    {% if stmt.notesRisk and stmt.notesRisk.relatedPartyTransactions %}
+    {% set intragroup_items = intragroup_items + [{ 'year': stmt.year, 'text': stmt.notesRisk.relatedPartyTransactions }] %}
+    {% endif %}
+    {% endfor %}
+    {% if intragroup_items|length > 0 %}
+    <div class="mb-3" style="page-break-inside: avoid; break-inside: avoid;">
+        <div class="rounded-lg border-2 border-rose-300 bg-rose-50 overflow-hidden">
+            <div class="px-3 py-2 bg-rose-100 border-b border-rose-200 flex items-center gap-2">
+                <span style="color: var(--danger); font-size: 16px;">⚠</span>
+                <h3 class="subsection-title-sm text-rose-800">{{ i18n.intragroup_risk_title }}</h3>
+            </div>
+            <div class="p-3">
+                <p class="report-caption text-rose-600 mb-2">{{ i18n.intragroup_risk_desc }}</p>
+                {% for item in intragroup_items %}
+                <div class="mb-1.5 last:mb-0 p-2 bg-white rounded border border-rose-100">
+                    <p class="report-label text-rose-500 mb-0.5">{{ item.year }}</p>
+                    <p class="report-body-sm text-slate-700">{{ item.text | sanitize_llm }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── KĽÚČOVÉ POZNÁMKY POD ČIAROU ── #}
+    {% if latest_stmt and latest_stmt.notesRisk %}
+    {% if latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks or latest_stmt.notesRisk.significantInvestments or latest_stmt.notesRisk.financingActivities or latest_stmt.notesRisk.acquisitionsAndDisposals or latest_stmt.notesRisk.provisionsAndReserves or latest_stmt.notesRisk.restructuringActivities or latest_stmt.notesRisk.capitalChanges or latest_stmt.notesRisk.subsequentEvents %}
+    <div class="mb-2">
+        <h3 class="subsection-title-sm mb-1" style="page-break-after: avoid; break-after: avoid;">{{ i18n.key_footnotes }}</h3>
+        <div class="grid grid-cols-1 gap-1.5">
+            {% if latest_stmt.notesRisk.significantInvestments %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-sky-600">{{ i18n.significant_investments }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.significantInvestments | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.financingActivities %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-sky-600">{{ i18n.financing_activities }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.financingActivities | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.acquisitionsAndDisposals %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-sky-600">{{ i18n.acquisitions_and_disposals }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.acquisitionsAndDisposals | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.offBalanceSheetLiabilities %}
+            <div class="p-2 bg-slate-50 rounded border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-slate-500">{{ i18n.off_balance }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.offBalanceSheetLiabilities }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.contingentRisks %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-amber-600">{{ i18n.contingent_risks }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.contingentRisks }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.provisionsAndReserves %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-amber-600">{{ i18n.provisions_and_reserves }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.provisionsAndReserves | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.restructuringActivities %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-amber-600">{{ i18n.restructuring_activities }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.restructuringActivities | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.capitalChanges %}
+            <div class="p-2 bg-sky-50 rounded border border-sky-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-sky-600">{{ i18n.capital_changes }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.capitalChanges | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+            {% if latest_stmt.notesRisk.subsequentEvents %}
+            <div class="p-2 bg-amber-50 rounded border border-amber-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="report-label text-amber-600">{{ i18n.subsequent_events }}</p>
+                <p class="report-body-sm text-slate-700">{{ latest_stmt.notesRisk.subsequentEvents | sanitize_llm }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% if latest_stmt.notesRisk.sourcePages %}
+        <p class="text-[10px] text-slate-400 mt-1 font-mono">{{ i18n.notes_source_label }} {{ latest_stmt.notesRisk.sourcePages }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ── STRATEGICKÝ KONTEXT (Výročná správa) ── #}
+    {% if latest_stmt and latest_stmt.narrativeRisk %}
+    <div class="mb-2">
+        <h3 class="subsection-title-sm mb-1">{{ i18n.strategic_context }}</h3>
+        {% if latest_stmt.narrativeRisk.synthesis %}
+        <p class="report-body-sm text-slate-700 mb-2">{{ latest_stmt.narrativeRisk.synthesis | sanitize_llm }}</p>
+        {% endif %}
+        {% if latest_stmt.narrativeRisk.goingConcernDoubts %}
+        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
+            <p class="report-body-sm text-rose-700 font-medium">{{ i18n.going_concern_annual }}</p>
+        </div>
+        {% endif %}
+        {% if latest_stmt.narrativeRisk.forensicRedFlags and latest_stmt.narrativeRisk.forensicRedFlags|length > 0 %}
+        <div class="bg-rose-50 border border-rose-200 rounded p-1.5 mb-1">
+            <p class="subsection-title-sm text-rose-500 mb-0.5">{{ i18n.forensic_red_flags }}</p>
+            <ul class="space-y-1">
+                {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
+                <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag | sanitize_llm }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        <div class="grid grid-cols-2 gap-2">
+            {% if latest_stmt.narrativeRisk.managementChanges %}
+            <div><p class="report-label text-slate-500">{{ i18n.management_changes }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.managementChanges | sanitize_llm }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.plannedInvestments %}
+            <div><p class="report-label text-slate-500">{{ i18n.planned_investments }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.plannedInvestments | sanitize_llm }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.profitabilityExplanation %}
+            <div class="col-span-2"><p class="report-label text-slate-500">{{ i18n.profitability_explanation }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.profitabilityExplanation | sanitize_llm }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.litigationRisks %}
+            <div class="col-span-2"><p class="report-label text-rose-500">{{ i18n.litigation_risks }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.litigationRisks | sanitize_llm }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.businessDevelopments %}
+            <div class="col-span-2"><p class="report-label text-emerald-600">{{ i18n.business_developments }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.businessDevelopments | sanitize_llm }}</p></div>
+            {% endif %}
+            {% if latest_stmt.narrativeRisk.strengthsAndOpportunities %}
+            <div class="col-span-2"><p class="report-label text-emerald-600">{{ i18n.strengths_and_opportunities }}</p><p class="report-body-sm text-slate-700">{{ latest_stmt.narrativeRisk.strengthsAndOpportunities | sanitize_llm }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+    {# ── ZÁVÄZKY VOČI ŠTÁTU A SP — PRÁVNE RIZIKOVÉ ALERTY ── #}
+    {% if state_liabilities_alert and state_liabilities_alert.alerts|length > 0 %}
+    <div class="mb-3">
+        <h3 class="subsection-title-sm mb-1.5">⚖ {{ i18n.state_liabilities_heading }}</h3>
+        {% for alert in state_liabilities_alert.alerts %}
+        <div class="mb-1.5 p-2.5 rounded-lg border-l-4 flex items-start gap-2
+            {% if alert.severity == 'CRITICAL' %}border-rose-500 bg-rose-50
+            {% elif alert.severity == 'WARNING' %}border-amber-400 bg-amber-50
+            {% else %}border-slate-300 bg-slate-50{% endif %}">
+            <span class="flex-shrink-0 font-bold
+                {% if alert.severity == 'CRITICAL' %}text-rose-500
+                {% elif alert.severity == 'WARNING' %}text-amber-500
+                {% else %}text-slate-400{% endif %}">
+                {% if alert.severity == 'CRITICAL' %}🔴{% elif alert.severity == 'WARNING' %}🟡{% else %}ℹ{% endif %}
+            </span>
+            <p class="report-body-sm
+                {% if alert.severity == 'CRITICAL' %}text-rose-800
+                {% elif alert.severity == 'WARNING' %}text-amber-800
+                {% else %}text-slate-600{% endif %}">
+                {{ alert.message }}
+            </p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── RPE ALERT — SCHRÁNKOVÁ ŠTRUKTÚRA ── #}
+    {% if rpe_alert and rpe_alert.alert %}
+    <div class="mb-3 p-2.5 rounded-lg border-l-4 flex items-start gap-2
+        {% if rpe_alert.alert.severity == 'CRITICAL' %}border-rose-500 bg-rose-50{% else %}border-amber-400 bg-amber-50{% endif %}">
+        <span class="flex-shrink-0 font-bold
+            {% if rpe_alert.alert.severity == 'CRITICAL' %}text-rose-500{% else %}text-amber-500{% endif %}">
+            {% if rpe_alert.alert.severity == 'CRITICAL' %}🔴{% else %}🟡{% endif %}
+        </span>
+        <p class="report-body-sm
+            {% if rpe_alert.alert.severity == 'CRITICAL' %}text-rose-800{% else %}text-amber-800{% endif %}">
+            {{ rpe_alert.alert.message }}
+        </p>
+    </div>
+    {% endif %}
+
+    {# ── YoY SÚHRNNÁ TABUĽKA ── #}
+    {% if yoy_table and yoy_table.rows|length > 0 %}
+    <div class="mb-3" style="page-break-before: always; break-before: page;">
+        <h3 class="subsection-title-sm mb-1.5">{{ i18n.yoy_key_indicators }}</h3>
+        <p class="report-caption mb-2">{{ i18n.values_in_millions }}</p>
+        <div class="overflow-x-auto">
+        <table class="w-full text-xs border-collapse">
+            <thead>
+                <tr class="bg-slate-100">
+                    {% for h in yoy_table.headers %}
+                    <th class="py-1 px-2 font-bold text-slate-600
+                        {% if loop.first %}text-left{% else %}text-right{% endif %}
+                        {% if loop.last %}w-[14%]{% endif %}">
+                        {{ h }}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in yoy_table.rows %}
+            <tr class="border-b border-slate-100
+                {% if row.field in ('socialInsuranceLiabilities', 'taxLiabilities') %}bg-rose-50{% endif %}
+                {% if row.field == 'netProfitLoss' and row.delta_raw is defined and row.delta_raw is not none and row.delta_raw < -20 %}bg-rose-50{% endif %}">
+                <td class="py-0.5 px-2 font-semibold text-slate-700">{{ row.label }}</td>
+                {% for val in row.vals %}
+                {% set display = val if (val is not none and val != '') else '—' %}
+                <td class="py-0.5 px-2 text-right {% if display == '—' %}text-slate-500{% else %}text-slate-700{% endif %}">{{ display }}</td>
+                {% endfor %}
+                <td class="py-0.5 px-2 text-right font-semibold
+                    {% if row.flag == '🔴' %}text-rose-600
+                    {% elif row.flag == '🟡' %}text-amber-600
+                    {% elif row.flag == '🟢' %}text-emerald-600
+                    {% else %}text-slate-500{% endif %}">
+                    {{ row.delta_pct }}{% if row.flag %} {{ row.flag }}{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% if rpe_alert and rpe_alert.revenue_per_employee %}
+        <p class="report-caption text-slate-400 mt-1">
+            {{ i18n.rpe_label }}: <strong>{{ "{:,.0f}".format(rpe_alert.revenue_per_employee).replace(",", " ") }} €</strong>
+            {% if rpe_alert.source == 'estimated' %}{{ i18n.rpe_estimated }}{% endif %}
+            {% if rpe_alert.employee_count %} | {{ i18n.employee_count_label }}: {{ rpe_alert.employee_count }}{% if rpe_alert.source == 'estimated' %}*{% endif %}{% endif %}
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ════════════════════════════════════════════════════════════════════ #}
+    {# ── FUNDAMENTÁLNA ANALÝZA (medzi YoY tabuľkou a grafmi zamestnancov) ── #}
+    {# ════════════════════════════════════════════════════════════════════ #}
+    {% if asset_composition_chart_base64 or equity_composition_chart_base64 or latest_ratios.effective_tax_rate_pct is defined or latest_stmt.statementDate %}
+    <div class="mt-4 mb-4" style="page-break-inside: avoid; break-inside: avoid;">
+
+        {# ── Forenzný signál: Dátum zostavenia závierky (najprv) ── #}
+        {% if latest_stmt.statementDate %}
+        {% set stmt_date = latest_stmt.statementDate %}
+        {% set period_end_month = latest_stmt.monthsInPeriod or 12 %}
+        {% set delay_days = statement_delay_days or 0 %}
+        <div class="mb-3 p-3 rounded-lg border {% if delay_days > 180 %}border-rose-200 bg-rose-50{% elif delay_days > 120 %}border-amber-200 bg-amber-50{% else %}border-slate-200 bg-slate-50{% endif %}" style="page-break-inside: avoid; break-inside: avoid;">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                    {% if delay_days > 180 %}
+                    <svg class="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.487 0l5.5 9.78c.75 1.33-.213 2.99-1.742 2.99H4.5c-1.53 0-2.493-1.66-1.743-2.99l5.5-9.78zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                    {% elif delay_days > 120 %}
+                    <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                    {% else %}
+                    <svg class="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    {% endif %}
+                </div>
+                <div class="flex-1">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{{ i18n.statement_timing }}</p>
+                    <div class="flex flex-wrap gap-3 text-[11px]">
+                        <span class="text-slate-600"><strong>{{ i18n.statement_date }}:</strong> {{ stmt_date }}</span>
+                        {% if latest_stmt.approvalDate %}
+                        <span class="text-slate-600"><strong>{{ i18n.approval_date }}:</strong> {{ latest_stmt.approvalDate }}</span>
+                        {% endif %}
+                        {% if delay_days > 0 %}
+                        <span class="font-bold {% if delay_days > 180 %}text-rose-600{% elif delay_days > 120 %}text-amber-600{% else %}text-emerald-600{% endif %}">{{ delay_days }} {{ i18n.statement_delay_days }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-[10px] mt-1 {% if delay_days > 180 %}text-rose-600{% elif delay_days > 120 %}text-amber-700{% else %}text-slate-500{% endif %}">
+                        {% if delay_days > 180 %}{{ i18n.statement_delay_critical }}{% elif delay_days > 120 %}{{ i18n.statement_delay_warning }}{% else %}{{ i18n.statement_delay_normal }}{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Donut grafy: Štruktúra aktív + Štruktúra vlastného imania ── #}
+        {% if asset_composition_chart_base64 or equity_composition_chart_base64 %}
+        <div class="grid grid-cols-2 gap-4 mb-3">
+            {% if asset_composition_chart_base64 %}
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.asset_structure }}</p>
+                <img src="data:image/png;base64,{{ asset_composition_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 200px;" alt="{{ i18n.asset_structure }}">
+            </div>
+            {% endif %}
+            {% if equity_composition_chart_base64 %}
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">{{ i18n.equity_structure }}</p>
+                <img src="data:image/png;base64,{{ equity_composition_chart_base64 }}" class="w-full h-auto object-contain" style="max-height: 200px;" alt="{{ i18n.equity_structure }}">
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# ── Karta: Pokročilé ukazovatele (rezervy, daň, obrat) ── #}
+        {% set has_advanced = false %}
+        {% if latest_ratios.reserves_ratio_pct is defined and latest_ratios.reserves_ratio_pct is not none %}{% set has_advanced = true %}{% endif %}
+        {% if latest_ratios.effective_tax_rate_pct is defined and latest_ratios.effective_tax_rate_pct is not none %}{% set has_advanced = true %}{% endif %}
+        {% if latest_ratios.asset_turnover is defined and latest_ratios.asset_turnover is not none %}{% set has_advanced = true %}{% endif %}
+        {% if latest_ratios.retained_earnings_ratio_pct is defined and latest_ratios.retained_earnings_ratio_pct is not none %}{% set has_advanced = true %}{% endif %}
+        {% if has_advanced %}
+        <div class="p-3 bg-white rounded-lg border border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+            <div class="grid grid-cols-4 gap-3">
+                {% if latest_ratios.asset_turnover is defined and latest_ratios.asset_turnover is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.asset_turnover }}</p>
+                    <p class="text-base font-black text-slate-800">{{ "%.2f"|format(latest_ratios.asset_turnover) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">×</span></p>
+                </div>
+                {% endif %}
+                {% if latest_ratios.retained_earnings_ratio_pct is defined and latest_ratios.retained_earnings_ratio_pct is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.retained_earnings_ratio }}</p>
+                    <p class="text-base font-black {% if latest_ratios.retained_earnings_ratio_pct < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ latest_ratios.retained_earnings_ratio_pct }}%</p>
+                </div>
+                {% endif %}
+                {% if latest_ratios.reserves_ratio_pct is defined and latest_ratios.reserves_ratio_pct is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.reserves_ratio }}</p>
+                    <p class="text-base font-black text-slate-800">{{ latest_ratios.reserves_ratio_pct }}%</p>
+                </div>
+                {% endif %}
+                {% if latest_ratios.effective_tax_rate_pct is defined and latest_ratios.effective_tax_rate_pct is not none %}
+                <div class="text-center">
+                    <p class="report-label text-slate-400">{{ i18n.effective_tax_rate }}</p>
+                    <p class="text-base font-black {% if latest_ratios.effective_tax_rate_pct > 25 %}text-rose-600{% elif latest_ratios.effective_tax_rate_pct < 15 %}text-amber-600{% else %}text-slate-800{% endif %}">{{ latest_ratios.effective_tax_rate_pct }}%</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+    {# ── GRAFY: Zamestnanci a Tržby/zamestnanec v čase ── #}
+    {% if employee_chart_base64 or rpe_chart_base64 %}
+    <div class="mb-4 grid grid-cols-2 gap-4" style="page-break-inside: avoid; break-inside: avoid;">
+        {% if employee_chart_base64 %}
+        <div>
+            <img src="data:image/png;base64,{{ employee_chart_base64 }}" alt="{{ i18n.chart_employee_count }}" class="w-full h-auto">
+        </div>
+        {% endif %}
+        {% if rpe_chart_base64 %}
+        <div>
+            <img src="data:image/png;base64,{{ rpe_chart_base64 }}" alt="{{ i18n.chart_rpe }}" class="w-full h-auto">
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if not latest_stmt %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
+        {{ i18n.no_financial_data }}
+    </div>
+    {% endif %}
+</div>
+

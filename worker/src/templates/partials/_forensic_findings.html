@@ -9,30 +9,6 @@
     <p class="report-body-sm text-slate-500 mb-4">{{ i18n.forensic_findings_intro | default('Štruktúrované dôkazy z audítorských správ, poznámok k závierke a výročných správ. Každé zistenie obsahuje zdroj a úroveň spoľahlivosti.') }}</p>
 </div>
 
-{# ── Auditor's Opinion ── #}
-{% if forensic_findings.auditor_opinion %}
-<div class="mb-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
-    <div class="flex items-center justify-between mb-2">
-        <h3 class="subsection-title">{{ i18n.forensic_auditor_opinion | default('Audítorský posudok') }}</h3>
-        {% if forensic_findings.auditor_opinion.opinion_type %}
-        {% set op = forensic_findings.auditor_opinion.opinion_type %}
-        {% set op_color = "#059669" if "bez výhrad" in op|lower or "unqualified" in op|lower else "#f59e0b" if "výhrad" in op|lower or "qualified" in op|lower else "#ef4444" %}
-        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" style="background: {{ op_color }}20; color: {{ op_color }};">{{ op }}</span>
-        {% endif %}
-    </div>
-    {% if forensic_findings.auditor_opinion.auditor_name %}
-    <p class="report-body-sm text-slate-600 mb-1"><strong>{{ i18n.forensic_auditor_name | default('Audítor') }}:</strong> {{ forensic_findings.auditor_opinion.auditor_name }}</p>
-    {% endif %}
-    {% if forensic_findings.auditor_opinion.reservation_text %}
-    <p class="report-body-sm text-slate-600 mb-1"><strong>{{ i18n.forensic_reservations | default('Výhrady') }}:</strong> {{ forensic_findings.auditor_opinion.reservation_text | sanitize_llm }}</p>
-    {% endif %}
-    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center gap-3 text-[9px] text-slate-400">
-        <span>📍 {{ forensic_findings.auditor_opinion.source }}</span>
-        <span>🔒 {{ i18n.forensic_confidence_high | default('High') }}</span>
-    </div>
-</div>
-{% endif %}
-
 {# ── Related Party Transactions ── #}
 {% if forensic_findings.related_parties %}
 <div class="mb-4 p-4 bg-white border border-slate-200 rounded-lg shadow-sm" style="page-break-inside: avoid; break-inside: avoid;">
@@ -145,7 +121,7 @@
 {% endif %}
 
 {# ── No findings fallback ── #}
-{% if not forensic_findings.auditor_opinion and not forensic_findings.related_parties and not forensic_findings.off_balance_sheet and not forensic_findings.litigation and not forensic_findings.going_concern and not forensic_findings.forensic_red_flags %}
+{% if not forensic_findings.related_parties and not forensic_findings.off_balance_sheet and not forensic_findings.litigation and not forensic_findings.going_concern and not forensic_findings.forensic_red_flags %}
 <div class="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg" style="page-break-inside: avoid; break-inside: avoid;">
     <div class="flex items-center gap-2">
         <span class="text-emerald-500 font-bold">✓</span>

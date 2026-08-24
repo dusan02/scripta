@@ -627,6 +627,19 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     other_sources = [s for s in (sources or []) if s.source_type not in rendered_types]
     if other_sources:
         grouped_sources.append((i18n_strings.get("cat_other", "Ostatné"), other_sources))
+
+    # ── Critical legal findings — computed in Python (was 3 nested loops in Jinja) ──
+    _CRITICAL_TYPES = {"EXECUTOR", "REGISTER_UPADCOV", "SUDY", "ORSR_LIKVIDACIA", "ORSR_KONKURZ"}
+    _INFO_TYPES = {"FS_DPH_REGISTROVANI", "FS_DPH_VYMAZANI", "FS_DAN_PRIJMOV_REG", "CRZ", "RPVS", "UVO", "REGISTER_UZ", "ROZHODNUTIA"}
+    critical_sources = []
+    for _cat_name, _cat_sources in grouped_sources:
+        for _src in _cat_sources:
+            _has_pozor = bool(_src.findings) and "POZOR" in (_src.findings or "").upper()
+            _is_critical_type = _src.source_type in _CRITICAL_TYPES
+            if _src.status == "SUCCESS" and _has_pozor and _src.source_type not in _INFO_TYPES:
+                critical_sources.append(_src)
+            elif _is_critical_type and _src.status == "SUCCESS" and _has_pozor:
+                critical_sources.append(_src)
         
     evidence_list = []
     try:
@@ -1106,6 +1119,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "generated_at": generated_at,
         "counts": counts,
         "grouped_sources": grouped_sources,
+        "critical_sources": critical_sources,
         "labels": {k: i18n_strings.get(v, k) for k, v in SOURCE_LABEL_I18N_KEYS.items()},
         "scorecard_breakdown": scorecard_breakdown,
         "algorithmic_total": algorithmic_total,

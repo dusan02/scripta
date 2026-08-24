@@ -2,23 +2,7 @@
 <div class="pt-2">
     <h2 class="section-title mb-3" style="border-bottom: 0;">{{ i18n.toc_title }}</h2>
 
-    {# ── Kritické právne nálezy — varovný box nad gridom ── #}
-    {% set critical_sources = [] %}
-    {% for cat_name, cat_sources in grouped_sources %}
-        {% for source in cat_sources %}
-            {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
-            {% set is_critical_type = source.source_type in ["EXECUTOR", "REGISTER_UPADCOV", "SUDY", "ORSR_LIKVIDACIA", "ORSR_KONKURZ"] %}
-            {% set is_failed = source.status != "SUCCESS" and source.status != "UNAVAILABLE" %}
-            {% if (has_pozor and not source.source_type in ["FS_DPH_REGISTROVANI", "FS_DPH_VYMAZANI", "FS_DAN_PRIJMOV_REG", "CRZ", "RPVS", "UVO", "REGISTER_UZ", "ROZHODNUTIA"]) or is_critical_type %}
-                {% if source.status == "SUCCESS" and has_pozor %}
-                    {% set _ = critical_sources.append(source) %}
-                {% elif is_critical_type and source.status == "SUCCESS" and has_pozor %}
-                    {% set _ = critical_sources.append(source) %}
-                {% endif %}
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
-
+    {# ── Kritické právne nálezy — varovný box nad gridom (computed in Python) ── #}
     {% if critical_sources|length > 0 %}
     <div class="mb-4 p-3 rounded-lg border-2 border-rose-300 bg-rose-50" style="page-break-inside: avoid; break-inside: avoid;">
         <div class="flex items-center gap-2 mb-2">
@@ -50,11 +34,11 @@
         {% set has_pozor = source.findings and "POZOR" in source.findings|upper %}
         {% set is_fs_info = source.source_type in ["FS_DPH_REGISTROVANI", "FS_DAN_PRIJMOV_REG"] %}
 
-        {% set dot_color = "#5b9279" %}
+        {% set dot_color = "var(--brand)" %}
         {% set dot_bg = "#f0f7f4" %}
         {% set status_text = i18n.status_ok %}
         {% if source.status == "SUCCESS" and has_pozor and not is_info %}
-            {% set dot_color = "#ef4444" %}
+            {% set dot_color = "var(--danger)" %}
             {% set dot_bg = "#fef2f2" %}
             {% set status_text = i18n.status_warning %}
         {% elif source.status == "SUCCESS" and ((has_pozor and is_info) or (is_fs_info and not has_pozor)) %}
@@ -62,7 +46,7 @@
             {% set dot_bg = "#eff6ff" %}
             {% set status_text = i18n.status_info %}
         {% elif source.status == "UNAVAILABLE" %}
-            {% set dot_color = "#f59e0b" %}
+            {% set dot_color = "var(--warning)" %}
             {% set dot_bg = "#fffbeb" %}
             {% set status_text = i18n.status_unavailable %}
         {% elif source.status != "SUCCESS" %}

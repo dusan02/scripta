@@ -1,0 +1,54 @@
+{# ── PREDICTIVE INSOLVENCY SCORE (moved from _summary.html) ── #}
+{% if insolvency_score and insolvency_score.has_data %}
+<div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">
+    <h2 class="section-title">{{ i18n.insolvency_title }}</h2>
+    <p class="report-caption text-slate-500 mb-3">{{ i18n.insolvency_desc }}</p>
+
+    {% set risk_color = {
+        'critical': 'var(--danger)',
+        'high': '#ea580c',
+        'medium': 'var(--warning)',
+        'low': 'var(--brand)'
+    } %}
+    {% set risk_bg = {
+        'critical': 'var(--danger-light)',
+        'high': '#fff7ed',
+        'medium': 'var(--warning-light)',
+        'low': 'var(--brand-bg)'
+    } %}
+    {% set rl = insolvency_score.risk_level %}
+    <div class="flex items-center gap-4 mb-4 p-4 rounded-lg border" style="border-color: {{ risk_color.get(rl, 'var(--brand)') }}; background: {{ risk_bg.get(rl, 'var(--brand-bg)') }};">
+        <div class="flex-shrink-0">
+            <div class="relative w-20 h-20">
+                <svg class="w-20 h-20 transform -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="#e2e8f0" stroke-width="6"/>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke-width="6" stroke-linecap="round"
+                        stroke-dasharray="{{ insolvency_score.score * 2.136 }} 213.6"
+                        stroke="{{ risk_color.get(rl, 'var(--brand)') }}"/>
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-2xl font-black" style="color: {{ risk_color.get(rl, 'var(--success)') }};">{{ insolvency_score.score }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex-1">
+            <p class="text-lg font-bold" style="color: {{ risk_color.get(rl, 'var(--success)') }};">{{ insolvency_score.risk_label }}</p>
+            <p class="report-caption text-slate-500">{{ i18n.insolvency_scale }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-{{ insolvency_score.trends|length }} gap-2">
+        {% for trend in insolvency_score.trends %}
+        <div class="p-3 rounded-lg border" style="border-color: #e2e8f0; background: {% if trend.is_negative %}var(--danger-light){% else %}var(--success-light){% endif %};">
+            <p class="report-caption text-slate-500 mb-1">{{ trend.label }}</p>
+            <p class="text-sm font-bold" style="color: {% if trend.is_negative %}var(--danger){% else %}var(--success){% endif %};">
+                {% if 'declining' in trend.direction|lower or 'klesa' in trend.direction|lower or 'rück' in trend.direction|lower %}↓{% elif 'growing' in trend.direction|lower or 'rast' in trend.direction|lower or 'wachsend' in trend.direction|lower %}↑{% else %}→{% endif %} {{ trend.direction }}
+            </p>
+            {% if trend.detail %}
+            <p class="report-caption" style="color: {% if trend.is_negative %}var(--danger){% else %}var(--success){% endif %};">{{ trend.detail }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

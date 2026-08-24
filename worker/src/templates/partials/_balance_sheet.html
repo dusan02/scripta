@@ -1,0 +1,138 @@
+<div class="page-break"></div>
+
+<!-- ===== PAGE 1: SÚVAHA ===== -->
+<div class="flex flex-col" style="height: 255mm; page-break-inside: avoid; overflow: hidden;">
+    <h2 id="suvaha" class="section-title mb-4 flex-shrink-0">{{ i18n.balance_sheet }}</h2>
+    {% if nace_code %}
+    <div class="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2">
+        <span class="report-label">NACE:</span>
+        <span class="text-xs font-semibold text-slate-700">{{ nace_code }}</span>
+        {% if nace_text %}<span class="text-xs text-slate-500">— {{ nace_text }}</span>{% endif %}
+        {% if employee_count %}<span class="report-caption ml-auto">~{{ employee_count }} {{ i18n.employees }}</span>{% endif %}
+    </div>
+    {% endif %}
+    {% if has_mixed_consolidation %}
+    <div class="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="report-body-sm text-amber-800 font-medium">{{ i18n.warning_mixed_consolidation }}</p>
+    </div>
+    {% endif %}
+    {% if has_non_standard_months %}
+    <div class="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="report-body-sm text-amber-800 font-medium">{{ i18n.warning_non_standard_months }}</p>
+    </div>
+    {% endif %}
+    {% if has_balance_imbalance %}
+    <div class="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="report-body-sm text-amber-800 font-medium">{{ i18n.warning_balance_imbalance }}</p>
+    </div>
+    {% endif %}
+    {% if balance_chart_base64 %}
+    <div class="border border-slate-200 rounded-lg overflow-hidden flex justify-center p-2 bg-white shadow-sm mb-3 mt-2">
+        <img src="data:image/png;base64,{{ balance_chart_base64 }}" alt="{{ i18n.balance_chart_alt }}" class="max-w-full h-auto" style="height: 160px;">
+    </div>
+    {% elif has_short_history %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-2 mb-3 mt-2 report-body-sm text-slate-500 text-center">
+        {{ i18n.chart_unavailable_short_history }}
+    </div>
+    {% endif %}
+    {% if company.financialStatements and company.financialStatements|length >= 1 %}
+    {% set stmts_sorted = company.financialStatements | sort(attribute='year') %}
+    <p class="report-caption mb-2">{{ i18n.values_in_millions }}</p>
+    <table class="w-full text-xs border-collapse">
+        <thead>
+            <tr class="bg-slate-100">
+                <th class="text-left py-1 px-2 font-bold text-slate-600">{{ i18n.col_item }}</th>
+                {% for stmt in stmts_sorted %}
+                <th class="py-1 px-2 font-bold text-slate-600">
+                    <div class="flex justify-end items-center"><span>{{ stmt.year }}{% if stmt.monthsInPeriod is not none and stmt.monthsInPeriod != 12 %}<span class="text-amber-500">*</span>{% endif %}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5"></span></div>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% set asset_rows = [
+                (i18n.row_total_assets, 'totalAssets', ''),
+                (i18n.row_current_assets, 'currentAssets', 'pl-4'),
+                (i18n.row_inventory, 'inventory', 'pl-8'),
+                (i18n.row_cash, 'cashAndEquivalents', 'pl-8'),
+                (i18n.row_trade_receivables, 'tradeReceivables', 'pl-8'),
+            ] %}
+            {% set liability_rows = [
+                (i18n.row_equity, 'equity', ''),
+                (i18n.row_short_term_liab, 'shortTermLiabilities', 'pl-4'),
+                (i18n.row_long_term_liab, 'longTermLiabilities', 'pl-4'),
+                (i18n.row_trade_payables, 'tradePayables', 'pl-8'),
+            ] %}
+            <tr class="bg-slate-100">
+                <td class="subsection-title-sm py-1 px-2 font-bold text-slate-900">{{ i18n.assets }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
+                <td class="py-0.5 px-2 text-slate-900"><div class="flex justify-end items-center"><span class="font-bold">{% if ta is not none %}{{ ta | format_number_millions }}{% else %}—{% endif %}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5"></span></div></td>
+                {% endfor %}
+            </tr>
+            {% for label, field, padding_class in asset_rows %}
+            <tr class="border-b border-slate-100">
+                <td class="py-0.5 px-2 font-semibold text-slate-700 {{ padding_class }}">{{ label }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set val = stmt[field] if stmt[field] is defined else none %}
+                {% if val is none %}
+                <td class="py-0.5 px-2 text-slate-500"><div class="flex justify-end items-center"><span>—</span></div></td>
+                {% else %}
+                {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
+                {% set prev_val = prev_stmt and prev_stmt[field] or none %}
+                <td class="py-0.5 px-2 text-slate-700"><div class="flex justify-end items-center"><span>{{ val | format_number_millions }}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 and field in ('totalAssets', 'currentAssets', 'cashAndEquivalents') %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 and field in ('totalAssets', 'currentAssets', 'cashAndEquivalents') %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            <tr class="bg-slate-100">
+                <td class="subsection-title-sm py-1 pt-2 px-2 font-bold text-slate-900">{{ i18n.capital_liabilities }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set eq = stmt.equity if stmt.equity is defined else none %}
+                {% set stl = stmt.shortTermLiabilities if stmt.shortTermLiabilities is defined else none %}
+                {% set ltl = stmt.longTermLiabilities if stmt.longTermLiabilities is defined else none %}
+                {% set ta = stmt.totalAssets if stmt.totalAssets is defined else none %}
+                {# Súvaha sa musí vyrovnať: Aktíva = Pasíva.
+                   Preferujeme totalAssets (ak je dostupné), aby sa zabránilo rounding rozdielom
+                   medzi individuálne zaokrúhlenými komponentmi a raw súčtom. #}
+                {% set total_liab = (eq or 0) + (stl or 0) + (ltl or 0) if (eq is not none or stl is not none or ltl is not none) else none %}
+                {% if ta is not none and total_liab is not none and (ta - total_liab)|abs < 5000 %}
+                {# Ak je rozdiel < 5k €, ide o rounding artefakt — zobraz totalAssets #}
+                {% set total_liab = ta %}
+                {% endif %}
+                <td class="py-0.5 px-2 text-slate-900"><div class="flex justify-end items-center"><span class="font-bold">{% if total_liab is not none %}{{ total_liab | format_number_millions }}{% else %}—{% endif %}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5"></span></div></td>
+                {% endfor %}
+            </tr>
+            {% for label, field, padding_class in liability_rows %}
+            <tr class="border-b border-slate-100">
+                <td class="py-0.5 px-2 font-semibold text-slate-700 {{ padding_class }}">{{ label }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set val = stmt[field] if stmt[field] is defined else none %}
+                {% if val is none %}
+                <td class="py-0.5 px-2 text-slate-500"><div class="flex justify-end items-center"><span>—</span></div></td>
+                {% else %}
+                {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
+                {% set prev_val = prev_stmt and prev_stmt[field] or none %}
+                <td class="py-0.5 px-2 {% if field == 'equity' and val is not none and val < 0 %}text-rose-600 font-semibold{% else %}text-slate-700{% endif %}"><div class="flex justify-end items-center"><span>{{ val | format_number_millions }}</span><span class="w-3 text-left inline-block flex-shrink-0 text-[8px] ml-0.5 {% if prev_val is not none and val is not none and prev_val != 0 and field == 'equity' %}{% if val > prev_val %}text-emerald-500{% elif val < prev_val %}text-rose-500{% endif %}{% endif %}">{% if prev_val is not none and val is not none and prev_val != 0 and field == 'equity' %}{% if val > prev_val %}▲{% elif val < prev_val %}▼{% endif %}{% endif %}</span></div></td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if has_non_standard_months %}
+    <p class="report-caption text-amber-500 mt-1">{{ i18n.non_standard_months_note }}</p>
+    {% endif %}
+
+    {% if bs_infographic_base64 %}
+    <div class="flex-1 border border-slate-200 rounded-lg overflow-visible flex justify-center items-center p-3 bg-white shadow-sm mt-4" style="min-height: 200px;">
+        <img src="data:image/png;base64,{{ bs_infographic_base64 }}" alt="{{ i18n.balance_sheet }}" class="w-full h-auto object-contain" style="max-height: 300px;">
+    </div>
+    <p class="report-caption text-center text-slate-400 mt-1 flex-shrink-0">{{ company.name }} — {{ i18n.balance_sheet }} {{ latest_stmt.year }} · RÚZ</p>
+    {% endif %}
+    {% elif not latest_stmt %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center report-body-sm text-slate-500">
+        {{ i18n.no_financial_data }}
+    </div>
+    {% endif %}
+</div>
