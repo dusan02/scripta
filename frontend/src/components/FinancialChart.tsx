@@ -33,7 +33,7 @@ export default function FinancialChart({ data }: { data: ChartData[] }) {
   };
 
   return (
-    <div className="w-full h-[400px] bg-white/5 border border-white/10 rounded-2xl p-6 mt-8">
+    <div className="w-full h-[300px] md:h-[400px] bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6 mt-8">
       <h3 className="text-lg font-medium text-white mb-6">{t("firma.analyzaTrendu")}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart

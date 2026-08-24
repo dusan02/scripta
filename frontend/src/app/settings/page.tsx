@@ -425,7 +425,7 @@ export default function SettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving || loading}
-          className="btn-primary h-10 px-6 text-[13.5px] font-semibold rounded-lg bg-[var(--accent)] text-[var(--accent-button-text)] border-none disabled:opacity-60 disabled:cursor-not-allowed"
+          className="btn-primary h-11 px-6 text-[13.5px] font-semibold rounded-lg bg-[var(--accent)] text-[var(--accent-button-text)] border-none disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {saving ? t("settings.ukladam") : t("settings.ulozit")}
         </button>

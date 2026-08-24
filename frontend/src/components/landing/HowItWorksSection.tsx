@@ -20,7 +20,8 @@ export default function HowItWorksSection() {
           ].map((s, i, arr) => (
             <div key={s.step} style={{ display: "flex", alignItems: "stretch" }}>
               <div className="how-step-card" style={{
-                width: 220,
+                width: "100%",
+                maxWidth: 220,
                 height: "100%",
                 textAlign: "center",
                 padding: "24px 16px",
@@ -43,7 +44,7 @@ export default function HowItWorksSection() {
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
                   )}
                 </div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>{t("home.stepLabel")} {s.step}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>{t("home.stepLabel")} {s.step}</div>
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{s.title}</h3>
                 <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{s.desc}</p>
               </div>

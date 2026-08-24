@@ -109,7 +109,7 @@ export default function ReportIncludesSection() {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }} className="report-includes-grid">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 20 }} className="report-includes-grid">
         {ITEMS.map((item) => (
           <div
             key={item.keys.title}

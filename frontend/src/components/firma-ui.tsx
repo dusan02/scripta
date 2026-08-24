@@ -54,7 +54,7 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
         <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
       )}
       <div className="overflow-x-auto -mx-2 px-2">
-      <table className={TABLE_BASE} style={{ fontSize: 12, minWidth: sorted.length > 4 ? 480 : "auto" }}>
+      <table className={TABLE_BASE} style={{ fontSize: 13, minWidth: sorted.length > 4 ? 480 : "auto" }}>
         <colgroup>
           <col style={{ width: "30%" }} />
           {sorted.map((s) => (

@@ -38,12 +38,12 @@ export default function PricingSection() {
                     : t("pricing.reportovZaReport", { n: plan.reports, price: plan.pricePerReport })}
               </p>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 18 }}>&nbsp;</p>
-              <Link href={ctaHref} style={{ display: "block", textAlign: "center", background: plan.highlight ? "var(--accent)" : "var(--surface-hover)", color: plan.highlight ? "var(--accent-button-text)" : "var(--text)", border: plan.highlight ? "none" : "1px solid var(--border)", padding: "10px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 18 }}>
+              <Link href={ctaHref} style={{ textAlign: "center", background: plan.highlight ? "var(--accent)" : "var(--surface-hover)", color: plan.highlight ? "var(--accent-button-text)" : "var(--text)", border: plan.highlight ? "none" : "1px solid var(--border)", padding: "12px 10px", borderRadius: 12, textDecoration: "none", fontWeight: 600, fontSize: 13, marginBottom: 18, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {t("home.startVerifying")}
               </Link>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {plan.featureKeys.map((featKey) => (
-                  <li key={featKey} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+                  <li key={featKey} style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 13, color: "var(--text-secondary)" }}>
                     <span style={{ color: "var(--accent)", fontWeight: 900, flexShrink: 0, fontSize: 12 }}>✓</span>
                     <span>{t(featKey)}</span>
                   </li>

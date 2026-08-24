@@ -939,3 +939,44 @@ textarea:focus-visible {
     z-index: 9999;
   }
 }
+
+/* ── Mobile touch target & text size fixes (WCAG 2.5.5) ── */
+@media (max-width: 768px) {
+  /* Min 44px touch targety pre všetky interaktívne elementy */
+  button,
+  a[class*="btn"],
+  a[class*="action-btn"],
+  input[type="submit"],
+  input[type="button"],
+  .action-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Text size floor — nič menšie ako 11px na mobile */
+  .text-\[8px\] { font-size: 11px !important; }
+  .text-\[9px\] { font-size: 11px !important; }
+  .text-\[10px\] { font-size: 11px !important; }
+  .text-\[7px\] { font-size: 11px !important; }
+
+  /* Close buttons (✕) — zväčšiť touch area */
+  button[class*="close"],
+  button[aria-label*="zavrie"],
+  button[aria-label*="close"] {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 10px !important;
+  }
+
+  /* Back button zväčšiť */
+  a[class*="w-8"][class*="h-8"] {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* Legend buttons v charts */
+  .legend-btn {
+    min-height: 36px !important;
+    padding: 6px 10px !important;
+  }
+}

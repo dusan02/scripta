@@ -321,7 +321,7 @@ export default function CreditsPage() {
           <button
             onClick={handlePortal}
             disabled={portalLoading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:brightness-110"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-sm font-semibold transition-all hover:brightness-110"
             style={{
               background: "transparent",
               color: "var(--text)",
@@ -370,7 +370,7 @@ export default function CreditsPage() {
               <button
                 onClick={() => handleCheckout(pkg.id)}
                 disabled={checkoutLoading}
-                className="w-full py-2 rounded-lg text-xs font-semibold transition-all"
+                className="w-full py-3 rounded-lg text-xs font-semibold transition-all"
                 style={{
                   background: pkg.highlight ? "var(--accent)" : "transparent",
                   color: pkg.highlight ? "var(--accent-button-text)" : "var(--text)",

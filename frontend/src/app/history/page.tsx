@@ -332,7 +332,7 @@ export default function HistoryPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors hover:opacity-80"
+              className="flex items-center justify-center w-11 h-11 rounded-lg transition-colors hover:opacity-80"
               style={{ background: "var(--bg-muted)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
             >
               <ArrowLeftIcon size={14} />

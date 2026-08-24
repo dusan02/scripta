@@ -140,7 +140,7 @@ function LegendButton({
       type="button"
       onClick={onClick}
       aria-pressed={visible}
-      className="flex items-center gap-1.5 text-xs cursor-pointer rounded px-1 py-0.5 transition-opacity"
+      className="legend-btn flex items-center gap-1.5 text-xs cursor-pointer rounded px-2 py-1.5 transition-opacity"
       style={{
         opacity: visible ? 1 : 0.4,
         color: axisColor,
@@ -254,7 +254,7 @@ function PctChart({
             <YAxis
               domain={domain}
               tickFormatter={pctTickFormatter}
-              tick={{ fill: axisColor, fontSize: 10 }}
+              tick={{ fill: axisColor, fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               width={42}

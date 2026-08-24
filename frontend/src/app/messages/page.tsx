@@ -249,7 +249,7 @@ function MessageDetail({ msg, t, formatDate, onBack, onReply, showReply }: {
         {msg.body}
       </div>
       {showReply && (
-        <button onClick={onReply} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none">
+        <button onClick={onReply} className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none">
           ↩ {t("messages.odpovedat")}
         </button>
       )}
@@ -270,7 +270,7 @@ function ComposeForm({ t, title, setTitle, body, setBody, sending, onSubmit, onC
         <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>
           {replyContext ? t("messages.odpovedat") : t("messages.napisatSpravu")}
         </h2>
-        <button onClick={onClose} className="text-sm text-[var(--text-muted)] cursor-pointer bg-transparent border-none">✕</button>
+        <button onClick={onClose} className="text-sm text-[var(--text-muted)] cursor-pointer bg-transparent border-none w-11 h-11 flex items-center justify-center rounded-lg">✕</button>
       </div>
       {replyContext && (
         <div className="mb-4 p-3 rounded-lg text-xs" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
@@ -294,7 +294,7 @@ function ComposeForm({ t, title, setTitle, body, setBody, sending, onSubmit, onC
             className="w-full px-3 py-2 rounded-lg text-sm border resize-none bg-[var(--surface)] text-[var(--text)] border-[var(--border)]" />
         </div>
         <button onClick={onSubmit} disabled={sending || !title.trim() || !body.trim()}
-          className="px-4 py-2 rounded-lg text-sm font-semibold self-start bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed">
+          className="px-4 py-2.5 rounded-lg text-sm font-semibold self-start bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed">
           {sending ? t("messages.odosiela") : t("messages.odoslat")}
         </button>
       </div>
@@ -314,7 +314,7 @@ function FeedbackForm({ t, category, setCategory, requestId, setRequestId, messa
     <div className="card p-6 mb-6" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>{t("feedback.titulok")}</h2>
-        <button onClick={onClose} className="text-sm text-[var(--text-muted)] cursor-pointer bg-transparent border-none">✕</button>
+        <button onClick={onClose} className="text-sm text-[var(--text-muted)] cursor-pointer bg-transparent border-none w-11 h-11 flex items-center justify-center rounded-lg">✕</button>
       </div>
       <div className="flex flex-col gap-4">
         <div>
@@ -345,7 +345,7 @@ function FeedbackForm({ t, category, setCategory, requestId, setRequestId, messa
             className="w-full px-3 py-2 rounded-lg text-sm border resize-none bg-[var(--surface)] text-[var(--text)] border-[var(--border)]" />
         </div>
         <button onClick={onSubmit} disabled={disabled}
-          className="px-4 py-2 rounded-lg text-sm font-semibold self-start bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed">
+          className="px-4 py-2.5 rounded-lg text-sm font-semibold self-start bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed">
           {sending ? t("feedback.odosielam") : t("feedback.odoslat")}
         </button>
       </div>
@@ -367,19 +367,19 @@ function MessageList({ t, loading, messages, tab, setTab, formatDate, onOpen, on
   return (
     <>
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <button onClick={onCompose} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none">
+        <button onClick={onCompose} className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--accent)] text-[var(--accent-button-text)] cursor-pointer border-none">
           {t("messages.napisatSpravu")}
         </button>
-        <button onClick={onFeedback} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] cursor-pointer">
+        <button onClick={onFeedback} className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)] cursor-pointer">
           {t("feedback.titulok")}
         </button>
       </div>
 
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setTab("inbox")} className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${tab === "inbox" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
+        <button onClick={() => setTab("inbox")} className={`px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer ${tab === "inbox" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
           {t("messages.prijate")}
         </button>
-        <button onClick={() => setTab("sent")} className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer ${tab === "sent" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
+        <button onClick={() => setTab("sent")} className={`px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer ${tab === "sent" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
           {t("messages.odoslane")}
         </button>
       </div>

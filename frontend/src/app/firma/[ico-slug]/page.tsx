@@ -204,12 +204,12 @@ export default async function CompanyPage({ params }: Params) {
             <div className="flex items-center gap-1.5 sm:gap-2 no-print">
               <PrintButton />
               <ThemeToggle size="sm" />
-              <Link href="/login" className="text-[11px] sm:text-xs font-medium px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
+              <Link href="/login" className="text-[11px] sm:text-xs font-medium px-3 sm:px-3 py-2.5 sm:py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
                 Prihlásiť sa
               </Link>
               <Link
                 href={`/dashboard?ico=${company.ico}`}
-                className="text-xs sm:text-sm font-bold px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg transition-all hover:scale-105"
+                className="text-xs sm:text-sm font-bold px-4 sm:px-5 py-2.5 sm:py-2.5 rounded-lg transition-all hover:scale-105"
                 style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
               >
                 Objednať report

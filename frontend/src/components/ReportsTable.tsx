@@ -291,7 +291,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
                           title={t("reports.stiahnutPdf")}
                           aria-label={t("a11y.downloadReport")}
-                          className="action-btn action-btn-download rounded-md p-0.5"
+                          className="action-btn action-btn-download rounded-md p-1.5"
                           style={{ color: "var(--accent)" }}
                         >
                           <FileDownloadIcon size={14} />
@@ -303,7 +303,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           disabled={retryingId === report.id}
                           title={t("reports.regenerovatReport")}
                           aria-label={t("a11y.retryReport")}
-                          className="action-btn action-btn-retry rounded-md p-0.5"
+                          className="action-btn action-btn-retry rounded-md p-1.5"
                           style={{ color: "var(--text-secondary)" }}
                         >
                           {retryingId === report.id ? <SpinnerIcon size={14} /> : <RefreshIcon size={14} />}
@@ -315,7 +315,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           disabled={retryingId === report.id}
                           title={t("reports.zopakovatReport")}
                           aria-label={t("a11y.retryReport")}
-                          className="action-btn action-btn-warn rounded-md p-0.5"
+                          className="action-btn action-btn-warn rounded-md p-1.5"
                           style={{ color: "var(--warning)" }}
                         >
                           {retryingId === report.id ? <SpinnerIcon size={14} /> : <RefreshIcon size={14} />}
@@ -326,7 +326,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         disabled={deletingId === report.id}
                         title={t("reports.vymazat")}
                         aria-label={t("a11y.deleteReport")}
-                        className="action-btn action-btn-delete rounded-md p-0.5"
+                        className="action-btn action-btn-delete rounded-md p-1.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
                         {deletingId === report.id ? <SpinnerIcon size={14} /> : <TrashIcon size={14} />}
@@ -390,7 +390,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/reports/${report.id}`); }}
                           title={t("reports.stiahnutPdf")}
                           aria-label={t("a11y.downloadReport")}
-                          className="action-btn action-btn-download rounded-md p-0.5"
+                          className="action-btn action-btn-download rounded-md p-1.5"
                           style={{ color: "var(--accent)" }}
                         >
                           <FileDownloadIcon size={16} />
@@ -402,7 +402,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           disabled={retryingId === report.id}
                           title={t("reports.regenerovatReport")}
                           aria-label={t("a11y.retryReport")}
-                          className="action-btn action-btn-retry rounded-md p-0.5"
+                          className="action-btn action-btn-retry rounded-md p-1.5"
                           style={{ color: "var(--text-secondary)" }}
                         >
                           {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
@@ -414,7 +414,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                           disabled={retryingId === report.id}
                           title={t("reports.zopakovatReport")}
                           aria-label={t("a11y.retryReport")}
-                          className="action-btn action-btn-warn rounded-md p-0.5"
+                          className="action-btn action-btn-warn rounded-md p-1.5"
                           style={{ color: "var(--warning)" }}
                         >
                           {retryingId === report.id ? <SpinnerIcon size={16} /> : <RefreshIcon size={16} />}
@@ -425,7 +425,7 @@ export default function ReportsTable({ reports }: { reports: Report[] }) {
                         disabled={deletingId === report.id}
                         title={t("reports.vymazat")}
                         aria-label={t("a11y.deleteReport")}
-                        className="action-btn action-btn-delete rounded-md p-0.5"
+                        className="action-btn action-btn-delete rounded-md p-1.5"
                         style={{ color: "var(--text-secondary)" }}
                       >
                         {deletingId === report.id ? <SpinnerIcon size={16} /> : <TrashIcon size={16} />}

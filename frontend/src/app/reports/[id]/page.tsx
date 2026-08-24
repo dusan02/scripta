@@ -386,9 +386,9 @@ export default function ReportDetailPage() {
                 style={{
                   background: canRetryFailed ? "#8b5cf6" : "#2563eb",
                   color: "#ffffff",
-                  height: "36px",
-                  padding: "0 14px",
-                  fontSize: "12.5px",
+                  height: "44px",
+                  padding: "0 16px",
+                  fontSize: "13px",
                   fontWeight: 600,
                   border: canRetryFailed ? "1px solid #8b5cf6" : "1px solid #2563eb",
                 }}
@@ -420,9 +420,9 @@ export default function ReportDetailPage() {
                 style={{
                   background: "transparent",
                   color: "var(--danger)",
-                  height: "36px",
-                  padding: "0 14px",
-                  fontSize: "12.5px",
+                  height: "44px",
+                  padding: "0 16px",
+                  fontSize: "13px",
                   fontWeight: 600,
                   border: "1px solid var(--danger)",
                 }}
@@ -459,9 +459,9 @@ export default function ReportDetailPage() {
                 style={{
                   background: "var(--accent)",
                   color: "#000000",
-                  height: "36px",
-                  padding: "0 14px",
-                  fontSize: "12.5px",
+                  height: "44px",
+                  padding: "0 16px",
+                  fontSize: "13px",
                   fontWeight: 600,
                   border: "1px solid var(--accent)",
                 }}
@@ -696,7 +696,7 @@ export default function ReportDetailPage() {
                 <button
                   onClick={handleShareEmail}
                   disabled={sharing}
-                  className="mt-5 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="mt-5 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
                   style={{ color: "var(--text-secondary)" }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

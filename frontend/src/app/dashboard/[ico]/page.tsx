@@ -44,7 +44,7 @@ export default async function DashboardPage({
         <div className="text-center space-y-4">
           <h1 className="text-3xl font-light text-rose-500">Dáta nenájdené</h1>
           <p className="text-neutral-400">Pre IČO {ico} nemáme v databáze žiadne výkazy.</p>
-          <Link href="/" className="inline-block mt-4 px-6 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors">
+          <Link href="/" className="inline-block mt-4 px-6 py-3 bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors">
             Späť
           </Link>
         </div>

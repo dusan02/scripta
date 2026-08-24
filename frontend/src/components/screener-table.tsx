@@ -35,7 +35,7 @@ type ColDef = {
 };
 
 const ALL_COLUMNS: ColDef[] = [
-  { key: "name", label: "Firma", sortField: "name", align: "left", minWidth: "320px" },
+  { key: "name", label: "Firma", sortField: "name", align: "left", minWidth: "200px" },
   { key: "ico", label: "IČO", sortField: "ico", align: "left", minWidth: "100px" },
   { key: "legalForm", label: "Právna forma", sortField: "legalForm", align: "left", minWidth: "110px" },
   { key: "city", label: "Mesto", sortField: "city", align: "left", minWidth: "140px" },

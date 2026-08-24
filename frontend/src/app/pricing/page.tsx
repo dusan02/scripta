@@ -223,7 +223,7 @@ export default function PricingPage() {
                   handleCheckout(pkg.id);
                 }}
                 disabled={checkoutLoading}
-                className="w-full py-2.5 rounded-lg text-sm font-semibold transition-all"
+                className="w-full py-3 rounded-lg text-sm font-semibold transition-all"
                 style={{
                   background: isSelected ? "var(--accent)" : "transparent",
                   color: isSelected ? "white" : "var(--text)",
