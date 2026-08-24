@@ -47,6 +47,7 @@ I18N_STRINGS = {
         # Scoring table
         "scoring_table": "Hodnotiaca tabuľka",
         "col_category": "Kategória",
+        "col_category_score": "Kategória a Skóre",
         "col_finding": "Hlavný nález",
         "col_points": "Body",
         "col_fulfillment": "Plnenie",
@@ -889,6 +890,7 @@ I18N_STRINGS = {
         # Scoring table
         "scoring_table": "Scoring Table",
         "col_category": "Category",
+        "col_category_score": "Category & Score",
         "col_finding": "Key Finding",
         "col_points": "Points",
         "col_fulfillment": "Fulfillment",
@@ -1726,6 +1728,7 @@ I18N_STRINGS = {
         # Scoring table
         "scoring_table": "Bewertungstabelle",
         "col_category": "Kategorie",
+        "col_category_score": "Kategorie & Bewertung",
         "col_finding": "Hauptbefund",
         "col_points": "Punkte",
         "col_fulfillment": "Erfüllung",
@@ -2558,6 +2561,7 @@ I18N_STRINGS = {
     "status_failed": "Selhal",
     "scoring_table": "Hodnoticí tabulka",
     "col_category": "Kategorie",
+    "col_category_score": "Kategorie a Skóre",
     "col_finding": "Hlavní nález",
     "col_points": "Body",
     "col_fulfillment": "Plnění",
@@ -3295,6 +3299,7 @@ I18N_STRINGS = {
     "status_failed": "Sikertelen",
     "scoring_table": "Pontozási táblázat",
     "col_category": "Kategória",
+    "col_category_score": "Kategória és Pontszám",
     "col_finding": "Főbb megállapítások",
     "col_points": "Pontok",
     "col_fulfillment": "Teljesítés",
@@ -4032,6 +4037,7 @@ I18N_STRINGS = {
     "status_failed": "Nie powiodło się",
     "scoring_table": "Tabela punktacji",
     "col_category": "Kategoria",
+    "col_category_score": "Kategoria i Wynik",
     "col_finding": "Kluczowe ustaleniew",
     "col_points": "Punkty",
     "col_fulfillment": "Spełnienie",

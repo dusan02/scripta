@@ -12,19 +12,15 @@
 {% endif %}
 
 {# ── 5-PILIEROVÝ SCORECARD (moved from _summary.html) ── #}
-{# F4.4: Layout — tabuľka (60%) + radar graf (40%) vedľa seba, jeden nedeliteľný blok #}
+{# Layout: tabuľka (100% width) + radar graf (centered below), jeden nedeliteľný blok #}
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
 <div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">
     <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
-    <div class="flex gap-2 items-start">
-    <div class="{% if radar_chart_base64 %}w-[72%]{% else %}w-full{% endif %}">
     <table class="w-full border-collapse text-[11px]">
         <thead>
             <tr class="bg-slate-100">
-                <th class="text-left py-1.5 px-2 font-bold text-slate-600 w-[38%] report-body-sm">{{ i18n.col_category }}</th>
-                <th class="text-left py-1.5 px-2 font-bold text-slate-600 w-[35%] report-body-sm">{{ i18n.col_finding }}</th>
-                <th class="text-center py-1.5 px-2 font-bold text-slate-600 w-[15%] report-body-sm">{{ i18n.col_points }}</th>
-                <th class="text-left py-1.5 px-2 font-bold text-slate-600 w-[12%] report-body-sm">{{ i18n.col_fulfillment }}</th>
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600 w-[30%] report-body-sm">{{ i18n.col_category_score | default(i18n.col_category) }}</th>
+                <th class="text-left py-1.5 px-2 font-bold text-slate-600 w-[70%] report-body-sm">{{ i18n.col_finding }}</th>
             </tr>
         </thead>
         <tbody>
@@ -56,29 +52,34 @@
                 {% set icon = "✗" %}
                 {% set icon_color = "text-rose-500" %}
             {% endif %}
-            <tr class="border-b border-slate-100" style="{{ row_bg }}">
-                <td class="py-1.5 px-2 font-semibold text-slate-800 report-body-sm"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</td>
-                <td class="py-1.5 px-2 text-slate-600 report-body-sm leading-normal">
-                    {{ pillar.detail | sanitize_llm }}
-                    {% if pillar.flags and pillar.flags|length > 0 and not radar_chart_base64 %}
-                    <ul class="mt-1 space-y-0">
+            <tr class="border-b border-slate-100" style="{{ row_bg }} page-break-inside: avoid; break-inside: avoid;">
+                {# ── Column 1: Kategória + Skóre (merged) ── #}
+                <td class="py-1.5 px-2 align-top">
+                    <div class="font-semibold text-slate-800 report-body-sm"><span class="{{ icon_color }} mr-1">{{ icon }}</span>{{ pillar.name }}</div>
+                    <div class="mt-1 flex items-center gap-2">
+                        <span class="font-black report-body-sm {{ score_color }}">
+                            {% if is_penalty %}{{ pillar.score }}b{% else %}{{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>{% endif %}
+                        </span>
+                        {% if not is_penalty %}
+                        <div class="flex-1 bg-slate-200 rounded-full" style="height:6px;">
+                            <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
+                        </div>
+                        <span class="report-caption text-slate-400">{{ pct }}%</span>
+                        {% else %}
+                        <span class="report-caption text-violet-500">{{ i18n.penalty_label }}</span>
+                        {% endif %}
+                    </div>
+                </td>
+                {# ── Column 2: Hlavný nález (deduplicated — bullets only) ── #}
+                <td class="py-1.5 px-2 text-slate-600 report-body-sm leading-normal align-top">
+                    {% if pillar.flags and pillar.flags|length > 0 %}
+                    <ul class="space-y-0">
                         {% for flag in pillar.flags %}
-                        <li class="report-caption text-slate-400 leading-tight">• {{ flag }}</li>
+                        <li class="leading-tight">• {{ flag | sanitize_llm }}</li>
                         {% endfor %}
                     </ul>
-                    {% endif %}
-                </td>
-                <td class="py-1.5 px-2 text-center font-black report-body-sm {{ score_color }}">
-                    {% if is_penalty %}{{ pillar.score }}b{% else %}{{ pillar.score }}<span class="text-slate-400 font-normal report-caption">/{{ pillar.max_score }}</span>{% endif %}
-                </td>
-                <td class="py-1.5 px-2">
-                    {% if is_penalty %}
-                    <span class="report-caption text-violet-500 text-center block">{{ i18n.penalty_label }}</span>
                     {% else %}
-                    <div class="w-full bg-slate-200 rounded-full" style="height:6px;">
-                        <div class="rounded-full" style="height:6px; width:{{ pct }}%; background:{{ bar_color }};"></div>
-                    </div>
-                    <span class="report-caption text-slate-400 mt-0.5 block text-right">{{ pct }}%</span>
+                    {{ pillar.detail | sanitize_llm }}
                     {% endif %}
                 </td>
             </tr>
@@ -95,57 +96,53 @@
                 {% endif %}
             {% endfor %}
             {% if penalty_total.val != 0 %}
-            <tr class="bg-slate-50 border-t border-slate-200 text-slate-400">
-                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_pillars }}</td>
-                <td class="py-1 px-3 text-center report-caption">{{ positive_total.val }}b</td>
-                <td></td>
+            <tr class="bg-slate-50 border-t border-slate-200 text-slate-400" style="page-break-inside: avoid; break-inside: avoid;">
+                <td class="py-1 px-3 report-caption">{{ i18n.subtotal_pillars }}</td>
+                <td class="py-1 px-3 report-caption text-right">{{ positive_total.val }}b</td>
             </tr>
-            <tr class="bg-slate-50 text-slate-400">
-                <td class="py-1 px-3 report-caption" colspan="2">{{ i18n.subtotal_penalties }}</td>
-                <td class="py-1 px-3 text-center report-caption">{{ penalty_total.val }}b</td>
-                <td></td>
+            <tr class="bg-slate-50 text-slate-400" style="page-break-inside: avoid; break-inside: avoid;">
+                <td class="py-1 px-3 report-caption">{{ i18n.subtotal_penalties }}</td>
+                <td class="py-1 px-3 report-caption text-right">{{ penalty_total.val }}b</td>
             </tr>
             {% endif %}
-            <tr class="bg-slate-50 border-t-2 border-slate-300">
-                <td class="py-1.5 px-2 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.algorithmic_score }}</td>
-                <td class="py-1.5 px-2 text-center font-bold text-slate-700 text-lg">
-                    {{ algorithmic_total }}<span class="text-slate-400 font-normal report-caption">/100</span>
-                </td>
+            <tr class="bg-slate-50 border-t-2 border-slate-300" style="page-break-inside: avoid; break-inside: avoid;">
+                <td class="py-1.5 px-2 font-semibold text-slate-700 report-body-sm">{{ i18n.algorithmic_score }}</td>
                 <td class="py-1.5 px-2 text-right">
-                    <span class="report-body-sm text-slate-500">{{ i18n.base_model }}</span>
+                    <span class="font-bold text-slate-700 text-lg">{{ algorithmic_total }}<span class="text-slate-400 font-normal report-caption">/100</span></span>
+                    <span class="report-body-sm text-slate-500 ml-2">{{ i18n.base_model }}</span>
                 </td>
             </tr>
-            <tr class="bg-slate-50 border-b border-slate-200">
-                <td class="py-1.5 px-2 font-semibold text-slate-700 report-body-sm" colspan="2">{{ i18n.auditor_correction }}</td>
-                <td class="py-1.5 px-2 text-center font-bold text-lg
-                    {% if verdict.llmScoreAdjustment > 0 %}text-emerald-600
-                    {% elif verdict.llmScoreAdjustment < 0 %}text-rose-600
-                    {% else %}text-slate-500{% endif %}">
-                    {% if verdict.llmScoreAdjustment > 0 %}+{% endif %}{{ verdict.llmScoreAdjustment }}
-                </td>
+            <tr class="bg-slate-50 border-b border-slate-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <td class="py-1.5 px-2 font-semibold text-slate-700 report-body-sm">{{ i18n.auditor_correction }}</td>
                 <td class="py-1.5 px-2 text-right">
-                    <span class="report-body-sm text-slate-500">{{ i18n.based_on_registers }}</span>
+                    <span class="font-bold text-lg
+                        {% if verdict.llmScoreAdjustment > 0 %}text-emerald-600
+                        {% elif verdict.llmScoreAdjustment < 0 %}text-rose-600
+                        {% else %}text-slate-500{% endif %}">
+                        {% if verdict.llmScoreAdjustment > 0 %}+{% endif %}{{ verdict.llmScoreAdjustment }}
+                    </span>
+                    <span class="report-body-sm text-slate-500 ml-2">{{ i18n.based_on_registers }}</span>
                 </td>
             </tr>
             {% if hard_stop %}
-            <tr class="bg-rose-50 border-b border-rose-200">
-                <td class="py-1.5 px-2 font-semibold text-rose-700 report-body-sm" colspan="2">⛔ {{ i18n.hard_stop_penalty }}</td>
-                <td class="py-1.5 px-2 text-center font-bold text-lg text-rose-600">−{{ algorithmic_total }}</td>
+            <tr class="bg-rose-50 border-b border-rose-200" style="page-break-inside: avoid; break-inside: avoid;">
+                <td class="py-1.5 px-2 font-semibold text-rose-700 report-body-sm">⛔ {{ i18n.hard_stop_penalty }}</td>
                 <td class="py-1.5 px-2 text-right">
-                    <span class="report-body-sm text-rose-600">{{ i18n.hard_stop_penalty_desc }}</span>
+                    <span class="font-bold text-lg text-rose-600">−{{ algorithmic_total }}</span>
+                    <span class="report-body-sm text-rose-600 ml-2">{{ i18n.hard_stop_penalty_desc }}</span>
                 </td>
             </tr>
             {% endif %}
-            <tr class="bg-slate-100 border-t-2 border-slate-400">
-                <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide" colspan="2">{{ i18n.final_score }}</td>
-                <td class="py-3 px-3 text-center font-black text-xl
-                    {% if verdict.verifaScore >= 80 %}text-emerald-700
-                    {% elif verdict.verifaScore >= 50 %}text-amber-600
-                    {% else %}text-rose-600{% endif %}">
-                    {{ verdict.verifaScore }}<span class="text-slate-400 font-normal report-caption">/100</span>
-                </td>
-                <td class="py-3 px-3">
-                    <span class="font-bold report-body-sm px-2 py-1 rounded shadow-sm
+            <tr class="bg-slate-100 border-t-2 border-slate-400" style="page-break-inside: avoid; break-inside: avoid;">
+                <td class="py-3 px-3 font-black text-slate-900 report-body-sm uppercase tracking-wide">{{ i18n.final_score }}</td>
+                <td class="py-3 px-3 text-right">
+                    <span class="font-black text-xl
+                        {% if verdict.verifaScore >= 80 %}text-emerald-700
+                        {% elif verdict.verifaScore >= 50 %}text-amber-600
+                        {% else %}text-rose-600{% endif %}">
+                        {{ verdict.verifaScore }}<span class="text-slate-400 font-normal report-caption">/100</span>
+                    </span>
+                    <span class="font-bold report-body-sm px-2 py-1 rounded shadow-sm ml-2
                         {% if verdict.riskCategory == 'AAA' %}bg-emerald-100 text-emerald-800 border border-emerald-200
                         {% elif verdict.riskCategory == 'A' %}bg-emerald-50 text-emerald-700 border border-emerald-100
                         {% elif verdict.riskCategory == 'B' %}bg-amber-50 text-amber-700 border border-amber-100
@@ -155,7 +152,7 @@
                 </td>
             </tr>
             <tr>
-                <td colspan="4" class="py-2 px-3 bg-white border-t border-slate-200">
+                <td colspan="2" class="py-2 px-3 bg-white border-t border-slate-200">
                     <p class="report-caption text-slate-500">
                         {{ i18n.pillar_weights_note }}
                         {% if financial_basis == 'consolidated' %}
@@ -171,14 +168,13 @@
             </tr>
         </tfoot>
     </table>
-    </div>{# /.w-[60%] #}
+    {# ── Radar chart: centered below the table ── #}
     {% if radar_chart_base64 %}
-    <div class="w-[28%] flex flex-col items-center pt-1" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="flex flex-col items-center mt-3" style="page-break-inside: avoid; break-inside: avoid;">
         <p class="report-caption text-slate-400 text-center mb-1">{{ i18n.pillar_profile }}</p>
-        <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 160px; height: auto;">
+        <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 220px; height: auto;">
     </div>
     {% endif %}
-    </div>{# /.flex #}
 </div>
 {% endif %}
 
