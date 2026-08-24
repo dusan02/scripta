@@ -18,13 +18,48 @@ const STATUS_ICON: Record<string, string> = {
   PROCESSING: "⏳",
 };
 
+// ── Inline SVG icons (24x24, stroke-width 1.5, line-art style) ──
+function PhaseIconDatabase({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+      <path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6" />
+    </svg>
+  );
+}
+function PhaseIconCpu({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <rect x="9" y="9" width="6" height="6" rx="1" />
+      <path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" />
+    </svg>
+  );
+}
+function PhaseIconShieldCheck({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+function PhaseIconFileText({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+      <path d="M14 2v6h6M8 13h8M8 17h8M8 9h2" />
+    </svg>
+  );
+}
+
 // ── Workflow phases ──
-// Maps AI status ranges to 4 visual phases of the pipeline
 const PHASES = [
-  { id: 0, key: "report.phaseScraping",   icon: "📋", range: [0, 30] },
-  { id: 1, key: "report.phaseAiPipeline", icon: "🧠", range: [30, 86] },
-  { id: 2, key: "report.phaseVerdict",    icon: "🔍", range: [86, 97] },
-  { id: 3, key: "report.phaseCompiling",  icon: "📄", range: [97, 100] },
+  { id: 0, key: "report.phaseScraping",   Icon: PhaseIconDatabase,    range: [0, 30] },
+  { id: 1, key: "report.phaseAiPipeline", Icon: PhaseIconCpu,         range: [30, 86] },
+  { id: 2, key: "report.phaseVerdict",    Icon: PhaseIconShieldCheck, range: [86, 97] },
+  { id: 3, key: "report.phaseCompiling",  Icon: PhaseIconFileText,    range: [97, 100] },
 ] as const;
 
 function getActivePhase(progress: number, isTerminal: boolean): number {
@@ -195,7 +230,7 @@ export default function PhaseProgress({
                   )}
                   {/* Circle */}
                   <div
-                    className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${isActive ? "animate-pulse" : ""}`}
+                    className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isActive ? "animate-pulse" : ""}`}
                     style={{
                       background: isDone ? "var(--success)" : isActive ? "var(--accent)" : "var(--bg-muted)",
                       border: `2px solid ${isDone ? "var(--success)" : isActive ? "var(--accent)" : "var(--border)"}`,
@@ -203,7 +238,13 @@ export default function PhaseProgress({
                       transition: "all 300ms",
                     }}
                   >
-                    {isDone ? "✓" : phase.icon}
+                    {isDone ? (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    ) : (
+                      <phase.Icon className="w-4 h-4" />
+                    )}
                   </div>
                   {/* Right connector */}
                   {i < PHASES.length - 1 && (
