@@ -12,9 +12,12 @@
 {% endif %}
 
 {# ── 5-PILIEROVÝ SCORECARD (moved from _summary.html) ── #}
+{# F4.4: Layout — tabuľka (60%) + radar graf (40%) vedľa seba, jeden nedeliteľný blok #}
 {% if scorecard_breakdown and scorecard_breakdown|length > 0 %}
 <div class="mb-6" style="page-break-inside: avoid; break-inside: avoid;">
     <h2 id="scoring_breakdown" class="section-title">{{ i18n.scoring_table }}</h2>
+    <div class="flex gap-4 items-start">
+    <div class="{% if radar_chart_base64 %}w-[60%]{% else %}w-full{% endif %}">
     <table class="w-full border-collapse">
         <thead>
             <tr class="bg-slate-100">
@@ -168,14 +171,14 @@
             </tr>
         </tfoot>
     </table>
+    </div>{# /.w-[60%] #}
     {% if radar_chart_base64 %}
-    <div class="flex justify-end -mt-1 mb-1" style="page-break-inside: avoid; break-inside: avoid;">
-        <div class="flex items-end gap-3">
-            <p class="report-caption text-slate-400 text-right pb-2">{{ i18n.pillar_profile }}</p>
-            <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 140px; height: auto;">
-        </div>
+    <div class="w-[40%] flex flex-col items-center pt-1" style="page-break-inside: avoid; break-inside: avoid;">
+        <p class="report-caption text-slate-400 text-center mb-1">{{ i18n.pillar_profile }}</p>
+        <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 240px; height: auto;">
     </div>
     {% endif %}
+    </div>{# /.flex #}
 </div>
 {% endif %}
 
