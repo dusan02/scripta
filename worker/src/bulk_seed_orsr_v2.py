@@ -16,11 +16,12 @@ Usage:
   python -m src.bulk_seed_orsr_v2 --max 500              # Pilot: 500 companies
   python -m src.bulk_seed_orsr_v2 --resume               # Resume from checkpoint
   python -m src.bulk_seed_orsr_v2 --ico 36000019          # Single company
-  python -m src.bulk_seed_orsr_v2 --concurrency 5         # 5 parallel workers
+  python -m src.bulk_seed_orsr_v2 --concurrency 15        # 15 parallel workers
   python -m src.bulk_seed_orsr_v2 --max 500 --resume      # Resume, cap at 500 more
   python -m src.bulk_seed_orsr_v2 --retry-failed          # Retry failed ICOs from checkpoint
+  python -m src.bulk_seed_orsr_v2 --only-with-financials  # Skip firms without FinancialStatement
 
-Checkpoint format (output/orsr_v2_checkpoint.json):
+Checkpoint format (results/orsr_v2_checkpoint.json):
   {
     "last_ico": "00689785",       # Cursor: last successfully processed ICO
     "processed_count": 500,       # Cumulative successful in this run
@@ -30,6 +31,20 @@ Checkpoint format (output/orsr_v2_checkpoint.json):
     "failed_icos": [...],         # ICOs that failed (for retry)
     "not_found_icos": [...]       # ICOs not found in ORSR
   }
+
+Checkpoint persistence:
+  Checkpoint and lock files are stored in /app/results/ (Docker bind mount),
+  NOT in /app/output/ (ephemeral container filesystem). This ensures
+  checkpoint survives container recreation/deploy.
+
+  Backward compatibility: if results/ checkpoint doesn't exist but output/
+  checkpoint does (old location), it is automatically migrated.
+
+--only-with-financials:
+  Screener optimization mode. Skips companies without any FinancialStatement
+  record. These firms have no score in the screener, so ORSR enrichment
+  has limited value (only legalStatus + persons). Default is OFF —
+  full ORSR population seed is the default and must remain available.
 """
 from __future__ import annotations
 
@@ -45,8 +60,12 @@ from pathlib import Path
 
 logger = logging.getLogger("bulk_seed_orsr_v2")
 
-_CHECKPOINT_FILE = Path("output/orsr_v2_checkpoint.json")
-_LOCK_FILE = Path("output/orsr_v2.lock")
+# Checkpoint and lock in /app/results/ (Docker bind mount — survives recreation).
+# Fallback to output/ for backward compatibility with pre-hardening checkpoints.
+_RESULTS_DIR = Path("results")
+_OUTPUT_DIR = Path("output")
+_CHECKPOINT_FILE = _RESULTS_DIR / "orsr_v2_checkpoint.json"
+_LOCK_FILE = _RESULTS_DIR / "orsr_v2.lock"
 _LEGAL_FORMS = ["s.r.o.", "a.s.", "v.o.s.", "k.s."]
 _DELAY_BETWEEN_REQUESTS = 0.3  # seconds — stealth tempo
 _ICO_PATTERN = re.compile(r"^\d{8}$")
@@ -94,8 +113,23 @@ class WorkerLock:
 
 # ── Checkpoint ────────────────────────────────────────────────────────
 
+# Old checkpoint location (ephemeral /app/output/) — for backward compatibility migration
+_OLD_CHECKPOINT_FILE = _OUTPUT_DIR / "orsr_v2_checkpoint.json"
+
+
 def load_checkpoint() -> dict:
-    """Load V2 checkpoint. Returns empty checkpoint if file doesn't exist."""
+    """Load V2 checkpoint from persistent results/ directory.
+
+    Backward compatibility: if results/ checkpoint doesn't exist but
+    output/ checkpoint does (old ephemeral location), migrate it first.
+    """
+    # Migrate from old location if new doesn't exist
+    if not _CHECKPOINT_FILE.exists() and _OLD_CHECKPOINT_FILE.exists():
+        _CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(_OLD_CHECKPOINT_FILE, _CHECKPOINT_FILE)
+        logger.info(f"Migrated checkpoint from {_OLD_CHECKPOINT_FILE} → {_CHECKPOINT_FILE}")
+
     if _CHECKPOINT_FILE.exists():
         with open(_CHECKPOINT_FILE, "r") as f:
             return json.load(f)
@@ -111,7 +145,11 @@ def load_checkpoint() -> dict:
 
 
 def save_checkpoint(checkpoint: dict) -> None:
-    """Save checkpoint atomically (write to temp, then rename)."""
+    """Save checkpoint atomically (write to temp, then rename).
+
+    Checkpoint is written to /app/results/ (Docker bind mount) which
+    survives container recreation and deploy.
+    """
     _CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
     checkpoint["last_run"] = datetime.now(timezone.utc).isoformat()
     tmp = _CHECKPOINT_FILE.with_suffix(".json.tmp")
@@ -126,11 +164,15 @@ async def get_companies_batch_cursor(
     last_ico: str,
     batch_size: int = 100,
     ico_filter: str | None = None,
+    only_with_financials: bool = False,
 ) -> list[dict]:
     """Fetch next batch of companies using cursor-based pagination.
 
     Uses: WHERE orsrSyncedAt IS NULL AND ico > :last_ico ORDER BY ico ASC LIMIT :batch_size
     No OFFSET — immune to mutating result set.
+
+    If only_with_financials=True, adds EXISTS check for FinancialStatement.
+    This is a screener optimization — firms without financials have no score.
     """
     from src.db_client import get_db
 
@@ -147,25 +189,90 @@ async def get_companies_batch_cursor(
 
     # Cursor-based: use raw SQL for precise control over the cursor condition
     # query_raw returns actual rows (execute_raw returns row count)
-    rows = await db.query_raw(
-        """
-        SELECT ico, name FROM "Company"
-        WHERE "orsrSyncedAt" IS NULL
-          AND "legalForm" = ANY($1)
-          AND ico > $2
-        ORDER BY ico ASC
-        LIMIT $3
-        """,
-        _LEGAL_FORMS,
-        last_ico,
-        batch_size,
-    )
+    if only_with_financials:
+        rows = await db.query_raw(
+            """
+            SELECT ico, name FROM "Company"
+            WHERE "orsrSyncedAt" IS NULL
+              AND "legalForm" = ANY($1)
+              AND ico > $2
+              AND EXISTS (SELECT 1 FROM "FinancialStatement" WHERE "companyIco" = "Company".ico)
+            ORDER BY ico ASC
+            LIMIT $3
+            """,
+            _LEGAL_FORMS,
+            last_ico,
+            batch_size,
+        )
+    else:
+        rows = await db.query_raw(
+            """
+            SELECT ico, name FROM "Company"
+            WHERE "orsrSyncedAt" IS NULL
+              AND "legalForm" = ANY($1)
+              AND ico > $2
+            ORDER BY ico ASC
+            LIMIT $3
+            """,
+            _LEGAL_FORMS,
+            last_ico,
+            batch_size,
+        )
 
     if not rows:
         return []
 
     # Prisma query_raw returns list of dicts (not tuples)
     return [{"ico": r["ico"], "name": r["name"]} for r in rows]
+
+
+async def bootstrap_checkpoint_from_db() -> dict:
+    """Create a checkpoint from DB state by finding the max ICO already synced.
+
+    This is NOT the sole correctness mechanism — DB orsrSyncedAt IS NULL
+    is the idempotency guard. This just avoids re-scanning from ICO 00000003
+    when we know 77k firms are already synced.
+
+    The checkpoint cursor is set to max(ico) WHERE orsrSyncedAt IS NOT NULL.
+    The DB query in get_companies_batch_cursor filters orsrSyncedAt IS NULL,
+    so even if the cursor is wrong, no synced firm will be re-processed.
+    """
+    from src.db_client import get_db
+
+    db = get_db()
+    rows = await db.query_raw(
+        """
+        SELECT MAX(ico) as max_ico, COUNT(*) as synced_count
+        FROM "Company"
+        WHERE "orsrSyncedAt" IS NOT NULL
+          AND "legalForm" = ANY($1)
+        """,
+        _LEGAL_FORMS,
+    )
+    if not rows or not rows[0]["max_ico"]:
+        logger.info("Bootstrap: no synced companies found, starting from scratch.")
+        return {
+            "last_ico": "",
+            "processed_count": 0,
+            "failed_count": 0,
+            "not_found_count": 0,
+            "last_run": None,
+            "failed_icos": [],
+            "not_found_icos": [],
+        }
+
+    max_ico = rows[0]["max_ico"]
+    synced_count = rows[0]["synced_count"]
+    logger.info(f"Bootstrap: {synced_count} companies already synced, max ICO = {max_ico}")
+    return {
+        "last_ico": max_ico,
+        "processed_count": 0,  # Reset for this run — counts only new processing
+        "failed_count": 0,
+        "not_found_count": 0,
+        "last_run": None,
+        "failed_icos": [],
+        "not_found_icos": [],
+    }
 
 
 # ── Scrape + Save ─────────────────────────────────────────────────────
@@ -413,15 +520,25 @@ async def main(args):
         await connect_db()
 
         # Load checkpoint
-        checkpoint = load_checkpoint() if args.resume else {
-            "last_ico": "",
-            "processed_count": 0,
-            "failed_count": 0,
-            "not_found_count": 0,
-            "last_run": None,
-            "failed_icos": [],
-            "not_found_icos": [],
-        }
+        # --resume: load from file (with old-location migration)
+        # --bootstrap-from-db: create checkpoint from DB state (max synced ICO)
+        # Neither: start fresh
+        if args.bootstrap_from_db:
+            checkpoint = await bootstrap_checkpoint_from_db()
+            save_checkpoint(checkpoint)
+            logger.info(f"Bootstrap checkpoint saved to {_CHECKPOINT_FILE}")
+        elif args.resume:
+            checkpoint = load_checkpoint()
+        else:
+            checkpoint = {
+                "last_ico": "",
+                "processed_count": 0,
+                "failed_count": 0,
+                "not_found_count": 0,
+                "last_run": None,
+                "failed_icos": [],
+                "not_found_icos": [],
+            }
 
         # ── Retry-failed mode ──
         # Re-process ICOs that failed in the previous run.
@@ -543,7 +660,11 @@ async def main(args):
                 logger.info(
                     f"Fetching batch of {fetch_size} companies (cursor: ico > {last_ico or 'START'})..."
                 )
-                companies = await get_companies_batch_cursor(last_ico, batch_size=fetch_size)
+                companies = await get_companies_batch_cursor(
+                    last_ico,
+                    batch_size=fetch_size,
+                    only_with_financials=args.only_with_financials,
+                )
 
                 if not companies:
                     logger.info("No more companies to process.")
@@ -617,29 +738,20 @@ if __name__ == "__main__":
     parser.add_argument("--concurrency", type=int, default=5, help="Parallel workers (default: 5)")
     parser.add_argument("--resume", action="store_true", help="Resume from V2 checkpoint")
     parser.add_argument("--retry-failed", action="store_true", help="Retry failed ICOs from checkpoint")
+    parser.add_argument(
+        "--bootstrap-from-db",
+        action="store_true",
+        help="Create checkpoint from DB state (max synced ICO). "
+             "Useful after checkpoint loss — DB idempotency guard still protects.",
+    )
+    parser.add_argument(
+        "--only-with-financials",
+        action="store_true",
+        help="Screener optimization: skip companies without FinancialStatement. "
+             "These firms have no screener score. Default is OFF (full population seed).",
+    )
     args = parser.parse_args()
 
     asyncio.run(main(args))
-
-
-def _print_summary(checkpoint: dict):
-    print("\n" + "=" * 60)
-    print("  ORSR BULK SEED V2 — SUMMARY")
-    print(f"  Processed:    {checkpoint['processed_count']}")
-    print(f"  Not found:    {checkpoint['not_found_count']}")
-    print(f"  Failed:       {checkpoint['failed_count']}")
-    print(f"  Total:        {checkpoint['processed_count'] + checkpoint['failed_count'] + checkpoint['not_found_count']}")
-    print(f"  Last ICO:     {checkpoint['last_ico']}")
-    print(f"  Checkpoint:   {_CHECKPOINT_FILE}")
-    print("=" * 60)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="ORSR Bulk Seed V2 — cursor-based pagination")
-    parser.add_argument("--max", type=int, default=999999, help="Max companies (default: all)")
-    parser.add_argument("--ico", type=str, default=None, help="Single IČO (8 digits)")
-    parser.add_argument("--concurrency", type=int, default=5, help="Parallel workers (default: 5)")
-    parser.add_argument("--resume", action="store_true", help="Resume from V2 checkpoint")
-    args = parser.parse_args()
 
     asyncio.run(main(args))
