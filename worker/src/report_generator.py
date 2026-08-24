@@ -684,6 +684,16 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 return self._overrides[name]
             return getattr(self._original, name)
 
+    # ── Parse executiveSections from JSON string to list of dicts for template ──
+    _executive_sections = []
+    if verdict and getattr(verdict, 'executiveSections', None):
+        try:
+            _executive_sections = json.loads(verdict.executiveSections)
+        except (json.JSONDecodeError, TypeError):
+            _executive_sections = []
+    if verdict:
+        verdict = _VerdictOverride(verdict, {"executiveSections": _executive_sections})
+
     if verdict and getattr(verdict, 'llmAnalysisStatus', None) == 'FALLBACK_ALGORITHMIC':
         hard_stop = any(
             e.get("impact") == "CRITICAL" for e in evidence_list
@@ -693,6 +703,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
 
         overrides = {
             "executiveSummary": i18n_strings.get("fallback_exec_summary", getattr(verdict, 'executiveSummary', '')),
+            "executiveSections": [],
             "finalVerdict": (
                 i18n_strings.get("fallback_verdict_hardstop", "")
                 if hard_stop else

@@ -8,33 +8,33 @@
     <h2 id="forenzny_posudok" class="section-title">{{ i18n.main_assessment }}</h2>
 
     {# ── Manažérske zhrnutie a Spoľahlivosť analýzy ── #}
-    <div class="mb-5" style="page-break-inside: avoid; break-inside: avoid;">
-        <div class="p-4 bg-slate-50 border-l-4 border-emerald-600 rounded report-body text-slate-700 text-justify shadow-sm clearfix">
-            <h3 class="subsection-title mb-2 tracking-wide">{{ i18n.executive_summary }}</h3>
-            
+    <div class="mb-5">
+        <div class="p-4 bg-slate-50 border-l-4 border-emerald-600 rounded report-body text-slate-700 shadow-sm clearfix">
+            <h3 class="subsection-title mb-3 tracking-wide">{{ i18n.executive_summary }}</h3>
+
             {% if confidence_score is defined %}
-            <div class="float-right ml-5 mb-2 w-48 p-3 rounded-lg border border-slate-200 bg-white shadow-sm flex flex-col justify-center">
+            <div class="float-right ml-5 mb-3 w-56 p-4 rounded-lg border border-slate-200 bg-white shadow-sm">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="flex-shrink-0 text-center">
                         {% set cs = confidence_score %}
                         {% set cs_color = "var(--brand)" if cs >= 80 else "var(--warning)" if cs >= 50 else "var(--danger)" %}
-                        <div class="relative w-12 h-12 flex items-center justify-center">
-                            <svg viewBox="0 0 36 36" class="w-12 h-12 -rotate-90">
+                        <div class="relative w-16 h-16 flex items-center justify-center">
+                            <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90">
                                 <circle cx="18" cy="18" r="15" fill="none" stroke="#e2e8f0" stroke-width="3"/>
                                 <circle cx="18" cy="18" r="15" fill="none" stroke="{{ cs_color }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ cs * 0.942 }} 94.2"/>
                             </svg>
                             <div class="absolute inset-0 flex items-center justify-center">
-                                <span class="text-[10px] font-black" style="color: {{ cs_color }};">{{ cs }}%</span>
+                                <span class="text-base font-black" style="color: {{ cs_color }};">{{ cs }}%</span>
                             </div>
                         </div>
                     </div>
                     <div>
-                        <h3 class="subsection-title-sm text-slate-700 leading-tight tracking-wide" style="font-size: 8px;">{{ i18n.analysis_reliability }}</h3>
+                        <h3 class="subsection-title-sm text-slate-700 leading-tight tracking-wide" style="font-size: 10px;">{{ i18n.analysis_reliability }}</h3>
                     </div>
                 </div>
-                <div class="flex flex-col gap-1.5 mt-1">
+                <div class="flex flex-col gap-2 mt-2">
                     {% for factor in confidence_factors %}
-                    <div class="flex items-start gap-1.5 report-body-sm leading-tight" style="font-size: 8px;">
+                    <div class="flex items-start gap-2 report-body-sm leading-tight" style="font-size: 9px;">
                         {% if factor.ok %}
                         <span class="text-emerald-500 font-bold flex-shrink-0">✓</span>
                         <span class="text-slate-600">{{ factor.label }}</span>
@@ -48,12 +48,35 @@
             </div>
             {% endif %}
 
+            {# ── Executive summary intro paragraph ── #}
             {% if verdict.executiveSummary %}
-            {{ verdict.executiveSummary | sanitize_llm }}
+            <p class="text-justify mb-3">{{ verdict.executiveSummary | sanitize_llm }}</p>
             {% endif %}
-            
+
             <div class="clear-both"></div>
         </div>
+
+        {# ── Executive sections: structured analysis with headings + bullet points ── #}
+        {% if verdict.executiveSections and verdict.executiveSections|length > 0 %}
+        <div class="mt-3 grid grid-cols-1 gap-3">
+            {% for section in verdict.executiveSections %}
+            <div class="p-3 bg-white border border-slate-200 rounded-lg" style="page-break-inside: avoid; break-inside: avoid;">
+                <h4 class="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                    <span class="w-1 h-4 rounded-full" style="background: var(--brand);"></span>
+                    {{ section.title | sanitize_llm }}
+                </h4>
+                <ul class="space-y-1.5">
+                    {% for point in section.points %}
+                    <li class="flex items-start gap-2 report-body-sm text-slate-600 text-justify">
+                        <span class="text-slate-400 font-bold flex-shrink-0 mt-0.5">•</span>
+                        <span>{{ point | sanitize_llm }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
     {# ── RISK MAP (visual semafor — moved here from Risk Dashboard) ── #}

@@ -8,7 +8,7 @@ import {
   computeWeightedProgress,
   type ReportSource,
 } from "@/lib/reportConstants";
-import { SOURCES, SOURCE_CATEGORIES, SOURCE_MAP, SOURCE_DOT_COLOR } from "@/lib/sources";
+import { SOURCES, SOURCE_CATEGORIES, SOURCE_DOT_COLOR } from "@/lib/sources";
 
 const STATUS_ICON: Record<string, string> = {
   SUCCESS: "✓",
@@ -17,6 +17,23 @@ const STATUS_ICON: Record<string, string> = {
   PENDING: "",
   PROCESSING: "⏳",
 };
+
+// ── Workflow phases ──
+// Maps AI status ranges to 4 visual phases of the pipeline
+const PHASES = [
+  { id: 0, key: "report.phaseScraping",   icon: "📋", range: [0, 30] },
+  { id: 1, key: "report.phaseAiPipeline", icon: "🧠", range: [30, 86] },
+  { id: 2, key: "report.phaseVerdict",    icon: "🔍", range: [86, 97] },
+  { id: 3, key: "report.phaseCompiling",  icon: "📄", range: [97, 100] },
+] as const;
+
+function getActivePhase(progress: number, isTerminal: boolean): number {
+  if (isTerminal) return 4; // all done
+  for (let i = PHASES.length - 1; i >= 0; i--) {
+    if (progress >= PHASES[i].range[0]) return i;
+  }
+  return 0;
+}
 
 export default function PhaseProgress({
   sources,
@@ -44,7 +61,7 @@ export default function PhaseProgress({
   const isScraping = !aiStatus || aiStatus === "ai.queued" || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
   const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
 
-  // Track elapsed time to show patience warning
+  // Track elapsed time
   const [elapsedSec, setElapsedSec] = useState(0);
   useEffect(() => {
     if (isTerminal) return;
@@ -55,10 +72,12 @@ export default function PhaseProgress({
   }, [startedAt, isTerminal]);
   const showPatienceWarning = elapsedSec > 600 && !isTerminal;
 
-  // Track when the current AI status first appeared (for time-based interpolation)
+  // Collapsible source checklist — hidden by default
+  const [showSources, setShowSources] = useState(false);
+
+  // Progress tracking
   const aiStatusRef = useRef<string | null>(null);
   const aiStatusStartedRef = useRef<number | null>(null);
-  // Initialize progress from current AI status range start (avoids 0% on remount/refresh)
   const _initialProgress = (() => {
     if (isTerminal) return 100;
     if (aiStatus && aiStatus in AI_STATUS_RANGES) return AI_STATUS_RANGES[aiStatus].start;
@@ -69,7 +88,6 @@ export default function PhaseProgress({
   const displayRef = useRef(_initialProgress);
   useEffect(() => { displayRef.current = displayProgress; }, [displayProgress]);
 
-  // Use server-side updatedAt as the reference for AI status timing.
   useEffect(() => {
     if (aiStatus !== aiStatusRef.current) {
       aiStatusRef.current = aiStatus ?? null;
@@ -99,27 +117,27 @@ export default function PhaseProgress({
     return () => clearInterval(interval);
   }, [sourcesCompleted, sourcesTotal, aiStatus, reportStatus, isTerminal]);
 
-  // Build a map of sourceType → status from the live sources data
+  // Source status map
   const sourceStatusMap = new Map<string, string>();
   for (const s of sources) {
     sourceStatusMap.set(s.sourceType, s.status);
   }
-
-  // Group sources by category, only show sources that were selected for this report
   const selectedSourceIds = sources.map(s => s.sourceType);
   const categoriesWithSources = SOURCE_CATEGORIES.map(cat => ({
     ...cat,
     sources: SOURCES.filter(s => s.category === cat.id && selectedSourceIds.includes(s.id)),
   })).filter(cat => cat.sources.length > 0);
 
+  const activePhase = getActivePhase(displayProgress, isTerminal);
+  const fmtTime = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+
   return (
     <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
-      {/* Loader card */}
-      <div className="w-full rounded-2xl p-4 shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        {/* Top row: icon + % */}
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <div className="flex items-center gap-3">
-            {/* Animated Icon */}
+      {/* ── Main card: status + progress ── */}
+      <div className="w-full rounded-2xl p-4 shadow-sm fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {/* Top: spinner + status text + % */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center relative" style={{ background: "var(--accent-light)" }}>
               <svg className="w-4 h-4 animate-spin relative z-10" style={{ color: "var(--accent)" }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -127,96 +145,163 @@ export default function PhaseProgress({
               </svg>
               <div className="absolute inset-0 rounded-full opacity-20 animate-ping" style={{ background: "var(--accent)" }}></div>
             </div>
-            {isScraping && sourcesTotal > 0 && (
-              <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
-                {sourcesCompleted}/{sourcesTotal} {t("report.zdrojov")}
-              </span>
-            )}
+            <span className="text-[14px] font-medium leading-snug truncate" style={{ color: "var(--accent)" }}>
+              {statusText}
+            </span>
           </div>
-          {/* Percentage badge */}
           <span className="shrink-0 text-2xl font-bold tabular-nums leading-none" style={{ color: "var(--accent)" }}>
             {Math.round(displayProgress)}<span className="text-sm font-semibold">%</span>
           </span>
         </div>
 
-        {/* Status text — no timestamp */}
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-[14px] font-medium leading-snug" style={{ color: "var(--accent)" }}>
-            {statusText}
-          </span>
+        {/* Progress bar */}
+        <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+          <div className="h-full rounded-full ease-linear" style={{ width: `${displayProgress}%`, background: "var(--accent)", transition: "width 500ms linear" }} />
         </div>
+
+        {/* Elapsed + ETA */}
+        {!isTerminal && (
+          <div className="flex items-center gap-4 mt-2 text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
+            <span>⏱ {fmtTime(elapsedSec)}</span>
+            {etaCountdown !== null && etaCountdown > 0 && (
+              <span>~{fmtTime(etaCountdown)}</span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Weighted progress bar */}
-      <div className="w-full mt-4">
-        <div className="w-full h-2.5 rounded-full overflow-hidden relative" style={{ background: "var(--border)" }}>
-          <div
-            className="h-full rounded-full ease-linear"
-            style={{ width: `${displayProgress}%`, background: "var(--accent)", transition: "width 500ms linear" }}
-          />
-        </div>
-      </div>
+      {/* ── Workflow stepper ── */}
+      <div className="w-full mt-3 rounded-2xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="flex items-start justify-between gap-1">
+          {PHASES.map((phase, i) => {
+            const isDone = activePhase > i || isTerminal;
+            const isActive = activePhase === i && !isTerminal;
+            const isPending = activePhase < i && !isTerminal;
+            const phaseLabel = t(phase.key);
 
-      {/* Elapsed time + ETA */}
-      {!isTerminal && (
-        <div className="flex items-center gap-3 mt-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-          <span>⏱ {String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:{String(elapsedSec % 60).padStart(2, "0")}</span>
-          {etaCountdown !== null && etaCountdown > 0 && (
-            <span style={{ color: "var(--text-muted)" }}>~{String(Math.floor(etaCountdown / 60)).padStart(2, "0")}:{String(etaCountdown % 60).padStart(2, "0")}</span>
-          )}
-        </div>
-      )}
-
-      {/* ── Source checklist ── */}
-      <div className="w-full mt-4 rounded-lg p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        {categoriesWithSources.map(cat => {
-          const completed = cat.sources.filter(s => ["SUCCESS", "FAILED", "UNAVAILABLE"].includes(sourceStatusMap.get(s.id) || "")).length;
-          return (
-            <div key={cat.id} className="mb-3 last:mb-0">
-              {/* Category header */}
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
-                  {cat.label}
+            return (
+              <div key={phase.id} className="flex flex-col items-center flex-1 min-w-0">
+                {/* Circle + connector line */}
+                <div className="flex items-center w-full justify-center relative">
+                  {/* Left connector */}
+                  {i > 0 && (
+                    <div
+                      className="absolute right-1/2 h-0.5 w-1/2"
+                      style={{
+                        background: isDone || isActive ? "var(--accent)" : "var(--border)",
+                        transition: "background 300ms",
+                      }}
+                    />
+                  )}
+                  {/* Circle */}
+                  <div
+                    className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${isActive ? "animate-pulse" : ""}`}
+                    style={{
+                      background: isDone ? "var(--success)" : isActive ? "var(--accent)" : "var(--bg-muted)",
+                      border: `2px solid ${isDone ? "var(--success)" : isActive ? "var(--accent)" : "var(--border)"}`,
+                      color: isDone || isActive ? "#fff" : "var(--text-muted)",
+                      transition: "all 300ms",
+                    }}
+                  >
+                    {isDone ? "✓" : phase.icon}
+                  </div>
+                  {/* Right connector */}
+                  {i < PHASES.length - 1 && (
+                    <div
+                      className="absolute left-1/2 h-0.5 w-1/2"
+                      style={{
+                        background: isDone ? "var(--accent)" : "var(--border)",
+                        transition: "background 300ms",
+                      }}
+                    />
+                  )}
+                </div>
+                {/* Label */}
+                <span
+                  className="text-[10px] font-medium text-center mt-1.5 leading-tight"
+                  style={{
+                    color: isActive ? "var(--accent)" : isDone ? "var(--text)" : "var(--text-muted)",
+                  }}
+                >
+                  {phaseLabel}
                 </span>
-                <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
-                  {completed}/{cat.sources.length}
-                </span>
+                {/* Sub-label: source count for phase 0 */}
+                {i === 0 && sourcesTotal > 0 && (
+                  <span className="text-[9px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    {sourcesCompleted}/{sourcesTotal}
+                  </span>
+                )}
               </div>
-              {/* Source items */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                {cat.sources.map(src => {
-                  const status = sourceStatusMap.get(src.id) || "PENDING";
-                  const icon = STATUS_ICON[status] || "";
-                  const color = SOURCE_DOT_COLOR[status] || "var(--border-strong)";
-                  const isProcessing = status === "PROCESSING";
-                  return (
-                    <div key={src.id} className="flex items-center gap-2 text-xs py-0.5">
-                      <span
-                        className={`shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${isProcessing ? "animate-pulse" : ""}`}
-                        style={{
-                          color: status === "PENDING" ? "var(--border-strong)" : "#fff",
-                          background: status === "PENDING" ? "transparent" : color,
-                          border: status === "PENDING" ? `1.5px solid ${color}` : "none",
-                        }}
-                      >
-                        {icon}
+            );
+          })}
+        </div>
+
+        {/* ── Collapsible source checklist ── */}
+        <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+          <button
+            onClick={() => setShowSources(v => !v)}
+            className="w-full flex items-center justify-between text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            <span className="flex items-center gap-1.5">
+              <span>📋</span>
+              <span>{t("report.zdrojov")}</span>
+              <span className="tabular-nums" style={{ color: "var(--accent)" }}>{sourcesCompleted}/{sourcesTotal}</span>
+            </span>
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+              {showSources ? "▲ skryť" : "▼ zobraziť"}
+            </span>
+          </button>
+          {showSources && (
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+              {categoriesWithSources.map(cat => {
+                const completed = cat.sources.filter(s => ["SUCCESS", "FAILED", "UNAVAILABLE"].includes(sourceStatusMap.get(s.id) || "")).length;
+                const allDone = completed === cat.sources.length;
+                return (
+                  <div key={cat.id}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[9px] font-bold uppercase tracking-wide truncate" style={{ color: allDone ? "var(--text-muted)" : "var(--text-secondary)" }}>
+                        {cat.label}
                       </span>
-                      <span
-                        className="truncate"
-                        style={{
-                          color: status === "SUCCESS" ? "var(--text)" : status === "PENDING" ? "var(--text-muted)" : "var(--text-secondary)",
-                          fontWeight: status === "SUCCESS" ? 500 : 400,
-                        }}
-                      >
-                        {src.label}
+                      <span className="text-[9px] font-semibold tabular-nums shrink-0 ml-1" style={{ color: "var(--text-muted)" }}>
+                        {completed}/{cat.sources.length}
                       </span>
                     </div>
-                  );
-                })}
-              </div>
+                    {cat.sources.map(src => {
+                      const status = sourceStatusMap.get(src.id) || "PENDING";
+                      const icon = STATUS_ICON[status] || "";
+                      const color = SOURCE_DOT_COLOR[status] || "var(--border-strong)";
+                      const isProcessing = status === "PROCESSING";
+                      return (
+                        <div key={src.id} className="flex items-center gap-1 text-[10px] leading-tight py-px">
+                          <span
+                            className={`shrink-0 w-3 h-3 rounded-full flex items-center justify-center text-[8px] font-bold ${isProcessing ? "animate-pulse" : ""}`}
+                            style={{
+                              color: status === "PENDING" ? "var(--border-strong)" : "#fff",
+                              background: status === "PENDING" ? "transparent" : color,
+                              border: status === "PENDING" ? `1.5px solid ${color}` : "none",
+                            }}
+                          >
+                            {icon}
+                          </span>
+                          <span
+                            className="truncate"
+                            style={{
+                              color: status === "SUCCESS" ? "var(--text)" : status === "PENDING" ? "var(--text-muted)" : "var(--text-secondary)",
+                              fontWeight: status === "SUCCESS" ? 500 : 400,
+                            }}
+                          >
+                            {src.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
       {/* Patience warning after 10 min */}

@@ -557,6 +557,7 @@ model AuditVerdict {
   debtExposureRating Int?
   finalVerdict    String   @db.Text
   executiveSummary String? @db.Text
+  executiveSections String? @db.Text
   justification   String   @db.Text
   keyRisk         String   @db.Text
   scorecardBreakdown Json?

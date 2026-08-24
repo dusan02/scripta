@@ -28,12 +28,19 @@ class ReportFinding(BaseModel):
     implication: str = Field(..., description="Čo to znamená pre používateľa (napr. 'Zadlženie predstavuje riziko, ale zároveň má jasný investičný účel'). Pri UNKNOWN uveď 'Odporúčame overiť v primárnej dokumentácii.'")
 
 
+class ExecutiveSection(BaseModel):
+    """Štruktúrovaná sekcia executive summary — nadpis + odrážky pre čitateľnosť."""
+    title: str = Field(..., description="Krátky nadpis sekcie (napr. 'Finančné zdravie', 'Platobná disciplína', 'Právna bezúhonnosť', 'Kapitálová štruktúra a investície', 'Kľúčové riziká').")
+    points: List[str] = Field(..., description="2-4 odrážky, každá 1-2 vety. Pri každej finančnej anomálii použi vzor: [fakt] → [dôkaz] → [implikácia]. Konkrétne hodnoty cez placeholdre.")
+
+
 class AuditVerdict(BaseModel):
     verifa_score: int = Field(..., ge=0, le=100, description="Musí byť PRESNE rovné algorithmic_prescore — nepridávaj ani neodoberáj body. Toto pole je výstupom deterministického algoritmu a LLM ho neupravuje.")
     llm_score_adjustment: int = Field(default=0, ge=-10, le=10, description="Tvoj forenzný posudok adjustmentu vďaka PDF a naratívnym dátam. Záporné = penalizácia, kladné = bonus. Toto pole je INFORMATÍVNE — neovplyvňuje priamo uložené verifaScore. Finálne skóre sa počíta deterministicky z NarrativeRisk, NotesRisk a CompanyEvents. Tvoj adjustment slúži ako signal pre používateľa, aké riziká by deterministický model mal zohľadniť.")
     risk_category: Literal["AAA", "A", "B", "C", "INSUFFICIENT_DATA"]
     debt_exposure_rating: Optional[int] = Field(default=None, ge=0, le=10, description="Hodnotenie expozície voči verejným dlhom (0=čisté, 10=katastrofa). null = nebolo možné vyhodnotiť.")
-    executive_summary: str = Field(..., description="Hlboká korelačná analýza a forenzná syntéza. Prepoj finančné anomálie so zisteniami z registrov do pútavého odstavca.")
+    executive_summary: str = Field(..., description="Krátky úvodný odstavec (2-3 vety) — zhrnie celkový profil spoločnosti. Nasleduje executive_sections, ktoré rozoberajú detaily.")
+    executive_sections: List[ExecutiveSection] = Field(default_factory=list, description="Štruktúrované sekcie hlavného posudku pre čitateľnosť. 4-5 sekcií, každá s nadpisom a 2-4 odrážkami. Sekcie: 1) Finančné zdravie 2) Platobná disciplína 3) Právna bezúhonnosť 4) Kapitálová štruktúra a investície 5) Kľúčové riziká (ak relevantné).")
     final_verdict: str = Field(..., description="Jedna veta, ktorá zhrnie objektívny stav spoločnosti. Striktne sa vyhni subjektívnym obchodným či investičným odporúčaniam (nepoužívaj 'Odporúčame/Neodporúčame spoluprácu'). Zhodnoť výlučne fakty a mieru rizika (napr. 'Spoločnosť vykazuje stabilné finančné zdravie s nízkym rizikom' alebo 'Kriticky rizikový stav kvôli prebiehajúcim exekúciám').")
     zdovodnenie: list[EvidenceItem] = Field(..., description="Analytické zdôvodnenie skóre. Zoznam tvrdení, dôkazov a zdrojov.")
     kľúčové_riziko: str = Field(..., description="Najväčšia hrozba, ktorej firma čelí.")
@@ -62,20 +69,26 @@ Podrobný rozpis skóre (scorecard_breakdown) a historické dáta nájdeš v pri
 {COMMON_FORENSIC_RULES['sk']}
 
 PROCES HODNOTENIA A SYNTÉZY:
-1. KRÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary):
-   - Tvojou najdôležitejšou úlohou je prepojiť izolované dáta do súvislostí v poli `executive_summary`.
-   - Nehádž na seba len fakty ("Firma má zisk. Firma má exekúciu."). Vysvetli anomálie!
+1. KRÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary + Executive Sections):
+   - `executive_summary` = krátky úvodný odstavec (2-3 vety), ktorý zhrnie celkový profil spoločnosti (silná/slabá, hlavný dôvod, riziko).
+   - `executive_sections` = štruktúrované sekcie pre čitateľnosť. Generuj 4-5 sekcií, každá s nadpisom a 2-4 odrážkami:
+     * **Finančné zdravie** — ziskovosť, likvidita, Altman Z'', trendy tržieb a cash flow
+     * **Platobná disciplína** — dlhy voči štátu, poisťovniam, daňová spoľahlivosť, exekúcie
+     * **Právna bezúhonnosť** — súdne rozhodnutia, insolvenčné konania, diskvalifikácie, vestník
+     * **Kapitálová štruktúra a investície** — vlastné imanie, zadlženosť, investície (CAPEX), rast
+     * **Kľúčové riziká** (ak relevantné) — najväčšie hrozby, anomálie, nevysvetlené rozpory
+   - Nehádž na seba len fakty ("Firma má zisk. Firma má exekúciu."). Vysvetli anomálie a prepojenia!
    - Príklad anomálie: "Hoci spoločnosť vykazuje stomiliónové tržby a vyhráva verejné obstarávania, z účtovnej závierky vyplýva, že nemá žiadnych zamestnancov (0 € osobné náklady) a všetok zisk sa prelieva do spriaznených firiem formou pôžičiek."
    - Ak v dátach z Poznámok (NotesRisk) nájdeš transakcie so spriaznenými osobami, okamžite to prepoj s rastom dlhov alebo poklesom hotovosti.
-   - VAROVANIE: `narrativeRisk.forensicRedFlags` sú LLM-extrahované z výročnej správy a MÔŽU obsahovať halucinácie. Nikdy ich nepoužívaj ako fakty v executive_summary ani ako základ pre `llm_score_adjustment` bez overenia proti `notesRisk` dátam. Ak `notesRisk_by_year` je prázdny (žiadne `relatedPartyTransactions`), NIKDY netvrd v texte, že firma má "transakcie so spriaznenými osobami" alebo "presun majetku na dcérske spoločnosti" — ani keď `forensicRedFlags` to tvrdia.
+   - VAROVANIE: `narrativeRisk.forensicRedFlags` sú LLM-extrahované z výročnej správy a MÔŽU obsahovať halucinácie. Nikdy ich nepoužívaj ako fakty v executive_summary/sections ani ako základ pre `llm_score_adjustment` bez overenia proti `notesRisk` dátam. Ak `notesRisk_by_year` je prázdny (žiadne `relatedPartyTransactions`), NIKDY netvrd v texte, že firma má "transakcie so spriaznenými osobami" alebo "presun majetku na dcérske spoločnosti" — ani keď `forensicRedFlags` to tvrdia.
 
 {COMMON_BUT_PATTERNS['sk']}
 
 ANOMÁLIA → DÔKAZ → VYSVETLENIE → IMPLIKÁCIA:
-Tvoja executive_summary nesmie byť len zoznam faktov. Pri každej finančnej anomálii MUSÍš použiť vzor:
+Tvoje executive_sections nesmú byť len zoznam faktov. Pri každej finančnej anomálii MUSÍš použiť vzor v odrážke:
 [finančná anomália] → [naratívny dôkaz z Notes/Narrative] → [vysvetlenie] → [implikácia pre používateľa]
 
-Konkrétne vzory, ktoré MUSÍŠ skontrolovať a v prípade nájdenia ich reflektovať v executive_summary:
+Konkrétne vzory, ktoré MUSÍŠ skontrolovať a v prípade nájdenia ich reflektovať v executive_sections:
 
 a) OCF pozitívny + čistá strata → Notes: intra-group cash pooling / shared services / odpisy reštrukturalizácie → "Negatívny čistý výsledok je ovplyvnený [konkrétnym dôvodom z Notes]" → "Reálna ziskovosť prevádzky je [vyššia/nižšia] než vykazovaná"
 
@@ -118,10 +131,10 @@ PRAVIDLÁ VÝSTUPU:
 - `verifa_score` = `algorithmic_prescore` (bez zmeny — porušenie tohto pravidla spôsobí chybu).
 - ZÁKAZ HALUCINOVANIA: NIKDY neuvádzaj vo verdikte čísla (napr. počet zmien štatutárov, výšky tržieb), ktoré nie sú EXPLICITNE uvedené v poskytnutých zdrojových dátach. Ak vstupné dáta hovoria o 37 zmenách štatutárov, nepoužívaj svoje externé znalosti na úpravu tohto čísla (napr. na 107). Použi výlučne poskytnuté údaje.
 - DOKONČENÉ VETY: Každá veta musí byť úplná. Nikdy neodsekávaj vetu na konci odseku alebo tabuľky. Ak píšeš "v roku 2024 to bolo až 231 689", dokonči ju: "v roku 2024 to bolo až 231 689 tis. EUR". Nikdy nenechávaj otvorené zátvorky alebo nedokončené porovnania.
-- **ZÁKAZ SPOMÍNANIA SKÓRE ADJUSTMENTU V TEXTE:** V poliach `executive_summary`, `final_verdict`, `keyRisk` a `zdovodnenie` NIKDY nepíš o tom, že si "upravil skóre", "pridal body", "navýšil skóre", "korigoval algoritmus" alebo podobne. Tvoje `llm_score_adjustment` je čisto technické pole pre engine — používateľ ho nevidí v naratíve. Ak napíšeš "odôvodňujem navýšenie skóre o 5 bodov", používateľ to uvidí ako konflikt s tabuľkou, ktorá ukazuje 0. NAMIESTO TOHO píš o rizikách a silných stránkach priamo — napr. "Napriek algoritmickej penalizácii za vysoký počet zmien štatutárov spoločnosť vykazuje stabilnú ziskovosť a silný cash flow, čo znižuje reálne riziko úpadku."
+- **ZÁKAZ SPOMÍNANIA SKÓRE ADJUSTMENTU V TEXTE:** V poliach `executive_summary`, `executive_sections`, `final_verdict`, `keyRisk` a `zdovodnenie` NIKDY nepíš o tom, že si "upravil skóre", "pridal body", "navýšil skóre", "korigoval algoritmus" alebo podobne. Tvoje `llm_score_adjustment` je čisto technické pole pre engine — používateľ ho nevidí v naratíve. Ak napíšeš "odôvodňujem navýšenie skóre o 5 bodov", používateľ to uvidí ako konflikt s tabuľkou, ktorá ukazuje 0. NAMIESTO TOHO píš o rizikách a silných stránkach priamo — napr. "Napriek algoritmickej penalizácii za vysoký počet zmien štatutárov spoločnosť vykazuje stabilnú ziskovosť a silný cash flow, čo znižuje reálne riziko úpadku."
 
 PLACEHOLDRE PRE FINANČNÉ METRIKY:
-Pre konkrétne finančné hodnoty v `executive_summary`, `keyRisk` a `finalVerdict` VŽDY používaj placeholdre z tohto zoznamu. NIKDY nepíš konkrétne EUR hodnoty, percentá alebo pomery priamo — systém ich nahradí presnými hodnotami z databázy.
+Pre konkrétne finančné hodnoty v `executive_summary`, `executive_sections`, `keyRisk` a `finalVerdict` VŽDY používaj placeholdre z tohto zoznamu. NIKDY nepíš konkrétne EUR hodnoty, percentá alebo pomery priamo — systém ich nahradí presnými hodnotami z databázy.
 
 Finančné hodnoty (najnovší rok):
   {{{{REVENUE}}}} — tržby (napr. "111,6 mil. €")
@@ -225,20 +238,26 @@ Detailed score breakdown (scorecard_breakdown) and historical data are in the at
 {COMMON_FORENSIC_RULES['en']}
 
 EVALUATION AND SYNTHESIS PROCESS:
-1. CROSS-CHECKING AND SYNTHESIS (Executive Summary):
-   - Your most important task is to connect isolated data into coherent context in the `executive_summary` field.
-   - Do not just list facts ("Company has profit. Company has enforcement action."). Explain anomalies!
+1. CROSS-CHECKING AND SYNTHESIS (Executive Summary + Executive Sections):
+   - `executive_summary` = short intro paragraph (2-3 sentences) summarizing the overall company profile (strong/weak, main reason, risk level).
+   - `executive_sections` = structured sections for readability. Generate 4-5 sections, each with a title and 2-4 bullet points:
+     * **Financial Health** — profitability, liquidity, Altman Z'', revenue and cash flow trends
+     * **Payment Discipline** — debts to state, insurance companies, tax reliability, enforcement actions
+     * **Legal Integrity** — court decisions, insolvency proceedings, disqualifications, commercial bulletin
+     * **Capital Structure & Investments** — equity, leverage, investments (CAPEX), growth
+     * **Key Risks** (if relevant) — biggest threats, anomalies, unexplained discrepancies
+   - Do not just list facts ("Company has profit. Company has enforcement action."). Explain anomalies and connections!
    - Example anomaly: "Although the company shows hundreds of millions in revenue and wins public procurement, the financial statements reveal it has zero employees (€0 personnel costs) and all profit flows to related companies as loans."
    - If you find related party transactions in Notes data, immediately connect them with debt growth or cash decline.
-   - WARNING: `narrativeRisk.forensicRedFlags` are LLM-extracted from the annual report and MAY contain hallucinations. Never use them as facts in executive_summary or as basis for `llm_score_adjustment` without cross-checking against `notesRisk` data. If `notesRisk_by_year` is empty (no `relatedPartyTransactions`), NEVER claim in text that the company has "related party transactions" or "asset transfers to subsidiaries" — even if `forensicRedFlags` say so.
+   - WARNING: `narrativeRisk.forensicRedFlags` are LLM-extracted from the annual report and MAY contain hallucinations. Never use them as facts in executive_summary/sections or as basis for `llm_score_adjustment` without cross-checking against `notesRisk` data. If `notesRisk_by_year` is empty (no `relatedPartyTransactions`), NEVER claim in text that the company has "related party transactions" or "asset transfers to subsidiaries" — even if `forensicRedFlags` say so.
 
 {COMMON_BUT_PATTERNS['en']}
 
 ANOMALY → EVIDENCE → EXPLANATION → IMPLICATION:
-Your executive_summary must not be just a list of facts. For every financial anomaly you MUST use the pattern:
+Your executive_sections must not be just a list of facts. For every financial anomaly you MUST use the pattern in a bullet point:
 [financial anomaly] → [narrative evidence from Notes/Narrative] → [explanation] → [implication for the user]
 
-Specific patterns you MUST check and reflect in executive_summary if found:
+Specific patterns you MUST check and reflect in executive_sections if found:
 
 a) Positive OCF + net loss → Notes: intra-group cash pooling / shared services / restructuring write-offs → "The negative net result is driven by [specific reason from Notes]" → "Real operating profitability is [higher/lower] than reported"
 
@@ -282,7 +301,7 @@ OUTPUT RULES:
 - NO HALLUCINATION: NEVER mention numbers in the verdict (e.g. number of director changes, revenue amounts) that are not EXPLICITLY stated in the provided source data. If input data says 37 director changes, do not use your external knowledge to change this number (e.g. to 107). Use exclusively the provided data.
 
 PLACEHOLDERS FOR FINANCIAL METRICS:
-For specific financial values in `executive_summary`, `keyRisk` and `finalVerdict` ALWAYS use placeholders from this list. NEVER write specific EUR values, percentages or ratios directly — the system will replace them with precise values from the database.
+For specific financial values in `executive_summary`, `executive_sections`, `keyRisk` and `finalVerdict` ALWAYS use placeholders from this list. NEVER write specific EUR values, percentages or ratios directly — the system will replace them with precise values from the database.
 
 Financial values (latest year):
   {{{{REVENUE}}}} — revenue (e.g. "111.6M EUR")
@@ -382,9 +401,15 @@ Detaillierte Score-Aufschlüsselung (scorecard_breakdown) und historische Daten 
 {COMMON_FORENSIC_RULES['de']}
 
 BEWERTUNGS- UND SYNTHESPROZESS:
-1. KREUZPRÜFUNG UND SYNTHES (Executive Summary):
-   - Verbinden Sie isolierte Daten zu kohärentem Kontext im Feld `executive_summary`.
-   - Erklären Sie Anomalien, listen Sie nicht nur Fakten auf.
+1. KREUZPRÜFUNG UND SYNTHES (Executive Summary + Executive Sections):
+   - `executive_summary` = kurze Einleitung (2-3 Sätze), die das Gesamtprofil des Unternehmens zusammenfasst.
+   - `executive_sections` = strukturierte Abschnitte für bessere Lesbarkeit. Generieren Sie 4-5 Abschnitte, jeweils mit Titel und 2-4 Aufzählungspunkten:
+     * **Finanzielle Gesundheit** — Rentabilität, Liquidität, Altman Z'', Umsatz- und Cashflow-Trends
+     * **Zahlungsmoral** — Schulden gegenüber Staat, Versicherungen, Steuerzuverlässigkeit, Zwangsvollstreckungen
+     * **Rechtliche Integrität** — Gerichtsentscheidungen, Insolvenzverfahren, Disqualifikationen, Handelsregister
+     * **Kapitalstruktur & Investitionen** — Eigenkapital, Verschuldung, Investitionen (CAPEX), Wachstum
+     * **Hauptrisiken** (falls relevant) — größte Bedrohungen, Anomalien, unerklärte Diskrepanzen
+   - Erklären Sie Anomalien und Zusammenhänge, listen Sie nicht nur Fakten auf.
    - Beispiel: "Obwohl das Unternehmen Hunderte Millionen an Umsatz zeigt und öffentliche Aufträge gewinnt, zeigen die Jahresabschlüsse null Mitarbeiter (0 € Personalkosten) und der gesamte Gewinn fließt als Darlehen an verbundene Unternehmen."
    - Wenn Sie Transaktionen mit nahestenden Personen in den Notizen finden, verbinden Sie diese sofort mit Schuldenwachstum oder Cash-Rückgang.
    {COMMON_BUT_PATTERNS['de']}
@@ -442,9 +467,15 @@ Podrobný rozpis skóre (scorecard_breakdown) a historická data najdeš v přil
 {COMMON_FORENSIC_RULES['cz']}
 
 PROCES HODNOCENÍ A SYNTÉZY:
-1. KŘÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary):
-   - Tvým nejdůležitějším úkolem je propojit izolovaná data do souvislostí v poli `executive_summary`.
-   - Neházej na sebe jen fakta ("Firma má zisk. Firma má exekuci."). Vysvětli anomálie!
+1. KŘÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary + Executive Sections):
+   - `executive_summary` = krátký úvodní odstavec (2-3 věty), který shrne celkový profil společnosti.
+   - `executive_sections` = strukturované sekce pro čitelnost. Generuj 4-5 sekcí, každá s nadpisem a 2-4 odrážkami:
+     * **Finanční zdraví** — ziskovost, likvidita, Altman Z'', trendy tržeb a cash flow
+     * **Platební disciplína** — dluhy vůči státu, pojišťovnám, daňová spolehlivost, exekuce
+     * **Právní bezúhonnost** — soudní rozhodnutí, insolvenční řízení, diskvalifikace, obchodní věstník
+     * **Kapitálová struktura a investice** — vlastní jmění, zadluženost, investice (CAPEX), růst
+     * **Klíčová rizika** (pokud relevantní) — největší hrozby, anomálie, nevysvětlené rozpory
+   - Neházej na sebe jen fakta ("Firma má zisk. Firma má exekuci."). Vysvětli anomálie a souvislosti!
    - Příklad anomálie: "Ačkoliv společnost vykazuje stomilionové tržby a vyhrává veřejné zakázky, z účetní závěrky vyplývá, že nemá žádné zaměstnance (0 € osobní náklady) a veškerý zisk se přelévá do spřízněných firem formou půjček."
    - Pokud v datech z Poznámek (NotesRisk) najdeš transakce se spřízněnými osobami, okamžitě to propojit s růstem dluhů nebo poklesem hotovosti.
 
@@ -564,11 +595,17 @@ Podrobný rozpis skóre (scorecard_breakdown) a historická data jsou uvedena v 
 {COMMON_FORENSIC_RULES['pl']}
 
 PROCES HODNOCENÍ A SYNTÉZY:
-1. KŘÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary):
-   - Vaším nejdůležitějším úkolem je propojit izolovaná data do koherentního kontextu v poli `executive_summary`.
-   - Pouze nevypisujte fakta („Společnost má zisk. Společnost má exekuci.“). Vysvětlete anomálie!
-   - Příklad anomálie: „Ačkoli společnost vykazuje stovky milionů na tržbách a vyhrává veřejné zakázky, účetní závěrka odhaluje, že má nulový počet zaměstnanců (osobní náklady 0 EUR) a veškerý zisk odtéká do propojených společností ve formě půjček.“
-   - Pokud v datech z příloh (Notes) naleznete transakce spřízněných osob, okamžitě je propojte s růstem zadlužení nebo poklesem hotovosti.
+1. KŘÍŽOVÁ KONTROLA A SYNTÉZA (Executive Summary + Executive Sections):
+   - `executive_summary` = krátky úvodný odstavec (2-3 vety), ktorý zhrnie celkový profil spoločnosti.
+   - `executive_sections` = štruktúrované sekcie pre čitateľnosť. Generuj 4-5 sekcií, každá s nadpisom a 2-4 odrážkami:
+     * **Finančné zdravie** — ziskovosť, likvidita, Altman Z'', trendy tržieb a cash flow
+     * **Platobná disciplína** — dlhy voči štátu, poisťovniam, daňová spoľahlivosť, exekúcie
+     * **Právna bezúhonnosť** — súdne rozhodnutia, insolvenčné konania, diskvalifikácie, vestník
+     * **Kapitálová štruktúra a investície** — vlastné imanie, zadlženosť, investície (CAPEX), rast
+     * **Kľúčové riziká** (ak relevantné) — najväčšie hrozby, anomálie, nevysvetlené rozpory
+   - Neháďte na seba len fakta. Vysvetlite anomálie a súvislosti!
+   - Príklad anomálie: "Hoci spoločnosť vykazuje stomiliónové tržby a vyhráva verejné obstarávania, z účtovnej závierky vyplýva, že nemá žiadnych zamestnancov (0 € osobné náklady) a všetok zisk sa prelieva do spriaznených firiem formou pôžičiek."
+   - Ak v dátach z Poznámok (NotesRisk) nájdete transakcie so spriaznenými osobami, okamžite ich prepojte s rastom dlhov alebo poklesom hotovosti.
 
 {COMMON_BUT_PATTERNS['pl']}
 2. ANALÝZA VEŘEJNÝCH ZÁVAZKŮ, EXEKUCÍ A SOUDNÍCH ROZHODNUTÍ (z companyEvents):

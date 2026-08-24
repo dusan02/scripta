@@ -975,6 +975,11 @@ async def run_and_save_audit_verdict(
             'debtExposureRating': verdict.debt_exposure_rating,
             'finalVerdict': _sanitize_verdict_text(verdict.final_verdict),
             'executiveSummary': _sanitize_verdict_text(verdict.executive_summary),
+            'executiveSections': json.dumps(
+                [{"title": _sanitize_verdict_text(s.title), "points": [_sanitize_verdict_text(p) for p in s.points]}
+                 for s in verdict.executive_sections],
+                ensure_ascii=False
+            ) if verdict.executive_sections else None,
             'justification': json.dumps([e.model_dump() for e in verdict.zdovodnenie], ensure_ascii=False),
             'keyRisk': _sanitize_verdict_text(verdict.kľúčové_riziko),
             'scorecardBreakdown': Json(company_dict.get("analyza_trendov", {}).get("scorecard_breakdown", [])),
@@ -1021,6 +1026,30 @@ async def run_and_save_audit_verdict(
                     _vtext = _pat.sub(_repl, _vtext)
                 verdict_payload[_vfield] = _vtext
 
+        # ── Anti-halucinácia pre executive_sections ──
+        _esec = verdict_payload.get('executiveSections')
+        if _esec and isinstance(_esec, str):
+            try:
+                _esec_list = json.loads(_esec)
+                for _sec in _esec_list:
+                    if not isinstance(_sec, dict):
+                        continue
+                    _stitle = _sec.get("title", "")
+                    if _stitle and isinstance(_stitle, str):
+                        for _pat, _repl in _METRIC_PATTERNS:
+                            _stitle = _pat.sub(_repl, _stitle)
+                        _sec["title"] = _stitle
+                    _spoints = _sec.get("points", [])
+                    if isinstance(_spoints, list):
+                        for _pi, _pt in enumerate(_spoints):
+                            if _pt and isinstance(_pt, str):
+                                for _pat, _repl in _METRIC_PATTERNS:
+                                    _pt = _pat.sub(_repl, _pt)
+                                _spoints[_pi] = _pt
+                verdict_payload['executiveSections'] = json.dumps(_esec_list, ensure_ascii=False)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         # ── Anti-halucinácia pre evidence_list (justification) ──
         # Zdôvodnenie obsahuje "tvrdenie" a "dokaz" polia, ktoré LLM generuje.
         # Očistíme ich rovnakými patternmi — PRED inject_metrics.
@@ -1049,6 +1078,25 @@ async def run_and_save_audit_verdict(
                 _vtext = verdict_payload.get(_vfield, "")
                 if _vtext and isinstance(_vtext, str):
                     verdict_payload[_vfield] = inject_metrics(_vtext, _metric_placeholders)
+            # Injektuj placeholdre do executive_sections
+            _esec = verdict_payload.get('executiveSections')
+            if _esec and isinstance(_esec, str):
+                try:
+                    _esec_list = json.loads(_esec)
+                    for _sec in _esec_list:
+                        if not isinstance(_sec, dict):
+                            continue
+                        _stitle = _sec.get("title", "")
+                        if _stitle and isinstance(_stitle, str):
+                            _sec["title"] = inject_metrics(_stitle, _metric_placeholders)
+                        _spoints = _sec.get("points", [])
+                        if isinstance(_spoints, list):
+                            for _pi, _pt in enumerate(_spoints):
+                                if _pt and isinstance(_pt, str):
+                                    _spoints[_pi] = inject_metrics(_pt, _metric_placeholders)
+                    verdict_payload['executiveSections'] = json.dumps(_esec_list, ensure_ascii=False)
+                except (json.JSONDecodeError, TypeError):
+                    pass
             # Injektuj aj do justification evidence items
             _just = verdict_payload.get('justification')
             if _just and isinstance(_just, str):
