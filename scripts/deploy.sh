@@ -61,9 +61,9 @@ for arg in "$@"; do
 done
 
 case "$SERVICE" in
-  all) IMAGES=("verifa-frontend" "verifa-worker-image"); BUILD_TARGETS="frontend worker"; RESTART_TARGETS="worker arq_worker" ;;
+  all) IMAGES=("verifa-frontend" "verifa-worker-image"); BUILD_TARGETS="frontend worker arq_worker"; RESTART_TARGETS="" ;;
   frontend) IMAGES=("verifa-frontend"); BUILD_TARGETS="frontend"; RESTART_TARGETS="" ;;
-  worker) IMAGES=("verifa-worker-image"); BUILD_TARGETS="worker"; RESTART_TARGETS="worker arq_worker" ;;
+  worker) IMAGES=("verifa-worker-image"); BUILD_TARGETS="worker arq_worker"; RESTART_TARGETS="" ;;
   *) echo "Unknown --service value: $SERVICE (use all|frontend|worker)" >&2; exit 1 ;;
 esac
 
