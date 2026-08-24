@@ -174,7 +174,7 @@
     {% endif %}
     {% endfor %}
     {% if intragroup_items|length > 0 %}
-    <div class="mb-3" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="mb-3">
         <div class="rounded-lg border-2 border-rose-300 bg-rose-50 overflow-hidden">
             <div class="px-3 py-2 bg-rose-100 border-b border-rose-200 flex items-center gap-2">
                 <span style="color: var(--danger); font-size: 16px;">⚠</span>
@@ -196,7 +196,7 @@
     {# ── KĽÚČOVÉ POZNÁMKY POD ČIAROU ── #}
     {% if latest_stmt and latest_stmt.notesRisk %}
     {% if latest_stmt.notesRisk.offBalanceSheetLiabilities or latest_stmt.notesRisk.contingentRisks or latest_stmt.notesRisk.significantInvestments or latest_stmt.notesRisk.financingActivities or latest_stmt.notesRisk.acquisitionsAndDisposals or latest_stmt.notesRisk.provisionsAndReserves or latest_stmt.notesRisk.restructuringActivities or latest_stmt.notesRisk.capitalChanges or latest_stmt.notesRisk.subsequentEvents %}
-    <div class="mb-2" style="page-break-inside: avoid; break-inside: avoid;">
+    <div class="mb-2">
         <h3 class="subsection-title-sm mb-1" style="page-break-after: avoid; break-after: avoid;">{{ i18n.key_footnotes }}</h3>
         <div class="grid grid-cols-1 gap-1.5">
             {% if latest_stmt.notesRisk.significantInvestments %}

@@ -6,11 +6,20 @@ import {
   AI_STATUS_RANGES,
   PHASE_WEIGHTS,
   computeWeightedProgress,
-  getPhaseLabel,
-  type LogEntry,
+  type ReportSource,
 } from "@/lib/reportConstants";
+import { SOURCES, SOURCE_CATEGORIES, SOURCE_MAP, SOURCE_DOT_COLOR } from "@/lib/sources";
+
+const STATUS_ICON: Record<string, string> = {
+  SUCCESS: "✓",
+  FAILED: "✗",
+  UNAVAILABLE: "⚠",
+  PENDING: "",
+  PROCESSING: "⏳",
+};
 
 export default function PhaseProgress({
+  sources,
   sourcesCompleted,
   sourcesTotal,
   aiStatus,
@@ -20,6 +29,7 @@ export default function PhaseProgress({
   startedAt,
   serverUpdatedAt,
 }: {
+  sources: ReportSource[];
   sourcesCompleted: number;
   sourcesTotal: number;
   aiStatus?: string | null;
@@ -30,26 +40,9 @@ export default function PhaseProgress({
   serverUpdatedAt?: string | null;
 }) {
   const t = useT();
-  const phaseLabel = getPhaseLabel(aiStatus, t);
   const statusText = aiStatus ? t(aiStatus) : t("report.processing");
   const isScraping = !aiStatus || aiStatus === "ai.queued" || aiStatus === "ai.checking_registers" || aiStatus === "ai.retrying";
   const isTerminal = ["COMPLETED", "PARTIAL", "FAILED"].includes(reportStatus);
-
-  // Track AI status history as a log (cap at 10 entries, show last 3)
-  const [statusLog, setStatusLog] = useState<LogEntry[]>([]);
-  const lastStatusRef = useRef<string | null>(null);
-  useEffect(() => {
-    const currentStatus = aiStatus || "report.processing";
-    if (currentStatus !== lastStatusRef.current) {
-      lastStatusRef.current = currentStatus;
-      const entry: LogEntry = {
-        status: currentStatus,
-        text: t(currentStatus),
-        timestamp: Date.now(),
-      };
-      setStatusLog(prev => [...prev, entry].slice(-10));
-    }
-  }, [aiStatus, t]);
 
   // Track elapsed time to show patience warning
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -77,14 +70,9 @@ export default function PhaseProgress({
   useEffect(() => { displayRef.current = displayProgress; }, [displayProgress]);
 
   // Use server-side updatedAt as the reference for AI status timing.
-  // This ensures progress is consistent across page refreshes and tab
-  // suspensions — the server timestamp doesn't change when the browser
-  // sleeps, so elapsed time is always accurate.
   useEffect(() => {
     if (aiStatus !== aiStatusRef.current) {
       aiStatusRef.current = aiStatus ?? null;
-      // Use server updatedAt (when the status was last set) instead of
-      // Date.now() — this survives refreshes and mobile tab suspension.
       const serverTs = serverUpdatedAt ? new Date(serverUpdatedAt).getTime() : Date.now();
       aiStatusStartedRef.current = serverTs;
     }
@@ -105,18 +93,30 @@ export default function PhaseProgress({
         setDisplayProgress(target);
         return;
       }
-      // Smooth creep toward target
       const step = Math.max(0.15, diff * 0.12);
       setDisplayProgress(Math.min(target, current + step));
     }, 500);
     return () => clearInterval(interval);
   }, [sourcesCompleted, sourcesTotal, aiStatus, reportStatus, isTerminal]);
 
+  // Build a map of sourceType → status from the live sources data
+  const sourceStatusMap = new Map<string, string>();
+  for (const s of sources) {
+    sourceStatusMap.set(s.sourceType, s.status);
+  }
+
+  // Group sources by category, only show sources that were selected for this report
+  const selectedSourceIds = sources.map(s => s.sourceType);
+  const categoriesWithSources = SOURCE_CATEGORIES.map(cat => ({
+    ...cat,
+    sources: SOURCES.filter(s => s.category === cat.id && selectedSourceIds.includes(s.id)),
+  })).filter(cat => cat.sources.length > 0);
+
   return (
     <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto w-full px-2 fade-in">
       {/* Loader card */}
       <div className="w-full rounded-2xl p-4 shadow-sm relative fade-in" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        {/* Top row: icon + % — never overlaps text */}
+        {/* Top row: icon + % */}
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-3">
             {/* Animated Icon */}
@@ -133,17 +133,14 @@ export default function PhaseProgress({
               </span>
             )}
           </div>
-          {/* Percentage badge — always top-right, never wraps into text */}
+          {/* Percentage badge */}
           <span className="shrink-0 text-2xl font-bold tabular-nums leading-none" style={{ color: "var(--accent)" }}>
             {Math.round(displayProgress)}<span className="text-sm font-semibold">%</span>
           </span>
         </div>
 
-        {/* Status text — full width, no competition with % */}
+        {/* Status text — no timestamp */}
         <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="shrink-0 tabular-nums text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-            [{new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}]
-          </span>
           <span className="text-[14px] font-medium leading-snug" style={{ color: "var(--accent)" }}>
             {statusText}
           </span>
@@ -160,30 +157,67 @@ export default function PhaseProgress({
         </div>
       </div>
 
-      {/* Elapsed time */}
+      {/* Elapsed time + ETA */}
       {!isTerminal && (
-        <div className="text-center mt-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-          {String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:{String(elapsedSec % 60).padStart(2, "0")}
+        <div className="flex items-center gap-3 mt-3 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+          <span>⏱ {String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:{String(elapsedSec % 60).padStart(2, "0")}</span>
+          {etaCountdown !== null && etaCountdown > 0 && (
+            <span style={{ color: "var(--text-muted)" }}>~{String(Math.floor(etaCountdown / 60)).padStart(2, "0")}:{String(etaCountdown % 60).padStart(2, "0")}</span>
+          )}
         </div>
       )}
 
-      {/* Status history log — last 3 entries, no inner scroll */}
-      {statusLog.length > 1 && (
-        <div className="w-full mt-3 rounded-lg p-2 text-xs font-mono" style={{ background: "var(--bg-muted)", border: "1px solid var(--border)" }}>
-          {statusLog.slice(-3).map((entry, i, arr) => {
-            const isLast = i === arr.length - 1;
-            const time = new Date(entry.timestamp).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-            return (
-              <div key={entry.timestamp} className="flex items-start gap-2 py-0.5" style={{ opacity: isLast ? 1 : 0.5 }}>
-                <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>[{time}]</span>
-                <span style={{ color: isLast ? "var(--accent)" : "var(--text-muted)", fontWeight: isLast ? 500 : 400 }}>
-                  {entry.text}
+      {/* ── Source checklist ── */}
+      <div className="w-full mt-4 rounded-lg p-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        {categoriesWithSources.map(cat => {
+          const completed = cat.sources.filter(s => ["SUCCESS", "FAILED", "UNAVAILABLE"].includes(sourceStatusMap.get(s.id) || "")).length;
+          return (
+            <div key={cat.id} className="mb-3 last:mb-0">
+              {/* Category header */}
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                  {cat.label}
+                </span>
+                <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>
+                  {completed}/{cat.sources.length}
                 </span>
               </div>
-            );
-          })}
-        </div>
-      )}
+              {/* Source items */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                {cat.sources.map(src => {
+                  const status = sourceStatusMap.get(src.id) || "PENDING";
+                  const icon = STATUS_ICON[status] || "";
+                  const color = SOURCE_DOT_COLOR[status] || "var(--border-strong)";
+                  const isProcessing = status === "PROCESSING";
+                  return (
+                    <div key={src.id} className="flex items-center gap-2 text-xs py-0.5">
+                      <span
+                        className={`shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${isProcessing ? "animate-pulse" : ""}`}
+                        style={{
+                          color: status === "PENDING" ? "var(--border-strong)" : "#fff",
+                          background: status === "PENDING" ? "transparent" : color,
+                          border: status === "PENDING" ? `1.5px solid ${color}` : "none",
+                        }}
+                      >
+                        {icon}
+                      </span>
+                      <span
+                        className="truncate"
+                        style={{
+                          color: status === "SUCCESS" ? "var(--text)" : status === "PENDING" ? "var(--text-muted)" : "var(--text-secondary)",
+                          fontWeight: status === "SUCCESS" ? 500 : 400,
+                        }}
+                      >
+                        {src.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Patience warning after 10 min */}
       {showPatienceWarning && (

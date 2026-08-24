@@ -524,6 +524,7 @@ export default function ReportDetailPage() {
         ) : !isFinished ? (
           <>
             <PhaseProgress
+              sources={report.sources}
               sourcesCompleted={report.sources.filter(s => ["SUCCESS","FAILED","UNAVAILABLE"].includes(s.status)).length}
               sourcesTotal={report.sources.length}
               aiStatus={report.aiStatus}
