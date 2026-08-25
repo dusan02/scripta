@@ -809,7 +809,8 @@ def parse_tables_to_metrics(
 
     # Hrubá marža: Tržby - (Spotreba materiálu + Služby) ako proxy pre COGS v SK GAAP
     # Riadok 10 (náklady na hosp. činnosť spolu) zahŕňa aj mzdy, odpisy → nie je COGS.
-    # Fallback: Pridaná hodnota (riadok 28) ako najbližšie proxy z SK GAAP výkazu.
+    # Bez COGS dát nie je možné spoľahlivo vypočítať hrubú maržu — pridaná hodnota
+    # (riadok 28) je NEvhodný proxy (zahŕňa mzdy, odpisy → nadhodnocuje maržu na 80%+).
     hruba_marza = None
     if has_income:
         spotreba = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION, is_micro=is_micro_income)
@@ -819,9 +820,6 @@ def parse_tables_to_metrics(
             cogs_proxy = (spotreba or 0) + (sluzby_val or 0)
         if trzby is not None and cogs_proxy is not None and cogs_proxy > 0:
             hruba_marza = trzby - cogs_proxy
-        if hruba_marza is None:
-            # Fallback: Pridaná hodnota (proxy pre hrubú maržu v SK GAAP)
-            hruba_marza = _get_income_value(ordered, ROW_VALUE_ADDED, is_micro=is_micro_income)
 
     # ── Per-field unit sanity check ──
     # RÚZ JSON občas vracia detailné P&L riadky (spotreba materiálu, náklady na hosp.

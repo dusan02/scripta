@@ -435,14 +435,14 @@ async def download_financials(
                 ocf += zavazky_obchod - zavazky_prev
 
         # Gross profit: Tržby - (Spotreba materiálu + Služby) ako COGS proxy
+        # Bez COGS dát nie je možné spoľahlivo vypočítať hrubú maržu — pridaná hodnota
+        # (riadok 28) je NEvhodný proxy (zahŕňa mzdy, odpisy → nadhodnocuje maržu).
         hruba_marza = None
         cogs_proxy = None
         if spotreba_materialu is not None or sluzby_val is not None:
             cogs_proxy = (spotreba_materialu or 0) + (sluzby_val or 0)
         if trzby is not None and cogs_proxy is not None and cogs_proxy > 0:
             hruba_marza = trzby - cogs_proxy
-        if hruba_marza is None and has_income:
-            hruba_marza = _income_val(ordered, 28)
 
         # Determine data quality status
         if is_annual and not is_consol:

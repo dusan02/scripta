@@ -582,8 +582,8 @@ class TestParseTablesToMetrics:
         # Bez spotreba/services → fallback na Pridanú hodnotu (None tu) → hruba_marza = None
         assert metrics.hruba_marza is None
 
-    def test_gross_margin_fallback_to_value_added(self):
-        """Bez spotreba/services → fallback na Pridanú hodnotu (r.28)."""
+    def test_gross_margin_no_cogs_returns_none(self):
+        """Bez spotreba/services → hruba_marza = None (pridaná hodnota je NEvhodný proxy)."""
         tables, titulna = _make_tables(
             assets=1_000_000,
             equity=500_000,
@@ -595,8 +595,8 @@ class TestParseTablesToMetrics:
         )
         metrics = parse_tables_to_metrics(tables, titulna, "12345678")
         assert metrics is not None
-        # Fallback na Pridanú hodnotu
-        assert metrics.hruba_marza == 1_500_000
+        # Bez COGS dát nie je hrubá marža spoľahlivo vypočítateľná
+        assert metrics.hruba_marza is None
 
     def test_unit_detection_thousands_eur(self):
         """Ak aktíva < 5000 a zamestnancov > 5, deteguj tisíce EUR."""

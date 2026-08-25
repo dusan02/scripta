@@ -205,6 +205,7 @@ class PdfCompiler:
             target_path=str(cover_path),
             report_language=report_language,
             vestnik_date_from=vestnik_date_from,
+            company_name_override=company_name,
         )
         actual_cover_pages = len(PdfReader(str(cover_path)).pages)
 
@@ -220,6 +221,7 @@ class PdfCompiler:
                 target_path=str(cover_path),
                 report_language=report_language,
                 vestnik_date_from=vestnik_date_from,
+                company_name_override=company_name,
             )
 
         # 5. Zlúčime cover page + divider + PDF zdrojov pomocou PdfWriter.

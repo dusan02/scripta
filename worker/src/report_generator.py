@@ -1298,6 +1298,7 @@ async def generate_forensic_pdf_report(
     target_path: str = "",
     report_language: str = "sk",
     vestnik_date_from: Optional[str] = None,
+    company_name_override: Optional[str] = None,
 ):
     logger.info(f"Generujem HTML/PDF report pre IČO: {ico} (report_language={report_language})")
     db = get_db()
@@ -1333,6 +1334,10 @@ async def generate_forensic_pdf_report(
         if not company or not company.auditVerdict:
             logger.error(f"Nedostatok dát pre generovanie PDF (IČO: {ico})")
             return None
+
+        if company_name_override and company_name_override != company.name:
+            logger.info(f"[REPORT] Overriding company name: '{company.name}' → '{company_name_override}'")
+            company.name = company_name_override
 
         context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language=report_language, vestnik_date_from=vestnik_date_from)
         html_content = render_html_report(context)
