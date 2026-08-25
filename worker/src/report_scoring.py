@@ -379,7 +379,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
                     text = str(flag)
                     if year:
                         text = f"[{year}] {text}"
-                    truncated = text[:397] + '…' if len(text) > 400 else text
+                    truncated = text[:797] + '…' if len(text) > 800 else text
                     if _rp_pattern.search(text):
                         notes_flags_routed.append(truncated)
                     else:

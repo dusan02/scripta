@@ -326,6 +326,12 @@ def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
             text,
             flags=re.IGNORECASE,
         )
+    # Dangling fragment cleanup: cached verdicts may have broken text where
+    # placeholders were removed, leaving fragments like "o viac ako." or "o takmer a"
+    text = re.sub(r'\s+o viac ako[.,]', '', text)
+    text = re.sub(r'\s+o takmer(?=\s+(?:a|a čistý))', '', text)
+    text = re.sub(r'\s+o,(?=\s)', ' ', text)
+    text = re.sub(r'úveru\.\s+čo', 'úveru, čo', text)
     return text
 
 

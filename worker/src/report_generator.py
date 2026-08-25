@@ -739,21 +739,34 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             company_name=getattr(company, 'name', ''),
         )
         if _ph:
+            # Replace stale company name from cached verdict with current DB name
+            _current_name = getattr(company, 'name', None)
+            _verdict_name = getattr(verdict, 'companyName', None) or ''
+            if _current_name and _verdict_name and _verdict_name != _current_name:
+                _ph['{{COMPANY_NAME}}'] = _current_name
             _overrides_ph = {}
             for _field in ('executiveSummary', 'keyRisk', 'finalVerdict'):
                 _val = getattr(verdict, _field, None)
                 if _val and isinstance(_val, str):
-                    _overrides_ph[_field] = inject_metrics(_val, _ph)
+                    _val = inject_metrics(_val, _ph)
+                    if _current_name and _verdict_name and _verdict_name != _current_name:
+                        _val = _val.replace(_verdict_name, _current_name)
+                    _overrides_ph[_field] = _val
             # Inject into executiveSections
             _injected_es = []
             for _sec in _executive_sections:
                 if isinstance(_sec, dict):
                     _st = _sec.get('title', '')
                     if _st:
-                        _sec['title'] = inject_metrics(_st, _ph)
+                        _st = inject_metrics(_st, _ph)
+                        if _current_name and _verdict_name and _verdict_name != _current_name:
+                            _st = _st.replace(_verdict_name, _current_name)
+                        _sec['title'] = _st
                     _pts = _sec.get('points', [])
                     if isinstance(_pts, list):
                         _sec['points'] = [inject_metrics(p, _ph) if p else p for p in _pts]
+                        if _current_name and _verdict_name and _verdict_name != _current_name:
+                            _sec['points'] = [p.replace(_verdict_name, _current_name) if isinstance(p, str) else p for p in _sec['points']]
                     _injected_es.append(_sec)
             _overrides_ph['executiveSections'] = _injected_es or _executive_sections
             # Inject into findings
