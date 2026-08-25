@@ -153,6 +153,8 @@ Finančné hodnoty (najnovší rok):
   {{{{TRADE_PAYABLES}}}} — obchodné záväzky
   {{{{INVENTORY}}}} — zásoby
   {{{{DEPRECIATION}}}} — odpisy
+  {{{{CAPEX}}}} — investície do dlhodobého majetku (CAPEX, absolútna hodnota)
+  {{{{WORKING_CAPITAL}}}} — pracovný kapitál (obežný majetok − krátkodobé záväzky)
 
 Trendy (medziročné zmeny — obsahujú slovo aj percento):
   {{{{REVENUE_YOY}}}} — "klesli o 13,2 %" alebo "vzrástli o 5,1 %"
@@ -321,6 +323,8 @@ Financial values (latest year):
   {{{{TRADE_PAYABLES}}}} — trade payables
   {{{{INVENTORY}}}} — inventory
   {{{{DEPRECIATION}}}} — depreciation
+  {{{{CAPEX}}}} — capital expenditures (CAPEX, absolute value)
+  {{{{WORKING_CAPITAL}}}} — working capital (current assets − short-term liabilities)
 
 Trends (year-over-year — include verb and percentage):
   {{{{REVENUE_YOY}}}} — "decreased by 13.2%" or "increased by 5.1%"

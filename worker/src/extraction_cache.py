@@ -11,6 +11,7 @@ Invalidation: bump PROMPT_VERSION or SCHEMA_VERSION when prompt/schema changes.
 """
 
 import hashlib
+import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -32,6 +33,7 @@ SCHEMA_VERSION = "v1"
 # Extractor identifiers (stored in ExtractionCache.extractor column)
 EXTRACTOR_FINANCIAL_ANALYST = "GEMINI_FINANCIAL_ANALYST"
 EXTRACTOR_FINANCIAL_VERIFY = "GEMINI_FINANCIAL_VERIFY"
+EXTRACTOR_NOTES_FORENSIC = "GEMINI_NOTES_FORENSIC"
 
 
 def compute_pdf_hash(file_path: str) -> str:
@@ -47,6 +49,7 @@ async def cache_lookup(
     file_path: str,
     extractor: str,
     model: str,
+    hash_override: Optional[str] = None,
 ) -> Optional[CompanyFinancialExtraction]:
     """Check if we have a cached extraction for this PDF + model + prompt version.
 
@@ -56,7 +59,7 @@ async def cache_lookup(
     from .db_repository import get_db
 
     try:
-        pdf_hash = compute_pdf_hash(file_path)
+        pdf_hash = hash_override or compute_pdf_hash(file_path)
     except Exception as e:
         logger.warning(f"[CACHE] Cannot hash {file_path}: {e} — treating as MISS")
         return None
@@ -117,6 +120,7 @@ async def cache_store(
     confidence: str = "UNKNOWN",
     warnings: Optional[list[str]] = None,
     missing_fields: Optional[list[str]] = None,
+    hash_override: Optional[str] = None,
 ) -> None:
     """Store an LLM extraction result in the cache.
 
@@ -125,7 +129,7 @@ async def cache_store(
     from .db_repository import get_db
 
     try:
-        pdf_hash = compute_pdf_hash(file_path)
+        pdf_hash = hash_override or compute_pdf_hash(file_path)
     except Exception as e:
         logger.warning(f"[CACHE STORE] Cannot hash {file_path}: {e} — skipping cache store")
         return
@@ -246,3 +250,135 @@ async def get_cache_stats() -> dict:
     except Exception as e:
         logger.warning(f"[CACHE STATS ERROR] {e}")
         return {"error": str(e)}
+
+
+# ── Generic cache for non-FinancialExtraction LLM results (e.g. Notes Forensic) ──
+
+async def cache_lookup_generic(
+    file_path: str,
+    extractor: str,
+    model: str,
+    hash_override: Optional[str] = None,
+) -> Optional[dict]:
+    """Generic cache lookup — returns raw dict, not CompanyFinancialExtraction."""
+    from .db_repository import get_db
+
+    try:
+        pdf_hash = hash_override or compute_pdf_hash(file_path)
+    except Exception as e:
+        logger.warning(f"[CACHE] Cannot hash {file_path}: {e} — treating as MISS")
+        return None
+
+    file_name = os.path.basename(file_path)
+
+    try:
+        db = get_db()
+        row = await db.extractioncache.find_unique(
+            where={
+                "pdfHash_extractor_model_promptVersion_schemaVersion": {
+                    "pdfHash": pdf_hash,
+                    "extractor": extractor,
+                    "model": model,
+                    "promptVersion": PROMPT_VERSION,
+                    "schemaVersion": SCHEMA_VERSION,
+                }
+            }
+        )
+        if row is None:
+            logger.info(f"[CACHE MISS] {file_name} extractor={extractor} model={model}")
+            return None
+
+        if row.expiresAt is not None:
+            if row.expiresAt.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+                logger.info(f"[CACHE EXPIRED] {file_name} extractor={extractor}")
+                return None
+
+        raw = row.rawResponse
+        if isinstance(raw, str):
+            import json
+            raw = json.loads(raw)
+
+        logger.info(f"[CACHE HIT] {file_name} extractor={extractor} model={model}")
+        return raw
+    except Exception as e:
+        logger.warning(f"[CACHE LOOKUP ERROR] {file_name}: {e} — treating as MISS")
+        return None
+
+
+async def cache_store_generic(
+    file_path: str,
+    company_ico: str,
+    extractor: str,
+    model: str,
+    data: Any,
+    hash_override: Optional[str] = None,
+) -> None:
+    """Generic cache store — accepts any Pydantic model or dict."""
+    from .db_repository import get_db
+
+    try:
+        pdf_hash = hash_override or compute_pdf_hash(file_path)
+    except Exception as e:
+        logger.warning(f"[CACHE STORE] Cannot hash {file_path}: {e} — skipping")
+        return
+
+    file_name = os.path.basename(file_path)
+    file_size = os.path.getsize(file_path)
+    file_ext = os.path.splitext(file_path)[1].lower().lstrip(".")
+    source_type = "PDF" if file_ext == "pdf" else "TXT"
+
+    if hasattr(data, "model_dump_json"):
+        raw_dict = json.loads(data.model_dump_json())
+    elif isinstance(data, dict):
+        raw_dict = data
+    else:
+        raw_dict = json.loads(json.dumps(data, default=str))
+
+    raw_json_prisma = Json(raw_dict)
+    normalized_prisma = Json({})
+
+    try:
+        db = get_db()
+        await db.extractioncache.upsert(
+            where={
+                "pdfHash_extractor_model_promptVersion_schemaVersion": {
+                    "pdfHash": pdf_hash,
+                    "extractor": extractor,
+                    "model": model,
+                    "promptVersion": PROMPT_VERSION,
+                    "schemaVersion": SCHEMA_VERSION,
+                }
+            },
+            data={
+                "create": {
+                    "pdfHash": pdf_hash,
+                    "companyIco": company_ico,
+                    "fileName": file_name,
+                    "extractor": extractor,
+                    "model": model,
+                    "promptVersion": PROMPT_VERSION,
+                    "schemaVersion": SCHEMA_VERSION,
+                    "temperature": 0.0,
+                    "rawResponse": raw_json_prisma,
+                    "normalizedData": normalized_prisma,
+                    "confidence": "UNKNOWN",
+                    "warnings": [],
+                    "missingFields": [],
+                    "sourceSize": file_size,
+                    "sourceType": source_type,
+                },
+                "update": {
+                    "companyIco": company_ico,
+                    "fileName": file_name,
+                    "rawResponse": raw_json_prisma,
+                    "normalizedData": normalized_prisma,
+                    "confidence": "UNKNOWN",
+                    "warnings": [],
+                    "missingFields": [],
+                    "sourceSize": file_size,
+                },
+            },
+        )
+        logger.info(f"[CACHE STORE] {file_name} extractor={extractor} model={model}")
+    except Exception as e:
+        logger.warning(f"[CACHE STORE ERROR] {file_name}: {e} — cache not stored")

@@ -32,7 +32,10 @@ from src.log_helpers import (
 from src.ruz_api import download_ifrs_reports
 from src.extraction_cache import (
     cache_lookup, cache_store,
+    cache_lookup_generic, cache_store_generic,
+    compute_pdf_hash,
     EXTRACTOR_FINANCIAL_ANALYST, EXTRACTOR_FINANCIAL_VERIFY,
+    EXTRACTOR_NOTES_FORENSIC,
 )
 from src.llm_extractor import (
     CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, EvidenceItem,
@@ -397,8 +400,6 @@ async def process_company(
         logger.error(f"[PIPELINE] CRITICAL: Žiadne finančné výkazy z RÚZ pre IČO {ico} — report bude bez finančnej analýzy!")
     
     await update_ai_status(report_request_id, "ai.analyzing_statements", _remaining_eta(_t_start, pipeline_baseline))
-    # Krátko po začiatku analýzy aktualizujeme na konkrétnejší status
-    await asyncio.sleep(2)
     await update_ai_status(report_request_id, "ai.extracting_financials", _remaining_eta(_t_start, pipeline_baseline))
     # 2. Rozdelenie súborov na IFRS a VS
     ifrs_files = []
@@ -469,10 +470,12 @@ async def process_company(
             # Cache key: pdfHash + extractor + model + promptVersion + schemaVersion
             # HIT → return cached result (0 LLM calls, 100% deterministic)
             # MISS → call LLM, store result in cache
+            _pdf_hash = await asyncio.to_thread(compute_pdf_hash, file_path)
             cached_data = await cache_lookup(
                 file_path,
                 extractor=EXTRACTOR_FINANCIAL_ANALYST,
                 model=_MODEL_IFRS,
+                hash_override=_pdf_hash,
             )
             if cached_data is not None:
                 logger.info(f"[CACHE] Using cached extraction for {file_name} — skipping LLM")
@@ -507,6 +510,7 @@ async def process_company(
                     model=_MODEL_IFRS,
                     data=data,
                     confidence="UNKNOWN",  # Will be refined by verification below
+                    hash_override=_pdf_hash,
                 )
 
             if data:
@@ -581,7 +585,7 @@ async def process_company(
                 yr_match = re.search(r'_(\d{4})_', file_name)
                 narrative_year = int(yr_match.group(1)) if yr_match and int(yr_match.group(1)) > 2000 else datetime.today().year
                 
-                sliced_path = slice_narrative_pdf(file_path)
+                sliced_path = await asyncio.to_thread(slice_narrative_pdf, file_path)
                 input_path = sliced_path if sliced_path else file_path
                 
                 narrative = await safe_llm_call(
@@ -618,7 +622,7 @@ async def process_company(
             sorted_ifrs = sorted(ifrs_files, key=_extract_year_from_fn, reverse=True)[:2]
             candidates = []
             for fp in sorted_ifrs:
-                sliced = slice_notes_pdf(fp)
+                sliced = await asyncio.to_thread(slice_notes_pdf, fp)
                 if sliced:
                     candidates.append((fp, sliced))
 
@@ -630,6 +634,20 @@ async def process_company(
                 file_name = os.path.basename(fp)
                 logger.info(f"[NOTES] Spracovávam poznámky pre rok {year} z {file_name}")
                 try:
+                    # ── Extraction cache: check if we already extracted these notes ──
+                    _pdf_hash = await asyncio.to_thread(compute_pdf_hash, sliced_path)
+                    cached = await cache_lookup_generic(
+                        sliced_path, extractor=EXTRACTOR_NOTES_FORENSIC,
+                        model=_MODEL_NOTES, hash_override=_pdf_hash,
+                    )
+                    if cached is not None:
+                        from src.agents.notes_forensic import NotesRiskAnalysis
+                        notes_data = NotesRiskAnalysis.model_validate(cached)
+                        if notes_data and not notes_data.source_pages:
+                            notes_data.source_pages = get_sliced_pdf_page_range(sliced_path)
+                        logger.info(f"[CACHE] Using cached notes extraction for {file_name}")
+                        return year, notes_data
+
                     async with sem:
                         notes_data = await safe_llm_call(
                             extract_notes_risks, sliced_path,
@@ -639,6 +657,14 @@ async def process_company(
                         # F4.1: Nastav source_pages z sliced PDF pre evidence grounding
                         if notes_data and not notes_data.source_pages:
                             notes_data.source_pages = get_sliced_pdf_page_range(sliced_path)
+                        # Cache the notes extraction result
+                        if notes_data:
+                            await cache_store_generic(
+                                sliced_path, company_ico=ico,
+                                extractor=EXTRACTOR_NOTES_FORENSIC,
+                                model=_MODEL_NOTES, data=notes_data,
+                                hash_override=_pdf_hash,
+                            )
                         return year, notes_data
                 finally:
                     try:
@@ -769,8 +795,6 @@ async def process_company(
     await vestnik_task
         
     await update_ai_status(report_request_id, "ai.final_verdict", _remaining_eta(_t_start, pipeline_baseline))
-    # Krátko po začiatku verdict fázy aktualizujeme na konkrétnejší status
-    await asyncio.sleep(2)
     await update_ai_status(report_request_id, "ai.cross_validation", _remaining_eta(_t_start, pipeline_baseline))
     
     # 4. Sudca (Chief Auditor) sa spúšťa z main.py PO dokončení scraperov,

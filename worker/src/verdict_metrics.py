@@ -357,6 +357,17 @@ _METRIC_PATTERNS = [
     # "stratu -" / "stratu -." (dangling net loss placeholder)
     (re.compile(r'\s+stratu\s+[-−]\s*[.,;]', re.IGNORECASE), ' stratu.'),
     (re.compile(r'\s+[-−]\s+(?=v\s+roku)', re.IGNORECASE), ' '),
+    # ── Dangling cleanup pre CAPEX / related-party (BUG A) ──
+    # "dosiahli takmer," / "dosiahli takmer." (CAPEX placeholder nebol nahradený)
+    (re.compile(r'\s+dosiahli\s+(?:takmer|približne|nad|viac\s+než|cca)\s*[.,;]', re.IGNORECASE), '.'),
+    # "dosiahli takmer čo" → "čo" (dangling CAPEX + "čo smerovalo")
+    (re.compile(r'\s+dosiahli\s+(?:takmer|približne|nad|viac\s+než|cca)\s+(?=čo\b)', re.IGNORECASE), ' '),
+    # "Približne tržieb" / "Približne % tržieb" (related-party pct placeholder chýba)
+    (re.compile(r'\s+[Pp]ribližne\s+(?=tržieb\b)', re.IGNORECASE), ' '),
+    # "Approximately revenue" / "Approximately % revenue" (EN equivalent)
+    (re.compile(r'\s+[Aa]pproximately\s+(?=revenue\b)', re.IGNORECASE), ' '),
+    # "investície do dlhodobého majetku dosiahli takmer" → remove "takmer" at end
+    (re.compile(r'\s+(?:takmer|približne|nad|viac\s+než|cca)\s*$', re.IGNORECASE), ''),
 ]
 
 

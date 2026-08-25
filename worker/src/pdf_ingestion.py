@@ -274,15 +274,20 @@ def slice_narrative_pdf(pdf_path: str, max_pages: int = 50) -> str:
         doc.close()
         return None  # Netreba orezávať — pošleme celý PDF
 
+    # ── Single-pass: extract all page texts once, reuse for scanned detection + keyword scan ──
+    page_texts: list[str] = []
+    total_chars = 0
+    for i in range(total_pages):
+        text = doc[i].get_text("text")
+        page_texts.append(text)
+        total_chars += len(text.strip())
+
     # Scanned PDF detection: ak PDF má < 1000 znakov textu, je to naskenovaný dokument.
     # Neorezávaj — pošleme celý PDF do Gemini Vision (model vie čítať obrázky).
-    all_text = ""
-    for i in range(total_pages):
-        all_text += doc[i].get_text("text")
-    if len(all_text.strip()) < 1000:
+    if total_chars < 1000:
         doc.close()
         logger.info(
-            f"[PDF VS] {os.path.basename(pdf_path)} | SCANNED PDF ({total_pages} pages, {len(all_text.strip())} chars) "
+            f"[PDF VS] {os.path.basename(pdf_path)} | SCANNED PDF ({total_pages} pages, {total_chars} chars) "
             f"— skipping slicing, sending full PDF to Gemini Vision"
         )
         return None
@@ -344,8 +349,7 @@ def slice_narrative_pdf(pdf_path: str, max_pages: int = 50) -> str:
     relevant_pages = set(range(min(front_pages, total_pages)))
     keyword_hits = 0
     for i in range(front_pages, total_pages):
-        page_text = doc[i].get_text("text")
-        if narrative_section_keywords.search(page_text):
+        if narrative_section_keywords.search(page_texts[i]):
             relevant_pages.add(i)
             keyword_hits += 1
             # Pridáme 1 stranu pred a po pre kontext
@@ -396,10 +400,13 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
         doc.close()
         return None
 
+    # ── Single-pass: extract all page texts once ──
+    page_texts: list[str] = []
+    for i in range(total_pages):
+        page_texts.append(doc[i].get_text("text"))
+
     # Najprv detekujeme typ závierky, aby sme vedeli kde začať hľadať poznámky
-    preview_text = ""
-    for i in range(min(10, total_pages)):
-        preview_text += doc[i].get_text("text")
+    preview_text = "".join(page_texts[:min(10, total_pages)])
     is_ifrs = _detect_ifrs_from_text(preview_text)
 
     if not is_ifrs and len(preview_text.strip()) < 50 and total_pages >= settings.pdf_scanned_min_pages:
@@ -409,8 +416,7 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
     min_notes_page = (settings.pdf_ifrs_min_notes_page - 10) if is_ifrs else settings.pdf_sk_gaap_min_notes_page
 
     for i in range(min_notes_page, total_pages):
-        page_text = doc[i].get_text("text")
-        if _is_notes_page(page_text):
+        if _is_notes_page(page_texts[i]):
             notes_start_page = i
             break
 
@@ -478,8 +484,7 @@ def slice_notes_pdf(pdf_path: str, max_notes_pages: int = 25) -> str:
 
     relevant_pages = set()
     for i in range(notes_start_page, total_pages):
-        page_text = doc[i].get_text("text")
-        if forensic_keywords.search(page_text) or narrative_keywords.search(page_text):
+        if forensic_keywords.search(page_texts[i]) or narrative_keywords.search(page_texts[i]):
             relevant_pages.add(i)
             # Pridáme 1 stranu pred a po pre kontext
             if i > notes_start_page:
