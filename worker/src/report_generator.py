@@ -99,6 +99,7 @@ from src.report_scoring import (
     _filter_consolidation_consistency,
     _translate_auditor_op,
 )
+from src.verdict_metrics import build_metric_placeholders, inject_metrics
 
 
 def _build_forensic_findings(stmts_sorted, auditor_opinion, i18n_strings):
@@ -702,6 +703,63 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             _executive_sections = []
     if verdict:
         verdict = _VerdictOverride(verdict, {"executiveSections": _executive_sections})
+
+    # ── Render-time placeholder injection (second line of defense) ──
+    # Cached verdicts may contain unresolved {{...}} placeholders if they were
+    # generated before the inject_metrics fix. Apply inject_metrics here to
+    # ensure placeholders are always resolved at render time.
+    if verdict and stmts:
+        _stmts_for_ph = [
+            {f: getattr(s, f, None) for f in (
+                'year', 'mainActivityRevenue', 'netProfitLoss', 'totalAssets', 'equity',
+                'shortTermLiabilities', 'longTermLiabilities', 'totalLiabilities',
+                'operatingCashFlow', 'investingCashFlow', 'cashAndEquivalents',
+                'grossProfit', 'currentAssets', 'inventory', 'depreciation',
+                'tradeReceivables', 'tradePayables', 'employeeCount',
+            )}
+            for s in stmts
+        ]
+        _trends_for_ph = {}
+        try:
+            _trends_for_ph = compute_financial_trends(stmts) or {}
+        except Exception:
+            pass
+        _ph = build_metric_placeholders(
+            stmts=_stmts_for_ph,
+            trends=_trends_for_ph,
+            company_name=getattr(company, 'name', ''),
+        )
+        if _ph:
+            _overrides_ph = {}
+            for _field in ('executiveSummary', 'keyRisk', 'finalVerdict'):
+                _val = getattr(verdict, _field, None)
+                if _val and isinstance(_val, str):
+                    _overrides_ph[_field] = inject_metrics(_val, _ph)
+            # Inject into executiveSections
+            _injected_es = []
+            for _sec in _executive_sections:
+                if isinstance(_sec, dict):
+                    _st = _sec.get('title', '')
+                    if _st:
+                        _sec['title'] = inject_metrics(_st, _ph)
+                    _pts = _sec.get('points', [])
+                    if isinstance(_pts, list):
+                        _sec['points'] = [inject_metrics(p, _ph) if p else p for p in _pts]
+                    _injected_es.append(_sec)
+            _overrides_ph['executiveSections'] = _injected_es or _executive_sections
+            # Inject into findings
+            _findings = getattr(verdict, 'findings', None)
+            if _findings:
+                _injected_findings = []
+                for _f in _findings:
+                    if isinstance(_f, dict):
+                        for _ff in ('title', 'evidence', 'explanation', 'implication'):
+                            _fv = _f.get(_ff, '')
+                            if _fv and isinstance(_fv, str):
+                                _f[_ff] = inject_metrics(_fv, _ph)
+                        _injected_findings.append(_f)
+                _overrides_ph['findings'] = _injected_findings
+            verdict = _VerdictOverride(verdict, _overrides_ph)
 
     if verdict and getattr(verdict, 'llmAnalysisStatus', None) == 'FALLBACK_ALGORITHMIC':
         hard_stop = any(
