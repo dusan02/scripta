@@ -406,7 +406,7 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
                     text = str(val)
                     if year:
                         text = f"[{year}] {text}"
-                    notes_flags.append(text[:397] + '…' if len(text) > 400 else text)
+                    notes_flags.append(text[:797] + '…' if len(text) > 800 else text)
     if len(notes_flags) >= 2:
         _add("fraud_cat_notes", "high", len(notes_flags), notes_flags[:3])
     elif len(notes_flags) >= 1:
