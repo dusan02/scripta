@@ -725,3 +725,16 @@ class TestSanitizeFinalText:
         assert result == ""
         assert "o viac ako" not in result
         assert "o takmer" not in result
+
+    def test_o_viac_ako_na_preposition(self):
+        """'o viac ako na 3,3 mil. €' — ArcelorMittal case, preposition 'na' after modifier."""
+        text = "čistý zisk sa prepadol o viac ako na 3,3 mil. €. Druhá veta je čistá."
+        result = sanitize_final_text(text)
+        assert "o viac ako na" not in result
+        assert "Druhá veta je čistá." in result
+
+    def test_legitimate_o_viac_ako_value_na(self):
+        """'o viac ako 20 % na' must NOT be removed — false positive check."""
+        text = "Tržby klesli o viac ako 20 % na 305 mil. €."
+        result = sanitize_final_text(text)
+        assert result == text

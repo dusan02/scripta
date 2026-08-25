@@ -381,9 +381,9 @@ def _cleanup_dangling_fragments(text: str) -> str:
         text,
         flags=re.IGNORECASE,
     )
-    # "o viac ako a" / "o takmer a" — missing value + conjunction
+    # "o viac ako a" / "o takmer a" / "o viac ako na" — missing value + conjunction/preposition
     text = re.sub(
-        r'\s+o\s+(?:viac\s+ako|takmer|približne)\s+(?=(?:a\s|čo\s|pričom\s|ale\s))',
+        r'\s+o\s+(?:viac\s+ako|takmer|približne)\s+(?=(?:a\s|čo\s|pričom\s|ale\s|na\s))',
         ' ',
         text,
         flags=re.IGNORECASE,
@@ -423,8 +423,11 @@ def _cleanup_dangling_fragments(text: str) -> str:
 # ── Post-injection validator ──
 _DANGLING_VALIDATOR_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\bo\s+viac\s+ako\s*[.,;]', re.IGNORECASE), "o viac ako [punct]"),
+    (re.compile(r'\bo\s+viac\s+ako\s+na\b', re.IGNORECASE), "o viac ako na [preposition]"),
     (re.compile(r'\bo\s+takmer\s*[.,;]', re.IGNORECASE), "o takmer [punct]"),
+    (re.compile(r'\bo\s+takmer\s+na\b', re.IGNORECASE), "o takmer na [preposition]"),
     (re.compile(r'\bo\s+približne\s*[.,;]', re.IGNORECASE), "o približne [punct]"),
+    (re.compile(r'\bo\s+približne\s+na\b', re.IGNORECASE), "o približne na [preposition]"),
     (re.compile(r'\bvo\s+výške\s*[.,;]', re.IGNORECASE), "vo výške [punct]"),
     (re.compile(r'\bvo\s+výške\s+(?:viac|takmer|nad|približne)\b', re.IGNORECASE), "vo výške modifier without value"),
     (re.compile(r'\b(?:dosiahol|dosiahla|dosiahli|predstavuje)\s*[.,;]', re.IGNORECASE), "verb [punct] without value"),
