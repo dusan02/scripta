@@ -110,30 +110,6 @@ export default function NavBar() {
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
               const isPlay = item.href === "/dashboard";
-              if (isPlay) {
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={t(item.key)}
-                    aria-label={t(item.key)}
-                    aria-current={active ? "page" : undefined}
-                    className="flex items-center justify-center transition-all duration-150 relative hover:brightness-110 active:brightness-95"
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "8px",
-                      background: "var(--accent)",
-                      color: "var(--accent-button-text)",
-                      boxShadow: active ? "0 0 0 2px var(--accent)" : "none",
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </Link>
-                );
-              }
               return (
                 <Link
                   key={item.href}
@@ -146,7 +122,23 @@ export default function NavBar() {
                     background: active ? "var(--accent-light)" : "transparent",
                   }}
                 >
-                  <item.icon />
+                  {isPlay ? (
+                    <span
+                      className="flex items-center justify-center flex-shrink-0"
+                      style={{
+                        width: "18px",
+                        height: "18px",
+                        borderRadius: "4px",
+                        border: "1.5px solid var(--accent)",
+                      }}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <item.icon />
+                  )}
                   <span className="text-xs font-medium hidden lg:inline">{t(item.key)}</span>
                   {item.href === "/messages" && unreadCount > 0 && (
                     <span
