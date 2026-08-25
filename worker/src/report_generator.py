@@ -779,10 +779,12 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 _injected_findings = []
                 for _f in _findings:
                     if isinstance(_f, dict):
-                        for _ff in ('title', 'evidence', 'explanation', 'implication'):
+                        for _ff in ('title', 'evidence', 'explanation', 'implication', 'financial_metric'):
                             _fv = _f.get(_ff, '')
                             if _fv and isinstance(_fv, str):
-                                _f[_ff] = inject_metrics(_fv, _ph)
+                                _fv = inject_metrics(_fv, _ph)
+                                _fv = sanitize_final_text(_fv, ico=company.ico, field=f"findings.{_ff}")
+                                _f[_ff] = _fv
                         _injected_findings.append(_f)
                 _overrides_ph['findings'] = _injected_findings
             verdict = _VerdictOverride(verdict, _overrides_ph)

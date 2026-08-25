@@ -1164,10 +1164,12 @@ async def run_and_save_audit_verdict(
                         for _item in _findings_list:
                             if not isinstance(_item, dict):
                                 continue
-                            for _ffield in ('title', 'evidence', 'explanation', 'implication'):
+                            for _ffield in ('title', 'evidence', 'explanation', 'implication', 'financial_metric'):
                                 _ftext = _item.get(_ffield, "")
                                 if _ftext and isinstance(_ftext, str):
-                                    _item[_ffield] = inject_metrics(_ftext, _metric_placeholders, ico=ico, field=f"findings.{_ffield}")
+                                    _injected_f = inject_metrics(_ftext, _metric_placeholders, ico=ico, field=f"findings.{_ffield}")
+                                    _injected_f = sanitize_final_text(_injected_f, ico=ico, field=f"findings.{_ffield}")
+                                    _item[_ffield] = _injected_f
                         verdict_payload['findings'] = _findings_list
                 except (json.JSONDecodeError, TypeError):
                     pass
