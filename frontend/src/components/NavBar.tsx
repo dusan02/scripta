@@ -109,6 +109,31 @@ export default function NavBar() {
           <nav className="hidden md:flex items-center gap-1 justify-center">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
+              const isPlay = item.href === "/dashboard";
+              if (isPlay) {
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={t(item.key)}
+                    aria-label={t(item.key)}
+                    aria-current={active ? "page" : undefined}
+                    className="flex items-center justify-center transition-all duration-150 relative hover:brightness-110 active:brightness-95"
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      background: "var(--accent)",
+                      color: "var(--accent-button-text)",
+                      boxShadow: active ? "0 0 0 2px var(--accent)" : "none",
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </Link>
+                );
+              }
               return (
                 <Link
                   key={item.href}
