@@ -312,6 +312,20 @@ def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
     # ako prázdne reťazce, čo by spôsobilo "vo výške viac ako, čo" namiesto
     # "vo výške viac ako 24 mil. €, čo".
     text = re.sub(r'\{\{[A-Z_]+\}\}', '', text)
+    # Repair: cached verdicts may contain "(N/A)" where {{CAPEX}} was resolved
+    # to "N/A" before the notes fallback was implemented. Replace with actual value
+    # only when preceded by investment-related keywords.
+    capex_val = placeholders.get("{{CAPEX}}", "")
+    if capex_val and capex_val != "N/A":
+        def _replace_capex_na(m):
+            prefix = m.group(1)
+            return f'{prefix}({capex_val})'
+        text = re.sub(
+            r'((?:investič|dlhodob.{0,20}majetk|CAPEX|capex|hmotn.{0,20}majetk).{0,80}?)\(N/A\)',
+            _replace_capex_na,
+            text,
+            flags=re.IGNORECASE,
+        )
     return text
 
 
