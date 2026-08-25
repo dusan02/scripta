@@ -445,8 +445,8 @@ export default async function CompanyPage({ params }: Params) {
         />
 
         <div className="no-print">
-          {/* Internal linking: related firms by city and industry */}
-          <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} />
+          {/* Internal linking: related firms by industry and region */}
+          <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} kraj={company.kraj} />
         </div>
       </div>
     </div>

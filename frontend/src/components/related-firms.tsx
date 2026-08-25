@@ -9,18 +9,27 @@ type RelatedFirm = {
   latestRevenue: string | null;
 };
 
-async function getRelatedByCity(ico: string, city: string | null): Promise<RelatedFirm[]> {
-  if (!city) return [];
+const KRAJ_NAMES: Record<string, string> = {
+  SK010: "Bratislavský kraj",
+  SK020: "Západné Slovensko",
+  SK030: "Stredné Slovensko",
+  SK040: "Východné Slovensko",
+};
+
+async function getRelatedByNaceInKraj(ico: string, naceCode: string | null, kraj: string | null): Promise<RelatedFirm[]> {
+  if (!naceCode) return [];
+  const where: any = {
+    naceCode,
+    ico: { not: ico },
+    financialStatements: { some: {} },
+    latestRevenue: { not: null },
+  };
+  if (kraj) where.kraj = kraj;
   const firms = await prisma.company.findMany({
-    where: {
-      city,
-      ico: { not: ico },
-      financialStatements: { some: {} },
-      latestRevenue: { not: null },
-    },
+    where,
     select: { ico: true, name: true, city: true, latestRevenue: true },
     orderBy: { latestRevenue: "desc" },
-    take: 5,
+    take: 6,
   });
   return firms.map((f) => ({
     ico: f.ico,
@@ -30,7 +39,7 @@ async function getRelatedByCity(ico: string, city: string | null): Promise<Relat
   }));
 }
 
-async function getRelatedByNace(ico: string, naceCode: string | null): Promise<RelatedFirm[]> {
+async function getLargestByNace(ico: string, naceCode: string | null): Promise<RelatedFirm[]> {
   if (!naceCode) return [];
   const firms = await prisma.company.findMany({
     where: {
@@ -41,7 +50,7 @@ async function getRelatedByNace(ico: string, naceCode: string | null): Promise<R
     },
     select: { ico: true, name: true, city: true, latestRevenue: true },
     orderBy: { latestRevenue: "desc" },
-    take: 5,
+    take: 6,
   });
   return firms.map((f) => ({
     ico: f.ico,
@@ -64,18 +73,22 @@ export async function RelatedFirms({
   ico,
   city,
   naceCode,
+  kraj,
 }: {
   ico: string;
   city: string | null;
   naceCode: string | null;
+  kraj?: string | null;
   latestRevenue?: string | null;
 }) {
-  const [byCity, byNace] = await Promise.all([
-    getRelatedByCity(ico, city),
-    getRelatedByNace(ico, naceCode),
+  const [byNaceInKraj, largestByNace] = await Promise.all([
+    getRelatedByNaceInKraj(ico, naceCode, kraj ?? null),
+    getLargestByNace(ico, naceCode),
   ]);
 
-  if (byCity.length === 0 && byNace.length === 0) return null;
+  if (byNaceInKraj.length === 0 && largestByNace.length === 0) return null;
+
+  const krajLabel = kraj ? KRAJ_NAMES[kraj] || kraj : null;
 
   return (
     <section className="mt-8 sm:mt-12">
@@ -83,13 +96,13 @@ export async function RelatedFirms({
         Súvisiace firmy
       </h2>
 
-      {byCity.length > 0 && (
+      {byNaceInKraj.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            Firmy v meste {city}
+            Firmy v rovnakom odvetví{krajLabel ? ` v ${krajLabel}` : ""}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {byCity.map((f) => (
+            {byNaceInKraj.map((f) => (
               <Link
                 key={f.ico}
                 href={buildCompanyUrl(f.ico, f.name)}
@@ -101,6 +114,7 @@ export async function RelatedFirms({
                 </div>
                 <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
                   IČO: {f.ico}
+                  {f.city && ` · ${f.city}`}
                   {f.latestRevenue && ` · Tržby: ${formatRevenue(f.latestRevenue)}`}
                 </div>
               </Link>
@@ -109,13 +123,13 @@ export async function RelatedFirms({
         </div>
       )}
 
-      {byNace.length > 0 && (
+      {largestByNace.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            Firmy v rovnakom odvetví
+            Najväčšie firmy v rovnakom odvetví
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {byNace.map((f) => (
+            {largestByNace.map((f) => (
               <Link
                 key={f.ico}
                 href={buildCompanyUrl(f.ico, f.name)}
