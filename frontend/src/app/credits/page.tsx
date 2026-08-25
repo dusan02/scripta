@@ -187,17 +187,17 @@ export default function CreditsPage() {
         <div className="mb-8">
           <div className="flex justify-between items-baseline mb-2">
             <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-              {t("plan.zostava")}: {data.remaining} / {data.totalCredits}
+              {t("plan.vyuzite")}: {data.usedThisMonth} / {data.totalCredits}
             </span>
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              {Math.round((data.successfulReports / data.totalCredits) * 100)}% {t("plan.vyuzite")}
+              {data.remaining} {t("plan.zostava")}
             </span>
           </div>
           <div className="h-3 rounded-full overflow-hidden" style={{ background: "var(--bg-muted)" }}>
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{
-                width: `${(data.remaining / data.totalCredits) * 100}%`,
+                width: `${Math.min((data.usedThisMonth / data.totalCredits) * 100, 100)}%`,
                 background: "var(--accent)",
               }}
             />
@@ -217,12 +217,12 @@ export default function CreditsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
         {/* Remaining — most prominent */}
         <div className="card p-5 flex flex-col items-center text-center" style={{ borderColor: "var(--accent)", borderWidth: 2 }}>
-          <div className="flex-1 flex flex-col justify-end mb-3 w-full">
-            <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
-              {Array.from({ length: Math.min(data.remaining, 40) }).map((_, i) => (
-                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--accent)" }} />
-              ))}
-            </div>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--accent-bg, var(--bg-muted))" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent)" }}>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v12" />
+              <path d="M15 9.5c0-1.38-1.34-2.5-3-2.5s-3 1.12-3 2.5 1.34 2.5 3 2.5 3 1.12 3 2.5-1.34 2.5-3 2.5" />
+            </svg>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--accent)" }}>
             {data.remaining}
@@ -239,16 +239,11 @@ export default function CreditsPage() {
 
         {/* Used (successful) */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div className="flex-1 flex flex-col justify-end mb-3 w-full items-center">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: "var(--success-bg)" }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--success)" }}>
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-              </svg>
-            </div>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--success-bg)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--success)" }}>
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+            </svg>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--success)" }}>
             {data.successfulReports}
@@ -260,18 +255,18 @@ export default function CreditsPage() {
 
         {/* Total purchased / Monthly quota */}
         <div className="card p-5 flex flex-col items-center text-center">
-          <div className="flex-1 flex flex-col justify-end mb-3 w-full">
-            <div className="flex flex-wrap gap-[2px] justify-center max-w-[120px] mx-auto">
-              {Array.from({ length: Math.min(isSubscription ? data.totalCredits : data.remaining, 40) }).map((_, i) => (
-                <div key={i} className="w-[6px] h-[6px] rounded-[1px]" style={{ background: "var(--info)" }} />
-              ))}
-            </div>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--info-bg)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--info)" }}>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18" />
+              <path d="M9 21V9" />
+            </svg>
           </div>
           <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>
-            {isSubscription ? data.totalCredits : data.remaining}
+            {isSubscription ? data.totalCredits : data.totalReports}
           </span>
           <span className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            {isSubscription ? t("plan.celkovyPausal") : t("plan.zostava")}
+            {t("plan.celkovyPausal")}
           </span>
         </div>
       </div>
