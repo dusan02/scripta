@@ -382,12 +382,13 @@ export default function ReportDetailPage() {
                 id="retry-btn"
                 onClick={handleRetry}
                 disabled={retrying}
-                className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-lg"
+                className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-md"
                 style={{
                   background: canRetryFailed ? "#8b5cf6" : "#2563eb",
                   color: "#ffffff",
-                  height: "44px",
-                  padding: "0 16px",
+                  height: "40px",
+                  width: "44px",
+                  padding: "0",
                   fontSize: "13px",
                   fontWeight: 600,
                   border: canRetryFailed ? "1px solid #8b5cf6" : "1px solid #2563eb",
@@ -399,15 +400,11 @@ export default function ReportDetailPage() {
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
                       <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
-                    {t("report.odosielam")}
                   </>
                 ) : (
-                  <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                      <path d="M9 2a7 7 0 100 14A7 7 0 009 2zM21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                    </svg>
-                    {t("report.znovuOverit")}
-                  </>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
                 )}
               </button>
             )}

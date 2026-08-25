@@ -1154,6 +1154,9 @@ async def run_and_save_audit_verdict(
             _findings = verdict_payload.get('findings')
             if _findings:
                 try:
+                    # Prisma Json wrapper is neither str nor list — unwrap it
+                    if hasattr(_findings, 'data'):
+                        _findings = _findings.data
                     if isinstance(_findings, str):
                         _findings_list = json.loads(_findings)
                     elif isinstance(_findings, list):
