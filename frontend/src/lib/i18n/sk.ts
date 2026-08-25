@@ -22,7 +22,7 @@ const sk: Dict = {
 
   // ── Layout / Footer ──
   "footer.urcene": "Business risk report",
-  "landing.footerTagline": "Business Risk Report zo štátnych registrov SR. Automatizované, rýchle, presné",
+  "landing.footerTagline": "Business Risk Report zo štátnych registrov SR. Automatizované, rýchle, presné.",
   "landing.regGroup1": "Základné firemné a právne registre",
   "landing.regGroup2": "Insolvencia, exekúcie a dlhy",
   "landing.regGroup3": "Finančná správa a DPH",
@@ -330,7 +330,7 @@ const sk: Dict = {
   "pricing.firmaSubtitle": "Pre firmy s pravidelným risk reportom",
   "pricing.korporatSubtitle": "Pre profesionálov a väčšie tímy",
   // ── Feature keys ──
-  "pricing.feat30Registre": "Pokrytie 25 verejných a privátnych registrov",
+  "pricing.feat30Registre": "Pokrytie 25 verejných a súkromných registrov",
   "pricing.featAnalyzaFinancnychVykazov": "Analýza súvahy, výkazu ziskov a strát a cashflow",
   "pricing.featRizikoveUpozornenia": "Rizikové upozornenia",
   "pricing.featInsolvencne": "Insolvenčné registre",
@@ -820,7 +820,7 @@ const sk: Dict = {
   "home.faq10q": "Vie report predpovedať bankrot firmy?",
   "home.faq10a": "Áno, report obsahuje Insolvency Score — algoritmický model, ktorý odhaduje pravdepodobnosť úpadku na základe Altman Z-Score, Piotroski F-Score, likvidity, zadlženosti a trendov. Doplnený o trendy kľúčových ukazovateľov v čase.",
   "home.faq11q": "Upozorní ma report na daňové dlhy firmy?",
-  "home.faq11a": "Áno, report obsahuje alert na štátne pohľadávky — upozornenie na daňové dlhy, sociálnu a zdravotné poisťovne. Ak firma dlží štátu, je vysoké riziko nezaplatenia faktúry. Systém tiež kontroluje Register úpadcov a insolvenčný register.",
+  "home.faq11a": "Áno, report obsahuje alert na štátne pohľadávky — upozornenie na daňové dlhy, sociálnu a zdravotnú poisťovňu. Ak firma dlží štátu, je vysoké riziko nezaplatenia faktúry. Systém tiež kontroluje Register úpadcov a insolvenčný register.",
   "home.navFeatures": "Funkcie",
   "home.navPricing": "Cenník",
   "home.ctaStart": "Začať bez záväzkov →",
@@ -854,7 +854,7 @@ const sk: Dict = {
   "home.step2Title": "Overenie a posudok",
   "home.step2Desc": "Systém overí dáta vo všetkých verejných registroch a vypracuje hlavný posudok s Verifa Score.",
   "home.step3Title": "Stiahnite správu",
-  "home.step3Desc": "Stiahnete si komplexnú Správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente.",
+  "home.step3Desc": "Stiahnete si komplexnú správu vo formáte PDF so všetkými výpismi a posudkom v jednom dokumente.",
 
   // ── Landing page: Registries ──
   "home.navRegistries": "Registre",
@@ -886,7 +886,7 @@ const sk: Dict = {
   "home.ri3Title": "Indikátory rizika úpadku",
   "home.ri3Desc": "Algoritmický model odhaduje rizikové signály úpadku s trendmi. Odhalíme, či firma vykazuje varovné indikátory schopnosti platiť záväzky.",
   "home.ri4Title": "Alert na štátne pohľadávky",
-  "home.ri4Desc": "Upozornenie na daňové dlhy, sociálnu a zdravotné poisťovne. Ak firma dlží štátu, je vysoké riziko nezaplatenia.",
+  "home.ri4Desc": "Upozornenie na daňové dlhy, sociálnu a zdravotnú poisťovňu. Ak firma dlží štátu, je vysoké riziko nezaplatenia.",
   "home.ri5Title": "Audítorský posudok & Going Concern",
   "home.ri5Desc": "Typ audítorského posudku a varovanie pred pokračovaním činnosti. Kľúčové pre overenie kontinuity firmy.",
   "home.ri6Title": "Právne riziká & timeline",
