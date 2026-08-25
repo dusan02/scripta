@@ -99,7 +99,7 @@ from src.report_scoring import (
     _filter_consolidation_consistency,
     _translate_auditor_op,
 )
-from src.verdict_metrics import build_metric_placeholders, inject_metrics
+from src.verdict_metrics import build_metric_placeholders, inject_metrics, validate_final_text, sanitize_final_text
 
 
 def _build_forensic_findings(stmts_sorted, auditor_opinion, i18n_strings):
@@ -751,6 +751,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                     _val = inject_metrics(_val, _ph)
                     if _current_name and _verdict_name and _verdict_name != _current_name:
                         _val = _val.replace(_verdict_name, _current_name)
+                    _val = sanitize_final_text(_val, ico=company.ico, field=_field)
                     _overrides_ph[_field] = _val
             # Inject into executiveSections
             _injected_es = []
@@ -767,6 +768,9 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                         _sec['points'] = [inject_metrics(p, _ph) if p else p for p in _pts]
                         if _current_name and _verdict_name and _verdict_name != _current_name:
                             _sec['points'] = [p.replace(_verdict_name, _current_name) if isinstance(p, str) else p for p in _sec['points']]
+                        for _pi2, _p in enumerate(_sec['points']):
+                            if isinstance(_p, str):
+                                _sec['points'][_pi2] = sanitize_final_text(_p, ico=company.ico, field="execSection.point")
                     _injected_es.append(_sec)
             _overrides_ph['executiveSections'] = _injected_es or _executive_sections
             # Inject into findings

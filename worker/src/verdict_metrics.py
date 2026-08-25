@@ -192,6 +192,28 @@ def build_metric_placeholders(
     else:
         ph["{{NET_RESULT_YOY}}"] = "N/A"
 
+    # ── NET_RESULT_YOY_PCT: percentuálna zmena čistého výsledku ──
+    if _net_curr is not None and _net_prev is not None:
+        _np_prev = float(_net_prev)
+        _np_curr = float(_net_curr)
+        if _np_prev == 0:
+            if _np_curr > 0:
+                ph["{{NET_RESULT_YOY_PCT}}"] = "n/a (z nulového výsledku do zisku)"
+            elif _np_curr < 0:
+                ph["{{NET_RESULT_YOY_PCT}}"] = "n/a (z nulového výsledku do straty)"
+            else:
+                ph["{{NET_RESULT_YOY_PCT}}"] = "0 %"
+        elif _np_prev > 0 and _np_curr < 0:
+            ph["{{NET_RESULT_YOY_PCT}}"] = "preklopenie do straty"
+        elif _np_prev < 0 and _np_curr >= 0:
+            ph["{{NET_RESULT_YOY_PCT}}"] = "návrat do zisku"
+        else:
+            ph["{{NET_RESULT_YOY_PCT}}"] = _format_pct(
+                ((_np_curr - _np_prev) / abs(_np_prev)) * 100
+            )
+    else:
+        ph["{{NET_RESULT_YOY_PCT}}"] = "N/A"
+
     # ── Finančné pomery ──
     # Current ratio = currentAssets / shortTermLiabilities
     _ca = latest.get("currentAssets")
@@ -293,12 +315,20 @@ def build_metric_placeholders(
     return ph
 
 
-def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
+def inject_metrics(
+    text: str,
+    placeholders: dict[str, str],
+    *,
+    ico: str = "",
+    field: str = "",
+) -> str:
     """Nahradí placeholdre v texte deterministickými hodnotami z DB.
 
     Args:
         text: Text s placeholdermi (napr. "Tržby {{REVENUE_YOY}}...").
         placeholders: Dict z build_metric_placeholders().
+        ico: Company IČO for telemetry logging.
+        field: Field name (e.g. "executiveSummary") for telemetry logging.
 
     Returns:
         Text s nahradenými placeholdermi.
@@ -308,13 +338,17 @@ def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
     if placeholders:
         for placeholder, value in placeholders.items():
             text = text.replace(placeholder, value)
-    # Odstráň všetky neznahradené {{...}} placeholdre — Jinja2 by ich vyrenderoval
-    # ako prázdne reťazce, čo by spôsobilo "vo výške viac ako, čo" namiesto
-    # "vo výške viac ako 24 mil. €, čo".
+    # ── Unknown placeholder telemetry: log before removal ──
+    _unknown = re.findall(r'\{\{[A-Z_]+\}\}', text)
+    if _unknown:
+        for _ph in set(_unknown):
+            logger.warning(
+                "UNKNOWN_PLACEHOLDER: ico=%s field=%s placeholder=%s action=remove",
+                ico, field, _ph,
+            )
+    # ── Remove unresolved placeholders ──
     text = re.sub(r'\{\{[A-Z_]+\}\}', '', text)
-    # Repair: cached verdicts may contain "(N/A)" where {{CAPEX}} was resolved
-    # to "N/A" before the notes fallback was implemented. Replace with actual value
-    # only when preceded by investment-related keywords.
+    # ── CAPEX N/A repair for cached verdicts ──
     capex_val = placeholders.get("{{CAPEX}}", "")
     if capex_val and capex_val != "N/A":
         def _replace_capex_na(m):
@@ -326,13 +360,149 @@ def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
             text,
             flags=re.IGNORECASE,
         )
-    # Dangling fragment cleanup: cached verdicts may have broken text where
-    # placeholders were removed, leaving fragments like "o viac ako." or "o takmer a"
-    text = re.sub(r'\s+o viac ako[.,]', '', text)
-    text = re.sub(r'\s+o takmer(?=\s+(?:a|a čistý))', '', text)
-    text = re.sub(r'\s+o,(?=\s)', ' ', text)
-    text = re.sub(r'úveru\.\s+čo', 'úveru, čo', text)
+    # ── Structural dangling fragment cleanup ──
+    # Instead of hardcoding every possible fragment, use patterns that target
+    # the grammatical structure left behind when a placeholder is removed.
+    text = _cleanup_dangling_fragments(text)
     return text
+
+
+def _cleanup_dangling_fragments(text: str) -> str:
+    """Remove dangling sentence fragments caused by placeholder removal.
+
+    Targets grammatical structures where a value was expected but removed,
+    leaving broken prose. Uses structural patterns rather than exhaustive listing.
+    """
+    # Pattern: "o viac ako" / "o takmer" / "o približne" / "o nad" followed by
+    # punctuation or conjunction — the value after these modifiers was removed.
+    text = re.sub(
+        r'\s+o\s+(?:viac\s+ako|takmer|približne|nad|cca)\s*[.,;]',
+        '.',
+        text,
+        flags=re.IGNORECASE,
+    )
+    # "o viac ako a" / "o takmer a" — missing value + conjunction
+    text = re.sub(
+        r'\s+o\s+(?:viac\s+ako|takmer|približne)\s+(?=(?:a\s|čo\s|pričom\s|ale\s))',
+        ' ',
+        text,
+        flags=re.IGNORECASE,
+    )
+    # "klesol o," / "vzrástol o." / "stúpol o," / "prepadol o." — verb + "o" + punctuation
+    text = re.sub(
+        r'\s+o\s*(?=[.,;])',
+        '',
+        text,
+    )
+    # "o, čo" — missing value before comma
+    text = re.sub(r'\s+o,\s*čo\b', ', čo', text)
+    # "vo výške." / "vo výške," / "vo výške viac než." — missing amount
+    text = re.sub(
+        r'\s+vo\s+výške\s+(?:viac\s+než|takmer|nad|približne|cca)\s*[.,;]',
+        '.',
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r'\s+vo\s+výške\s*[.,;]', '.', text, flags=re.IGNORECASE)
+    # "dosiahol." / "dosiahla." at sentence end — dangling verb without value
+    text = re.sub(
+        r'\s+(?:dosiahol|dosiahla|dosiahli|predstavuje|predstavoval)\s*[.,;]',
+        '.',
+        text,
+        flags=re.IGNORECASE,
+    )
+    # "úveru. čo" — wrong punctuation after placeholder removal
+    text = re.sub(r'úveru\.\s+čo', 'úveru, čo', text)
+    # Fix double punctuation caused by cleanup
+    text = re.sub(r'\.\s*\.', '.', text)
+    # Fix space before punctuation
+    text = re.sub(r'\s+([,.])', r'\1', text)
+    return text
+
+
+# ── Post-injection validator ──
+_DANGLING_VALIDATOR_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r'\bo\s+viac\s+ako\s*[.,;]', re.IGNORECASE), "o viac ako [punct]"),
+    (re.compile(r'\bo\s+takmer\s*[.,;]', re.IGNORECASE), "o takmer [punct]"),
+    (re.compile(r'\bo\s+približne\s*[.,;]', re.IGNORECASE), "o približne [punct]"),
+    (re.compile(r'\bvo\s+výške\s*[.,;]', re.IGNORECASE), "vo výške [punct]"),
+    (re.compile(r'\bvo\s+výške\s+(?:viac|takmer|nad|približne)\b', re.IGNORECASE), "vo výške modifier without value"),
+    (re.compile(r'\b(?:dosiahol|dosiahla|dosiahli|predstavuje)\s*[.,;]', re.IGNORECASE), "verb [punct] without value"),
+    (re.compile(r'\b(?:klesol|vzrástol|stúpol|prepadol|rástol)\s+o\s*[.,;]', re.IGNORECASE), "verb o [punct]"),
+    (re.compile(r'\b(?:klesol|vzrástol|stúpol|prepadol|rástol)\s+o,\s', re.IGNORECASE), "verb o, [space]"),
+    (re.compile(r'\bo,\s*čo\b', re.IGNORECASE), "o, čo"),
+    (re.compile(r'\{\{[A-Z_]+\}\}'), "unresolved placeholder"),
+]
+
+
+def validate_final_text(text: str) -> list[str]:
+    """Validate final text after inject_metrics. Returns list of dangling fragment descriptions.
+
+    If the returned list is non-empty, the text contains broken prose that
+    should not be saved to DB or rendered to PDF.
+
+    Args:
+        text: Final text after placeholder injection and cleanup.
+
+    Returns:
+        List of human-readable descriptions of dangling fragments. Empty = clean.
+    """
+    if not text:
+        return []
+    findings: list[str] = []
+    for pattern, description in _DANGLING_VALIDATOR_PATTERNS:
+        if pattern.search(text):
+            findings.append(description)
+    return findings
+
+
+def sanitize_final_text(text: str, *, ico: str = "", field: str = "") -> str:
+    """Sanitize final text: validate and replace broken sentences with safe fallback.
+
+    If dangling fragments are found after cleanup, the affected sentences are
+    removed entirely. This is a BLOCKING condition — broken prose never reaches
+    DB or PDF. The rest of the text (clean sentences) is preserved.
+
+    Args:
+        text: Final text after inject_metrics + cleanup.
+        ico: Company IČO for logging.
+        field: Field name for logging.
+
+    Returns:
+        Clean text with broken sentences removed, or original text if no issues.
+    """
+    if not text:
+        return text
+    findings = validate_final_text(text)
+    if not findings:
+        return text
+    logger.error(
+        "DANGLING_FRAGMENT_BLOCKED: ico=%s field=%s findings=%s — removing broken sentences",
+        ico, field, findings,
+    )
+    # Split into sentences and keep only clean ones
+    _sentence_end = re.compile(r'(?<=[.!?])\s+')
+    sentences = _sentence_end.split(text)
+    clean_sentences: list[str] = []
+    removed = 0
+    for s in sentences:
+        s_findings = validate_final_text(s)
+        if s_findings:
+            removed += 1
+            logger.warning(
+                "DANGLING_SENTENCE_REMOVED: ico=%s field=%s sentence=%s findings=%s",
+                ico, field, s[:120], s_findings,
+            )
+        else:
+            clean_sentences.append(s)
+    if removed and not clean_sentences:
+        # All sentences were broken — return safe fallback
+        logger.error(
+            "DANGLING_ALL_SENTENCES_REMOVED: ico=%s field=%s — no valid text remains",
+            ico, field,
+        )
+        return ""
+    return " ".join(clean_sentences)
 
 
 # ── Anti-halucinácia: fallback pre prípady, keď LLM ignoruje placeholder pravidlo ──

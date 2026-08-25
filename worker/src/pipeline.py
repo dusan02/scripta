@@ -299,6 +299,8 @@ from src.verdict_metrics import (
     _compute_ebitda,
     build_metric_placeholders,
     inject_metrics,
+    validate_final_text,
+    sanitize_final_text,
     _strip_narrative_financial_metrics,
     _inject_ncrzp_findings,
     _strip_hallucinated_debts,

@@ -25,6 +25,8 @@ from src.agents.pdf_reader import extract_company_events
 from src.verdict_metrics import (
     build_metric_placeholders,
     inject_metrics,
+    validate_final_text,
+    sanitize_final_text,
     _strip_narrative_financial_metrics,
     _inject_ncrzp_findings,
     _strip_hallucinated_debts,
@@ -1109,7 +1111,9 @@ async def run_and_save_audit_verdict(
             for _vfield in ('executiveSummary', 'keyRisk', 'finalVerdict'):
                 _vtext = verdict_payload.get(_vfield, "")
                 if _vtext and isinstance(_vtext, str):
-                    verdict_payload[_vfield] = inject_metrics(_vtext, _metric_placeholders)
+                    _injected = inject_metrics(_vtext, _metric_placeholders, ico=ico, field=_vfield)
+                    _injected = sanitize_final_text(_injected, ico=ico, field=_vfield)
+                    verdict_payload[_vfield] = _injected
             # Injektuj placeholdre do executive_sections
             _esec = verdict_payload.get('executiveSections')
             if _esec and isinstance(_esec, str):
@@ -1120,12 +1124,14 @@ async def run_and_save_audit_verdict(
                             continue
                         _stitle = _sec.get("title", "")
                         if _stitle and isinstance(_stitle, str):
-                            _sec["title"] = inject_metrics(_stitle, _metric_placeholders)
+                            _sec["title"] = inject_metrics(_stitle, _metric_placeholders, ico=ico, field="execSection.title")
                         _spoints = _sec.get("points", [])
                         if isinstance(_spoints, list):
                             for _pi, _pt in enumerate(_spoints):
                                 if _pt and isinstance(_pt, str):
-                                    _spoints[_pi] = inject_metrics(_pt, _metric_placeholders)
+                                    _injected_pt = inject_metrics(_pt, _metric_placeholders, ico=ico, field="execSection.point")
+                                    _injected_pt = sanitize_final_text(_injected_pt, ico=ico, field="execSection.point")
+                                    _spoints[_pi] = _injected_pt
                     verdict_payload['executiveSections'] = json.dumps(_esec_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
                     pass
@@ -1140,7 +1146,7 @@ async def run_and_save_audit_verdict(
                         for _ifield in ('tvrdenie', 'dokaz', 'claim', 'evidence'):
                             _itext = _item.get(_ifield, "")
                             if _itext and isinstance(_itext, str):
-                                _item[_ifield] = inject_metrics(_itext, _metric_placeholders)
+                                _item[_ifield] = inject_metrics(_itext, _metric_placeholders, ico=ico, field=f"justification.{_ifield}")
                     verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
                     pass
@@ -1161,7 +1167,7 @@ async def run_and_save_audit_verdict(
                             for _ffield in ('title', 'evidence', 'explanation', 'implication'):
                                 _ftext = _item.get(_ffield, "")
                                 if _ftext and isinstance(_ftext, str):
-                                    _item[_ffield] = inject_metrics(_ftext, _metric_placeholders)
+                                    _item[_ffield] = inject_metrics(_ftext, _metric_placeholders, ico=ico, field=f"findings.{_ffield}")
                         verdict_payload['findings'] = _findings_list
                 except (json.JSONDecodeError, TypeError):
                     pass

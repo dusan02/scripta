@@ -330,6 +330,7 @@ Trends (year-over-year — include verb and percentage):
   {{{{REVENUE_YOY}}}} — "decreased by 13.2%" or "increased by 5.1%"
   {{{{REVENUE_YOY_PCT}}}} — percentage only (e.g. "13.2%")
   {{{{NET_RESULT_YOY}}}} — "swung to net loss" / "returned to profit" / "increased by X%" / "decreased by X%"
+  {{{{NET_RESULT_YOY_PCT}}}} — net result YoY percentage only (e.g. "13.2%" or "swung to loss" / "returned to profit")
   {{{{EQUITY_YOY}}}} — "increased by 12.3%" or "decreased by 41.4%"
   {{{{EQUITY_YOY_PCT}}}} — percentage only (e.g. "41.4%")
   {{{{OCF_YOY}}}} — "rose by 82.3%" or "fell by 15.2%"
