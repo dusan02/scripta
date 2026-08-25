@@ -117,8 +117,9 @@
             </tr>
             {% endfor %}
             {# Ostatné pasíva = Aktíva − (Vlastné imanie + Krátkodobé + Dlhodobé záväzky).
-               Zobrazuje sa len ak je residual > 5000 € (inak rounding artefakt). #}
-            {% set show_other_liab = false %}
+               Zobrazuje sa len ak je residual > 5000 € (inak rounding artefakt).
+               Používame namespace pretože Jinja2 set vnútri for loopu nepresahuje do vonkajšieho scope. #}
+            {% set ns = namespace(show=false) %}
             {% for stmt in stmts_sorted %}
             {% set _eq = stmt.equity if stmt.equity is defined else none %}
             {% set _stl = stmt.shortTermLiabilities if stmt.shortTermLiabilities is defined else none %}
@@ -127,11 +128,11 @@
             {% if _ta is not none and _eq is not none and _stl is not none and _ltl is not none %}
             {% set _residual = _ta - ((_eq or 0) + (_stl or 0) + (_ltl or 0)) %}
             {% if _residual|abs > 5000 %}
-            {% set show_other_liab = true %}
+            {% set ns.show = true %}
             {% endif %}
             {% endif %}
             {% endfor %}
-            {% if show_other_liab %}
+            {% if ns.show %}
             <tr class="border-b border-slate-100">
                 <td class="py-0.5 px-2 font-semibold text-slate-700 pl-4">{{ i18n.row_other_liabilities }}</td>
                 {% for stmt in stmts_sorted %}

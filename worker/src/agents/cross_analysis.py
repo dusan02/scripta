@@ -203,7 +203,8 @@ async def generate_cross_analysis(data_json: str, model: str = settings.model_cr
         system_instruction=system_prompt,
         response_mime_type="application/json",
         response_schema=CrossAnalysisResult,
-        temperature=0.0
+        temperature=0.0,
+        max_output_tokens=65536
     )
 
     response = await client.aio.models.generate_content(

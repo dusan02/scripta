@@ -195,7 +195,8 @@ async def extract_narrative_risk(file_path: str, model: str = settings.model_nar
         system_instruction=system_prompt,
         response_mime_type="application/json",
         response_schema=NarrativeRiskAnalysis,
-        temperature=0.0
+        temperature=0.0,
+        max_output_tokens=65536
     )
     with _gemini_uploaded_file(client, file_path) as uploaded_file:
         response = await client.aio.models.generate_content(
