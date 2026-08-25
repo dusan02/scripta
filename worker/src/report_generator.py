@@ -723,6 +723,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             )}
             for s in stmts
         ]
+        # Pridaj notesRisk.significantInvestments pre CAPEX fallback
+        for _i, _s in enumerate(stmts):
+            _nr = getattr(_s, 'notesRisk', None)
+            if _nr:
+                _stmts_for_ph[_i]['significantInvestments'] = getattr(_nr, 'significantInvestments', None)
         _trends_for_ph = {}
         try:
             _trends_for_ph = compute_financial_trends(stmts) or {}

@@ -261,7 +261,18 @@ def build_metric_placeholders(
     if _icf is not None:
         ph["{{CAPEX}}"] = _format_eur(abs(float(_icf)))
     else:
-        ph["{{CAPEX}}"] = "N/A"
+        # Fallback: extrahuj CAPEX z notesRisk.significantInvestments textu
+        _capex_fallback = None
+        _si = latest.get("significantInvestments")
+        if _si and isinstance(_si, str):
+            _m = re.search(r'(\d[\d\s]*\d)\s*(?:EUR|€)', _si, re.IGNORECASE)
+            if _m:
+                _val = _m.group(1).replace('\xa0', '').replace(' ', '')
+                try:
+                    _capex_fallback = abs(float(_val))
+                except ValueError:
+                    pass
+        ph["{{CAPEX}}"] = _format_eur(_capex_fallback) if _capex_fallback is not None else "N/A"
 
     # ── Working capital = currentAssets - shortTermLiabilities ──
     if _ca is not None and _stl is not None:
