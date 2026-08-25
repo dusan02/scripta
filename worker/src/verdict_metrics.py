@@ -292,10 +292,15 @@ def inject_metrics(text: str, placeholders: dict[str, str]) -> str:
     Returns:
         Text s nahradenými placeholdermi.
     """
-    if not text or not placeholders:
+    if not text:
         return text
-    for placeholder, value in placeholders.items():
-        text = text.replace(placeholder, value)
+    if placeholders:
+        for placeholder, value in placeholders.items():
+            text = text.replace(placeholder, value)
+    # Odstráň všetky neznahradené {{...}} placeholdre — Jinja2 by ich vyrenderoval
+    # ako prázdne reťazce, čo by spôsobilo "vo výške viac ako, čo" namiesto
+    # "vo výške viac ako 24 mil. €, čo".
+    text = re.sub(r'\{\{[A-Z_]+\}\}', '', text)
     return text
 
 

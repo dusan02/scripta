@@ -1146,19 +1146,23 @@ async def run_and_save_audit_verdict(
                     pass
             # Injektuj placeholdre do findings (Analýza & Nálezy sekcia)
             _findings = verdict_payload.get('findings')
-            if _findings and isinstance(_findings, str):
+            if _findings:
                 try:
-                    _findings_list = json.loads(_findings)
-                    for _item in _findings_list:
-                        if not isinstance(_item, dict):
-                            continue
-                        for _ffield in ('title', 'description', 'evidence', 'detail', 'recommendation'):
-                            _ftext = _item.get(_ffield, "")
-                            if _ftext and isinstance(_ftext, str):
-                                _item[_ffield] = inject_metrics(_ftext, _metric_placeholders)
-                    verdict_payload['findings'] = json.dumps(_findings_list, ensure_ascii=False)
-                except (json.JSONDecodeError, TypeError):
-                    pass
+                    if isinstance(_findings, str):
+                        _findings_list = json.loads(_findings)
+                    elif isinstance(_findings, list):
+                        _findings_list = _findings
+                    else:
+                        _findings_list = None
+                    if _findings_list:
+                        for _item in _findings_list:
+                            if not isinstance(_item, dict):
+                                continue
+                            for _ffield in ('title', 'evidence', 'explanation', 'implication'):
+                                _ftext = _item.get(_ffield, "")
+                                if _ftext and isinstance(_ftext, str):
+                                    _item[_ffield] = inject_metrics(_ftext, _metric_placeholders)
+                        verdict_payload['findings'] = _findings_list
                 except (json.JSONDecodeError, TypeError):
                     pass
 

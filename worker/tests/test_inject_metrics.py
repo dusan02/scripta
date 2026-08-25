@@ -351,12 +351,13 @@ class TestInjectMetrics:
         assert inject_metrics(None, ph) is None
 
     def test_placeholder_not_in_dict(self):
-        # Ak placeholder nie je v dict, text sa nezmení
+        # Ak placeholder nie je v dict, neznahradené {{...}} sa odstráni
+        # (Jinja2 by ich inak vyrenderoval ako prázdne reťazce)
         ph = {"{{REVENUE}}": "111,6 mil. €"}
         text = "Tržby {{REVENUE}}, EBITDA {{EBITDA}}."
         result = inject_metrics(text, ph)
         assert "111,6 mil. €" in result
-        assert "{{EBITDA}}" in result  # nezmenený
+        assert "{{EBITDA}}" not in result  # odstránený
 
     def test_full_heineken_example(self):
         ph = build_metric_placeholders(HEINEKEN_STMTS, HEINEKEN_TRENDS, company_name="Heineken Slovensko, a.s.")
