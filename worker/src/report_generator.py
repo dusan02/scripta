@@ -773,6 +773,30 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                                 _sec['points'][_pi2] = sanitize_final_text(_p, ico=company.ico, field="execSection.point")
                     _injected_es.append(_sec)
             _overrides_ph['executiveSections'] = _injected_es or _executive_sections
+            # Inject into justification (evidence/claims list)
+            _just = getattr(verdict, 'justification', None)
+            if _just:
+                try:
+                    if isinstance(_just, str):
+                        _just_list = json.loads(_just)
+                    elif isinstance(_just, list):
+                        _just_list = _just
+                    else:
+                        _just_list = None
+                    if _just_list:
+                        _injected_just = []
+                        for _j in _just_list:
+                            if isinstance(_j, dict):
+                                for _jf in ('tvrdenie', 'dokaz', 'claim', 'evidence'):
+                                    _jv = _j.get(_jf, '')
+                                    if _jv and isinstance(_jv, str):
+                                        _jv = inject_metrics(_jv, _ph)
+                                        _jv = sanitize_final_text(_jv, ico=company.ico, field=f"justification.{_jf}")
+                                        _j[_jf] = _jv
+                                _injected_just.append(_j)
+                        _overrides_ph['justification'] = json.dumps(_injected_just, ensure_ascii=False) if isinstance(_just, str) else _injected_just
+                except (json.JSONDecodeError, TypeError):
+                    pass
             # Inject into findings
             _findings = getattr(verdict, 'findings', None)
             if _findings:

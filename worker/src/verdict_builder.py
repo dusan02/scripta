@@ -1146,7 +1146,9 @@ async def run_and_save_audit_verdict(
                         for _ifield in ('tvrdenie', 'dokaz', 'claim', 'evidence'):
                             _itext = _item.get(_ifield, "")
                             if _itext and isinstance(_itext, str):
-                                _item[_ifield] = inject_metrics(_itext, _metric_placeholders, ico=ico, field=f"justification.{_ifield}")
+                                _injected_j = inject_metrics(_itext, _metric_placeholders, ico=ico, field=f"justification.{_ifield}")
+                                _injected_j = sanitize_final_text(_injected_j, ico=ico, field=f"justification.{_ifield}")
+                                _item[_ifield] = _injected_j
                     verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
                     pass
