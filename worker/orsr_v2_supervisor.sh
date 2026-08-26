@@ -18,11 +18,11 @@ log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') [supervisor] $*" >> "$LOG_FILE"
 }
 
-# Wait for DB to be ready (uvicorn already started by entrypoint)
-log "Waiting for DB connection..."
+# Wait for DB to be ready (check via worker health endpoint)
+log "Waiting for worker to be ready..."
 for i in $(seq 1 30); do
-  if python -c "import asyncio; from src.db_client import connect_db, disconnect_db; asyncio.run(connect_db()); asyncio.run(disconnect_db())" 2>/dev/null; then
-    log "DB ready."
+  if curl -sf http://localhost:8000/health >/dev/null 2>&1; then
+    log "Worker ready (DB connected)."
     break
   fi
   sleep 2
