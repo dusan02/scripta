@@ -133,6 +133,7 @@ services:
     restart: unless-stopped
     mem_limit: 1g
     pids_limit: 300
+    stop_grace_period: 30s
     depends_on:
       postgres:
         condition: service_healthy

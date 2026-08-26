@@ -22,4 +22,13 @@ fi
 # Drop privileges and run the actual command as workeruser
 # Set HOME=/tmp so Prisma can find its binary cache
 export HOME=/tmp
+
+# If this is the worker container (running uvicorn), start ORSR V2 supervisor in background.
+# The supervisor auto-starts and auto-resumes the bulk seed after container recreation.
+# It is a no-op if another V2 instance is already running (flock lock prevents concurrency).
+if [ "$1" = "python" ] && echo "$*" | grep -q "uvicorn"; then
+  chmod +x /app/orsr_v2_supervisor.sh 2>/dev/null || true
+  gosu workeruser /app/orsr_v2_supervisor.sh &
+fi
+
 exec gosu workeruser "$@"

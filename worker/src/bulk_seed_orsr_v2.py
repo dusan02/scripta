@@ -54,11 +54,24 @@ import fcntl
 import json
 import logging
 import re
+import signal
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger("bulk_seed_orsr_v2")
+
+# ── Graceful shutdown ─────────────────────────────────────────────────
+# Global flag set by SIGTERM/SIGINT handler. The main loop checks this
+# between sub-batches and exits cleanly after saving the checkpoint.
+_shutdown_requested = False
+
+
+def _signal_handler(signum, frame):
+    global _shutdown_requested
+    sig_name = signal.Signals(signum).name
+    logger.warning(f"Received {sig_name} — requesting graceful shutdown after current sub-batch...")
+    _shutdown_requested = True
 
 # Checkpoint and lock in /app/results/ (Docker bind mount — survives recreation).
 # Fallback to output/ for backward compatibility with pre-hardening checkpoints.
@@ -67,7 +80,7 @@ _OUTPUT_DIR = Path("output")
 _CHECKPOINT_FILE = _RESULTS_DIR / "orsr_v2_checkpoint.json"
 _LOCK_FILE = _RESULTS_DIR / "orsr_v2.lock"
 _LEGAL_FORMS = ["s.r.o.", "a.s.", "v.o.s.", "k.s."]
-_DELAY_BETWEEN_REQUESTS = 0.3  # seconds — stealth tempo
+_DELAY_BETWEEN_REQUESTS = 0.15  # seconds — stealth tempo
 _ICO_PATTERN = re.compile(r"^\d{8}$")
 
 
@@ -499,6 +512,10 @@ async def main(args):
         datefmt="%H:%M:%S",
     )
 
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+
     from src.db_client import connect_db, disconnect_db
     from src.scrapers.orsr import OrsrScraper
 
@@ -678,6 +695,11 @@ async def main(args):
                 # Process in sub-batches of 10 for checkpoint granularity
                 sub_batch_size = 10
                 for i in range(0, len(companies), sub_batch_size):
+                    if _shutdown_requested:
+                        logger.warning("Shutdown requested — saving checkpoint and exiting gracefully.")
+                        save_checkpoint(checkpoint)
+                        return
+
                     sub = companies[i:i + sub_batch_size]
                     results = await process_batch(sub, concurrency=args.concurrency, scraper=scraper)
 
@@ -735,7 +757,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ORSR Bulk Seed V2 — cursor-based pagination")
     parser.add_argument("--max", type=int, default=999999, help="Max companies (default: all)")
     parser.add_argument("--ico", type=str, default=None, help="Single IČO (8 digits)")
-    parser.add_argument("--concurrency", type=int, default=5, help="Parallel workers (default: 5)")
+    parser.add_argument("--concurrency", type=int, default=10, help="Parallel workers (default: 10)")
     parser.add_argument("--resume", action="store_true", help="Resume from V2 checkpoint")
     parser.add_argument("--retry-failed", action="store_true", help="Retry failed ICOs from checkpoint")
     parser.add_argument(
@@ -751,7 +773,5 @@ if __name__ == "__main__":
              "These firms have no screener score. Default is OFF (full population seed).",
     )
     args = parser.parse_args()
-
-    asyncio.run(main(args))
 
     asyncio.run(main(args))

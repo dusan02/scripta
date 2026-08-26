@@ -57,6 +57,9 @@ RUN touch /app/errors.log /app/uvicorn.log && chown workeruser:worker /app/error
 # Kopírovanie zdrojového kódu
 COPY --chown=workeruser:worker . .
 
+# Ensure supervisor script is executable
+RUN chmod +x /app/orsr_v2_supervisor.sh
+
 # Entrypoint script — fixes volume permissions at runtime (runs as root, then drops to workeruser)
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

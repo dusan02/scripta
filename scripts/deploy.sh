@@ -111,11 +111,17 @@ if [ "$LOCAL_BUILD" = true ]; then
   echo "--- Pulling latest code on server ---"
   remote "cd $REMOTE_DIR && git pull"
 
+  echo "--- Gracefully stopping ORSR V2 seed (if running) ---"
+  remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker kill -TERM \$LOCK_PID 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
+
   echo "--- Recreating container(s) (no rebuild) ---"
   remote "cd $REMOTE_DIR && docker compose up -d --no-build $BUILD_TARGETS"
 else
   echo "--- Pulling latest code on server ---"
   remote "cd $REMOTE_DIR && git pull"
+
+  echo "--- Gracefully stopping ORSR V2 seed (if running) ---"
+  remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker kill -TERM \$LOCK_PID 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
 
   echo "--- Building + recreating container(s) on server ---"
   remote "cd $REMOTE_DIR && docker compose up -d --build $BUILD_TARGETS"
