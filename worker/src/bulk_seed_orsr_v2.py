@@ -178,11 +178,18 @@ async def get_companies_batch_cursor(
     batch_size: int = 100,
     ico_filter: str | None = None,
     only_with_financials: bool = False,
+    gap_fill: bool = False,
 ) -> list[dict]:
     """Fetch next batch of companies using cursor-based pagination.
 
     Uses: WHERE orsrSyncedAt IS NULL AND ico > :last_ico ORDER BY ico ASC LIMIT :batch_size
     No OFFSET — immune to mutating result set.
+
+    If gap_fill=True, ignores the cursor (last_ico) and fetches ANY pending
+    company with orsrSyncedAt IS NULL, ordered by ico ASC. This is the
+    second pass after the cursor-based loop exhausts all ico > cursor firms.
+    It picks up gaps — firms with ico < MAX(synced) that were missed
+    by previous runs (failed, not_found, or skipped by cursor reset).
 
     If only_with_financials=True, adds EXISTS check for FinancialStatement.
     This is a screener optimization — firms without financials have no score.
@@ -200,36 +207,35 @@ async def get_companies_batch_cursor(
         )
         return [{"ico": c.ico, "name": c.name} for c in companies]
 
-    # Cursor-based: use raw SQL for precise control over the cursor condition
-    # query_raw returns actual rows (execute_raw returns row count)
+    # Build query based on mode
+    cursor_condition = "" if gap_fill else "AND ico > $2"
+    params = [_LEGAL_FORMS, batch_size] if gap_fill else [_LEGAL_FORMS, last_ico, batch_size]
+    param_offset = 0 if gap_fill else 1
+
     if only_with_financials:
         rows = await db.query_raw(
-            """
+            f"""
             SELECT ico, name FROM "Company"
             WHERE "orsrSyncedAt" IS NULL
               AND "legalForm" = ANY($1)
-              AND ico > $2
+              {cursor_condition}
               AND EXISTS (SELECT 1 FROM "FinancialStatement" WHERE "companyIco" = "Company".ico)
             ORDER BY ico ASC
-            LIMIT $3
+            LIMIT ${param_offset + 2}
             """,
-            _LEGAL_FORMS,
-            last_ico,
-            batch_size,
+            *params,
         )
     else:
         rows = await db.query_raw(
-            """
+            f"""
             SELECT ico, name FROM "Company"
             WHERE "orsrSyncedAt" IS NULL
               AND "legalForm" = ANY($1)
-              AND ico > $2
+              {cursor_condition}
             ORDER BY ico ASC
-            LIMIT $3
+            LIMIT ${param_offset + 2}
             """,
-            _LEGAL_FORMS,
-            last_ico,
-            batch_size,
+            *params,
         )
 
     if not rows:
@@ -654,11 +660,12 @@ async def main(args):
             _print_summary(checkpoint)
             return
 
-        # Cursor-based bulk mode
+        # Cursor-based bulk mode with gap-fill second pass
         last_ico = checkpoint.get("last_ico", "")
         total_target = args.max
         batch_size = 100
         start_time = time.perf_counter()
+        gap_fill_mode = False
 
         # Single reusable scraper instance
         scraper = OrsrScraper(browser=None)
@@ -674,21 +681,29 @@ async def main(args):
                 if fetch_size <= 0:
                     break
 
+                mode_label = "gap-fill" if gap_fill_mode else "cursor"
                 logger.info(
-                    f"Fetching batch of {fetch_size} companies (cursor: ico > {last_ico or 'START'})..."
+                    f"Fetching batch of {fetch_size} companies [{mode_label}] (cursor: ico > {last_ico or 'START'})..."
                 )
                 companies = await get_companies_batch_cursor(
                     last_ico,
                     batch_size=fetch_size,
                     only_with_financials=args.only_with_financials,
+                    gap_fill=gap_fill_mode,
                 )
 
                 if not companies:
-                    logger.info("No more companies to process.")
-                    break
+                    if not gap_fill_mode:
+                        logger.info("Cursor-based pass complete. Starting gap-fill pass for remaining pending firms.")
+                        gap_fill_mode = True
+                        continue
+                    else:
+                        logger.info("No more companies to process (gap-fill complete).")
+                        break
 
+                mode_label = "gap-fill" if gap_fill_mode else "cursor"
                 logger.info(
-                    f"Processing {len(companies)} companies "
+                    f"Processing {len(companies)} companies [{mode_label}] "
                     f"(total so far: {checkpoint['processed_count'] + checkpoint['failed_count'] + checkpoint['not_found_count']})"
                 )
 
