@@ -19,6 +19,7 @@ from src.db_repository import (
     save_company_events_to_db,
     append_company_event_to_db,
     save_scoring_snapshot,
+    save_report_financial_snapshot,
 )
 from src.pdf_ingestion import extract_relevant_pdf_chunks
 from src.agents.pdf_reader import extract_company_events
@@ -538,6 +539,7 @@ async def run_and_save_audit_verdict(
     report_language: str = "sk",
     failed_agents: list | None = None,
     registry_sources: list | None = None,
+    report_request_id: str | None = None,
 ):
     """
     1. Získa všetky dostupné dáta pre dané IČO z databázy (Finančné výkazy, Naratívne analýzy, Vestník).
@@ -1204,16 +1206,67 @@ async def run_and_save_audit_verdict(
 
             # Input data hash — reproducibility
             # Hashuje všetky vstupy, ktoré ovplyvňujú score:
-            # base_score, consolidation status, narrative/notes risk findings, company events
+            # financial numerics, auditor opinion, narrative/notes risk findings,
+            # company events (incl. ORSR forensic metadata), vestnik events (incl. publishedAt for degradation),
+            # registry findings + status, NACE code (pillar weights), ORSR WH override, scoring version
             _hash_input = json.dumps({
                 "ico": ico,
+                "scoring_version": SCORING_VERSION,
                 "base_score": deterministic_score,
                 "is_consolidated": _is_consolidated,
+                "financial_basis": _financial_basis,
+                "wh_override_refund": wh_refund,
+                "nace_code": company_dict.get("naceCode", ""),
+                "financials": [
+                    {
+                        "year": s.get("year"),
+                        "totalAssets": s.get("totalAssets"),
+                        "currentAssets": s.get("currentAssets"),
+                        "equity": s.get("equity"),
+                        "shortTermLiabilities": s.get("shortTermLiabilities"),
+                        "longTermLiabilities": s.get("longTermLiabilities"),
+                        "totalLiabilities": s.get("totalLiabilities"),
+                        "mainActivityRevenue": s.get("mainActivityRevenue"),
+                        "grossProfit": s.get("grossProfit"),
+                        "netProfitLoss": s.get("netProfitLoss"),
+                        "cashAndEquivalents": s.get("cashAndEquivalents"),
+                        "operatingCashFlow": s.get("operatingCashFlow"),
+                        "investingCashFlow": s.get("investingCashFlow"),
+                        "financingCashFlow": s.get("financingCashFlow"),
+                        "staffCosts": s.get("staffCosts"),
+                        "depreciation": s.get("depreciation"),
+                        "interestExpense": s.get("interestExpense"),
+                        "incomeTax": s.get("incomeTax"),
+                        "inventory": s.get("inventory"),
+                        "tradeReceivables": s.get("tradeReceivables"),
+                        "tradePayables": s.get("tradePayables"),
+                        "employeeCount": s.get("employeeCount"),
+                        "monthsInPeriod": s.get("monthsInPeriod"),
+                        "statementType": s.get("statementType"),
+                        "isConsolidated": s.get("isConsolidated"),
+                        "retainedEarnings": s.get("retainedEarnings"),
+                        "shareCapital": s.get("shareCapital"),
+                        "stBankLoans": s.get("stBankLoans"),
+                        "ltReserves": s.get("ltReserves"),
+                        "stReserves": s.get("stReserves"),
+                        "socialInsuranceLiabilities": s.get("socialInsuranceLiabilities"),
+                        "taxLiabilities": s.get("taxLiabilities"),
+                        "employeeLiabilities": s.get("employeeLiabilities"),
+                        "dataQualityStatus": s.get("dataQualityStatus"),
+                        "auditorOpinion": {
+                            "opinionType": (s.get("auditorOpinion") or {}).get("opinionType") if isinstance(s.get("auditorOpinion"), dict) else getattr(s.get("auditorOpinion"), "opinionType", None),
+                            "goingConcernRisk": (s.get("auditorOpinion") or {}).get("goingConcernRisk") if isinstance(s.get("auditorOpinion"), dict) else getattr(s.get("auditorOpinion"), "goingConcernRisk", None),
+                        } if s.get("auditorOpinion") else None,
+                    }
+                    for s in (company_dict.get("financialStatements") or [])
+                    if isinstance(s, dict)
+                ],
                 "narrative": [
                     {
                         "rok": e.get("rok"),
                         "gc": (e.get("narrativeRisk") or {}).get("goingConcernDoubts"),
                         "lit": (e.get("narrativeRisk") or {}).get("litigationRisks"),
+                        "flags": (e.get("narrativeRisk") or {}).get("forensicRedFlags"),
                     }
                     for e in narrative_by_year if isinstance(e, dict)
                 ],
@@ -1227,15 +1280,91 @@ async def run_and_save_audit_verdict(
                     for e in notes_by_year if isinstance(e, dict)
                 ],
                 "events": [
-                    {"sev": ev.get("severity"), "type": ev.get("eventType")}
+                    {
+                        "sev": ev.get("severity"),
+                        "type": ev.get("eventType"),
+                        "source": ev.get("source"),
+                        "meta": ev.get("metadata"),
+                        "ts": str(ev.get("createdAt", "")),
+                    }
                     for ev in (company_dict.get("companyEvents") or [])
                     if isinstance(ev, dict)
+                ],
+                "vestnik": [
+                    {
+                        "type": getattr(e, "eventType", None),
+                        "sev": getattr(e, "severityLevel", None),
+                        "pub": str(getattr(e, "publishedAt", None)),
+                    }
+                    for e in (company.vestnikEvents or [])
+                ],
+                "registry": [
+                    {
+                        "src": s.get("source_type"),
+                        "status": s.get("findings", "")[:200] if s.get("findings") else "",
+                        "scraper_status": "SUCCESS",
+                    }
+                    for s in registry_findings
+                ] if registry_findings else [],
+                "registry_unverified": [
+                    {"src": getattr(src, 'source_type', 'UNKNOWN'), "status": getattr(src, 'status', 'UNKNOWN')}
+                    for src in (registry_sources or [])
+                    if getattr(src, 'status', 'UNKNOWN') != "SUCCESS"
                 ],
             }, sort_keys=True, default=str)
             _input_hash = hashlib.sha256(_hash_input.encode()).hexdigest()[:16]
 
+            # ── Report Financial Snapshot (immutable evidence package) ──
+            # One per reportRequestId. Contains ALL data that influenced the score.
+            _financial_snapshot_id = None
+            if report_request_id:
+                try:
+                    _fs_payload = {
+                        "reportRequestId": report_request_id,
+                        "companyIco": ico,
+                        "companyIdentity": Json({
+                            "ico": ico,
+                            "name": company_dict.get("name"),
+                            "naceCode": company_dict.get("naceCode", ""),
+                            "naceText": company_dict.get("naceText"),
+                            "legalForm": company_dict.get("legalForm"),
+                            "status": company_dict.get("status"),
+                        }),
+                        "financialStatements": Json(
+                            company_dict.get("financialStatements") or []
+                        ),
+                        "auditorOpinions": Json([
+                            {
+                                "year": s.get("year"),
+                                "opinion": s.get("auditorOpinion"),
+                            }
+                            for s in (company_dict.get("financialStatements") or [])
+                            if isinstance(s, dict) and s.get("auditorOpinion")
+                        ]),
+                        "narrativeRisk": Json(narrative_by_year),
+                        "notesRisk": Json(notes_by_year),
+                        "companyEvents": Json(company_dict.get("companyEvents") or []),
+                        "vestnikEvents": Json([
+                            e.model_dump() if hasattr(e, "model_dump") else e
+                            for e in (company.vestnikEvents or [])
+                        ]),
+                        "registryFindings": Json(registry_findings),
+                        "scoringInputs": Json({
+                            "naceCode": company_dict.get("naceCode", ""),
+                            "isConsolidated": _is_consolidated,
+                            "financialBasis": _financial_basis,
+                            "whOverrideRefund": wh_refund,
+                            "scoringVersion": SCORING_VERSION,
+                        }),
+                        "inputDataHash": _input_hash,
+                    }
+                    _financial_snapshot_id = await save_report_financial_snapshot(_fs_payload)
+                except Exception as fs_err:
+                    logger.warning(f"[{ico}] ReportFinancialSnapshot save failed (non-fatal): {fs_err}")
+
             snapshot_payload = {
                 'companyIco': ico,
+                'reportRequestId': report_request_id,
                 'scoringVersion': SCORING_VERSION,
                 'financialYear': _latest_year,
                 'baseScore': deterministic_score,
@@ -1248,6 +1377,7 @@ async def run_and_save_audit_verdict(
                 'llmAdjustment': llm_adj,
                 'whOverrideRefund': wh_refund,
                 'inputDataHash': _input_hash,
+                'reportFinancialSnapshotId': _financial_snapshot_id,
             }
             await save_scoring_snapshot(snapshot_payload)
         except Exception as snap_err:

@@ -25,7 +25,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _SCHEMA_PATH = _PROJECT_ROOT / "frontend" / "prisma" / "schema.prisma"
 _MIGRATION_PATH = (
     _PROJECT_ROOT / "frontend" / "prisma" / "migrations"
-    / "20260801600000_add_dedup_constraints" / "migration.sql"
+    / "20260826210000_baseline" / "migration.sql"
 )
 
 # Skip schema/migration tests if frontend dir not available (e.g. in worker container)
@@ -434,14 +434,14 @@ class TestSchemaConstraints:
 
     @skip_if_no_schema
     def test_migration_has_dedup_cleanup(self):
-        """Migrácia by mala obsahovať DELETE pre dedup existujúcich duplikátov."""
+        """Baseline migration by mala obsahovať unique constraint-y pre dedup."""
         migration_path = _migration_path()
         with open(migration_path, "r") as f:
             content = f.read()
-        assert "DELETE FROM" in content, "Migration missing dedup DELETE"
         assert "CompanyEvent" in content
         assert "VestnikEvent" in content
-        assert "CREATE UNIQUE INDEX" in content
+        # Unique constraints (baseline has them as table constraints, not separate indexes)
+        assert "@@unique" in content or "UNIQUE" in content, "Migration missing unique constraints for dedup"
 
     @skip_if_no_schema
     def test_migration_has_deletedAt_index(self):

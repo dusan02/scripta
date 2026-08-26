@@ -82,6 +82,7 @@ model ReportRequest {
   deletedAt       DateTime?           // Soft delete — null means active
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   sources         ReportSource[]
+  financialSnapshot ReportFinancialSnapshot?
 
   @@index([userId, createdAt])
   @@index([status])
@@ -642,6 +643,9 @@ model ScoringSnapshot {
 
   inputDataHash   String?  // hash of input data for reproducibility
 
+  reportFinancialSnapshotId String? @unique
+  reportFinancialSnapshot   ReportFinancialSnapshot? @relation(fields: [reportFinancialSnapshotId], references: [id])
+
   createdAt       DateTime @default(now())
 
   company         Company  @relation(fields: [companyIco], references: [ico])
@@ -650,6 +654,34 @@ model ScoringSnapshot {
 
   @@index([companyIco])
   @@index([scoringVersion])
+  @@index([createdAt])
+}
+
+model ReportFinancialSnapshot {
+  id              String   @id @default(uuid())
+  reportRequestId String   @unique
+  companyIco      String
+  schemaVersion   String   @default("v1")
+  scoringVersion  String   @default("v3-candidate")
+
+  companyIdentity Json     // {ico, name, naceCode, naceText, legalForm, status}
+  financialStatements Json  // Full financial statement data at time of report
+  auditorOpinions Json?    // AuditorOpinion per year
+  narrativeRisk   Json?    // NarrativeRiskAnalysis per year
+  notesRisk       Json?    // NotesRiskAnalysis per year
+  companyEvents   Json?    // CompanyEvent[] at time of report
+  vestnikEvents   Json?    // VestnikEvent[] at time of report
+  registryFindings Json?   // Registry source findings at time of report
+  scoringInputs   Json?    // {naceCode, isConsolidated, financialBasis, whOverrideRefund}
+  sourceMetadata  Json?    // [{source, retrievedAt, documentId, extractionHash}]
+  inputDataHash   String?  // SHA-256 of all scoring inputs
+
+  createdAt       DateTime @default(now())
+
+  reportRequest   ReportRequest @relation(fields: [reportRequestId], references: [id], onDelete: Cascade)
+  scoringSnapshot ScoringSnapshot?
+
+  @@index([companyIco])
   @@index([createdAt])
 }
 

@@ -35,7 +35,7 @@ from src.extraction_cache import (
     cache_lookup_generic, cache_store_generic,
     compute_pdf_hash,
     EXTRACTOR_FINANCIAL_ANALYST, EXTRACTOR_FINANCIAL_VERIFY,
-    EXTRACTOR_NOTES_FORENSIC,
+    EXTRACTOR_NOTES_FORENSIC, EXTRACTOR_NARRATIVE_RISK,
 )
 from src.llm_extractor import (
     CompanyFinancialExtraction, NarrativeRiskAnalysis, AuditVerdict, EvidenceItem,
@@ -586,25 +586,44 @@ async def process_company(
                 logger.info(f"Spracovávam výročnú správu (Narrative): {file_name} (model: {_MODEL_NARRATIVE})")
                 yr_match = re.search(r'_(\d{4})_', file_name)
                 narrative_year = int(yr_match.group(1)) if yr_match and int(yr_match.group(1)) > 2000 else datetime.today().year
-                
+
                 sliced_path = await asyncio.to_thread(slice_narrative_pdf, file_path)
                 input_path = sliced_path if sliced_path else file_path
-                
-                narrative = await safe_llm_call(
-                    extract_narrative_risk, input_path,
-                    model=_MODEL_NARRATIVE, label=f"Annual Report Analyst:{file_name}",
-                    report_language=report_language,
+
+                # ── Extraction cache: check if we already extracted narrative from this PDF ──
+                _pdf_hash = await asyncio.to_thread(compute_pdf_hash, input_path)
+                cached = await cache_lookup_generic(
+                    input_path, extractor=EXTRACTOR_NARRATIVE_RISK,
+                    model=_MODEL_NARRATIVE, hash_override=_pdf_hash,
                 )
+                if cached is not None:
+                    narrative = NarrativeRiskAnalysis.model_validate(cached)
+                    if narrative and not narrative.source_pages and sliced_path:
+                        narrative.source_pages = get_sliced_pdf_page_range(sliced_path)
+                    logger.info(f"[CACHE] Using cached narrative extraction for {file_name}")
+                else:
+                    narrative = await safe_llm_call(
+                        extract_narrative_risk, input_path,
+                        model=_MODEL_NARRATIVE, label=f"Annual Report Analyst:{file_name}",
+                        report_language=report_language,
+                    )
+                    if narrative:
+                        if sliced_path and not narrative.source_pages:
+                            narrative.source_pages = get_sliced_pdf_page_range(sliced_path)
+                        await cache_store_generic(
+                            input_path, company_ico=ico,
+                            extractor=EXTRACTOR_NARRATIVE_RISK,
+                            model=_MODEL_NARRATIVE, data=narrative,
+                            hash_override=_pdf_hash,
+                        )
+
                 if narrative:
                     _strip_narrative_financial_metrics(narrative)
-                    # F4.1: Nastav source_pages z sliced PDF pre evidence grounding
-                    if sliced_path and not narrative.source_pages:
-                        narrative.source_pages = get_sliced_pdf_page_range(sliced_path)
                     logger.info(f"[NARRATIVE OK] {file_name} → DB uložené")
                     await save_narrative_to_db(ico, narrative_year, narrative)
                 else:
                     logger.warning(f"[NARRATIVE EMPTY] {file_name} → safe_llm_call vrátil None")
-                    
+
                 if sliced_path and sliced_path != file_path:
                     try:
                         os.remove(sliced_path)

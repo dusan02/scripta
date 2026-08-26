@@ -546,7 +546,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             try:
                 await update_report_ai_status(task.report_request_id, "ai.cross_correlation", auditor_s)
                 with PhaseTimer("Chief Auditor"):
-                    await run_and_save_audit_verdict(task.ico, report_language=task.report_language or "sk", failed_agents=_failed_agents or None, registry_sources=sources)
+                    await run_and_save_audit_verdict(task.ico, report_language=task.report_language or "sk", failed_agents=_failed_agents or None, registry_sources=sources, report_request_id=task.report_request_id)
                 # —— Snapshot skóre: prečítame aktuálny AuditVerdict a fixujeme na tento report ——
                 verifa_score_snapshot = await get_verifa_score(task.ico)
                 if verifa_score_snapshot:

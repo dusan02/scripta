@@ -749,6 +749,28 @@ async def save_scoring_snapshot(snapshot_payload: dict):
         raise
 
 
+async def save_report_financial_snapshot(snapshot_payload: dict) -> str | None:
+    """Uloží immutable financial snapshot — audit evidence package.
+    One per reportRequestId. Returns the snapshot ID for linking to ScoringSnapshot."""
+    db = get_db()
+    try:
+        existing = await db.reportfinancialsnapshot.find_unique(
+            where={"reportRequestId": snapshot_payload["reportRequestId"]}
+        )
+        if existing:
+            logger.info(f"[SNAPSHOT] ReportFinancialSnapshot already exists for {snapshot_payload['reportRequestId']} — skipping")
+            return existing.id
+        row = await db.reportfinancialsnapshot.create(
+            data=snapshot_payload
+        )
+        ico = snapshot_payload.get('companyIco', '?')
+        logger.info(f"[SNAPSHOT] ReportFinancialSnapshot pre {ico} uložený (report={snapshot_payload['reportRequestId']}).")
+        return row.id
+    except Exception as e:
+        logger.error(f"Chyba pri ukladaní ReportFinancialSnapshot: {e}")
+        return None
+
+
 async def update_report_status(
     report_request_id: str,
     status: str,

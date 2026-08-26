@@ -59,3 +59,4 @@ frontend/tsconfig.tsbuildinfo
 frontend/prisma/schema 2.prisma
 backups/*.dump
 backups/*.sql
+migrations_backup/
