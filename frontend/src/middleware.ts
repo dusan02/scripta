@@ -111,6 +111,13 @@ export async function middleware(req: NextRequest) {
     } catch {
       // If DB lookup fails, let the page render normally
     }
+  } else {
+    // Debug: add header for non-matching firma paths
+    if (realPath.startsWith("/firma/")) {
+      const resp = langResponse || NextResponse.next();
+      resp.headers.set("x-middleware-debug", "firma-no-match");
+      return resp;
+    }
   }
 
   // --- Step 5: Auth checks (on realPath, not the prefixed path) ---
