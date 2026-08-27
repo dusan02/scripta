@@ -18,7 +18,7 @@ import { calcTrend } from "@/lib/trend";
 import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
 import { getServerSession } from "@/lib/auth";
-import { getLangFromHeaders, generateFirmaMetadata } from "@/lib/seo";
+import { getLangFromHeaders, generateFirmaMetadata, getCanonicalUrl } from "@/lib/seo";
 import { translate } from "@/lib/i18n";
 import { RelatedFirms } from "@/components/related-firms";
 import { PrintButton } from "@/components/PrintButton";
@@ -36,7 +36,20 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!parsed) return {};
 
   const company = await getCompanyData(parsed.ico);
-  if (!company) return { robots: { index: false, follow: false } };
+  if (!company) {
+    // Company not in DB — return noindex + canonical to self (not homepage)
+    // notFound() in page.tsx may be swallowed by Sentry, so we must set canonical here
+    const h = await headers();
+    const lang = getLangFromHeaders(h);
+    const slug = parsed.slug || "firma";
+    const firmaPath = `/firma/${parsed.ico}-${slug}`;
+    return {
+      robots: { index: false, follow: false },
+      alternates: {
+        canonical: getCanonicalUrl(firmaPath, lang),
+      },
+    };
+  }
 
   const h = await headers();
   const lang = getLangFromHeaders(h);
