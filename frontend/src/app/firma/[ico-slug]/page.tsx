@@ -71,14 +71,9 @@ export default async function CompanyPage({ params }: Params) {
 
   const persons = company.companyPersons ?? [];
 
-  // SEO: canonical URL = /firma/{ico}-{slug}
-  // 1. If URL has no slug (e.g. /firma/35757442) → 301 to /firma/{ico}-{slug}
-  // 2. If URL has stale slug (company renamed) → 301 to /firma/{ico}-{current-slug}
-  // This preserves link juice and ensures sitemap/canonical consistency.
-  const correctSlug = slugify(company.name);
-  if (!parsed.slug || parsed.slug !== correctSlug) {
-    permanentRedirect(`/firma/${company.ico}-${correctSlug}`);
-  }
+  // SEO: slug validation + 308 redirect is handled in middleware.ts
+  // (permanentRedirect() in page.tsx is swallowed by Sentry's wrapServerComponentWithSentry)
+  // Middleware uses NextResponse.redirect(308) which bypasses Sentry.
 
   const name = company.name || `IČO ${company.ico}`;
   const stmts = company.financialStatements;

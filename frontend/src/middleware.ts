@@ -2,6 +2,24 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+// ─── Slug validation for company pages ─────────────────────
+// Matches /firma/{ico} or /firma/{ico}-{slug}
+const FIRMA_RE = /^\/(?:cs|en|de|hu|pl)?\/?firma\/(\d{8,10})(?:-([^/]+))?$/;
+
+// Minimal slugify — must match lib/slug.ts exactly
+function slugify(name: string | null | undefined): string {
+  if (!name) return "firma";
+  return name
+    .toLowerCase()
+    .replace(/[áä]/g, "a").replace(/[éě]/g, "e").replace(/[í]/g, "i")
+    .replace(/[óô]/g, "o").replace(/[úů]/g, "u").replace(/[ý]/g, "y")
+    .replace(/[ž]/g, "z").replace(/[š]/g, "s").replace(/[č]/g, "c")
+    .replace(/[ř]/g, "r").replace(/[ď]/g, "d").replace(/[ť]/g, "t")
+    .replace(/[ň]/g, "n").replace(/[ľĺ]/g, "l")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "firma";
+}
+
 const VALID_LANGS = ["sk", "en", "de", "cz", "hu", "pl"];
 // SK is default (no URL prefix). Other langs get /cs/, /en/, /de/, /hu/, /pl/
 // Note: cz uses /cs/ URL prefix (ISO 639-1), but internal Lang is "cz"
@@ -64,7 +82,38 @@ export async function middleware(req: NextRequest) {
     });
   }
 
-  // --- Step 4: Auth checks (on realPath, not the prefixed path) ---
+  // --- Step 4: Company page slug validation ---
+  // Redirect /firma/{ico} and /firma/{ico}-stale-slug to /firma/{ico}-correct-slug
+  // Done in middleware (not page.tsx) because Sentry swallows permanentRedirect() errors.
+  const firmaMatch = realPath.match(FIRMA_RE);
+  if (firmaMatch) {
+    const ico = firmaMatch[1];
+    const currentSlug = firmaMatch[2] || "";
+    // Fetch company name from DB — lightweight query, no relations
+    // We use a direct fetch to the internal API to avoid Prisma in middleware
+    // (Prisma client isn't available in middleware edge runtime)
+    try {
+      const res = await fetch(`${req.nextUrl.origin}/api/internal/company-slug/${ico}`, {
+        headers: { "x-middleware-internal": "1" },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const correctSlug = slugify(data.name);
+        if (currentSlug !== correctSlug) {
+          const redirectUrl = req.nextUrl.clone();
+          // Preserve language prefix
+          const langPrefix = pathname !== realPath ? pathname.slice(0, pathname.length - realPath.length) : "";
+          redirectUrl.pathname = `${langPrefix}/firma/${ico}-${correctSlug}`;
+          return NextResponse.redirect(redirectUrl, 308);
+        }
+      }
+    } catch {
+      // If DB lookup fails, let the page render normally
+    }
+  }
+
+  // --- Step 5: Auth checks (on realPath, not the prefixed path) ---
   // Root: authenticated users → /dashboard, unauthenticated → landing page
   if (realPath === "/") {
     if (token?.id) {
