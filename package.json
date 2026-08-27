@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
-    "test:headed": "playwright test --headed"
+    "test:headed": "playwright test --headed",
+    "seo:audit-company-pages": "node scripts/seo-audit-company-pages.mjs",
+    "seo:audit-report": "node scripts/seo-audit-gen-report.mjs"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.3.1",

@@ -512,8 +512,6 @@ async function seedCompany(ico: string) {
   });
 }
 
-const RESEED_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
 export const getCompanyData = cache(async (ico: string) => {
   let company = await prisma.company.findUnique({
     where: { ico },
@@ -525,49 +523,18 @@ export const getCompanyData = cache(async (ico: string) => {
     },
   });
 
+  // Seed only on first visit (company doesn't exist in DB).
+  // Re-seeding for existing companies is handled by /api/cron/reseed-all
+  // to avoid expensive RÚZ/ORSR API calls + DB writes on every crawler visit.
+  // At 500k+ company pages, on-demand re-seed would cause:
+  //   - 70-120 outbound RÚZ API calls/sec at 10 pages/sec crawl rate
+  //   - 30+ DB writes/sec from crawler traffic
+  //   - Company.name overwrites → URL slug mismatches
   if (!company) {
     try {
       company = await seedCompany(ico);
     } catch {
       // ignore seeding errors
-    }
-  } else if (
-    company.financialStatements.length < MAX_STMTS &&
-    (!company.ruzSyncedAt || Date.now() - company.ruzSyncedAt.getTime() > RESEED_THRESHOLD_MS)
-  ) {
-    // Re-seed from RÚZ if company has fewer than 5 financial statements
-    // and hasn't been synced recently — picks up newly filed statements
-    try {
-      await seedFromRuz(ico);
-      company = await prisma.company.findUnique({
-        where: { ico },
-        include: {
-          financialStatements: { orderBy: { year: "desc" }, take: 5 },
-          vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
-          companyPersons: { where: { isActive: true }, orderBy: { rawName: "asc" }, take: 50 },
-          companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
-        },
-      });
-    } catch {
-      // ignore re-seed errors — serve existing data
-    }
-  }
-
-  // Re-seed from ORSR if never synced — picks up active/inactive statutory status
-  if (company && !company.orsrSyncedAt) {
-    try {
-      await seedFromOrsr(ico);
-      company = await prisma.company.findUnique({
-        where: { ico },
-        include: {
-          financialStatements: { orderBy: { year: "desc" }, take: 5 },
-          vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
-          companyPersons: { where: { isActive: true }, orderBy: { rawName: "asc" }, take: 50 },
-          companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
-        },
-      });
-    } catch {
-      // ignore ORSR re-seed errors — serve existing data
     }
   }
 

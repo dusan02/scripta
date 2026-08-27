@@ -71,11 +71,13 @@ export default async function CompanyPage({ params }: Params) {
 
   const persons = company.companyPersons ?? [];
 
-  // SEO: if URL has no slug (e.g. /firma/35757442), 301 redirect to /firma/35757442-slug
-  // This preserves link juice and ensures canonical URLs with company name
-  if (!parsed.slug) {
-    const slug = slugify(company.name);
-    permanentRedirect(`/firma/${company.ico}-${slug}`);
+  // SEO: canonical URL = /firma/{ico}-{slug}
+  // 1. If URL has no slug (e.g. /firma/35757442) → 301 to /firma/{ico}-{slug}
+  // 2. If URL has stale slug (company renamed) → 301 to /firma/{ico}-{current-slug}
+  // This preserves link juice and ensures sitemap/canonical consistency.
+  const correctSlug = slugify(company.name);
+  if (!parsed.slug || parsed.slug !== correctSlug) {
+    permanentRedirect(`/firma/${company.ico}-${correctSlug}`);
   }
 
   const name = company.name || `IČO ${company.ico}`;
