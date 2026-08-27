@@ -101,6 +101,11 @@ export async function middleware(req: NextRequest) {
       });
       if (res.ok) {
         const data = await res.json();
+        if (!data?.name) {
+          // Company not found or missing name — let page.tsx handle 404
+          const pass = langResponse || NextResponse.next();
+          return pass;
+        }
         const correctSlug = slugify(data.name);
         if (currentSlug !== correctSlug) {
           const redirectUrl = req.nextUrl.clone();
