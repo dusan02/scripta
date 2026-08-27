@@ -92,3 +92,55 @@ All test users have `emailVerified = now()` and a wallet with 5-10 credits.
 - Download endpoint generates presigned URL (60s) and returns 302 redirect
 - `local://` prefix in `resultFilePath` = local filesystem mode (dev fallback)
 - Env vars: `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+
+## SEO Audit — Company Pages (2026-08-27)
+
+### Audit Results (5000 sample pages on production)
+
+| Metric | Result |
+|--------|--------|
+| HTTP 200 | 100% |
+| Indexable | 70.6% (3532/5000) — 29.4% `noindex` due to quality gate (<2 financial statements) |
+| Canonical OK | 100% |
+| H1 OK | 100% |
+| JSON-LD OK | 100% |
+| Avg response time | 791ms |
+| Name mismatches | 5.2% (262/5000) — DB name differed from page-displayed name |
+
+### Critical Issue: On-Demand `seedFromRuz()` During Page Requests
+
+**Root cause:** `getCompanyData()` in `lib/ruz.ts` was calling `seedFromRuz()` on-demand if a company had <5 financial statements and hadn't been synced in 7 days. This caused:
+- 7-12 HTTP requests to RÚZ API per page visit
+- 3+ DB writes per page visit (Company.name, FinancialStatement, CompanyPerson, etc.)
+- Name mismatches: sitemap slug based on old DB name, page displayed new name from RÚZ
+- **Unsafe for mass Google crawling** — would trigger thousands of DB writes during crawl
+
+**Fix:** Removed on-demand re-seeding from `getCompanyData()`. It's now read-only for existing companies. Seeding happens only via:
+- `/api/cron/reseed-all` (scheduled cron)
+- `/api/seed-company/[ico]` (manual trigger)
+- Worker pipeline
+
+### Slug Validation + 308 Redirect
+
+**Problem:** Company pages at `/firma/{ico}-{slug}` had stale slugs when company renamed in RÚZ. Sitemap had old slug, page displayed new name → Google saw inconsistency.
+
+**Implementation:** Slug validation in `middleware.ts` (NOT `page.tsx`):
+- `permanentRedirect()` in page.tsx is swallowed by Sentry's `wrapServerComponentWithSentry` — returns 200 instead of 308
+- Middleware uses `NextResponse.redirect(308)` which bypasses Sentry entirely
+- Middleware fetches company name from `/api/internal/company-slug/[ico]` (lightweight, no auth, protected by `x-middleware-internal` header)
+- Uses `http://localhost:3000` for internal fetch (NOT `req.nextUrl.origin` which routes back through nginx and swallows the 308)
+
+**Redirect behavior:**
+- `/firma/{ico}` (no slug) → 308 → `/firma/{ico}-{correctSlug}`
+- `/firma/{ico}-stale-slug` → 308 → `/firma/{ico}-{correctSlug}`
+- `/firma/{ico}-correct-slug` → 200 (no redirect)
+- `/firma/{nonexistent-ico}` → 200 (page.tsx handles 404)
+
+**Slugify function** (`lib/slug.ts`): Must match between middleware and sitemap. Slovak diacritics stripped, non-alphanumeric → `-`, truncated to 60 chars, fallback `"firma"`.
+
+### Known Issues (not blockers)
+
+- `/sitemap.xml` index returns HTML instead of XML (Next.js `generateSitemaps` not routing correctly) — individual sitemaps (`/sitemap/0.xml`, `/sitemap/1.xml`, etc.) work correctly
+- `META_DESC_TOO_LONG` (P2) — some company meta descriptions exceed 160 chars
+- `TITLE_TOO_LONG` (P2) — some company titles exceed 60 chars
+- `H1_NO_COMPANY_NAME` (P2) — H1 uses `IČO {ico}` fallback when name is null
