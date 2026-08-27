@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Lang, VALID_LANGS, translations, HREFLANG_MAP } from "./i18n";
+import { slugify } from "./slug";
 
 const BASE_URL = "https://verifa.sk";
 
@@ -332,7 +333,10 @@ export function generateFirmaMetadata(name: string, ico: string, city: string | 
     .replace("{ico}", ico)
     .replace("{city}", cityPart);
 
-  const firmaPath = `/firma/${ico}`;
+  // Canonical URL must include the slug to match sitemap URLs
+  // Otherwise Google sees /firma/{ico} and /firma/{ico}-{slug} as duplicates
+  const slug = slugify(name);
+  const firmaPath = `/firma/${ico}-${slug}`;
   const canonicalUrl = getCanonicalUrl(firmaPath, lang);
   const alternates = getHreflangAlternates(firmaPath);
 
