@@ -93,7 +93,9 @@ export async function middleware(req: NextRequest) {
     // We use a direct fetch to the internal API to avoid Prisma in middleware
     // (Prisma client isn't available in middleware edge runtime)
     try {
-      const res = await fetch(`${req.nextUrl.origin}/api/internal/company-slug/${ico}`, {
+      // Use internal localhost to avoid round-trip through nginx
+      const internalUrl = `http://localhost:3000/api/internal/company-slug/${ico}`;
+      const res = await fetch(internalUrl, {
         headers: { "x-middleware-internal": "1" },
         signal: AbortSignal.timeout(3000),
       });
@@ -110,13 +112,6 @@ export async function middleware(req: NextRequest) {
       }
     } catch {
       // If DB lookup fails, let the page render normally
-    }
-  } else {
-    // Debug: add header for non-matching firma paths
-    if (realPath.startsWith("/firma/")) {
-      const resp = langResponse || NextResponse.next();
-      resp.headers.set("x-middleware-debug", "firma-no-match");
-      return resp;
     }
   }
 
