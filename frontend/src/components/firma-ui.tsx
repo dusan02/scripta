@@ -237,17 +237,17 @@ export function FinancialRatios({ stmts }: { stmts: any[] }) {
     },
     {
       label: "ROE",
-      tooltip: "Čistý zisk / Vlastné imanie",
+      tooltip: t("firma.tooltipRoe"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.roe ?? null),
     },
     {
       label: "ROA",
-      tooltip: "Čistý zisk / Celkové aktíva",
+      tooltip: t("firma.tooltipRoa"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.roa ?? null),
     },
     {
       label: "Zisková marža",
-      tooltip: "Čistý zisk / Tržby",
+      tooltip: t("firma.tooltipMarza"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.margin ?? null),
     },
   ];
@@ -264,17 +264,17 @@ export function RentabilityRatios({ stmts }: { stmts: any[] }) {
   const rows: BaseTableRow[] = [
     {
       label: "ROE",
-      tooltip: "Čistý zisk / Vlastné imanie",
+      tooltip: t("firma.tooltipRoe"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.roe ?? null),
     },
     {
       label: "ROA",
-      tooltip: "Čistý zisk / Celkové aktíva",
+      tooltip: t("firma.tooltipRoa"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.roa ?? null),
     },
     {
       label: t("firma.ziskovaMarza") || "Zisková marža",
-      tooltip: "Čistý zisk / Tržby",
+      tooltip: t("firma.tooltipMarza"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.margin ?? null),
     },
   ];
@@ -296,12 +296,12 @@ export function StabilityRatios({ stmts }: { stmts: any[] }) {
     },
     {
       label: t("firma.podielKratkodobych"),
-      tooltip: "Krátkodobé záväzky / Celkové aktíva",
+      tooltip: t("firma.tooltipStDebt"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.shortTermDebt ?? null),
     },
     {
       label: t("firma.podielDlhodobych"),
-      tooltip: "Dlhodobé záväzky / Celkové aktíva",
+      tooltip: t("firma.tooltipLtDebt"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.longTermDebt ?? null),
     },
     {

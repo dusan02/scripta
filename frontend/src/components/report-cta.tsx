@@ -12,47 +12,17 @@ export function ReportCTA({ ico, name }: { ico: string; name: string }) {
   const t = useT();
   const { lang } = useLang();
 
-  const benefits =
-    lang === "sk"
-      ? [
-          "26+ verejných registrov SR",
-          "Nedoplatky, exekúcie, insolvencia",
-          "Vlastnícka štruktúra a RPVS",
-          "Finančné red flags a AI analýza",
-          "Kompletný PDF report",
-        ]
-      : lang === "de"
-        ? [
-            "26+ öffentliche Register der SR",
-            "Rückstände, Zwangsvollstreckungen, Insolvenz",
-            "Eigentümerstruktur und RPVS",
-            "Finanzielle Red Flags und KI-Analyse",
-            "Vollständiger PDF-Bericht",
-          ]
-        : [
-            "26+ public SR registries",
-            "Arrears, executions, insolvency",
-            "Ownership structure and RPVS",
-            "Financial red flags and AI analysis",
-            "Complete PDF report",
-          ];
+  const benefits = [
+    t("firma.ctaBenefit1"),
+    t("firma.ctaBenefit2"),
+    t("firma.ctaBenefit3"),
+    t("firma.ctaBenefit4"),
+    t("firma.ctaBenefit5"),
+  ];
 
-  const headline =
-    lang === "sk" ? `Preverte firmu ${name}` :
-    lang === "de" ? `Unternehmen ${name} prüfen` :
-    `Verify ${name}`;
-
-  const subheadline =
-    lang === "sk"
-      ? "Finančné výkazy sú iba začiatok. Kompletný Verifa report automaticky preverí firmu vo všetkých verejných registroch a vyhodnotí riziká."
-      : lang === "de"
-        ? "Finanzberichte sind erst der Anfang. Der vollständige Verifa-Bericht prüft das Unternehmen automatisch in allen öffentlichen Registern und bewertet Risiken."
-        : "Financial statements are just the beginning. The complete Verifa report automatically checks the company across all public registries and assesses risks.";
-
-  const buttonLabel =
-    lang === "sk" ? "Preveriť túto firmu →" :
-    lang === "de" ? "Dieses Unternehmen prüfen →" :
-    "Verify this company →";
+  const headline = t("firma.ctaHeadline", { name });
+  const subheadline = t("firma.ctaSubheadline");
+  const buttonLabel = t("firma.ctaButton");
 
   return (
     <div
@@ -132,38 +102,38 @@ export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestReve
 
   if (latestRevenue && latestYear) {
     faqs.push({
-      q: `Aké má ${name} tržby?`,
-      a: `${name} dosiahla v roku ${latestYear} tržby vo výške ${latestRevenue}.`,
+      q: t("firma.faqTrzbyQ", { name }),
+      a: t("firma.faqTrzbyA", { name, year: latestYear, value: latestRevenue }),
     });
   }
   if (latestProfit && latestYear) {
     const isLoss = latestProfitRaw !== null && latestProfitRaw !== undefined && latestProfitRaw < 0;
     faqs.push({
-      q: `Aký bol hospodársky výsledok ${name}?`,
-      a: `${name} vykázala za rok ${latestYear} ${isLoss ? "stratu" : "zisk"} vo výške ${latestProfit}.`,
+      q: t("firma.faqHospodarskyVysledokQ", { name }),
+      a: t("firma.faqHospodarskyVysledokA", { name, year: latestYear, vyrazok: isLoss ? t("firma.faqStrata") : t("firma.faqZisk"), value: latestProfit }),
     });
   }
   if (foundedYear) {
     faqs.push({
-      q: `Kedy bola ${name} založená?`,
-      a: `Spoločnosť ${name} bola založená v roku ${foundedYear}.`,
+      q: t("firma.faqZalozenaQ", { name }),
+      a: t("firma.faqZalozenaA", { name, year: foundedYear }),
     });
   }
   if (city) {
     faqs.push({
-      q: `Kde sídli ${name}?`,
-      a: `${name} má registrované sídlo v meste ${city}.`,
+      q: t("firma.faqSidloQ", { name }),
+      a: t("firma.faqSidloA", { name, city }),
     });
   }
   if (legalForm) {
     faqs.push({
-      q: `Aká je právna forma ${name}?`,
-      a: `Právna forma spoločnosti ${name} je ${legalForm}.`,
+      q: t("firma.faqPravnaFormaQ", { name }),
+      a: t("firma.faqPravnaFormaA", { name, legalForm }),
     });
   }
   faqs.push({
-    q: `Aké je IČO ${name}?`,
-    a: `IČO spoločnosti ${name} je ${ico}.`,
+      q: t("firma.faqIcoQ", { name }),
+      a: t("firma.faqIcoA", { name, ico }),
   });
 
   if (faqs.length === 0) return null;
@@ -171,7 +141,7 @@ export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestReve
   return (
     <section className="mb-6 sm:mb-8 no-print">
       <h2 className="text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-        {t("firma.faqTitle")} o {name}
+        {t("firma.faqTitle")} — {name}
       </h2>
       <dl className="space-y-3" itemScope itemType="https://schema.org/FAQPage">
         {faqs.map((faq, i) => (

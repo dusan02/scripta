@@ -202,14 +202,14 @@ export default async function CompanyPage({ params }: Params) {
               <PrintButton />
               <ThemeToggle size="sm" />
               <Link href="/login" className="text-[11px] sm:text-xs font-medium px-3 sm:px-3 py-2.5 sm:py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
-                Prihlásiť sa
+                {t("firma.prihlasitSa")}
               </Link>
               <Link
                 href={`/dashboard?ico=${company.ico}`}
                 className="text-xs sm:text-sm font-bold px-4 sm:px-5 py-2.5 sm:py-2.5 rounded-lg transition-all hover:scale-105"
                 style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
               >
-                Objednať report
+                {t("firma.objednatReport")}
               </Link>
             </div>
           </div>
@@ -220,7 +220,7 @@ export default async function CompanyPage({ params }: Params) {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-xs sm:text-sm mb-4 no-print" style={{ color: "var(--text-muted)" }}>
           <Link href="/" className="hover:underline">Verifa.sk</Link>
-          <span>/</span><Link href="/firmy" className="hover:underline">Firma</Link><span>/</span>
+          <span>/</span><Link href="/firmy" className="hover:underline">{t("firma.breadcrumbFirma")}</Link><span>/</span>
           <span style={{ color: "var(--text)" }}>{name}</span>
         </div>
 
@@ -246,14 +246,14 @@ export default async function CompanyPage({ params }: Params) {
               {hasKonkurz && (
                 <div className="rounded-lg p-3 mb-2" style={{ background: "var(--danger-bg, #fef2f2)", border: "1px solid var(--danger-border, #fecaca)" }}>
                   <p className="text-sm font-medium" style={{ color: "var(--danger, #dc2626)" }}>
-                    Firma je v konkurze. Zdroj: Obchodný vestník.
+                    {t("firma.firmaVKonkurze")}
                   </p>
                 </div>
               )}
               {hasLikvidacia && !hasKonkurz && (
                 <div className="rounded-lg p-3 mb-2" style={{ background: "var(--warning-bg, #fffbeb)", border: "1px solid var(--warning-border, #fde68a)" }}>
                   <p className="text-sm font-medium" style={{ color: "var(--warning, #d97706)" }}>
-                    Firma je v likvidácii. Zdroj: Obchodný vestník.
+                    {t("firma.firmaVLikvidacii")}
                   </p>
                 </div>
               )}
@@ -266,16 +266,16 @@ export default async function CompanyPage({ params }: Params) {
                   <span key={src} className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{src}</span>
                 ))}
                 {latest?.year && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Závierka {latest.year}</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.zavierkaRok", { year: latest.year })}</span>
                 )}
                 {company.sizeCategory && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Veľkosť firmy: {company.sizeCategory}</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.velkostFirmy", { value: company.sizeCategory })}</span>
                 )}
                 {company.employeeCount != null && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Zamestnanci: {company.employeeCount}</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.zamestnanci", { value: company.employeeCount })}</span>
                 )}
                 {company.ownershipType && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>Druh vlastníctva: {company.ownershipType}</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.druhVlastnictva", { value: company.ownershipType })}</span>
                 )}
               </div>
             </div>
@@ -300,16 +300,16 @@ export default async function CompanyPage({ params }: Params) {
         {/* Key metrics cards — first screening */}
         {stmts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <MetricCard label="Tržby" value={fmtEUR(latest?.mainActivityRevenue)} sub={latest ? `rok ${latest.year}` : ""} color="#3b82f6" trend={trends.revenue} />
+            <MetricCard label={t("firma.kpiTrzby")} value={fmtEUR(latest?.mainActivityRevenue)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#3b82f6" trend={trends.revenue} />
             <MetricCard
-              label="Zisk / Strata"
+              label={t("firma.kpiZiskStrata")}
               value={fmtEUR(latest?.netProfitLoss)}
-              sub={latest ? `rok ${latest.year}` : ""}
+              sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""}
               color={num(latest?.netProfitLoss) != null && num(latest?.netProfitLoss)! < 0 ? "#ef4444" : "#10b981"}
               trend={trends.profit}
             />
-            <MetricCard label="Celkové aktíva" value={fmtEUR(latest?.totalAssets)} sub={latest ? `rok ${latest.year}` : ""} color="#8b5cf6" trend={trends.assets} />
-            <MetricCard label="Vlastné imanie" value={fmtEUR(latest?.equity)} sub={latest ? `rok ${latest.year}` : ""} color="#f59e0b" trend={trends.equity} />
+            <MetricCard label={t("firma.kpiCelkoveAktiva")} value={fmtEUR(latest?.totalAssets)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#8b5cf6" trend={trends.assets} />
+            <MetricCard label={t("firma.kpiVlastneImanie")} value={fmtEUR(latest?.equity)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#f59e0b" trend={trends.equity} />
           </div>
         ) : (
           <div className="rounded-lg p-4 mb-6 sm:mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
@@ -365,17 +365,17 @@ export default async function CompanyPage({ params }: Params) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section">
             {/* Only show Sankey if we have meaningful breakdown (not just totalAssets) */}
             {(balanceData.currentAssets != null || balanceData.nonCurrentAssets != null) ? (
-              <ChartCard title="Štruktúra súvahy">
+              <ChartCard title={t("firma.chartStrukturaSuvaly")}>
                 <BalanceSankeyChart data={balanceData} />
               </ChartCard>
             ) : (
-              <ChartCard title="Štruktúra súvahy">
+              <ChartCard title={t("firma.chartStrukturaSuvaly")}>
                 <div className="flex items-center justify-center h-[250px] text-sm" style={{ color: "var(--text-muted)" }}>
-                  Detailný rozpad súvahy nie je k dispozícii.
+                  {t("firma.detailnyRozpadNedostupny")}
                 </div>
               </ChartCard>
             )}
-            <ChartCard title="Súvaha (v tis. €)">
+            <ChartCard title={t("firma.chartSuvala")}>
               <BalanceSheetTable stmts={stmts} />
             </ChartCard>
           </div>
@@ -384,10 +384,10 @@ export default async function CompanyPage({ params }: Params) {
         {/* Profit and Loss section — chart left, table right */}
         {chartData.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section print-break-before">
-            <ChartCard title="Tržby a zisk v čase">
+            <ChartCard title={t("firma.chartTrzbyZisk")}>
               <RevenueProfitChart data={chartData} />
             </ChartCard>
-            <ChartCard title="Výkaz ziskov a strát (v tis. €)">
+            <ChartCard title={t("firma.chartVykazZiskovStrat")}>
               <ProfitLossTable stmts={stmts} />
             </ChartCard>
           </div>

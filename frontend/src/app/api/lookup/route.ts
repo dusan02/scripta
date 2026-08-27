@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession();
@@ -17,6 +18,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Neplatné IČO" }, { status: 400 });
   }
 
+  // 1. Check our DB first — we may have the company even if ORSR doesn't list it
+  //    (e.g. deleted/merged companies, ORSR temporarily unavailable, companies
+  //    sourced from RPO rather than ORSR)
+  try {
+    const dbCompany = await prisma.company.findUnique({
+      where: { ico },
+      select: { name: true },
+    });
+    if (dbCompany?.name) {
+      const response = NextResponse.json({ found: true, companyName: dbCompany.name });
+      response.headers.set("Cache-Control", "private, max-age=300");
+      return response;
+    }
+  } catch {
+    // DB error — fall through to ORSR
+  }
+
+  // 2. Fall back to ORSR live lookup
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
