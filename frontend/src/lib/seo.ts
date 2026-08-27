@@ -238,7 +238,9 @@ export function getCanonicalUrl(path: string, lang: Lang): string {
   if (lang === "sk") {
     return `${BASE_URL}${cleanPath}`;
   }
-  return `${BASE_URL}/${lang}${cleanPath === "/" ? "" : cleanPath}`;
+  // cz → cs in URL (ISO 639-1), same as localizePath
+  const prefix = lang === "cz" ? "cs" : lang;
+  return `${BASE_URL}/${prefix}${cleanPath === "/" ? "" : cleanPath}`;
 }
 
 /** Generate localized global metadata */

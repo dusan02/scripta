@@ -1,209 +1,476 @@
 #!/usr/bin/env node
 /**
- * Sitemap chain validator — checks the full sitemap pipeline:
- * 1. /sitemap.xml is valid XML sitemapindex with correct Content-Type
- * 2. All shards are accessible and return valid XML with correct Content-Type
- * 3. Sample URLs from each shard return 200
- * 4. No noindex URLs in sitemap
- * 5. No 404s
- * 6. No duplicate URLs
- * 7. Correct URL count
- * 8. Canonical URLs match sitemap URLs
+ * Production-grade sitemap chain validator.
+ *
+ * Checks:
+ *  1. /sitemap.xml is valid XML sitemapindex with correct Content-Type
+ *  2. All shards are accessible, valid XML, correct Content-Type
+ *  3. URL count + duplicate detection
+ *  4. No noindex URLs in sitemap XML
+ *  5. 50 random /firma/ URLs → 200, no noindex, canonical exists, canonical matches URL
+ *  6. 10 stale-slug URLs → 308 redirect to correct slug
+ *  7. 10 correct-slug URLs → 200 (no redirect)
+ *  8. 5 non-existent ICOs → 200 (page handles 404, not middleware redirect)
+ *  9. Final report with PASS/FAIL
  */
+
+import { writeFileSync } from "fs";
 
 const BASE = "https://verifa.sk";
 
-async function fetchWithHeaders(url) {
-  const res = await fetch(url, { redirect: "manual" });
+// ── Helpers ────────────────────────────────────────────────────────────
+
+async function fetchRaw(url, opts = {}) {
+  const res = await fetch(url, { redirect: "manual", ...opts });
+  const body = await res.text();
   return {
     status: res.status,
     headers: Object.fromEntries(res.headers.entries()),
-    body: await res.text(),
+    body,
   };
 }
 
+/** Parse XML safely — throws on invalid XML */
+function parseXml(xml) {
+  // Node.js doesn't have a built-in XML parser, but we can use DOMParser
+  // via a lightweight check. For sitemap validation, we use regex-based
+  // extraction but validate XML structure first.
+  // Check for basic XML well-formedness
+  const trimmed = xml.trim();
+  if (!trimmed.startsWith("<?xml") && !trimmed.startsWith("<urlset") && !trimmed.startsWith("<sitemapindex")) {
+    throw new Error("Not valid XML: missing XML declaration or root element");
+  }
+  // Check for unclosed root tags
+  if (trimmed.includes("<sitemapindex") && !trimmed.includes("</sitemapindex>")) {
+    throw new Error("Unclosed <sitemapindex> tag");
+  }
+  if (trimmed.includes("<urlset") && !trimmed.includes("</urlset>")) {
+    throw new Error("Unclosed <urlset> tag");
+  }
+  return trimmed;
+}
+
+/** Extract all <loc> URLs from XML */
+function extractLocs(xml) {
+  const matches = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)];
+  return matches.map((m) => m[1].trim());
+}
+
+/** Extract canonical URL from HTML */
+function extractCanonical(html) {
+  const match = html.match(/<link[^>]*rel="canonical"[^>]*href="([^"]+)"/i);
+  return match ? match[1] : null;
+}
+
+/** Check if HTML has noindex robots meta */
+function hasNoindex(html) {
+  return /<meta[^>]*name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html);
+}
+
+/** Extract title from HTML */
+function extractTitle(html) {
+  const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  return match ? match[1].trim() : null;
+}
+
+/** Extract meta description from HTML */
+function extractDescription(html) {
+  const match = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+  return match ? match[1].trim() : null;
+}
+
+/** Count <script type="application/ld+json"> blocks */
+function countJsonLd(html) {
+  return (html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>/g) || []).length;
+}
+
+/** Check for hreflang alternates */
+function hasHreflang(html) {
+  return /<link[^>]*rel=["']alternate["'][^>]*hrefLang=["']/i.test(html);
+}
+
+// ── Main ───────────────────────────────────────────────────────────────
+
 async function main() {
-  const results = {
-    indexValid: false,
-    indexContentType: "",
-    shardCount: 0,
-    shardsAccessible: 0,
-    shardsWithXml: 0,
-    totalUrls: 0,
-    sampleResults: [],
-    noindexCount: 0,
-    duplicateCount: 0,
+  const report = {
+    sitemapIndex: { valid: false, contentType: "", shardCount: 0 },
+    shards: { total: 0, accessible: 0, validXml: 0, correctContentType: 0 },
+    urls: { total: 0, unique: 0, duplicates: 0, firmaUrls: 0, staticUrls: 0 },
+    noindexInSitemap: 0,
+    sampleTests: { tested: 0, ok200: 0, noindexFound: 0, canonicalMatch: 0, canonicalMismatch: 0, errors: [] },
+    redirectTests: { tested: 0, redirect308: 0, correctTarget: 0, errors: [] },
+    correctSlugTests: { tested: 0, ok200: 0, errors: [] },
+    nonexistentIcoTests: { tested: 0, ok200: 0, errors: [] },
     errors: [],
+    pass: false,
   };
 
-  // 1. Fetch sitemap index
-  console.log("=== 1. Fetching /sitemap.xml ===");
-  const indexRes = await fetchWithHeaders(`${BASE}/sitemap.xml`);
-  console.log(`  Status: ${indexRes.status}`);
-  console.log(`  Content-Type: ${indexRes.headers["content-type"]}`);
-  results.indexContentType = indexRes.headers["content-type"] || "";
+  // ── 1. Fetch sitemap index ──────────────────────────────────────────
+  console.log("=== 1. Sitemap index ===");
+  try {
+    const idx = await fetchRaw(`${BASE}/sitemap.xml`);
+    console.log(`  Status: ${idx.status}`);
+    console.log(`  Content-Type: ${idx.headers["content-type"]}`);
 
-  if (indexRes.status !== 200) {
-    results.errors.push(`Sitemap index returned ${indexRes.status}`);
-    console.log("  FAIL: Non-200 status");
-    process.exit(1);
+    if (idx.status !== 200) {
+      report.errors.push(`/sitemap.xml returned ${idx.status}`);
+      throw new Error(`HTTP ${idx.status}`);
+    }
+    if (!idx.headers["content-type"]?.includes("application/xml")) {
+      report.errors.push(`Wrong Content-Type: ${idx.headers["content-type"]}`);
+      throw new Error("Wrong Content-Type");
+    }
+
+    parseXml(idx.body);
+    if (!idx.body.includes("<sitemapindex")) {
+      report.errors.push("Not a sitemapindex");
+      throw new Error("Not sitemapindex");
+    }
+
+    report.sitemapIndex.valid = true;
+    report.sitemapIndex.contentType = idx.headers["content-type"];
+    console.log("  OK: Valid XML sitemapindex");
+  } catch (e) {
+    console.log(`  FAIL: ${e.message}`);
+    finish(report);
+    return;
   }
 
-  if (!results.indexContentType.includes("application/xml")) {
-    results.errors.push(`Sitemap index has wrong Content-Type: ${results.indexContentType}`);
-    console.log("  FAIL: Wrong Content-Type");
-    process.exit(1);
-  }
+  // ── 2. Fetch all shards ─────────────────────────────────────────────
+  console.log("\n=== 2. Fetching all shards ===");
+  const idxRes = await fetchRaw(`${BASE}/sitemap.xml`);
+  const shardUrls = extractLocs(idxRes.body);
+  report.sitemapIndex.shardCount = shardUrls.length;
+  report.shards.total = shardUrls.length;
+  console.log(`  Found ${shardUrls.length} shards`);
 
-  if (!indexRes.body.includes("<sitemapindex")) {
-    results.errors.push("Sitemap index is not a valid sitemapindex XML");
-    console.log("  FAIL: Not a valid sitemapindex");
-    process.exit(1);
-  }
-
-  results.indexValid = true;
-  console.log("  OK: Valid XML sitemapindex with application/xml");
-
-  // 2. Extract shard URLs
-  const shardUrls = [...indexRes.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  results.shardCount = shardUrls.length;
-  console.log(`\n=== 2. Found ${shardUrls.length} shards ===`);
-
-  // 3. Check each shard
   const allUrls = new Set();
-  const allUrlList = [];
+  const allFirmaUrls = [];
+  const allStaticUrls = [];
 
   for (const shardUrl of shardUrls) {
-    const shardRes = await fetchWithHeaders(shardUrl);
-    const ct = shardRes.headers["content-type"] || "";
-
-    if (shardRes.status !== 200) {
-      results.errors.push(`Shard ${shardUrl} returned ${shardRes.status}`);
-      console.log(`  FAIL: ${shardUrl} → ${shardRes.status}`);
-      continue;
-    }
-
-    results.shardsAccessible++;
-
-    if (!ct.includes("application/xml") && !ct.includes("text/xml")) {
-      results.errors.push(`Shard ${shardUrl} has wrong Content-Type: ${ct}`);
-      console.log(`  WARN: ${shardUrl} → Content-Type: ${ct}`);
-    } else {
-      results.shardsWithXml++;
-    }
-
-    // Extract URLs from shard
-    const urls = [...shardRes.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-
-    for (const url of urls) {
-      if (allUrls.has(url)) {
-        results.duplicateCount++;
-      } else {
-        allUrls.add(url);
-        allUrlList.push(url);
+    try {
+      const shard = await fetchRaw(shardUrl);
+      if (shard.status !== 200) {
+        report.errors.push(`Shard ${shardUrl} → ${shard.status}`);
+        console.log(`  FAIL: ${shardUrl} → ${shard.status}`);
+        continue;
       }
-    }
+      report.shards.accessible++;
 
-    // Check for noindex in shard (shouldn't be in XML, but check)
-    if (shardRes.body.includes("noindex")) {
-      results.noindexCount++;
-      results.errors.push(`Shard ${shardUrl} contains 'noindex'`);
-    }
+      const ct = shard.headers["content-type"] || "";
+      if (ct.includes("application/xml") || ct.includes("text/xml")) {
+        report.shards.correctContentType++;
+      } else {
+        report.errors.push(`Shard ${shardUrl} wrong CT: ${ct}`);
+      }
 
-    console.log(`  ${shardUrl}: ${urls.length} URLs, ${ct}`);
+      try {
+        parseXml(shard.body);
+        report.shards.validXml++;
+      } catch (e) {
+        report.errors.push(`Shard ${shardUrl} invalid XML: ${e.message}`);
+      }
+
+      if (shard.body.includes("noindex")) {
+        report.noindexInSitemap++;
+        report.errors.push(`Shard ${shardUrl} contains 'noindex'`);
+      }
+
+      const urls = extractLocs(shard.body);
+      for (const url of urls) {
+        if (allUrls.has(url)) {
+          report.urls.duplicates++;
+        } else {
+          allUrls.add(url);
+          if (url.includes("/firma/")) {
+            allFirmaUrls.push(url);
+          } else {
+            allStaticUrls.push(url);
+          }
+        }
+      }
+      console.log(`  ${shardUrl}: ${urls.length} URLs`);
+    } catch (e) {
+      report.errors.push(`Shard ${shardUrl} fetch error: ${e.message}`);
+    }
   }
 
-  results.totalUrls = allUrls.size;
-  console.log(`\n=== 3. URL statistics ===`);
-  console.log(`  Total unique URLs: ${results.totalUrls}`);
-  console.log(`  Duplicates: ${results.duplicateCount}`);
-  console.log(`  Noindex mentions: ${results.noindexCount}`);
+  report.urls.total = allUrls.size;
+  report.urls.unique = allUrls.size;
+  report.urls.firmaUrls = allFirmaUrls.length;
+  report.urls.staticUrls = allStaticUrls.length;
 
-  // 4. Sample URLs — test 5 from each shard type
-  console.log(`\n=== 4. Sampling URLs (10 random) ===`);
+  console.log(`\n  Total URLs: ${report.urls.total}`);
+  console.log(`  Firma URLs: ${report.urls.firmaUrls}`);
+  console.log(`  Static URLs: ${report.urls.staticUrls}`);
+  console.log(`  Duplicates: ${report.urls.duplicates}`);
+  console.log(`  Noindex in sitemap: ${report.noindexInSitemap}`);
 
-  // Filter to /firma/ URLs (skip static, glossary, screener)
-  const firmaUrls = allUrlList.filter((u) => u.includes("/firma/"));
-  const staticUrls = allUrlList.filter((u) => !u.includes("/firma/"));
-
-  console.log(`  Firma URLs: ${firmaUrls.length}`);
-  console.log(`  Static/other URLs: ${staticUrls.length}`);
-
-  // Sample 10 firma URLs
-  const sampleSize = Math.min(10, firmaUrls.length);
+  // ── 3. Sample 50 random /firma/ URLs ────────────────────────────────
+  console.log("\n=== 3. Sampling 50 random /firma/ URLs ===");
+  const sampleSize = Math.min(50, allFirmaUrls.length);
   const samples = [];
   for (let i = 0; i < sampleSize; i++) {
-    const idx = Math.floor(Math.random() * firmaUrls.length);
-    samples.push(firmaUrls[idx]);
+    const idx = Math.floor(Math.random() * allFirmaUrls.length);
+    samples.push(allFirmaUrls[idx]);
   }
 
   for (const url of samples) {
-    const res = await fetchWithHeaders(url);
-    const isRedirect = res.status === 308;
-    const is200 = res.status === 200;
-    const hasNoindex = res.body.includes('name="robots" content="noindex"') ||
-                       res.body.includes('content="noindex"');
+    try {
+      const res = await fetchRaw(url);
+      report.sampleTests.tested++;
 
-    // Extract canonical
-    const canonicalMatch = res.body.match(/<link[^>]*rel="canonical"[^>]*href="([^"]+)"/);
-    const canonical = canonicalMatch ? canonicalMatch[1] : null;
+      if (res.status === 200) {
+        report.sampleTests.ok200++;
+      } else {
+        report.sampleTests.errors.push(`${url} → ${res.status}`);
+        continue;
+      }
 
-    // Extract title
-    const titleMatch = res.body.match(/<title[^>]*>([^<]*)<\/title>/);
-    const title = titleMatch ? titleMatch[1] : null;
+      if (hasNoindex(res.body)) {
+        report.sampleTests.noindexFound++;
+        report.sampleTests.errors.push(`${url} has noindex`);
+      }
 
-    const result = {
-      url,
-      status: res.status,
-      redirect: isRedirect ? res.headers["location"] : null,
-      hasNoindex,
-      canonical,
-      title: title?.slice(0, 60),
-    };
+      const canonical = extractCanonical(res.body);
+      if (canonical) {
+        // Canonical should match the sitemap URL (or at least the path)
+        if (canonical === url) {
+          report.sampleTests.canonicalMatch++;
+        } else {
+          report.sampleTests.canonicalMismatch++;
+          report.sampleTests.errors.push(`${url} canonical mismatch: ${canonical}`);
+        }
+      } else {
+        report.sampleTests.errors.push(`${url} no canonical`);
+      }
 
-    results.sampleResults.push(result);
+      const title = extractTitle(res.body);
+      if (!title) {
+        report.sampleTests.errors.push(`${url} no title`);
+      }
 
-    const status = is200 ? "200" : isRedirect ? "308" : `${res.status}`;
-    const noindexFlag = hasNoindex ? " [NOINDEX]" : "";
-    console.log(`  ${status}${noindexFlag} ${url.slice(0, 80)}`);
-    if (canonical) console.log(`         canonical: ${canonical}`);
-    if (isRedirect) console.log(`         → ${res.headers["location"]}`);
-
-    if (!is200 && !isRedirect) {
-      results.errors.push(`Sample ${url} returned ${res.status}`);
+      const desc = extractDescription(res.body);
+      if (!desc) {
+        report.sampleTests.errors.push(`${url} no description`);
+      }
+    } catch (e) {
+      report.sampleTests.errors.push(`${url} fetch error: ${e.message}`);
     }
   }
 
-  // 5. Summary
-  console.log(`\n=== 5. Summary ===`);
-  console.log(`  Index valid: ${results.indexValid ? "YES" : "NO"}`);
-  console.log(`  Index Content-Type: ${results.indexContentType}`);
-  console.log(`  Shards: ${results.shardCount} total, ${results.shardsAccessible} accessible, ${results.shardsWithXml} with XML Content-Type`);
-  console.log(`  Total URLs: ${results.totalUrls}`);
-  console.log(`  Duplicates: ${results.duplicateCount}`);
-  console.log(`  Noindex in sitemap: ${results.noindexCount}`);
-  console.log(`  Errors: ${results.errors.length}`);
+  console.log(`  Tested: ${report.sampleTests.tested}`);
+  console.log(`  200 OK: ${report.sampleTests.ok200}`);
+  console.log(`  Noindex found: ${report.sampleTests.noindexFound}`);
+  console.log(`  Canonical match: ${report.sampleTests.canonicalMatch}`);
+  console.log(`  Canonical mismatch: ${report.sampleTests.canonicalMismatch}`);
+  if (report.sampleTests.errors.length > 0) {
+    console.log(`  Errors (${report.sampleTests.errors.length}):`);
+    for (const e of report.sampleTests.errors.slice(0, 10)) {
+      console.log(`    - ${e}`);
+    }
+    if (report.sampleTests.errors.length > 10) {
+      console.log(`    ... and ${report.sampleTests.errors.length - 10} more`);
+    }
+  }
 
-  if (results.errors.length > 0) {
-    console.log("\n  ERRORS:");
-    for (const e of results.errors) {
+  // ── 4. Redirect tests: 10 stale-slug URLs ───────────────────────────
+  console.log("\n=== 4. Redirect tests (stale slug → 308) ===");
+  // We need to construct stale-slug URLs. Take 10 correct URLs and modify the slug.
+  const redirectTestUrls = samples.slice(0, 10).map((url) => {
+    // Replace the slug part with a wrong slug
+    const match = url.match(/^(.*\/firma\/\d+)-(.+)$/);
+    if (match) {
+      return `${match[1]}-zzz-stale-slug-test`;
+    }
+    return null;
+  }).filter(Boolean);
+
+  for (const url of redirectTestUrls) {
+    try {
+      const res = await fetchRaw(url);
+      report.redirectTests.tested++;
+
+      if (res.status === 308) {
+        report.redirectTests.redirect308++;
+        const location = res.headers["location"];
+        if (location && !location.includes("zzz-stale-slug-test")) {
+          report.redirectTests.correctTarget++;
+        } else {
+          report.redirectTests.errors.push(`${url} → 308 but location still has stale slug: ${location}`);
+        }
+      } else if (res.status === 200) {
+        report.redirectTests.errors.push(`${url} → 200 (expected 308 for stale slug)`);
+      } else {
+        report.redirectTests.errors.push(`${url} → ${res.status} (expected 308)`);
+      }
+    } catch (e) {
+      report.redirectTests.errors.push(`${url} fetch error: ${e.message}`);
+    }
+  }
+
+  console.log(`  Tested: ${report.redirectTests.tested}`);
+  console.log(`  308 redirects: ${report.redirectTests.redirect308}`);
+  console.log(`  Correct target: ${report.redirectTests.correctTarget}`);
+  if (report.redirectTests.errors.length > 0) {
+    console.log(`  Errors:`);
+    for (const e of report.redirectTests.errors) {
       console.log(`    - ${e}`);
     }
   }
 
-  // Write full results to file
-  const fs = await import("fs");
-  fs.writeFileSync("/tmp/sitemap-validation.json", JSON.stringify(results, null, 2));
-  console.log("\n  Full results: /tmp/sitemap-validation.json");
+  // ── 5. Correct-slug tests: 10 correct URLs → 200 ────────────────────
+  console.log("\n=== 5. Correct-slug tests (→ 200) ===");
+  const correctSlugUrls = samples.slice(10, 20);
+  for (const url of correctSlugUrls) {
+    try {
+      const res = await fetchRaw(url);
+      report.correctSlugTests.tested++;
+      if (res.status === 200) {
+        report.correctSlugTests.ok200++;
+      } else if (res.status === 308) {
+        report.correctSlugTests.errors.push(`${url} → 308 (expected 200 for correct slug)`);
+      } else {
+        report.correctSlugTests.errors.push(`${url} → ${res.status}`);
+      }
+    } catch (e) {
+      report.correctSlugTests.errors.push(`${url} fetch error: ${e.message}`);
+    }
+  }
 
-  const pass = results.indexValid &&
-    results.shardsAccessible === results.shardCount &&
-    results.duplicateCount === 0 &&
-    results.noindexCount === 0 &&
-    results.errors.length === 0;
+  console.log(`  Tested: ${report.correctSlugTests.tested}`);
+  console.log(`  200 OK: ${report.correctSlugTests.ok200}`);
+  if (report.correctSlugTests.errors.length > 0) {
+    console.log(`  Errors:`);
+    for (const e of report.correctSlugTests.errors) {
+      console.log(`    - ${e}`);
+    }
+  }
 
-  console.log(`\n  OVERALL: ${pass ? "PASS" : "FAIL"}`);
-  process.exit(pass ? 0 : 1);
+  // ── 6. Non-existent ICO tests: 5 fake ICOs ──────────────────────────
+  console.log("\n=== 6. Non-existent ICO tests (→ 200, page handles 404) ===");
+  const fakeIcos = ["99999999", "99999998", "99999997", "99999996", "99999995"];
+  for (const ico of fakeIcos) {
+    const url = `${BASE}/firma/${ico}-test-firma`;
+    try {
+      const res = await fetchRaw(url);
+      report.nonexistentIcoTests.tested++;
+      // Page should return 200 (page.tsx handles notFound) or 308 (redirect to correct slug)
+      // but should NOT redirect to a real company
+      if (res.status === 200) {
+        report.nonexistentIcoTests.ok200++;
+      } else if (res.status === 308) {
+        const location = res.headers["location"];
+        report.nonexistentIcoTests.errors.push(`${ico} → 308 to ${location} (should be 200 or 404)`);
+      } else {
+        report.nonexistentIcoTests.errors.push(`${ico} → ${res.status}`);
+      }
+    } catch (e) {
+      report.nonexistentIcoTests.errors.push(`${ico} fetch error: ${e.message}`);
+    }
+  }
+
+  console.log(`  Tested: ${report.nonexistentIcoTests.tested}`);
+  console.log(`  200 OK: ${report.nonexistentIcoTests.ok200}`);
+  if (report.nonexistentIcoTests.errors.length > 0) {
+    console.log(`  Errors:`);
+    for (const e of report.nonexistentIcoTests.errors) {
+      console.log(`    - ${e}`);
+    }
+  }
+
+  finish(report);
+}
+
+function finish(report) {
+  // ── Final report ────────────────────────────────────────────────────
+  console.log("\n═══════════════════════════════════════════════════════════════");
+  console.log("  SITEMAP VALIDATION REPORT");
+  console.log("═══════════════════════════════════════════════════════════════");
+
+  console.log("\n  Sitemap Index:");
+  console.log(`    Valid:          ${report.sitemapIndex.valid ? "YES" : "NO"}`);
+  console.log(`    Content-Type:   ${report.sitemapIndex.contentType}`);
+  console.log(`    Shards:         ${report.sitemapIndex.shardCount}`);
+
+  console.log("\n  Shards:");
+  console.log(`    Total:              ${report.shards.total}`);
+  console.log(`    Accessible:         ${report.shards.accessible}`);
+  console.log(`    Valid XML:          ${report.shards.validXml}`);
+  console.log(`    Correct Content-Type: ${report.shards.correctContentType}`);
+
+  console.log("\n  URLs:");
+  console.log(`    Total:           ${report.urls.total}`);
+  console.log(`    Firma URLs:      ${report.urls.firmaUrls}`);
+  console.log(`    Static URLs:     ${report.urls.staticUrls}`);
+  console.log(`    Duplicates:      ${report.urls.duplicates}`);
+  console.log(`    Noindex in XML:  ${report.noindexInSitemap}`);
+
+  console.log("\n  Sample Tests (50 random /firma/ URLs):");
+  console.log(`    Tested:            ${report.sampleTests.tested}`);
+  console.log(`    200 OK:            ${report.sampleTests.ok200}`);
+  console.log(`    Noindex found:     ${report.sampleTests.noindexFound}`);
+  console.log(`    Canonical match:   ${report.sampleTests.canonicalMatch}`);
+  console.log(`    Canonical mismatch: ${report.sampleTests.canonicalMismatch}`);
+
+  console.log("\n  Redirect Tests (stale slug → 308):");
+  console.log(`    Tested:          ${report.redirectTests.tested}`);
+  console.log(`    308 redirects:   ${report.redirectTests.redirect308}`);
+  console.log(`    Correct target:  ${report.redirectTests.correctTarget}`);
+
+  console.log("\n  Correct Slug Tests (→ 200):");
+  console.log(`    Tested:          ${report.correctSlugTests.tested}`);
+  console.log(`    200 OK:          ${report.correctSlugTests.ok200}`);
+
+  console.log("\n  Non-existent ICO Tests:");
+  console.log(`    Tested:          ${report.nonexistentIcoTests.tested}`);
+  console.log(`    200 OK:          ${report.nonexistentIcoTests.ok200}`);
+
+  const totalErrors = [
+    ...report.errors,
+    ...report.sampleTests.errors,
+    ...report.redirectTests.errors,
+    ...report.correctSlugTests.errors,
+    ...report.nonexistentIcoTests.errors,
+  ];
+
+  console.log(`\n  Total errors: ${totalErrors.length}`);
+  if (totalErrors.length > 0) {
+    console.log("\n  ALL ERRORS:");
+    for (const e of totalErrors.slice(0, 30)) {
+      console.log(`    - ${e}`);
+    }
+    if (totalErrors.length > 30) {
+      console.log(`    ... and ${totalErrors.length - 30} more`);
+    }
+  }
+
+  // ── PASS/FAIL ───────────────────────────────────────────────────────
+  report.pass =
+    report.sitemapIndex.valid &&
+    report.shards.accessible === report.shards.total &&
+    report.shards.validXml === report.shards.total &&
+    report.shards.correctContentType === report.shards.total &&
+    report.urls.duplicates === 0 &&
+    report.noindexInSitemap === 0 &&
+    report.sampleTests.ok200 === report.sampleTests.tested &&
+    report.sampleTests.noindexFound === 0 &&
+    report.sampleTests.canonicalMismatch === 0 &&
+    report.redirectTests.redirect308 === report.redirectTests.tested &&
+    report.redirectTests.correctTarget === report.redirectTests.tested &&
+    report.correctSlugTests.ok200 === report.correctSlugTests.tested &&
+    report.errors.length === 0;
+
+  console.log(`\n  ═══════════════════════════════`);
+  console.log(`  OVERALL: ${report.pass ? "✅ PASS" : "❌ FAIL"}`);
+  console.log(`  ═══════════════════════════════`);
+
+  // Write JSON report
+  writeFileSync("/tmp/sitemap-validation-report.json", JSON.stringify(report, null, 2));
+  console.log("\n  Full JSON report: /tmp/sitemap-validation-report.json");
+
+  process.exit(report.pass ? 0 : 1);
 }
 
 main().catch((e) => {
