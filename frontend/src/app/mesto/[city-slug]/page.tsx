@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { renderHubPage, generateHubMetadata } from "@/components/hub-page";
 import { resolveCitySlug } from "@/lib/hub";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 export async function generateMetadata({

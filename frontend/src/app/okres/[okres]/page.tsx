@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { renderHubPage, generateHubMetadata } from "@/components/hub-page";
 import { OKRES_CODE_TO_NAME } from "@/lib/okres-map";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 export function generateStaticParams() {

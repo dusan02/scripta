@@ -75,6 +75,50 @@ const MIN_COMPANIES_FOR_HUB = 10; // Don't create hub pages for <10 companies
 
 // ── Hub query ────────────────────────────────────────────────────────
 
+/**
+ * Get company count for a hub — used for thin hub detection.
+ * Uses the same quality gate as queryHubCompanies (≥2 FS).
+ */
+export async function getHubCompanyCount(params: HubParams): Promise<number> {
+  const conditions: string[] = [];
+  const replacements: unknown[] = [];
+
+  conditions.push(`ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)`);
+
+  if (params.section) {
+    const range = naceSectionToPrefixFilter(params.section);
+    if (range) {
+      conditions.push(`"naceCode" >= $${replacements.length + 1} AND "naceCode" < $${replacements.length + 2}`);
+      replacements.push(range.gte, range.lt);
+    }
+  }
+
+  if (params.kraj) {
+    conditions.push(`kraj = $${replacements.length + 1}`);
+    replacements.push(params.kraj);
+  }
+
+  if (params.okres) {
+    conditions.push(`okres = $${replacements.length + 1}`);
+    replacements.push(params.okres);
+  }
+
+  if (params.city) {
+    conditions.push(`city = $${replacements.length + 1}`);
+    replacements.push(params.city);
+  }
+
+  try {
+    const result = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
+      `SELECT COUNT(*)::bigint as cnt FROM "Company" WHERE ${conditions.join(" AND ")}`,
+      ...replacements
+    );
+    return Number(result[0]?.cnt ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
 function buildWhere(params: HubParams): Record<string, unknown> {
   const where: Record<string, unknown> = {
     financialStatements: { some: {} },
@@ -104,69 +148,80 @@ function buildWhere(params: HubParams): Record<string, unknown> {
 
 /**
  * Query companies for a hub page.
- * Uses approximate count (pg_class) for performance — same pattern as /firmy.
+ * Uses raw SQL with IN subquery for ≥2 FS quality gate — much faster than Prisma's some: {}.
+ * Uses composite indexes (kraj, latestRevenue DESC) etc. for O(50) seek.
  */
 export async function queryHubCompanies(
   params: HubParams,
   page: number = 1
 ): Promise<HubResult | null> {
-  const where = buildWhere(params);
   const hubType = getHubType(params);
   const hubLabel = getHubLabel(params);
 
   if (!hubType) return null;
 
-  // Query companies — ordered by revenue DESC (uses index)
-  const companies = await prisma.company.findMany({
-    where,
-    select: {
-      ico: true,
-      name: true,
-      city: true,
-      naceText: true,
-      sizeCategory: true,
-      latestRevenue: true,
-      latestProfit: true,
-      latestYear: true,
-      _count: { select: { financialStatements: true } },
-    },
-    orderBy: { latestRevenue: { sort: "desc", nulls: "last" } },
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE,
-  });
+  const offset = (page - 1) * PAGE_SIZE;
 
-  // Filter to ≥2 FS (quality gate — same as sitemap)
-  const filtered = companies.filter((c) => c._count.financialStatements >= 2);
+  // Build raw SQL query with quality gate (≥2 FS) pushed to DB level
+  // This avoids: 1) Prisma's some: {} semi-join, 2) JS filtering, 3) fetching _count
+  const conditions: string[] = [];
+  const replacements: unknown[] = [];
 
-  // Approximate count — exact COUNT on 500K rows takes 14-21s
-  // For hub pages with filters, we use a faster approach:
-  // If the filter is selective enough, use COUNT; otherwise use estimate
-  let total: number;
-  if (params.city || params.okres) {
-    // City/okres filters are selective — COUNT is fast
-    total = await prisma.company.count({ where });
-  } else if (params.section && params.kraj) {
-    // NACE×kraj — moderately selective
-    total = await prisma.company.count({ where });
-  } else {
-    // NACE section or kraj only — could be 90K+ rows, use estimate
-    // But with the FS filter, it's less. Try COUNT with timeout fallback.
-    try {
-      total = await prisma.company.count({ where });
-    } catch {
-      // Fallback: use pg_class estimate
-      const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
-        SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
-      `;
-      total = Number(approx[0]?.estimate ?? 0);
+  // Quality gate: ≥2 financial statements
+  conditions.push(`ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)`);
+
+  if (params.section) {
+    const range = naceSectionToPrefixFilter(params.section);
+    if (range) {
+      conditions.push(`"naceCode" >= $${replacements.length + 1} AND "naceCode" < $${replacements.length + 2}`);
+      replacements.push(range.gte, range.lt);
     }
   }
+
+  if (params.kraj) {
+    conditions.push(`kraj = $${replacements.length + 1}`);
+    replacements.push(params.kraj);
+  }
+
+  if (params.okres) {
+    conditions.push(`okres = $${replacements.length + 1}`);
+    replacements.push(params.okres);
+  }
+
+  if (params.city) {
+    conditions.push(`city = $${replacements.length + 1}`);
+    replacements.push(params.city);
+  }
+
+  const whereClause = conditions.join(" AND ");
+
+  // Query companies — ordered by revenue DESC (uses composite index)
+  const companies = await prisma.$queryRawUnsafe<Array<{
+    ico: string; name: string | null; city: string | null;
+    "naceText": string | null; "sizeCategory": string | null;
+    "latestRevenue": bigint | null; "latestProfit": bigint | null;
+    "latestYear": number | null;
+  }>>(
+    `SELECT ico, name, city, "naceText", "sizeCategory", "latestRevenue", "latestProfit", "latestYear"
+     FROM "Company"
+     WHERE ${whereClause}
+     ORDER BY "latestRevenue" DESC NULLS LAST
+     LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    ...replacements
+  );
+
+  // Count total — same WHERE but COUNT(*) instead of fetching rows
+  const countResult = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
+    `SELECT COUNT(*)::bigint as cnt FROM "Company" WHERE ${whereClause}`,
+    ...replacements
+  );
+  const total = Number(countResult[0]?.cnt ?? 0);
 
   const totalPages = Math.min(Math.ceil(total / PAGE_SIZE), MAX_PAGES);
   const subHubs = await getSubHubs(params, total);
 
   return {
-    companies: filtered.map((c) => ({
+    companies: companies.map((c) => ({
       ico: c.ico,
       name: c.name,
       city: c.city,

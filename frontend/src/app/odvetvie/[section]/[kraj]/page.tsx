@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { renderHubPage, generateHubMetadata } from "@/components/hub-page";
 import { getNaceSections, getKrajOptions } from "@/lib/screener";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 // Generate all NACE×kraj combos

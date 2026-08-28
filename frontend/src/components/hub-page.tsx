@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { queryHubCompanies, getHubMetadata, getHubJsonLd, type HubParams } from "@/lib/hub";
+import { getHubCompanyCount } from "@/lib/hub";
 import { getLangFromHeaders, getHreflangAlternates } from "@/lib/seo";
 import { HubTable, SubHubLinks, HubPagination, HubBreadcrumbs } from "@/components/hub-ui";
 import type { Metadata } from "next";
@@ -146,11 +147,16 @@ export async function generateHubMetadata(params: HubParams): Promise<Metadata> 
 
   const alternates = getHreflangAlternates(path);
 
+  // Check company count for thin hub detection
+  // Hubs with <10 companies get noindex to avoid thin content indexing
+  const countResult = await getHubCompanyCount(params);
+  const isThinHub = countResult < 10;
+
   return {
     title: { absolute: title },
     description,
     alternates: { canonical, languages: alternates },
-    robots: { index: true, follow: true },
+    robots: { index: !isThinHub, follow: true },
     openGraph: {
       title: `${title} | Verifa.sk`,
       description,
