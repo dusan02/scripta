@@ -803,22 +803,31 @@ export function getHubJsonLd(params: HubParams, companies: HubCompany[], baseUrl
 
 /**
  * Resolve a city slug back to the actual city name.
- * Since multiple cities could slugify to the same string, we pick the one
- * with the most companies.
+ * Uses PostgreSQL unaccent + regexp_replace to compute slug in SQL,
+ * avoiding fetching 3,961 cities and matching in JS.
+ * Picks the city with the most companies if multiple match.
  */
 export async function resolveCitySlug(slug: string): Promise<string | null> {
-  // Fetch distinct cities and match in JS (slugify is complex to replicate in SQL)
-  // Use ILIKE for initial filtering to reduce result set, then exact match in JS
-  const cities = await prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
-    SELECT city, COUNT(*)::bigint as cnt
-    FROM "Company"
-    WHERE city IS NOT NULL AND city != ''
-    GROUP BY city ORDER BY cnt DESC
-  `;
-  for (const c of cities) {
-    if (slugify(c.city) === slug) return c.city;
-  }
-  return null;
+  // SQL equivalent of slugify():
+  // 1. unaccent() — strip Slovak diacritics
+  // 2. lower()
+  // 3. regexp_replace — replace non-a-z0-9 with hyphens
+  // 4. trim leading/trailing hyphens
+  const result = await prisma.$queryRawUnsafe<Array<{ city: string }>>(
+    `SELECT city FROM (
+       SELECT city,
+         COUNT(*) as cnt,
+         lower(regexp_replace(unaccent(city), '[^a-z0-9]+', '-', 'g')) as computed_slug
+       FROM "Company"
+       WHERE city IS NOT NULL AND city != ''
+       GROUP BY city
+     ) t
+     WHERE computed_slug = $1
+     ORDER BY cnt DESC
+     LIMIT 1`,
+    slug
+  );
+  return result[0]?.city ?? null;
 }
 
 // ── Get all valid hub params (for sitemap generation) ────────────────
