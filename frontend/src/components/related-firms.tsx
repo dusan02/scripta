@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
-import { getNaceSectionFromCode, getNaceSectionLabel, getKrajLabel } from "@/lib/screener";
+import { getNaceSectionFromCode, getNaceSectionLabel, getKrajLabel, getKrajLabelLocative } from "@/lib/screener";
 
 type RelatedFirm = {
   ico: string;
@@ -94,6 +94,7 @@ export async function RelatedFirms({
   if (byNaceInKraj.length === 0 && largestByNace.length === 0) return null;
 
   const krajLabel = kraj ? getKrajLabel(kraj) || KRAJ_NAMES[kraj] || kraj : null;
+  const krajLocative = kraj ? getKrajLabelLocative(kraj) || krajLabel : null;
 
   // Build hub backlinks for internal linking
   const naceSection = getNaceSectionFromCode(naceCode);
@@ -102,11 +103,11 @@ export async function RelatedFirms({
   if (naceSection && naceSectionLabel) {
     hubLinks.push({ href: `/odvetvie/${naceSection}`, label: `Firmy — ${naceSectionLabel}` });
     if (kraj) {
-      hubLinks.push({ href: `/odvetvie/${naceSection}/${kraj}`, label: `${naceSectionLabel} v ${krajLabel}` });
+      hubLinks.push({ href: `/odvetvie/${naceSection}/${kraj}`, label: `${naceSectionLabel} — ${krajLabel}` });
     }
   }
   if (kraj) {
-    hubLinks.push({ href: `/kraj/${kraj}`, label: `Firmy v ${krajLabel}` });
+    hubLinks.push({ href: `/kraj/${kraj}`, label: `Firmy v ${krajLocative}` });
   }
 
   return (

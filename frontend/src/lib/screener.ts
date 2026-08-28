@@ -132,7 +132,9 @@ export function getNaceSectionLabel(section: string | null): string | null {
 /** Get NACE section letter from a naceCode (e.g. "62000" → "J"). */
 export function getNaceSectionFromCode(naceCode: string | null): string | null {
   if (!naceCode) return null;
-  const prefix = parseInt(naceCode, 10);
+  // naceCode is stored as 5-digit string (e.g. "62000", "29100")
+  // NACE section ranges use 2-digit division prefixes (e.g. J=58-63, C=10-33)
+  const prefix = parseInt(naceCode.slice(0, 2), 10);
   if (isNaN(prefix)) return null;
   const entry = NACE_SECTION_MAP.find((e) => prefix >= e.min && prefix <= e.max);
   return entry?.section || null;
