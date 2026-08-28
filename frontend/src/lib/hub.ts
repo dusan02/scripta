@@ -810,14 +810,14 @@ export function getHubJsonLd(params: HubParams, companies: HubCompany[], baseUrl
 export async function resolveCitySlug(slug: string): Promise<string | null> {
   // SQL equivalent of slugify():
   // 1. unaccent() — strip Slovak diacritics
-  // 2. lower()
+  // 2. lower() — lowercase BEFORE regexp_replace (so [^a-z0-9] matches)
   // 3. regexp_replace — replace non-a-z0-9 with hyphens
   // 4. trim leading/trailing hyphens
   const result = await prisma.$queryRawUnsafe<Array<{ city: string }>>(
     `SELECT city FROM (
        SELECT city,
          COUNT(*) as cnt,
-         lower(regexp_replace(unaccent(city), '[^a-z0-9]+', '-', 'g')) as computed_slug
+         btrim(regexp_replace(lower(unaccent(city)), '[^a-z0-9]+', '-', 'g'), '-') as computed_slug
        FROM "Company"
        WHERE city IS NOT NULL AND city != ''
        GROUP BY city
