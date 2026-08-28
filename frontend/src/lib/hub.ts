@@ -328,15 +328,309 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
   return subHubs;
 }
 
-// ── Hub page SEO metadata ────────────────────────────────────────────
+// ── Hub page SEO metadata (i18n, all 6 languages) ───────────────────
+
+type HubLang = "sk" | "en" | "de" | "cz" | "hu" | "pl";
+
+/**
+ * Hub SEO templates per language.
+ * Titles ≤60 chars, descriptions ≤160 chars.
+ * Placeholders: {label}, {section}, {genitive}, {locative}
+ */
+const HUB_SEO_TEMPLATES: Record<HubLang, {
+  odvetvie: { title: string; desc: string };
+  kraj: { title: string; desc: string };
+  odvetvieKraj: { title: string; desc: string };
+  okres: { title: string; desc: string };
+  mesto: { title: string; desc: string };
+}> = {
+  sk: {
+    odvetvie: {
+      title: "Firmy — {label} | Verifa.sk",
+      desc: "Firmy v odvetví {genitive} (NACE {section}) — tržby, zisk, aktíva a finančné dáta z registrov SR.",
+    },
+    kraj: {
+      title: "Firmy v {locative} | Verifa.sk",
+      desc: "Firmy v {locative} — tržby, zisk, aktíva a finančné dáta z verejných registrov SR.",
+    },
+    odvetvieKraj: {
+      title: "{label} | Verifa.sk",
+      desc: "Firmy v odvetví {section} v {locative} — tržby, zisk a finančné dáta z registrov SR.",
+    },
+    okres: {
+      title: "Firmy — okres {label} | Verifa.sk",
+      desc: "Firmy v okrese {label} — tržby, zisk, aktíva a finančné dáta z verejných registrov SR.",
+    },
+    mesto: {
+      title: "Firmy — {label} | Verifa.sk",
+      desc: "Firmy v meste {label} — tržby, zisk, aktíva a finančné dáta z registrov SR (RÚZ, ORSR).",
+    },
+  },
+  en: {
+    odvetvie: {
+      title: "Companies — {label} | Verifa.sk",
+      desc: "Companies in {genitive} (NACE {section}) — revenue, profit, assets and financial data from Slovak registries.",
+    },
+    kraj: {
+      title: "Companies in {locative} | Verifa.sk",
+      desc: "Companies in {locative} — revenue, profit, assets and financial data from Slovak public registries.",
+    },
+    odvetvieKraj: {
+      title: "{label} | Verifa.sk",
+      desc: "Companies in {section} in {locative} — revenue, profit and financial data from Slovak registries.",
+    },
+    okres: {
+      title: "Companies — {label} district | Verifa.sk",
+      desc: "Companies in {label} district — revenue, profit, assets and financial data from Slovak registries.",
+    },
+    mesto: {
+      title: "Companies — {label} | Verifa.sk",
+      desc: "Companies in {label} — revenue, profit, assets and financial data from Slovak registries (RÚZ, ORSR).",
+    },
+  },
+  de: {
+    odvetvie: {
+      title: "Firmen — {label} | Verifa.sk",
+      desc: "Firmen in {genitive} (NACE {section}) — Umsatz, Gewinn, Aktiva und Finanzdaten aus slowakischen Registern.",
+    },
+    kraj: {
+      title: "Firmen in {locative} | Verifa.sk",
+      desc: "Firmen in {locative} — Umsatz, Gewinn, Aktiva und Finanzdaten aus slowakischen Registern.",
+    },
+    odvetvieKraj: {
+      title: "{label} | Verifa.sk",
+      desc: "Firmen in {section} in {locative} — Umsatz, Gewinn und Finanzdaten aus slowakischen Registern.",
+    },
+    okres: {
+      title: "Firmen — Bezirk {label} | Verifa.sk",
+      desc: "Firmen im Bezirk {label} — Umsatz, Gewinn, Aktiva und Finanzdaten aus slowakischen Registern.",
+    },
+    mesto: {
+      title: "Firmen — {label} | Verifa.sk",
+      desc: "Firmen in {label} — Umsatz, Gewinn, Aktiva und Finanzdaten aus slowakischen Registern (RÚZ, ORSR).",
+    },
+  },
+  cz: {
+    odvetvie: {
+      title: "Firmy — {label} | Verifa.sk",
+      desc: "Firmy v odvětví {genitive} (NACE {section}) — tržby, zisk, aktiva a finanční data z registrů SR.",
+    },
+    kraj: {
+      title: "Firmy v {locative} | Verifa.sk",
+      desc: "Firmy v {locative} — tržby, zisk, aktiva a finanční data z veřejných registrů SR.",
+    },
+    odvetvieKraj: {
+      title: "{label} | Verifa.sk",
+      desc: "Firmy v odvětví {section} v {locative} — tržby, zisk a finanční data z registrů SR.",
+    },
+    okres: {
+      title: "Firmy — okres {label} | Verifa.sk",
+      desc: "Firmy v okrese {label} — tržby, zisk, aktiva a finanční data z veřejných registrů SR.",
+    },
+    mesto: {
+      title: "Firmy — {label} | Verifa.sk",
+      desc: "Firmy ve městě {label} — tržby, zisk, aktiva a finanční data z registrů SR (RÚZ, ORSR).",
+    },
+  },
+  hu: {
+    odvetvie: {
+      title: "Cégek — {label} | Verifa.sk",
+      desc: "Cégek a(z) {genitive} (NACE {section}) — árbevétel, profit, eszközök és pénzügyi adatok szlovák nyilvántartásokból.",
+    },
+    kraj: {
+      title: "Cégek {locative} | Verifa.sk",
+      desc: "Cégek {locative} — árbevétel, profit, eszközök és pénzügyi adatok szlovák nyilvántartásokból.",
+    },
+    odvetvieKraj: {
+      title: "{label} | Verifa.sk",
+      desc: "Cégek a(z) {section} {locative} — árbevétel, profit és pénzügyi adatok szlovák nyilvántartásokból.",
+    },
+    okres: {
+      title: "Cégek — {label} járás | Verifa.sk",
+      desc: "Cégek a(z) {label} járásban — árbevétel, profit, eszközök és pénzügyi adatok szlovák nyilvántartásokból.",
+    },
+    mesto: {
+      title: "Cégek — {label} | Verifa.sk",
+      desc: "Cégek {label} városában — árbevétel, profit, eszközök és pénzügyi adatok szlovák nyilvántartásokból.",
+    },
+  },
+  pl: {
+    odvetvie: {
+      title: "Firmy — {label} | Verifa.sk",
+      desc: "Firmy w {genitive} (NACE {section}) — przychody, zysk, aktywa i dane finansowe ze słowackich rejestrów.",
+    },
+    kraj: {
+      title: "Firmy w {locative} | Verifa.sk",
+      desc: "Firmy w {locative} — przychody, zysk, aktywa i dane finansowe ze słowackich rejestrów publicznych.",
+    },
+    odvetvieKraj: {
+      title: "{label} | Verifa.sk",
+      desc: "Firmy w {section} w {locative} — przychody, zysk i dane finansowe ze słowackich rejestrów.",
+    },
+    okres: {
+      title: "Firmy — powiat {label} | Verifa.sk",
+      desc: "Firmy w powiecie {label} — przychody, zysk, aktywa i dane finansowe ze słowackich rejestrów.",
+    },
+    mesto: {
+      title: "Firmy — {label} | Verifa.sk",
+      desc: "Firmy w mieście {label} — przychody, zysk, aktywa i dane finansowe ze słowackich rejestrów (RÚZ, ORSR).",
+    },
+  },
+};
+
+// Locative forms of kraj per language (for "in {region}" phrases)
+const KRAJ_LOCATIVE_I18N: Record<HubLang, Record<string, string>> = {
+  sk: {
+    "SK010": "Bratislavskom kraji", "SK021": "Trnavskom kraji", "SK022": "Nitrianskom kraji",
+    "SK023": "Trenčianskom kraji", "SK031": "Žilinskom kraji", "SK032": "Banskobystrickom kraji",
+    "SK041": "Prešovskom kraji", "SK042": "Košickom kraji",
+  },
+  en: {
+    "SK010": "Bratislava region", "SK021": "Trnava region", "SK022": "Nitra region",
+    "SK023": "Trenčín region", "SK031": "Žilina region", "SK032": "Banská Bystrica region",
+    "SK041": "Prešov region", "SK042": "Košice region",
+  },
+  de: {
+    "SK010": "der Bratislava-Region", "SK021": "der Trnava-Region", "SK022": "der Nitra-Region",
+    "SK023": "der Trenčín-Region", "SK031": "der Žilina-Region", "SK032": "der Banská Bystrica-Region",
+    "SK041": "der Prešov-Region", "SK042": "der Košice-Region",
+  },
+  cz: {
+    "SK010": "Bratislavském kraji", "SK021": "Trnavském kraji", "SK022": "Nitrianském kraji",
+    "SK023": "Trenčianském kraji", "SK031": "Žilinském kraji", "SK032": "Banskobystrickém kraji",
+    "SK041": "Prešovském kraji", "SK042": "Košickém kraji",
+  },
+  hu: {
+    "SK010": "Pozsony kerületben", "SK021": "Nagyszombat kerületben", "SK022": "Nyitra kerületben",
+    "SK023": "Trencsén kerületben", "SK031": "Zsolna kerületben", "SK032": "Besztercebánya kerületben",
+    "SK041": "Eperjes kerületben", "SK042": "Kassa kerületben",
+  },
+  pl: {
+    "SK010": "kraju bratysławskim", "SK021": "kraju trnawskim", "SK022": "kraju nitrzańskim",
+    "SK023": "kraju trenczyńskim", "SK031": "kraju żylińskim", "SK032": "kraju bańskobystrzyckim",
+    "SK041": "kraju preszowskim", "SK042": "kraju koszyckim",
+  },
+};
+
+// NACE section labels per language (short forms for titles)
+const NACE_LABEL_I18N: Record<HubLang, Record<string, string>> = {
+  sk: {
+    A: "Poľnohospodárstvo", B: "Ťažba", C: "Priemyselná výroba", D: "Energetika",
+    E: "Vodné hospodárstvo", F: "Stavebníctvo", G: "Obchod", H: "Doprava",
+    I: "Ubytovanie a stravovanie", J: "IT a telekomunikácie", K: "Financie",
+    L: "Nehnuteľnosti", M: "Profesionálne služby", N: "Admin služby",
+    O: "Verejná správa", P: "Vzdelávanie", Q: "Zdravotníctvo",
+    R: "Kultúra a zábava", S: "Ostatné služby", T: "Domácnosti", U: "Extrateritoriálne",
+  },
+  en: {
+    A: "Agriculture", B: "Mining", C: "Manufacturing", D: "Energy",
+    E: "Water supply", F: "Construction", G: "Trade", H: "Transportation",
+    I: "Accommodation & food", J: "IT & telecom", K: "Finance",
+    L: "Real estate", M: "Professional services", N: "Admin services",
+    O: "Public administration", P: "Education", Q: "Healthcare",
+    R: "Arts & entertainment", S: "Other services", T: "Households", U: "Extraterritorial",
+  },
+  de: {
+    A: "Landwirtschaft", B: "Bergbau", C: "Verarbeitendes Gewerbe", D: "Energie",
+    E: "Wasserversorgung", F: "Bauwesen", G: "Handel", H: "Verkehr",
+    I: "Gastgewerbe", J: "IT & Telekommunikation", K: "Finanzen",
+    L: "Immobilien", M: "Freiberufliche Dienste", N: "Verwaltungsdienste",
+    O: "Öffentliche Verwaltung", P: "Bildung", Q: "Gesundheitswesen",
+    R: "Kunst & Unterhaltung", S: "Sonstige Dienste", T: "Haushalte", U: "Extraterritorial",
+  },
+  cz: {
+    A: "Zemědělství", B: "Těžba", C: "Průmyslová výroba", D: "Energetika",
+    E: "Vodní hospodářství", F: "Stavebnictví", G: "Obchod", H: "Doprava",
+    I: "Ubytování a stravování", J: "IT a telekomunikace", K: "Finance",
+    L: "Nemovitosti", M: "Profesionální služby", N: "Admin služby",
+    O: "Veřejná správa", P: "Vzdělávání", Q: "Zdravotnictví",
+    R: "Kultura a zábava", S: "Ostatní služby", T: "Domácnosti", U: "Extrateritoriální",
+  },
+  hu: {
+    A: "Mezőgazdaság", B: "Bányászat", C: "Feldolgozóipar", D: "Energia",
+    E: "Vízgazdálkodás", F: "Építőipar", G: "Kereskedelem", H: "Közlekedés",
+    I: "Szállás és vendéglátás", J: "IT és távközlés", K: "Pénzügy",
+    L: "Ingatlan", M: "Szakmai szolgáltatások", N: "Admin szolgáltatások",
+    O: "Közigazgatás", P: "Oktatás", Q: "Egészségügy",
+    R: "Kultúra és szórakozás", S: "Egyéb szolgáltatások", T: "Háztartások", U: "Extraterritoriális",
+  },
+  pl: {
+    A: "Rolnictwo", B: "Górnictwo", C: "Przemysł przetwórczy", D: "Energetyka",
+    E: "Gospodarka wodna", F: "Budownictwo", G: "Handel", H: "Transport",
+    I: "Noclegi i gastronomia", J: "IT i telekomunikacja", K: "Finanse",
+    L: "Nieruchomości", M: "Usługi profesjonalne", N: "Usługi admin.",
+    O: "Administracja publiczna", P: "Edukacja", Q: "Ochrona zdrowia",
+    R: "Kultura i rozrywka", S: "Pozostałe usługi", T: "Gospodarstwa domowe", U: "Eksterytorialne",
+  },
+};
+
+// Genitive forms of NACE sections per language (for "in {industry}" phrases)
+const NACE_GENITIVE_I18N: Record<HubLang, Record<string, string>> = {
+  sk: {
+    A: "poľnohospodárstva", B: "ťažby", C: "priemyselnej výroby", D: "energetiky",
+    E: "vodného hospodárstva", F: "stavebníctva", G: "obchodu", H: "dopravy",
+    I: "ubytovania a stravovania", J: "IT a telekomunikácií", K: "financií",
+    L: "nehnuteľností", M: "profesionálnych služieb", N: "admin služieb",
+    O: "verejnej správy", P: "vzdelávania", Q: "zdravotníctva",
+    R: "kultúry a zábavy", S: "ostatných služieb", T: "domácností", U: "extrateritoriálnych org.",
+  },
+  en: {
+    A: "agriculture", B: "mining", C: "manufacturing", D: "energy",
+    E: "water supply", F: "construction", G: "trade", H: "transportation",
+    I: "accommodation & food", J: "IT & telecom", K: "finance",
+    L: "real estate", M: "professional services", N: "admin services",
+    O: "public administration", P: "education", Q: "healthcare",
+    R: "arts & entertainment", S: "other services", T: "households", U: "extraterritorial org.",
+  },
+  de: {
+    A: "Landwirtschaft", B: "Bergbau", C: "Verarbeitendes Gewerbe", D: "Energie",
+    E: "Wasserversorgung", F: "Bauwesen", G: "Handel", H: "Verkehr",
+    I: "Gastgewerbe", J: "IT & Telekommunikation", K: "Finanzen",
+    L: "Immobilien", M: "Freiberufliche Dienste", N: "Verwaltungsdienste",
+    O: "Öffentliche Verwaltung", P: "Bildung", Q: "Gesundheitswesen",
+    R: "Kunst & Unterhaltung", S: "Sonstige Dienste", T: "Haushalte", U: "Extraterritoriale Org.",
+  },
+  cz: {
+    A: "zemědělství", B: "těžby", C: "průmyslové výroby", D: "energetiky",
+    E: "vodního hospodářství", F: "stavebnictví", G: "obchodu", H: "dopravy",
+    I: "ubytování a stravování", J: "IT a telekomunikací", K: "financí",
+    L: "nemovitostí", M: "profesionálních služeb", N: "admin služeb",
+    O: "veřejné správy", P: "vzdělávání", Q: "zdravotnictví",
+    R: "kultury a zábavy", S: "ostatních služeb", T: "domácností", U: "extrateritoriálních org.",
+  },
+  hu: {
+    A: "mezőgazdaság", B: "bányászat", C: "feldolgozóipar", D: "energia",
+    E: "vízgazdálkodás", F: "építőipar", G: "kereskedelem", H: "közlekedés",
+    I: "szállás és vendéglátás", J: "IT és távközlés", K: "pénzügy",
+    L: "ingatlan", M: "szakmai szolgáltatások", N: "admin szolgáltatások",
+    O: "közigazgatás", P: "oktatás", Q: "egészségügy",
+    R: "kultúra és szórakozás", S: "egyéb szolgáltatások", T: "háztartások", U: "extraterritoriális szervek",
+  },
+  pl: {
+    A: "rolnictwa", B: "górnictwa", C: "przemysłu przetwórczego", D: "energetyki",
+    E: "gospodarki wodnej", F: "budownictwa", G: "handlu", H: "transportu",
+    I: "noclegów i gastronomii", J: "IT i telekomunikacji", K: "finansów",
+    L: "nieruchomości", M: "usług profesjonalnych", N: "usług admin.",
+    O: "administracji publicznej", P: "edukacji", Q: "ochrony zdrowia",
+    R: "kultury i rozrywki", S: "pozostałych usług", T: "gospodarstw domowych", U: "org. eksterytorialnych",
+  },
+};
+
+function normalizeHubLang(lang: string): HubLang {
+  if (lang === "sk" || lang === "en" || lang === "de" || lang === "cz" || lang === "hu" || lang === "pl") {
+    return lang;
+  }
+  return "sk";
+}
 
 export function getHubMetadata(params: HubParams, lang: string): {
   title: string;
   description: string;
   canonical: string;
 } {
-  const label = getHubLabel(params);
   const hubType = getHubType(params);
+  const l = normalizeHubLang(lang);
+  const templates = HUB_SEO_TEMPLATES[l];
 
   // Build path
   let path = "/";
@@ -346,29 +640,38 @@ export function getHubMetadata(params: HubParams, lang: string): {
   else if (hubType === "okres") path = `/okres/${params.okres}`;
   else if (hubType === "mesto") path = `/mesto/${slugify(params.city)}`;
 
-  // SK titles (default — other languages handled by i18n in page component)
+  // Get i18n labels
+  const section = params.section || "";
+  const naceLabel = section ? (NACE_LABEL_I18N[l][section] || getNaceSectionLabel(section) || section) : "";
+  const naceGenitive = section ? (NACE_GENITIVE_I18N[l][section] || naceLabel) : "";
+  const krajLocative = params.kraj ? (KRAJ_LOCATIVE_I18N[l][params.kraj] || getKrajLabelLocative(params.kraj) || getKrajLabel(params.kraj) || params.kraj) : "";
+  const okresLabel = params.okres ? (okresName(params.okres)) : "";
+  const cityLabel = params.city || "";
+
   let title: string;
   let description: string;
 
   if (hubType === "odvetvie") {
-    const genitive = getNaceSectionGenitive(params.section!) || label;
-    title = `Firmy — ${label} | Zoznam firiem | Verifa.sk`;
-    description = `Zoznam firiem v odvetví ${genitive} (NACE ${params.section}) na Slovensku — tržby, zisk, aktíva, zamestnanci a finančné dáta z verejných registrov. Filtrovanie podľa regiónu a mesta.`;
+    const tpl = templates.odvetvie;
+    title = tpl.title.replace("{label}", naceLabel);
+    description = tpl.desc.replace("{genitive}", naceGenitive).replace("{section}", section);
   } else if (hubType === "kraj") {
-    const locative = getKrajLabelLocative(params.kraj!) || label;
-    title = `Firmy v ${locative} | Zoznam firiem | Verifa.sk`;
-    description = `Zoznam firiem v ${locative} — tržby, zisk, aktíva, zamestnanci a finančné dáta z verejných registrov. Filtrovanie podľa odvetvia a mesta.`;
+    const tpl = templates.kraj;
+    title = tpl.title.replace("{locative}", krajLocative);
+    description = tpl.desc.replace("{locative}", krajLocative);
   } else if (hubType === "odvetvie-kraj") {
-    const sectionLabel = getNaceSectionLabel(params.section!) || params.section!;
-    const locative = getKrajLabelLocative(params.kraj!) || getKrajLabel(params.kraj!) || params.kraj!;
-    title = `${sectionLabel} — firmy v ${locative} | Verifa.sk`;
-    description = `Zoznam firiem v odvetví ${sectionLabel} v ${locative} — tržby, zisk, aktíva a finančné dáta z verejných registrov SR.`;
+    const tpl = templates.odvetvieKraj;
+    const combinedLabel = `${naceLabel} — ${krajLocative}`;
+    title = tpl.title.replace("{label}", combinedLabel);
+    description = tpl.desc.replace("{section}", naceLabel).replace("{locative}", krajLocative);
   } else if (hubType === "okres") {
-    title = `Firmy — okres ${label} | Zoznam firiem | Verifa.sk`;
-    description = `Zoznam firiem v okrese ${label} — tržby, zisk, aktíva, zamestnanci a finančné dáta z verejných registrov. Filtrovanie podľa mesta a odvetvia.`;
+    const tpl = templates.okres;
+    title = tpl.title.replace("{label}", okresLabel);
+    description = tpl.desc.replace("{label}", okresLabel);
   } else if (hubType === "mesto") {
-    title = `Firmy — ${label} | Zoznam firiem | Verifa.sk`;
-    description = `Zoznam firiem v meste ${label} — tržby, zisk, aktíva, zamestnanci a finančné dáta z verejných registrov SR (RÚZ, ORSR).`;
+    const tpl = templates.mesto;
+    title = tpl.title.replace("{label}", cityLabel);
+    description = tpl.desc.replace("{label}", cityLabel);
   } else {
     title = "Firmy na Slovensku | Verifa.sk";
     description = "Zoznam slovenských firiem s finančnými dátami z verejných registrov.";
@@ -376,7 +679,7 @@ export function getHubMetadata(params: HubParams, lang: string): {
 
   // Canonical with language prefix
   const BASE_URL = "https://verifa.sk";
-  const langPrefix = lang === "sk" ? "" : lang === "cz" ? "/cs" : `/${lang}`;
+  const langPrefix = l === "sk" ? "" : l === "cz" ? "/cs" : `/${l}`;
   const canonical = `${BASE_URL}${langPrefix}${path}`;
 
   return { title, description, canonical };
