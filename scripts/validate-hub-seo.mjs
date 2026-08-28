@@ -34,7 +34,7 @@ const NACE_KRAJ_SAMPLES = [["C", "SK010"], ["G", "SK042"], ["F", "SK031"], ["J",
 
 async function fetchPage(url) {
   try {
-    const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(15000) });
+    const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(60000) });
     const body = await res.text();
     return { status: res.status, body, url };
   } catch (e) {
@@ -45,6 +45,16 @@ async function fetchPage(url) {
 function extractTitle(html) {
   const m = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   return m ? m[1].trim() : null;
+}
+
+function decodeHtmlEntities(str) {
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
 }
 
 function extractMetaDesc(html) {
@@ -114,11 +124,11 @@ async function validateHub(path, lang) {
   }
 
   result.title = extractTitle(html);
-  result.titleLen = result.title?.length || 0;
+  result.titleLen = result.title ? decodeHtmlEntities(result.title).length : 0;
   result.titleOk = result.titleLen > 0 && result.titleLen <= 60;
 
   result.desc = extractMetaDesc(html);
-  result.descLen = result.desc?.length || 0;
+  result.descLen = result.desc ? decodeHtmlEntities(result.desc).length : 0;
   result.descOk = result.descLen > 0 && result.descLen <= 160;
 
   result.canonical = extractCanonical(html);

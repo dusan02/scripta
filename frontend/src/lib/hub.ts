@@ -533,7 +533,7 @@ const NACE_LABEL_I18N: Record<HubLang, Record<string, string>> = {
   de: {
     A: "Landwirtschaft", B: "Bergbau", C: "Verarbeitendes Gewerbe", D: "Energie",
     E: "Wasserversorgung", F: "Bauwesen", G: "Handel", H: "Verkehr",
-    I: "Gastgewerbe", J: "IT & Telekommunikation", K: "Finanzen",
+    I: "Gastgewerbe", J: "IT & Telekom", K: "Finanzen",
     L: "Immobilien", M: "Freiberufliche Dienste", N: "Verwaltungsdienste",
     O: "Öffentliche Verwaltung", P: "Bildung", Q: "Gesundheitswesen",
     R: "Kunst & Unterhaltung", S: "Sonstige Dienste", T: "Haushalte", U: "Extraterritorial",
@@ -585,7 +585,7 @@ const NACE_GENITIVE_I18N: Record<HubLang, Record<string, string>> = {
   de: {
     A: "Landwirtschaft", B: "Bergbau", C: "Verarbeitendes Gewerbe", D: "Energie",
     E: "Wasserversorgung", F: "Bauwesen", G: "Handel", H: "Verkehr",
-    I: "Gastgewerbe", J: "IT & Telekommunikation", K: "Finanzen",
+    I: "Gastgewerbe", J: "IT & Telekom", K: "Finanzen",
     L: "Immobilien", M: "Freiberufliche Dienste", N: "Verwaltungsdienste",
     O: "Öffentliche Verwaltung", P: "Bildung", Q: "Gesundheitswesen",
     R: "Kunst & Unterhaltung", S: "Sonstige Dienste", T: "Haushalte", U: "Extraterritoriale Org.",
