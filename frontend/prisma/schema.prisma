@@ -390,6 +390,10 @@ model Company {
   @@index([legalStatus])
   @@index([ruzReportingStatus])
   updatedAt           DateTime             @updatedAt
+  // Pre-computed count of financial statements — used for quality gate (≥2 FS)
+  // Maintained by periodic update, not Prisma triggers
+  fsCount             Int                  @default(0)
+  @@index([fsCount])
 }
 
 model CompanyPerson {

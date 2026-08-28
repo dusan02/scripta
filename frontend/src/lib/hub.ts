@@ -77,13 +77,11 @@ const MIN_COMPANIES_FOR_HUB = 10; // Don't create hub pages for <10 companies
 
 /**
  * Get company count for a hub — used for thin hub detection.
- * Uses the same quality gate as queryHubCompanies (≥2 FS).
+ * Uses fsCount column (pre-computed ≥2 FS quality gate) for O(1) index lookup.
  */
 export async function getHubCompanyCount(params: HubParams): Promise<number> {
-  const conditions: string[] = [];
+  const conditions: string[] = [`"fsCount" >= 2`];
   const replacements: unknown[] = [];
-
-  conditions.push(`ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)`);
 
   if (params.section) {
     const range = naceSectionToPrefixFilter(params.section);
@@ -148,8 +146,8 @@ function buildWhere(params: HubParams): Record<string, unknown> {
 
 /**
  * Query companies for a hub page.
- * Uses raw SQL with IN subquery for ≥2 FS quality gate — much faster than Prisma's some: {}.
- * Uses composite indexes (kraj, latestRevenue DESC) etc. for O(50) seek.
+ * Uses fsCount column (pre-computed ≥2 FS quality gate) for O(50) index seek.
+ * Uses composite indexes (kraj, fsCount, latestRevenue DESC) etc.
  */
 export async function queryHubCompanies(
   params: HubParams,
@@ -162,13 +160,9 @@ export async function queryHubCompanies(
 
   const offset = (page - 1) * PAGE_SIZE;
 
-  // Build raw SQL query with quality gate (≥2 FS) pushed to DB level
-  // This avoids: 1) Prisma's some: {} semi-join, 2) JS filtering, 3) fetching _count
-  const conditions: string[] = [];
+  // Build raw SQL query with quality gate using fsCount column
+  const conditions: string[] = [`"fsCount" >= 2`];
   const replacements: unknown[] = [];
-
-  // Quality gate: ≥2 financial statements
-  conditions.push(`ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)`);
 
   if (params.section) {
     const range = naceSectionToPrefixFilter(params.section);
@@ -294,7 +288,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
         FROM "Company"
         WHERE "naceCode" >= ${range.gte} AND "naceCode" < ${range.lt}
           AND kraj IS NOT NULL
-          AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
+          AND "fsCount" >= 2
         GROUP BY kraj ORDER BY cnt DESC
       `;
       for (const row of rows) {
@@ -317,7 +311,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
       FROM "Company"
       WHERE kraj = ${params.kraj}
         AND okres IS NOT NULL
-        AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
+        AND "fsCount" >= 2
       GROUP BY okres ORDER BY cnt DESC
     `;
     for (const row of rows) {
@@ -342,7 +336,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
         WHERE "naceCode" >= ${range.gte} AND "naceCode" < ${range.lt}
           AND kraj = ${params.kraj}
           AND okres IS NOT NULL
-          AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
+          AND "fsCount" >= 2
         GROUP BY okres ORDER BY cnt DESC
       `;
       for (const row of rows) {
@@ -365,7 +359,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
       FROM "Company"
       WHERE okres = ${params.okres}
         AND city IS NOT NULL
-        AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
+        AND "fsCount" >= 2
       GROUP BY city ORDER BY cnt DESC LIMIT 50
     `;
     for (const row of rows) {
