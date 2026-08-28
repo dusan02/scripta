@@ -239,7 +239,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
         FROM "Company"
         WHERE "naceCode" >= ${range.gte} AND "naceCode" < ${range.lt}
           AND kraj IS NOT NULL
-          AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = "Company".ico HAVING COUNT(*) >= 2)
+          AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
         GROUP BY kraj ORDER BY cnt DESC
       `;
       for (const row of rows) {
@@ -262,7 +262,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
       FROM "Company"
       WHERE kraj = ${params.kraj}
         AND okres IS NOT NULL
-        AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = "Company".ico HAVING COUNT(*) >= 2)
+        AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
       GROUP BY okres ORDER BY cnt DESC
     `;
     for (const row of rows) {
@@ -287,7 +287,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
         WHERE "naceCode" >= ${range.gte} AND "naceCode" < ${range.lt}
           AND kraj = ${params.kraj}
           AND okres IS NOT NULL
-          AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = "Company".ico HAVING COUNT(*) >= 2)
+          AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
         GROUP BY okres ORDER BY cnt DESC
       `;
       for (const row of rows) {
@@ -310,7 +310,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
       FROM "Company"
       WHERE okres = ${params.okres}
         AND city IS NOT NULL
-        AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = "Company".ico HAVING COUNT(*) >= 2)
+        AND ico IN (SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2)
       GROUP BY city ORDER BY cnt DESC LIMIT 50
     `;
     for (const row of rows) {
@@ -503,13 +503,16 @@ export async function getAllHubPaths(): Promise<Array<{
   }
 
   // City hubs — fetched from DB (cities with ≥20 sitemap companies)
+  // Use a JOIN with a subquery to find companies with ≥2 FS — much faster than EXISTS+HAVING
   try {
     const cities = await prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
-      SELECT city, COUNT(*)::bigint as cnt
+      SELECT c.city, COUNT(*)::bigint as cnt
       FROM "Company" c
-      WHERE city IS NOT NULL
-        AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = c.ico HAVING COUNT(*) >= 2)
-      GROUP BY city HAVING COUNT(*) >= 20
+      INNER JOIN (
+        SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2
+      ) fs ON fs."companyIco" = c.ico
+      WHERE c.city IS NOT NULL AND c.city != ''
+      GROUP BY c.city HAVING COUNT(*) >= 20
       ORDER BY cnt DESC
     `;
     for (const c of cities) {
