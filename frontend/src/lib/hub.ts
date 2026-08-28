@@ -232,23 +232,25 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
 
   // If this is a NACE section hub → show kraj breakdown
   if (params.section && !params.kraj && !params.okres && !params.city) {
-    const rows = await prisma.$queryRaw<Array<{ kraj: string; cnt: bigint }>>`
-      SELECT kraj, COUNT(*)::bigint as cnt
-      FROM "Company"
-      WHERE naceCode >= ${naceSectionToPrefixFilter(params.section)?.gte}
-        AND naceCode < ${naceSectionToPrefixFilter(params.section)?.lt}
-        AND kraj IS NOT NULL
-        AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = "Company".ico HAVING COUNT(*) >= 2)
-      GROUP BY kraj ORDER BY cnt DESC
-    `;
-    for (const row of rows) {
-      const count = Number(row.cnt);
-      if (count >= MIN_COMPANIES_FOR_HUB) {
-        subHubs.push({
-          href: `/odvetvie/${params.section}/${row.kraj}`,
-          label: getKrajLabel(row.kraj) || row.kraj,
-          count,
-        });
+    const range = naceSectionToPrefixFilter(params.section);
+    if (range) {
+      const rows = await prisma.$queryRaw<Array<{ kraj: string; cnt: bigint }>>`
+        SELECT kraj, COUNT(*)::bigint as cnt
+        FROM "Company"
+        WHERE "naceCode" >= ${range.gte} AND "naceCode" < ${range.lt}
+          AND kraj IS NOT NULL
+          AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = "Company".ico HAVING COUNT(*) >= 2)
+        GROUP BY kraj ORDER BY cnt DESC
+      `;
+      for (const row of rows) {
+        const count = Number(row.cnt);
+        if (count >= MIN_COMPANIES_FOR_HUB) {
+          subHubs.push({
+            href: `/odvetvie/${params.section}/${row.kraj}`,
+            label: getKrajLabel(row.kraj) || row.kraj,
+            count,
+          });
+        }
       }
     }
   }
@@ -282,7 +284,7 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
       const rows = await prisma.$queryRaw<Array<{ okres: string; cnt: bigint }>>`
         SELECT okres, COUNT(*)::bigint as cnt
         FROM "Company"
-        WHERE naceCode >= ${range.gte} AND naceCode < ${range.lt}
+        WHERE "naceCode" >= ${range.gte} AND "naceCode" < ${range.lt}
           AND kraj = ${params.kraj}
           AND okres IS NOT NULL
           AND EXISTS (SELECT 1 FROM "FinancialStatement" fs WHERE fs."companyIco" = "Company".ico HAVING COUNT(*) >= 2)
@@ -453,27 +455,13 @@ export function getHubJsonLd(params: HubParams, companies: HubCompany[], baseUrl
  * with the most companies.
  */
 export async function resolveCitySlug(slug: string): Promise<string | null> {
-  // Try exact match first — find cities where slugify(city) = slug
-  const rows = await prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
+  // Fetch distinct cities and match in JS (slugify is complex to replicate in SQL)
+  // Use ILIKE for initial filtering to reduce result set, then exact match in JS
+  const cities = await prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
     SELECT city, COUNT(*)::bigint as cnt
     FROM "Company"
-    WHERE city IS NOT NULL
-      AND LOWER(
-        REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
-          LOWER(city),
-          'á', 'a'), 'ä', 'a'), 'é', 'e'), 'ě', 'e'), 'í', 'i'), 'ó', 'o'), 'ô', 'o'),
-          'ú', 'u'), 'ů', 'u'), 'ý', 'y'), 'ž', 'z'), 'š', 's'), 'č', 'c'), 'ř', 'r'),
-          'ď', 'd'), 'ť', 't'), 'ň', 'n'), 'ľ', 'l'), 'ĺ', 'l')
-      ) = ${slug}
-    GROUP BY city ORDER BY cnt DESC LIMIT 1
-  `;
-  // The above SQL is complex and error-prone. Let's use a simpler approach:
-  // fetch all distinct cities and slugify in JS
-  if (rows.length > 0) return rows[0].city;
-
-  // Fallback: fetch distinct cities and match in JS
-  const cities = await prisma.$queryRaw<Array<{ city: string }>>`
-    SELECT DISTINCT city FROM "Company" WHERE city IS NOT NULL
+    WHERE city IS NOT NULL AND city != ''
+    GROUP BY city ORDER BY cnt DESC
   `;
   for (const c of cities) {
     if (slugify(c.city) === slug) return c.city;
