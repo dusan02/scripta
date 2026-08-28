@@ -4,6 +4,7 @@ import { glossaryTerms } from "@/lib/glossary";
 import { VALID_LANGS, localizePath, HREFLANG_MAP } from "@/lib/i18n";
 import { slugify } from "@/lib/slug";
 import { getKrajOptions, getNaceSections } from "@/lib/screener";
+import { getAllHubPaths } from "@/lib/hub";
 
 export const revalidate = 3600; // Regenerate every hour
 export const dynamic = "force-dynamic";
@@ -63,6 +64,31 @@ function buildStaticPages(): MetadataRoute.Sitemap {
       },
     }))
   );
+}
+
+// Hub pages — /odvetvie/*, /kraj/*, /okres/*, /mesto/*
+// Generated from DB: only hubs with ≥10 sitemap companies
+async function buildHubPages(): Promise<MetadataRoute.Sitemap> {
+  try {
+    const hubPaths = await getAllHubPaths();
+    return hubPaths.flatMap((hub) => {
+      const path = hub.path;
+      return VALID_LANGS.map((lang) => ({
+        url: `${BASE_URL}${localizePath(path, lang)}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly" as const,
+        priority: hub.priority,
+        alternates: {
+          languages: Object.fromEntries(
+            VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
+          ),
+        },
+      }));
+    });
+  } catch {
+    // DB unavailable — return empty
+    return [];
+  }
 }
 
 function buildGlossaryPages(): MetadataRoute.Sitemap {
@@ -126,9 +152,10 @@ export default async function sitemap({
 }: {
   id: number;
 }): Promise<MetadataRoute.Sitemap> {
-  // Sitemap 0: static + glossary + screener landing pages
+  // Sitemap 0: static + glossary + screener landing pages + hub pages
   if (id === 0) {
-    return [...buildStaticPages(), ...buildScreenerLandingPages(), ...buildGlossaryPages()];
+    const hubPages = await buildHubPages();
+    return [...buildStaticPages(), ...buildScreenerLandingPages(), ...hubPages, ...buildGlossaryPages()];
   }
 
   // Sitemap 1..N: company pages (8000 companies each)

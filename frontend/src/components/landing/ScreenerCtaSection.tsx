@@ -36,13 +36,51 @@ export default function ScreenerCtaSection() {
               : "Search and filter 500,000+ Slovak companies by industry, region, financial indicators and more."}
           </p>
 
-          <Link
-            href={localizePath("/screener", lang)}
-            className="inline-block px-8 py-3.5 rounded-xl no-underline font-bold text-[15px] transition-all hover:opacity-90"
-            style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
-          >
-            {lang === "sk" ? "Otvoriť screener →" : "Open screener →"}
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href={localizePath("/firmy", lang)}
+              className="inline-block px-8 py-3.5 rounded-xl no-underline font-bold text-[15px] transition-all hover:opacity-90"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+            >
+              {lang === "sk" ? "Prehliadať firmy →" : "Browse companies →"}
+            </Link>
+            <Link
+              href={localizePath("/screener", lang)}
+              className="inline-block px-6 py-3.5 rounded-xl no-underline font-bold text-[15px] transition-all hover:opacity-90"
+              style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+            >
+              {lang === "sk" ? "Screener" : "Screener"}
+            </Link>
+          </div>
+
+          {/* Hub links for crawl discovery */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-[13px]">
+            <span style={{ color: "var(--text-muted)" }}>
+              {lang === "sk" ? "Podľa odvetvia:" : "By industry:"}
+            </span>
+            <Link href={localizePath("/odvetvie/C", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+              {lang === "sk" ? "Priemysel" : "Manufacturing"}
+            </Link>
+            <Link href={localizePath("/odvetvie/G", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+              {lang === "sk" ? "Obchod" : "Trade"}
+            </Link>
+            <Link href={localizePath("/odvetvie/F", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+              {lang === "sk" ? "Stavebníctvo" : "Construction"}
+            </Link>
+            <Link href={localizePath("/odvetvie/J", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+              {lang === "sk" ? "IT" : "IT"}
+            </Link>
+            <span style={{ color: "var(--text-muted)" }}>·</span>
+            <span style={{ color: "var(--text-muted)" }}>
+              {lang === "sk" ? "Podľa regiónu:" : "By region:"}
+            </span>
+            <Link href={localizePath("/kraj/SK010", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+              {lang === "sk" ? "Bratislava" : "Bratislava"}
+            </Link>
+            <Link href={localizePath("/kraj/SK042", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+              {lang === "sk" ? "Košice" : "Košice"}
+            </Link>
+          </div>
         </div>
       </div>
     </section>
