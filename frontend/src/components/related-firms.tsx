@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
+import { getNaceSectionFromCode, getNaceSectionLabel, getKrajLabel } from "@/lib/screener";
 
 type RelatedFirm = {
   ico: string;
@@ -11,9 +12,13 @@ type RelatedFirm = {
 
 const KRAJ_NAMES: Record<string, string> = {
   SK010: "Bratislavský kraj",
-  SK020: "Západné Slovensko",
-  SK030: "Stredné Slovensko",
-  SK040: "Východné Slovensko",
+  SK021: "Trnavský kraj",
+  SK022: "Nitriansky kraj",
+  SK023: "Trenčiansky kraj",
+  SK031: "Žilinský kraj",
+  SK032: "Banskobystrický kraj",
+  SK041: "Prešovský kraj",
+  SK042: "Košický kraj",
 };
 
 async function getRelatedByNaceInKraj(ico: string, naceCode: string | null, kraj: string | null): Promise<RelatedFirm[]> {
@@ -88,13 +93,43 @@ export async function RelatedFirms({
 
   if (byNaceInKraj.length === 0 && largestByNace.length === 0) return null;
 
-  const krajLabel = kraj ? KRAJ_NAMES[kraj] || kraj : null;
+  const krajLabel = kraj ? getKrajLabel(kraj) || KRAJ_NAMES[kraj] || kraj : null;
+
+  // Build hub backlinks for internal linking
+  const naceSection = getNaceSectionFromCode(naceCode);
+  const naceSectionLabel = naceSection ? getNaceSectionLabel(naceSection) : null;
+  const hubLinks: Array<{ href: string; label: string }> = [];
+  if (naceSection && naceSectionLabel) {
+    hubLinks.push({ href: `/odvetvie/${naceSection}`, label: `Firmy — ${naceSectionLabel}` });
+    if (kraj) {
+      hubLinks.push({ href: `/odvetvie/${naceSection}/${kraj}`, label: `${naceSectionLabel} v ${krajLabel}` });
+    }
+  }
+  if (kraj) {
+    hubLinks.push({ href: `/kraj/${kraj}`, label: `Firmy v ${krajLabel}` });
+  }
 
   return (
     <section className="mt-8 sm:mt-12">
       <h2 className="text-lg sm:text-xl font-bold mb-4" style={{ color: "var(--text)" }}>
         Súvisiace firmy
       </h2>
+
+      {/* Hub backlinks for internal linking */}
+      {hubLinks.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {hubLinks.map((h) => (
+            <Link
+              key={h.href}
+              href={h.href}
+              className="inline-block rounded-full px-3 py-1 text-xs font-medium transition-colors hover:opacity-80"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+            >
+              {h.label}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {byNaceInKraj.length > 0 && (
         <div className="mb-6">

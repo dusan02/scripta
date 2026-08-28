@@ -2,6 +2,7 @@ import { queryFirmy, getFirmyFilterOptions, type FirmyFilters, type FirmySort } 
 import { fmtEurK } from "@/lib/format";
 import { FirmyFilters as FirmyFiltersClient } from "@/components/firmy-filters";
 import { slugify } from "@/lib/slug";
+import { getNaceSections, getKrajOptions } from "@/lib/screener";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +103,44 @@ export default async function FirmyPage({
           >
             Spustiť Screener →
           </Link>
+        </div>
+
+        {/* Hub links for internal linking / crawl discovery */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
+              Firmy podľa odvetvia
+            </h2>
+            <div className="flex flex-wrap gap-1.5">
+              {getNaceSections().map((s) => (
+                <Link
+                  key={s.section}
+                  href={`/odvetvie/${s.section}`}
+                  className="inline-block rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:opacity-80"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                >
+                  {s.sectionName}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-muted)" }}>
+              Firmy podľa regiónu
+            </h2>
+            <div className="flex flex-wrap gap-1.5">
+              {getKrajOptions().map((k) => (
+                <Link
+                  key={k.value}
+                  href={`/kraj/${k.value}`}
+                  className="inline-block rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:opacity-80"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                >
+                  {k.label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
 
         <FirmyFiltersClient

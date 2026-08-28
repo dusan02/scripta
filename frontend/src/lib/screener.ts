@@ -129,6 +129,15 @@ export function getNaceSectionLabel(section: string | null): string | null {
   return entry?.sectionName || null;
 }
 
+/** Get NACE section letter from a naceCode (e.g. "62000" → "J"). */
+export function getNaceSectionFromCode(naceCode: string | null): string | null {
+  if (!naceCode) return null;
+  const prefix = parseInt(naceCode, 10);
+  if (isNaN(prefix)) return null;
+  const entry = NACE_SECTION_MAP.find((e) => prefix >= e.min && prefix <= e.max);
+  return entry?.section || null;
+}
+
 // Genitívne tvary pre NACE sekcie (pre použitie v vetách: "v odvetví priemyselnej výroby")
 const NACE_SECTION_GENITIVE: Record<string, string> = {
   A: "poľnohospodárstva, lesníctva a rybárstva",
