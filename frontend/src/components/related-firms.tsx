@@ -65,6 +65,27 @@ async function getLargestByNace(ico: string, naceCode: string | null): Promise<R
   }));
 }
 
+async function getFirmsInCity(ico: string, city: string | null): Promise<RelatedFirm[]> {
+  if (!city) return [];
+  const firms = await prisma.company.findMany({
+    where: {
+      city,
+      ico: { not: ico },
+      financialStatements: { some: {} },
+      latestRevenue: { not: null },
+    },
+    select: { ico: true, name: true, city: true, latestRevenue: true },
+    orderBy: { latestRevenue: "desc" },
+    take: 6,
+  });
+  return firms.map((f) => ({
+    ico: f.ico,
+    name: f.name,
+    city: f.city,
+    latestRevenue: f.latestRevenue?.toString() ?? null,
+  }));
+}
+
 function formatRevenue(rev: string | null): string {
   if (!rev) return "";
   const n = parseFloat(rev);
@@ -86,12 +107,13 @@ export async function RelatedFirms({
   kraj?: string | null;
   latestRevenue?: string | null;
 }) {
-  const [byNaceInKraj, largestByNace] = await Promise.all([
+  const [byNaceInKraj, largestByNace, firmsInCity] = await Promise.all([
     getRelatedByNaceInKraj(ico, naceCode, kraj ?? null),
     getLargestByNace(ico, naceCode),
+    getFirmsInCity(ico, city),
   ]);
 
-  if (byNaceInKraj.length === 0 && largestByNace.length === 0) return null;
+  if (byNaceInKraj.length === 0 && largestByNace.length === 0 && firmsInCity.length === 0) return null;
 
   const krajLabel = kraj ? getKrajLabel(kraj) || KRAJ_NAMES[kraj] || kraj : null;
   const krajLocative = kraj ? getKrajLabelLocative(kraj) || krajLabel : null;
@@ -179,6 +201,32 @@ export async function RelatedFirms({
                   IČO: {f.ico}
                   {f.city && ` · ${f.city}`}
                   {f.latestRevenue && ` · ${formatRevenue(f.latestRevenue)}`}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {firmsInCity.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
+            Firmy v meste {city}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {firmsInCity.map((f) => (
+              <Link
+                key={f.ico}
+                href={buildCompanyUrl(f.ico, f.name)}
+                className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              >
+                <div className="font-medium truncate" style={{ color: "var(--text)" }}>
+                  {f.name || `IČO ${f.ico}`}
+                </div>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                  IČO: {f.ico}
+                  {f.latestRevenue && ` · Tržby: ${formatRevenue(f.latestRevenue)}`}
                 </div>
               </Link>
             ))}

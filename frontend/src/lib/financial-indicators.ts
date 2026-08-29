@@ -129,3 +129,62 @@ export function fmtRatio(v: number | null): string {
   if (v == null) return "—";
   return v.toFixed(2);
 }
+
+// ── Extended indicators ──────────────────────────────────────────────────────
+
+export type ExtendedIndicatorRow = {
+  year: number;
+  /** Quick ratio = (currentAssets - inventory) / shortTermLiabilities */
+  quickRatio: number | null;
+  /** Working capital = currentAssets - shortTermLiabilities (EUR) */
+  workingCapital: number | null;
+  /** Debt-to-equity = (STL + LTL) / equity */
+  debtToEquity: number | null;
+  /** Interest coverage = (profitBeforeTax + interestExpense) / interestExpense */
+  interestCoverage: number | null;
+};
+
+type ExtendedStatementLike = StatementLike & {
+  inventory?: unknown;
+  profitBeforeTax?: unknown;
+  interestExpense?: unknown;
+};
+
+export function computeExtendedIndicators(
+  stmts: ExtendedStatementLike[],
+): ExtendedIndicatorRow[] {
+  return [...stmts]
+    .sort((a, b) => a.year - b.year)
+    .map((s) => {
+      const ca = toNum(s.currentAssets);
+      const inv = toNum(s.inventory);
+      const stl = toNum(s.shortTermLiabilities);
+      const ltl = toNum(s.longTermLiabilities);
+      const eq = toNum(s.equity);
+      const pbt = toNum(s.profitBeforeTax);
+      const interest = toNum(s.interestExpense);
+
+      const quickRatio = safeDiv(
+        ca != null && inv != null ? ca - inv : ca,
+        stl,
+      );
+
+      const workingCapital = ca != null && stl != null ? ca - stl : null;
+
+      const totalDebt = (stl ?? 0) + (ltl ?? 0);
+      const debtToEquity = eq != null && eq !== 0 ? totalDebt / eq : null;
+
+      const interestCoverage = interest != null && interest !== 0
+        ? ((pbt ?? 0) + interest) / interest
+        : null;
+
+      return {
+        year: s.year,
+        quickRatio,
+        workingCapital,
+        debtToEquity,
+        interestCoverage,
+      };
+    });
+}
+

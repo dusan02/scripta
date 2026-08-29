@@ -3,13 +3,19 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
-import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, RentabilityRatios, StabilityRatios } from "@/components/firma-ui";
+import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, CashFlowTable, RentabilityRatios, StabilityRatios } from "@/components/firma-ui";
 import { RentabilityChart, StabilityChart } from "@/components/financial-indicators-charts";
+import { ExtendedRatios, EmployeeTrend } from "@/components/extended-ratios";
+import { PiotroskiCard } from "@/components/piotroski-card";
 import { computeFinancialIndicators } from "@/lib/financial-indicators";
+import { computePiotroski } from "@/lib/piotroski";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
 import { CompanyHeader } from "@/components/company-header";
 import { CompanyPersons } from "@/components/company-persons";
+import { BusinessActivitySection, SigningAuthoritySection } from "@/components/company-business-activity";
+import { RiskSignals } from "@/components/risk-signals";
+import { DataSourcesSection } from "@/components/data-sources";
 import { ReportCTA, CompanyFAQ } from "@/components/report-cta";
 import { CompanyInsights } from "@/components/company-insights";
 import { slugify, parseCompanySlug } from "@/lib/slug";
@@ -21,6 +27,7 @@ import { getServerSession } from "@/lib/auth";
 import { getLangFromHeaders, generateFirmaMetadata, getCanonicalUrl } from "@/lib/seo";
 import { translate } from "@/lib/i18n";
 import { RelatedFirms } from "@/components/related-firms";
+import { CrossFirmPersons } from "@/components/cross-firm-persons";
 import { PrintButton } from "@/components/PrintButton";
 import { VestnikEvents } from "@/components/vestnik-events";
 import { CompanyEvents } from "@/components/company-events";
@@ -149,11 +156,15 @@ export default async function CompanyPage({ params }: Params) {
     name,
     legalName: company.name || undefined,
     identifier: { "@type": "PropertyValue", name: "IČO", value: company.ico },
+    taxID: company.ico,
     url: `https://verifa.sk/firma/${company.ico}`,
   };
 
   if (company.establishedAt) {
     orgSchema.foundingDate = company.establishedAt.toISOString().split("T")[0];
+  }
+  if (company.ruzDissolutionDate) {
+    orgSchema.dissolutionDate = company.ruzDissolutionDate.toISOString().split("T")[0];
   }
   if (company.city || company.street || company.zipCode) {
     orgSchema.address = {
@@ -166,6 +177,12 @@ export default async function CompanyPage({ params }: Params) {
   }
   if (company.naceText) {
     orgSchema.knowsAbout = company.naceText;
+  }
+  if (company.legalForm) {
+    orgSchema.additionalType = company.legalForm;
+  }
+  if (latest && latest.employeeCount != null) {
+    orgSchema.numberOfEmployees = { "@type": "QuantitativeValue", value: latest.employeeCount };
   }
 
   // Dataset schema for Google Dataset Search (financial statements)
@@ -237,7 +254,10 @@ export default async function CompanyPage({ params }: Params) {
           <span style={{ color: "var(--text)" }}>{name}</span>
         </div>
 
-        <CompanyHeader company={company} latestYear={latest?.year} />
+        <CompanyHeader
+          company={company}
+          latestYear={latest?.year}
+        />
 
         {/* Print-only header with logo — fixed to appear on every page */}
         <div className="print-only-logo">
@@ -358,6 +378,135 @@ export default async function CompanyPage({ params }: Params) {
           <CompanyPersons persons={persons} />
         </div>
 
+        {/* Predmet činnosti — businessActivity (SEO asset) */}
+        {company.businessActivity && (
+          <BusinessActivitySection activity={company.businessActivity} />
+        )}
+
+        {/* Konanie menom spoločnosti — signingAuthority */}
+        {company.signingAuthority && (
+          <SigningAuthoritySection authority={company.signingAuthority} />
+        )}
+
+        {/* Risk signals — konkurz, likvidácia, forenzné signály z FS */}
+        {(() => {
+          const signals: Array<{
+            id: string;
+            type: "legal_status" | "vestnik" | "forensic" | "financial";
+            severity: "critical" | "high" | "medium" | "low";
+            title: string;
+            description: string;
+            source: string;
+            date?: string | null;
+          }> = [];
+
+          // Legal status signals
+          if (company.legalStatus === "BANKRUPT") {
+            signals.push({
+              id: "legal-bankrupt",
+              type: "legal_status",
+              severity: "critical",
+              title: t("firma.statusBankrupt"),
+              description: "Firma je v konkurznom konaní.",
+              source: company.legalStatusSource || "ORSR",
+            });
+          }
+          if (company.legalStatus === "RESTRUCTURING") {
+            signals.push({
+              id: "legal-restructuring",
+              type: "legal_status",
+              severity: "critical",
+              title: t("firma.statusRestructuring"),
+              description: "Firma je v reštrukturalizačnom konaní.",
+              source: company.legalStatusSource || "ORSR",
+            });
+          }
+          if (company.legalStatus === "LIQUIDATION") {
+            signals.push({
+              id: "legal-liquidation",
+              type: "legal_status",
+              severity: "high",
+              title: t("firma.statusLiquidation"),
+              description: "Firma je v likvidácii.",
+              source: company.legalStatusSource || "ORSR",
+            });
+          }
+
+          // Vestnik events as risk signals
+          if (company.vestnikEvents) {
+            for (const ev of company.vestnikEvents.slice(0, 5)) {
+              const sev = ev.severityLevel === "CRITICAL" ? "critical" :
+                         ev.severityLevel === "HIGH" ? "high" :
+                         ev.severityLevel === "MEDIUM" ? "medium" : "low";
+              signals.push({
+                id: `vestnik-${ev.id}`,
+                type: "vestnik",
+                severity: sev as any,
+                title: ev.eventType,
+                description: ev.summary,
+                source: "Obchodný vestník",
+                date: new Date(ev.publishedAt).toLocaleDateString("sk-SK"),
+              });
+            }
+          }
+
+          // Forensic signals from latest FS
+          if (latest) {
+            const socIns = num(latest.socialInsuranceLiabilities);
+            const taxLiab = num(latest.taxLiabilities);
+            const empLiab = num(latest.employeeLiabilities);
+
+            if (socIns != null && socIns > 0) {
+              signals.push({
+                id: "forensic-soc-ins",
+                type: "forensic",
+                severity: "high",
+                title: "Záväzky voči sociálnej poisťovni",
+                description: `Neuhradené záväzky voči sociálnej poisťovni: ${fmtEUR(socIns)} (rok ${latest.year}). Zdroj: účtovná závierka, riadok 336A.`,
+                source: "RÚZ",
+                date: String(latest.year),
+              });
+            }
+            if (taxLiab != null && taxLiab > 0) {
+              signals.push({
+                id: "forensic-tax",
+                type: "forensic",
+                severity: "high",
+                title: "Daňové záväzky",
+                description: `Daňové záväzky a dotácie: ${fmtEUR(taxLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 341-347.`,
+                source: "RÚZ",
+                date: String(latest.year),
+              });
+            }
+            if (empLiab != null && empLiab > 0) {
+              signals.push({
+                id: "forensic-emp",
+                type: "forensic",
+                severity: "medium",
+                title: "Záväzky voči zamestnancom",
+                description: `Záväzky voči zamestnancom: ${fmtEUR(empLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 331, 333.`,
+                source: "RÚZ",
+                date: String(latest.year),
+              });
+            }
+          }
+
+          // Negative equity
+          if (latest && num(latest.equity) != null && num(latest.equity)! < 0) {
+            signals.push({
+              id: "financial-neg-equity",
+              type: "financial",
+              severity: "high",
+              title: "Záporné vlastné imanie",
+              description: `Vlastné imanie firmy je záporné (${fmtEUR(num(latest.equity))}) k roku ${latest.year}. Záväzky prevyšujú aktíva.`,
+              source: "RÚZ",
+              date: String(latest.year),
+            });
+          }
+
+          return signals.length > 0 ? <RiskSignals signals={signals} /> : null;
+        })()}
+
         {/* Vestník events — zdroj: Obchodný vestník SR */}
         {company.vestnikEvents && company.vestnikEvents.length > 0 && (
           <div className="no-print">
@@ -403,6 +552,34 @@ export default async function CompanyPage({ params }: Params) {
             <ChartCard title={t("firma.chartVykazZiskovStrat")}>
               <ProfitLossTable stmts={stmts} />
             </ChartCard>
+          </div>
+        )}
+
+        {/* Cash Flow table — len ak máme aspoň jeden CF údaj */}
+        {stmts.length > 0 && (
+          <div className="mb-6 sm:mb-8 print-section">
+            <CashFlowTable stmts={stmts} />
+          </div>
+        )}
+
+        {/* Extended ratios — quick ratio, working capital, D/E, interest coverage */}
+        {stmts.length > 0 && (
+          <div className="mb-6 sm:mb-8 print-section">
+            <ExtendedRatios stmts={stmts} />
+          </div>
+        )}
+
+        {/* Piotroski F-Score — len ak máme ≥2 roky dát */}
+        {stmts.length >= 2 && (
+          <div className="mb-6 sm:mb-8 print-section">
+            <PiotroskiCard result={computePiotroski(stmts)} />
+          </div>
+        )}
+
+        {/* Employee count trend — len ak máme ≥2 dátové body */}
+        {stmts.length > 0 && (
+          <div className="mb-6 sm:mb-8 print-section">
+            <EmployeeTrend stmts={stmts} />
           </div>
         )}
 
@@ -454,7 +631,38 @@ export default async function CompanyPage({ params }: Params) {
           latestYear={latest?.year}
         />
 
+        {/* Data sources — trust/provenance */}
+        {(() => {
+          const sources: Array<{ name: string; syncedAt: Date | null; dataRange?: string | null }> = [];
+
+          if (company.companyPersons && company.companyPersons.length > 0) {
+            sources.push({
+              name: "Obchodný register SR (ORSR)",
+              syncedAt: company.orsrSyncedAt ?? null,
+            });
+          }
+          if (stmts.length > 0) {
+            const years = stmts.map(s => s.year).sort();
+            sources.push({
+              name: "Register účtovných závierok (RÚZ)",
+              syncedAt: company.ruzSyncedAt ?? null,
+              dataRange: years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : String(years[0]),
+            });
+          }
+          if (company.vestnikEvents && company.vestnikEvents.length > 0) {
+            sources.push({
+              name: "Obchodný vestník SR",
+              syncedAt: company.vestnikSyncedAt ?? null,
+            });
+          }
+
+          return sources.length > 0 ? <DataSourcesSection sources={sources} /> : null;
+        })()}
+
         <div className="no-print">
+          {/* Cross-firm person linking — firmy spojené cez spoločné osoby */}
+          <CrossFirmPersons ico={company.ico} />
+
           {/* Internal linking: related firms by industry and region */}
           <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} kraj={company.kraj} />
         </div>

@@ -888,6 +888,8 @@ const de: Dict = {
   "home.buy": "Kaufen",
   "home.needMore": "Benötigen Sie mehr Berichte? Kontaktieren Sie uns unter",
   "home.terms": "Nutzungsbedingungen",
+  "home.refundPolicy": "Rückerstattung",
+  "home.dpa": "DPA",
   "home.contact": "Kontakt",
   "home.rights": "Alle Rechte vorbehalten.",
 
@@ -1010,6 +1012,7 @@ const de: Dict = {
   "docs.gdprDesc": "Informationen zur Verarbeitung personenbezogener Daten gemäß GDPR.",
   "docs.dpaTitle": "Datenverarbeitungsvereinbarung (DPA)",
   "docs.dpaDesc": "Datenverarbeitungsvereinbarung zwischen Verifa.sk und dem Kunden gemäß GDPR Art. 28.",
+  "docs.refundTitle": "Rückerstattung",
   "docs.refundDesc": "Rückerstattungsbedingungen für Credits — 14-Tage-Rücktritt, automatische Credit-Rückerstattung, Rückerstattung über Paddle.",
   "docs.zobrazit": "Anzeigen",
   "docs.spatDomov": "Zurück zur Startseite",

@@ -152,7 +152,7 @@ export default function DocumentsPage() {
           </DocCard>
           <DocCard
             icon={<FileIcon size={28} />}
-            title="Refund Policy"
+            title={t("docs.refundTitle")}
             description={t("docs.refundDesc")}
             status="available"
           >

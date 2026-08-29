@@ -171,6 +171,22 @@ export function ProfitLossTable({ stmts }: { stmts: any[] }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Cash Flow table
+// ═══════════════════════════════════════════════════════════════
+
+export function CashFlowTable({ stmts }: { stmts: any[] }) {
+  const t = useT();
+  const CF_ROWS = [
+    dataRow(t("firma.cashFlowPrevadzky"), "operatingCashFlow", true),
+    dataRow(t("firma.cashFlowInvesticny") || "Investičný cash flow", "investingCashFlow"),
+    dataRow(t("firma.cashFlowFinancny") || "Finančný cash flow", "financingCashFlow"),
+  ];
+  const filtered = filterEmptyRows(CF_ROWS, stmts);
+  if (filtered.length === 0) return null;
+  return <BaseFinancialTable stmts={stmts} rows={filtered} />;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Metric cards & chart containers
 // ═══════════════════════════════════════════════════════════════
 

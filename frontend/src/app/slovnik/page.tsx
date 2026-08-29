@@ -58,7 +58,7 @@ export default function GlossaryPage() {
         <div style={{ marginTop: 60, padding: "32px 24px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, textAlign: "center" }}>
           <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Chcete tieto pojmy vidieť v praxi?</h3>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 500, margin: "0 auto 24px" }}>
-            Vygenerujte Business Risk Report z 25+ registrov s Verifa Score za 5 minút.
+            Vygenerujte Business Risk Report z 25+ registrov s Verifa Score za ~8 minút.
           </p>
           <Link
             href="/register"

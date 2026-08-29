@@ -29,6 +29,19 @@ function useIsPrint() {
   return isPrint;
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
 type ChartData = {
   year: string;
   tržby: number | null;
@@ -214,6 +227,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
 export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   const t = useT();
   const isPrint = useIsPrint();
+  const isMobile = useIsMobile();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [hoveredType, setHoveredType] = useState<"node" | "link" | null>(null);
 
@@ -373,13 +387,13 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={isPrint ? 300 : 350} minHeight={isPrint ? 300 : 350}>
+    <ResponsiveContainer width="100%" height={isPrint ? 300 : isMobile ? 280 : 350} minHeight={isPrint ? 300 : isMobile ? 280 : 350}>
       <Sankey
         data={sankeyData}
-        nodePadding={isPrint ? 8 : 14}
+        nodePadding={isPrint ? 8 : isMobile ? 8 : 14}
         nodeWidth={8}
         linkCurvature={0.4}
-        margin={isPrint ? { top: 8, right: 70, bottom: 8, left: 70 } : { top: 10, right: 90, bottom: 10, left: 90 }}
+        margin={isPrint ? { top: 8, right: 70, bottom: 8, left: 70 } : isMobile ? { top: 8, right: 50, bottom: 8, left: 50 } : { top: 10, right: 90, bottom: 10, left: 90 }}
         node={(props: any) => {
           const { x, y, width, height, index } = props;
           const nodeData = sankeyData.nodes[index] || {};
@@ -419,7 +433,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
 
           // Always show name; show value only if node is tall enough (needs ~22px for both lines)
           const showName = true;
-          const showValue = height >= (isPrint ? 16 : 22);
+          const showValue = height >= (isPrint ? 16 : isMobile ? 18 : 22);
 
           return (
             <Layer key={`node-${index}`}>
@@ -439,7 +453,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
                     y={y + height / 2 - (showValue && isMultiLine ? 6 : 0)}
                     dy=".35em"
                     textAnchor={textAnchor}
-                    fontSize={isPrint ? 8 : 10}
+                    fontSize={isPrint ? 8 : isMobile ? 9 : 10}
                     fill="var(--text)"
                     opacity={dim ? 0.3 : 1}
                     style={{ pointerEvents: "none", transition: "opacity 0.2s" }}
@@ -453,7 +467,7 @@ export function BalanceSankeyChart({ data }: { data: BalanceData }) {
                       y={y + height / 2 + (isMultiLine ? 14 : 11)}
                       dy=".35em"
                       textAnchor={textAnchor}
-                      fontSize={isPrint ? 7 : 9}
+                      fontSize={isPrint ? 7 : isMobile ? 8 : 9}
                       fill="var(--text-muted)"
                       opacity={dim ? 0.3 : 1}
                       style={{ pointerEvents: "none", transition: "opacity 0.2s" }}
