@@ -416,6 +416,7 @@ model CompanyPerson {
   @@index([companyIco])
   @@index([role])
   @@index([companyIco, isActive])
+  @@index([cleanName, city, isActive, role])
 }
 
 model NaceCode {
