@@ -1010,6 +1010,7 @@ const sk: Dict = {
   "docs.gdprDesc": "Informácie o spracovaní osobných údajov v zmysle GDPR.",
   "docs.dpaTitle": "Dohoda o spracúvaní údajov (DPA)",
   "docs.dpaDesc": "Dohoda o spracúvaní osobných údajov medzi Verifa.sk a klientom podľa čl. 28 GDPR.",
+  "docs.refundDesc": "Podmienky vrátenia peňazí za kredity — odstúpenie do 14 dní, automatické vrátenie kreditov, refund cez Paddle.",
   "docs.zobrazit": "Zobraziť",
   "docs.spatDomov": "Späť domov",
 

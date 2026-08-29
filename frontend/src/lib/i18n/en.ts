@@ -1010,6 +1010,7 @@ const en: Dict = {
   "docs.gdprDesc": "Information on personal data processing in accordance with GDPR.",
   "docs.dpaTitle": "Data Processing Agreement (DPA)",
   "docs.dpaDesc": "Data processing agreement between Verifa.sk and the client under GDPR Art. 28.",
+  "docs.refundDesc": "Refund conditions for credits — 14-day withdrawal, automatic credit refunds, refunds via Paddle.",
   "docs.zobrazit": "View",
   "docs.spatDomov": "Back home",
 

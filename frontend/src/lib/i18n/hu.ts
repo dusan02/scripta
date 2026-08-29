@@ -87,6 +87,7 @@ const hu: Dict = {
   "docs.gdprDesc": "Információk a személyes adatok kezeléséről a GDPR értelmében.",
   "docs.dpaTitle": "Adatfeldolgozási megállapodás (DPA)",
   "docs.dpaDesc": "Személyes adatok feldolgozására vonatkozó megállapodás a Verifa.sk és az ügyfél között a GDPR 28. cikke szerint.",
+  "docs.refundDesc": "Visszatérítési feltételek kreditekre — 14 napos elállás, automatikus visszatérítés, Paddle-en keresztül.",
   "docs.zobrazit": "Megtekintés",
   "docs.spatDomov": "Vissza a főoldalra",
   "nav.landing": "Főoldal",

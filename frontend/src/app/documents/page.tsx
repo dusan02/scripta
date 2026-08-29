@@ -150,6 +150,14 @@ export default function DocumentsPage() {
           >
             <ViewButton href="/dpa" label={t("docs.zobrazit")} />
           </DocCard>
+          <DocCard
+            icon={<FileIcon size={28} />}
+            title="Refund Policy"
+            description={t("docs.refundDesc")}
+            status="available"
+          >
+            <ViewButton href="/refund" label={t("docs.zobrazit")} />
+          </DocCard>
         </div>
       </div>
 

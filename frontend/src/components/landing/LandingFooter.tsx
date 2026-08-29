@@ -48,6 +48,7 @@ export default function LandingFooter() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <Link href={lhref("/terms")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.terms")}</Link>
               <Link href={lhref("/privacy")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerPrivacy")}</Link>
+              <Link href={lhref("/refund")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Refund Policy</Link>
               <Link href={lhref("/dpa")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>DPA</Link>
               <Link href={lhref("/documents")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.dokumenty")}</Link>
             </div>

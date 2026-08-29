@@ -834,6 +834,7 @@ const cz: Dict = {
   "docs.downloadEN": "Stáhnout (EN)",
   "docs.downloadSK": "Stáhnout (SK)",
   "docs.dpaDesc": "Dohoda o zpracování osobních údajů mezi Verifa.sk a klientem podle čl. 28 GDPR.",
+  "docs.refundDesc": "Podmínky vrácení peněz za kredity — odstoupení do 14 dní, automatické vrácení, refund přes Paddle.",
   "docs.dpaTitle": "Dohoda o zpracování údajů (DPA)",
   "docs.gdprDesc": "Informace o zpracování osobních údajů ve smyslu GDPR.",
   "docs.gdprTitle": "Ochrana osobních údajů",

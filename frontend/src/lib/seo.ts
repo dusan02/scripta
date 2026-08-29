@@ -152,6 +152,14 @@ const PAGE_SEO: Record<string, Record<Lang, { title: string; description: string
     hu: { title: "Adatkezelési megállapodás (DPA)", description: "Adatkezelési megállapodás a Verifa.sk és az ügyfél között." },
     pl: { title: "Umowa o przetwarzaniu danych (DPA)", description: "Umowa o przetwarzaniu danych osobowych między Verifa.sk a klientem." },
   },
+  refund: {
+    sk: { title: "Refund Policy — Politika vrátenia platby", description: "Podmienky vrátenia peňazí za kredity na Verifa.sk — odstúpenie do 14 dní, automatické vrátenie kreditov, refund cez Paddle." },
+    en: { title: "Refund Policy", description: "Refund conditions for credits on Verifa.sk — 14-day withdrawal, automatic credit refunds, refunds via Paddle." },
+    de: { title: "Rückerstattungsrichtlinie", description: "Rückerstattungsbedingungen für Credits auf Verifa.sk — 14-Tage-Rücktritt, automatische Credit-Rückerstattung, Rückerstattung über Paddle." },
+    cz: { title: "Refund Policy — Politika vrácení platby", description: "Podmínky vrácení peněz za kredity na Verifa.sk — odstoupení do 14 dní, automatické vrácení, refund přes Paddle." },
+    hu: { title: "Visszatérítési Irányelvek", description: "Visszatérítési feltételek a Verifa.sk kreditjeire — 14 napos elállás, automatikus visszatérítés, Paddle-en keresztül." },
+    pl: { title: "Polityka Zwrotów", description: "Warunki zwrotu środków za kredyty na Verifa.sk — 14 dni odstąpienia, automatyczny zwrot, zwrot przez Paddle." },
+  },
 };
 
 /** Firma page SEO — with {name}, {ico}, {city} placeholders */
