@@ -53,8 +53,8 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
       {sectionTitle && (
         <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
       )}
-      <div className="overflow-x-auto -mx-2 px-2">
-      <table className={TABLE_BASE} style={{ fontSize: 13, minWidth: sorted.length > 4 ? 480 : "auto" }}>
+      <div className="overflow-x-auto -mx-2 px-2 pb-1">
+      <table className={TABLE_BASE} style={{ fontSize: 13, minWidth: sorted.length > 3 ? 420 : "auto" }}>
         <colgroup>
           <col style={{ width: "30%" }} />
           {sorted.map((s) => (
@@ -63,7 +63,7 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
         </colgroup>
         <thead>
           <tr style={{ borderBottom: "2px solid var(--border)" }}>
-            <th className={TH_LABEL} style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
+            <th className={TH_LABEL} style={{ color: "var(--text-muted)", position: "sticky", left: 0, background: "var(--surface)", zIndex: 1 }}>{t("firma.ukazovatel")}</th>
             {sorted.map(s => (
               <th key={s.year} className={TH_VALUE} style={{ color: "var(--text-muted)" }}>{s.year}</th>
             ))}
@@ -77,6 +77,10 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
                 style={{
                   color: row.bold ? "var(--text)" : "var(--text-secondary)",
                   fontWeight: row.bold ? 700 : 400,
+                  position: "sticky",
+                  left: 0,
+                  background: "var(--surface)",
+                  zIndex: 1,
                   ...(row.tooltip ? TOOLTIP_STYLE : {}),
                 }}
               >
@@ -119,36 +123,6 @@ function filterEmptyRows(rows: (BaseTableRow & { _key?: string })[], stmts: any[
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Mobile card view for financial tables (used by BalanceSheet, ProfitLoss)
-// ═══════════════════════════════════════════════════════════════
-
-function MobileFinancialCards({ stmts, rows, sectionTitle }: { stmts: any[]; rows: BaseTableRow[]; sectionTitle?: string }) {
-  const sorted = [...stmts].sort((a, b) => a.year - b.year);
-  return (
-    <div className="md:hidden space-y-3">
-      {sectionTitle && (
-        <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
-      )}
-      {sorted.map(s => (
-        <div key={s.year} className="rounded-lg p-3" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-          <div className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>{s.year}</div>
-          {rows.map((row, i) => (
-            <div key={i} className="flex justify-between items-center py-1" style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none" }}>
-              <span className="text-xs" style={{ color: row.bold ? "var(--text)" : "var(--text-secondary)", fontWeight: row.bold ? 700 : 400 }}>
-                {row.label}
-              </span>
-              <span className="text-xs font-mono tabular-nums" style={{ color: "var(--text)", fontWeight: row.bold ? 700 : 400 }}>
-                {row.renderValue(s)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
 // Balance Sheet — Aktíva + Pasíva in one aligned table
 // ═══════════════════════════════════════════════════════════════
 
@@ -175,18 +149,9 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
 
   return (
     <div>
-      {/* Desktop: table */}
-      <div className="hidden md:block">
-        <BaseFinancialTable stmts={stmts} rows={assetsFiltered} sectionTitle={t("firma.aktiva")} />
-        <div className="mt-2" />
-        <BaseFinancialTable stmts={stmts} rows={liabilitiesFiltered} sectionTitle={t("firma.pasiva")} />
-      </div>
-      {/* Mobile: cards */}
-      <div className="md:hidden">
-        <MobileFinancialCards stmts={stmts} rows={assetsFiltered} sectionTitle={t("firma.aktiva")} />
-        <div className="mt-2" />
-        <MobileFinancialCards stmts={stmts} rows={liabilitiesFiltered} sectionTitle={t("firma.pasiva")} />
-      </div>
+      <BaseFinancialTable stmts={stmts} rows={assetsFiltered} sectionTitle={t("firma.aktiva")} />
+      <div className="mt-2" />
+      <BaseFinancialTable stmts={stmts} rows={liabilitiesFiltered} sectionTitle={t("firma.pasiva")} />
     </div>
   );
 }
@@ -210,18 +175,7 @@ export function ProfitLossTable({ stmts }: { stmts: any[] }) {
     dataRow(t("firma.cashFlowPrevadzky"), "operatingCashFlow"),
   ];
   const filtered = filterEmptyRows(PL_ROWS, stmts);
-  return (
-    <div>
-      {/* Desktop: table */}
-      <div className="hidden md:block">
-        <BaseFinancialTable stmts={stmts} rows={filtered} />
-      </div>
-      {/* Mobile: cards */}
-      <div className="md:hidden">
-        <MobileFinancialCards stmts={stmts} rows={filtered} />
-      </div>
-    </div>
-  );
+  return <BaseFinancialTable stmts={stmts} rows={filtered} />;
 }
 
 // ═══════════════════════════════════════════════════════════════
