@@ -12,11 +12,11 @@ type RiskSignal = {
   date?: string | null;
 };
 
-const SEVERITY_STYLES: Record<string, { color: string; bg: string; label: string }> = {
-  critical: { color: "var(--danger, #dc2626)", bg: "var(--danger-bg, #fef2f2)", label: "Kritické" },
-  high: { color: "var(--danger, #dc2626)", bg: "var(--danger-bg, #fef2f2)", label: "Vysoké" },
-  medium: { color: "var(--warning, #d97706)", bg: "var(--warning-bg, #fffbeb)", label: "Stredné" },
-  low: { color: "var(--text-muted)", bg: "var(--surface)", label: "Nízke" },
+const SEVERITY_STYLES: Record<string, { color: string; bg: string; labelKey: string }> = {
+  critical: { color: "var(--danger, #dc2626)", bg: "var(--danger-bg, #fef2f2)", labelKey: "firma.kriticke" },
+  high: { color: "var(--danger, #dc2626)", bg: "var(--danger-bg, #fef2f2)", labelKey: "firma.vysoke" },
+  medium: { color: "var(--warning, #d97706)", bg: "var(--warning-bg, #fffbeb)", labelKey: "firma.stredne" },
+  low: { color: "var(--text-muted)", bg: "var(--surface)", labelKey: "firma.nizke" },
 };
 
 export function RiskSignals({ signals }: { signals: RiskSignal[] }) {
@@ -51,7 +51,7 @@ export function RiskSignals({ signals }: { signals: RiskSignal[] }) {
                     className="text-[10px] font-bold uppercase px-2 py-0.5 rounded"
                     style={{ background: style.color, color: "white" }}
                   >
-                    {style.label}
+                    {t(style.labelKey)}
                   </span>
                   {sig.date && (
                     <span className="text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>

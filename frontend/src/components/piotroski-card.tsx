@@ -1,10 +1,9 @@
 "use client";
 
-import { ChartCard } from "@/components/firma-ui";
 import { useT } from "@/components/LanguageProvider";
 import type { PiotroskiResult } from "@/lib/piotroski";
 
-export function PiotroskiCard({ result }: { result: PiotroskiResult | null }) {
+export function PiotroskiCard({ result, noHeading }: { result: PiotroskiResult | null; noHeading?: boolean }) {
   const t = useT();
   if (!result) return null;
 
@@ -19,7 +18,12 @@ export function PiotroskiCard({ result }: { result: PiotroskiResult | null }) {
   const scoreColor = score >= 7 ? "#10b981" : score <= 3 ? "#ef4444" : "#f59e0b";
 
   return (
-    <ChartCard title={`Piotroski F-Score — ${year}`}>
+    <div className="rounded-2xl p-4 sm:p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+      {!noHeading && (
+        <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+          {`Piotroski F-Score — ${year}`}
+        </h2>
+      )}
       <div className="flex items-center gap-4 mb-3">
         <div className="text-3xl font-black" style={{ color: scoreColor }}>
           {score}
@@ -50,6 +54,6 @@ export function PiotroskiCard({ result }: { result: PiotroskiResult | null }) {
           </div>
         ))}
       </div>
-    </ChartCard>
+    </div>
   );
 }

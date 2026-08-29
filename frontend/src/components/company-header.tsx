@@ -76,7 +76,7 @@ function getNaceSection(code: string | null): string | null {
   return code[0];
 }
 
-export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; latestYear?: number }) {
+export function CompanyHeader({ company, latestYear, riskCount }: { company: CompanyInfo; latestYear?: number; riskCount?: number })  {
   const t = useT();
   const name = company.name || `${t("company.ico")} ${company.ico}`;
 
@@ -101,7 +101,21 @@ export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; l
 
   return (
     <div className="mb-4">
-      <h1 className="text-xl sm:text-2xl font-black mb-1" style={{ color: "var(--text)" }}>{name}</h1>
+      <div className="flex items-center gap-2 flex-wrap mb-1">
+        <h1 className="text-xl sm:text-2xl font-black" style={{ color: "var(--text)" }}>{name}</h1>
+        {riskCount != null && riskCount > 0 && (
+          <span
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style={{
+              background: "var(--danger-bg, #fef2f2)",
+              border: "1px solid var(--danger-border, #fecaca)",
+              color: "var(--danger, #dc2626)",
+            }}
+          >
+            ⚠ {riskCount} {riskCount === 1 ? t("firma.rizikovySignal") : t("firma.rizikoveSignalyMnozne")}
+          </span>
+        )}
+      </div>
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs sm:text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
         <span><strong>{t("company.ico")}:</strong> {company.ico}</span>
         {company.legalForm && <span><strong>{t("company.pravnaForma")}:</strong> {company.legalForm}</span>}

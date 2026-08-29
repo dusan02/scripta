@@ -17,17 +17,15 @@ import { BusinessActivitySection, SigningAuthoritySection } from "@/components/c
 import { RiskSignals } from "@/components/risk-signals";
 import { DataSourcesSection } from "@/components/data-sources";
 import { ReportCTA, CompanyFAQ } from "@/components/report-cta";
-import { CompanyInsights } from "@/components/company-insights";
 import { slugify, parseCompanySlug } from "@/lib/slug";
 import { fmtEUR, num } from "@/lib/format";
 import { calcTrend } from "@/lib/trend";
-import { generateCompanyInsights } from "@/lib/company-insights";
 import { getCompanyData } from "@/lib/ruz";
 import { getServerSession } from "@/lib/auth";
 import { getLangFromHeaders, generateFirmaMetadata, getCanonicalUrl } from "@/lib/seo";
 import { translate } from "@/lib/i18n";
 import { RelatedFirms } from "@/components/related-firms";
-import { CrossFirmPersons } from "@/components/cross-firm-persons";
+import { CrossFirmPersons, getCrossFirmPersons } from "@/components/cross-firm-persons";
 import { PrintButton } from "@/components/PrintButton";
 import { VestnikEvents } from "@/components/vestnik-events";
 import { CompanyEvents } from "@/components/company-events";
@@ -217,11 +215,192 @@ export default async function CompanyPage({ params }: Params) {
     ],
   };
 
+  // ── Risk signals computation (extracted for badge + section placement) ──
+  const signals: Array<{
+    id: string;
+    type: "legal_status" | "vestnik" | "forensic" | "financial";
+    severity: "critical" | "high" | "medium" | "low";
+    title: string;
+    description: string;
+    source: string;
+    date?: string | null;
+  }> = [];
+
+  // Legal status signals
+  if (company.legalStatus === "BANKRUPT") {
+    signals.push({
+      id: "legal-bankrupt",
+      type: "legal_status",
+      severity: "critical",
+      title: t("firma.statusBankrupt"),
+      description: "Firma je v konkurznom konaní.",
+      source: company.legalStatusSource || "ORSR",
+    });
+  }
+  if (company.legalStatus === "RESTRUCTURING") {
+    signals.push({
+      id: "legal-restructuring",
+      type: "legal_status",
+      severity: "critical",
+      title: t("firma.statusRestructuring"),
+      description: "Firma je v reštrukturalizačnom konaní.",
+      source: company.legalStatusSource || "ORSR",
+    });
+  }
+  if (company.legalStatus === "LIQUIDATION") {
+    signals.push({
+      id: "legal-liquidation",
+      type: "legal_status",
+      severity: "high",
+      title: t("firma.statusLiquidation"),
+      description: "Firma je v likvidácii.",
+      source: company.legalStatusSource || "ORSR",
+    });
+  }
+
+  // Vestnik events as risk signals
+  if (company.vestnikEvents) {
+    for (const ev of company.vestnikEvents.slice(0, 5)) {
+      const sev = ev.severityLevel === "CRITICAL" ? "critical" :
+                 ev.severityLevel === "HIGH" ? "high" :
+                 ev.severityLevel === "MEDIUM" ? "medium" : "low";
+      signals.push({
+        id: `vestnik-${ev.id}`,
+        type: "vestnik",
+        severity: sev as any,
+        title: ev.eventType,
+        description: ev.summary,
+        source: "Obchodný vestník",
+        date: new Date(ev.publishedAt).toLocaleDateString("sk-SK"),
+      });
+    }
+  }
+
+  // Forensic signals from latest FS
+  if (latest) {
+    const socIns = num(latest.socialInsuranceLiabilities);
+    const taxLiab = num(latest.taxLiabilities);
+    const empLiab = num(latest.employeeLiabilities);
+
+    if (socIns != null && socIns > 0) {
+      signals.push({
+        id: "forensic-soc-ins",
+        type: "forensic",
+        severity: "high",
+        title: "Záväzky voči sociálnej poisťovni",
+        description: `Neuhradené záväzky voči sociálnej poisťovni: ${fmtEUR(socIns)} (rok ${latest.year}). Zdroj: účtovná závierka, riadok 336A.`,
+        source: "RÚZ",
+        date: String(latest.year),
+      });
+    }
+    if (taxLiab != null && taxLiab > 0) {
+      signals.push({
+        id: "forensic-tax",
+        type: "forensic",
+        severity: "high",
+        title: "Daňové záväzky",
+        description: `Daňové záväzky a dotácie: ${fmtEUR(taxLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 341-347.`,
+        source: "RÚZ",
+        date: String(latest.year),
+      });
+    }
+    if (empLiab != null && empLiab > 0) {
+      signals.push({
+        id: "forensic-emp",
+        type: "forensic",
+        severity: "medium",
+        title: "Záväzky voči zamestnancom",
+        description: `Záväzky voči zamestnancom: ${fmtEUR(empLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 331, 333.`,
+        source: "RÚZ",
+        date: String(latest.year),
+      });
+    }
+  }
+
+  // Negative equity
+  if (latest && num(latest.equity) != null && num(latest.equity)! < 0) {
+    signals.push({
+      id: "financial-neg-equity",
+      type: "financial",
+      severity: "high",
+      title: "Záporné vlastné imanie",
+      description: `Vlastné imanie firmy je záporné (${fmtEUR(num(latest.equity))}) k roku ${latest.year}. Záväzky prevyšujú aktíva.`,
+      source: "RÚZ",
+      date: String(latest.year),
+    });
+  }
+
+  const riskCount = signals.length;
+
+  // ── Cross-firm persons — fetch links for deduplication ──
+  const crossFirmLinks = await getCrossFirmPersons(company.ico);
+  const crossFirmIcos = crossFirmLinks.map(f => f.ico);
+
+  // ── Financial Summary — 1-2 sentence narrative (replaces CompanyInsights) ──
+  function generateFinancialSummary(): string | null {
+    if (!latest) return null;
+    const parts: string[] = [];
+
+    // Revenue trend
+    const revTrend = trends.revenue;
+    if (revTrend?.direction === "up") {
+      parts.push(`${name} dosiahla rast tržieb o ${revTrend.pct.toFixed(0)}%`);
+    } else if (revTrend?.direction === "down") {
+      parts.push(`${name} zaznamenala pokles tržieb o ${Math.abs(revTrend.pct).toFixed(0)}%`);
+    } else if (revTrend?.direction === "flat") {
+      parts.push(`${name} udržala stabilné tržby`);
+    }
+
+    // Profit trend
+    const profTrend = trends.profit;
+    if (profTrend?.direction === "up") {
+      parts.push(`zisk vzrástol o ${profTrend.pct.toFixed(0)}%`);
+    } else if (profTrend?.direction === "down") {
+      parts.push(`zisk klesol o ${Math.abs(profTrend.pct).toFixed(0)}%`);
+    }
+
+    // Margin
+    const rev = num(latest.mainActivityRevenue);
+    const profit = num(latest.netProfitLoss);
+    if (rev != null && rev !== 0 && profit != null) {
+      const margin = (profit / rev * 100).toFixed(1);
+      parts.push(`Zisková marža dosiahla ${margin}%`);
+    }
+
+    if (parts.length === 0) return null;
+    return parts.join(", ") + ".";
+  }
+
+  const financialSummary = generateFinancialSummary();
+
+  // ── Data sources for collapsible section ──
+  const dataSources: Array<{ name: string; syncedAt: Date | null; dataRange?: string | null }> = [];
+  if (company.companyPersons && company.companyPersons.length > 0) {
+    dataSources.push({
+      name: "Obchodný register SR (ORSR)",
+      syncedAt: company.orsrSyncedAt ?? null,
+    });
+  }
+  if (stmts.length > 0) {
+    const years = stmts.map(s => s.year).sort();
+    dataSources.push({
+      name: "Register účtovných závierok (RÚZ)",
+      syncedAt: company.ruzSyncedAt ?? null,
+      dataRange: years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : String(years[0]),
+    });
+  }
+  if (company.vestnikEvents && company.vestnikEvents.length > 0) {
+    dataSources.push({
+      name: "Obchodný vestník SR",
+      syncedAt: company.vestnikSyncedAt ?? null,
+    });
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* Header — standalone only for anonymous users (NavBar shown for authenticated) */}
+      {/* ── STICKY HEADER — secondary CTA only (no "Objednať report") ── */}
       {!isLoggedIn && (
         <header style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 10 }}>
           <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
@@ -233,13 +412,6 @@ export default async function CompanyPage({ params }: Params) {
               <ThemeToggle size="sm" />
               <Link href="/login" className="text-[11px] sm:text-xs font-medium px-3 sm:px-3 py-2.5 sm:py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
                 {t("firma.prihlasitSa")}
-              </Link>
-              <Link
-                href={`/dashboard?ico=${company.ico}`}
-                className="text-xs sm:text-sm font-bold px-4 sm:px-5 py-2.5 sm:py-2.5 rounded-lg transition-all hover:scale-105"
-                style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
-              >
-                {t("firma.objednatReport")}
               </Link>
             </div>
           </div>
@@ -260,6 +432,7 @@ export default async function CompanyPage({ params }: Params) {
             shareCapital: company.shareCapital != null ? Number(company.shareCapital) : null,
           }}
           latestYear={latest?.year}
+          riskCount={riskCount}
         />
 
         {/* Print-only header with logo — fixed to appear on every page */}
@@ -273,7 +446,7 @@ export default async function CompanyPage({ params }: Params) {
           <span>Business risk report</span>
         </div>
 
-        {/* Source attribution + freshness — prominent status for konkurz/likvidácia */}
+        {/* ── KEY FACTS — merged source attribution + provenance into one row ── */}
         {(() => {
           const hasKonkurz = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("konkurz"));
           const hasLikvidacia = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("likvid"));
@@ -293,47 +466,34 @@ export default async function CompanyPage({ params }: Params) {
                   </p>
                 </div>
               )}
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  ...(persons.length > 0 ? ["ORSR"] : []),
-                  ...(stmts.length > 0 ? ["RÚZ"] : []),
-                  ...(company.vestnikEvents && company.vestnikEvents.length > 0 ? ["Obchodný vestník"] : []),
-                ].map(src => (
-                  <span key={src} className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{src}</span>
-                ))}
-                {latest?.year && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.zavierkaRok", { year: latest.year })}</span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs" style={{ color: "var(--text-muted)" }}>
+                {company.employeeCount != null && (
+                  <span>{t("firma.zamestnanci", { value: company.employeeCount })}</span>
                 )}
                 {company.sizeCategory && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.velkostFirmy", { value: company.sizeCategory })}</span>
-                )}
-                {company.employeeCount != null && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.zamestnanci", { value: company.employeeCount })}</span>
+                  <><span>·</span><span>{t("firma.velkostFirmy", { value: company.sizeCategory })}</span></>
                 )}
                 {company.ownershipType && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-muted)" }}>{t("firma.druhVlastnictva", { value: company.ownershipType })}</span>
+                  <><span>·</span><span>{t("firma.druhVlastnictva", { value: company.ownershipType })}</span></>
+                )}
+                {company.shareCapital != null && Number(company.shareCapital) > 0 && (
+                  <><span>·</span><span>{t("firma.zakladneImanie")}: {fmtEUR(Number(company.shareCapital))}</span></>
+                )}
+                {latest?.year && (
+                  <><span>·</span><span>{t("firma.zavierkaRok", { year: latest.year })}</span></>
+                )}
+                {stmts.length > 0 && (
+                  <><span>·</span><span>{t("firma.provenanceObdobie")}: {stmts[stmts.length - 1]?.year}–{latest?.year}</span></>
+                )}
+                {company.ruzSyncedAt && (
+                  <><span>·</span><span>{t("firma.aktualizovane")}: {new Date(company.ruzSyncedAt).toLocaleDateString(lang === "sk" ? "sk-SK" : "en-GB")}</span></>
                 )}
               </div>
             </div>
           );
         })()}
 
-        {/* Provenance — data source, period, last updated */}
-        {stmts.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs mb-3 no-print" style={{ color: "var(--text-muted)" }}>
-            <span>{t("firma.provenanceZdroj")}: <strong>{t("firma.provenanceRuz")}</strong></span>
-            <span>·</span>
-            <span>{t("firma.provenanceObdobie")}: <strong>{stmts[stmts.length - 1]?.year}–{latest?.year}</strong></span>
-            {company.ruzSyncedAt && (
-              <>
-                <span>·</span>
-                <span>{t("firma.provenanceAktualizovane")}: <strong>{new Date(company.ruzSyncedAt).toLocaleDateString(lang === "sk" ? "sk-SK" : "en-GB")}</strong></span>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Key metrics cards — first screening */}
+        {/* ── KPI CARDS — reordered: Tržby, Zisk, Vlastné imanie, Aktíva ── */}
         {stmts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
             <MetricCard label={t("firma.kpiTrzby")} value={fmtEUR(latest?.mainActivityRevenue)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#3b82f6" trend={trends.revenue} />
@@ -344,8 +504,8 @@ export default async function CompanyPage({ params }: Params) {
               color={num(latest?.netProfitLoss) != null && num(latest?.netProfitLoss)! < 0 ? "#ef4444" : "#10b981"}
               trend={trends.profit}
             />
-            <MetricCard label={t("firma.kpiCelkoveAktiva")} value={fmtEUR(latest?.totalAssets)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#8b5cf6" trend={trends.assets} />
             <MetricCard label={t("firma.kpiVlastneImanie")} value={fmtEUR(latest?.equity)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#f59e0b" trend={trends.equity} />
+            <MetricCard label={t("firma.kpiCelkoveAktiva")} value={fmtEUR(latest?.totalAssets)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#8b5cf6" trend={trends.assets} />
           </div>
         ) : (
           <div className="rounded-lg p-4 mb-6 sm:mb-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
@@ -358,270 +518,176 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
-        {/* Trends + Persons side-by-side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6 no-print">
-          <CompanyInsights insights={generateCompanyInsights(stmts.map(s => ({
-            year: s.year,
-            mainActivityRevenue: num(s.mainActivityRevenue),
-            netProfitLoss: num(s.netProfitLoss),
-            totalAssets: num(s.totalAssets),
-            equity: num(s.equity),
-            grossProfit: num(s.grossProfit),
-            staffCosts: num(s.staffCosts),
-            depreciation: num(s.depreciation),
-            incomeTax: num(s.incomeTax),
-            shortTermLiabilities: num(s.shortTermLiabilities),
-            longTermLiabilities: num(s.longTermLiabilities),
-            currentAssets: num(s.currentAssets),
-            cashAndEquivalents: num(s.cashAndEquivalents),
-          })), {
-            vestnikEvents: company.vestnikEvents,
-          })} />
+        {/* ── FINANCIAL SUMMARY (H2) — 1-2 sentence narrative, replaces CompanyInsights ── */}
+        {financialSummary && (
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-base sm:text-lg font-bold mb-2" style={{ color: "var(--text)" }}>
+              {t("firma.financneZhrnutie")}
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+              {financialSummary}
+            </p>
+          </div>
+        )}
 
-          <CompanyPersons persons={persons} />
-        </div>
+        {/* ── RISK SIGNALS (H2) — moved up from #11 to #6 ── */}
+        {riskCount > 0 && <RiskSignals signals={signals} />}
 
-        {/* Predmet činnosti — businessActivity (SEO asset) */}
+        {/* Vestník events + Company events as H3 under Risk Signals */}
+        {((company.vestnikEvents && company.vestnikEvents.length > 0) || (company.companyEvents && company.companyEvents.length > 0)) && (
+          <div className="mb-6 sm:mb-8 no-print">
+            {company.vestnikEvents && company.vestnikEvents.length > 0 && (
+              <div className="mt-3">
+                <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>
+                  {t("firma.vestnikUdalosti")}
+                </h3>
+                <VestnikEvents events={company.vestnikEvents as any} noHeading />
+              </div>
+            )}
+            {company.companyEvents && company.companyEvents.length > 0 && (
+              <div className="mt-3">
+                <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>
+                  {t("firma.orsrUdalosti")}
+                </h3>
+                <CompanyEvents events={company.companyEvents as any} noHeading />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── PEOPLE (H2) — with Signing Authority as H3 ── */}
+        {persons.length > 0 && (
+          <div className="mb-6 sm:mb-8 no-print">
+            <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+              {t("firma.osoby")}
+            </h2>
+            <CompanyPersons persons={persons} />
+            {company.signingAuthority && (
+              <div className="mt-4">
+                <h3 className="text-sm font-bold mb-2" style={{ color: "var(--text)" }}>
+                  {t("firma.konanieMenom")}
+                </h3>
+                <SigningAuthoritySection authority={company.signingAuthority} noHeading />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── BUSINESS ACTIVITY (H2) ── */}
         {company.businessActivity && (
           <BusinessActivitySection activity={company.businessActivity} />
         )}
 
-        {/* Konanie menom spoločnosti — signingAuthority */}
-        {company.signingAuthority && (
-          <SigningAuthoritySection authority={company.signingAuthority} />
-        )}
-
-        {/* Risk signals — konkurz, likvidácia, forenzné signály z FS */}
-        {(() => {
-          const signals: Array<{
-            id: string;
-            type: "legal_status" | "vestnik" | "forensic" | "financial";
-            severity: "critical" | "high" | "medium" | "low";
-            title: string;
-            description: string;
-            source: string;
-            date?: string | null;
-          }> = [];
-
-          // Legal status signals
-          if (company.legalStatus === "BANKRUPT") {
-            signals.push({
-              id: "legal-bankrupt",
-              type: "legal_status",
-              severity: "critical",
-              title: t("firma.statusBankrupt"),
-              description: "Firma je v konkurznom konaní.",
-              source: company.legalStatusSource || "ORSR",
-            });
-          }
-          if (company.legalStatus === "RESTRUCTURING") {
-            signals.push({
-              id: "legal-restructuring",
-              type: "legal_status",
-              severity: "critical",
-              title: t("firma.statusRestructuring"),
-              description: "Firma je v reštrukturalizačnom konaní.",
-              source: company.legalStatusSource || "ORSR",
-            });
-          }
-          if (company.legalStatus === "LIQUIDATION") {
-            signals.push({
-              id: "legal-liquidation",
-              type: "legal_status",
-              severity: "high",
-              title: t("firma.statusLiquidation"),
-              description: "Firma je v likvidácii.",
-              source: company.legalStatusSource || "ORSR",
-            });
-          }
-
-          // Vestnik events as risk signals
-          if (company.vestnikEvents) {
-            for (const ev of company.vestnikEvents.slice(0, 5)) {
-              const sev = ev.severityLevel === "CRITICAL" ? "critical" :
-                         ev.severityLevel === "HIGH" ? "high" :
-                         ev.severityLevel === "MEDIUM" ? "medium" : "low";
-              signals.push({
-                id: `vestnik-${ev.id}`,
-                type: "vestnik",
-                severity: sev as any,
-                title: ev.eventType,
-                description: ev.summary,
-                source: "Obchodný vestník",
-                date: new Date(ev.publishedAt).toLocaleDateString("sk-SK"),
-              });
-            }
-          }
-
-          // Forensic signals from latest FS
-          if (latest) {
-            const socIns = num(latest.socialInsuranceLiabilities);
-            const taxLiab = num(latest.taxLiabilities);
-            const empLiab = num(latest.employeeLiabilities);
-
-            if (socIns != null && socIns > 0) {
-              signals.push({
-                id: "forensic-soc-ins",
-                type: "forensic",
-                severity: "high",
-                title: "Záväzky voči sociálnej poisťovni",
-                description: `Neuhradené záväzky voči sociálnej poisťovni: ${fmtEUR(socIns)} (rok ${latest.year}). Zdroj: účtovná závierka, riadok 336A.`,
-                source: "RÚZ",
-                date: String(latest.year),
-              });
-            }
-            if (taxLiab != null && taxLiab > 0) {
-              signals.push({
-                id: "forensic-tax",
-                type: "forensic",
-                severity: "high",
-                title: "Daňové záväzky",
-                description: `Daňové záväzky a dotácie: ${fmtEUR(taxLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 341-347.`,
-                source: "RÚZ",
-                date: String(latest.year),
-              });
-            }
-            if (empLiab != null && empLiab > 0) {
-              signals.push({
-                id: "forensic-emp",
-                type: "forensic",
-                severity: "medium",
-                title: "Záväzky voči zamestnancom",
-                description: `Záväzky voči zamestnancom: ${fmtEUR(empLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 331, 333.`,
-                source: "RÚZ",
-                date: String(latest.year),
-              });
-            }
-          }
-
-          // Negative equity
-          if (latest && num(latest.equity) != null && num(latest.equity)! < 0) {
-            signals.push({
-              id: "financial-neg-equity",
-              type: "financial",
-              severity: "high",
-              title: "Záporné vlastné imanie",
-              description: `Vlastné imanie firmy je záporné (${fmtEUR(num(latest.equity))}) k roku ${latest.year}. Záväzky prevyšujú aktíva.`,
-              source: "RÚZ",
-              date: String(latest.year),
-            });
-          }
-
-          return signals.length > 0 ? <RiskSignals signals={signals} /> : null;
-        })()}
-
-        {/* Vestník events — zdroj: Obchodný vestník SR */}
-        {company.vestnikEvents && company.vestnikEvents.length > 0 && (
-          <div className="no-print">
-            <VestnikEvents events={company.vestnikEvents as any} />
-          </div>
-        )}
-
-        {/* Company events — zdroj: ORSR, Vestník (verejné registre) */}
-        {company.companyEvents && company.companyEvents.length > 0 && (
-          <div className="no-print">
-            <CompanyEvents events={company.companyEvents as any} />
-          </div>
-        )}
-
-
-        {/* Balance Sheet section — chart left, table right */}
+        {/* ── SÚVAHA (H2) — chart + table ── */}
         {balanceData && balanceData.totalAssets != null && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section">
-            {/* Only show Sankey if we have meaningful breakdown (not just totalAssets) */}
-            {(balanceData.currentAssets != null || balanceData.nonCurrentAssets != null) ? (
-              <ChartCard title={t("firma.chartStrukturaSuvaly")}>
-                <BalanceSankeyChart data={balanceData} />
+          <div className="mb-6 sm:mb-8 print-section">
+            <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+              {t("firma.suvaha")}
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {(balanceData.currentAssets != null || balanceData.nonCurrentAssets != null) ? (
+                <ChartCard title={t("firma.chartStrukturaSuvaly")}>
+                  <BalanceSankeyChart data={balanceData} />
+                </ChartCard>
+              ) : (
+                <ChartCard title={t("firma.chartStrukturaSuvaly")}>
+                  <div className="flex items-center justify-center h-[250px] text-sm" style={{ color: "var(--text-muted)" }}>
+                    {t("firma.detailnyRozpadNedostupny")}
+                  </div>
+                </ChartCard>
+              )}
+              <ChartCard title={t("firma.chartSuvala")}>
+                <BalanceSheetTable stmts={stmts} />
               </ChartCard>
-            ) : (
-              <ChartCard title={t("firma.chartStrukturaSuvaly")}>
-                <div className="flex items-center justify-center h-[250px] text-sm" style={{ color: "var(--text-muted)" }}>
-                  {t("firma.detailnyRozpadNedostupny")}
-                </div>
-              </ChartCard>
-            )}
-            <ChartCard title={t("firma.chartSuvala")}>
-              <BalanceSheetTable stmts={stmts} />
-            </ChartCard>
+            </div>
           </div>
         )}
 
-        {/* Profit and Loss section — chart left, table right */}
+        {/* ── VÝKAZ ZISKOV A STRÁT (H2) — chart + table ── */}
         {chartData.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 sm:mb-8 print-section print-break-before">
-            <ChartCard title={t("firma.chartTrzbyZisk")}>
-              <RevenueProfitChart data={chartData} />
-            </ChartCard>
-            <ChartCard title={t("firma.chartVykazZiskovStrat")}>
-              <ProfitLossTable stmts={stmts} />
-            </ChartCard>
+          <div className="mb-6 sm:mb-8 print-section print-break-before">
+            <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+              {t("firma.vykazZiskovStrat")}
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ChartCard title={t("firma.chartTrzbyZisk")}>
+                <RevenueProfitChart data={chartData} />
+              </ChartCard>
+              <ChartCard title={t("firma.detailnyVykaz")}>
+                <ProfitLossTable stmts={stmts} />
+              </ChartCard>
+            </div>
           </div>
         )}
 
-        {/* Cash Flow table — len ak máme aspoň jeden CF údaj */}
-        {stmts.length > 0 && (
-          <div className="mb-6 sm:mb-8 print-section">
-            <CashFlowTable stmts={stmts} />
-          </div>
-        )}
-
-        {/* Extended ratios — quick ratio, working capital, D/E, interest coverage */}
-        {stmts.length > 0 && (
-          <div className="mb-6 sm:mb-8 print-section">
-            <ExtendedRatios stmts={stmts} />
-          </div>
-        )}
-
-        {/* Piotroski F-Score — len ak máme ≥2 roky dát */}
+        {/* ── PIOTROSKI F-SCORE (H2) — samostatná sekcia ── */}
         {stmts.length >= 2 && (
           <div className="mb-6 sm:mb-8 print-section">
             <PiotroskiCard result={computePiotroski(stmts)} />
           </div>
         )}
 
-        {/* Employee count trend — len ak máme ≥2 dátové body */}
+        {/* ── CASH FLOW (H2, collapsible) ── */}
         {stmts.length > 0 && (
-          <div className="mb-6 sm:mb-8 print-section">
-            <EmployeeTrend stmts={stmts} />
-          </div>
-        )}
-
-        {/* Financial ratios — 2 columns: Rentabilita | Finančná stabilita */}
-        {stmts.length > 0 && (
-          <div className="mb-6 sm:mb-8 print-section print-break-before-avoid">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Left: Rentabilita — chart + table */}
-              <div className="flex flex-col gap-3">
-                <ChartCard title={t("firma.rentabilita")}>
-                  <RentabilityChart data={computeFinancialIndicators(stmts)} />
-                </ChartCard>
-                <ChartCard title={t("firma.financneUkazovatele")}>
-                  <RentabilityRatios stmts={stmts} />
-                </ChartCard>
-              </div>
-              {/* Right: Finančná stabilita — chart + table */}
-              <div className="flex flex-col gap-3">
-                <ChartCard title={t("firma.financnaStabilita")}>
-                  <StabilityChart data={computeFinancialIndicators(stmts)} />
-                </ChartCard>
-                <ChartCard title={t("firma.financneUkazovatele")}>
-                  <StabilityRatios stmts={stmts} />
-                </ChartCard>
-              </div>
+          <details className="mb-6 sm:mb-8 no-print">
+            <summary className="cursor-pointer mb-3" style={{ color: "var(--text)" }}>
+              <h2 className="text-base sm:text-lg font-bold inline" style={{ color: "var(--text)" }}>
+                {t("firma.cashFlow")}
+              </h2>
+              <span className="text-xs font-normal ml-2" style={{ color: "var(--text-muted)" }}>· {t("firma.cashFlowSummary")}</span>
+            </summary>
+            <div className="mt-3">
+              <CashFlowTable stmts={stmts} />
             </div>
-            <p className="text-[11px] mt-2 no-print" style={{ color: "var(--text-muted)" }}>
-              {t("firma.metodologia")} {/* */}
-              <Link href="/slovnik" className="underline hover:no-underline">{t("firma.metodologiaLink")}</Link>
-            </p>
-          </div>
+          </details>
         )}
 
-        {/* Unified CTA — single strong call-to-action (replaces 3 duplicate CTAs) */}
+        {/* ── DETAILNÉ FINANČNÉ UKAZOVATELE (H2, collapsible) ── */}
+        {stmts.length > 0 && (
+          <details className="mb-6 sm:mb-8 no-print">
+            <summary className="cursor-pointer mb-3" style={{ color: "var(--text)" }}>
+              <h2 className="text-base sm:text-lg font-bold inline" style={{ color: "var(--text)" }}>
+                {t("firma.detailneUkazovatele")}
+              </h2>
+              <span className="text-xs font-normal ml-2" style={{ color: "var(--text-muted)" }}>· {t("firma.detailneUkazovateleSummary")}</span>
+            </summary>
+            <div className="mt-3 space-y-6">
+              <ExtendedRatios stmts={stmts} />
+              <EmployeeTrend stmts={stmts} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Left: Rentabilita — chart + table */}
+                <div className="flex flex-col gap-3">
+                  <ChartCard title={t("firma.rentabilita")}>
+                    <RentabilityChart data={computeFinancialIndicators(stmts)} />
+                  </ChartCard>
+                  <ChartCard title={t("firma.rentabilitaUkazovatele")}>
+                    <RentabilityRatios stmts={stmts} />
+                  </ChartCard>
+                </div>
+                {/* Right: Finančná stabilita — chart + table */}
+                <div className="flex flex-col gap-3">
+                  <ChartCard title={t("firma.financnaStabilita")}>
+                    <StabilityChart data={computeFinancialIndicators(stmts)} />
+                  </ChartCard>
+                  <ChartCard title={t("firma.stabilitaUkazovatele")}>
+                    <StabilityRatios stmts={stmts} />
+                  </ChartCard>
+                </div>
+              </div>
+              <p className="text-[11px] mt-2" style={{ color: "var(--text-muted)" }}>
+                {t("firma.metodologia")} {/* */}
+                <Link href="/slovnik" className="underline hover:no-underline">{t("firma.metodologiaLink")}</Link>
+              </p>
+            </div>
+          </details>
+        )}
+
+        {/* ── REPORT CTA (H2) — primary CTA after financial sections ── */}
         <div className="no-print">
           <ReportCTA ico={company.ico} name={name} />
         </div>
 
-        {/* FAQ — dynamic per-company SEO content */}
+        {/* ── FAQ (H2) — SEO long-tail content ── */}
         <CompanyFAQ
           name={name}
           ico={company.ico}
@@ -634,40 +700,39 @@ export default async function CompanyPage({ params }: Params) {
           latestYear={latest?.year}
         />
 
-        {/* Data sources — trust/provenance */}
-        {(() => {
-          const sources: Array<{ name: string; syncedAt: Date | null; dataRange?: string | null }> = [];
+        {/* ── ZDROJE ÚDAJOV (H2, collapsible) ── */}
+        {dataSources.length > 0 && (
+          <details className="mb-6 sm:mb-8 no-print">
+            <summary className="cursor-pointer mb-3" style={{ color: "var(--text)" }}>
+              <h2 className="text-base sm:text-lg font-bold inline" style={{ color: "var(--text)" }}>
+                {t("firma.zdrojeUdajov")}
+              </h2>
+              <span className="text-xs font-normal ml-2" style={{ color: "var(--text-muted)" }}>· {t("firma.zdrojeUdajovSummary")}</span>
+            </summary>
+            <div className="mt-3">
+              <DataSourcesSection sources={dataSources} noHeading />
+            </div>
+          </details>
+        )}
 
-          if (company.companyPersons && company.companyPersons.length > 0) {
-            sources.push({
-              name: "Obchodný register SR (ORSR)",
-              syncedAt: company.orsrSyncedAt ?? null,
-            });
-          }
-          if (stmts.length > 0) {
-            const years = stmts.map(s => s.year).sort();
-            sources.push({
-              name: "Register účtovných závierok (RÚZ)",
-              syncedAt: company.ruzSyncedAt ?? null,
-              dataRange: years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : String(years[0]),
-            });
-          }
-          if (company.vestnikEvents && company.vestnikEvents.length > 0) {
-            sources.push({
-              name: "Obchodný vestník SR",
-              syncedAt: company.vestnikSyncedAt ?? null,
-            });
-          }
-
-          return sources.length > 0 ? <DataSourcesSection sources={sources} /> : null;
-        })()}
-
-        <div className="no-print">
+        {/* ── SÚVISIACE FIRMY (H2) ── */}
+        <div className="no-print mt-8 sm:mt-12">
+          <h2 className="text-lg sm:text-xl font-bold mb-4" style={{ color: "var(--text)" }}>
+            {t("firma.suvisiaceFirmy")}
+          </h2>
           {/* Cross-firm person linking — firmy spojené cez spoločné osoby */}
-          <CrossFirmPersons ico={company.ico} />
+          {crossFirmLinks.length > 0 && <CrossFirmPersons ico={company.ico} links={crossFirmLinks} lang={lang} />}
 
           {/* Internal linking: related firms by industry and region */}
-          <RelatedFirms ico={company.ico} city={company.city} naceCode={company.naceCode} kraj={company.kraj} />
+          <RelatedFirms
+            ico={company.ico}
+            city={company.city}
+            naceCode={company.naceCode}
+            kraj={company.kraj}
+            excludeIcos={crossFirmIcos}
+            noHeading
+            lang={lang}
+          />
         </div>
       </div>
     </div>

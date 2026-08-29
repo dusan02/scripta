@@ -40,7 +40,7 @@ export function BusinessActivitySection({ activity }: { activity: string }) {
   );
 }
 
-export function SigningAuthoritySection({ authority }: { authority: string }) {
+export function SigningAuthoritySection({ authority, noHeading }: { authority: string; noHeading?: boolean }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
 
@@ -52,10 +52,12 @@ export function SigningAuthoritySection({ authority }: { authority: string }) {
     : authority;
 
   return (
-    <div className="mb-6 sm:mb-8 no-print">
-      <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-        {t("firma.konanieMenom")}
-      </h2>
+    <div className={noHeading ? "" : "mb-6 sm:mb-8 no-print"}>
+      {!noHeading && (
+        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+          {t("firma.konanieMenom")}
+        </h2>
+      )}
       <div
         className="rounded-lg p-4"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}

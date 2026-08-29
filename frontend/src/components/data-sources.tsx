@@ -8,15 +8,17 @@ type SourceInfo = {
   dataRange?: string | null;
 };
 
-export function DataSourcesSection({ sources }: { sources: SourceInfo[] }) {
+export function DataSourcesSection({ sources, noHeading }: { sources: SourceInfo[]; noHeading?: boolean }) {
   const t = useT();
   if (sources.length === 0) return null;
 
   return (
-    <div className="mb-6 sm:mb-8 no-print">
-      <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-        {t("firma.zdrojeUdajov") || "Zdroje údajov"}
-      </h2>
+    <div className={noHeading ? "" : "mb-6 sm:mb-8 no-print"}>
+      {!noHeading && (
+        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+          {t("firma.zdrojeUdajov") || "Zdroje údajov"}
+        </h2>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {sources.map((src) => (
           <div

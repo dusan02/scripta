@@ -11,22 +11,24 @@ type VestnikEvent = {
   publishedAt: Date;
 };
 
-const SEVERITY_STYLES: Record<string, { color: string; bg: string; label: string }> = {
-  CRITICAL: { color: "var(--danger)", bg: "var(--danger-bg)", label: "Kritické" },
-  HIGH: { color: "var(--danger)", bg: "var(--danger-bg)", label: "Vysoké" },
-  MEDIUM: { color: "var(--warning)", bg: "var(--warning-bg)", label: "Stredné" },
-  LOW: { color: "var(--text-muted)", bg: "var(--surface)", label: "Nízke" },
+const SEVERITY_STYLES: Record<string, { color: string; bg: string; labelKey: string }> = {
+  CRITICAL: { color: "var(--danger)", bg: "var(--danger-bg)", labelKey: "firma.kriticke" },
+  HIGH: { color: "var(--danger)", bg: "var(--danger-bg)", labelKey: "firma.vysoke" },
+  MEDIUM: { color: "var(--warning)", bg: "var(--warning-bg)", labelKey: "firma.stredne" },
+  LOW: { color: "var(--text-muted)", bg: "var(--surface)", labelKey: "firma.nizke" },
 };
 
-export function VestnikEvents({ events }: { events: VestnikEvent[] }) {
+export function VestnikEvents({ events, noHeading }: { events: VestnikEvent[]; noHeading?: boolean }) {
   const t = useT();
   if (events.length === 0) return null;
 
   return (
-    <div className="mb-6 sm:mb-8">
-      <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-        {t("firma.vestnikUdalosti") || "Udalosti z Obchodného vestníka"}
-      </h2>
+    <div className={noHeading ? "" : "mb-6 sm:mb-8"}>
+      {!noHeading && (
+        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+          {t("firma.vestnikUdalosti") || "Udalosti z Obchodného vestníka"}
+        </h2>
+      )}
       <div className="space-y-2">
         {events.map((ev) => {
           const style = SEVERITY_STYLES[ev.severityLevel] || SEVERITY_STYLES.LOW;
@@ -45,7 +47,7 @@ export function VestnikEvents({ events }: { events: VestnikEvent[] }) {
                     className="text-[10px] font-bold uppercase px-2 py-0.5 rounded"
                     style={{ background: style.color, color: "white" }}
                   >
-                    {style.label}
+                    {t(style.labelKey)}
                   </span>
                   <span className="text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                     {new Date(ev.publishedAt).toLocaleDateString("sk-SK")}

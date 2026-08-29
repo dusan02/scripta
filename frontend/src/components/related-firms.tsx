@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
 import { getNaceSectionFromCode, getNaceSectionLabel, getKrajLabel, getKrajLabelLocative } from "@/lib/screener";
+import { translate, type Lang } from "@/lib/i18n";
 
 type RelatedFirm = {
   ico: string;
@@ -100,20 +101,48 @@ export async function RelatedFirms({
   city,
   naceCode,
   kraj,
+  excludeIcos = [],
+  noHeading = false,
+  lang = "sk",
 }: {
   ico: string;
   city: string | null;
   naceCode: string | null;
   kraj?: string | null;
   latestRevenue?: string | null;
+  excludeIcos?: string[];
+  noHeading?: boolean;
+  lang?: Lang;
 }) {
+  const t = (key: string, params?: Record<string, string | number>) => translate(lang, key, params);
   const [byNaceInKraj, largestByNace, firmsInCity] = await Promise.all([
     getRelatedByNaceInKraj(ico, naceCode, kraj ?? null),
     getLargestByNace(ico, naceCode),
     getFirmsInCity(ico, city),
   ]);
 
-  if (byNaceInKraj.length === 0 && largestByNace.length === 0 && firmsInCity.length === 0) return null;
+  // Deduplication with priority: cross-firm (already excluded) → city → nace/kraj → largest
+  const seenIcos = new Set<string>([ico, ...excludeIcos]);
+
+  const dedupFirmsInCity = firmsInCity.filter(f => {
+    if (seenIcos.has(f.ico)) return false;
+    seenIcos.add(f.ico);
+    return true;
+  });
+
+  const dedupByNaceInKraj = byNaceInKraj.filter(f => {
+    if (seenIcos.has(f.ico)) return false;
+    seenIcos.add(f.ico);
+    return true;
+  });
+
+  const dedupLargestByNace = largestByNace.filter(f => {
+    if (seenIcos.has(f.ico)) return false;
+    seenIcos.add(f.ico);
+    return true;
+  });
+
+  if (dedupByNaceInKraj.length === 0 && dedupLargestByNace.length === 0 && dedupFirmsInCity.length === 0) return null;
 
   const krajLabel = kraj ? getKrajLabel(kraj) || KRAJ_NAMES[kraj] || kraj : null;
   const krajLocative = kraj ? getKrajLabelLocative(kraj) || krajLabel : null;
@@ -133,10 +162,12 @@ export async function RelatedFirms({
   }
 
   return (
-    <section className="mt-8 sm:mt-12">
-      <h2 className="text-lg sm:text-xl font-bold mb-4" style={{ color: "var(--text)" }}>
-        Súvisiace firmy
-      </h2>
+    <section className={noHeading ? "" : "mt-8 sm:mt-12"}>
+      {!noHeading && (
+        <h2 className="text-lg sm:text-xl font-bold mb-4" style={{ color: "var(--text)" }}>
+          {t("firma.suvisiaceFirmy")}
+        </h2>
+      )}
 
       {/* Hub backlinks for internal linking */}
       {hubLinks.length > 0 && (
@@ -154,13 +185,13 @@ export async function RelatedFirms({
         </div>
       )}
 
-      {byNaceInKraj.length > 0 && (
+      {dedupFirmsInCity.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            Firmy v rovnakom odvetví{krajLabel ? ` v ${krajLabel}` : ""}
+            {t("firma.firmyVMeste", { city: city ?? "" })}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {byNaceInKraj.map((f) => (
+            {dedupFirmsInCity.map((f) => (
               <Link
                 key={f.ico}
                 href={buildCompanyUrl(f.ico, f.name)}
@@ -168,12 +199,11 @@ export async function RelatedFirms({
                 style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
               >
                 <div className="font-medium truncate" style={{ color: "var(--text)" }}>
-                  {f.name || `IČO ${f.ico}`}
+                  {f.name || `${t("firma.icoLabel")} ${f.ico}`}
                 </div>
                 <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  IČO: {f.ico}
-                  {f.city && ` · ${f.city}`}
-                  {f.latestRevenue && ` · Tržby: ${formatRevenue(f.latestRevenue)}`}
+                  {t("firma.icoLabel")}: {f.ico}
+                  {f.latestRevenue && ` · ${t("firma.trzbyLabel")}: ${formatRevenue(f.latestRevenue)}`}
                 </div>
               </Link>
             ))}
@@ -181,13 +211,42 @@ export async function RelatedFirms({
         </div>
       )}
 
-      {largestByNace.length > 0 && (
+      {dedupByNaceInKraj.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
+            {krajLabel
+              ? t("firma.firmyVOdvetviVKraji", { kraj: krajLabel })
+              : t("firma.firmyVOdvetvi")}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {dedupByNaceInKraj.map((f) => (
+              <Link
+                key={f.ico}
+                href={buildCompanyUrl(f.ico, f.name)}
+                className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              >
+                <div className="font-medium truncate" style={{ color: "var(--text)" }}>
+                  {f.name || `${t("firma.icoLabel")} ${f.ico}`}
+                </div>
+                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                  {t("firma.icoLabel")}: {f.ico}
+                  {f.city && ` · ${f.city}`}
+                  {f.latestRevenue && ` · ${t("firma.trzbyLabel")}: ${formatRevenue(f.latestRevenue)}`}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {dedupLargestByNace.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            Najväčšie firmy v rovnakom odvetví
+            {t("firma.najvsieFirmy")}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {largestByNace.map((f) => (
+            {dedupLargestByNace.map((f) => (
               <Link
                 key={f.ico}
                 href={buildCompanyUrl(f.ico, f.name)}
@@ -195,38 +254,12 @@ export async function RelatedFirms({
                 style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
               >
                 <div className="font-medium truncate" style={{ color: "var(--text)" }}>
-                  {f.name || `IČO ${f.ico}`}
+                  {f.name || `${t("firma.icoLabel")} ${f.ico}`}
                 </div>
                 <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  IČO: {f.ico}
+                  {t("firma.icoLabel")}: {f.ico}
                   {f.city && ` · ${f.city}`}
                   {f.latestRevenue && ` · ${formatRevenue(f.latestRevenue)}`}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {firmsInCity.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            Firmy v meste {city}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {firmsInCity.map((f) => (
-              <Link
-                key={f.ico}
-                href={buildCompanyUrl(f.ico, f.name)}
-                className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-              >
-                <div className="font-medium truncate" style={{ color: "var(--text)" }}>
-                  {f.name || `IČO ${f.ico}`}
-                </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  IČO: {f.ico}
-                  {f.latestRevenue && ` · Tržby: ${formatRevenue(f.latestRevenue)}`}
                 </div>
               </Link>
             ))}

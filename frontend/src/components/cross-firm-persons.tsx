@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
+import { translate, type Lang } from "@/lib/i18n";
 
 type CrossFirmLink = {
   ico: string;
@@ -25,7 +26,7 @@ const COMMON_NAMES = new Set([
   "jan gabor", "peter gabor",
 ]);
 
-async function getCrossFirmPersons(ico: string): Promise<CrossFirmLink[]> {
+export async function getCrossFirmPersons(ico: string): Promise<CrossFirmLink[]> {
   // Get active statutars/spolocnici for this company
   const persons = await prisma.companyPerson.findMany({
     where: {
@@ -80,14 +81,15 @@ async function getCrossFirmPersons(ico: string): Promise<CrossFirmLink[]> {
   return results.slice(0, 5);
 }
 
-export async function CrossFirmPersons({ ico }: { ico: string }) {
-  const links = await getCrossFirmPersons(ico);
+export async function CrossFirmPersons({ ico, links: preloadedLinks, lang = "sk" }: { ico: string; links?: CrossFirmLink[]; lang?: Lang }) {
+  const links = preloadedLinks ?? await getCrossFirmPersons(ico);
   if (links.length === 0) return null;
+  const t = (key: string, params?: Record<string, string | number>) => translate(lang, key, params);
 
   return (
     <div className="mb-6 no-print">
       <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-        Ďalšie spoločnosti spojené s osobami firmy
+        {t("firma.dalsieSpojene")}
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {links.map((f) => (
@@ -98,10 +100,10 @@ export async function CrossFirmPersons({ ico }: { ico: string }) {
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
             <div className="font-medium truncate" style={{ color: "var(--text)" }}>
-              {f.name || `IČO ${f.ico}`}
+              {f.name || `${t("firma.icoLabel")} ${f.ico}`}
             </div>
             <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-              IČO: {f.ico} · osoba: {f.personName}
+              {t("firma.icoLabel")}: {f.ico} · {t("firma.osobaLabel")}: {f.personName}
             </div>
           </Link>
         ))}

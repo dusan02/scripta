@@ -119,6 +119,36 @@ function filterEmptyRows(rows: (BaseTableRow & { _key?: string })[], stmts: any[
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Mobile card view for financial tables (used by BalanceSheet, ProfitLoss)
+// ═══════════════════════════════════════════════════════════════
+
+function MobileFinancialCards({ stmts, rows, sectionTitle }: { stmts: any[]; rows: BaseTableRow[]; sectionTitle?: string }) {
+  const sorted = [...stmts].sort((a, b) => a.year - b.year);
+  return (
+    <div className="md:hidden space-y-3">
+      {sectionTitle && (
+        <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
+      )}
+      {sorted.map(s => (
+        <div key={s.year} className="rounded-lg p-3" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+          <div className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>{s.year}</div>
+          {rows.map((row, i) => (
+            <div key={i} className="flex justify-between items-center py-1" style={{ borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none" }}>
+              <span className="text-xs" style={{ color: row.bold ? "var(--text)" : "var(--text-secondary)", fontWeight: row.bold ? 700 : 400 }}>
+                {row.label}
+              </span>
+              <span className="text-xs font-mono tabular-nums" style={{ color: "var(--text)", fontWeight: row.bold ? 700 : 400 }}>
+                {row.renderValue(s)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Balance Sheet — Aktíva + Pasíva in one aligned table
 // ═══════════════════════════════════════════════════════════════
 
@@ -140,11 +170,23 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
     dataRow(t("firma.dlhodobeZavazky"), "longTermLiabilities"),
   ];
 
+  const assetsFiltered = filterEmptyRows(ASSETS_ROWS, stmts);
+  const liabilitiesFiltered = filterEmptyRows(LIABILITIES_ROWS, stmts);
+
   return (
     <div>
-      <BaseFinancialTable stmts={stmts} rows={filterEmptyRows(ASSETS_ROWS, stmts)} sectionTitle={t("firma.aktiva")} />
-      <div className="mt-2" />
-      <BaseFinancialTable stmts={stmts} rows={filterEmptyRows(LIABILITIES_ROWS, stmts)} sectionTitle={t("firma.pasiva")} />
+      {/* Desktop: table */}
+      <div className="hidden md:block">
+        <BaseFinancialTable stmts={stmts} rows={assetsFiltered} sectionTitle={t("firma.aktiva")} />
+        <div className="mt-2" />
+        <BaseFinancialTable stmts={stmts} rows={liabilitiesFiltered} sectionTitle={t("firma.pasiva")} />
+      </div>
+      {/* Mobile: cards */}
+      <div className="md:hidden">
+        <MobileFinancialCards stmts={stmts} rows={assetsFiltered} sectionTitle={t("firma.aktiva")} />
+        <div className="mt-2" />
+        <MobileFinancialCards stmts={stmts} rows={liabilitiesFiltered} sectionTitle={t("firma.pasiva")} />
+      </div>
     </div>
   );
 }
@@ -167,7 +209,19 @@ export function ProfitLossTable({ stmts }: { stmts: any[] }) {
     dataRow(t("firma.ziskStrata"), "netProfitLoss", true),
     dataRow(t("firma.cashFlowPrevadzky"), "operatingCashFlow"),
   ];
-  return <BaseFinancialTable stmts={stmts} rows={filterEmptyRows(PL_ROWS, stmts)} />;
+  const filtered = filterEmptyRows(PL_ROWS, stmts);
+  return (
+    <div>
+      {/* Desktop: table */}
+      <div className="hidden md:block">
+        <BaseFinancialTable stmts={stmts} rows={filtered} />
+      </div>
+      {/* Mobile: cards */}
+      <div className="md:hidden">
+        <MobileFinancialCards stmts={stmts} rows={filtered} />
+      </div>
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -191,6 +245,7 @@ export function CashFlowTable({ stmts }: { stmts: any[] }) {
 // ═══════════════════════════════════════════════════════════════
 
 export function MetricCard({ label, value, sub, color, trend }: { label: string; value: string; sub: string; color: string; trend?: { direction: "up" | "down" | "flat"; pct: number } }) {
+  const t = useT();
   const trendColor = trend?.direction === "up" ? "#10b981" : trend?.direction === "down" ? "#ef4444" : "var(--text-muted)";
   const trendIcon = trend?.direction === "up" ? "↑" : trend?.direction === "down" ? "↓" : "→";
   const trendText = trend ? `${trendIcon} ${trend.pct > 0 ? trend.pct.toFixed(0) : "0"}%` : null;
@@ -199,7 +254,7 @@ export function MetricCard({ label, value, sub, color, trend }: { label: string;
     <div className="rounded-xl p-3 sm:p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
       <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>{label}</p>
       {isEmpty ? (
-        <div className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Údaje nedostupné</div>
+        <div className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>{t("firma.udajeNedostupneShort")}</div>
       ) : (
         <div className="text-lg sm:text-xl font-black" style={{ color }}>{value}</div>
       )}
@@ -262,7 +317,7 @@ export function FinancialRatios({ stmts }: { stmts: any[] }) {
       renderValue: (s) => fmtPct(byYear.get(s.year)?.roa ?? null),
     },
     {
-      label: "Zisková marža",
+      label: t("firma.ziskovaMarza") || "Zisková marža",
       tooltip: t("firma.tooltipMarza"),
       renderValue: (s) => fmtPct(byYear.get(s.year)?.margin ?? null),
     },

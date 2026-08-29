@@ -14,12 +14,12 @@ type CompanyEvent = {
   amount: number | null;
 };
 
-const SEVERITY_STYLES: Record<string, { color: string; bg: string; label: string }> = {
-  CRITICAL: { color: "var(--danger)", bg: "var(--danger-bg)", label: "Kritické" },
-  HIGH: { color: "var(--danger)", bg: "var(--danger-bg)", label: "Vysoké" },
-  MEDIUM: { color: "var(--warning)", bg: "var(--warning-bg)", label: "Stredné" },
-  LOW: { color: "var(--text-muted)", bg: "var(--surface)", label: "Nízke" },
-  INFO: { color: "var(--text-muted)", bg: "var(--surface)", label: "Info" },
+const SEVERITY_STYLES: Record<string, { color: string; bg: string; labelKey: string }> = {
+  CRITICAL: { color: "var(--danger)", bg: "var(--danger-bg)", labelKey: "firma.kriticke" },
+  HIGH: { color: "var(--danger)", bg: "var(--danger-bg)", labelKey: "firma.vysoke" },
+  MEDIUM: { color: "var(--warning)", bg: "var(--warning-bg)", labelKey: "firma.stredne" },
+  LOW: { color: "var(--text-muted)", bg: "var(--surface)", labelKey: "firma.nizke" },
+  INFO: { color: "var(--text-muted)", bg: "var(--surface)", labelKey: "firma.info" },
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -38,15 +38,17 @@ const SOURCE_LABELS: Record<string, string> = {
   ORSR: "Obchodný register SR",
 };
 
-export function CompanyEvents({ events }: { events: CompanyEvent[] }) {
+export function CompanyEvents({ events, noHeading }: { events: CompanyEvent[]; noHeading?: boolean }) {
   const t = useT();
   if (events.length === 0) return null;
 
   return (
-    <div className="mb-6 sm:mb-8">
-      <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
-        {t("firma.orsrUdalosti") || "Registrujúce udalosti"}
-      </h2>
+    <div className={noHeading ? "" : "mb-6 sm:mb-8"}>
+      {!noHeading && (
+        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+          {t("firma.orsrUdalosti") || "Registrujúce udalosti"}
+        </h2>
+      )}
       <div className="space-y-2">
         {events.map((ev) => {
           const style = SEVERITY_STYLES[ev.severity] || SEVERITY_STYLES.INFO;
@@ -71,7 +73,7 @@ export function CompanyEvents({ events }: { events: CompanyEvent[] }) {
                     className="text-[10px] font-bold uppercase px-2 py-0.5 rounded"
                     style={{ background: style.color, color: "white" }}
                   >
-                    {style.label}
+                    {t(style.labelKey)}
                   </span>
                   {ev.eventDate && (
                     <span className="text-xs whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
