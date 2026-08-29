@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
-import { addCreditBatch } from "@/lib/credits";
 import { PLAN_CREDITS_MAP } from "@/lib/billing/paddle";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
-import { prisma } from "@/lib/prisma";
 import { confirmSchema } from "@/lib/api-schemas";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Confirm route — verifies a Paddle transaction completed successfully.
+ *
+ * This route does NOT grant credits. Credits are granted exclusively by the
+ * webhook handler (/api/billing/webhook) which is the source of truth.
+ * This route only verifies the transaction status so the frontend can show
+ * a success message immediately (without waiting for the webhook).
+ *
+ * Previously, this route also called addCreditBatch() — but that created a
+ * double-spend race condition when the webhook and confirm arrived
+ * concurrently. The idempotency check used different eventId values
+ * ("confirm-{txnId}" vs Paddle's event_id), so both could succeed.
+ */
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession();
@@ -71,29 +82,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
     }
 
-    // Idempotency: check if credits already granted for this transaction
-    const existing = await prisma.walletTransaction.findFirst({
-      where: {
-        providerReference: txn.id,
-        type: "TOPUP",
-      },
-    });
-
-    if (existing) {
-      return NextResponse.json({ ok: true, alreadyGranted: true, credits: 0 });
-    }
-
-    await addCreditBatch(
-      userId,
-      credits,
-      "addon",
-      planId,
-      txn.id,
-      "PADDLE",
-      `confirm-${txn.id}`,
-    );
-
-    return NextResponse.json({ ok: true, credits });
+    // Only verify — credits are granted by the webhook handler.
+    return NextResponse.json({ ok: true, credits, verified: true });
   } catch (error) {
     console.error("[confirm] Error:", error);
     return NextResponse.json({ error: "Confirmation failed" }, { status: 500 });

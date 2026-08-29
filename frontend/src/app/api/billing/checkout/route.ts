@@ -47,7 +47,23 @@ export async function POST(req: NextRequest) {
       userEmail: session.user.email,
     });
 
-    return NextResponse.json({ url: result.url });
+    // Store checkout context in a short-lived httpOnly cookie.
+    // The checkout page reads this via /api/billing/checkout-context.
+    // This avoids leaking userId/email in the URL.
+    const response = NextResponse.json({ url: result.url });
+    response.cookies.set("checkout_ctx", JSON.stringify({
+      userId: session.user.id,
+      email: session.user.email,
+      planId,
+    }), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 300, // 5 minutes — checkout should complete quickly
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Checkout error:", error);
     const message = error instanceof Error ? error.message : "Checkout failed";

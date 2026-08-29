@@ -367,10 +367,12 @@ describe("PaddleAdapter", () => {
         userEmail: "test@verifa.sk",
       });
 
+      // userId is no longer in the URL — it's stored in an httpOnly cookie.
+      // Only planId (public info) is in the URL.
       assert.match(result.url, /^\/credits\/checkout\?/);
-      assert.match(result.url, /priceId=pri_test1/);
       assert.match(result.url, /planId=payg1/);
-      assert.match(result.url, /userId=user-123/);
+      assert.doesNotMatch(result.url, /userId=user-123/);
+      assert.doesNotMatch(result.url, /priceId=/);
     });
 
     it("throws for invalid plan ID", async () => {

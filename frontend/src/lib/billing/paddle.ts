@@ -5,12 +5,22 @@ export const PLAN_CREDITS_MAP: Record<string, number> = {
   payg1: 1,
   payg10: 10,
   payg50: 50,
+  // Subscription plans (for future use — not yet active in Paddle)
+  freelance: 5,
+  firma: 20,
+  korporat: 40,
+  addon5: 5,
 };
 
 export const PADDLE_PRICE_MAP: Record<string, { priceId: string; credits: number; planName: string }> = {
   payg1:  { priceId: process.env.PADDLE_PRICE_1  || "", credits: 1,  planName: "payg1" },
   payg10: { priceId: process.env.PADDLE_PRICE_10 || "", credits: 10, planName: "payg10" },
   payg50: { priceId: process.env.PADDLE_PRICE_50 || "", credits: 50, planName: "payg50" },
+  // Subscription plans (env vars must be set when activated)
+  freelance: { priceId: process.env.PADDLE_PRICE_FREELANCE || "", credits: 5,  planName: "freelance" },
+  firma:     { priceId: process.env.PADDLE_PRICE_FIRMA     || "", credits: 20, planName: "firma" },
+  korporat:  { priceId: process.env.PADDLE_PRICE_KORPORAT  || "", credits: 40, planName: "korporat" },
+  addon5:    { priceId: process.env.PADDLE_PRICE_ADDON5    || "", credits: 5,  planName: "addon" },
 };
 
 let _paddle: Paddle | null = null;
@@ -134,6 +144,68 @@ export class PaddleAdapter implements PaymentProviderAdapter {
         break;
       }
 
+      case EventName.SubscriptionCanceled: {
+        const sub = eventData.data as any;
+        const customData = sub.customData || sub.custom_data || {};
+        const userId = customData.userId;
+
+        if (!userId) {
+          console.error("[PADDLE] subscription.canceled: missing userId in custom_data");
+          break;
+        }
+
+        const endsAt = sub.canceledAt || sub.canceled_at
+          ? new Date(sub.canceledAt || sub.canceled_at)
+          : new Date();
+
+        results.push({
+          type: "subscription.canceled",
+          userId,
+          credits: 0,
+          providerReference: sub.id,
+          endsAt,
+          eventId,
+        });
+        break;
+      }
+
+      case EventName.SubscriptionUpdated: {
+        const sub = eventData.data as any;
+        const customData = sub.customData || sub.custom_data || {};
+        const userId = customData.userId;
+
+        if (!userId) {
+          break;
+        }
+
+        const status = sub.status;
+
+        if (status === "active") {
+          // Reactivation or plan change
+          const currentPeriodEnd = sub.nextBilledAt || sub.next_billed_at
+            ? new Date(sub.nextBilledAt || sub.next_billed_at)
+            : undefined;
+
+          results.push({
+            type: "subscription.reactivated",
+            userId,
+            credits: 0,
+            providerReference: sub.id,
+            currentPeriodEnd,
+            eventId,
+          });
+        } else if (status === "paused" || status === "past_due") {
+          results.push({
+            type: "payment.failed",
+            userId,
+            credits: 0,
+            providerReference: sub.id,
+            eventId,
+          });
+        }
+        break;
+      }
+
       default:
         break;
     }
@@ -149,15 +221,11 @@ export class PaddleAdapter implements PaymentProviderAdapter {
       throw new Error("Invalid plan");
     }
 
-    // Client-side overlay checkout: return a special URL that the frontend
-    // intercepts to call Paddle.Checkout.open() with the priceId directly.
-    // No server-side transaction creation needed — Paddle.js handles it all.
-    const params_ = new URLSearchParams({
-      priceId: plan.priceId,
-      planId,
-      userId,
-      email: userEmail,
-    });
+    // Client-side overlay checkout: return URL with only planId (public info).
+    // userId and email are stored in a short-lived httpOnly cookie set by the
+    // checkout API route, and retrieved by the checkout page via
+    // /api/billing/checkout-context. This avoids leaking userId in the URL.
+    const params_ = new URLSearchParams({ planId });
     return { url: `/credits/checkout?${params_.toString()}` };
   }
 

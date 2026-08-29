@@ -38,12 +38,9 @@ export default function CheckoutPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    const priceId = params.get("priceId");
     const planId = params.get("planId");
-    const userId = params.get("userId");
-    const email = params.get("email");
 
-    if (!priceId || !planId || !userId) {
+    if (!planId) {
       setStatus("error");
       setErrorMsg(t("checkout.missingParams"));
       return;
@@ -56,73 +53,95 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Load Paddle.js if not already loaded
-    const loadPaddle = (): Promise<void> => {
-      if (window.Paddle) return Promise.resolve();
-      return new Promise((resolve) => {
-        const script = document.createElement("script");
-        script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-        script.async = true;
-        script.onload = () => resolve();
-        document.head.appendChild(script);
-      });
-    };
+    // Fetch checkout context from httpOnly cookie (set by /api/billing/checkout)
+    const initCheckout = async () => {
+      try {
+        const ctxRes = await fetch("/api/billing/checkout-context");
+        if (!ctxRes.ok) {
+          setStatus("error");
+          setErrorMsg(t("checkout.error"));
+          return;
+        }
+        const ctx = await ctxRes.json();
+        const { priceId, userId, email } = ctx;
 
-    const initAndOpen = async () => {
-      await loadPaddle();
+        if (!priceId || !userId) {
+          setStatus("error");
+          setErrorMsg(t("checkout.missingParams"));
+          return;
+        }
 
-      if (!window.Paddle) {
+        // Load Paddle.js if not already loaded
+        const loadPaddle = (): Promise<void> => {
+          if (window.Paddle) return Promise.resolve();
+          return new Promise((resolve) => {
+            const script = document.createElement("script");
+            script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+            script.async = true;
+            script.onload = () => resolve();
+            document.head.appendChild(script);
+          });
+        };
+
+        await loadPaddle();
+
+        if (!window.Paddle) {
+          setStatus("error");
+          setErrorMsg(t("checkout.error"));
+          return;
+        }
+
+        if (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === "sandbox") {
+          window.Paddle.Environment.set("sandbox");
+        }
+
+        window.Paddle.Initialize({
+          token,
+          eventCallback: (data: any) => {
+            if (data?.event === "checkout.completed") {
+              const txnId = data?.data?.transaction_id || data?.data?.id;
+              trackCheckoutComplete(planId || "", 0);
+              if (txnId) {
+                fetch("/api/billing/confirm", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ transactionId: txnId }),
+                }).catch((err) => {
+                  console.error("[checkout] confirm failed:", err);
+                }).finally(() => {
+                  router.replace("/credits?success=1");
+                });
+              } else {
+                router.replace("/credits?success=1");
+              }
+            }
+            if (data?.event === "checkout.closed") {
+              router.replace("/credits");
+            }
+          },
+        });
+
+        window.Paddle.Checkout.open({
+          items: [{ priceId, quantity: 1 }],
+          customer: email ? { email } : undefined,
+          customData: { userId, planId },
+          settings: {
+            successUrl: `${window.location.origin}/credits?success=1`,
+            displayMode: "overlay",
+            theme: "light",
+          },
+        });
+
+        trackCheckoutStarted(planId);
+      } catch (err) {
+        console.error("[checkout] Failed to initialize:", err);
         setStatus("error");
         setErrorMsg(t("checkout.error"));
-        return;
       }
-
-      if (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === "sandbox") {
-        window.Paddle.Environment.set("sandbox");
-      }
-
-      window.Paddle.Initialize({
-        token,
-        eventCallback: (data: any) => {
-          if (data?.event === "checkout.completed") {
-            const txnId = data?.data?.transaction_id || data?.data?.id;
-            trackCheckoutComplete(planId || "", 0);
-            if (txnId) {
-              fetch("/api/billing/confirm", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ transactionId: txnId }),
-              }).catch((err) => {
-                console.error("[checkout] confirm failed:", err);
-              }).finally(() => {
-                router.replace("/credits?success=1");
-              });
-            } else {
-              router.replace("/credits?success=1");
-            }
-          }
-          if (data?.event === "checkout.closed") {
-            router.replace("/credits");
-          }
-        },
-      });
-
-      window.Paddle.Checkout.open({
-        items: [{ priceId, quantity: 1 }],
-        customer: email ? { email } : undefined,
-        customData: { userId, planId },
-        settings: {
-          successUrl: `${window.location.origin}/credits?success=1`,
-          displayMode: "overlay",
-          theme: "light",
-        },
-      });
-
-      trackCheckoutStarted(planId);
     };
 
-    initAndOpen();
-  }, [params, router]);
+    initCheckout();
+  }, [params, router, t]);
 
   if (status === "error") {
     return (
