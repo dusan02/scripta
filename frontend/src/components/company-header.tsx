@@ -16,7 +16,7 @@ type CompanyInfo = {
   naceCode: string | null;
   kraj: string | null;
   okres: string | null;
-  shareCapital: number | { toNumber: () => number } | null;
+  shareCapital: number | string | null;
   legalStatus: string | null;
   ruzDissolutionDate: Date | null;
   ruzReportingStatus: string | null;
@@ -127,17 +127,8 @@ export function CompanyHeader({ company, latestYear }: { company: CompanyInfo; l
             ) || company.naceText}
           </span>
         )}
-        {company.shareCapital != null && (() => {
-          const sc = typeof company.shareCapital === "number"
-            ? company.shareCapital
-            : company.shareCapital.toNumber();
-          return sc > 0;
-        })() && (
-          <span><strong>{t("firma.zakladneImanie")}:</strong> {fmtEUR(
-            typeof company.shareCapital === "number"
-              ? company.shareCapital
-              : company.shareCapital.toNumber()
-          )}</span>
+        {company.shareCapital != null && Number(company.shareCapital) > 0 && (
+          <span><strong>{t("firma.zakladneImanie")}:</strong> {fmtEUR(Number(company.shareCapital))}</span>
         )}
         {showLegalStatus && company.legalStatus && (
           <span style={{ color: "var(--danger, #dc2626)" }}>

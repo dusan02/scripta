@@ -255,7 +255,10 @@ export default async function CompanyPage({ params }: Params) {
         </div>
 
         <CompanyHeader
-          company={company}
+          company={{
+            ...company,
+            shareCapital: company.shareCapital != null ? Number(company.shareCapital) : null,
+          }}
           latestYear={latest?.year}
         />
 
