@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SourceType, ReportStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
 import { getCurrentUser } from "@/lib/auth";
 import { enqueueReportTask, checkWorkerHealth } from "@/lib/worker";
 import { rateLimit, rateLimitResponse } from "@/lib/rateLimit";
@@ -220,10 +221,16 @@ export async function POST(req: NextRequest) {
     // This prevents race conditions where another request could exhaust credits
     // between the check and the consumption, or where report creation succeeds
     // but credit consumption fails (leaving an unpaid report).
+    //
+    // We generate the report ID BEFORE the transaction so we can link the CHARGE
+    // transaction to the report. Without this, refundCreditsTx can't find the
+    // CHARGE when a report fails (it looks up by reportRequestId), and the user
+    // never gets their credit back.
+    const reportId = randomUUID();
     let creditFailReason: "INSUFFICIENT" | "EXPIRED" | "NO_WALLET" | null = null;
     const reportRequest = await prisma.$transaction(async (tx) => {
       // Consume credit first — if this fails, no report is created
-      const creditResult = await consumeCreditsTx(tx, user.id, 1);
+      const creditResult = await consumeCreditsTx(tx, user.id, 1, reportId);
       if (!creditResult.ok) {
         creditFailReason = creditResult.reason;
         throw new Error("CREDIT_CONSUMPTION_FAILED");
@@ -232,6 +239,7 @@ export async function POST(req: NextRequest) {
       // Create report in the same transaction
       return tx.reportRequest.create({
         data: {
+          id: reportId,
           userId: user.id,
           targetType: "COMPANY",
           ico: ico ?? null,

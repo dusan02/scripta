@@ -307,9 +307,7 @@ export default function ReportDetailPage() {
       : `${report.name} ${report.surname}`;
 
   const canDownload = report.status === "COMPLETED" || report.status === "PARTIAL";
-  const canRetryFailed = report.status === "FAILED";
   const canRetryPartial = report.status === "PARTIAL";
-  const canRetry = canRetryFailed || canRetryPartial;
   // Storno iba krátko po vytvorení (15s okno), aby užívateľ mohol zrušiť
   // predtým než sa začnú míňať tokeny na agentov. Nie pri otvorení starého reportu.
   const reportAgeSec = report.createdAt ? (Date.now() - new Date(report.createdAt).getTime()) / 1000 : Infinity;
@@ -377,37 +375,6 @@ export default function ReportDetailPage() {
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>{t("report.stav")}</span>
               <StatusBadge status={report.status} />
             </div>
-            {canRetry && (
-              <button
-                id="retry-btn"
-                onClick={handleRetry}
-                disabled={retrying}
-                className="flex items-center justify-center gap-2 transition-all hover:brightness-110 active:brightness-95 rounded-md"
-                style={{
-                  background: canRetryFailed ? "#8b5cf6" : "#2563eb",
-                  color: "#ffffff",
-                  height: "40px",
-                  width: "44px",
-                  padding: "0",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  border: canRetryFailed ? "1px solid #8b5cf6" : "1px solid #2563eb",
-                }}
-              >
-                {retrying ? (
-                  <>
-                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                      <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                  </>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                )}
-              </button>
-            )}
             {canCancel && (
               <button
                 id="cancel-btn"
@@ -441,11 +408,6 @@ export default function ReportDetailPage() {
                   </>
                 )}
               </button>
-            )}
-            {canRetryFailed && (
-              <div className="text-[10px] text-purple-400 mt-1">
-                {t("report.kreditNeodpocital")}
-              </div>
             )}
             {canDownload && !isFinished && (
               <button
