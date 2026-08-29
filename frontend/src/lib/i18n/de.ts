@@ -131,6 +131,8 @@ const de: Dict = {
   "firma.bývalé": "ehemalige",
   "firma.zobrazitBývalé": "Ehemalige Personen anzeigen ({count})",
   "firma.skrytBývalé": "Ehemalige Personen ausblenden",
+  "firma.zobrazitMenej": "Weniger anzeigen",
+  "firma.zobrazitVsetkych": "Alle {count} anzeigen →",
   "firma.dalsieUkazovatele": "Weitere Finanzkennzahlen",
   "firma.quickRatio": "Quick Ratio",
   "firma.workingCapital": "Working Capital",

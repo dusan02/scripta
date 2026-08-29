@@ -30,6 +30,47 @@ function fmtFunctionPeriod(p: { functionStart: Date | null; functionEnd: Date | 
   return `${start} – ${end}`;
 }
 
+const COLLAPSE_THRESHOLD = 6;
+
+function PersonList({ list }: { list: Person[] }) {
+  const t = useT();
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? list : list.slice(0, COLLAPSE_THRESHOLD);
+  const hiddenCount = list.length - COLLAPSE_THRESHOLD;
+
+  return (
+    <div>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
+        {visible.map(p => {
+          const period = fmtFunctionPeriod(p);
+          return (
+            <li key={p.id} className="text-sm">
+              <span style={{ color: "var(--text)" }}>{p.cleanName || p.rawName.replace(/\s+/g, " ").trim()}</span>
+              {p.city && (
+                <span style={{ color: "var(--text-muted)" }}>{`, ${p.city}${p.zipCode ? ` ${p.zipCode}` : ""}`}</span>
+              )}
+              {period && (
+                <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>({period})</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {hiddenCount > 0 && (
+        <button
+          onClick={() => setExpanded(v => !v)}
+          className="text-xs font-medium mt-2 no-print"
+          style={{ color: "var(--accent)" }}
+        >
+          {expanded
+            ? t("firma.zobrazitMenej") || "Zobraziť menej"
+            : (t("firma.zobrazitVsetkych", { count: list.length }) || `Zobraziť všetkých ${list.length} →`)}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function CompanyPersons({ persons }: { persons: Person[] }) {
   const t = useT();
   const [showFormer, setShowFormer] = useState(false);
@@ -46,25 +87,6 @@ export function CompanyPersons({ persons }: { persons: Person[] }) {
   const formerPersons = persons.filter(p => !p.isActive);
   const formerCount = formerPersons.length;
 
-  const renderPersonList = (list: Person[]) => (
-    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
-      {list.map(p => {
-        const period = fmtFunctionPeriod(p);
-        return (
-          <li key={p.id} className="text-sm">
-            <span style={{ color: "var(--text)" }}>{p.cleanName || p.rawName.replace(/\s+/g, " ").trim()}</span>
-            {p.city && (
-              <span style={{ color: "var(--text-muted)" }}>{`, ${p.city}${p.zipCode ? ` ${p.zipCode}` : ""}`}</span>
-            )}
-            {period && (
-              <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>({period})</span>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-
   return (
     <div className="space-y-4">
       {/* Active persons — all roles */}
@@ -72,8 +94,8 @@ export function CompanyPersons({ persons }: { persons: Person[] }) {
         const rolePersons = activePersons.filter(p => p.role === role);
         if (rolePersons.length === 0) return null;
         return (
-          <ChartCard key={role} title={label}>
-            {renderPersonList(rolePersons)}
+          <ChartCard key={role} title={`${label}${rolePersons.length > COLLAPSE_THRESHOLD ? ` (${rolePersons.length})` : ""}`}>
+            <PersonList list={rolePersons} />
           </ChartCard>
         );
       })}
@@ -97,7 +119,7 @@ export function CompanyPersons({ persons }: { persons: Person[] }) {
                 if (rolePersons.length === 0) return null;
                 return (
                   <ChartCard key={`former-${role}`} title={`${label} (${t("firma.bývalé") || "bývalé"})`}>
-                    {renderPersonList(rolePersons)}
+                    <PersonList list={rolePersons} />
                   </ChartCard>
                 );
               })}

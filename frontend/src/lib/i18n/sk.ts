@@ -143,6 +143,8 @@ const sk: Dict = {
   "firma.bývalé": "bývalé",
   "firma.zobrazitBývalé": "Zobraziť bývalé osoby ({count})",
   "firma.skrytBývalé": "Skryť bývalé osoby",
+  "firma.zobrazitMenej": "Zobraziť menej",
+  "firma.zobrazitVsetkych": "Zobraziť všetkých {count} →",
   "firma.dalsieUkazovatele": "Ďalšie finančné ukazovatele",
   "firma.quickRatio": "Quick ratio",
   "firma.workingCapital": "Pracovný kapitál",

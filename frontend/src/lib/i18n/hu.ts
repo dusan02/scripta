@@ -206,6 +206,8 @@ const hu: Dict = {
   "firma.bývalé": "volt",
   "firma.zobrazitBývalé": "Volt személyek megjelenítése ({count})",
   "firma.skrytBývalé": "Volt személyek elrejtése",
+  "firma.zobrazitMenej": "Kevesebb megjelenítése",
+  "firma.zobrazitVsetkych": "Összes {count} megjelenítése →",
   "firma.dalsieUkazovatele": "További pénzügyi mutatók",
   "firma.quickRatio": "Quick ratio",
   "firma.workingCapital": "Munkatőke",

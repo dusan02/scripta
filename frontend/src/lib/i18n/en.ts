@@ -143,6 +143,8 @@ const en: Dict = {
   "firma.bývalé": "former",
   "firma.zobrazitBývalé": "Show former persons ({count})",
   "firma.skrytBývalé": "Hide former persons",
+  "firma.zobrazitMenej": "Show less",
+  "firma.zobrazitVsetkych": "Show all {count} →",
   "firma.dalsieUkazovatele": "Additional financial indicators",
   "firma.quickRatio": "Quick ratio",
   "firma.workingCapital": "Working capital",

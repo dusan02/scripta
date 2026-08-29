@@ -206,6 +206,8 @@ const pl: Dict = {
   "firma.bývalé": "byli",
   "firma.zobrazitBývalé": "Pokaż byłych osób ({count})",
   "firma.skrytBývalé": "Ukryj byłych osób",
+  "firma.zobrazitMenej": "Pokaż mniej",
+  "firma.zobrazitVsetkych": "Pokaż wszystkie {count} →",
   "firma.dalsieUkazovatele": "Dodatkowe wskaźniki finansowe",
   "firma.quickRatio": "Quick ratio",
   "firma.workingCapital": "Kapitał obrotowy",
