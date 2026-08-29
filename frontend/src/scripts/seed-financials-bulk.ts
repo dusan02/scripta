@@ -363,8 +363,11 @@ async function processCompany(
     });
   }
 
-  // 5. Update Company denormalized fields
+  // 5. Update Company denormalized fields + fsCount
   const latest = stmts[0];
+  const totalFsCount = await prisma.financialStatement.count({
+    where: { companyIco: ico },
+  });
   await prisma.company.update({
     where: { ico },
     data: {
@@ -373,6 +376,7 @@ async function processCompany(
       latestProfit: latest.netProfitLoss,
       latestAssets: latest.totalAssets,
       latestEquity: latest.equity,
+      fsCount: totalFsCount,
     },
   });
 

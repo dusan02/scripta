@@ -268,8 +268,11 @@ async function downloadFinancials(ico: string): Promise<number> {
     count++;
   }
 
-  // Update Company with latest year/revenue
+  // Update Company with latest year/revenue + fsCount
   const latest = stmts[0];
+  const totalFsCount = await prisma.financialStatement.count({
+    where: { companyIco: ico },
+  });
   await prisma.company.update({
     where: { ico },
     data: {
@@ -278,6 +281,7 @@ async function downloadFinancials(ico: string): Promise<number> {
       latestProfit: latest.netProfitLoss,
       latestAssets: latest.totalAssets,
       latestEquity: latest.equity,
+      fsCount: totalFsCount,
     },
   });
 

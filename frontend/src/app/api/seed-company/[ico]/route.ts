@@ -411,10 +411,20 @@ async function seedCompany(ico: string) {
     upsertedStmts++;
   }
 
+  // 10. Update fsCount on company (used by hub quality gate)
+  const totalFsCount = await prisma.financialStatement.count({
+    where: { companyIco: ico },
+  });
+  await prisma.company.update({
+    where: { ico },
+    data: { fsCount: totalFsCount },
+  });
+
   return {
     success: true,
     company: { name: company.name, ico: company.ico, city: company.city, legalForm: company.legalForm },
     statements: upsertedStmts,
+    fsCount: totalFsCount,
     years: statements.map((s) => s.year),
   };
 }

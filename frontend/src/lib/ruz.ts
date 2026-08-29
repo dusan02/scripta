@@ -464,7 +464,10 @@ export async function seedFromRuz(ico: string) {
     });
   }
 
-  // 6. Update latest-year summary on company
+  // 6. Update latest-year summary + fsCount on company
+  const totalFsCount = await prisma.financialStatement.count({
+    where: { companyIco: ico },
+  });
   if (stmts.length > 0) {
     const latest = stmts[0];
     await prisma.company.update({
@@ -475,7 +478,13 @@ export async function seedFromRuz(ico: string) {
         latestProfit: latest.netProfitLoss ?? null,
         latestAssets: latest.totalAssets ?? null,
         latestEquity: latest.equity ?? null,
+        fsCount: totalFsCount,
       },
+    });
+  } else {
+    await prisma.company.update({
+      where: { ico },
+      data: { fsCount: totalFsCount },
     });
   }
 
