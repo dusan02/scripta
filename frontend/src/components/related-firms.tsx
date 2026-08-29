@@ -185,87 +185,89 @@ export async function RelatedFirms({
         </div>
       )}
 
-      {dedupFirmsInCity.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            {t("firma.firmyVMeste", { city: city ?? "" })}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {dedupFirmsInCity.map((f) => (
-              <Link
-                key={f.ico}
-                href={buildCompanyUrl(f.ico, f.name)}
-                className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-              >
-                <div className="font-medium truncate" style={{ color: "var(--text)" }}>
-                  {f.name || `${t("firma.icoLabel")} ${f.ico}`}
-                </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {t("firma.icoLabel")}: {f.ico}
-                  {f.latestRevenue && ` · ${t("firma.trzbyLabel")}: ${formatRevenue(f.latestRevenue)}`}
-                </div>
-              </Link>
-            ))}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {dedupFirmsInCity.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
+              {t("firma.firmyVMeste", { city: city ?? "" })}
+            </h3>
+            <div className="space-y-2">
+              {dedupFirmsInCity.map((f) => (
+                <Link
+                  key={f.ico}
+                  href={buildCompanyUrl(f.ico, f.name)}
+                  className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                >
+                  <div className="font-medium truncate" style={{ color: "var(--text)" }}>
+                    {f.name || `${t("firma.icoLabel")} ${f.ico}`}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    {t("firma.icoLabel")}: {f.ico}
+                    {f.latestRevenue && ` · ${t("firma.trzbyLabel")}: ${formatRevenue(f.latestRevenue)}`}
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {dedupByNaceInKraj.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            {krajLabel
-              ? t("firma.firmyVOdvetviVKraji", { kraj: krajLabel })
-              : t("firma.firmyVOdvetvi")}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {dedupByNaceInKraj.map((f) => (
-              <Link
-                key={f.ico}
-                href={buildCompanyUrl(f.ico, f.name)}
-                className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-              >
-                <div className="font-medium truncate" style={{ color: "var(--text)" }}>
-                  {f.name || `${t("firma.icoLabel")} ${f.ico}`}
-                </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {t("firma.icoLabel")}: {f.ico}
-                  {f.city && ` · ${f.city}`}
-                  {f.latestRevenue && ` · ${t("firma.trzbyLabel")}: ${formatRevenue(f.latestRevenue)}`}
-                </div>
-              </Link>
-            ))}
+        {dedupByNaceInKraj.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
+              {krajLabel
+                ? t("firma.firmyVOdvetviVKraji", { kraj: krajLabel })
+                : t("firma.firmyVOdvetvi")}
+            </h3>
+            <div className="space-y-2">
+              {dedupByNaceInKraj.map((f) => (
+                <Link
+                  key={f.ico}
+                  href={buildCompanyUrl(f.ico, f.name)}
+                  className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                >
+                  <div className="font-medium truncate" style={{ color: "var(--text)" }}>
+                    {f.name || `${t("firma.icoLabel")} ${f.ico}`}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    {t("firma.icoLabel")}: {f.ico}
+                    {f.city && ` · ${f.city}`}
+                    {f.latestRevenue && ` · ${t("firma.trzbyLabel")}: ${formatRevenue(f.latestRevenue)}`}
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {dedupLargestByNace.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
-            {t("firma.najvsieFirmy")}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {dedupLargestByNace.map((f) => (
-              <Link
-                key={f.ico}
-                href={buildCompanyUrl(f.ico, f.name)}
-                className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-              >
-                <div className="font-medium truncate" style={{ color: "var(--text)" }}>
-                  {f.name || `${t("firma.icoLabel")} ${f.ico}`}
-                </div>
-                <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {t("firma.icoLabel")}: {f.ico}
-                  {f.city && ` · ${f.city}`}
-                  {f.latestRevenue && ` · ${formatRevenue(f.latestRevenue)}`}
-                </div>
-              </Link>
-            ))}
+        {dedupLargestByNace.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-secondary)" }}>
+              {t("firma.najvsieFirmy")}
+            </h3>
+            <div className="space-y-2">
+              {dedupLargestByNace.map((f) => (
+                <Link
+                  key={f.ico}
+                  href={buildCompanyUrl(f.ico, f.name)}
+                  className="block rounded-lg p-3 text-sm transition-colors hover:opacity-80"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                >
+                  <div className="font-medium truncate" style={{ color: "var(--text)" }}>
+                    {f.name || `${t("firma.icoLabel")} ${f.ico}`}
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    {t("firma.icoLabel")}: {f.ico}
+                    {f.city && ` · ${f.city}`}
+                    {f.latestRevenue && ` · ${formatRevenue(f.latestRevenue)}`}
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
