@@ -148,7 +148,7 @@ All test users have `emailVerified = now()` and a wallet with 5-10 credits.
 
 ### Known Issues (not blockers)
 
-- `/sitemap.xml` index returns HTML instead of XML (Next.js `generateSitemaps` not routing correctly) — individual sitemaps (`/sitemap/0.xml`, `/sitemap/1.xml`, etc.) work correctly
+- `/sitemap.xml` index works correctly (returns `application/xml` with 39 child sitemaps: `/sitemap/0.xml` = hubs, `/sitemap/1.xml`–`/sitemap/38.xml` = companies)
 - `META_DESC_TOO_LONG` (P2) — some company meta descriptions exceed 160 chars
 - `TITLE_TOO_LONG` (P2) — some company titles exceed 60 chars
 - `H1_NO_COMPANY_NAME` (P2) — H1 uses `IČO {ico}` fallback when name is null
