@@ -55,10 +55,3 @@ export function trackReportCtaClick(ico: string, location: "sticky_header" | "pr
     cta_location: location,
   });
 }
-
-export function trackPricingClick(ico: string) {
-  trackEvent("pricing_click", {
-    ico,
-    source: "firma_page",
-  });
-}
