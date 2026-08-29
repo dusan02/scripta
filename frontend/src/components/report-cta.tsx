@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { localizePath } from "@/lib/i18n";
+import { trackReportCtaClick } from "@/lib/analytics";
 
 // ═══════════════════════════════════════════════════════════════
 // Unified CTA — single, strong, replaces InlineCTA1/2 + RiskTeaser + old ReportCTA
@@ -61,6 +62,7 @@ export function ReportCTA({ ico, name }: { ico: string; name: string }) {
           </div>
           <Link
             href={localizePath(`/dashboard?ico=${ico}`, lang)}
+            onClick={() => trackReportCtaClick(ico, "preverte_firmu")}
             className="w-full px-6 py-3 rounded-xl font-bold text-sm transition-all hover:scale-105 mb-4"
             style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
           >

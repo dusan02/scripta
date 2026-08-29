@@ -38,3 +38,27 @@ export function trackReportCreated(ico: string) {
 export function trackReportStarted(ico: string) {
   trackEvent("report_started", { ico });
 }
+
+// ── Company page tracking ──
+
+export function trackFirmaPageView(ico: string, hasRiskSignals: boolean, riskCount: number) {
+  trackEvent("firma_page_view", {
+    ico,
+    has_risk_signals: hasRiskSignals,
+    risk_count: riskCount,
+  });
+}
+
+export function trackReportCtaClick(ico: string, location: "sticky_header" | "preverte_firmu" | "faq") {
+  trackEvent("report_cta_click", {
+    ico,
+    cta_location: location,
+  });
+}
+
+export function trackPricingClick(ico: string) {
+  trackEvent("pricing_click", {
+    ico,
+    source: "firma_page",
+  });
+}

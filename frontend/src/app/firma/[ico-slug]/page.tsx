@@ -29,6 +29,7 @@ import { CrossFirmPersons, getCrossFirmPersons } from "@/components/cross-firm-p
 import { PrintButton } from "@/components/PrintButton";
 import { VestnikEvents } from "@/components/vestnik-events";
 import { CompanyEvents } from "@/components/company-events";
+import { FirmaPageTracker } from "@/components/firma-page-tracker";
 
 export const dynamicParams = true;
 export const revalidate = 86400;
@@ -399,6 +400,7 @@ export default async function CompanyPage({ params }: Params) {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <FirmaPageTracker ico={company.ico} hasRiskSignals={riskCount > 0} riskCount={riskCount} />
 
       {/* ── STICKY HEADER — secondary CTA only (no "Objednať report") ── */}
       {!isLoggedIn && (
