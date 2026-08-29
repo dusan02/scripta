@@ -24,35 +24,41 @@ export function PiotroskiCard({ result, noHeading }: { result: PiotroskiResult |
           {`Piotroski F-Score — ${year}`}
         </h2>
       )}
-      <div className="flex items-center gap-4 mb-3">
-        <div className="text-3xl font-black" style={{ color: scoreColor }}>
-          {score}
-          <span className="text-base font-normal" style={{ color: "var(--text-muted)" }}>/{maxScore}</span>
-        </div>
-        <div className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-          {assessment}
-        </div>
-      </div>
-      <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-        {t("firma.piotroskiDesc") || `9 kritérií finančnej kvality za obdobie ${prevYear}–${year}. Vyššie skóre = lepšia finančná kondícia.`}
-      </p>
-      <div className="space-y-1">
-        {criteria.map((c) => (
-          <div key={c.key} className="flex items-center gap-2 text-xs">
-            <span
-              className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold"
-              style={{
-                color: c.passed === true ? "#10b981" : c.passed === false ? "#ef4444" : "var(--text-muted)",
-                background: c.passed === true ? "rgba(16,185,129,0.1)" : c.passed === false ? "rgba(239,68,68,0.1)" : "var(--surface)",
-              }}
-            >
-              {c.passed === true ? "✓" : c.passed === false ? "✗" : "—"}
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+        {/* Left: score + assessment + description */}
+        <div className="sm:w-56 sm:shrink-0">
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="text-4xl font-black" style={{ color: scoreColor }}>
+              {score}
             </span>
-            <span style={{ color: c.passed === null ? "var(--text-muted)" : "var(--text-secondary)" }}>
-              {c.label}
-            </span>
+            <span className="text-lg font-normal" style={{ color: "var(--text-muted)" }}>/ {maxScore}</span>
           </div>
-        ))}
+          <div className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
+            {assessment}
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            {t("firma.piotroskiDesc") || `9 kritérií finančnej kvality za obdobie ${prevYear}–${year}. Vyššie skóre = lepšia finančná kondícia.`}
+          </p>
+        </div>
+        {/* Right: criteria grid */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1.5">
+          {criteria.map((c) => (
+            <div key={c.key} className="flex items-center gap-2 text-xs">
+              <span
+                className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold"
+                style={{
+                  color: c.passed === true ? "#10b981" : c.passed === false ? "#ef4444" : "var(--text-muted)",
+                  background: c.passed === true ? "rgba(16,185,129,0.1)" : c.passed === false ? "rgba(239,68,68,0.1)" : "var(--surface)",
+                }}
+              >
+                {c.passed === true ? "✓" : c.passed === false ? "✗" : "—"}
+              </span>
+              <span style={{ color: c.passed === null ? "var(--text-muted)" : "var(--text-secondary)" }}>
+                {c.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
