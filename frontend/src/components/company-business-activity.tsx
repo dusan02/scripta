@@ -16,14 +16,14 @@ export function BusinessActivitySection({ activity }: { activity: string }) {
 
   return (
     <div className="mb-6 sm:mb-8 print-section">
-      <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+      <h2 className="text-sm sm:text-base font-bold mb-2" style={{ color: "var(--text)" }}>
         {t("firma.predmetCinnosti")}
       </h2>
       <div
-        className="rounded-lg p-4"
+        className="rounded-lg p-3 sm:p-4"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
-        <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-xs sm:text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
           {displayText}
         </p>
         {isLong && (
@@ -54,15 +54,15 @@ export function SigningAuthoritySection({ authority, noHeading }: { authority: s
   return (
     <div className={noHeading ? "" : "mb-6 sm:mb-8 no-print"}>
       {!noHeading && (
-        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+        <h3 className="text-sm font-bold mb-2" style={{ color: "var(--text)" }}>
           {t("firma.konanieMenom")}
-        </h2>
+        </h3>
       )}
       <div
-        className="rounded-lg p-4"
+        className="rounded-lg p-3 sm:p-4"
         style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
       >
-        <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-xs sm:text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
           {displayText}
         </p>
         {isLong && (

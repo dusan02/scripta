@@ -47,7 +47,7 @@ export function CompanyPersons({ persons }: { persons: Person[] }) {
   const formerCount = formerPersons.length;
 
   const renderPersonList = (list: Person[]) => (
-    <ul className="space-y-2">
+    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
       {list.map(p => {
         const period = fmtFunctionPeriod(p);
         return (
