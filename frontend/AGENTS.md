@@ -9,6 +9,14 @@ npm run lint         # ESLint
 npx tsc --noEmit     # Typecheck (no output files)
 ```
 
+## SEO Scripts (run from project root)
+
+```bash
+node scripts/validate-hub-seo.mjs          # Hub SEO validator (246 URLs × 6 langs)
+node scripts/seo-regression-tests.mjs      # Regression tests (171 checks: cs/cz, canonical, hreflang, noindex, HTTP, trailing slash, title/desc length, company links, JSON-LD)
+node scripts/gsc-monitor.mjs               # GSC monitoring (requires GSC_SERVICE_ACCOUNT_FILE env var)
+```
+
 ## Database
 
 ```bash
