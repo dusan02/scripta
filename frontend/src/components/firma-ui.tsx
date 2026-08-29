@@ -15,9 +15,9 @@ interface BaseTableRow {
 }
 
 const TABLE_BASE = "w-full border-collapse";
-const TH_LABEL = "text-left py-1.5 px-2 font-semibold whitespace-nowrap";
+const TH_LABEL = "text-left py-1.5 px-2 font-semibold whitespace-nowrap sticky left-0 md:static z-[1] bg-[var(--surface)]";
 const TH_VALUE = "text-right py-1.5 px-1.5 font-semibold whitespace-nowrap";
-const TD_LABEL = "text-left py-1.5 px-2";
+const TD_LABEL = "text-left py-1.5 px-2 sticky left-0 md:static z-[1] bg-[var(--surface)]";
 const TD_VALUE = "text-right py-1.5 px-1.5 whitespace-nowrap tabular-nums font-mono";
 
 // Tooltip styles for rows with formula hints
@@ -53,7 +53,7 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
       {sectionTitle && (
         <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 mt-2" style={{ color: "var(--accent)" }}>{sectionTitle}</div>
       )}
-      <div className="overflow-x-auto -mx-2 px-2 pb-1">
+      <div className="overflow-x-auto md:overflow-x-visible -mx-2 px-2 pb-1 md:mx-0 md:p-0">
       <table className={TABLE_BASE} style={{ fontSize: 13, minWidth: sorted.length > 3 ? 420 : "auto" }}>
         <colgroup>
           <col style={{ width: "30%" }} />
@@ -63,7 +63,7 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
         </colgroup>
         <thead>
           <tr style={{ borderBottom: "2px solid var(--border)" }}>
-            <th className={TH_LABEL} style={{ color: "var(--text-muted)", position: "sticky", left: 0, background: "var(--surface)", zIndex: 1 }}>{t("firma.ukazovatel")}</th>
+            <th className={TH_LABEL} style={{ color: "var(--text-muted)" }}>{t("firma.ukazovatel")}</th>
             {sorted.map(s => (
               <th key={s.year} className={TH_VALUE} style={{ color: "var(--text-muted)" }}>{s.year}</th>
             ))}
@@ -77,10 +77,6 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
                 style={{
                   color: row.bold ? "var(--text)" : "var(--text-secondary)",
                   fontWeight: row.bold ? 700 : 400,
-                  position: "sticky",
-                  left: 0,
-                  background: "var(--surface)",
-                  zIndex: 1,
                   ...(row.tooltip ? TOOLTIP_STYLE : {}),
                 }}
               >
