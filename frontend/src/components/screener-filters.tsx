@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { ScreenerTier } from "@/lib/screener";
 import { toURLSearchParams } from "@/lib/url";
 
@@ -23,7 +23,26 @@ type Props = {
   searchParams: Record<string, string | string[] | undefined>;
 };
 
-const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border";
+const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border transition-colors";
+
+// Style pre select/input ktorý má vybranú hodnotu — svetlo zelený highlight
+// aby používateľ videl ktoré filtre sú aktívne
+const ACTIVE_FILTER_STYLE = {
+  background: "var(--accent-light)",
+  borderColor: "var(--accent-border)",
+  color: "var(--text)",
+} as const;
+
+const INACTIVE_FILTER_STYLE = {
+  background: "var(--bg)",
+  borderColor: "var(--border)",
+  color: "var(--text)",
+} as const;
+
+// Vráti style podľa toho či filter má hodnotu
+function filterStyle(value: string | undefined | null): CSSProperties {
+  return value ? ACTIVE_FILTER_STYLE : INACTIVE_FILTER_STYLE;
+}
 
 // AUTH filter keys — locked for FREE tier, redirect to login on click
 const AUTH_FILTER_KEYS = ["konkurz", "likvidacia", "restrukturalizacia", "vestnikClean"];
@@ -241,7 +260,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         <input
           type="text"
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("q"))}
           placeholder="Zadajte názov alebo IČO…"
           value={qInput}
           onChange={(e) => setQInput(e.target.value)}
@@ -255,7 +274,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("naceSection"))}
           value={sp("naceSection")}
           onChange={(e) => applyFilter("naceSection", e.target.value)}
         >
@@ -276,7 +295,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         <input
           type="text"
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(numInputs.naceCode)}
           placeholder="napr. 6201"
           value={numInputs.naceCode ?? ""}
           onChange={(e) => setNum("naceCode", e.target.value)}
@@ -290,7 +309,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("legalForm"))}
           value={sp("legalForm")}
           onChange={(e) => applyFilter("legalForm", e.target.value)}
         >
@@ -310,7 +329,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("ownershipType"))}
           value={sp("ownershipType")}
           onChange={(e) => applyFilter("ownershipType", e.target.value)}
         >
@@ -330,7 +349,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("sizeCategory"))}
           value={sp("sizeCategory")}
           onChange={(e) => applyFilter("sizeCategory", e.target.value)}
         >
@@ -350,7 +369,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("status"))}
           value={sp("status")}
           onChange={(e) => applyFilter("status", e.target.value)}
         >
@@ -370,7 +389,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("kraj"))}
           value={sp("kraj")}
           onChange={(e) => {
             const params = toURLSearchParams(searchParams);
@@ -410,7 +429,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("okres"))}
           value={sp("okres")}
           onChange={(e) => applyFilter("okres", e.target.value)}
         >
@@ -430,7 +449,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
         </label>
         <select
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(sp("city"))}
           value={sp("city")}
           onChange={(e) => applyFilter("city", e.target.value)}
         >
@@ -453,7 +472,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
             type="number"
             min="0"
             className={SELECT_STYLE}
-            style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+            style={filterStyle(numInputs.ageMin)}
             placeholder="0"
             value={numInputs.ageMin ?? ""}
             onChange={(e) => setNum("ageMin", e.target.value)}
@@ -467,7 +486,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
             type="number"
             min="0"
             className={SELECT_STYLE}
-            style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+            style={filterStyle(numInputs.ageMax)}
             placeholder="∞"
             value={numInputs.ageMax ?? ""}
             onChange={(e) => setNum("ageMax", e.target.value)}
@@ -491,7 +510,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
           min="2000"
           max="2030"
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={filterStyle(numInputs.latestYear)}
           placeholder="napr. 2023"
           value={numInputs.latestYear ?? ""}
           onChange={(e) => setNum("latestYear", e.target.value)}
@@ -511,7 +530,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
             </label>
             <select
               className={SELECT_STYLE}
-              style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+              style={filterStyle(sp("ruzReporting"))}
               value={sp("ruzReporting") ?? ""}
               onChange={(e) => applyFilter("ruzReporting", e.target.value)}
             >
@@ -528,7 +547,7 @@ export function ScreenerFilters({ options, tier, appliedFilters, searchParams }:
             </label>
             <select
               className={SELECT_STYLE}
-              style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+              style={filterStyle(sp("hasFinancials"))}
               value={sp("hasFinancials") ?? ""}
               onChange={(e) => applyFilter("hasFinancials", e.target.value)}
             >
@@ -737,7 +756,7 @@ function FinancialRange({
   numInputs: Record<string, string>;
   setNum: (key: string, value: string) => void;
 }) {
-  const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border";
+  const SELECT_STYLE = "w-full rounded-lg px-3 py-2 text-sm border transition-colors";
   return (
     <div>
       <label className="text-xs font-medium block mb-1" style={{ color: "var(--text-secondary)" }}>
@@ -747,7 +766,7 @@ function FinancialRange({
         <input
           type="number"
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={numInputs[minKey] ? ACTIVE_FILTER_STYLE : INACTIVE_FILTER_STYLE}
           placeholder="min"
           value={numInputs[minKey] ?? ""}
           onChange={(e) => setNum(minKey, e.target.value)}
@@ -755,7 +774,7 @@ function FinancialRange({
         <input
           type="number"
           className={SELECT_STYLE}
-          style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
+          style={numInputs[maxKey] ? ACTIVE_FILTER_STYLE : INACTIVE_FILTER_STYLE}
           placeholder="max"
           value={numInputs[maxKey] ?? ""}
           onChange={(e) => setNum(maxKey, e.target.value)}

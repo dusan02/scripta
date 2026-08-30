@@ -1291,11 +1291,13 @@ async function _getScreenerFilterOptions(): Promise<ScreenerFilterOptions> {
       label: getKrajLabel(k.kraj) || k.kraj,
       count: Number(k.cnt),
     })),
-    okresy: (r?.okresy || []).map((o) => ({
-      value: o.okres,
-      label: okresName(o.okres),
-      count: Number(o.cnt),
-    })),
+    okresy: (r?.okresy || [])
+      .filter(o => o.okres !== "SKZZZZ") // SKZZZZ = fiktívny okres pre zahraničné firmy
+      .map((o) => ({
+        value: o.okres,
+        label: okresName(o.okres),
+        count: Number(o.cnt),
+      })),
     sizeCategories: SIZE_CATEGORIES,
     statuses: STATUSES,
   };

@@ -318,7 +318,7 @@ export default async function ScreenerPage({
             {buildDynamicH1(searchParams)} — prehľad
           </h2>
           <p className="text-sm leading-relaxed">
-            {buildSeoText(searchParams, total, companies)}
+            {buildSeoText(searchParams, total)}
           </p>
           <p className="text-sm leading-relaxed mt-2">
             Screener firiem Verifa.sk umožňuje filtrovanie podľa odvetvia (NACE), právnej formy, regiónu, mesta, finančných ukazovateľov (tržby, zisk, aktíva, vlastné imanie) a roku založenia. Dáta pochádzajú z Registru účtovných jednotiek (RÚZ) a Obchodného registra SR (ORSR).
@@ -477,7 +477,6 @@ function buildDynamicSubtitle(searchParams: Record<string, string | string[] | u
 function buildSeoText(
   searchParams: Record<string, string | string[] | undefined>,
   total: number,
-  companies: Array<{ name?: string | null; ico: string; latestRevenue?: string | null; city?: string | null }>,
 ): string {
   const sp = (key: string): string => {
     const v = searchParams[key];
@@ -495,17 +494,6 @@ function buildSeoText(
   if (naceGenitive) parts.push(`v odvetví ${naceGenitive}`);
 
   const location = parts.length > 0 ? parts.join(", ") : "na Slovensku";
-
-  // Top companies mention
-  const topNames = companies
-    .slice(0, 3)
-    .map(c => c.name)
-    .filter(Boolean)
-    .slice(0, 3);
-
-  if (topNames.length > 0) {
-    return `Vyhľadávaním bolo nájdených ${total.toLocaleString("sk-SK")} firiem ${location}. Medzi najvýznamnejšie patria ${topNames.join(", ")}. Filtrovanie umožňuje obmedziť výsledky podľa finančných ukazovateľov a roku založenia.`;
-  }
 
   return `Vyhľadávaním bolo nájdených ${total.toLocaleString("sk-SK")} firiem ${location}. Filtrovanie umožňuje obmedziť výsledky podľa finančných ukazovateľov a roku založenia.`;
 }

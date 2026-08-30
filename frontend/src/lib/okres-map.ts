@@ -94,5 +94,6 @@ export const OKRES_CODE_TO_NAME: Record<string, string> = {
 };
 
 export function okresName(code: string): string {
+  if (code === "SKZZZZ") return "Zahraničné";
   return OKRES_CODE_TO_NAME[code] || code;
 }
