@@ -57,6 +57,7 @@ function Cell({ col, c }: { col: ColDef; c: Company }) {
       return (
         <Link
           href={`/firma/${c.ico}-${slugify(c.name)}`}
+          prefetch={false}
           className="font-medium hover:underline"
           style={{ color: "var(--accent)" }}
           title={c.name || c.ico}
@@ -337,6 +338,7 @@ export function ScreenerTable({
             <Link
               key={c.ico}
               href={`/firma/${c.ico}-${slugify(c.name)}`}
+              prefetch={false}
               className="block px-4 py-3 transition-colors hover:bg-[var(--surface-hover)]"
               style={{ borderBottom: "1px solid var(--border)" }}
             >

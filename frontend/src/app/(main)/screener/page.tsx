@@ -55,7 +55,15 @@ export default async function ScreenerPage({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  const session = await getServerSession();
+  // Start session resolve + filter options fetch in parallel.
+  // getScreenerFilterOptions is unstable_cache(1h) and doesn't depend on
+  // session/tier, so it can run concurrently with auth — saves 50-100ms
+  // for authenticated users (tier resolve hits DB).
+  const [session, options] = await Promise.all([
+    getServerSession(),
+    getScreenerFilterOptions(),
+  ]);
+
   const tier = await resolveTier(session);
 
   const ip = getClientIp();
@@ -96,11 +104,9 @@ export default async function ScreenerPage({
     );
   }
 
-  // Run query + filter options in parallel (independent DB reads)
-  const [result, options] = await Promise.all([
-    queryScreener(searchParams, tier),
-    getScreenerFilterOptions(),
-  ]);
+  // Filter options already fetched in parallel with session above.
+  // queryScreener runs findMany + count in parallel internally (Promise.all).
+  const result = await queryScreener(searchParams, tier);
 
   const { companies, total, page, totalPages, appliedFilters, resultLimit } = result;
 

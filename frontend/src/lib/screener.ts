@@ -965,6 +965,68 @@ export type ScreenerResponse = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// Count helper — extracted from queryScreener for parallel execution
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Compute total count for screener results.
+ *
+ * Strategy:
+ *   - No filters → pg_class approximation (instant, ~518K)
+ *   - Selective filters (financial, text, date) → real COUNT with index-optimized WHERE
+ *   - Non-selective filters (kraj, legalForm) → materialized view counts (instant)
+ *
+ * Real COUNT on 518K rows with non-selective filters takes 14-21s (seq scan),
+ * so we avoid it. Selective filters use bitmap index scan → sub-second.
+ */
+async function computeTotalCount(
+  appliedFilters: string[],
+  sanitized: Record<string, ParsedValue | ParsedValue[]>,
+  tier: ScreenerTier,
+): Promise<number> {
+  const hasFilters = appliedFilters.length > 0;
+
+  if (!hasFilters) {
+    const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
+      SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
+    `;
+    return Number(approx[0]?.estimate ?? 0);
+  }
+
+  // For filtered queries, check if the filter is selective enough for real count.
+  // Selective filters use index scan → fast (sub-second).
+  // Non-selective filters (kraj, legalForm alone) → use MV counts (instant).
+  //
+  // Financial filters (revenueMin, profitMin, assetsMin, equityMin, etc.) are
+  // selective — they use bitmap index scan on the desc_nulls_last indexes.
+  // ageMin/ageMax map to establishedAt which has a btree index.
+  // latestYear has no dedicated index but is selective enough for real count.
+  const isSelectiveFilter = appliedFilters.some(k =>
+    [
+      // Text/enum filters with dedicated indexes
+      "q", "okres", "city", "naceCode", "ownershipType", "status",
+      "sizeCategory", "vestnikClean", "ruzReporting", "hasFinancials",
+      // Date filter — establishedAt has btree index
+      "ageMin", "ageMax",
+      // Financial range filters — use desc_nulls_last bitmap index scan
+      "revenueMin", "revenueMax", "profitMin", "profitMax",
+      "assetsMin", "assetsMax", "equityMin", "equityMax",
+      // Year filter
+      "latestYear",
+    ].includes(k)
+  );
+
+  if (isSelectiveFilter) {
+    // Use COUNT-specific WHERE without ico NOT IN — 200x faster (Index Only Scan)
+    const whereForCount = buildWhereClauseForCount(sanitized, tier);
+    return prisma.company.count({ where: whereForCount });
+  }
+
+  // Non-selective filter (kraj, legalForm) — use MV counts (instant, accurate)
+  return getApproxCountFromMV(appliedFilters, sanitized);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Main query function
 // ═══════════════════════════════════════════════════════════════
 
@@ -1020,60 +1082,19 @@ export async function queryScreener(
   //    AND findMany with tier SELECT (Enforcement #3)
   const select = getSelectForTier(tier);
 
-  // Run sequentially to avoid exhausting Prisma connection pool (limit 5).
-  const companies = await prisma.company.findMany({
-    where,
-    select,
-    orderBy,
-    skip,
-    take,
-  });
-
-  // Use approximate count for all queries — real COUNT on 518K rows takes 14-21s
-  // (PostgreSQL prefers seq scan over index for COUNT even when index exists).
-  // Approximate count from pg_class is instant and accurate enough for UI pagination.
-  // Use appliedFilters (from parseAndAuthorizeParams) instead of inspecting where
-  // object — when 2+ filters are applied, Prisma wraps them in where.AND, so
-  // Object.keys(where) would only show { ico, AND } and miss the actual filter keys.
-  const hasFilters = appliedFilters.length > 0;
-  let total: number;
-  if (!hasFilters) {
-    const approx = await prisma.$queryRaw<Array<{ estimate: bigint }>>`
-      SELECT reltuples::bigint as estimate FROM pg_class WHERE relname = 'Company'
-    `;
-    total = Number(approx[0]?.estimate ?? 0);
-  } else {
-    // For filtered queries, check if the filter is selective enough for real count.
-    // Selective filters use index scan → fast (sub-second).
-    // Non-selective filters (kraj, legalForm alone) → use MV counts (instant).
-    //
-    // Financial filters (revenueMin, profitMin, assetsMin, equityMin, etc.) are
-    // selective — they use bitmap index scan on the desc_nulls_last indexes.
-    // ageMin/ageMax map to establishedAt which has a btree index.
-    // latestYear has no dedicated index but is selective enough for real count.
-    const isSelectiveFilter = appliedFilters.some(k =>
-      [
-        // Text/enum filters with dedicated indexes
-        "q", "okres", "city", "naceCode", "ownershipType", "status",
-        "sizeCategory", "vestnikClean", "ruzReporting", "hasFinancials",
-        // Date filter — establishedAt has btree index
-        "ageMin", "ageMax",
-        // Financial range filters — use desc_nulls_last bitmap index scan
-        "revenueMin", "revenueMax", "profitMin", "profitMax",
-        "assetsMin", "assetsMax", "equityMin", "equityMax",
-        // Year filter
-        "latestYear",
-      ].includes(k)
-    );
-    if (isSelectiveFilter) {
-      // Use COUNT-specific WHERE without ico NOT IN — 200x faster (Index Only Scan)
-      const whereForCount = buildWhereClauseForCount(sanitized, tier);
-      total = await prisma.company.count({ where: whereForCount });
-    } else {
-      // Non-selective filter (kraj, legalForm) — use MV counts (instant, accurate)
-      total = await getApproxCountFromMV(appliedFilters, sanitized);
-    }
-  }
+  // Run findMany + count in parallel — both are independent read-only queries.
+  // Connection pool is 15 (see DATABASE_URL in docker-compose.yml), so 2 parallel
+  // reads are safe. Previously sequential due to "limit 5" comment, but pool is 15.
+  const [companies, total] = await Promise.all([
+    prisma.company.findMany({
+      where,
+      select,
+      orderBy,
+      skip,
+      take,
+    }),
+    computeTotalCount(appliedFilters, sanitized, tier),
+  ]);
 
   // 7. Serialize Decimals to strings (Prisma returns Decimal objects)
   const serialized: ScreenerResult[] = companies.map((c) => ({
