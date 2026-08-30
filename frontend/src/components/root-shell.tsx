@@ -1,7 +1,6 @@
-import type { Metadata, Viewport } from "next";
+import type { Viewport } from "next";
 import { Inter } from "next/font/google";
-import { cookies, headers } from "next/headers";
-import "./globals.css";
+import "../app/globals.css";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -19,19 +18,14 @@ import CookieBanner from "@/components/CookieBanner";
 import AuthProvider from "@/components/AuthProvider";
 import SkipToContent from "@/components/SkipToContent";
 import Analytics from "@/components/Analytics";
-import { getLangFromHeaders, getHtmlLang, generateGlobalMetadata, getLocalizedJsonLd } from "@/lib/seo";
+import { getHtmlLang, getLocalizedJsonLd } from "@/lib/seo";
+import type { Lang } from "@/lib/i18n";
 
-export const viewport: Viewport = {
+export const rootViewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
 };
-
-export async function generateMetadata(): Promise<Metadata> {
-  const h = await headers();
-  const lang = getLangFromHeaders(h);
-  return generateGlobalMetadata(lang);
-}
 
 // Inline script to prevent flash of wrong theme before React hydrates
 const themeScript = `
@@ -47,13 +41,12 @@ const themeScript = `
 })();
 `;
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const h = await headers();
-  const lang = getLangFromHeaders(h);
+/**
+ * Shared root HTML shell. Used by:
+ * - app/(main)/layout.tsx — dynamic, lang detected from headers
+ * - app/(pub*)/layout.tsx — static firma route groups, lang fixed per group (ISR-cacheable)
+ */
+export function RootShell({ lang, children }: { lang: Lang; children: React.ReactNode }) {
   const htmlLang = getHtmlLang(lang);
   const jsonLd = getLocalizedJsonLd(lang);
 

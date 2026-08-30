@@ -83,7 +83,7 @@ export default function SearchForm({ selected: extSelected, onSelectedChange }: 
     setNoCredits(false);
 
     if (selected.length === 0) {
-      setError(t("form.zvoliteRegister"));
+      setError(t("form.zvolteRegister"));
       return;
     }
 

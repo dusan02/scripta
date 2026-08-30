@@ -70,22 +70,37 @@ export default async function ScreenerPage({
             Príliš veľa požiadaviek
           </h1>
           <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-            Prekročili ste limit vyhľadávaní. Skúste to znova o chvíľu.
+            Prekročili ste limit vyhľadávaní ({RATE_LIMITS[tier].maxRequests}/min). Skúste to znova o chvíľu
+            {tier === "FREE" && " alebo sa prihláste pre vyšší limit"}.
           </p>
-          <Link
-            href="/screener"
-            className="inline-block px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-            style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
-          >
-            Skúsiť znova
-          </Link>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/screener"
+              className="inline-block px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+              style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+            >
+              Skúsiť znova
+            </Link>
+            {tier === "FREE" && (
+              <Link
+                href="/login"
+                className="inline-block px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+              >
+                Prihlásiť sa
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
-  const result = await queryScreener(searchParams, tier);
-  const options = await getScreenerFilterOptions();
+  // Run query + filter options in parallel (independent DB reads)
+  const [result, options] = await Promise.all([
+    queryScreener(searchParams, tier),
+    getScreenerFilterOptions(),
+  ]);
 
   const { companies, total, page, totalPages, appliedFilters, resultLimit } = result;
 
@@ -214,16 +229,31 @@ export default async function ScreenerPage({
                 className="text-center py-16 rounded-xl"
                 style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
               >
-                <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-                  Žiadne firmy nespĺňajú zvolené kritériá.
+                <p className="text-base font-semibold mb-2" style={{ color: "var(--text)" }}>
+                  Žiadne firmy nespĺňajú zvolené kritériá
                 </p>
-                <Link
-                  href="/screener"
-                  className="text-sm inline-block font-medium hover:underline"
-                  style={{ color: "var(--accent)" }}
-                >
-                  Zrušiť filtre
-                </Link>
+                <p className="text-sm mb-5" style={{ color: "var(--text-secondary)" }}>
+                  Skúste uvoľniť niektorý z aktívnych filtrov — napríklad zrušte finančný
+                  limit, rozšírte región alebo zmente odvetvie.
+                </p>
+                <div className="flex items-center justify-center gap-3 flex-wrap">
+                  <Link
+                    href="/screener"
+                    className="text-sm inline-block px-4 py-2 rounded-lg font-medium transition-opacity hover:opacity-90"
+                    style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+                  >
+                    Zrušiť všetky filtre
+                  </Link>
+                  {appliedFilters.length > 0 && (
+                    <Link
+                      href={buildPaginationUrl(searchParams, 1).replace(/&?minRevenue=[^&]*/g, "").replace(/&?maxRevenue=[^&]*/g, "").replace(/&?minEmployees=[^&]*/g, "").replace(/&?maxEmployees=[^&]*/g, "").replace(/&?minFoundedYear=[^&]*/g, "")}
+                      className="text-sm inline-block px-4 py-2 rounded-lg font-medium hover:opacity-90"
+                      style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+                    >
+                      Uvoľniť finančné filtre
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
 
@@ -353,6 +383,28 @@ export async function generateMetadata({
     description = "Vyhľadávajte firmy na Slovensku podľa odvetvia, právnej formy, mesta, finančných ukazovateľov a roku založenia. Dáta z RÚZ a ORSR.";
   }
 
+  // ── Faceted navigation control (crawl-trap prevention) ──
+  // - q (free-text search) → noindex: infinite URL space
+  // - kraj only → canonical to curated SSG hub /screener/kraj/{kraj}
+  // - naceSection only → canonical to curated SSG hub /screener/odvetvie/{section}
+  // - any other filter combination → noindex (not curated, thin/duplicate)
+  // - no filters → index, canonical to clean /screener
+  const filterKeys = Object.keys(searchParams).filter(
+    k => k !== "sort" && k !== "dir" && k !== "page" && sp(k)
+  );
+  let robots: { index: boolean; follow: boolean } = { index: true, follow: true };
+  let canonicalOverride: string | null = null;
+
+  if (q) {
+    robots = { index: false, follow: true };
+  } else if (filterKeys.length === 1 && filterKeys[0] === "kraj") {
+    canonicalOverride = `https://verifa.sk/screener/kraj/${sp("kraj")}`;
+  } else if (filterKeys.length === 1 && filterKeys[0] === "naceSection") {
+    canonicalOverride = `https://verifa.sk/screener/odvetvie/${sp("naceSection")}`;
+  } else if (filterKeys.length > 0) {
+    robots = { index: false, follow: true };
+  }
+
   // Canonical — clean URL without sort/dir defaults
   const canonicalParts: string[] = [];
   for (const [key, value] of Object.entries(searchParams)) {
@@ -362,12 +414,13 @@ export async function generateMetadata({
       canonicalParts.push(`${key}=${encodeURIComponent(s)}`);
     }
   }
-  const canonical = `https://verifa.sk/screener${canonicalParts.length > 0 ? `?${canonicalParts.join("&")}` : ""}`;
+  const canonical = canonicalOverride
+    ?? `https://verifa.sk/screener${canonicalParts.length > 0 ? `?${canonicalParts.join("&")}` : ""}`;
 
   return {
     title,
     description,
-    robots: { index: true, follow: true },
+    robots,
     alternates: { canonical },
   };
 }

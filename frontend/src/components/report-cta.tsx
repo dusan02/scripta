@@ -83,6 +83,49 @@ export function ReportCTA({ ico, name }: { ico: string; name: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Compact CTA — sticky header + post-KPI banner (above-the-fold conversion)
+// ═══════════════════════════════════════════════════════════════
+
+export function CompactReportCTA({ ico, source }: { ico: string; source: "sticky_header" | "preverte_firmu" | "faq" | "post_kpi_banner" }) {
+  const t = useT();
+  const { lang } = useLang();
+  return (
+    <Link
+      href={localizePath(`/dashboard?ico=${ico}`, lang)}
+      onClick={() => trackReportCtaClick(ico, source)}
+      className="text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg transition-all hover:scale-105 whitespace-nowrap"
+      style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
+    >
+      {t("firma.objednatReport")}
+    </Link>
+  );
+}
+
+export function InlineReportCTA({ ico, name }: { ico: string; name: string }) {
+  const t = useT();
+  const { lang } = useLang();
+  return (
+    <div
+      className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-xl px-4 py-3 mb-4 sm:mb-6 no-print"
+      style={{ background: "linear-gradient(135deg, var(--accent-light), var(--info-bg))", border: "1px solid var(--accent-border)" }}
+    >
+      <p className="flex-1 text-sm font-medium" style={{ color: "var(--text)" }}>
+        {t("firma.ctaHeadline", { name })}
+        <span className="font-normal" style={{ color: "var(--text-secondary)" }}> — 14 € / report</span>
+      </p>
+      <Link
+        href={localizePath(`/dashboard?ico=${ico}`, lang)}
+        onClick={() => trackReportCtaClick(ico, "post_kpi_banner")}
+        className="px-5 py-2.5 rounded-lg font-bold text-sm transition-all hover:scale-105 text-center whitespace-nowrap"
+        style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
+      >
+        {t("firma.ctaButton")}
+      </Link>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // FAQ — Dynamic per-company (SEO long-tail content)
 // ═══════════════════════════════════════════════════════════════
 
@@ -142,7 +185,7 @@ export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestReve
 
   return (
     <section className="mb-6 sm:mb-8 no-print">
-      <h2 className="text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+      <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
         {t("firma.faqTitle")} — {name}
       </h2>
       <dl className="space-y-3" itemScope itemType="https://schema.org/FAQPage">

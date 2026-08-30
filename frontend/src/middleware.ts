@@ -60,7 +60,84 @@ export async function middleware(req: NextRequest) {
     detectedLang = langParam;
   }
 
-  // --- Step 3: Build response with lang header + cookie ---
+  // --- Step 2b: Screener is Slovak-only — redirect prefixed URLs to the
+  // canonical Slovak version (avoids SK content indexed under /en, /de, ...) ---
+  const isScreenerPath = realPath === "/screener" || realPath.startsWith("/screener/");
+  if (isScreenerPath && pathname !== realPath) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = realPath;
+    redirectUrl.searchParams.delete("lang");
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
+  // --- Step 3+4: Company pages — static routes per language, no rewrite ---
+  // Firma pages have real URL routes for each language (app/(pub-{lang})/{prefix}/firma/...),
+  // so they must NOT be rewritten — the lang prefix stays in the URL and the page
+  // gets its language from the route, making it static + ISR-cacheable.
+  const firmaMatch = realPath.match(FIRMA_RE);
+  if (firmaMatch) {
+    const ico = firmaMatch[1];
+    const currentSlug = firmaMatch[2] || "";
+    const urlLangPrefix = pathname !== realPath ? pathname.slice(0, pathname.length - realPath.length) : "";
+
+    // ?lang=xx on a firma page → normalize to the prefixed URL
+    if (!urlLangPrefix && langParam && VALID_LANGS.includes(langParam) && langParam !== "sk") {
+      const prefix = langParam === "cz" ? "cs" : langParam;
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/${prefix}${realPath}`;
+      redirectUrl.searchParams.delete("lang");
+      const r = NextResponse.redirect(redirectUrl, 308);
+      r.cookies.set("verifa-lang", langParam, { maxAge: 60 * 60 * 24 * 365, path: "/", sameSite: "lax" });
+      return r;
+    }
+
+    // Fetch company name from DB — lightweight query, no relations
+    // We use a direct fetch to the internal API to avoid Prisma in middleware
+    // (Prisma client isn't available in middleware edge runtime)
+    try {
+      // Use internal localhost to avoid round-trip through nginx
+      const internalUrl = `http://localhost:3000/api/internal/company-slug/${ico}`;
+      const res = await fetch(internalUrl, {
+        headers: { "x-middleware-internal": "1" },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.name) {
+          const correctSlug = slugify(data.name);
+          if (currentSlug !== correctSlug) {
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = `${urlLangPrefix}/firma/${ico}-${correctSlug}`;
+            return NextResponse.redirect(redirectUrl, 308);
+          }
+        }
+      }
+    } catch {
+      // If DB lookup fails, let the page render normally
+    }
+
+    // Unprefixed firma URL + remembered non-SK language → redirect to the
+    // language-prefixed URL so every URL serves exactly one language variant
+    // (required for CDN caching; content must not vary by cookie).
+    if (!urlLangPrefix) {
+      const cookieLang = req.cookies.get("verifa-lang")?.value;
+      if (cookieLang && cookieLang !== "sk" && VALID_LANGS.includes(cookieLang)) {
+        const prefix = cookieLang === "cz" ? "cs" : cookieLang;
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = `/${prefix}${pathname}`;
+        return NextResponse.redirect(redirectUrl, 308);
+      }
+    }
+
+    // Pass through unchanged (prefixed routes hit their own static route group)
+    const pass = NextResponse.next();
+    if (detectedLang) {
+      pass.cookies.set("verifa-lang", detectedLang, { maxAge: 60 * 60 * 24 * 365, path: "/", sameSite: "lax" });
+    }
+    return pass;
+  }
+
+  // --- Step 3b: Non-firma pages — build response with lang header + cookie ---
   let langResponse: NextResponse | null = null;
   if (detectedLang) {
     if (realPath !== pathname) {
@@ -80,44 +157,6 @@ export async function middleware(req: NextRequest) {
       path: "/",
       sameSite: "lax",
     });
-  }
-
-  // --- Step 4: Company page slug validation ---
-  // Redirect /firma/{ico} and /firma/{ico}-stale-slug to /firma/{ico}-correct-slug
-  // Done in middleware (not page.tsx) because Sentry swallows permanentRedirect() errors.
-  const firmaMatch = realPath.match(FIRMA_RE);
-  if (firmaMatch) {
-    const ico = firmaMatch[1];
-    const currentSlug = firmaMatch[2] || "";
-    // Fetch company name from DB — lightweight query, no relations
-    // We use a direct fetch to the internal API to avoid Prisma in middleware
-    // (Prisma client isn't available in middleware edge runtime)
-    try {
-      // Use internal localhost to avoid round-trip through nginx
-      const internalUrl = `http://localhost:3000/api/internal/company-slug/${ico}`;
-      const res = await fetch(internalUrl, {
-        headers: { "x-middleware-internal": "1" },
-        signal: AbortSignal.timeout(3000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (!data?.name) {
-          // Company not found or missing name — let page.tsx handle 404
-          const pass = langResponse || NextResponse.next();
-          return pass;
-        }
-        const correctSlug = slugify(data.name);
-        if (currentSlug !== correctSlug) {
-          const redirectUrl = req.nextUrl.clone();
-          // Preserve language prefix
-          const langPrefix = pathname !== realPath ? pathname.slice(0, pathname.length - realPath.length) : "";
-          redirectUrl.pathname = `${langPrefix}/firma/${ico}-${correctSlug}`;
-          return NextResponse.redirect(redirectUrl, 308);
-        }
-      }
-    } catch {
-      // If DB lookup fails, let the page render normally
-    }
   }
 
   // --- Step 5: Auth checks (on realPath, not the prefixed path) ---

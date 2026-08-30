@@ -263,8 +263,8 @@ export function ScreenerTable({
         <ColumnToggle columns={ALL_COLUMNS} visibleCols={visibleCols} onToggle={toggleColumn} />
       </div>
 
-      {/* Table */}
-      <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
+      {/* Desktop table — hidden on mobile */}
+      <div className="hidden sm:block overflow-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
         <table className="w-full text-sm" style={{ tableLayout: "fixed", minWidth: "700px" }}>
           <colgroup>
             {activeCols.map(col => (
@@ -326,6 +326,58 @@ export function ScreenerTable({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card layout — visible only on <sm */}
+      <div className="sm:hidden divide-y" style={{ borderColor: "var(--border)" }}>
+        {companies.map(c => {
+          const profit = c.latestProfit ? Number(c.latestProfit) : null;
+          const equity = c.latestEquity ? Number(c.latestEquity) : null;
+          return (
+            <Link
+              key={c.ico}
+              href={`/firma/${c.ico}-${slugify(c.name)}`}
+              className="block px-4 py-3 transition-colors hover:bg-[var(--surface-hover)]"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <span className="font-medium text-sm leading-snug" style={{ color: "var(--accent)" }}>
+                  {c.name || c.ico}
+                </span>
+                <span className="font-mono text-xs flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+                  {c.ico}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                {c.city && <span>{c.city}</span>}
+                {c.city && c.establishedAt && <span>·</span>}
+                {c.establishedAt && <span>{fmtYear(c.establishedAt)}</span>}
+              </div>
+              {(c.latestRevenue || c.latestProfit || c.latestAssets) && (
+                <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+                  {c.latestRevenue && (
+                    <span>
+                      <span style={{ color: "var(--text-muted)" }}>Tržby </span>
+                      <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEurK(c.latestRevenue)}</span>
+                    </span>
+                  )}
+                  {c.latestProfit && (
+                    <span>
+                      <span style={{ color: "var(--text-muted)" }}>Zisk </span>
+                      <span className="font-medium" style={{ color: profit !== null && profit < 0 ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestProfit)}</span>
+                    </span>
+                  )}
+                  {c.latestEquity && (
+                    <span>
+                      <span style={{ color: "var(--text-muted)" }}>Imanie </span>
+                      <span className="font-medium" style={{ color: equity !== null && equity < 0 ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestEquity)}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

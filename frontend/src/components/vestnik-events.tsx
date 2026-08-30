@@ -25,7 +25,7 @@ export function VestnikEvents({ events, noHeading }: { events: VestnikEvent[]; n
   return (
     <div className={noHeading ? "" : "mb-6 sm:mb-8"}>
       {!noHeading && (
-        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+        <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
           {t("firma.vestnikUdalosti") || "Udalosti z Obchodného vestníka"}
         </h2>
       )}

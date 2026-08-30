@@ -49,7 +49,7 @@ export function trackFirmaPageView(ico: string, hasRiskSignals: boolean, riskCou
   });
 }
 
-export function trackReportCtaClick(ico: string, location: "sticky_header" | "preverte_firmu" | "faq") {
+export function trackReportCtaClick(ico: string, location: "sticky_header" | "preverte_firmu" | "faq" | "post_kpi_banner") {
   trackEvent("report_cta_click", {
     ico,
     cta_location: location,

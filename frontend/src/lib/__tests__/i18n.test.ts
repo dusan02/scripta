@@ -1,5 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { translations, translate, Lang } from "../i18n";
 
 const LANGS: Lang[] = ["sk", "en", "de", "cz", "hu", "pl"];
@@ -29,6 +31,30 @@ describe("i18n key completeness", () => {
         }
       }
     }
+  });
+
+  // Keys used in source code but missing from ALL languages — parity test
+  // above can't catch these (e.g. company.dozornaRada was missing everywhere).
+  it("all translation keys used in src/ exist in the sk dictionary", () => {
+    const srcRoot = join(__dirname, "..", "..");
+    const used = new Set<string>();
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        if (entry === "node_modules" || entry === ".next") continue;
+        const p = join(dir, entry);
+        if (statSync(p).isDirectory()) {
+          walk(p);
+        } else if (/\.(tsx?|jsx?)$/.test(entry)) {
+          const src = readFileSync(p, "utf8");
+          const re = /(?:\bt|translate)\(\s*["']([a-z]+\.[a-zA-Z0-9]+)["']/g;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(src)) !== null) used.add(m[1]);
+        }
+      }
+    };
+    walk(srcRoot);
+    const missing = Array.from(used).filter(k => !(k in translations.sk));
+    assert.deepEqual(missing, [], `Keys used in code but missing from dictionaries: ${missing.join(", ")}`);
   });
 });
 

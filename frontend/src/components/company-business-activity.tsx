@@ -16,7 +16,7 @@ export function BusinessActivitySection({ activity }: { activity: string }) {
 
   return (
     <div className="mb-6 sm:mb-8 print-section">
-      <h2 className="text-sm sm:text-base font-bold mb-2" style={{ color: "var(--text)" }}>
+      <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
         {t("firma.predmetCinnosti")}
       </h2>
       <div

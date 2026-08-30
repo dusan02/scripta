@@ -25,7 +25,7 @@ export function RiskSignals({ signals }: { signals: RiskSignal[] }) {
 
   return (
     <div className="mb-6 sm:mb-8 no-print">
-      <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+      <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
         {t("firma.rizikoveSignaly") || "Rizikové signály a udalosti"}
       </h2>
       <div className="space-y-2">

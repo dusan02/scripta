@@ -278,7 +278,7 @@ export function generateGlobalMetadata(lang: Lang, canonicalPath: string = "/"):
       description: seo.ogDescription,
       images: [
         {
-          url: "/logo-verifa.png",
+          url: "/og-verifa.png",
           width: 1200,
           height: 630,
           alt: "Verifa.sk — Business Risk Report",
@@ -289,7 +289,7 @@ export function generateGlobalMetadata(lang: Lang, canonicalPath: string = "/"):
       card: "summary_large_image",
       title: seo.twitterTitle,
       description: seo.twitterDescription,
-      images: ["/logo-verifa.png"],
+      images: ["/og-verifa.png"],
     },
     alternates: {
       canonical,
@@ -317,7 +317,7 @@ export function generatePageMetadata(page: string, lang: Lang): Metadata {
       siteName: "Verifa.sk",
       title: `${pageSeo.title} | Verifa.sk`,
       description: pageSeo.description,
-      images: [{ url: "/logo-verifa.png", width: 1200, height: 630, alt: "Verifa.sk" }],
+      images: [{ url: "/og-verifa.png", width: 1200, height: 630, alt: "Verifa.sk" }],
     },
     twitter: {
       card: "summary_large_image",
@@ -331,17 +331,44 @@ export function generatePageMetadata(page: string, lang: Lang): Metadata {
   };
 }
 
+/** Truncate at word boundary with ellipsis */
+function truncateAtWord(str: string, max: number): string {
+  if (str.length <= max) return str;
+  const cut = str.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut) + "…";
+}
+
 /** Generate localized metadata for a company (firma) page */
 export function generateFirmaMetadata(name: string, ico: string, city: string | null, lang: Lang): Metadata {
   const template = FIRMA_SEO[lang];
-  const cityPart = city ? `, ${city}` : "";
-  const title = template.title
+
+  // Title: Google truncates ~60 chars. For long company names, drop the
+  // descriptor suffix first, then truncate the name itself if still too long.
+  let title = template.title
     .replace("{name}", name)
     .replace("{ico}", ico);
-  const description = template.description
-    .replace("{name}", name)
+  if (title.length > 60) {
+    title = `${name} (${ico})`;
+  }
+  if (title.length > 60) {
+    title = `${truncateAtWord(name, 60 - ico.length - 4)} (${ico})`;
+  }
+
+  // Description: ~160 chars. For long names, drop the city, then truncate name.
+  const buildDesc = (n: string, c: string) => template.description
+    .replace("{name}", n)
     .replace("{ico}", ico)
-    .replace("{city}", cityPart);
+    .replace("{city}", c);
+  const cityPart = city ? `, ${city}` : "";
+  let description = buildDesc(name, cityPart);
+  if (description.length > 160) {
+    description = buildDesc(name, "");
+  }
+  if (description.length > 160) {
+    const overhead = buildDesc("", "").length;
+    description = buildDesc(truncateAtWord(name, 160 - overhead), "");
+  }
 
   // Canonical URL must include the slug to match sitemap URLs
   // Otherwise Google sees /firma/{ico} and /firma/{ico}-{slug} as duplicates
@@ -364,7 +391,7 @@ export function generateFirmaMetadata(name: string, ico: string, city: string | 
       type: "website",
       locale: LOCALE_MAP[lang],
       siteName: "Verifa.sk",
-      images: [{ url: "/logo-verifa.png", width: 1200, height: 630, alt: `${name} — Verifa.sk` }],
+      images: [{ url: "/og-verifa.png", width: 1200, height: 630, alt: `${name} — Verifa.sk` }],
     },
     twitter: { card: "summary_large_image", title, description },
     robots: { index: true, follow: true },

@@ -1,52 +1,54 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { RevenueProfitChart, BalanceSankeyChart } from "@/components/company-charts";
+import dynamic from "next/dynamic";
 import { MetricCard, ChartCard, BalanceSheetTable, ProfitLossTable, CashFlowTable, RentabilityRatios, StabilityRatios } from "@/components/firma-ui";
-import { RentabilityChart, StabilityChart } from "@/components/financial-indicators-charts";
+
+// Charts stay SSR'd (SVG in HTML for SEO) but the ~380 kB Recharts bundle is
+// split out of the initial page JS and loaded lazily at hydration time.
+const RevenueProfitChart = dynamic(() => import("@/components/company-charts").then(m => m.RevenueProfitChart));
+const BalanceSankeyChart = dynamic(() => import("@/components/company-charts").then(m => m.BalanceSankeyChart));
+const RentabilityChart = dynamic(() => import("@/components/financial-indicators-charts").then(m => m.RentabilityChart));
+const StabilityChart = dynamic(() => import("@/components/financial-indicators-charts").then(m => m.StabilityChart));
 import { ExtendedRatios, EmployeeTrend } from "@/components/extended-ratios";
 import { PiotroskiCard } from "@/components/piotroski-card";
 import { computeFinancialIndicators } from "@/lib/financial-indicators";
 import { computePiotroski } from "@/lib/piotroski";
-import Logo from "@/components/Logo";
-import ThemeToggle from "@/components/ThemeToggle";
+import { computeRiskSignals } from "@/lib/risk-signals";
+import { generateFinancialSummary } from "@/lib/financial-summary";
+import { FirmaStickyHeader } from "@/components/firma-sticky-header";
 import { CompanyHeader } from "@/components/company-header";
 import { CompanyPersons } from "@/components/company-persons";
 import { BusinessActivitySection, SigningAuthoritySection } from "@/components/company-business-activity";
 import { RiskSignals } from "@/components/risk-signals";
 import { DataSourcesSection } from "@/components/data-sources";
-import { ReportCTA, CompanyFAQ } from "@/components/report-cta";
-import { slugify, parseCompanySlug } from "@/lib/slug";
+import { ReportCTA, CompanyFAQ, InlineReportCTA } from "@/components/report-cta";
+import { parseCompanySlug } from "@/lib/slug";
 import { fmtEUR, num } from "@/lib/format";
 import { calcTrend } from "@/lib/trend";
 import { getCompanyData } from "@/lib/ruz";
-import { getServerSession } from "@/lib/auth";
-import { getLangFromHeaders, generateFirmaMetadata, getCanonicalUrl } from "@/lib/seo";
-import { translate } from "@/lib/i18n";
+import { generateFirmaMetadata, getCanonicalUrl } from "@/lib/seo";
+import { translate, type Lang } from "@/lib/i18n";
 import { RelatedFirms } from "@/components/related-firms";
 import { CrossFirmPersons, getCrossFirmPersons } from "@/components/cross-firm-persons";
-import { PrintButton } from "@/components/PrintButton";
 import { VestnikEvents } from "@/components/vestnik-events";
 import { CompanyEvents } from "@/components/company-events";
 import { FirmaPageTracker } from "@/components/firma-page-tracker";
 
-export const dynamicParams = true;
-export const revalidate = 86400;
+// ─── Shared firma page — rendered by static route groups ───
+// app/(pub)/firma/[ico-slug]        → lang "sk"
+// app/(pub-{en,de,cs,hu,pl})/{prefix}/firma/[ico-slug] → respective lang
+// Language comes from the URL route (not headers/cookies), so these pages
+// are fully static + ISR-cacheable (revalidate = 86400).
 
-type Params = { params: Promise<{ "ico-slug": string }> };
-
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { "ico-slug": icoSlug } = await params;
+export async function generateFirmaPageMetadata(icoSlug: string, lang: Lang): Promise<Metadata> {
   const parsed = parseCompanySlug(icoSlug);
   if (!parsed) return {};
 
   const company = await getCompanyData(parsed.ico);
   if (!company) {
     // Company not in DB — return noindex + canonical to self (not homepage)
-    // notFound() in page.tsx may be swallowed by Sentry, so we must set canonical here
-    const h = await headers();
-    const lang = getLangFromHeaders(h);
+    // notFound() in the page may be swallowed by Sentry, so we must set canonical here
     const slug = parsed.slug || "firma";
     const firmaPath = `/firma/${parsed.ico}-${slug}`;
     return {
@@ -57,8 +59,6 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     };
   }
 
-  const h = await headers();
-  const lang = getLangFromHeaders(h);
   const name = company.name || `IČO ${company.ico}`;
 
   // Quality gate: index only firms with ≥2 years of financial data
@@ -73,19 +73,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return generateFirmaMetadata(name, company.ico, company.city || null, lang);
 }
 
-export default async function CompanyPage({ params }: Params) {
-  const { "ico-slug": icoSlug } = await params;
+export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lang: Lang }) {
   const parsed = parseCompanySlug(icoSlug);
   if (!parsed) notFound();
 
   const company = await getCompanyData(parsed.ico);
   if (!company) notFound();
 
-  const session = await getServerSession();
-  const isLoggedIn = !!session?.user?.id;
-
-  const h = await headers();
-  const lang = getLangFromHeaders(h);
   const t = (key: string, params?: Record<string, string | number>) => translate(lang, key, params);
 
   const persons = company.companyPersons ?? [];
@@ -170,6 +164,7 @@ export default async function CompanyPage({ params }: Params) {
       "@type": "PostalAddress",
       addressCountry: "SK",
       ...(company.city ? { addressLocality: company.city } : {}),
+      ...(company.kraj ? { addressRegion: company.kraj } : {}),
       ...(company.street ? { streetAddress: company.street } : {}),
       ...(company.zipCode ? { postalCode: company.zipCode } : {}),
     };
@@ -208,7 +203,7 @@ export default async function CompanyPage({ params }: Params) {
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Verifa.sk", item: "https://verifa.sk" },
-          { "@type": "ListItem", position: 2, name: "Firma", item: "https://verifa.sk/firma" },
+          { "@type": "ListItem", position: 2, name: t("firma.breadcrumbFirma"), item: "https://verifa.sk/firmy" },
           { "@type": "ListItem", position: 3, name, item: `https://verifa.sk/firma/${company.ico}` },
         ],
       },
@@ -216,163 +211,16 @@ export default async function CompanyPage({ params }: Params) {
     ],
   };
 
-  // ── Risk signals computation (extracted for badge + section placement) ──
-  const signals: Array<{
-    id: string;
-    type: "legal_status" | "vestnik" | "forensic" | "financial";
-    severity: "critical" | "high" | "medium" | "low";
-    title: string;
-    description: string;
-    source: string;
-    date?: string | null;
-  }> = [];
-
-  // Legal status signals
-  if (company.legalStatus === "BANKRUPT") {
-    signals.push({
-      id: "legal-bankrupt",
-      type: "legal_status",
-      severity: "critical",
-      title: t("firma.statusBankrupt"),
-      description: "Firma je v konkurznom konaní.",
-      source: company.legalStatusSource || "ORSR",
-    });
-  }
-  if (company.legalStatus === "RESTRUCTURING") {
-    signals.push({
-      id: "legal-restructuring",
-      type: "legal_status",
-      severity: "critical",
-      title: t("firma.statusRestructuring"),
-      description: "Firma je v reštrukturalizačnom konaní.",
-      source: company.legalStatusSource || "ORSR",
-    });
-  }
-  if (company.legalStatus === "LIQUIDATION") {
-    signals.push({
-      id: "legal-liquidation",
-      type: "legal_status",
-      severity: "high",
-      title: t("firma.statusLiquidation"),
-      description: "Firma je v likvidácii.",
-      source: company.legalStatusSource || "ORSR",
-    });
-  }
-
-  // Vestnik events as risk signals
-  if (company.vestnikEvents) {
-    for (const ev of company.vestnikEvents.slice(0, 5)) {
-      const sev = ev.severityLevel === "CRITICAL" ? "critical" :
-                 ev.severityLevel === "HIGH" ? "high" :
-                 ev.severityLevel === "MEDIUM" ? "medium" : "low";
-      signals.push({
-        id: `vestnik-${ev.id}`,
-        type: "vestnik",
-        severity: sev as any,
-        title: ev.eventType,
-        description: ev.summary,
-        source: "Obchodný vestník",
-        date: new Date(ev.publishedAt).toLocaleDateString("sk-SK"),
-      });
-    }
-  }
-
-  // Forensic signals from latest FS
-  if (latest) {
-    const socIns = num(latest.socialInsuranceLiabilities);
-    const taxLiab = num(latest.taxLiabilities);
-    const empLiab = num(latest.employeeLiabilities);
-
-    if (socIns != null && socIns > 0) {
-      signals.push({
-        id: "forensic-soc-ins",
-        type: "forensic",
-        severity: "high",
-        title: "Záväzky voči sociálnej poisťovni",
-        description: `Neuhradené záväzky voči sociálnej poisťovni: ${fmtEUR(socIns)} (rok ${latest.year}). Zdroj: účtovná závierka, riadok 336A.`,
-        source: "RÚZ",
-        date: String(latest.year),
-      });
-    }
-    if (taxLiab != null && taxLiab > 0) {
-      signals.push({
-        id: "forensic-tax",
-        type: "forensic",
-        severity: "high",
-        title: "Daňové záväzky",
-        description: `Daňové záväzky a dotácie: ${fmtEUR(taxLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 341-347.`,
-        source: "RÚZ",
-        date: String(latest.year),
-      });
-    }
-    if (empLiab != null && empLiab > 0) {
-      signals.push({
-        id: "forensic-emp",
-        type: "forensic",
-        severity: "medium",
-        title: "Záväzky voči zamestnancom",
-        description: `Záväzky voči zamestnancom: ${fmtEUR(empLiab)} (rok ${latest.year}). Zdroj: účtovná závierka, riadky 331, 333.`,
-        source: "RÚZ",
-        date: String(latest.year),
-      });
-    }
-  }
-
-  // Negative equity
-  if (latest && num(latest.equity) != null && num(latest.equity)! < 0) {
-    signals.push({
-      id: "financial-neg-equity",
-      type: "financial",
-      severity: "high",
-      title: "Záporné vlastné imanie",
-      description: `Vlastné imanie firmy je záporné (${fmtEUR(num(latest.equity))}) k roku ${latest.year}. Záväzky prevyšujú aktíva.`,
-      source: "RÚZ",
-      date: String(latest.year),
-    });
-  }
-
+  // ── Risk signals (i18n'd, unit-tested in lib/risk-signals.ts) ──
+  const signals = computeRiskSignals(company, latest, lang);
   const riskCount = signals.length;
 
   // ── Cross-firm persons — fetch links for deduplication ──
   const crossFirmLinks = await getCrossFirmPersons(company.ico);
   const crossFirmIcos = crossFirmLinks.map(f => f.ico);
 
-  // ── Financial Summary — 1-2 sentence narrative (replaces CompanyInsights) ──
-  function generateFinancialSummary(): string | null {
-    if (!latest) return null;
-    const parts: string[] = [];
-
-    // Revenue trend
-    const revTrend = trends.revenue;
-    if (revTrend?.direction === "up") {
-      parts.push(`${name} dosiahla rast tržieb o ${revTrend.pct.toFixed(0)}%`);
-    } else if (revTrend?.direction === "down") {
-      parts.push(`${name} zaznamenala pokles tržieb o ${Math.abs(revTrend.pct).toFixed(0)}%`);
-    } else if (revTrend?.direction === "flat") {
-      parts.push(`${name} udržala stabilné tržby`);
-    }
-
-    // Profit trend
-    const profTrend = trends.profit;
-    if (profTrend?.direction === "up") {
-      parts.push(`zisk vzrástol o ${profTrend.pct.toFixed(0)}%`);
-    } else if (profTrend?.direction === "down") {
-      parts.push(`zisk klesol o ${Math.abs(profTrend.pct).toFixed(0)}%`);
-    }
-
-    // Margin
-    const rev = num(latest.mainActivityRevenue);
-    const profit = num(latest.netProfitLoss);
-    if (rev != null && rev !== 0 && profit != null) {
-      const margin = (profit / rev * 100).toFixed(1);
-      parts.push(`Zisková marža dosiahla ${margin}%`);
-    }
-
-    if (parts.length === 0) return null;
-    return parts.join(", ") + ".";
-  }
-
-  const financialSummary = generateFinancialSummary();
+  // ── Financial Summary — 1-2 sentence narrative (i18n'd in lib/financial-summary.ts) ──
+  const financialSummary = generateFinancialSummary(name, latest, prev, lang);
 
   // ── Data sources for collapsible section ──
   const dataSources: Array<{ name: string; syncedAt: Date | null; dataRange?: string | null }> = [];
@@ -402,23 +250,8 @@ export default async function CompanyPage({ params }: Params) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <FirmaPageTracker ico={company.ico} hasRiskSignals={riskCount > 0} riskCount={riskCount} />
 
-      {/* ── STICKY HEADER — secondary CTA only (no "Objednať report") ── */}
-      {!isLoggedIn && (
-        <header style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 10 }}>
-          <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <Logo size="sm" />
-            </Link>
-            <div className="flex items-center gap-1.5 sm:gap-2 no-print">
-              <PrintButton />
-              <ThemeToggle size="sm" />
-              <Link href="/login" className="text-[11px] sm:text-xs font-medium px-3 sm:px-3 py-2.5 sm:py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>
-                {t("firma.prihlasitSa")}
-              </Link>
-            </div>
-          </div>
-        </header>
-      )}
+      {/* ── STICKY HEADER — logo + compact primary CTA (hidden client-side for logged-in users) ── */}
+      <FirmaStickyHeader ico={company.ico} />
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Breadcrumb */}
@@ -439,7 +272,7 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* Print-only header with logo — fixed to appear on every page */}
         <div className="print-only-logo">
-          <img src="/logo-verifa.png" alt="Verifa.sk" />
+          <img src="/logo-verifa.png" alt="Verifa.sk" width="118" height="40" />
         </div>
 
         {/* Print-only footer — consistent on every page */}
@@ -520,10 +353,15 @@ export default async function CompanyPage({ params }: Params) {
           </div>
         )}
 
+        {/* ── INLINE CTA — above the fold, right after KPI cards ── */}
+        {stmts.length > 0 && (
+          <InlineReportCTA ico={company.ico} name={name} />
+        )}
+
         {/* ── FINANCIAL SUMMARY (H2) — 1-2 sentence narrative, replaces CompanyInsights ── */}
         {financialSummary && (
           <div className="mb-6 sm:mb-8">
-            <h2 className="text-base sm:text-lg font-bold mb-2" style={{ color: "var(--text)" }}>
+            <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
               {t("firma.financneZhrnutie")}
             </h2>
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
@@ -560,7 +398,7 @@ export default async function CompanyPage({ params }: Params) {
         {/* ── PEOPLE (H2) — with Signing Authority as H3 ── */}
         {persons.length > 0 && (
           <div className="mb-6 sm:mb-8 no-print">
-            <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+            <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
               {t("firma.osoby")}
             </h2>
             <CompanyPersons persons={persons} />
@@ -583,7 +421,7 @@ export default async function CompanyPage({ params }: Params) {
         {/* ── SÚVAHA (H2) — chart + table ── */}
         {balanceData && balanceData.totalAssets != null && (
           <div className="mb-6 sm:mb-8 print-section">
-            <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+            <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
               {t("firma.suvaha")}
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -608,7 +446,7 @@ export default async function CompanyPage({ params }: Params) {
         {/* ── VÝKAZ ZISKOV A STRÁT (H2) — chart + table ── */}
         {chartData.length > 0 && (
           <div className="mb-6 sm:mb-8 print-section print-break-before">
-            <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+            <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
               {t("firma.vykazZiskovStrat")}
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -631,9 +469,10 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* ── CASH FLOW (H2, collapsible) ── */}
         {stmts.length > 0 && (
-          <details className="mb-6 sm:mb-8 no-print">
+          <details className="firma-details mb-6 sm:mb-8 no-print">
             <summary className="cursor-pointer mb-3" style={{ color: "var(--text)" }}>
-              <h2 className="text-base sm:text-lg font-bold inline" style={{ color: "var(--text)" }}>
+              <span className="chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></span>
+              <h2 className="text-lg sm:text-xl font-bold inline" style={{ color: "var(--text)" }}>
                 {t("firma.cashFlow")}
               </h2>
               <span className="text-xs font-normal ml-2" style={{ color: "var(--text-muted)" }}>· {t("firma.cashFlowSummary")}</span>
@@ -646,9 +485,10 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* ── DETAILNÉ FINANČNÉ UKAZOVATELE (H2, collapsible) ── */}
         {stmts.length > 0 && (
-          <details className="mb-6 sm:mb-8 no-print">
+          <details className="firma-details mb-6 sm:mb-8 no-print">
             <summary className="cursor-pointer mb-3" style={{ color: "var(--text)" }}>
-              <h2 className="text-base sm:text-lg font-bold inline" style={{ color: "var(--text)" }}>
+              <span className="chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></span>
+              <h2 className="text-lg sm:text-xl font-bold inline" style={{ color: "var(--text)" }}>
                 {t("firma.detailneUkazovatele")}
               </h2>
               <span className="text-xs font-normal ml-2" style={{ color: "var(--text-muted)" }}>· {t("firma.detailneUkazovateleSummary")}</span>
@@ -704,9 +544,10 @@ export default async function CompanyPage({ params }: Params) {
 
         {/* ── ZDROJE ÚDAJOV (H2, collapsible) ── */}
         {dataSources.length > 0 && (
-          <details className="mb-6 sm:mb-8 no-print">
+          <details className="firma-details mb-6 sm:mb-8 no-print">
             <summary className="cursor-pointer mb-3" style={{ color: "var(--text)" }}>
-              <h2 className="text-base sm:text-lg font-bold inline" style={{ color: "var(--text)" }}>
+              <span className="chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></span>
+              <h2 className="text-lg sm:text-xl font-bold inline" style={{ color: "var(--text)" }}>
                 {t("firma.zdrojeUdajov")}
               </h2>
               <span className="text-xs font-normal ml-2" style={{ color: "var(--text-muted)" }}>· {t("firma.zdrojeUdajovSummary")}</span>

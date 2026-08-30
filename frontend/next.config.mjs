@@ -59,4 +59,15 @@ export default withBundleAnalyzer(withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   hideSourceMaps: true,
+  webpack: {
+    // Do NOT auto-wrap server components — wrapServerComponentWithSentry reads
+    // request headers for trace propagation, which forces dynamic rendering and
+    // disables ISR/CDN caching on public pages. Error capture still works via
+    // global-error.tsx + instrumentation.ts.
+    autoInstrumentServerFunctions: false,
+    // Tree-shake Sentry debug code from the client bundle
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
 }));

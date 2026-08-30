@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { useTheme } from "@/components/ThemeProvider";
 
 interface LogoProps {
@@ -28,7 +29,8 @@ export default function Logo({ size = "md", forceLight = false }: LogoProps) {
         minWidth: w,
       }}
     >
-      <img
+      {/* next/image serves a resized variant of the 1024×348 source (~100 kB → few kB) */}
+      <Image
         key={isDark ? "dark" : "light"}
         src={isDark ? "/logo-verifa-dark.png" : "/logo-verifa.png"}
         alt="Verifa.sk"

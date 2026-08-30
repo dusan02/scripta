@@ -20,7 +20,7 @@ export function PiotroskiCard({ result, noHeading }: { result: PiotroskiResult |
   return (
     <div className="rounded-2xl p-4 sm:p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
       {!noHeading && (
-        <h2 className="text-base sm:text-lg font-bold mb-3" style={{ color: "var(--text)" }}>
+        <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
           {`Piotroski F-Score — ${year}`}
         </h2>
       )}

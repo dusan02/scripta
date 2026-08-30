@@ -207,7 +207,7 @@ The difference matters because the first is a verified claim within a scope, the
 ### Remaining Work
 
 - **RÚZ financials bulk import**: FinancialStatement table is empty — needs `seed-financials-bulk.ts` run (~42 hours for full import). **BLOCKED**: RÚZ API (registeruz.sk) is WAF-blocked from this environment. Must run from a server where the API is accessible.
-- **ORSR bulk seed**: `bulk_seed_orsr.py` enriches Company with `shareCapital`, `signingAuthority`, `businessActivity` from ORSR. ~515K eligible companies (s.r.o., a.s., v.o.s., k.s.), ~33 companies/min = ~261 hours. Non-destructive (preserves RPO-sourced CompanyPerson records). Resume with `--resume`.
+- **ORSR bulk seed**: ✅ COMPLETED (2026-08-27) — see "ORSR Bulk Seed — COMPLETED" section below. Do NOT re-run unless a specific data issue surfaces.
 - **Historical backfill**: Current backfill only covers 365 days. Older events exist in API but require longer lookback.
 - **P5 population audit**: After financials import, re-run P1 comprehensive audit to measure P5 impact.
 - **P1-6 (deferred)**: Unify pagination helper between backfill/cron/Python — maintenance debt, not a blocker.
@@ -280,3 +280,95 @@ All P0/P1 bugs fixed, empirically verified, and acceptance tested:
 - `src/agents/financial_analyst.py` — SYSTEM_PROMPT with v4 fixes
 - `src/pipeline.py` — cache integration in `_process_ifrs()`
 - `prisma/schema.prisma` — `ExtractionCache` model
+
+## ORSR Bulk Seed — COMPLETED (2026-08-27)
+
+**Status: DONE. Do NOT re-run unless a specific data issue surfaces.**
+
+### Final Numbers (production DB, 2026-08-27)
+
+| Metric | Value |
+|--------|-------|
+| Eligible companies (s.r.o., a.s., v.o.s., k.s.) | 515,907 |
+| Synced (`orsrSyncedAt` NOT NULL) | **515,907 / 515,907 (100%)** |
+| Pending eligible | **0** |
+| `legalStatusSource = 'ORSR'` | **515,907 / 515,907 (100%)** |
+| Synced without `legalStatus` | **0** |
+| Definitive failures | **0** |
+| Checkpoint `failed_icos` | **`[]`** (empty) |
+| Final cursor (`last_ico`) | `99889989` |
+| Gap-fill pass | **completed** |
+| Supervisor exit code | **0** (normal) |
+
+### `legalStatus` distribution (from ORSR findings)
+
+| Status | Count |
+|--------|------:|
+| ACTIVE | 513,505 |
+| LIQUIDATION | 2,391 |
+| DISSOLVED | 11 |
+
+### Enrichment coverage
+
+| Field | Filled | % of synced | Source |
+|-------|-------:|------------:|--------|
+| `shareCapital` | 132,178 | 25.6% | ORSR |
+| `signingAuthority` | 118,050 | 22.9% | ORSR |
+| `businessActivity` | 518,642 | >100% of ORSR-synced | **RPO** (not ORSR) |
+
+**`businessActivity` audit note:** The count (518,642) is higher than ORSR-synced (515,907) because this field is populated from the RPO import, which covers all legal forms (including družstvá, štátne podniky, európske družstvá, európske spoločnosti SE) that are NOT in ORSR. This is expected and not an inconsistency. ORSR does not re-write `businessActivity` — it only fills it when RPO left it NULL.
+
+### CompanyPerson (from ORSR)
+
+| Metric | Value |
+|--------|------:|
+| Total records | 1,365,267 |
+| Companies with persons | 517,572 |
+| With `functionStart` | 1,209,004 |
+| Active (`isActive=true`) | 1,312,336 |
+| Inactive (`isActive=false`) | 52,931 |
+
+### Throughput
+
+| Metric | Value |
+|--------|-------|
+| Average speed | 423.7 companies/min (7.1/s) |
+| Total runtime (this run) | ~15 hours (54,045 s) |
+| Cursor pass + gap-fill | both completed in single supervisor-managed run |
+
+### Transient errors (resolved)
+
+- 1,041× `_do_fetch failed after 3 attempts` in logs — transient ORSR network/API errors, handled by retry logic.
+- 32 ICOs marked FAILED in checkpoint after main pass — all 32 retried successfully (32/32 SUCCESS, 0 failures) on 2026-08-27 15:11.
+- DB audit confirmed all 32 are synced with `legalStatusSource='ORSR'` post-retry.
+
+### ⚠️ Known bug: `--retry-failed` requires `--resume`
+
+**`bulk_seed_orsr_v2.py --retry-failed` MUST be invoked with `--resume`.**
+
+Without `--resume`, the script creates a **fresh checkpoint** with `failed_icos = []`, so the retry path immediately logs `"No failed ICOs to retry."` and exits without doing anything — the original `failed_icos` list in the checkpoint file is lost.
+
+**Correct invocation:**
+```bash
+python -m src.bulk_seed_orsr_v2 --retry-failed --resume --concurrency 5
+```
+
+**Incorrect (no-op, destroys checkpoint state):**
+```bash
+python -m src.bulk_seed_orsr_v2 --retry-failed  # WRONG — fresh checkpoint
+```
+
+Root cause: `argparse` branch at line ~549 — `--retry-failed` without `--resume` falls into the `else` branch that creates a fresh checkpoint, overwriting the on-disk file before the retry logic runs. Fix would be to make `--retry-failed` imply `--resume`, but seed is DONE so this is documentation-only.
+
+### Files
+
+- `src/bulk_seed_orsr_v2.py` — V2 cursor-based bulk seed (the one that ran to completion)
+- `src/bulk_seed_orsr.py` — V1 (legacy, superseded by V2)
+- `src/scrapers/orsr.py` — ORSR scraper
+- `orsr_v2_supervisor.sh` — auto-resume supervisor (entrypoint launches it for worker container)
+- `results/orsr_v2_checkpoint.json` — final checkpoint (production: `/app/results/`)
+- `results/orsr_v2_supervisor.log` — full run log (production: `/app/results/`)
+
+### Why this matters
+
+ORSR is the authoritative commercial register for `legalStatus` (per frozen multi-axis contract: ORSR > Vestník > RÚZ). With 100% coverage of eligible firms, `legalStatus` is no longer a data pipeline blocker for the scoring engine or the product.

@@ -15,7 +15,7 @@ export function DataSourcesSection({ sources, noHeading }: { sources: SourceInfo
   return (
     <div className={noHeading ? "" : "mb-6 sm:mb-8 no-print"}>
       {!noHeading && (
-        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+        <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
           {t("firma.zdrojeUdajov") || "Zdroje údajov"}
         </h2>
       )}

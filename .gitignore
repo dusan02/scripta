@@ -60,3 +60,7 @@ frontend/prisma/schema 2.prisma
 backups/*.dump
 backups/*.sql
 migrations_backup/
+
+# SEO audit raw results (regenerated locally)
+scripts/seo-audit-results.json
+scripts/seo-audit-results.csv

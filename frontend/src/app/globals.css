@@ -55,7 +55,7 @@ table .text-left { text-align: left !important; }
     --light-border-strong: #d4d4d8;
     --light-text: #09090b;
     --light-text-secondary: #52525b;
-    --light-text-muted: #71717a;
+    --light-text-muted: #65656e;
     --light-text-placeholder: #a1a1aa;
 
     --light-accent: #5b9279;
@@ -89,9 +89,9 @@ table .text-left { text-align: left !important; }
     --dark-surface-hover: #27272a;
     --dark-border: #3f3f46;
     --dark-border-strong: #52525b;
-    --dark-text: #a1a1aa;
-    --dark-text-secondary: #8b8b94;
-    --dark-text-muted: #b4b4bc;
+    --dark-text: #d4d4d8;
+    --dark-text-secondary: #a1a1aa;
+    --dark-text-muted: #8b8b94;
     --dark-text-placeholder: #52525b;
 
     --dark-accent: #7bb095;
@@ -984,4 +984,24 @@ textarea:focus-visible {
     min-height: auto !important;
     min-width: auto !important;
   }
+}
+
+/* ── Collapsible firma sections — visible expand indicator ── */
+.firma-details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.firma-details > summary::-webkit-details-marker {
+  display: none;
+}
+.firma-details .chevron {
+  transition: transform 0.15s ease;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: inline-flex;
+}
+.firma-details[open] > summary .chevron {
+  transform: rotate(90deg);
 }

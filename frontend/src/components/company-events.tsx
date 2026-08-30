@@ -45,7 +45,7 @@ export function CompanyEvents({ events, noHeading }: { events: CompanyEvent[]; n
   return (
     <div className={noHeading ? "" : "mb-6 sm:mb-8"}>
       {!noHeading && (
-        <h2 className="text-sm sm:text-base font-bold mb-3" style={{ color: "var(--text)" }}>
+        <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
           {t("firma.orsrUdalosti") || "Registrujúce udalosti"}
         </h2>
       )}
