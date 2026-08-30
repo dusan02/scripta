@@ -1123,6 +1123,36 @@ export async function queryScreener(
   };
 }
 
+// Cached wrapper for FREE tier — identical filter combinations are cached for 30s.
+// AUTH/PREMIUM tiers are never cached (personalized results).
+// Cache key is a stable JSON string derived from searchParams.
+const _cachedQueryScreener = unstable_cache(
+  async (
+    cacheKey: string,
+    searchParams: Record<string, string | string[] | undefined>,
+  ): Promise<ScreenerResponse> => {
+    return queryScreener(searchParams, "FREE");
+  },
+  ["screener-query-free"],
+  { revalidate: 30 },
+);
+
+/**
+ * Cached screener query — FREE tier results cached 30s, AUTH/PREMIUM always fresh.
+ * Use this from page.tsx instead of queryScreener directly.
+ */
+export async function queryScreenerCached(
+  searchParams: Record<string, string | string[] | undefined>,
+  tier: ScreenerTier,
+): Promise<ScreenerResponse> {
+  if (tier === "FREE") {
+    // Build a stable cache key from sorted searchParams
+    const key = JSON.stringify(searchParams);
+    return _cachedQueryScreener(key, searchParams);
+  }
+  return queryScreener(searchParams, tier);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Filter options for UI dropdowns
 // ═══════════════════════════════════════════════════════════════

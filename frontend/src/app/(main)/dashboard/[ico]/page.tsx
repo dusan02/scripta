@@ -1,9 +1,18 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import FinancialChart from "@/components/FinancialChart";
+import dynamic from "next/dynamic";
 import { num } from "@/lib/format";
 import type { Decimal } from "@prisma/client/runtime/library";
+
+// Lazy-load FinancialChart (pulls in Recharts ~380kB) — only needed when
+// the chart section is visible, not on initial dashboard paint.
+const FinancialChart = dynamic(() => import("@/components/FinancialChart"), {
+  loading: () => (
+    <div className="h-80 bg-white/5 rounded-2xl animate-pulse" />
+  ),
+  ssr: true,
+});
 
 function formatCurrency(value: Decimal | number | null) {
   const n = num(value);
@@ -24,16 +33,20 @@ export default async function DashboardPage({
   const ico = params.ico;
 
   // We can fetch data directly in Server Components!
+  // Limit financial statements to recent 10 years and vestnik events to 50 most recent
+  // to avoid loading unbounded relation data for large companies.
   const company = await prisma.company.findUnique({
     where: { ico },
     include: {
       auditVerdict: true,
       financialStatements: {
         orderBy: { year: "desc" },
+        take: 10,
         include: { auditorOpinion: true, narrativeRisk: true, notesRisk: true },
       },
       vestnikEvents: {
         orderBy: { publishedAt: "desc" },
+        take: 50,
       },
     },
   });

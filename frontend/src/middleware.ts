@@ -100,6 +100,11 @@ export async function middleware(req: NextRequest) {
       const res = await fetch(internalUrl, {
         headers: { "x-middleware-internal": "1" },
         signal: AbortSignal.timeout(3000),
+        // Cache slug lookups — company names rarely change (re-seeded by cron).
+        // force-cache = use cached response if available, fetch + cache if not.
+        // Next.js data cache persists across requests in the same runtime.
+        cache: "force-cache",
+        next: { revalidate: 3600 },
       });
       if (res.ok) {
         const data = await res.json();

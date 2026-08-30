@@ -4,12 +4,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { sendEmail, getReplyToAddress } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 import { messageCreateSchema, messageMarkReadSchema } from "@/lib/api-schemas";
+import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser(req);
+    const rateLimitKey = user ? `messages:${user.id}` : `messages:ip:${req.headers.get("x-forwarded-for") || "unknown"}`;
+    const rl = await rateLimitByKey(rateLimitKey, { windowMs: 60 * 1000, maxRequests: 30 });
+    if (!rl.allowed) return rateLimitResponse(rl);
 
     // Správy pre všetkých (userId = null) + správy pre konkrétneho používateľa
     // USER-type messages are outgoing (sent BY user), not shown in inbox

@@ -62,10 +62,87 @@ export async function sendEmail({ to, subject, text, html, replyTo }: SendEmailP
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ from, to, subject, text, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Resend error ${res.status}: ${err}`);
   }
+}
+
+/**
+ * Batch send emails via Resend's /emails/batch endpoint.
+ * Sends up to 100 emails per API call (Resend limit).
+ * Filters out bounced/complained recipients in a single DB query.
+ */
+export async function sendEmailBatch(emails: SendEmailParams[]): Promise<number> {
+  if (emails.length === 0) return 0;
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    console.log(`[email] MOCK BATCH: would send ${emails.length} emails`);
+    return emails.length;
+  }
+
+  // Batch-check bounced/complained in a single query
+  const emailAddresses = emails.map(e => e.to.toLowerCase().trim());
+  const blockedUsers = await prisma.user.findMany({
+    where: {
+      email: { in: emailAddresses },
+      OR: [{ emailBounced: true }, { emailComplained: true }],
+    },
+    select: { email: true, emailBounced: true, emailComplained: true },
+  });
+  const blockedSet = new Set(blockedUsers.map(u => u.email));
+
+  const filtered = emails.filter(e => {
+    const normalized = e.to.toLowerCase().trim();
+    if (blockedSet.has(normalized)) {
+      console.warn(`[email] Skipping ${normalized} — bounced/complained`);
+      return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) return 0;
+
+  const from = process.env.EMAIL_FROM || "Verifa.sk <noreply@verifa.sk>";
+  let sent = 0;
+
+  // Resend batch limit is 100 per call
+  for (let i = 0; i < filtered.length; i += 100) {
+    const chunk = filtered.slice(i, i + 100);
+    const payload = chunk.map(e => ({
+      from,
+      to: e.to,
+      subject: e.subject,
+      text: e.text,
+      html: e.html,
+      ...(e.replyTo ? { reply_to: e.replyTo } : {}),
+    }));
+
+    try {
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        console.error(`[email] Batch send error ${res.status}: ${err}`);
+      } else {
+        sent += chunk.length;
+      }
+    } catch (err) {
+      console.error("[email] Batch send failed:", err);
+    }
+  }
+
+  return sent;
 }

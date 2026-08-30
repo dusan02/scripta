@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { logAdminAction } from "@/lib/audit";
-import { sendEmail, emailShell, getReplyToAddress } from "@/lib/email";
+import { sendEmail, sendEmailBatch, emailShell, getReplyToAddress } from "@/lib/email";
 import { escapeHtml } from "@/lib/sanitize";
 
 // GET — list all USER messages + all messages for admin
@@ -125,25 +125,27 @@ export async function POST(req: NextRequest) {
         }
       }
     } else {
-      // Broadcast — send to all verified users with valid email
+      // Broadcast — send to all verified users with valid email.
+      // Uses Resend batch API (100 per call) instead of one-by-one.
       const users = await prisma.user.findMany({
         where: { emailVerified: { not: null }, emailBounced: false, deletedAt: null },
         select: { email: true },
+        take: 10000, // Safety limit — paginate if more users
       });
-      for (const u of users) {
-        try {
-          await sendEmail({
-            to: u.email,
-            subject: `[Verifa.sk] ${title.trim()}`,
-            text: message.trim(),
-            html: emailShell(`
-              <p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>
-              <p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk.</p>
-            `),
-          });
-        } catch (emailErr) {
-          console.error(`Failed to send email to ${u.email}`, emailErr);
-        }
+      const batchEmails = users.map(u => ({
+        to: u.email,
+        subject: `[Verifa.sk] ${title.trim()}`,
+        text: message.trim(),
+        html: emailShell(`
+          <p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>
+          <p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk.</p>
+        `),
+      }));
+      try {
+        await sendEmailBatch(batchEmails);
+      } catch (emailErr) {
+        console.error("Batch email send failed:", emailErr);
+        emailSkipped = true;
       }
     }
 

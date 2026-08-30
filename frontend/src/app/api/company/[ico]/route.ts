@@ -24,12 +24,14 @@ export async function GET(
       return NextResponse.json({ error: "Neplatné IČO" }, { status: 400 });
     }
 
-    // Načítame firmu so všetkými finančnými výkazmi a názormi audítora
+    // Načítame firmu s poslednými 10 finančnými výkazmi a názormi audítora
+    // (obmedzené aby sme nezvádzali všetku históriu pre firmy s 50+ výkazmi)
     const company = await prisma.company.findUnique({
       where: { ico },
       include: {
         financialStatements: {
           orderBy: { year: "desc" },
+          take: 10,
           include: {
             auditorOpinion: true,
           },
@@ -44,7 +46,11 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ data: company });
+    // Cache response for 5 minutes — company financials change rarely (annual)
+    return NextResponse.json(
+      { data: company },
+      { headers: { "Cache-Control": "private, max-age=300" } }
+    );
   } catch (error: any) {
     console.error("API Error fetching company financials:", error);
     return NextResponse.json(

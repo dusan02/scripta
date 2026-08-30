@@ -48,14 +48,18 @@ services:
     image: verifa-frontend
     container_name: verifa_frontend
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 1g
     pids_limit: 200
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}?connection_limit=15
+      NODE_OPTIONS: --max-old-space-size=768
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}?connection_limit=30
       DATABASE_URL_UNPOOLED: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       # No insecure default — app refuses to start in production without NEXTAUTH_SECRET
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET must be set}
@@ -102,13 +106,23 @@ services:
       start_period: 30s
     volumes:
       - ./worker/results:/app/results:ro  # read-only prístup k vygenerovaným PDF
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ─── Redis (Arq Broker) ───────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: verifa_redis
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    mem_limit: 512m
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      --maxmemory 400mb
+      --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s

@@ -31,5 +31,11 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(company);
+  // Cache aggressively — company names change rarely (only via cron reseed).
+  // Middleware uses cache: "force-cache" + next: { revalidate: 3600 }.
+  return NextResponse.json(company, {
+    headers: {
+      "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+    },
+  });
 }

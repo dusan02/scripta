@@ -63,6 +63,7 @@ async function redisRateLimit(key: string, options: RateLimitOptions): Promise<R
   const url = `${UPSTASH_URL}/incr/${encodeURIComponent(redisKey)}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+    signal: AbortSignal.timeout(1500),
   });
 
   if (!res.ok) {
@@ -81,6 +82,7 @@ async function redisRateLimit(key: string, options: RateLimitOptions): Promise<R
     const expireUrl = `${UPSTASH_URL}/expire/${encodeURIComponent(redisKey)}/${Math.ceil(options.windowMs / 1000)}`;
     await fetch(expireUrl, {
       headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+      signal: AbortSignal.timeout(1500),
     });
   }
 
@@ -111,7 +113,8 @@ async function getLocalRedis(): Promise<any> {
   try {
     // Use eval-based require to hide ioredis from webpack's static analysis.
     // ioredis uses Node.js built-ins (net, dns, tls) that can't be bundled.
-    // Next.js 14's serverComponentsExternalPackages doesn't cover API routes.
+    // Next.js 14's serverComponentsExternalPackages only covers Server Components,
+    // not API routes — so we keep the eval hack for now.
     const ioredis = (eval("require") as NodeRequire)("ioredis");
     _localRedis = new ioredis.Redis(redisUrl, {
       maxRetriesPerRequest: 1,

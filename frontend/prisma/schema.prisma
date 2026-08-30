@@ -56,6 +56,8 @@ model User {
   watchedCompanies   WatchedCompany[]   @relation("WatchedCompanies")
   alertDeliveries    AlertDelivery[]    @relation("AlertDeliveries")
   savedSearches      SavedSearch[]      @relation("SavedSearches")
+
+  @@index([subscriptionStatus])
 }
 
 model ReportRequest {
@@ -323,6 +325,7 @@ model AlertDelivery {
   user        User      @relation("AlertDeliveries", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status])
+  @@index([alertId])
   @@index([deletedAt])
 }
 
@@ -389,6 +392,8 @@ model Company {
   @@index([vestnikSyncedAt])
   @@index([legalStatus])
   @@index([ruzReportingStatus])
+  @@index([latestYear])
+  @@index([ownershipType])
   updatedAt           DateTime             @updatedAt
   // Pre-computed count of financial statements — used for quality gate (≥2 FS)
   // Maintained by periodic update, not Prisma triggers
@@ -454,6 +459,7 @@ model CompanyEvent {
 
   @@index([companyIco])
   @@index([severity])
+  @@index([companyIco, createdAt])
   // Dedup: zabraňuje duplicitným eventom s rovnakým zdrojom, typom, dátumom a sumou.
   // eventDate a amount môžu byť NULL — PostgreSQL považuje NULL hodnoty za distinct,
   // takže unikátnosť sa uplatní len pri non-NULL hodnotách.
@@ -474,6 +480,7 @@ model VestnikEvent {
 
   @@index([companyIco])
   @@index([severityLevel])
+  @@index([companyIco, publishedAt])
   // Dedup: sourceId je identifikátor z XML feedu (číslo vydania/záznamu).
   // Ak je sourceId NULL (pre staré dáta alebo ručné vloženie), unikátnosť sa neuplatní.
   @@unique([companyIco, sourceId])

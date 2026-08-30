@@ -1,4 +1,4 @@
-import { queryScreener, resolveTier, getScreenerFilterOptions, getKrajLabel, getKrajLabelLocative, getNaceSectionLabel, getNaceSectionGenitive, type ScreenerTier } from "@/lib/screener";
+import { queryScreenerCached as queryScreener, resolveTier, getScreenerFilterOptions, getKrajLabel, getKrajLabelLocative, getNaceSectionLabel, getNaceSectionGenitive, type ScreenerTier } from "@/lib/screener";
 import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey } from "@/lib/rateLimit";
 import { headers } from "next/headers";

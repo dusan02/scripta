@@ -325,12 +325,23 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
 
   const cursorBefore = `last_id=${checkpoint.lastId}, since=${checkpoint.sinceTimestamp}`;
 
-  // Load all company IČOs from DB into a Set for O(1) lookup
-  const companies = await prisma.company.findMany({ select: { ico: true } });
+  // Load all company IČOs from DB into a Set for O(1) lookup.
+  // Paginate to avoid loading 518K+ rows into memory in a single query.
   const icoIntMap = new Map<number, string>();
-  for (const c of companies) {
-    const icoInt = parseInt(c.ico, 10);
-    if (!isNaN(icoInt)) icoIntMap.set(icoInt, c.ico);
+  let cursor: string | null = null;
+  while (true) {
+    const batch: { ico: string }[] = await prisma.company.findMany({
+      select: { ico: true },
+      orderBy: { ico: "asc" },
+      take: 5000,
+      ...(cursor ? { cursor: { ico: cursor }, skip: 1 } : {}),
+    });
+    if (batch.length === 0) break;
+    for (const c of batch) {
+      const icoInt = parseInt(c.ico, 10);
+      if (!isNaN(icoInt)) icoIntMap.set(icoInt, c.ico);
+    }
+    cursor = batch[batch.length - 1].ico;
   }
 
   let url: string | null = `${API_BASE}/${endpoint}/sync?since=${sinceDate}`;
