@@ -220,6 +220,8 @@ export function getKrajOptions() {
 // Query layer operates on raw stored values.
 // ═══════════════════════════════════════════════════════════════
 
+// DB obsahuje mix číselných kódov (1-8) a textových hodnôt ("Dánske", "Súkromné zahraničné"...)
+// z rôznych seed fáz. Mapujeme obe reprezentácie.
 const OWNERSHIP_TYPE_LABELS: Record<string, string> = {
   "1": "Súkromné domáce",
   "2": "Súkromné zahraničné",
@@ -229,7 +231,29 @@ const OWNERSHIP_TYPE_LABELS: Record<string, string> = {
   "6": "Dánske",
   "7": "Zahraničné",
   "8": "Štátne",
+  "Súkromné domáce": "Súkromné domáce",
+  "Súkromné zahraničné": "Súkromné zahraničné",
+  "Zmiešané": "Zmiešané",
+  "Verejné": "Verejné",
+  "Spoločné": "Spoločné",
+  "Dánske": "Dánske",
+  "Zahraničné": "Zahraničné",
+  "Štátne": "Štátne",
 };
+
+// Display options pre filter — zahraničné typy zoskupené do jednej možnosti "Zahraničné".
+// Zahŕňa: "2"/"Súkromné zahraničné", "6"/"Dánske", "7"/"Zahraničné"
+const OWNERSHIP_TYPE_DISPLAY: Array<{ value: string; label: string }> = [
+  { value: "1", label: "Súkromné domáce" },
+  { value: "3", label: "Zmiešané" },
+  { value: "4", label: "Verejné" },
+  { value: "5", label: "Spoločné" },
+  { value: "8", label: "Štátne" },
+  { value: "zahraniczne", label: "Zahraničné" },
+];
+
+// Všetky DB hodnoty ktoré sa považujú za "zahraničné" (číselné kódy + textové)
+const ZAHRANICNE_DB_VALUES = ["2", "6", "7", "Súkromné zahraničné", "Dánske", "Zahraničné"];
 
 export function getOwnershipTypeLabel(value: string | null): string | null {
   if (!value) return null;
@@ -237,7 +261,7 @@ export function getOwnershipTypeLabel(value: string | null): string | null {
 }
 
 export function getOwnershipTypeOptions() {
-  return Object.entries(OWNERSHIP_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+  return OWNERSHIP_TYPE_DISPLAY;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -404,7 +428,11 @@ const FREE_FILTERS: FilterDef[] = [
     parse: parseMulti,
     buildWhere: (value) => {
       if (!Array.isArray(value) || value.length === 0) return null;
-      return { ownershipType: { in: value as string[] } };
+      // "zahraniczne" je virtuálna hodnota — expanduje na všetky zahraničné typy (2, 6, 7)
+      const expanded = (value as string[]).flatMap(v =>
+        v === "zahraniczne" ? ZAHRANICNE_DB_VALUES : [v]
+      );
+      return { ownershipType: { in: expanded } };
     },
   },
 
