@@ -1058,6 +1058,10 @@ def parse_tables_to_metrics(
         naklady_na_hosp_cinnost = _undo_false_thousands(naklady_na_hosp_cinnost, trzby, 5.0, "operatingCosts")
         # staffCosts > revenue×3: extrémne (300%+ mzdových nákladov)
         osobne_naklady = _undo_false_thousands(osobne_naklady, trzby, 3.0, "staffCosts")
+        # materialConsumption > revenue×3: materiál nemôže byť 300%+ tržieb
+        spotreba_materialu = _undo_false_thousands(spotreba_materialu, trzby, 3.0, "materialConsumption")
+        # servicesCosts > revenue×3: služby nemôžu byť 300%+ tržieb
+        sluzby = _undo_false_thousands(sluzby, trzby, 3.0, "servicesCosts")
         # dan_z_prijmu > PBT×2: daň nemôže byť 200%+ zisku
         dan_z_prijmu_val = _undo_false_thousands(dan_z_prijmu_val, zisk_pred_zdanenim, 2.0, "incomeTax")
 
