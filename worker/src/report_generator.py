@@ -330,6 +330,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             return ta == 0 and rev == 0 and eq == 0
         company.financialStatements = [s for s in company.financialStatements if not _is_empty_stmt(s)]
         company.financialStatements = sorted(company.financialStatements, key=lambda s: s.year, reverse=True)[:5]
+        # ── Detect mixed consolidation BEFORE filtering ──
+        # has_mixed_consolidation musí byť detekované z pôvodných (nefiltrovaných) závierok,
+        # inak by sa nikdy neaktivovalo (po filtri ostane len jeden typ).
+        _pre_filter_cons_set = set(getattr(s, 'isConsolidated', False) for s in company.financialStatements)
+        has_mixed_consolidation = len(_pre_filter_cons_set) > 1
         # ── Statement type consistency filter ──
         company.financialStatements, financial_basis = _filter_consolidation_consistency(company.financialStatements)
     stmts = company.financialStatements
@@ -483,15 +488,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     # Vygenerovanie grafov
     chart_base64 = ""
     balance_chart_base64 = ""
-    has_mixed_consolidation = False
+    # has_mixed_consolidation already set above (before filter)
     has_non_standard_months = False
     has_balance_imbalance = False
 
     if stmts:
-        is_cons_set = set(getattr(s, 'isConsolidated', False) for s in stmts)
-        if len(is_cons_set) > 1:
-            has_mixed_consolidation = True
-
         for s in stmts:
             months = getattr(s, 'monthsInPeriod', 12)
             if months is not None and months != 12:
