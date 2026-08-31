@@ -107,11 +107,35 @@ export class PaddleAdapter implements PaymentProviderAdapter {
           break;
         }
 
+        // Paddle SDK's AdjustmentNotification does not expose custom_data.
+        // Fetch the original transaction to get custom_data (userId, planId).
         const customData = adj.customData || adj.custom_data || {};
-        const userId = customData.userId;
+        let userId = customData.userId;
+        let planId = customData.planId;
 
         if (!userId) {
-          console.error("[PADDLE] adjustment.updated: missing userId in custom_data");
+          try {
+            const paddle = getPaddle();
+            const baseUrl = process.env.PADDLE_ENVIRONMENT === "production"
+              ? "https://api.paddle.com"
+              : "https://sandbox-api.paddle.com";
+            const apiKey = process.env.PADDLE_API_KEY;
+            const txnRes = await fetch(`${baseUrl}/transactions/${transactionId}`, {
+              headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (txnRes.ok) {
+              const txnData = (await txnRes.json()).data;
+              const txnCustomData = txnData.custom_data || {};
+              userId = txnCustomData.userId;
+              planId = txnCustomData.planId || planId;
+            }
+          } catch (fetchErr) {
+            console.error("[PADDLE] adjustment.updated: failed to fetch transaction for custom_data:", fetchErr);
+          }
+        }
+
+        if (!userId) {
+          console.error("[PADDLE] adjustment.updated: missing userId — not in adjustment custom_data and transaction fetch failed");
           break;
         }
 
@@ -120,7 +144,6 @@ export class PaddleAdapter implements PaymentProviderAdapter {
         const chargeAmount = parseFloat(adj.totals?.chargebackFee?.amount || totals.total || "0");
 
         let creditsToRevoke = -1;
-        const planId = customData.planId;
         if (planId && PLAN_CREDITS_MAP[planId]) {
           const originalCredits = PLAN_CREDITS_MAP[planId];
           if (refundAmount > 0 && chargeAmount > 0 && refundAmount >= chargeAmount) {
