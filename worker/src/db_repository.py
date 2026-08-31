@@ -720,7 +720,6 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
     """Uloží konečný verdikt do databázy."""
     db = get_db()
     try:
-        # Prisma upsert vyžaduje 'company' reláciu v create vetve.
         # Odfiltrujeme None hodnoty a konvertujeme Prisma Json wrapper na plain list/dict.
         clean_payload = {}
         for k, v in verdict_payload.items():
@@ -739,17 +738,21 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
                 # If it's a list/dict, keep as-is; Prisma accepts Json
             clean_payload[k] = v
 
-        await db.auditverdict.upsert(
-            where={'companyIco': ico},
-            data={
-                'create': {
+        # Prisma 0.15 upsert has issues with companyIco in create when it's also in where.
+        # Use find_unique + create/update instead.
+        existing = await db.auditverdict.find_unique(where={'companyIco': ico})
+        if existing:
+            await db.auditverdict.update(
+                where={'companyIco': ico},
+                data=clean_payload,
+            )
+        else:
+            await db.auditverdict.create(
+                data={
                     'companyIco': ico,
-                    'company': {'connect': {'ico': ico}},
                     **clean_payload,
-                },
-                'update': clean_payload,
-            }
-        )
+                }
+            )
         logger.info(f"AuditVerdict pre {ico} bol uložený.")
     finally:
         pass
