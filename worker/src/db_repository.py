@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 from datetime import datetime, timezone
@@ -720,15 +721,29 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
     db = get_db()
     try:
         # Prisma upsert vyžaduje 'company' reláciu v create vetve.
-        # Ak verdict_payload obsahuje 'findings' ako None, Prisma ho odmietne —
-        # preto odfiltrujeme None hodnoty pre Json? polia.
-        clean_payload = {k: v for k, v in verdict_payload.items() if v is not None}
-        # companyIco je v where klauzule, nepatrí do create/update payloadu
-        clean_payload.pop('companyIco', None)
+        # Odfiltrujeme None hodnoty a konvertujeme Prisma Json wrapper na plain list/dict.
+        clean_payload = {}
+        for k, v in verdict_payload.items():
+            if v is None:
+                continue
+            # Unwrap Prisma Json wrapper (has .data attribute)
+            if hasattr(v, 'data'):
+                v = v.data
+            # findings/justification/scorecardBreakdown: ensure JSON-serializable
+            if k in ('findings', 'justification', 'scorecardBreakdown'):
+                if isinstance(v, str):
+                    try:
+                        v = json.loads(v)
+                    except (json.JSONDecodeError, TypeError):
+                        pass  # keep as string for justification (String type)
+                # If it's a list/dict, keep as-is; Prisma accepts Json
+            clean_payload[k] = v
+
         await db.auditverdict.upsert(
             where={'companyIco': ico},
             data={
                 'create': {
+                    'companyIco': ico,
                     'company': {'connect': {'ico': ico}},
                     **clean_payload,
                 },
