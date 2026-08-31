@@ -177,9 +177,9 @@ async def run_scrapers(
     # FS semaphore 3 — 7 FS scraperov zdieľa rovnaký server, 3 súbežné = 3 vlny (3+3+1)
     # Redukované z 4 na 3 — FS server je pomalý a rate-limituje pri 4+ súbežných.
     fs_semaphore = asyncio.Semaphore(3)
-    # Všetky browser scrapery — 5 slotov (redukované z 8 — 8GB server s browserless
-    # a Playwright contexts má RAM pressure pri 8 súbežných, čo spôsobuje timeouty).
-    # FS scrapery potrebujú global AJ fs (dvojitý gate), takže max súbežných = 5
+    # Všetky browser scrapery — 5 slotov zodpovedá MAX_CONCURRENT_SESSIONS=5 v browserless.
+    # 8GB server s 2-core CPU: 2 súbežné reporty × 5 browser contextov = max 10 contexts,
+    # ale _scraper_lock garantuje len 1 report scrapuje naraz → max 5 súbežných.
     global_semaphore = asyncio.Semaphore(5)
 
     # Rozdelíme na nezávislé a závislé scrapery

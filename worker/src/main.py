@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("WORKER_SECRET must be set in production")
 
     global _report_semaphore, _scraper_lock, _pdf_lock
-    _report_semaphore = asyncio.Semaphore(3)
+    _report_semaphore = asyncio.Semaphore(2)
     _scraper_lock = asyncio.Lock()
     _pdf_lock = asyncio.Lock()
 
