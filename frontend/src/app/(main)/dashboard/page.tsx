@@ -55,14 +55,33 @@ async function getRecentReports(userId: string) {
 }
 
 export default async function DashboardPage() {
+  const _t0 = Date.now();
   const session = await getServerSession();
   if (!session?.user) redirect("/login");
+  const _t1 = Date.now();
 
   // Check trial/credits status — redirect to pricing if expired or no credits
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { trialEndsAt: true, planName: true },
-  });
+  // Run user fetch, reports fetch, and watched companies fetch in parallel
+  // since they all only depend on session.user.id
+  const [user, reports, watchedCompaniesRaw] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { trialEndsAt: true, planName: true },
+    }),
+    getRecentReports(session.user.id),
+    prisma.watchedCompany.findMany({
+      where: { userId: session.user.id, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        companyId: true,
+        note: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+  const _t2 = Date.now();
 
   let userBalance = 0;
   let userPlanName: string | null = null;
@@ -92,22 +111,11 @@ export default async function DashboardPage() {
       redirect("/pricing");
     }
   }
+  const _t3 = Date.now();
 
-  const reports = await getRecentReports(session.user.id);
-  const isNewUser = reports.length === 0;
-
-  // Get user's watched companies for monitoring feature
-  const watchedCompaniesRaw = await prisma.watchedCompany.findMany({
-    where: { userId: session.user.id, deletedAt: null },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      companyId: true,
-      note: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
+  if (process.env.NODE_ENV === "production") {
+    console.log(`[dashboard] auth=${_t1 - _t0}ms parallel_queries=${_t2 - _t1}ms credits=${_t3 - _t2}ms total=${_t3 - _t0}ms`);
+  }
   const watchedCompanies = watchedCompaniesRaw.map((w) => ({
     ...w,
     createdAt: w.createdAt.toISOString(),
