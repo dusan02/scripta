@@ -216,7 +216,7 @@ class TestFixThousands:
             personnel=revenue * 0.16 if revenue else None,
             depreciation=revenue * 0.04 if revenue else None,
             net_profit=revenue * 0.04 if revenue else None,
-            profit_before_tax=revenue * 0.05 if revenue else None,
+            profit_before_tax=field_value if field_type == "pbt" else (revenue * 0.05 if revenue else None),
             income_tax=revenue * 0.01 if revenue else None,
             interest=field_value if field_type == "interest" else revenue * 0.01,
             fin_result=field_value if field_type == "fin_result" else -revenue * 0.01,
@@ -278,13 +278,18 @@ class TestFixThousands:
         assert metrics.spotreba_materialu == 0.0  # NOT ×1000
 
     def test_negative_value_corrected(self):
-        """Negative value (e.g. loss) with abs < 0.1% of revenue → ×1000."""
-        # revenue=500M, fin_result=-50000 → abs(-50000) = 50000 < 500M * 0.001 = 500000
+        """Negative value (e.g. loss) with abs < 0.1% of revenue → ×1000.
+        
+        Note: vysledok_z_fin_cinnosti was removed from _fix_thousands (commit 08fb550)
+        because it depends on capital structure, not revenue. Use zisk_pred_zdanenim
+        instead, which is still subject to the correction.
+        """
+        # revenue=500M, pbt=-50000 → abs(-50000) = 50000 < 500M * 0.001 = 500000
         # abs(-50000) * 1000 = 50M <= 500M * 2 = 1000M ✓
         metrics = self._parse_with_large_revenue(
-            revenue=500_000_000, field_value=-50000, field_type="fin_result",
+            revenue=500_000_000, field_value=-50000, field_type="pbt",
         )
-        assert metrics.vysledok_z_fin_cinnosti == -50_000_000.0  # ×1000
+        assert metrics.zisk_pred_zdanenim == -50_000_000.0  # ×1000
 
     def test_correction_guard_prevents_overshoot(self):
         """abs(val) × 1000 > revenue × 2 → no correction (guard prevents overshoot)."""

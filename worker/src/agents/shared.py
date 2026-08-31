@@ -261,6 +261,12 @@ class FinancialMetrics(BaseModel):
     prevod_podielov_spolocnikom: Optional[float] = Field(None, description="Prevod podielov na výsledku hospodárenia spoločníkom. Šablóna 699 r.60.")
     datum_zostavenia: Optional[str] = Field(None, description="Dátum zostavenia závierky (ISO formát, napr. '2024-05-13'). Forenzný signál — oneskorené závierky indikujú problémy.")
     datum_schvalenia: Optional[str] = Field(None, description="Dátum schválenia závierky (ISO formát).")
+    # ── Previous-period values (for working capital change / CF estimation) ──
+    kratkodobe_zavazky_prev: Optional[float] = Field(None, description="Krátkodobé záväzky za predchádzajúce obdobie.")
+    obezny_majetok_prev: Optional[float] = Field(None, description="Obežný majetok za predchádzajúce obdobie.")
+    zasoby_prev: Optional[float] = Field(None, description="Zásoby za predchádzajúce obdobie.")
+    pohladavky_prev: Optional[float] = Field(None, description="Pohľadávky z obchodného styku za predchádzajúce obdobie.")
+    zavazky_obchod_prev: Optional[float] = Field(None, description="Záväzky z obchodného styku za predchádzajúce obdobie.")
 
 class VerificationConfidenceItem(BaseModel):
     field: str = Field(..., description="Názov pola, napr. celkove_aktiva, trzby_z_hlavnej_cinnosti.")

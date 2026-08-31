@@ -948,12 +948,16 @@ def parse_tables_to_metrics(
     zasoby_prev = _get_activ_value(ordered, ROW_INVENTORY, current=False)
     pohladavky_prev = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES, current=False)
     zavazky_obchod_prev = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES, current=False)
+    kratkodobe_zavazky_prev = _get_pasiv_value(ordered, ROW_ST_LIABILITIES, current=False)
+    obezny_majetok_prev = _get_activ_value(ordered, ROW_CURRENT_ASSETS, current=False)
 
     # Apply unit multiplier to prev-period values too
     if unit_multiplier != 1.0:
         zasoby_prev = zasoby_prev * unit_multiplier if zasoby_prev is not None else None
         pohladavky_prev = pohladavky_prev * unit_multiplier if pohladavky_prev is not None else None
         zavazky_obchod_prev = zavazky_obchod_prev * unit_multiplier if zavazky_obchod_prev is not None else None
+        kratkodobe_zavazky_prev = kratkodobe_zavazky_prev * unit_multiplier if kratkodobe_zavazky_prev is not None else None
+        obezny_majetok_prev = obezny_majetok_prev * unit_multiplier if obezny_majetok_prev is not None else None
 
     estimated_ocf = _estimate_cf(
         net_profit=zisk_po_zdaneni,
@@ -1070,59 +1074,20 @@ def parse_tables_to_metrics(
         # dan_z_prijmu > PBT×2: daň nemôže byť 200%+ zisku
         dan_z_prijmu_val = _undo_false_thousands(dan_z_prijmu_val, zisk_pred_zdanenim, 2.0, "incomeTax")
 
-        # Rebuild metrics with corrected values
-        metrics = FinancialMetrics(
-            celkove_aktiva=celkove_aktiva,
-            obezny_majetok=obezny_majetok,
-            zasoby=zasoby,
-            peniaze=peniaze,
-            pohladavky=pohladavky,
-            vlastne_imanie=vlastne_imanie,
-            dlhodobe_zavazky=dlhodobe_zavazky,
-            kratkodobe_zavazky=kratkodobe_zavazky,
-            trzby=trzby,
-            osobne_naklady=osobne_naklady,
-            odpisy=odpisy,
-            uroky=uroky,
-            zisk_po_zdaneni=zisk_po_zdaneni,
-            hruba_marza=hruba_marza,
-            neobezny_majetok=neobezny_majetok,
-            dlhodoby_nehmotny_majetok=dlhodoby_nehmotny_majetok,
-            dlhodoby_hmotny_majetok=dlhodoby_hmotny_majetok,
-            dlhodoby_financny_majetok=dlhodoby_financny_majetok,
-            dlhodobe_pohladavky=dlhodobe_pohladavky,
-            kratkodoby_financny_majetok=kratkodoby_financny_majetok,
-            casove_rozlisenie_aktiv=casove_rozlisenie_aktiv,
-            kratkodobe_zavazky_prev=kratkodobe_zavazky_prev,
-            obezny_majetok_prev=obezny_majetok_prev,
-            zasoby_prev=zasoby_prev,
-            pohladavky_prev=pohladavky_prev,
-            zavazky_obchod_prev=zavazky_obchod_prev,
-            zakladne_imanie=zakladne_imanie,
-            emisione_azio=emisione_azio,
-            ostatne_kapitalove_fondy=ostatne_kapitalove_fondy,
-            zakonne_rezervne_fondy=zakonne_rezervne_fondy,
-            ostatne_fondy_zo_zisku=ostatne_fondy_zo_zisku,
-            vysledok_minuly_rokov=vysledok_minuly_rokov,
-            nerozdeleny_zisk=nerozdeleny_zisk,
-            neuhradena_strata=neuhradena_strata,
-            vysledok_beziaceho_roka=vysledok_beziaceho_roka,
-            dlhodobe_rezervy=dlhodobe_rezervy,
-            kratkodobe_rezervy=kratkodobe_rezervy,
-            bezne_bankove_uvery=bezne_bankove_uvery,
-            kratkodobe_financne_vypomoci=kratkodobe_financne_vypomoci,
-            naklady_na_hosp_cinnost=naklady_na_hosp_cinnost,
-            spotreba_materialu=spotreba_materialu,
-            sluzby=sluzby,
-            mzdove_naklady=mzdove_naklady,
-            dane_a_poplatky=dane_a_poplatky,
-            vysledok_z_fin_cinnosti=vysledok_z_fin_cinnosti,
-            zisk_pred_zdanenim=zisk_pred_zdanenim,
-            dan_z_prijmu=dan_z_prijmu_val,
-            prevod_podielov_spolocnikom=prevod_podielov_spolocnikom,
-            datum_zostavenia=datum_zostavenia,
-            datum_schvalenia=datum_schvalenia,
-        )
+        # Rebuild metrics with corrected values using model_copy (avoids
+        # re-specifying all 50+ fields — only update the ones that changed)
+        metrics = metrics.model_copy(update={
+            "hruba_marza": hruba_marza,
+            "zisk_pred_zdanenim": zisk_pred_zdanenim,
+            "dan_z_prijmu": dan_z_prijmu_val,
+            "uroky": uroky,
+            "vysledok_z_fin_cinnosti": vysledok_z_fin_cinnosti,
+            "kratkodobe_zavazky_prev": kratkodobe_zavazky_prev,
+            "obezny_majetok_prev": obezny_majetok_prev,
+            "zasoby_prev": zasoby_prev,
+            "pohladavky_prev": pohladavky_prev,
+            "zavazky_obchod_prev": zavazky_obchod_prev,
+        })
 
     # Sanity checks
     warnings = _sanity_check(metrics, total_liabilities_exact=celkove_cudzie_zdroje)
