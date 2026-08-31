@@ -107,12 +107,17 @@ class OrsrScraper(BaseScraper):
                 # 3. Find extract links (Aktuálny / Úplný)
                 extract_links = self._find_extract_links(search_html, ico)
                 if not extract_links:
-                    logger.warning(f"[{self.source_type}] Žiadne odkazy na výpis pre IČO {ico}.")
+                    # If we got here, the search page loaded but had no vypis.asp links.
+                    # Step 2 already checked for empty results markers ("Nenašli sa žiadne"),
+                    # so if we're here, the page is NOT an empty results page.
+                    # This means either: F5 anti-bot challenge, layout change, or parsing issue.
+                    # Return UNAVAILABLE (not SUCCESS) so bulk seed doesn't mark as synced.
+                    logger.warning(f"[{self.source_type}] Žiadne odkazy na výpis pre IČO {ico} — pravdepodobne F5 anti-bot alebo zmena layoutu.")
                     return self._make_result(
-                        status="SUCCESS",
+                        status="UNAVAILABLE",
                         file_path=None,
-                        status_message=f"Výpis pre IČO {ico} nebol nájdený.",
-                        findings="Záznam neexistuje alebo nebol nájdený.",
+                        status_message=f"ORSR nedostupný — nepodarilo sa nájsť výpis pre IČO {ico} (možný anti-bot blok).",
+                        findings="Register dočasne nedostupný — nepodarilo sa načítať výpis.",
                     )
 
                 # 4. Fetch detail page — try links, handle outdated/transferred
