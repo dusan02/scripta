@@ -34,6 +34,24 @@ interface MockEvent {
 let mockEvent: MockEvent | null = null;
 let mockTransactionResult: any = null;
 let mockUnmarshalShouldThrow = false;
+let mockFetchResponse: any = null;
+let mockFetchShouldThrow = false;
+
+// ─── Mock global fetch for API fallback tests ────────────────────────────────
+const originalFetch = globalThis.fetch;
+(globalThis as any).fetch = async (url: string, _opts?: any) => {
+  if (mockFetchShouldThrow) throw new Error("Network error");
+  if (mockFetchResponse) {
+    return {
+      ok: mockFetchResponse.ok ?? true,
+      status: mockFetchResponse.status ?? 200,
+      json: async () => mockFetchResponse.body,
+      text: async () => JSON.stringify(mockFetchResponse.body),
+    };
+  }
+  // Default: return a generic OK for non-API calls
+  return { ok: true, status: 200, json: async () => ({}), text: async () => "" };
+};
 
 // We mock the SDK by intercepting the module
 const originalModule = require("@paddle/paddle-node-sdk");
@@ -82,6 +100,8 @@ describe("PaddleAdapter", () => {
     mockEvent = null;
     mockTransactionResult = null;
     mockUnmarshalShouldThrow = false;
+    mockFetchResponse = null;
+    mockFetchShouldThrow = false;
   });
 
   // ── PLAN_CREDITS_MAP ──────────────────────────────────────────────────────
@@ -304,6 +324,134 @@ describe("PaddleAdapter", () => {
 
       const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
       assert.equal(results.length, 0);
+    });
+  });
+
+  // ── handleWebhook: adjustment.updated — API fetch fallback ────────────────
+
+  describe("handleWebhook: adjustment.updated API fetch fallback", () => {
+    it("fetches transaction from Paddle API when customData is missing", async () => {
+      mockEvent = {
+        eventType: "adjustment.updated",
+        eventId: "evt_adj_api_01",
+        data: {
+          id: "adj_api_01",
+          action: "refund",
+          status: "approved",
+          transactionId: "txn_api_01",
+          totals: { total: "89.00" },
+        },
+      };
+
+      mockFetchResponse = {
+        ok: true,
+        body: {
+          data: {
+            id: "txn_api_01",
+            status: "completed",
+            custom_data: { userId: "user-from-api", planId: "payg10" },
+          },
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+
+      assert.equal(results.length, 1);
+      assert.equal(results[0].type, "charge.refunded");
+      assert.equal(results[0].userId, "user-from-api");
+      assert.equal(results[0].planName, "payg10");
+      assert.equal(results[0].providerReference, "adj_api_01");
+      assert.equal(results[0].originalProviderReference, "txn_api_01");
+    });
+
+    it("returns empty when API fetch fails and no customData", async () => {
+      mockEvent = {
+        eventType: "adjustment.updated",
+        eventId: "evt_adj_api_02",
+        data: {
+          id: "adj_api_02",
+          action: "refund",
+          status: "approved",
+          transactionId: "txn_api_02",
+          totals: { total: "89.00" },
+        },
+      };
+
+      mockFetchResponse = { ok: false, status: 404, body: { error: "Not found" } };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+      assert.equal(results.length, 0);
+    });
+
+    it("returns empty when fetch throws network error", async () => {
+      mockEvent = {
+        eventType: "adjustment.updated",
+        eventId: "evt_adj_api_03",
+        data: {
+          id: "adj_api_03",
+          action: "refund",
+          status: "approved",
+          transactionId: "txn_api_03",
+          totals: { total: "89.00" },
+        },
+      };
+
+      mockFetchShouldThrow = true;
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+      assert.equal(results.length, 0);
+    });
+
+    it("uses customData from adjustment when present (no API fetch needed)", async () => {
+      mockEvent = {
+        eventType: "adjustment.updated",
+        eventId: "evt_adj_api_04",
+        data: {
+          id: "adj_api_04",
+          action: "refund",
+          status: "approved",
+          transactionId: "txn_api_04",
+          customData: { userId: "user-direct", planId: "payg1" },
+          totals: { total: "14.00" },
+        },
+      };
+
+      mockFetchShouldThrow = true;
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+      assert.equal(results.length, 1);
+      assert.equal(results[0].userId, "user-direct");
+      assert.equal(results[0].planName, "payg1");
+    });
+
+    it("handles chargeback via API fetch fallback", async () => {
+      mockEvent = {
+        eventType: "adjustment.updated",
+        eventId: "evt_adj_api_05",
+        data: {
+          id: "adj_api_05",
+          action: "chargeback",
+          status: "approved",
+          transactionId: "txn_api_05",
+          totals: { total: "14.00", chargebackFee: { amount: "14.00" } },
+        },
+      };
+
+      mockFetchResponse = {
+        ok: true,
+        body: {
+          data: {
+            id: "txn_api_05",
+            custom_data: { userId: "user-chargeback", planId: "payg1" },
+          },
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+      assert.equal(results.length, 1);
+      assert.equal(results[0].type, "charge.refunded");
+      assert.equal(results[0].userId, "user-chargeback");
+      assert.equal(results[0].credits, 1);
     });
   });
 
