@@ -138,7 +138,14 @@
                     {% for key, val in det_breakdown.items() if val != 0 %}
                     <div class="text-[10px] text-slate-500 leading-tight">
                         <span class="font-semibold {% if val < -5 %}text-rose-500{% elif val < 0 %}text-amber-600{% endif %}">{{ val > 0 and '+' or '' }}{{ val }}b:</span>
-                        {{ key }}
+                        {% if key == 'going_concern' %}{{ i18n.forensic_going_concern }}
+                        {% elif key == 'litigation' %}{{ i18n.forensic_litigation }}
+                        {% elif key == 'related_party' %}{{ i18n.related_party }}
+                        {% elif key == 'contingent_risks' %}{{ i18n.contingent_risks }}
+                        {% elif key == 'off_balance' %}{{ i18n.off_balance }}
+                        {% elif key == 'critical_events' %}{{ i18n.critical_events|default('Kritické udalosti') }}
+                        {% elif key == 'active_execution' %}{{ i18n.active_execution|default('Aktívne exekúcie') }}
+                        {% else %}{{ key }}{% endif %}
                     </div>
                     {% endfor %}
                 </div>

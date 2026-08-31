@@ -455,11 +455,15 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     latest_ratios = {}
     if latest_stmt:
         latest_ratios = compute_financial_ratios(latest_stmt)
-    
+
     # NACE info
     nace_code = getattr(company, 'naceCode', None)
     nace_text = getattr(company, 'naceText', None)
-    
+
+    # NACE dynamic weights for methodology transparency
+    from analytics import get_nace_weights
+    nace_weights = get_nace_weights(nace_code) if nace_code else None
+
     # Počet zamestnancov z najnovšieho výkazu (alebo odhad z staffCosts)
     employee_count = getattr(latest_stmt, 'employeeCount', None) if latest_stmt else None
     employee_count_estimated = False
@@ -1235,6 +1239,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
         "has_cashflow_data": has_cashflow_data,
         "nace_code": nace_code,
         "nace_text": nace_text,
+        "nace_weights": nace_weights,
         "employee_count": employee_count,
         "employee_count_estimated": employee_count_estimated,
         "vestnik_events": vestnik_events,

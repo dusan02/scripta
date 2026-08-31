@@ -48,12 +48,15 @@
                 <h3 class="subsection-title mb-1">{{ i18n.verifa_score_model }}</h3>
                 <p class="mb-1">{{ i18n.methodology_intro }}</p>
                 <ul class="list-disc list-inside mb-1.5 space-y-0">
-                    <li><strong>{{ i18n.pillar_p1 }}</strong> — {{ i18n.pillar_p1_desc }}</li>
-                    <li><strong>{{ i18n.pillar_p2 }}</strong> — {{ i18n.pillar_p2_desc }}</li>
-                    <li><strong>{{ i18n.pillar_p3 }}</strong> — {{ i18n.pillar_p3_desc }}</li>
-                    <li><strong>{{ i18n.pillar_p4 }}</strong> — {{ i18n.pillar_p4_desc }}</li>
-                    <li><strong>{{ i18n.pillar_p5 }}</strong> — {{ i18n.pillar_p5_desc }}</li>
+                    <li><strong>{{ i18n.pillar_p1 }}</strong> — {{ i18n.pillar_p1_desc }}{% if nace_weights %} <span class="text-slate-500">({{ nace_weights.P1 }}%)</span>{% endif %}</li>
+                    <li><strong>{{ i18n.pillar_p2 }}</strong> — {{ i18n.pillar_p2_desc }}{% if nace_weights %} <span class="text-slate-500">({{ nace_weights.P2 }}%)</span>{% endif %}</li>
+                    <li><strong>{{ i18n.pillar_p3 }}</strong> — {{ i18n.pillar_p3_desc }}{% if nace_weights %} <span class="text-slate-500">({{ nace_weights.P3 }}%)</span>{% endif %}</li>
+                    <li><strong>{{ i18n.pillar_p4 }}</strong> — {{ i18n.pillar_p4_desc }}{% if nace_weights %} <span class="text-slate-500">({{ nace_weights.P4 }}%)</span>{% endif %}</li>
+                    <li><strong>{{ i18n.pillar_p5 }}</strong> — {{ i18n.pillar_p5_desc }}{% if nace_weights %} <span class="text-slate-500">({{ nace_weights.P5 }}%)</span>{% endif %}</li>
                 </ul>
+                {% if nace_weights %}
+                <p class="text-[10px] text-slate-500 mb-1">{{ i18n.nace_weights_note|default('Váhy pilierov sú dynamicky prispôsobené odvetviu podľa NACE kódu.') }}</p>
+                {% endif %}
                 <p class="mb-1"><strong>{{ i18n.dq_multiplier }}</strong></p>
                 <p class="mb-1"><strong>{{ i18n.vestnik_degradation }}</strong></p>
                 <p class="mb-1"><strong>{{ i18n.auditor_correction_note }}</strong></p>

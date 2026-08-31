@@ -11,7 +11,7 @@
     {% endif %}
     {% if has_mixed_consolidation %}
     <div class="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-        <p class="report-body-sm text-amber-800 font-medium">{{ i18n.warning_mixed_consolidation }}</p>
+        <p class="report-body-sm text-amber-800 font-medium">{{ i18n.warning_mixed_consolidation }} <span class="font-bold">{% if financial_basis == 'consolidated' %}{{ i18n.financial_basis_consolidated }}{% else %}{{ i18n.financial_basis_individual }}{% endif %}</span> — {{ i18n.warning_mixed_consolidation_suffix }}</p>
     </div>
     {% endif %}
     {% if has_non_standard_months %}

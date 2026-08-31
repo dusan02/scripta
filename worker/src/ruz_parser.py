@@ -846,7 +846,7 @@ def parse_tables_to_metrics(
         mzdove_naklady = _fix_thousands(mzdove_naklady, trzby, "mzdove_naklady")
         # dane_a_poplatky je prirodzene malá hodnota (typicky 0.05-0.5% tržieb)
         # — heuristika < 0.1% by falošne označila legitímne hodnoty za tisíce EUR
-        # zisk_pred_zdanenim, dan_z_prijmu a uroky: pre veľké firmy (>100M € tržby)
+        # zisk_pred_zdanenim, dan_z_prijmu: pre veľké firmy (>100M € tržby)
         # je hodnota < 0.1% tržieb takmer isto v tisícoch EUR. Heuristika
         # abs(val)*1000 <= ref*2 zabraňuje falošným pozitívam (napr. pre low-margin
         # firmy s reálne malým PBT by ×1000 prevýšilo tržby).
@@ -854,8 +854,14 @@ def parse_tables_to_metrics(
         # ale dan_z_prijmu v EUR → efektívna daňová sadzba 24 087% namiesto 24%.
         zisk_pred_zdanenim = _fix_thousands(zisk_pred_zdanenim, trzby, "zisk_pred_zdanenim")
         dan_z_prijmu_val = _fix_thousands(dan_z_prijmu_val, trzby, "dan_z_prijmu")
-        uroky = _fix_thousands(uroky, trzby, "uroky")
-        vysledok_z_fin_cinnosti = _fix_thousands(vysledok_z_fin_cinnosti, trzby, "vysledok_z_fin_cinnosti")
+        # Bug fix (2026-08-31): uroky a vysledok_z_fin_cinnosti NESMÚ prechádzať
+        # _fix_thousands heuristikou. Tieto položky závisia od kapitálovej štruktúry,
+        # nie od tržieb. Firma s 300M € tržbami a nulovým zadlžením má legitímne
+        # úroky < 0.1% tržieb. ×1000 by vytvorilo falošné 120M € úroky (prípad
+        # ArcelorMittal Gonvarri SSC, IČO 35857749), čo nafúkne EBITDA o ~120M €
+        # a zničí úrokové krytie z ~30× na 1,0×.
+        # uroky = _fix_thousands(uroky, trzby, "uroky")  # REMOVED — depends on debt, not revenue
+        # vysledok_z_fin_cinnosti = _fix_thousands(...)   # REMOVED — same reason
 
     # ── Apply unit multiplier (EUR vs tisíce EUR) ──
     if unit_multiplier != 1.0:

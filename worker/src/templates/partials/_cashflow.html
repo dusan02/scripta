@@ -51,6 +51,43 @@
                 {% endfor %}
             </tr>
             {% endfor %}
+            {# ── Working capital breakdown (Δ inventory, receivables, payables) ── #}
+            {% set wc_fields = [
+                ('inventory', i18n.row_inventory|default('Zásoby')),
+                ('tradeReceivables', i18n.row_trade_receivables|default('Pohľadávky z obchodu')),
+                ('tradePayables', i18n.row_trade_payables|default('Záväzky z obchodu')),
+            ] %}
+            {% set has_wc_data = namespace(val=false) %}
+            {% for stmt in stmts_sorted %}
+                {% for field, label in wc_fields %}
+                    {% if stmt[field] is defined and stmt[field] is not none %}
+                        {% set has_wc_data = namespace(val=true) %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if has_wc_data.val %}
+            <tr class="border-b border-slate-200 bg-slate-50">
+                <td colspan="{{ stmts_sorted|length + 1 }}" class="py-1 px-2 font-bold text-slate-600 text-[10px] uppercase tracking-wide">{{ i18n.working_capital_breakdown|default('Rozklad pracovného kapitálu (YoY zmena)') }}</td>
+            </tr>
+            {% for field, label in wc_fields %}
+            <tr class="border-b border-slate-100">
+                <td class="py-1.5 px-2 pl-4 text-slate-600 text-[11px]">{{ label }}</td>
+                {% for stmt in stmts_sorted %}
+                {% set val = stmt[field] if stmt[field] is defined else none %}
+                {% set prev_stmt = loop.index0 > 0 and stmts_sorted[loop.index0 - 1] or none %}
+                {% set prev_val = prev_stmt and prev_stmt[field] or none %}
+                {% if val is none %}
+                <td class="py-1.5 px-2 text-slate-400 text-[11px]"><div class="flex justify-end"><span>—</span></div></td>
+                {% elif prev_val is not none %}
+                {% set delta = val - prev_val %}
+                <td class="py-1.5 px-2 text-[11px] {% if delta < 0 %}text-rose-600{% elif delta > 0 %}text-emerald-600{% else %}text-slate-500{% endif %}"><div class="flex justify-end"><span>{{ delta | format_cf_millions }}</span></div></td>
+                {% else %}
+                <td class="py-1.5 px-2 text-slate-400 text-[11px]"><div class="flex justify-end"><span>—</span></div></td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            {% endif %}
         </tbody>
     </table>
     {% if has_non_standard_months %}
