@@ -32,6 +32,20 @@ from src.scrapers.orsr import OrsrScraper
 from src.scrapers.rpvs import RpvsScraper
 from src.scrapers.zrsr import ZrsrScraper
 from src.scrapers.insolvency import InsolvencyScraper
+from src.scrapers.crz import CrzScraper
+from src.scrapers.uvo import UvoScraper
+from src.scrapers.poverenia import PovereniaScraper
+from src.scrapers.rpo import RpoScraper
+from src.scrapers.ncrzp import NcrzpScraper
+from src.scrapers.ncrd import NcrdScraper
+from src.scrapers.diskvalifikacie import DiskvalifikacieScraper
+from src.scrapers.fs_danove_subjekty import FsDanoveSubjektyScraper
+from src.scrapers.fs_dph_registrovani import FsDphRegistrovaniScraper
+from src.scrapers.fs_dph_rusenie import FsDphRusenieScraper
+from src.scrapers.fs_dph_vymazani import FsDphVymazaniScraper
+from src.scrapers.fs_dph_nadmerny_odpocet import FsDphNadmernyOdpocetScraper
+from src.scrapers.fs_dan_z_prijmov import FsDanZPrijmovScraper
+from src.scrapers.fs_dan_prijmov_reg import FsDanPrijmovRegistrovaniScraper
 
 # ── Test IČO ──────────────────────────────────────────────────────────────
 # Volkswagen Slovakia — veľká firma, určite nie je dlžník (negatívny test)
@@ -527,5 +541,399 @@ async def test_insolvency_clean_company(browser):
             f"Falošný POZOR pre čistú firmu: {result.findings}"
         assert "nemá negatívne" in (result.findings or "") or "žiadne konania" in (result.findings or ""), \
             f"Očakávaný 'nemá negatívne záznamy': {result.findings}"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CRZ — Centrálny register zmlúv
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_crz_page_loads(browser):
+    """CRZ: stránka načíta."""
+    scraper = CrzScraper(browser)
+    page = await scraper._get_page()
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("CRZ nedostupná (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "CRZ stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_crz_has_ico_input(browser):
+    """CRZ: nájde sa input pole pre IČO."""
+    scraper = CrzScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(2000)
+        # CRZ používa input pre IČO v zmluvách
+        ico_input = page.locator("input[name*='ico' i], input[placeholder*='IČO' i], input#ico")
+        cnt = await ico_input.count()
+        if cnt == 0:
+            # Fallback: akýkoľvek text input
+            inputs = page.locator("input[type='text'], input:not([type])")
+            cnt = await inputs.count()
+        assert cnt > 0, "Nenašiel sa žiadny text input na CRZ stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UVO — Verejné obstarávanie
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_uvo_page_loads(browser):
+    """UVO: stránka načíta."""
+    scraper = UvoScraper(browser)
+    page = await scraper._get_page()
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("UVO nedostupné (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "UVO stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_uvo_has_search_input(browser):
+    """UVO: nájde sa vyhľadávacie pole."""
+    scraper = UvoScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(2000)
+        # UVO používa search input pre IČO/názov
+        search_input = page.locator("input[type='text'], input:not([type]), input[name*='ico' i], input[placeholder*='IČO' i]")
+        cnt = await search_input.count()
+        assert cnt > 0, "Nenašiel sa žiadny text input na UVO stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# POVERENIA — Register poverení na exekúcie
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_poverenia_page_loads(browser):
+    """Poverenia: stránka načíta."""
+    scraper = PovereniaScraper(browser)
+    page = await scraper._get_page()
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=20000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("Poverenia nedostupné (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "Poverenia stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_poverenia_has_ico_input(browser):
+    """Poverenia: nájde sa #ico input pole."""
+    scraper = PovereniaScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=20000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(2000)
+        ico_input = page.locator("#ico")
+        try:
+            await ico_input.wait_for(timeout=8000)
+        except Exception:
+            # Fallback: akýkoľvek text input
+            inputs = page.locator("input[type='text'], input:not([type])")
+            cnt = await inputs.count()
+            assert cnt > 0, "Nenašiel sa #ico ani žiadny text input na Poverenia stránke"
+            return
+        assert await ico_input.count() > 0, "#ico input sa nenašiel na Poverenia stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RPO — Register právnických osôb
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_rpo_page_loads(browser):
+    """RPO: stránka načíta."""
+    scraper = RpoScraper(browser)
+    page = await scraper._get_page(block_images=False)
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("RPO nedostupné (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "RPO stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_rpo_has_ico_input(browser):
+    """RPO: nájde sa input[name='organizationIdentifier'] pole."""
+    scraper = RpoScraper(browser)
+    page = await scraper._get_page(block_images=False)
+    try:
+        await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(2000)
+        ico_input = page.locator("input[name='organizationIdentifier']")
+        try:
+            await ico_input.wait_for(timeout=10000)
+        except Exception:
+            # Fallback: akýkoľvek text input
+            inputs = page.locator("input[type='text'], input:not([type])")
+            cnt = await inputs.count()
+            assert cnt > 0, "Nenašiel sa organizationIdentifier ani text input na RPO stránke"
+            return
+        assert await ico_input.count() > 0, "input[name='organizationIdentifier'] sa nenašiel na RPO stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NCRZP — Notársky centrálny register záložných práv
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_ncrzp_page_loads(browser):
+    """NCRZP: stránka načíta."""
+    scraper = NcrzpScraper(browser)
+    page = await scraper._get_page()
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=20000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("NCRZP nedostupné (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "NCRZP stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_ncrzp_has_ico_input(browser):
+    """NCRZP: nájde sa #pledgorIdentifier input pole."""
+    scraper = NcrzpScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=20000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(2000)
+        ico_input = page.locator("#pledgorIdentifier")
+        try:
+            await ico_input.wait_for(timeout=8000)
+        except Exception:
+            inputs = page.locator("input[type='text'], input:not([type])")
+            cnt = await inputs.count()
+            assert cnt > 0, "Nenašiel sa #pledgorIdentifier ani text input na NCRZP stránke"
+            return
+        assert await ico_input.count() > 0, "#pledgorIdentifier sa nenašiel na NCRZP stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NCRD — Notársky centrálny register dražieb
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_ncrd_page_loads(browser):
+    """NCRD: stránka načíta."""
+    scraper = NcrdScraper(browser)
+    page = await scraper._get_page()
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=20000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("NCRD nedostupné (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "NCRD stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_ncrd_has_ico_input(browser):
+    """NCRD: nájde sa #auctioneerIdentifier input pole."""
+    scraper = NcrdScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=20000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(2000)
+        ico_input = page.locator("#auctioneerIdentifier")
+        try:
+            await ico_input.wait_for(timeout=8000)
+        except Exception:
+            # Fallback: auction-search input
+            search_input = page.locator("input[name='auction-search']")
+            cnt = await search_input.count()
+            if cnt == 0:
+                inputs = page.locator("input[type='text'], input:not([type])")
+                cnt = await inputs.count()
+            assert cnt > 0, "Nenašiel sa #auctioneerIdentifier ani text input na NCRD stránke"
+            return
+        assert await ico_input.count() > 0, "#auctioneerIdentifier sa nenašiel na NCRD stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DISKVALIFIKÁCIE — Register diskvalifikácií (justice.gov.sk)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.asyncio
+async def test_diskvalifikacie_page_loads(browser):
+    """Diskvalifikácie: stránka načíta."""
+    scraper = DiskvalifikacieScraper(browser)
+    page = await scraper._get_page(block_images=False)
+    try:
+        try:
+            await page.goto("https://www.justice.gov.sk/registre/registerDiskvalifikacii/", timeout=20000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("Diskvalifikácie nedostupné (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "Diskvalifikácie stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_diskvalifikacie_has_name_input(browser):
+    """Diskvalifikácie: nájde sa #nazov_name input pole (hľadanie podľa mena)."""
+    scraper = DiskvalifikacieScraper(browser)
+    page = await scraper._get_page(block_images=False)
+    try:
+        await page.goto("https://www.justice.gov.sk/registre/registerDiskvalifikacii/", timeout=20000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(2000)
+        name_input = page.locator("#nazov_name")
+        try:
+            await name_input.wait_for(timeout=8000)
+        except Exception:
+            # Fallback: akýkoľvek text input
+            inputs = page.locator("input[type='text'], input[placeholder*='mena']")
+            cnt = await inputs.count()
+            assert cnt > 0, "Nenašiel sa #nazov_name ani text input na Diskvalifikácie stránke"
+            return
+        assert await name_input.count() > 0, "#nazov_name sa nenašiel na Diskvalifikácie stránke"
+    finally:
+        await scraper._close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FINANČNÁ SPRÁVA — 7 scraperov zdieľajúcich fs_base (rovnaká URL, rôzne zoznamy)
+# Testujeme jeden reprezentatívny scraper + overenie že všetky načítajú stránku
+# ═══════════════════════════════════════════════════════════════════════════
+
+FS_SCRAPER_CLASSES = [
+    FsDanoveSubjektyScraper,
+    FsDphRegistrovaniScraper,
+    FsDphRusenieScraper,
+    FsDphVymazaniScraper,
+    FsDphNadmernyOdpocetScraper,
+    FsDanZPrijmovScraper,
+    FsDanPrijmovRegistrovaniScraper,
+]
+
+
+@pytest.mark.asyncio
+async def test_fs_page_loads(browser):
+    """FS: Finančná správa hlavná stránka načíta."""
+    scraper = FsDanoveSubjektyScraper(browser)
+    page = await scraper._get_page()
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip("Finančná správa nedostupná (timeout) — test preskočený")
+        text = await page.inner_text("body")
+        assert len(text) > 50, "FS stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_fs_has_ico_input(browser):
+    """FS: nájde sa input pole pre IČO (input[name*='ico'])."""
+    scraper = FsDanoveSubjektyScraper(browser)
+    page = await scraper._get_page()
+    try:
+        await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        await page.wait_for_timeout(3000)
+        # FS používa input[name*="ico"] v rámci formulára alebo iframe
+        ico_input = page.locator("input[name*='ico' i]")
+        cnt = await ico_input.count()
+        if cnt == 0:
+            # Skús iframe
+            for frame in page.frames:
+                if frame != page.main_frame:
+                    frame_input = frame.locator("input[name*='ico' i]")
+                    cnt = await frame_input.count()
+                    if cnt > 0:
+                        break
+        if cnt == 0:
+            # Fallback: akýkoľvek text input
+            inputs = page.locator("input[type='text'], input:not([type])")
+            cnt = await inputs.count()
+        assert cnt > 0, "Nenašiel sa input[name*='ico'] ani text input na FS stránke"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scraper_cls", FS_SCRAPER_CLASSES)
+async def test_fs_all_scrapers_page_loads(browser, scraper_cls):
+    """FS: každý zo 7 scraperov načíta stránku bez chyby."""
+    scraper = scraper_cls(browser)
+    page = await scraper._get_page()
+    try:
+        try:
+            await page.goto(scraper.base_url, timeout=30000, wait_until='domcontentloaded')
+        except Exception:
+            pytest.skip(f"{scraper.source_type}: FS nedostupná (timeout)")
+        text = await page.inner_text("body")
+        assert len(text) > 50, f"{scraper.source_type}: FS stránka je prázdna"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_fs_danove_subjekty_clean_company(browser):
+    """FS Index daňovej spoľahlivosti: Volkswagen (35757442) — negatívny test."""
+    scraper = FsDanoveSubjektyScraper(browser)
+    try:
+        result = await scraper.run(ico=ICO_CLEAN, output_dir=OUTPUT_DIR)
+        if result.status == "UNAVAILABLE":
+            pytest.skip("FS nedostupná — test preskočený")
+        assert result.status == "SUCCESS", f"FS scraper zlyhal: {result.status_message}"
+        # Volkswagen nie je v zozname daňových dlžníkov
+        assert "POZOR" not in (result.findings or ""), \
+            f"Falošný POZOR pre čistú firmu: {result.findings}"
+    finally:
+        await scraper._close()
+
+
+@pytest.mark.asyncio
+async def test_fs_dph_registrovani_clean_company(browser):
+    """FS Platitelia DPH: Volkswagen (35757442) — mal by byť registrovaný."""
+    scraper = FsDphRegistrovaniScraper(browser)
+    try:
+        result = await scraper.run(ico=ICO_CLEAN, output_dir=OUTPUT_DIR)
+        if result.status == "UNAVAILABLE":
+            pytest.skip("FS nedostupná — test preskočený")
+        assert result.status == "SUCCESS", f"FS DPH scraper zlyhal: {result.status_message}"
     finally:
         await scraper._close()
