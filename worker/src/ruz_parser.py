@@ -839,6 +839,25 @@ def parse_tables_to_metrics(
             return val * 1000
         return val
 
+    def _fix_tax_thousands(tax: Optional[float], pbt: Optional[float], field_name: str) -> Optional[float]:
+        """Fix dan_z_prijmu v tisícoch EUR — referencuje PBT, nie tržby.
+
+        Daň závisí od zisku pred zdanením (PBT), nie od tržieb. Pre firmy s
+        nízkou maržou (600M tržby, 2M PBT) je legitímna daň 500K (25% PBT),
+        čo je < 0.1% tržieb. Heuristika s tržbami by falošne ×1000 takúto daň.
+
+        Heuristika: ak PBT > 0 a daň < 0.1% PBT a daň×1000 ≤ 50% PBT → tisíce EUR.
+        """
+        if tax is None or pbt is None or pbt <= 0:
+            return tax
+        if 0 < abs(tax) < pbt * 0.001 and abs(tax) * 1000 <= pbt * 0.5:
+            logger.warning(
+                f"[RUZ_PARSER] IČO {ico}: {field_name}={tax:.0f} je podozrivo malá "
+                f"voči PBT {pbt:.0f} — pravdepodobne tisíce EUR, násobím ×1000"
+            )
+            return tax * 1000
+        return tax
+
     if has_income and trzby is not None:
         naklady_na_hosp_cinnost = _fix_thousands(naklady_na_hosp_cinnost, trzby, "naklady_na_hosp_cinnost")
         spotreba_materialu = _fix_thousands(spotreba_materialu, trzby, "spotreba_materialu")
@@ -846,14 +865,17 @@ def parse_tables_to_metrics(
         mzdove_naklady = _fix_thousands(mzdove_naklady, trzby, "mzdove_naklady")
         # dane_a_poplatky je prirodzene malá hodnota (typicky 0.05-0.5% tržieb)
         # — heuristika < 0.1% by falošne označila legitímne hodnoty za tisíce EUR
-        # zisk_pred_zdanenim, dan_z_prijmu: pre veľké firmy (>100M € tržby)
-        # je hodnota < 0.1% tržieb takmer isto v tisícoch EUR. Heuristika
-        # abs(val)*1000 <= ref*2 zabraňuje falošným pozitívam (napr. pre low-margin
-        # firmy s reálne malým PBT by ×1000 prevýšilo tržby).
-        # Bug: bez tejto opravy vznikal mismatch jednotiek — PBT v tisícoch EUR,
-        # ale dan_z_prijmu v EUR → efektívna daňová sadzba 24 087% namiesto 24%.
+        # zisk_pred_zdanenim: pre veľké firmy (>100M € tržby) je PBT < 0.1% tržieb
+        # takmer isto v tisícoch EUR. Heuristika abs(val)*1000 <= ref*2 zabraňuje
+        # falošným pozitívam (napr. pre low-margin firmy s reálne malým PBT by
+        # ×1000 prevýšilo tržby).
         zisk_pred_zdanenim = _fix_thousands(zisk_pred_zdanenim, trzby, "zisk_pred_zdanenim")
-        dan_z_prijmu_val = _fix_thousands(dan_z_prijmu_val, trzby, "dan_z_prijmu")
+        # dan_z_prijmu: NESMIE použiť tržby ako referenciu — daň závisí od PBT,
+        # nie od tržieb. Pre low-margin firmy (600M tržby, 2M PBT) je legitímna
+        # daň 500K = 25% PBT, ale < 0.1% tržieb → falošné ×1000 s tržbami.
+        # Bug: 10,773 firiem malo daň ×1000 falošne (incomeTax > PBT×2).
+        # Fix: referencuj PBT. Daň by mala byť 0-30% PBT (SK sadzba 15/21%).
+        dan_z_prijmu_val = _fix_tax_thousands(dan_z_prijmu_val, zisk_pred_zdanenim, "dan_z_prijmu")
         # Bug fix (2026-08-31): uroky a vysledok_z_fin_cinnosti NESMÚ prechádzať
         # _fix_thousands heuristikou. Tieto položky závisia od kapitálovej štruktúry,
         # nie od tržieb. Firma s 300M € tržbami a nulovým zadlžením má legitímne
