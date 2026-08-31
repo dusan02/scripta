@@ -35,6 +35,8 @@ export interface WebhookResult {
   originalProviderReference?: string;
   /** Paddle webhook event_id for deduplication (evt_xxx). */
   eventId?: string;
+  /** Paddle customer ID (ctm_...) — saved to User for Retain pwCustomer. */
+  paddleCustomerId?: string;
 }
 
 export interface PaymentProviderAdapter {

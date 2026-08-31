@@ -63,7 +63,7 @@ export default function CheckoutPage() {
           return;
         }
         const ctx = await ctxRes.json();
-        const { priceId, userId, email } = ctx;
+        const { priceId, userId, email, paddleCustomerId } = ctx;
 
         if (!priceId || !userId) {
           setStatus("error");
@@ -97,6 +97,7 @@ export default function CheckoutPage() {
 
         window.Paddle.Initialize({
           token,
+          ...(paddleCustomerId ? { pwCustomer: { id: paddleCustomerId } } : {}),
           eventCallback: (data: any) => {
             if (data?.event === "checkout.completed") {
               const txnId = data?.data?.transaction_id || data?.data?.id;

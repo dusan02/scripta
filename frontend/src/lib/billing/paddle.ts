@@ -84,6 +84,7 @@ export class PaddleAdapter implements PaymentProviderAdapter {
           planName: planId,
           providerReference: txn.id,
           eventId,
+          paddleCustomerId: txn.customerId || txn.customer_id,
         });
         break;
       }

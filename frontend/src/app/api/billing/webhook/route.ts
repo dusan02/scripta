@@ -17,6 +17,34 @@ type PendingEmail = {
   html: string;
 };
 
+// Cache Paddle IPs for 10 minutes — the endpoint is the source of truth
+// but we don't want to fetch on every webhook delivery.
+let _paddleIpsCache: { ips: string[]; fetchedAt: number } | null = null;
+const PADDLE_IP_TTL_MS = 10 * 60 * 1000;
+
+async function getPaddleIps(): Promise<string[]> {
+  const now = Date.now();
+  if (_paddleIpsCache && now - _paddleIpsCache.fetchedAt < PADDLE_IP_TTL_MS) {
+    return _paddleIpsCache.ips;
+  }
+  try {
+    const baseUrl = process.env.PADDLE_ENVIRONMENT === "production"
+      ? "https://api.paddle.com"
+      : "https://sandbox-api.paddle.com";
+    const res = await fetch(`${baseUrl}/ips`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Paddle /ips returned ${res.status}`);
+    const data = await res.json();
+    const cidrs: string[] = (data.data?.ipv4_cidrs || []).map((c: string) => c.replace("/32", ""));
+    _paddleIpsCache = { ips: cidrs, fetchedAt: now };
+    return cidrs;
+  } catch (err) {
+    console.error("[webhook] Failed to fetch Paddle IPs:", err);
+    // On fetch failure, allow through — signature verification is the primary defense.
+    // Blocking on a failed IP fetch would break all webhook deliveries during outages.
+    return [];
+  }
+}
+
 export async function POST(req: NextRequest) {
   const adapter = getBillingAdapter();
   const body = await req.text();
@@ -30,6 +58,21 @@ export async function POST(req: NextRequest) {
 
   if (!signature) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+  }
+
+  // Paddle IP allowlisting — only when the request has a paddle-signature header.
+  // This is a defense-in-depth layer on top of cryptographic signature verification.
+  // We fetch Paddle's published IPs from their API (source of truth, not hard-coded).
+  if (req.headers.get("paddle-signature")) {
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+                     req.headers.get("x-real-ip") || "";
+    if (clientIp) {
+      const allowedIps = await getPaddleIps();
+      if (allowedIps.length > 0 && !allowedIps.includes(clientIp)) {
+        console.warn(`[webhook] Paddle IP rejected: ${clientIp} not in allowlist`);
+        return NextResponse.json({ error: "IP not allowed" }, { status: 403 });
+      }
+    }
   }
 
   let events;
@@ -73,8 +116,15 @@ export async function POST(req: NextRequest) {
                   planName: event.planName,
                   planRenewalDate: renewalDate,
                   subscriptionStatus: "active",
+                  ...(event.paddleCustomerId ? { paddleCustomerId: event.paddleCustomerId } : {}),
                 },
               });
+            } else if (event.paddleCustomerId) {
+              // One-time purchase: still save paddleCustomerId for Retain
+              await prisma.user.update({
+                where: { id: event.userId },
+                data: { paddleCustomerId: event.paddleCustomerId },
+              }).catch(() => {}); // non-critical — don't fail the webhook
             }
           }
           break;

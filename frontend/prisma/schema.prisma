@@ -36,6 +36,7 @@ model User {
   trialEndsAt        DateTime?       // Koniec skúšobného obdobia (5 zadarmo kreditov na mesiac)
   subscriptionStatus String?         // active | canceled | past_due | trialing
   subscriptionEndsAt DateTime?       // Dátum ukončenia predplatného (pre zrušené)
+  paddleCustomerId   String?         // Paddle customer ID (ctm_...) — for Retain pwCustomer
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   // Email bounce/complaint tracking — prevents sending to invalid addresses
