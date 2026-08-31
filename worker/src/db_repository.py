@@ -723,11 +723,12 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
         # Ak verdict_payload obsahuje 'findings' ako None, Prisma ho odmietne —
         # preto odfiltrujeme None hodnoty pre Json? polia.
         clean_payload = {k: v for k, v in verdict_payload.items() if v is not None}
+        # companyIco je v where klauzule, nepatrí do create/update payloadu
+        clean_payload.pop('companyIco', None)
         await db.auditverdict.upsert(
             where={'companyIco': ico},
             data={
                 'create': {
-                    'companyIco': ico,
                     'company': {'connect': {'ico': ico}},
                     **clean_payload,
                 },
