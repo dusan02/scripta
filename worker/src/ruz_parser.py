@@ -1031,6 +1031,90 @@ def parse_tables_to_metrics(
         datum_schvalenia=datum_schvalenia,
     )
 
+    # ── Post-processing: undo false ×1000 from _fix_thousands ──
+    # _fix_thousands uses revenue as reference, which creates false positives
+    # for low-margin companies (e.g., 500K legitimate tax on 600M revenue → ×1000 → 500M).
+    # This safety net checks for economically impossible values and undoes ×1000.
+    if trzby is not None and trzby > 0:
+        def _undo_false_thousands(val, ref, max_ratio, field_name):
+            """Undo ×1000 if val exceeds ref×max_ratio AND val/1000 is plausible."""
+            if val is None or ref is None or ref <= 0:
+                return val
+            if abs(val) > ref * max_ratio:
+                corrected = val / 1000.0
+                if abs(corrected) <= ref * max_ratio:
+                    logger.warning(
+                        f"[RUZ_PARSER] IČO {ico} rok {year}: {field_name}={val:.0f} "
+                        f"prevyšuje {ref:.0f}×{max_ratio} — odstraňujem falošné ×1000 → {corrected:.0f}"
+                    )
+                    return corrected
+            return val
+
+        # grossProfit: |GP| > revenue je matematicky nemožné (GP = revenue - COGS)
+        hruba_marza = _undo_false_thousands(hruba_marza, trzby, 1.0, "grossProfit")
+        # PBT > revenue×2: extrémne nepravdepodobné (200%+ marža)
+        zisk_pred_zdanenim = _undo_false_thousands(zisk_pred_zdanenim, trzby, 2.0, "profitBeforeTax")
+        # operatingCosts > revenue×5: extrémne (500%+ nákladov)
+        naklady_na_hosp_cinnost = _undo_false_thousands(naklady_na_hosp_cinnost, trzby, 5.0, "operatingCosts")
+        # staffCosts > revenue×3: extrémne (300%+ mzdových nákladov)
+        osobne_naklady = _undo_false_thousands(osobne_naklady, trzby, 3.0, "staffCosts")
+        # dan_z_prijmu > PBT×2: daň nemôže byť 200%+ zisku
+        dan_z_prijmu_val = _undo_false_thousands(dan_z_prijmu_val, zisk_pred_zdanenim, 2.0, "incomeTax")
+
+        # Rebuild metrics with corrected values
+        metrics = FinancialMetrics(
+            celkove_aktiva=celkove_aktiva,
+            obezny_majetok=obezny_majetok,
+            zasoby=zasoby,
+            peniaze=peniaze,
+            pohladavky=pohladavky,
+            vlastne_imanie=vlastne_imanie,
+            dlhodobe_zavazky=dlhodobe_zavazky,
+            kratkodobe_zavazky=kratkodobe_zavazky,
+            trzby=trzby,
+            osobne_naklady=osobne_naklady,
+            odpisy=odpisy,
+            uroky=uroky,
+            zisk_po_zdaneni=zisk_po_zdaneni,
+            hruba_marza=hruba_marza,
+            neobezny_majetok=neobezny_majetok,
+            dlhodoby_nehmotny_majetok=dlhodoby_nehmotny_majetok,
+            dlhodoby_hmotny_majetok=dlhodoby_hmotny_majetok,
+            dlhodoby_financny_majetok=dlhodoby_financny_majetok,
+            dlhodobe_pohladavky=dlhodobe_pohladavky,
+            kratkodoby_financny_majetok=kratkodoby_financny_majetok,
+            casove_rozlisenie_aktiv=casove_rozlisenie_aktiv,
+            kratkodobe_zavazky_prev=kratkodobe_zavazky_prev,
+            obezny_majetok_prev=obezny_majetok_prev,
+            zasoby_prev=zasoby_prev,
+            pohladavky_prev=pohladavky_prev,
+            zavazky_obchod_prev=zavazky_obchod_prev,
+            zakladne_imanie=zakladne_imanie,
+            emisione_azio=emisione_azio,
+            ostatne_kapitalove_fondy=ostatne_kapitalove_fondy,
+            zakonne_rezervne_fondy=zakonne_rezervne_fondy,
+            ostatne_fondy_zo_zisku=ostatne_fondy_zo_zisku,
+            vysledok_minuly_rokov=vysledok_minuly_rokov,
+            nerozdeleny_zisk=nerozdeleny_zisk,
+            neuhradena_strata=neuhradena_strata,
+            vysledok_beziaceho_roka=vysledok_beziaceho_roka,
+            dlhodobe_rezervy=dlhodobe_rezervy,
+            kratkodobe_rezervy=kratkodobe_rezervy,
+            bezne_bankove_uvery=bezne_bankove_uvery,
+            kratkodobe_financne_vypomoci=kratkodobe_financne_vypomoci,
+            naklady_na_hosp_cinnost=naklady_na_hosp_cinnost,
+            spotreba_materialu=spotreba_materialu,
+            sluzby=sluzby,
+            mzdove_naklady=mzdove_naklady,
+            dane_a_poplatky=dane_a_poplatky,
+            vysledok_z_fin_cinnosti=vysledok_z_fin_cinnosti,
+            zisk_pred_zdanenim=zisk_pred_zdanenim,
+            dan_z_prijmu=dan_z_prijmu_val,
+            prevod_podielov_spolocnikom=prevod_podielov_spolocnikom,
+            datum_zostavenia=datum_zostavenia,
+            datum_schvalenia=datum_schvalenia,
+        )
+
     # Sanity checks
     warnings = _sanity_check(metrics, total_liabilities_exact=celkove_cudzie_zdroje)
     if warnings:
