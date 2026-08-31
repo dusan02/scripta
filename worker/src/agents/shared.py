@@ -6,10 +6,29 @@ from contextlib import contextmanager
 from pydantic import BaseModel, Field
 from typing import Optional
 from google import genai
+from google.genai import types as genai_types
 
 from src.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ── Patch GenerateContentConfig to disable thinking by default ──────────────
+# Gemini 3.7 Flash has thinking enabled by default (30-78s latency).
+# For production extractors and agents, thinking is unnecessary —
+# we want fast structured data extraction.
+# This monkey-patch adds thinking_budget=0 to every GenerateContentConfig
+# unless the caller explicitly passes a thinking_config.
+_orig_generate_config = genai_types.GenerateContentConfig
+
+
+def _patched_generate_config(**kwargs):
+    if "thinking_config" not in kwargs:
+        kwargs["thinking_config"] = genai_types.ThinkingConfig(thinking_budget=0)
+    return _orig_generate_config(**kwargs)
+
+
+genai_types.GenerateContentConfig = _patched_generate_config
 
 # ── Gemini API key pool ──────────────────────────────────────────────────────
 # Supports multiple keys via GEMINI_API_KEYS (comma-separated) for round-robin

@@ -35,26 +35,27 @@ class Settings(BaseSettings):
     expert_mode: bool = False
 
     # ── LLM Model Configuration ──────────────────────────────────────────────
-    # Standard: extractors on Flash-Lite, Chief Auditor on Flash (cost-efficient)
-    # Expert: Chief Auditor on Pro 3.1 (2-pass), QA on Flash 3.5 (higher quality)
-    model_ifrs: str = "gemini-3.5-flash-lite"   # IFRS tabuľky — extrakcia, fallbacky pokrývajú medzery
-    model_narrative: str = "gemini-3.5-flash"  # Naratívna analýza (VS) — textová, potrebuje silnejší model pre grounding
-    model_notes: str = "gemini-3.5-flash"  # Forenzný analytik (poznámky) — Flash pre spoľahlivú extrakciu related party transactions
-    model_vestnik: str = "gemini-3.5-flash-lite"    # Vestník udalosti — štruktúrovaná extrakcia
-    model_cross_analysis: str = "gemini-3.5-flash"  # Cross-Analysis Agent — krížová analýza, potrebuje grounding
-    model_fallback: str = "gemini-3.5-flash-lite"   # Fallback pri 404/503 (Flash-Lite — odlišný model pool)
-    model_fallback_2: str = "gemini-3.5-flash"       # Sekundárny fallback (Flash tier)
+    # Primary: Gemini 3.7 Flash (2x lacnejší, vyššia kvalita, thinking vypnuté pre latenciu)
+    # Fallback: 3.5 Flash (stabilný, rýchly) → 3.5 Flash-Lite (najrýchlejší)
+    # Expert: Chief Auditor on Pro 3.1 (2-pass), QA on Flash 3.7 (higher quality)
+    model_ifrs: str = "gemini-3.7-flash"   # IFRS tabuľky — extrakcia, fallbacky pokrývajú medzery
+    model_narrative: str = "gemini-3.7-flash"  # Naratívna analýza (VS) — textová, potrebuje silnejší model pre grounding
+    model_notes: str = "gemini-3.7-flash"  # Forenzný analytik (poznámky) — Flash pre spoľahlivú extrakciu related party transactions
+    model_vestnik: str = "gemini-3.7-flash"    # Vestník udalosti — štruktúrovaná extrakcia
+    model_cross_analysis: str = "gemini-3.7-flash"  # Cross-Analysis Agent — krížová analýza, potrebuje grounding
+    model_fallback: str = "gemini-3.5-flash"   # Fallback pri 404/503 (3.5 Flash — stabilný, rýchly)
+    model_fallback_2: str = "gemini-3.5-flash-lite"   # Sekundárny fallback (Flash-Lite tier)
     llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)
 
     @property
     def model_verdict(self) -> str:
-        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.5 in Standard."""
-        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.5-flash"
+        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.7 in Standard."""
+        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.7-flash"
 
     @property
     def model_qa(self) -> str:
-        """QA Agent model — Flash 3.5 in Expert Mode, Flash-Lite in Standard."""
-        return "gemini-3.5-flash" if self.expert_mode else "gemini-3.5-flash-lite"
+        """QA Agent model — Flash 3.7 in Expert Mode, Flash 3.5 in Standard."""
+        return "gemini-3.7-flash" if self.expert_mode else "gemini-3.5-flash"
 
     @property
     def chief_auditor_two_pass(self) -> bool:
@@ -106,6 +107,7 @@ class Settings(BaseSettings):
             "gemini-3.5-flash-lite":  (0.30,  2.50),
             "gemini-3.5-pro":         (2.50, 15.00),
             "gemini-3.1-pro-preview": (2.00, 12.00),
+            "gemini-3.7-flash":       (0.75,  3.75),  # Intro pricing do 31.12.2026, potom $1.50/$7.50
         }
 
 
