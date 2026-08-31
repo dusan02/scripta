@@ -461,7 +461,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     nace_text = getattr(company, 'naceText', None)
 
     # NACE dynamic weights for methodology transparency
-    from analytics import get_nace_weights
+    from src.analytics import get_nace_weights
     nace_weights = get_nace_weights(nace_code) if nace_code else None
 
     # Počet zamestnancov z najnovšieho výkazu (alebo odhad z staffCosts)
