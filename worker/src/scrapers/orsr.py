@@ -48,6 +48,9 @@ class OrsrScraper(BaseScraper):
 
     ORSR je statický HTML (windows-1250), nepotrebuje JavaScript.
     Rýchlosť: ~0.5-1s vs 17-34s s Playwright.
+
+    F5 anti-bot ochrana: ORSR niekedy vráti JavaScript challenge (TSPD/bobcmn)
+    namiesto search results. V takom prípade fallback na Playwright (vie spustiť JS).
     """
 
     source_type = "ORSR"
@@ -57,6 +60,9 @@ class OrsrScraper(BaseScraper):
     # Initialized lazily by the first run() call when shared_client=True.
     _shared_client: httpx.AsyncClient | None = None
     _shared_client_lock = asyncio.Lock()
+
+    # F5 anti-bot markers
+    _F5_MARKERS = ("TSPD", "bobcmn")
 
     # ── Public ───────────────────────────────────────────────────────
 
@@ -241,15 +247,72 @@ class OrsrScraper(BaseScraper):
             base_delay=_HTTP_RETRY_DELAY,
         )
 
+    def _is_f5_challenge(self, html: str) -> bool:
+        """Detect F5 anti-bot JavaScript challenge page."""
+        return any(marker in html for marker in self._F5_MARKERS)
+
+    async def _fetch_with_playwright(self, url: str, wait_for: str = None) -> str:
+        """Fetch a URL using Playwright (can execute F5 JavaScript challenge).
+
+        Returns page HTML as string. Uses the shared browser context from BaseScraper.
+        """
+        page = None
+        try:
+            page = await self._get_page(block_images=True, locale="sk-SK")
+            await page.goto(url, wait_until="networkidle", timeout=30000)
+            # Wait for actual content to appear (F5 challenge redirects/reloads)
+            if wait_for:
+                try:
+                    await page.wait_for_selector(wait_for, timeout=15000)
+                except Exception:
+                    pass  # selector might not be present, continue anyway
+            else:
+                # Wait for body to have real content (not F5 challenge)
+                await page.wait_for_function(
+                    "() => document.body && document.body.innerHTML.length > 200 && !document.body.innerHTML.includes('bobcmn')",
+                    timeout=15000,
+                )
+            html = await page.content()
+            logger.info(f"[{self.source_type}] Playwright fetch OK (url={url[:80]})")
+            return html
+        except Exception as e:
+            logger.warning(f"[{self.source_type}] Playwright fetch zlyhal: {e}")
+            raise
+        finally:
+            if page:
+                try:
+                    await page.close()
+                except Exception:
+                    pass
+
     async def _fetch_search_page(self, client: httpx.AsyncClient, ico: str) -> str:
-        """Fetch the search results page for given IČO."""
+        """Fetch the search results page for given IČO.
+
+        Skúša httpx prvej; ak detekuje F5 anti-bot challenge, fallback na Playwright.
+        """
         url = f"{_SEARCH_URL}?ICO={ico}&SID=0"
         logger.info(f"[{self.source_type}] Navigujem na {url}")
-        return await self._fetch_with_retry(client, url)
+        html = await self._fetch_with_retry(client, url)
+
+        # F5 anti-bot detection → Playwright fallback
+        if self._is_f5_challenge(html):
+            logger.warning(f"[{self.source_type}] F5 anti-bot challenge detekovaný — prepnem na Playwright.")
+            html = await self._fetch_with_playwright(url, wait_for="a[href*='vypis.asp']")
+
+        return html
 
     async def _fetch_detail_page(self, client: httpx.AsyncClient, detail_url: str) -> str:
-        """Fetch a detail (vypis) page."""
-        return await self._fetch_with_retry(client, detail_url)
+        """Fetch a detail (vypis) page.
+
+        Skúša httpx prvej; ak detekuje F5 anti-bot challenge, fallback na Playwright.
+        """
+        html = await self._fetch_with_retry(client, detail_url)
+
+        if self._is_f5_challenge(html):
+            logger.warning(f"[{self.source_type}] F5 anti-bot challenge na detail page — prepnem na Playwright.")
+            html = await self._fetch_with_playwright(detail_url, wait_for="table")
+
+        return html
 
     # ── Parsing helpers ──────────────────────────────────────────────
 
@@ -320,7 +383,7 @@ class OrsrScraper(BaseScraper):
         for url in links:
             try:
                 detail_html = await self._fetch_detail_page(client, url)
-            except httpx.HTTPError as e:
+            except Exception as e:
                 logger.warning(f"[{self.source_type}] Chyba pri fetch {url}: {e}")
                 continue
 
@@ -343,7 +406,7 @@ class OrsrScraper(BaseScraper):
                         elif _TRANSFERRED_MARKER in detail_html:
                             logger.info(f"[{self.source_type}] Nasledovaný výpis je odstúpený — skúšam ďalší.")
                             continue
-                    except httpx.HTTPError:
+                    except Exception:
                         logger.warning(f"[{self.source_type}] Skok na aktuálny výpis zlyhal — skúšam ďalší.")
                         continue
                 else:
@@ -365,7 +428,7 @@ class OrsrScraper(BaseScraper):
                 detail_html = await self._fetch_detail_page(client, links[-1])
                 company_name = self._extract_company_name_from_detail(detail_html)
                 return detail_html, company_name
-            except httpx.HTTPError:
+            except Exception:
                 pass
         return None, None
 
