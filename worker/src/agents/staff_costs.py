@@ -117,7 +117,7 @@ PRAVIDLA:
 - Pokud hodnotu nemůžete najít ve výkazu ani v příloze, vraťte hodnotu null a found_in='not_found'."""
 
 
-async def extract_staff_costs_focused(file_path: str, model: str = settings.model_ifrs, report_language: str = "sk") -> Optional[float]:
+async def extract_staff_costs_focused(file_path: str, model: str = settings.model_fallback_2, report_language: str = "sk") -> Optional[float]:
     """
     Cielene extrahuje iba osobné náklady z PDF/TXT.
     Používa sa ako retry keď hlavná extrakcia vráti None pre osobne_naklady.

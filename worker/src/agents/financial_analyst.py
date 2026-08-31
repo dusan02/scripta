@@ -158,7 +158,7 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
 
     return data
 
-async def verify_critical_numbers_blind(file_path: str, model: str = settings.model_fallback) -> VerificationExtraction:
+async def verify_critical_numbers_blind(file_path: str, model: str = settings.model_fallback_2) -> VerificationExtraction:
     """
     Slepá verifikácia kľúčových polí na celom PDF.
     Používa sa pre lacnejší model (Flash), na overenie OCR z prvého behu.
