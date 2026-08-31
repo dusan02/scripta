@@ -815,9 +815,11 @@ async def reprocess_report(report_request_id: str):
 
     # Reset status na PROCESSING pred enqueue — inak check_report_cancelled
     # zistí starý FAILED/COMPLETED status a zruší reprocess hneď na začiatku.
+    # Reset aj createdAt — frontend recover-stuck cron označí PROCESSING reporty
+    # staršie ako 30 min (podľa createdAt) ako FAILED, čo by zabil reprocess.
     await db.reportrequest.update(
         where={'id': report_request_id},
-        data={'status': 'PROCESSING', 'completedAt': None},
+        data={'status': 'PROCESSING', 'completedAt': None, 'createdAt': datetime.now()},
     )
 
     await app.state.redis.enqueue_job('execute_report_task', task.dict())
