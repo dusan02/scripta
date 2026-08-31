@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     cleanup_max_age_days: int = 30          # reporty staršie ako X dní sa zmažú
     cleanup_max_reports_per_user: int = 50  # max počet reportov per user (najstaršie sa zmažú)
     cleanup_interval_hours: int = 1         # ako často beží cleanup loop (1h — častejšie pre stuck recovery)
-    stale_report_threshold_minutes: int = 20  # reporty v PROCESSING dlhšie ako X min → FAILED + refund
+    stale_report_threshold_minutes: int = 60  # reporty v PROCESSING dlhšie ako X min → FAILED + refund
 
     # Shared-secret medzi Next.js API a workerom (voliteľné v dev; povinné v produkcii)
     worker_secret: Optional[str] = None

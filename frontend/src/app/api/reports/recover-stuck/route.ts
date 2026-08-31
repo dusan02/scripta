@@ -42,13 +42,16 @@ export async function GET(req: NextRequest) {
 
 async function runRecoverStuck() {
 
-  // Use createdAt with a 30-minute threshold for the frontend cron.
+  // Use createdAt with a 60-minute threshold for the frontend cron.
   // The worker cleanup (in-process) uses updatedAt with 20 min — it knows the actual state.
   // The frontend cron is a fallback for when the worker is completely dead (crashed, OOM).
   // Using updatedAt here would cause false positives during long scraping phases
   // where the worker doesn't update ai_status for >20 minutes.
-  // Using createdAt with 30 min gives the worker enough time to finish long reports.
-  const STUCK_THRESHOLD_MINUTES = 30;
+  // Using createdAt with 60 min gives the worker enough time to finish long reports,
+  // including Gemini API 503 retries and model fallbacks which can extend runtime to 40-50 min.
+  // Previous 30 min threshold caused false positives — report was marked FAILED mid-run
+  // while Chief Auditor was still processing (Gemini 503 → fallback → 12 min phase).
+  const STUCK_THRESHOLD_MINUTES = 60;
   const cutoff = new Date(Date.now() - STUCK_THRESHOLD_MINUTES * 60 * 1000);
 
   try {
