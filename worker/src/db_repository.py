@@ -755,6 +755,10 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
                         v = json.loads(v)
                     except (json.JSONDecodeError, TypeError):
                         pass  # keep as string fallback
+                # Re-wrap in Json() — Prisma 0.15 requires Json type for jsonb fields
+                from prisma import Json as PrismaJson
+                if v is not None:
+                    v = PrismaJson(v)
             clean_payload[k] = v
 
         # Prisma 0.15 upsert has issues with companyIco in create when it's also in where.
@@ -766,9 +770,11 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
                 data=clean_payload,
             )
         else:
+            # Prisma 0.15 requires `company` relation field (not just `companyIco`) on create.
+            # Without `connect`, Prisma throws: "data.company: A value is required but not set"
             await db.auditverdict.create(
                 data={
-                    'companyIco': ico,
+                    'company': {'connect': {'ico': ico}},
                     **clean_payload,
                 }
             )
