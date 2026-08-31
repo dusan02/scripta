@@ -80,6 +80,7 @@ ROW_RESERVES = 141  # Časové rozlíšenie (pasív)
 ROW_NET_REVENUE = 1
 ROW_OPERATING_INCOME = 2        # Výnosy z hosp. činnosti spolu
 ROW_OPERATING_COSTS = 10       # Náklady na hospodársku činnosť spolu (NOT COGS — includes wages, depreciation, services)
+ROW_PURCHASE_PRICE_GOODS = 11  # Kúpne ceny predaného tovaru (COGS pre obchodné firmy)
 ROW_MATERIAL_CONSUMPTION = 12  # Spotreba materiálu, energie
 ROW_SERVICES = 14              # Služby
 ROW_PERSONNEL_COSTS = 15
@@ -807,17 +808,21 @@ def parse_tables_to_metrics(
     if trzby is None and has_income:
         trzby = _get_income_value(ordered, ROW_OPERATING_INCOME)
 
-    # Hrubá marža: Tržby - (Spotreba materiálu + Služby) ako proxy pre COGS v SK GAAP
+    # Hrubá marža: Tržby - COGS v SK GAAP
+    # COGS pre obchodné firmy = Kúpne ceny predaného tovaru (riadok 11)
+    # COGS pre výrobné firmy = Spotreba materiálu (riadok 12) + Služby (riadok 14)
     # Riadok 10 (náklady na hosp. činnosť spolu) zahŕňa aj mzdy, odpisy → nie je COGS.
     # Bez COGS dát nie je možné spoľahlivo vypočítať hrubú maržu — pridaná hodnota
     # (riadok 28) je NEvhodný proxy (zahŕňa mzdy, odpisy → nadhodnocuje maržu na 80%+).
     hruba_marza = None
     if has_income:
+        kupne_ceny = _get_income_value(ordered, ROW_PURCHASE_PRICE_GOODS, is_micro=is_micro_income)
         spotreba = _get_income_value(ordered, ROW_MATERIAL_CONSUMPTION, is_micro=is_micro_income)
         sluzby_val = _get_income_value(ordered, ROW_SERVICES, is_micro=is_micro_income)
         cogs_proxy = None
-        if spotreba is not None or sluzby_val is not None:
-            cogs_proxy = (spotreba or 0) + (sluzby_val or 0)
+        components = [v for v in [kupne_ceny, spotreba, sluzby_val] if v is not None]
+        if components:
+            cogs_proxy = sum(components)
         if trzby is not None and cogs_proxy is not None and cogs_proxy > 0:
             hruba_marza = trzby - cogs_proxy
 
