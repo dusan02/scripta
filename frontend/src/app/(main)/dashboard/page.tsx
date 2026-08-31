@@ -116,6 +116,7 @@ export default async function DashboardPage() {
   if (process.env.NODE_ENV === "production") {
     console.log(`[dashboard] auth=${_t1 - _t0}ms parallel_queries=${_t2 - _t1}ms credits=${_t3 - _t2}ms total=${_t3 - _t0}ms`);
   }
+  const isNewUser = reports.length === 0;
   const watchedCompanies = watchedCompaniesRaw.map((w) => ({
     ...w,
     createdAt: w.createdAt.toISOString(),
