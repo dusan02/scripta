@@ -31,7 +31,7 @@ services:
       -c wal_keep_size=128MB
       -c shared_buffers=384MB
       -c work_mem=4MB
-      -c max_connections=30
+      -c max_connections=100
       -c effective_cache_size=1GB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U verifa"]

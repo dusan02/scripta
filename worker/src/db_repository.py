@@ -719,14 +719,19 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
     """Uloží konečný verdikt do databázy."""
     db = get_db()
     try:
+        # Prisma upsert vyžaduje 'company' reláciu v create vetve.
+        # Ak verdict_payload obsahuje 'findings' ako None, Prisma ho odmietne —
+        # preto odfiltrujeme None hodnoty pre Json? polia.
+        clean_payload = {k: v for k, v in verdict_payload.items() if v is not None}
         await db.auditverdict.upsert(
             where={'companyIco': ico},
             data={
                 'create': {
                     'companyIco': ico,
-                    **verdict_payload,
+                    'company': {'connect': {'ico': ico}},
+                    **clean_payload,
                 },
-                'update': verdict_payload,
+                'update': clean_payload,
             }
         )
         logger.info(f"AuditVerdict pre {ico} bol uložený.")
