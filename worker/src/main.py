@@ -813,6 +813,13 @@ async def reprocess_report(report_request_id: str):
         report_language=getattr(row.user, 'reportLanguage', None) or "sk",
     )
 
+    # Reset status na PROCESSING pred enqueue — inak check_report_cancelled
+    # zistí starý FAILED/COMPLETED status a zruší reprocess hneď na začiatku.
+    await db.reportrequest.update(
+        where={'id': report_request_id},
+        data={'status': 'PROCESSING', 'completedAt': None},
+    )
+
     await app.state.redis.enqueue_job('execute_report_task', task.dict())
     return {"taskId": report_request_id, "status": "reprocessing"}
 
