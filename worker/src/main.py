@@ -114,13 +114,28 @@ async def _execute_report(task: ReportTask) -> None:
         await _execute_report_inner(task)
 
 
-def _extract_company_name(sources, target_type: str) -> Optional[str]:
-    """Extract company name from first successful scraper that has it."""
+async def _extract_company_name(sources, target_type: str, ico: str = None) -> Optional[str]:
+    """Extract company name from first successful scraper that has it.
+
+    Fallback: ak žiadny scraper neextrahoval company_name (napr. ORSR zlyhal
+    na F5 anti-bot), skús načítať z Company tabuľky (z ORSR bulk seed).
+    """
     if target_type != "COMPANY":
         return None
+    # 1. Skús scraper výsledky
     for s in sources:
         if s.status == "SUCCESS" and getattr(s, "company_name", None):
             return s.company_name
+    # 2. Fallback: DB (z ORSR bulk seed — 515k+ firiem)
+    if ico:
+        try:
+            from .db_repository import get_company_name_from_db
+            db_name = await get_company_name_from_db(ico)
+            if db_name:
+                logger.info(f"Company name z DB fallback (ORSR scraper zlyhal): {db_name}")
+                return db_name
+        except Exception as e:
+            logger.warning(f"DB fallback pre company_name zlyhal: {e}")
     return None
 
 
@@ -408,7 +423,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # ── Cancellation check #1: before AI pipeline (most expensive phase) ──
         await check_report_cancelled(task.report_request_id)
 
-        company_name = _extract_company_name(sources, task.target_type)
+        company_name = await _extract_company_name(sources, task.target_type, task.ico)
 
         # 3h: Browser health check — ak browser spadol počas scrapovania, re-launch
         if browser:

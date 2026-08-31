@@ -383,9 +383,19 @@ async def process_company(
     if report_request_id:
         company_name = await get_report_request_company_name(report_request_id)
 
+    # Fallback: ak nemáme reálny názov z ORSR scraperu, skús DB (bulk seed)
+    if not company_name and ico:
+        try:
+            from src.db_repository import get_company_name_from_db
+            company_name = await get_company_name_from_db(ico)
+            if company_name:
+                logger.info(f"[PIPELINE] Company name z DB fallback: {company_name}")
+        except Exception as e:
+            logger.warning(f"[PIPELINE] DB fallback pre company_name zlyhal: {e}")
+
     # Fallback placeholder ak nemáme reálny názov z ORSR
     fallback_name = company_name or f"Spoločnosť s IČO {ico}"
-    
+
     await upsert_company_name(ico, company_name or fallback_name)
     
     await update_ai_status(report_request_id, "ai.downloading", _remaining_eta(_t_start, pipeline_baseline))

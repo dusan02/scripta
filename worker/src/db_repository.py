@@ -623,6 +623,25 @@ async def get_report_request_company_name(report_request_id: str) -> Optional[st
     finally:
         pass
 
+
+async def get_company_name_from_db(ico: str) -> Optional[str]:
+    """Fallback: načítaj company name z Company tabuľky (z ORSR bulk seed).
+
+    Používa sa keď ORSR scraper zlyhá (F5 anti-bot) ale názov už máme v DB
+    z predchádzajúcej bulk synchronizácie (515k+ firiem).
+    """
+    db = get_db()
+    try:
+        company = await db.company.find_unique(where={'ico': ico})
+        if company and company.name:
+            # Filter out placeholder names
+            _INVALID = {"", "n/a", "n/a.", "none", "null", "-", "nezistené", "nezisten", "neuvedené", "neuveden", "unknown", "neznáma spoločnosť"}
+            if company.name.lower().strip() not in _INVALID and not company.name.lower().startswith("spoločnosť s ičo"):
+                return company.name
+        return None
+    except Exception:
+        return None
+
 async def upsert_company_name(ico: str, company_name: str) -> None:
     db = get_db()
     try:
