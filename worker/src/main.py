@@ -817,9 +817,12 @@ async def reprocess_report(report_request_id: str):
     # zistí starý FAILED/COMPLETED status a zruší reprocess hneď na začiatku.
     # Reset aj createdAt — frontend recover-stuck cron označí PROCESSING reporty
     # staršie ako 30 min (podľa createdAt) ako FAILED, čo by zabil reprocess.
+    # Pozor: musí byť UTC (datetime.utcnow), nie datetime.now() — Prisma/DB
+    # ukladá timestamp bez timezone, frontend interpretuje ako UTC→local.
+    # datetime.now() v CEST containeri by posunulo createdAt o +2h do budúcnosti.
     await db.reportrequest.update(
         where={'id': report_request_id},
-        data={'status': 'PROCESSING', 'completedAt': None, 'createdAt': datetime.now()},
+        data={'status': 'PROCESSING', 'completedAt': None, 'createdAt': datetime.now(timezone.utc)},
     )
 
     await app.state.redis.enqueue_job('execute_report_task', task.dict())

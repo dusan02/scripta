@@ -728,14 +728,14 @@ async def save_audit_verdict(ico: str, verdict_payload: dict):
             # Unwrap Prisma Json wrapper (has .data attribute)
             if hasattr(v, 'data'):
                 v = v.data
-            # findings/justification/scorecardBreakdown: ensure JSON-serializable
-            if k in ('findings', 'justification', 'scorecardBreakdown'):
+            # findings and scorecardBreakdown are Json? fields — ensure JSON-serializable
+            # justification is String — must stay as string, never convert to dict
+            if k in ('findings', 'scorecardBreakdown'):
                 if isinstance(v, str):
                     try:
                         v = json.loads(v)
                     except (json.JSONDecodeError, TypeError):
-                        pass  # keep as string for justification (String type)
-                # If it's a list/dict, keep as-is; Prisma accepts Json
+                        pass  # keep as string fallback
             clean_payload[k] = v
 
         # Prisma 0.15 upsert has issues with companyIco in create when it's also in where.

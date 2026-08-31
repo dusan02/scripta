@@ -701,6 +701,7 @@ const hu: Dict = {
   "report.queuedMessage": "A feldolgozás automatikusan elindul, amint a kapacitás rendelkezésre áll. Kérjük, várjon.",
   "report.zdrojeNedostupne": "forrás nem elérhető",
   "report.manualLookup": "Az információkat manuálisan megtekintheti itt:",
+  "report.orsrDependencyMissing": "Az ORSR függőség nem szolgáltatott adatokat.",
   "report.nar": "Születési idő",
   "report.storno": "Mégse",
   "report.storujem": "Megszakítás…",

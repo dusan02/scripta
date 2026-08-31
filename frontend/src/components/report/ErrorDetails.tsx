@@ -5,9 +5,13 @@ import { useT } from "@/components/LanguageProvider";
 import { MANUAL_LOOKUP_URLS, SOURCE_MAP } from "@/lib/sources";
 import type { ReportSource } from "@/lib/reportConstants";
 
-function sanitizeStatusMessage(msg: string | null | undefined): string | null {
+function sanitizeStatusMessage(msg: string | null | undefined, t: (key: string) => string): string | null {
   if (!msg) return null;
   let raw = msg;
+  // Map known Slovak worker status messages to i18n keys
+  if (/^Závislosť \w+ neposkytla potrebné údaje\./.test(raw)) {
+    return t("report.orsrDependencyMissing");
+  }
   raw = raw.replace(/Scraper čakal príliš dlho na semafor \(\d+s\)\.?/g, "Register dočasne nedostupný — prekročený časový limit.");
   raw = raw.replace(/Page\.goto:\s*Navigation.*timeout.*/g, "Register nedostupný — prekročený časový limit načítania.");
   raw = raw.replace(/Execution context was destroyed.*/g, "Register dočasne nedostupný.");
@@ -59,9 +63,9 @@ export default function ErrorDetails({ sources }: { sources: ReportSource[] }) {
             const url = MANUAL_LOOKUP_URLS[s.sourceType];
             return (
               <div key={s.sourceType} className="flex flex-col gap-0.5 py-1.5" style={{ borderBottom: "1px solid var(--border)" }}>
-                <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{SOURCE_MAP[s.sourceType]?.label || s.sourceType}</span>
+                <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{t(`source.${s.sourceType}`) !== `source.${s.sourceType}` ? t(`source.${s.sourceType}`) : (SOURCE_MAP[s.sourceType]?.label || s.sourceType)}</span>
                 {(() => {
-                  const clean = sanitizeStatusMessage(s.statusMessage);
+                  const clean = sanitizeStatusMessage(s.statusMessage, t);
                   return clean ? (
                     <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{clean}</span>
                   ) : null;

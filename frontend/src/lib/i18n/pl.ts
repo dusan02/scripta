@@ -701,6 +701,7 @@ const pl: Dict = {
   "report.queuedMessage": "Przetwarzanie rozpocznie się automatycznie, gdy zwolni się miejsce. Proszę czekać.",
   "report.zdrojeNedostupne": "źródła niedostępne",
   "report.manualLookup": "Informacje można wyszukać ręcznie na stronie",
+  "report.orsrDependencyMissing": "Zależność ORSR nie dostarczyła wymaganych danych.",
   "report.nar": "Data urodzenia",
   "report.storno": "Anuluj",
   "report.storujem": "Anulowanie…",

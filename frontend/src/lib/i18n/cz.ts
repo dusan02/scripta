@@ -611,6 +611,7 @@ const cz: Dict = {
   "report.queuedMessage": "Spracování sa spustí automaticky, když sa uvolní kapacita. Prosím, počkajte.",
   "report.zdrojeNedostupne": "zdroje nedostupné",
   "report.manualLookup": "Informaci si můžete manuálně dohledat na",
+  "report.orsrDependencyMissing": "Závislost ORSR neposkytla potřebné údaje.",
   "report.nar": "Nar.",
   "report.storno": "Storno",
   "report.storujem": "Ruším…",
