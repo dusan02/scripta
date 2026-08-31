@@ -808,11 +808,17 @@ export function getHubJsonLd(params: HubParams, companies: HubCompany[], baseUrl
  * Picks the city with the most companies if multiple match.
  */
 export async function resolveCitySlug(slug: string): Promise<string | null> {
-  // SQL equivalent of slugify():
-  // 1. unaccent() — strip Slovak diacritics
-  // 2. lower() — lowercase BEFORE regexp_replace (so [^a-z0-9] matches)
-  // 3. regexp_replace — replace non-a-z0-9 with hyphens
-  // 4. trim leading/trailing hyphens
+  // Use the CitySlugCache table for O(1) lookup instead of scanning 518k rows
+  // with unaccent() + regexp_replace() on every request.
+  // The cache is populated by the reseed-all cron and refresh-city-slug-cache script.
+  // Fallback to the full scan only if the cache table is empty (cold start).
+  const cached = await prisma.$queryRawUnsafe<Array<{ city: string }>>(
+    `SELECT city FROM "CitySlugCache" WHERE slug = $1 LIMIT 1`,
+    slug
+  );
+  if (cached.length > 0) return cached[0].city;
+
+  // Cold start fallback — compute on the fly (slow, but only once per slug)
   const result = await prisma.$queryRawUnsafe<Array<{ city: string }>>(
     `SELECT city FROM (
        SELECT city,
