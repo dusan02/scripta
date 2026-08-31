@@ -220,7 +220,7 @@ Obliczenie QUALITY_SCORE (0-100):
 async def verify_report_quality(
     verdict_json: str,
     source_json: str,
-    model: str = settings.model_fallback_2,
+    model: str = settings.model_qa,
     report_language: str = "sk",
 ) -> QAResult:
     """
