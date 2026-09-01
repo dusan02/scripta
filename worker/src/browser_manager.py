@@ -32,7 +32,7 @@ class BrowserManager:
             # Skúšame pripojenie na Browserless
             # stealth=1 zapne stealth plugin proti anti-bot detekcii
             # blockAds=false — ad-blocker môže zablokovať funkčné requesty (captcha, API calls)
-            browserless_url = "ws://browserless:3000?stealth=1&launch-options=%7B%22args%22%3A%5B%22--disable-blink-features%3DAutomationControlled%22%5D%7D"
+            browserless_url = "ws://browserless:3000?stealth=1"
             browser = await playwright.chromium.connect_over_cdp(browserless_url, timeout=15000)
             
             # Pre-flight health check — over že browser je skutočne funkčný
