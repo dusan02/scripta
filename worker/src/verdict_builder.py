@@ -502,25 +502,29 @@ def _compute_deterministic_adjustment(
     # môže prehliadnuť, ak sú bežné ukazovatele (likvidita, Altman) ešte OK.
     if financial_statements and len(financial_statements) >= 3:
         stmts = sorted(financial_statements, key=lambda s: s.get("year", 0), reverse=True)
-        # Equity decline: porovnaj najnovší rok s rokom 3 späť
-        latest_eq = stmts[0].get("equity")
-        oldest_eq = stmts[2].get("equity") if len(stmts) >= 3 else None
-        if latest_eq is not None and oldest_eq is not None and oldest_eq > 0:
-            eq_decline_pct = (oldest_eq - latest_eq) / oldest_eq
-            if eq_decline_pct >= 0.50:
-                adj -= 2
-                breakdown["equity_decline"] = -2
-                reasons.append(f"equity_decline (-2 — {eq_decline_pct*100:.0f}% pokles za 3 roky)")
+        # Equity decline: porovnaj najnovší rok s rokom 3 roky späť (index 3)
+        # Napr. 2025 vs 2022 — zachytí dlhodobý trend, nielen krátkodobé výkyvy
+        if len(stmts) >= 4:
+            latest_eq = stmts[0].get("equity")
+            oldest_eq = stmts[3].get("equity")
+            if latest_eq is not None and oldest_eq is not None and oldest_eq > 0:
+                eq_decline_pct = (oldest_eq - latest_eq) / oldest_eq
+                if eq_decline_pct >= 0.50:
+                    adj -= 2
+                    breakdown["equity_decline"] = -2
+                    reasons.append(f"equity_decline (-2 — {eq_decline_pct*100:.0f}% pokles za 3 roky)")
 
-        # Asset decline: porovnaj najnovší rok s rokom 2 späť
-        latest_ast = stmts[0].get("totalAssets")
-        prev_ast = stmts[1].get("totalAssets") if len(stmts) >= 2 else None
-        if latest_ast is not None and prev_ast is not None and prev_ast > 0:
-            ast_decline_pct = (prev_ast - latest_ast) / prev_ast
-            if ast_decline_pct >= 0.50:
-                adj -= 2
-                breakdown["asset_decline"] = -2
-                reasons.append(f"asset_decline (-2 — {ast_decline_pct*100:.0f}% pokles za 2 roky)")
+        # Asset decline: porovnaj najnovší rok s rokom 2 roky späť (index 2)
+        # Napr. 2025 vs 2023 — zachytí dramatický úbytok aktív
+        if len(stmts) >= 3:
+            latest_ast = stmts[0].get("totalAssets")
+            oldest_ast = stmts[2].get("totalAssets")
+            if latest_ast is not None and oldest_ast is not None and oldest_ast > 0:
+                ast_decline_pct = (oldest_ast - latest_ast) / oldest_ast
+                if ast_decline_pct >= 0.50:
+                    adj -= 2
+                    breakdown["asset_decline"] = -2
+                    reasons.append(f"asset_decline (-2 — {ast_decline_pct*100:.0f}% pokles za 2 roky)")
 
     # Clamp to -5..+5 (v3 — less aggressive than original ±10)
     raw_adj = adj
