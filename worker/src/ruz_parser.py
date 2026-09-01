@@ -473,10 +473,9 @@ def _identify_tables(tables: list) -> dict[str, int]:
             f"Available table names: {available}"
         )
 
-    # Debug: log all table names for PFP detection
-    if "pfp" not in result:
-        available = [t.get("nazov", {}).get("sk", "?") for t in tables]
-        logger.info(f"[RUZ_PARSER] PFP table not found (tables={len(tables)}). Available table names: {available}")
+    # Log when PFP table is found (RÚZ JSON API pre šablónu 699 zvyčajne neobsahuje PFP)
+    if "pfp" in result:
+        logger.info(f"[RUZ_PARSER] PFP table found at index {result['pfp']}")
 
     return result
 
