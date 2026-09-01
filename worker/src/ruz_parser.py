@@ -451,7 +451,7 @@ def _get_income_value(tables: list, cislo_riadku: int, current: bool = True,
 def _identify_tables(tables: list) -> dict[str, int]:
     """Identify table indices by their Slovak names.
 
-    Returns a dict mapping 'aktiv', 'pasiv', 'income' to table indices.
+    Returns a dict mapping 'aktiv', 'pasiv', 'income', 'pfp' to table indices.
     Logs available table names if mandatory tables (aktiv/pasiv) are not found.
     """
     result = {}
@@ -463,6 +463,8 @@ def _identify_tables(tables: list) -> dict[str, int]:
             result["pasiv"] = i
         elif "ziskov a str" in nazov or "profit and loss" in nazov or "výsledovka" in nazov:
             result["income"] = i
+        elif "peňažných tokov" in nazov or "peňazných tokov" in nazov or "cash flow" in nazov:
+            result["pfp"] = i
 
     if "aktiv" not in result or "pasiv" not in result:
         available = [t.get("nazov", {}).get("sk", "?") for t in tables]
@@ -472,6 +474,47 @@ def _identify_tables(tables: list) -> dict[str, int]:
         )
 
     return result
+
+
+def _extract_pfp_summary(pfp_table: dict, current: bool = True) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    """Extract investing and financing CF summary from PFP table by label search.
+
+    PFP (Príkaz o peňažných tokoch / Prehľad peňažných tokov) has variable row
+    layouts across templates. Instead of hardcoding cisloRiadku, we search for
+    rows whose label contains key phrases:
+      - "čisté peňažné toky z prevádzkovej" → operating CF (A.)
+      - "čisté peňažné toky z investičnej"  → investing CF (B.)
+      - "čisté peňažné toky z finančnej"    → financing CF (C.)
+
+    Returns (operating_cf, investing_cf, financing_cf).
+    """
+    data = pfp_table.get("data", [])
+    if not data:
+        return None, None, None
+
+    target_col = 0 if current else 1
+    operating_cf = None
+    investing_cf = None
+    financing_cf = None
+
+    for row in data:
+        if not isinstance(row, list) or len(row) < 3:
+            continue
+        # Label is typically the second cell (index 1).
+        # Data cells are the last 2 (bežné, predchádzajúce).
+        label = str(row[1]).lower() if len(row) > 1 else ""
+        data_cells = row[-2:] if len(row) >= 2 else []
+        if len(data_cells) < 2:
+            continue
+
+        if "čisté peňažné toky z prevádzkovej" in label:
+            operating_cf = _to_float(data_cells[target_col])
+        elif "čisté peňažné toky z investičnej" in label:
+            investing_cf = _to_float(data_cells[target_col])
+        elif "čisté peňažné toky z finančnej" in label:
+            financing_cf = _to_float(data_cells[target_col])
+
+    return operating_cf, investing_cf, financing_cf
 
 
 def _compute_months(obdobie_od: str, obdobie_do: str) -> Optional[int]:
@@ -594,12 +637,13 @@ def parse_tables_to_metrics(
         logger.debug(f"[RUZ_PARSER] Missing aktív/pasív tables — skipping (tables: {list(tab_map.keys())})")
         return None
 
-    # Reorder tables so aktív=0, pasív=1, income=2 (if present)
+    # Reorder tables so aktív=0, pasív=1, income=2 (if present), pfp=3 (if present)
     ordered = []
     ordered.append(tables[tab_map["aktiv"]])
     ordered.append(tables[tab_map["pasiv"]])
     if "income" in tab_map:
         ordered.append(tables[tab_map["income"]])
+    pfp_table = tables[tab_map["pfp"]] if "pfp" in tab_map else None
 
     # Extract period info from titulnaStrana
     obdobie_od = titulna_strana.get("obdobieOd", "")
@@ -972,6 +1016,27 @@ def parse_tables_to_metrics(
     if estimated_ocf is not None:
         logger.debug(f"[RUZ_PARSER] IČO {ico} rok {year}: estimated OCF = {estimated_ocf:.0f} (indirect method)")
 
+    # ── PFP (Príkaz o peňažných tokoch) — extrakcia investičného a finančného CF ──
+    # Ak RÚZ JSON obsahuje PFP tabuľku, extrahujeme reálne hodnoty namiesto odhadu.
+    pfp_operating_cf = None
+    pfp_investing_cf = None
+    pfp_financing_cf = None
+    if pfp_table is not None:
+        pfp_operating_cf, pfp_investing_cf, pfp_financing_cf = _extract_pfp_summary(pfp_table, current=True)
+        # Aplikuj unit_multiplier (tisíce EUR detekcia)
+        if unit_multiplier != 1.0:
+            pfp_operating_cf = pfp_operating_cf * unit_multiplier if pfp_operating_cf is not None else None
+            pfp_investing_cf = pfp_investing_cf * unit_multiplier if pfp_investing_cf is not None else None
+            pfp_financing_cf = pfp_financing_cf * unit_multiplier if pfp_financing_cf is not None else None
+        if pfp_investing_cf is not None or pfp_financing_cf is not None:
+            logger.info(
+                f"[RUZ_PARSER] IČO {ico} rok {year}: PFP extrahované — "
+                f"OCF={pfp_operating_cf}, ICF={pfp_investing_cf}, FCF={pfp_financing_cf}"
+            )
+        # Ak PFP má reálny OCF, použijeme ho namiesto odhadu (indirect method)
+        if pfp_operating_cf is not None:
+            estimated_ocf = pfp_operating_cf
+
     # ── Datum zostavenia závierky (forenzný signál) ──
     datum_zostavenia = titulna_strana.get("datumZostavenia") or titulna_strana.get("datumZostaveniaK")
     datum_schvalenia = titulna_strana.get("datumSchvalenia")
@@ -995,8 +1060,8 @@ def parse_tables_to_metrics(
         zavazky_z_obchodneho_styku=zavazky_obchod,
         zasoby=zasoby,
         odpisy=odpisy,
-        investicny_cash_flow=None,
-        financny_cash_flow=None,
+        investicny_cash_flow=pfp_investing_cf,
+        financny_cash_flow=pfp_financing_cf,
         uroky=uroky,
         pocet_zamestnancov=pocet_zam_int,
         zavazky_sp=zavazky_sp,

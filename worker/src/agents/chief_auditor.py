@@ -190,6 +190,7 @@ Kontext:
   {{{{STATUTAR_CHANGES}}}} — počet zmien štatutárov
   {{{{COMPANY_NAME}}}} — názov spoločnosti
   {{{{LATEST_YEAR}}}} — rok najnovšej závierky
+  {{{{RPE_ALERT}}}} — varovanie o extrémnom nepomere tržieb na zamestnanca (ak je "N/A", ignoruj)
 
 PRÍKLADY SPRÁVNEHO POUŽITIA:
 ✓ "Tržby {{{{REVENUE_YOY}}}}, ale prevádzkový cash flow zostáva pozitívny na úrovni {{{{OCF}}}}."
@@ -372,6 +373,7 @@ Context:
   {{{{STATUTAR_CHANGES}}}} — number of statutory changes
   {{{{COMPANY_NAME}}}} — company name
   {{{{LATEST_YEAR}}}} — latest statement year
+  {{{{RPE_ALERT}}}} — revenue-per-employee anomaly warning (ignore if "N/A")
 
 CORRECT USAGE EXAMPLES:
 ✓ "Revenue {{{{REVENUE_YOY}}}}, but operating cash flow remains positive at {{{{OCF}}}}."

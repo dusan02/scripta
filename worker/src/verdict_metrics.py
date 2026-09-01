@@ -278,6 +278,31 @@ def build_metric_placeholders(
     ph["{{COMPANY_NAME}}"] = company_name or "N/A"
     ph["{{LATEST_YEAR}}"] = str(latest.get("year", "")) if latest.get("year") else "N/A"
 
+    # ── RPE alert (revenue per employee anomaly) ──
+    # Ak employeeCount chýba, odhadneme z staffCosts / 18k EUR (priemerná mzda SK).
+    # Ak RPE > 2M EUR/zamestnanec, ide o silný varovný signál (štrukturálna anomália).
+    _emp = latest.get("employeeCount")
+    _emp_source = "reported"
+    if _emp is None or _emp <= 0:
+        _staff_costs = latest.get("staffCosts")
+        if _staff_costs and float(_staff_costs) > 0:
+            _emp = max(1, round(float(_staff_costs) / 18_000))
+            _emp_source = "estimated"
+    _rev = latest.get("mainActivityRevenue")
+    if _emp and _emp > 0 and _rev and float(_rev) > 0:
+        _rpe = float(_rev) / float(_emp)
+        if _rpe > 2_000_000:
+            _emp_label = _format_count(_emp) + ("*" if _emp_source == "estimated" else "")
+            ph["{{RPE_ALERT}}"] = (
+                f"VAROVANIE: Extrémny nepomer — {int(_rpe):,} EUR/zamestnanec "
+                f"({_emp_label} zamestnancov, odhad z mzdových nákladov). "
+                f"Priemer SK: 80 000–200 000 EUR. Prever skutočnú pracovnú silu."
+            ).replace(",", " ")
+        else:
+            ph["{{RPE_ALERT}}"] = "N/A"
+    else:
+        ph["{{RPE_ALERT}}"] = "N/A"
+
     # ── CAPEX (investing cash flow — záporné, zobrazujeme absolútnu hodnotu) ──
     _icf = latest.get("investingCashFlow")
     if _icf is not None:
