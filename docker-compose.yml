@@ -145,6 +145,7 @@ services:
       - CONNECTION_TIMEOUT=300000
       - MAX_CONCURRENT_SESSIONS=5
       - TOKEN=${BROWSERLESS_TOKEN:-}
+      - LAUNCH_ARGS=--disable-blink-features=AutomationControlled
 
   # ─── Python FastAPI Worker ────────────────────────────────
   worker:
