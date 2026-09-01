@@ -503,7 +503,7 @@ async def process_company(
                         ),
                         safe_llm_call(
                             verify_critical_numbers_blind, file_path,
-                            model=_cfg.model_fallback, label=f"Financial Verification Analyst:{file_name}"
+                            model=_MODEL_IFRS, label=f"Financial Verification Analyst:{file_name}"
                         )
                     )
                 else:
