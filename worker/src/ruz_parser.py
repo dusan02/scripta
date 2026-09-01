@@ -474,9 +474,9 @@ def _identify_tables(tables: list) -> dict[str, int]:
         )
 
     # Debug: log all table names for PFP detection
-    if "pfp" not in result and len(tables) > 3:
+    if "pfp" not in result:
         available = [t.get("nazov", {}).get("sk", "?") for t in tables]
-        logger.info(f"[RUZ_PARSER] PFP table not found. Available table names: {available}")
+        logger.info(f"[RUZ_PARSER] PFP table not found (tables={len(tables)}). Available table names: {available}")
 
     return result
 
