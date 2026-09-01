@@ -883,6 +883,41 @@ async def run_and_save_audit_verdict(
                 for stmt in company_dict.get("financialStatements", [])
             ],
         }
+
+        # ── RPE alert (revenue per employee anomaly) ──
+        # Ak employeeCount chýba, odhadneme z staffCosts / 18k EUR (priemerná mzda SK).
+        # Ak RPE > 2M EUR/zamestnanec, ide o silný varovný signál — pridáme do auditor input.
+        _rpe_alerts = []
+        for stmt in company_dict.get("financialStatements", []):
+            _emp = stmt.get("employeeCount")
+            _emp_source = "reported"
+            if _emp is None or _emp <= 0:
+                _staff_costs = stmt.get("staffCosts")
+                if _staff_costs and float(_staff_costs) > 0:
+                    _emp = max(1, round(float(_staff_costs) / 18_000))
+                    _emp_source = "estimated"
+            _rev = stmt.get("mainActivityRevenue")
+            if _emp and _emp > 0 and _rev and float(_rev) > 0:
+                _rpe = float(_rev) / float(_emp)
+                if _rpe > 2_000_000:
+                    _emp_label = f"{_emp}" + ("*" if _emp_source == "estimated" else "")
+                    _rpe_alerts.append({
+                        "year": stmt.get("year"),
+                        "rpe_eur": int(_rpe),
+                        "employee_count": _emp_label,
+                        "employee_count_source": _emp_source,
+                        "severity": "HIGH",
+                        "message": (
+                            f"Extrémny nepomer: {int(_rpe):,} EUR/zamestnanec "
+                            f"({_emp_label} zamestnancov"
+                            + (", odhad z mzdových nákladov" if _emp_source == "estimated" else "")
+                            + f"). Priemer SK: 80 000–200 000 EUR. "
+                            f"Prever skutočnú pracovnú silu (agentúr. zamestnanci, subdodávatelia)."
+                        ).replace(",", " "),
+                    })
+        if _rpe_alerts:
+            auditor_input_dict["rpeAlerts"] = _rpe_alerts
+            logger.info(f"[{ico}] RPE alerts: {len(_rpe_alerts)} year(s) with RPE > 2M EUR/employee")
         auditor_input_json = json.dumps(auditor_input_dict, default=str, ensure_ascii=False)
 
         cross_summary = ""
