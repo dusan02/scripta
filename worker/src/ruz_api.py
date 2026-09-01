@@ -961,6 +961,10 @@ async def _process_zavierka(
         obsah = vykaz.get("obsah", {})
         tabs = obsah.get("tabulky", [])
 
+        # Debug: log vykaz details for PFP detection
+        _tab_names = [t.get("nazov", {}).get("sk", "?") for t in tabs] if tabs else []
+        logger.info(f"[RUZ_API] Výkaz {vykaz.get('id')} rok {year}: tabs={len(tabs)} names={_tab_names}")
+
         if tabs:
             text = _format_vykaz_tables(vykaz)
             if text:
