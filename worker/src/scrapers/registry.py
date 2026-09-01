@@ -221,10 +221,12 @@ async def run_scrapers(
             else:
                 semaphores = [global_semaphore]
             # Queue timeout — ak scraper čaká na semafor príliš dlho, vráť UNAVAILABLE
-            # namiesto čakania nekonečne. 150s dáva dependent scraperom (FINANCNA_SPRAVA,
-            # RPO, DISKVALIFIKACIE — závisia na ORSR) šancu získať slot po uvoľnení
-            # dlho bežiacich scraperov (DOVERA, SP_DLZNICI trvajú 80-120s).
-            _SEMAPHORE_QUEUE_TIMEOUT = 150
+            # namiesto čakania nekonečne. Dependent scrapery (FINANCNA_SPRAVA, RPO,
+            # DISKVALIFIKACIE — závisia na ORSR) štartujú neskôr a všetkých 5 browser
+            # slotov môže byť obsadených pomalými scrapermi (DOVERA, SP_DLZNICI — 80-120s).
+            # Pre dependent scrapery dávame 220s (môžu čakať 2 vlny po 5 slotoch),
+            # pre nezávislé 150s (štartujú hneď, stačí 1 vlna).
+            _SEMAPHORE_QUEUE_TIMEOUT = 220 if source_type in _DEPENDS_ON else 150
             for sem in semaphores:
                 try:
                     await asyncio.wait_for(sem.acquire(), timeout=_SEMAPHORE_QUEUE_TIMEOUT)

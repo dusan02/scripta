@@ -81,6 +81,7 @@ class BrowserManager:
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-gpu",
+                "--disable-blink-features=AutomationControlled",
             ]
         )
 

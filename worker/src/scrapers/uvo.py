@@ -108,9 +108,16 @@ class UvoScraper(BaseScraper):
 
     async def _search(self, page: Page, ico: str) -> None:
         try:
-            # Presný CSS selector #input-nazovZakazky pre vyhľadávacie pole
-            search_input = page.locator("#input-nazovZakazky")
-            await search_input.wait_for(timeout=10000)
+            # IČO obstarávateľa — selector #input-obstarIco (nie #input-nazovZakazky,
+            # ktorý je pre názov zákazky). Fallback na #input-nazovZakazky ak stránka
+            # zmení layout.
+            search_input = page.locator("#input-obstarIco")
+            try:
+                await search_input.wait_for(state="visible", timeout=10000)
+            except PlaywrightTimeoutError:
+                logger.warning(f"[{self.source_type}] #input-obstarIco nenájdené, skúšam #input-nazovZakazky.")
+                search_input = page.locator("#input-nazovZakazky")
+                await search_input.wait_for(state="visible", timeout=10000)
             await search_input.fill(ico)
             # Presný selector div[class='btn-group-space'] button[type='submit'] pre Hľadať
             search_btn = page.locator("div[class='btn-group-space'] button[type='submit']")
