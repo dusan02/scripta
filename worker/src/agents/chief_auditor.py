@@ -711,7 +711,11 @@ async def evaluate_audit_verdict(
         response_mime_type="application/json",
         response_schema=AuditVerdict,
         temperature=0.0,
-        max_output_tokens=65536
+        max_output_tokens=65536,
+        # Pro models (2.5-pro, 3.1-pro) require thinking mode.
+        # thinking_budget=-1 = auto (let model decide thinking budget).
+        # This also bypasses the monkey-patch that sets thinking_budget=0 for Flash models.
+        thinking_config=types.ThinkingConfig(thinking_budget=-1),
     )
 
     response = await client.aio.models.generate_content(

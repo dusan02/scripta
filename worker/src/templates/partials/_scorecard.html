@@ -116,7 +116,13 @@
 
         {# ── Korekcia audítora ── #}
         <tr class="bg-slate-50 border-b border-slate-100" style="page-break-inside: avoid; break-inside: avoid;">
-            <td class="py-1.5 px-2 font-semibold text-slate-700 whitespace-nowrap">{{ i18n.auditor_correction }}</td>
+            <td class="py-1.5 px-2 font-semibold text-slate-700 whitespace-nowrap">
+                {% if verdict.llmAnalysisStatus == 'FALLBACK_ALGORITHMIC' %}
+                    {{ i18n.deterministic_correction | default(i18n.auditor_correction) }}
+                {% else %}
+                    {{ i18n.auditor_correction }}
+                {% endif %}
+            </td>
             <td class="py-1.5 px-2 text-left">
                 <span class="font-bold text-base
                     {% if verdict.llmScoreAdjustment > 0 %}text-emerald-600

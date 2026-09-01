@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 # we want fast structured data extraction.
 # This monkey-patch adds thinking_budget=0 to every GenerateContentConfig
 # unless the caller explicitly passes a thinking_config.
+# CRITICAL: Pro models (2.5-pro, 3.1-pro) do NOT support thinking_budget=0.
+# Agents using Pro models (Chief Auditor) must explicitly pass
+# thinking_config=ThinkingConfig(thinking_budget=-1) to bypass this patch.
 _orig_generate_config = genai_types.GenerateContentConfig
 
 

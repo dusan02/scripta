@@ -83,12 +83,18 @@ def format_findings(source, i18n=None) -> str:
             label = (i18n or {}).get("findings_manual_lookup", "Informáciu dohľadáte na")
             raw = f"{raw} | {label}: {url}"
 
-    max_chars = 350
+    max_chars = 600
     if len(raw) > max_chars:
         truncated = raw[:max_chars]
+        # Skús rezať na hranici slova alebo newline, nie v polovici slova
         last_nl = truncated.rfind("\n")
         if last_nl > 100:
             truncated = truncated[:last_nl]
+        else:
+            # Rež na hranici slova (medzera) aspoň 50 znakov pred koncom
+            last_space = truncated.rfind(" ")
+            if last_space > max_chars - 100:
+                truncated = truncated[:last_space]
         raw = truncated + "\n" + (i18n or {}).get("findings_truncated", "… (ďalšie záznamy v PDF výpise)")
 
     findings = xml_escape(raw)

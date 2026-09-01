@@ -389,11 +389,12 @@ def _compute_deterministic_adjustment(
     ico: str,
     is_consolidated: bool = False,
     registry_sources: list | None = None,
+    financial_statements: list | None = None,
 ) -> tuple:
     """
     Deterministický forenzný adjustment namiesto LLM ±10.
     Konvertuje štruktúrované LLM nálezy (NarrativeRisk, NotesRisk, CompanyEvents)
-    na deterministické penalizácie podľa pevných pravidiel.
+    a finančné trendy na deterministické penalizácie podľa pevných pravidiel.
 
     Vracia (adj, breakdown) kde breakdown je dict s jednotlivými penalizáciami.
 
@@ -406,6 +407,8 @@ def _compute_deterministic_adjustment(
     - CompanyEvent CRITICAL (SUDNE_ROZHODNUTIE, INSOLVENCIA) → -3 each (max -6)
     - Aktívne poverenie na exekúciu (POVERENIA source with RECORD_FOUND) → -15 (mimo cap)
     - forensic_red_flags: IGNORED (too noisy, already filtered in fraud heatmap)
+    - equity_decline: -50%+ za 3 roky → -2 (tenká vrstva equity, riziko úpadku)
+    - asset_decline: -50%+ za 2 roky → -2 (dramatický úbytok aktív)
     - Cap: -5 (v3 — menej agresívne ako pôvodné ±10), poverenia penalty je mimo cap
     """
     adj = 0
@@ -418,6 +421,8 @@ def _compute_deterministic_adjustment(
         "off_balance": 0,
         "critical_events": 0,
         "active_execution": 0,
+        "equity_decline": 0,
+        "asset_decline": 0,
     }
 
     # ── NarrativeRiskAnalysis ──
@@ -490,6 +495,32 @@ def _compute_deterministic_adjustment(
         adj -= ev_penalty
         breakdown["critical_events"] = -ev_penalty
         reasons.append(f"critical_events ({critical_events} × -3, capped -{ev_penalty})")
+
+    # ── Financial trend red flags (equity/asset decline) ──────────────────────
+    # Detekuje dramatický pokles vlastného imania alebo aktív z finančných výkazov.
+    # Tieto sú silné signály rizika úpadku, ktoré deterministický scorecard
+    # môže prehliadnuť, ak sú bežné ukazovatele (likvidita, Altman) ešte OK.
+    if financial_statements and len(financial_statements) >= 3:
+        stmts = sorted(financial_statements, key=lambda s: s.get("year", 0), reverse=True)
+        # Equity decline: porovnaj najnovší rok s rokom 3 späť
+        latest_eq = stmts[0].get("equity")
+        oldest_eq = stmts[2].get("equity") if len(stmts) >= 3 else None
+        if latest_eq is not None and oldest_eq is not None and oldest_eq > 0:
+            eq_decline_pct = (oldest_eq - latest_eq) / oldest_eq
+            if eq_decline_pct >= 0.50:
+                adj -= 2
+                breakdown["equity_decline"] = -2
+                reasons.append(f"equity_decline (-2 — {eq_decline_pct*100:.0f}% pokles za 3 roky)")
+
+        # Asset decline: porovnaj najnovší rok s rokom 2 späť
+        latest_ast = stmts[0].get("totalAssets")
+        prev_ast = stmts[1].get("totalAssets") if len(stmts) >= 2 else None
+        if latest_ast is not None and prev_ast is not None and prev_ast > 0:
+            ast_decline_pct = (prev_ast - latest_ast) / prev_ast
+            if ast_decline_pct >= 0.50:
+                adj -= 2
+                breakdown["asset_decline"] = -2
+                reasons.append(f"asset_decline (-2 — {ast_decline_pct*100:.0f}% pokles za 2 roky)")
 
     # Clamp to -5..+5 (v3 — less aggressive than original ±10)
     raw_adj = adj
@@ -979,6 +1010,7 @@ async def run_and_save_audit_verdict(
             ico,
             is_consolidated=company_dict.get("_financial_basis") == "consolidated",
             registry_sources=registry_sources,
+            financial_statements=company_dict.get("financialStatements", []),
         )
 
         logger.info(
