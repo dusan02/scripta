@@ -918,6 +918,104 @@ async def run_and_save_audit_verdict(
         if _rpe_alerts:
             auditor_input_dict["rpeAlerts"] = _rpe_alerts
             logger.info(f"[{ico}] RPE alerts: {len(_rpe_alerts)} year(s) with RPE > 2M EUR/employee")
+
+        # ── Finančné anomálie — detekcia a propagácia do Chief Auditor input ──
+        _anomaly_alerts = []
+        _stmts_sorted = sorted(
+            company_dict.get("financialStatements", []),
+            key=lambda s: s.get("year", 0) or 0,
+        )
+        for i in range(1, len(_stmts_sorted)):
+            _curr = _stmts_sorted[i]
+            _prev = _stmts_sorted[i - 1]
+            _year = _curr.get("year")
+            _prev_year = _prev.get("year")
+
+            # 1. Net profit spike > 3x alebo drop > 3x (one-time event indicator)
+            _np_curr = _curr.get("netProfitLoss")
+            _np_prev = _prev.get("netProfitLoss")
+            if _np_curr is not None and _np_prev is not None and abs(float(_np_prev)) > 1_000_000:
+                _ratio = float(_np_curr) / abs(float(_np_prev))
+                _is_spike = _ratio > 3
+                _is_drop = 0 <= _ratio < 1 / 3
+                _is_flip = _ratio < 0 and abs(float(_np_curr)) > 1_000_000
+                if _is_spike or _is_drop or _is_flip:
+                    if _ratio < 0:
+                        _direction, _mult = "flip to loss", abs(_ratio)
+                    elif _ratio > 1:
+                        _direction, _mult = "spike", _ratio
+                    else:
+                        _direction, _mult = "drop", 1 / _ratio if _ratio > 0 else 0
+                    _anomaly_alerts.append({
+                        "year": _year,
+                        "type": "net_profit_anomaly",
+                        "severity": "HIGH",
+                        "message": (
+                            f"Čistý zisk {_year}: {float(_np_curr)/1e6:.1f} mil. € vs {_prev_year}: {float(_np_prev)/1e6:.1f} mil. € "
+                            f"({_mult:.1f}x {_direction}). Pravdepodobne one-time event (predaj aktív, reevalvácia, "
+                            f"účtovná zmena). Prever príčinu v poznámkach k účtovnej závierke."
+                        ),
+                    })
+
+            # 2. Tax liability jump > 500% YoY
+            _tax_curr = _curr.get("taxLiabilities")
+            _tax_prev = _prev.get("taxLiabilities")
+            if _tax_curr is not None and _tax_prev is not None and float(_tax_prev) > 100_000:
+                _tax_pct = ((float(_tax_curr) - float(_tax_prev)) / abs(float(_tax_prev))) * 100
+                if abs(_tax_pct) > 500:
+                    _anomaly_alerts.append({
+                        "year": _year,
+                        "type": "tax_liability_jump",
+                        "severity": "MEDIUM",
+                        "message": (
+                            f"Daňový záväzok {_year}: {float(_tax_curr)/1e6:.2f} mil. € vs {_prev_year}: {float(_tax_prev)/1e6:.2f} mil. € "
+                            f"({_tax_pct:+.0f}%). Skontroluj príčinu — môže byť deferred tax timing, daňový audit, alebo one-time úprava."
+                        ),
+                    })
+
+            # 3. Cash spike/drop > 10x (liquidity event)
+            _cash_curr = _curr.get("cashAndEquivalents")
+            _cash_prev = _prev.get("cashAndEquivalents")
+            if _cash_curr is not None and _cash_prev is not None and abs(float(_cash_prev)) > 1_000_000:
+                _cash_ratio = float(_cash_curr) / float(_cash_prev) if float(_cash_prev) > 0 else 0
+                if _cash_ratio > 10 or (_cash_ratio < 0.1 and float(_cash_curr) < float(_cash_prev) * 0.1):
+                    _direction = "spike" if _cash_ratio > 1 else "drop"
+                    _anomaly_alerts.append({
+                        "year": _year,
+                        "type": "cash_anomaly",
+                        "severity": "MEDIUM",
+                        "message": (
+                            f"Hotovost {_year}: {float(_cash_curr)/1e6:.1f} mil. € vs {_prev_year}: {float(_cash_prev)/1e6:.1f} mil. € "
+                            f"({_cash_ratio:.1f}x {_direction}). Prever príčinu — cash-pooling, predaj aktív, úver, alebo likvidita event."
+                        ),
+                    })
+
+        # 4. Balance sheet gap (assets ≠ equity + liabilities), threshold 3% — konzistentný s report_generator warning
+        for stmt in _stmts_sorted:
+            _assets = stmt.get("totalAssets")
+            _equity = stmt.get("equity")
+            _st_liab = stmt.get("shortTermLiabilities")
+            _lt_liab = stmt.get("longTermLiabilities")
+            if _assets is not None and float(_assets) > 0 and all(
+                v is not None for v in (_equity, _st_liab, _lt_liab)
+            ):
+                _liab_total = float(_equity) + float(_st_liab) + float(_lt_liab)
+                _gap_pct = abs(float(_assets) - _liab_total) / float(_assets) * 100
+                if _gap_pct > 3:
+                    _anomaly_alerts.append({
+                        "year": stmt.get("year"),
+                        "type": "balance_sheet_gap",
+                        "severity": "MEDIUM",
+                        "message": (
+                            f"Súvaha {stmt.get('year')}: aktíva {float(_assets)/1e6:.1f} mil. € vs "
+                            f"imanie+záväzky {_liab_total/1e6:.1f} mil. € (rozdiel {_gap_pct:.1f}%). "
+                            f"RÚZ dáta môžu byť neúplné — chýbajúce kategórie pasív."
+                        ),
+                    })
+
+        if _anomaly_alerts:
+            auditor_input_dict["anomalyAlerts"] = _anomaly_alerts
+            logger.info(f"[{ico}] Anomaly alerts: {len(_anomaly_alerts)} detected")
         auditor_input_json = json.dumps(auditor_input_dict, default=str, ensure_ascii=False)
 
         cross_summary = ""
@@ -1112,6 +1210,7 @@ async def run_and_save_audit_verdict(
             trends=_trends_for_ph,
             company_name=company_dict.get("name", ""),
             statutar_changes=_statutar_count,
+            language=report_language,
         )
         _ph_count = len(_metric_placeholders)
         _es_raw = verdict_payload.get('executiveSummary', '') or ''

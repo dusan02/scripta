@@ -163,6 +163,29 @@ class RpoScraper(BaseScraper):
 
             await self._expand_all_sections(page)
 
+            # Rozbaliť "Rozbaliť celý obsah" linky (predmet činnosti, dlhé texty)
+            try:
+                expand_links = await page.evaluate("""() => {
+                    const links = document.querySelectorAll('a, button, span');
+                    let count = 0;
+                    for (const el of links) {
+                        const text = (el.textContent || '').trim();
+                        if (text === 'Rozbaliť celý obsah' || text === 'Zobraziť viac' || text === 'Show more') {
+                            el.click();
+                            count++;
+                        }
+                    }
+                    return count;
+                }""")
+                if expand_links > 0:
+                    logger.info(f"[{self.source_type}] Rozbalených {expand_links} 'Rozbaliť celý obsah' linkov.")
+                    try:
+                        await page.wait_for_load_state("networkidle", timeout=3000)
+                    except PlaywrightTimeoutError:
+                        pass
+            except Exception as e:
+                logger.debug(f"[{self.source_type}] 'Rozbaliť celý obsah' klik zlyhal: {e}")
+
             # Počkať na networkidle po rozbalení — dynamický obsah sa naťahuje
             try:
                 await page.wait_for_load_state("networkidle", timeout=10000)

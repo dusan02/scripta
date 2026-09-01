@@ -50,18 +50,20 @@ def _format_count(value: Optional[float]) -> str:
     return f"{v:,}".replace(",", " ")
 
 
-def _yoy_text(curr: Optional[float], prev: Optional[float], verb_pos: str, verb_neg: str) -> str:
+def _yoy_text(curr: Optional[float], prev: Optional[float], verb_pos: str, verb_neg: str, language: str = "sk") -> str:
     """Vypočíta YoY zmenu a vráti text s slovesom: 'klesli o 13,2 %' / 'vzrástli o 5,1 %'.
     verb_pos = sloveso pre rast ('vzrástli', 'stúpol', 'vzrástlo')
     verb_neg = sloveso pre pokles ('klesli', 'klesol', 'kleslo')
+    language = 'sk' (default) alebo 'en' — ovplyvňuje len spoju 'o' / 'by'
     """
     if curr is None or prev is None or prev == 0:
         return "N/A"
     pct = ((float(curr) - float(prev)) / abs(float(prev))) * 100
+    connector = "by" if language == "en" else "o"
     if pct >= 0:
-        return f"{verb_pos} o {_format_pct(pct)}"
+        return f"{verb_pos} {connector} {_format_pct(pct)}"
     else:
-        return f"{verb_neg} o {_format_pct(abs(pct))}"
+        return f"{verb_neg} {connector} {_format_pct(abs(pct))}"
 
 
 def _altman_zone(z_score: Optional[float]) -> str:
@@ -95,6 +97,7 @@ def build_metric_placeholders(
     trends: Optional[dict] = None,
     company_name: str = "",
     statutar_changes: Optional[int] = None,
+    language: str = "sk",
 ) -> dict[str, str]:
     """Postaví slovník placeholder → formátovaná hodnota z DB dát.
 
@@ -103,6 +106,7 @@ def build_metric_placeholders(
         trends: Voliteľné, analyza_trendov dict (pre Altman Z, ratios).
         company_name: Názov spoločnosti.
         statutar_changes: Počet zmien štatutárov (z ORSR).
+        language: Jazyk reportu ('sk', 'en', 'de', 'cz', 'hu', 'pl') — ovplyvňuje slovesá v YoY textoch.
 
     Returns:
         Dict placeholder → str hodnota (napr. {"{{REVENUE}}": "111,6 mil. €", ...})
@@ -114,6 +118,25 @@ def build_metric_placeholders(
     sorted_stmts = sorted(stmts, key=lambda s: s.get("year", 0) or 0)
     latest = sorted_stmts[-1]
     prev = sorted_stmts[-2] if len(sorted_stmts) >= 2 else {}
+
+    # ── Jazykové slovesá pre YoY trendy ──
+    # SK: "vzrástli o 8,2 %" / "klesli o 8,2 %"
+    # EN: "increased by 8.2%" / "decreased by 8.2%"
+    _VERBS = {
+        "sk": {
+            "rev_pos": "vzrástli", "rev_neg": "klesli",
+            "eq_pos": "vzrástlo", "eq_neg": "kleslo",
+            "ocf_pos": "stúpol", "ocf_neg": "klesol",
+            "net_pos": "vzrástol", "net_neg": "klesol",
+        },
+        "en": {
+            "rev_pos": "increased", "rev_neg": "decreased",
+            "eq_pos": "grew", "eq_neg": "declined",
+            "ocf_pos": "rose", "ocf_neg": "fell",
+            "net_pos": "increased", "net_neg": "decreased",
+        },
+    }
+    _v = _VERBS.get(language, _VERBS["sk"])
 
     # ── Finančné hodnoty (najnovší rok) ──
     ph: dict[str, str] = {}
@@ -144,7 +167,7 @@ def build_metric_placeholders(
     # ── Trendy (YoY) ──
     ph["{{REVENUE_YOY}}"] = _yoy_text(
         latest.get("mainActivityRevenue"), prev.get("mainActivityRevenue"),
-        "vzrástli", "klesli"
+        _v["rev_pos"], _v["rev_neg"], language=language
     )
     ph["{{REVENUE_YOY_PCT}}"] = _format_pct(
         ((float(latest.get("mainActivityRevenue", 0) or 0) - float(prev.get("mainActivityRevenue", 0) or 0))
@@ -152,7 +175,7 @@ def build_metric_placeholders(
     ) if prev.get("mainActivityRevenue") else "N/A"
     ph["{{EQUITY_YOY}}"] = _yoy_text(
         latest.get("equity"), prev.get("equity"),
-        "vzrástlo", "kleslo"
+        _v["eq_pos"], _v["eq_neg"], language=language
     )
     if latest.get("equity") is not None and prev.get("equity") is not None and float(prev.get("equity", 0) or 0) != 0:
         _eq_pct = ((float(latest["equity"]) - float(prev["equity"])) / abs(float(prev["equity"]))) * 100
@@ -161,34 +184,33 @@ def build_metric_placeholders(
         ph["{{EQUITY_YOY_PCT}}"] = "N/A"
     ph["{{OCF_YOY}}"] = _yoy_text(
         latest.get("operatingCashFlow"), prev.get("operatingCashFlow"),
-        "stúpol", "klesol"
+        _v["ocf_pos"], _v["ocf_neg"], language=language
     )
-    ph["{{ST_LIAB_YOY}}"] = _yoy_text(
-        latest.get("shortTermLiabilities"), prev.get("shortTermLiabilities"),
-        "nárast o", "pokles o"
-    ).replace("nárast o ", "nárast o ").replace("pokles o ", "pokles o ")
-    # ST_LIAB_YOY: "nárast o 85,8 %" alebo "pokles o 10,2 %" (bez slovesa, len smer)
+    # ST_LIAB_YOY: "nárast o 85,8 %" / "pokles o 10,2 %" (SK) alebo "increase of 85.8%" / "decrease of 10.2%" (EN)
     if latest.get("shortTermLiabilities") is not None and prev.get("shortTermLiabilities") is not None:
         _st_curr = float(latest["shortTermLiabilities"])
         _st_prev = float(prev["shortTermLiabilities"])
         if _st_prev != 0:
             _st_pct = ((_st_curr - _st_prev) / abs(_st_prev)) * 100
-            ph["{{ST_LIAB_YOY}}"] = f"nárast o {_format_pct(_st_pct)}" if _st_pct >= 0 else f"pokles o {_format_pct(abs(_st_pct))}"
+            if language == "en":
+                ph["{{ST_LIAB_YOY}}"] = f"increase of {_format_pct(_st_pct)}" if _st_pct >= 0 else f"decrease of {_format_pct(abs(_st_pct))}"
+            else:
+                ph["{{ST_LIAB_YOY}}"] = f"nárast o {_format_pct(_st_pct)}" if _st_pct >= 0 else f"pokles o {_format_pct(abs(_st_pct))}"
         else:
             ph["{{ST_LIAB_YOY}}"] = "N/A"
     else:
         ph["{{ST_LIAB_YOY}}"] = "N/A"
 
-    # ── NET_RESULT_YOY: špeciálny prípad (zisk→strata = "preklopenie do straty") ──
+    # ── NET_RESULT_YOY: špeciálny prípad (zisk→strata = "preklopenie do straty" / "swung to net loss") ──
     _net_curr = latest.get("netProfitLoss")
     _net_prev = prev.get("netProfitLoss")
     if _net_curr is not None and _net_prev is not None:
         if float(_net_prev) > 0 and float(_net_curr) < 0:
-            ph["{{NET_RESULT_YOY}}"] = "preklopenie do čistej straty"
+            ph["{{NET_RESULT_YOY}}"] = "swung to net loss" if language == "en" else "preklopenie do čistej straty"
         elif float(_net_prev) < 0 and float(_net_curr) >= 0:
-            ph["{{NET_RESULT_YOY}}"] = "návrat do zisku"
+            ph["{{NET_RESULT_YOY}}"] = "returned to profit" if language == "en" else "návrat do zisku"
         else:
-            ph["{{NET_RESULT_YOY}}"] = _yoy_text(_net_curr, _net_prev, "vzrástol", "klesol")
+            ph["{{NET_RESULT_YOY}}"] = _yoy_text(_net_curr, _net_prev, _v["net_pos"], _v["net_neg"], language=language)
     else:
         ph["{{NET_RESULT_YOY}}"] = "N/A"
 
@@ -198,15 +220,15 @@ def build_metric_placeholders(
         _np_curr = float(_net_curr)
         if _np_prev == 0:
             if _np_curr > 0:
-                ph["{{NET_RESULT_YOY_PCT}}"] = "n/a (z nulového výsledku do zisku)"
+                ph["{{NET_RESULT_YOY_PCT}}"] = "n/a (from zero to profit)" if language == "en" else "n/a (z nulového výsledku do zisku)"
             elif _np_curr < 0:
-                ph["{{NET_RESULT_YOY_PCT}}"] = "n/a (z nulového výsledku do straty)"
+                ph["{{NET_RESULT_YOY_PCT}}"] = "n/a (from zero to loss)" if language == "en" else "n/a (z nulového výsledku do straty)"
             else:
                 ph["{{NET_RESULT_YOY_PCT}}"] = "0 %"
         elif _np_prev > 0 and _np_curr < 0:
-            ph["{{NET_RESULT_YOY_PCT}}"] = "preklopenie do straty"
+            ph["{{NET_RESULT_YOY_PCT}}"] = "swung to loss" if language == "en" else "preklopenie do straty"
         elif _np_prev < 0 and _np_curr >= 0:
-            ph["{{NET_RESULT_YOY_PCT}}"] = "návrat do zisku"
+            ph["{{NET_RESULT_YOY_PCT}}"] = "returned to profit" if language == "en" else "návrat do zisku"
         else:
             ph["{{NET_RESULT_YOY_PCT}}"] = _format_pct(
                 ((_np_curr - _np_prev) / abs(_np_prev)) * 100

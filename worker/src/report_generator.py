@@ -499,10 +499,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
                 has_non_standard_months = True
                 break
 
-        # Detekcia súvahovej nevyrovnanosti: |Aktíva - (Equity + STL + LTL)| > 5% aktív
+        # Detekcia súvahovej nevyrovnanosti: |Aktíva - (Equity + STL + LTL)| > 3% aktív
         # Pozn.: Rozdiel medzi Aktívami a (Equity + STL + LTL) je "Ostatné pasíva" (residuum),
-        # ktoré je legitímnou súčasťou súvahy, nie chybou. Skutočná nevyrovnanosť nastáva
-        # len ak je reziduál negatívne alebo väčšie ako 50% aktív (nevysvetliteľné).
+        # ktoré je legitímnou súčasťou súvahy, nie chybou. Malé reziduá (< 3%) sú v rámci
+        # normálnej tolerancie RÚZ dát (zaokrúhľovanie, drobné kategórie).
+        # Skutočná nevyrovnanosť: residual < -3% ta alebo > 50% ta.
         for s in stmts:
             ta = _to_float(getattr(s, 'totalAssets', None))
             eq = _to_float(getattr(s, 'equity', None))
@@ -511,11 +512,11 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             if ta and ta > 0 and eq is not None and stl is not None and ltl is not None:
                 residual = ta - (eq + stl + ltl)
                 # Reziduál = Ostatné pasíva (legitímne) ak je 0 < residual < 50% aktív
-                # Skutočná nevyrovnanosť: residual < 0 alebo residual > 50% ta
-                if residual < -ta * 0.01 or residual > ta * 0.50:
+                # Skutočná nevyrovnanosť: residual < -3% ta alebo > 50% ta
+                if residual < -ta * 0.03 or residual > ta * 0.50:
                     has_balance_imbalance = True
                     logger.warning(f"[BALANCE] Súvaha nevyrovnaná pre rok {getattr(s, 'year', '?')}: "
-                                   f"Aktíva={ta:.0f} vs Pasíva={eq + stl + ltl:.0f} (reziduál={residual:.0f})")
+                                   f"Aktíva={ta:.0f} vs Pasíva={eq + stl + ltl:.0f} (reziduál={residual:.0f}, {abs(residual)/ta*100:.1f}%)")
                     break
 
     has_short_history = bool(stmts) and len(stmts) < 2

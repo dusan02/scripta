@@ -325,7 +325,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # 3h: Browser health check pred každým retry passom
         # 5. pass (60s delay) — pre veľmi pomalé registre ktoré sa zotavujú pomaly
         _RETRY_DELAYS = [2, 5, 15, 30, 60]
-        _RETRY_TOTAL_BUDGET = 600  # sekundy — max čas na všetky retry passy
+        _RETRY_TOTAL_BUDGET = 600  # sekundy — max čas na všetky retry passy (vrátane scraper execution)
+        # Snapshot pre-retry failure count — post-retry merge by tento údaj prekazil
+        _initial_failed = sum(1 for s in sources if s.status in ("FAILED", "UNAVAILABLE"))
         _retry_elapsed = 0.0
         retry_pass = 0
         for retry_pass, base_delay in enumerate(_RETRY_DELAYS):
@@ -351,6 +353,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             _retry_delay_start = time.perf_counter()
             await asyncio.sleep(delay)  # ← Sleep OUTSIDE lock — other reports can scrape
             _retry_elapsed += time.perf_counter() - _retry_delay_start
+            _retry_run_start = time.perf_counter()
 
             # 3h: Browser health check pred retry — ak browser spadol, re-launch
             if browser:
@@ -384,6 +387,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     disable_circuit_breaker=True,  # Retry pass: skús aj circuit-open scrapery
                 )
             _log.info(f"[{_rid}] Scraper lock released after retry pass {retry_pass + 1}")
+            # Počítaj aj execution čas scraperov, nie len sleep delays — inak budget nikdy nevyprší
+            _retry_elapsed += time.perf_counter() - _retry_run_start
 
             # Merge retry results back into sources
             retry_map = {r.source_type: r for r in retry_results}
@@ -404,10 +409,10 @@ async def _execute_report_inner(task: ReportTask) -> None:
             _log.warning(f"[{_rid}] Scrapery stále zlyhané po {retry_pass + 1} retry passoch ({_retry_elapsed:.0f}s): {still_failed}")
 
         # Pipeline-level retry metrics summary
-        _initial_failed = sum(1 for s in sources if s.status in ("FAILED", "UNAVAILABLE"))
+        # _initial_failed = snapshot pred retry loopom (computed above, before first pass)
         _final_success = sum(1 for s in sources if s.status == "SUCCESS")
         if retry_pass > 0 or _initial_failed > 0:
-            _recovered = sum(1 for s in sources if s.status == "SUCCESS") - (len(sources) - _initial_failed)
+            _recovered = _final_success - (len(sources) - _initial_failed)
             _log.info(
                 f"[{_rid}] Pipeline retry summary: passes={retry_pass + 1}, "
                 f"initial_failed={_initial_failed}, recovered={max(0, _recovered)}, "
