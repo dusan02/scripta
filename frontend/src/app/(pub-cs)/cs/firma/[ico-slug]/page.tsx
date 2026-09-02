@@ -1,8 +1,7 @@
 import { FirmaPageContent, generateFirmaPageMetadata } from "@/components/firma-page";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 export const dynamicParams = true;
-export const revalidate = 86400;
 
 type Params = { params: Promise<{ "ico-slug": string }> };
 
