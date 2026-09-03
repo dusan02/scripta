@@ -909,6 +909,7 @@ const pl: Dict = {
   "ai.forensic_notes": "Sprawdzanie ryzyka prawnego",
   "ai.risk_analysis": "Obliczanie wskaźników ryzyka (model Altman Z-score, model Piotroskiego)",
   "ai.compiling": "Generowanie raportu PDF",
+  "completed": "Raport gotowy",
   "ai.cross_correlation": "Finalizowanie profilu ryzyka",
   "ai.cross_validation": "Krzyżowa walidacja kondycji finansowej",
   "ai.final_verdict": "Ocena ogólnego ryzyka",

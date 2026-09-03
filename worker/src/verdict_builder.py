@@ -28,9 +28,11 @@ from src.verdict_metrics import (
     inject_metrics,
     validate_final_text,
     sanitize_final_text,
+    _normalize_number_formats,
     _strip_narrative_financial_metrics,
     _inject_ncrzp_findings,
     _strip_hallucinated_debts,
+    _fix_double_negation,
     _METRIC_PATTERNS,
 )
 from src.batch_score import SCORING_VERSION
@@ -1285,6 +1287,8 @@ async def run_and_save_audit_verdict(
                 if _vtext and isinstance(_vtext, str):
                     _injected = inject_metrics(_vtext, _metric_placeholders, ico=ico, field=_vfield)
                     _injected = sanitize_final_text(_injected, ico=ico, field=_vfield)
+                    _injected = _fix_double_negation(_injected)
+                    _injected = _normalize_number_formats(_injected, language=report_language)
                     verdict_payload[_vfield] = _injected
             # Injektuj placeholdre do executive_sections
             _esec = verdict_payload.get('executiveSections')
@@ -1303,6 +1307,8 @@ async def run_and_save_audit_verdict(
                                 if _pt and isinstance(_pt, str):
                                     _injected_pt = inject_metrics(_pt, _metric_placeholders, ico=ico, field="execSection.point")
                                     _injected_pt = sanitize_final_text(_injected_pt, ico=ico, field="execSection.point")
+                                    _injected_pt = _fix_double_negation(_injected_pt)
+                                    _injected_pt = _normalize_number_formats(_injected_pt, language=report_language)
                                     _spoints[_pi] = _injected_pt
                     verdict_payload['executiveSections'] = json.dumps(_esec_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
@@ -1320,6 +1326,8 @@ async def run_and_save_audit_verdict(
                             if _itext and isinstance(_itext, str):
                                 _injected_j = inject_metrics(_itext, _metric_placeholders, ico=ico, field=f"justification.{_ifield}")
                                 _injected_j = sanitize_final_text(_injected_j, ico=ico, field=f"justification.{_ifield}")
+                                _injected_j = _fix_double_negation(_injected_j)
+                                _injected_j = _normalize_number_formats(_injected_j, language=report_language)
                                 _item[_ifield] = _injected_j
                     verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
@@ -1346,6 +1354,8 @@ async def run_and_save_audit_verdict(
                                 if _ftext and isinstance(_ftext, str):
                                     _injected_f = inject_metrics(_ftext, _metric_placeholders, ico=ico, field=f"findings.{_ffield}")
                                     _injected_f = sanitize_final_text(_injected_f, ico=ico, field=f"findings.{_ffield}")
+                                    _injected_f = _fix_double_negation(_injected_f)
+                                    _injected_f = _normalize_number_formats(_injected_f, language=report_language)
                                     _item[_ffield] = _injected_f
                         verdict_payload['findings'] = _findings_list
                 except (json.JSONDecodeError, TypeError):
@@ -1359,7 +1369,7 @@ async def run_and_save_audit_verdict(
         # ── Deterministický inject NCRZP záložných práv ──
         # Cross-Analysis LLM často ignoruje NCRZP findings v executive_summary.
         # Tento inject zaručí, že záložné práva sa objavia v tabuľke Forenzné dôkazy.
-        verdict_payload = _inject_ncrzp_findings(verdict_payload, registry_findings, ico)
+        verdict_payload = _inject_ncrzp_findings(verdict_payload, registry_findings, ico, language=report_language)
 
         await save_audit_verdict(ico, verdict_payload)
 

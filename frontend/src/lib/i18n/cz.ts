@@ -824,6 +824,7 @@ const cz: Dict = {
   "ai.cross_correlation": "Finalizuji profil rizika",
   "ai.risk_synthesis": "Generuji Verifa Score",
   "ai.compiling": "Generuji PDF report",
+  "completed": "Report dokončen",
   "failed.orsr_not_found": "IČO neexistuje v Obchodním rejstříku SR",
   "report.etaSeconds": "Přibližný čas dokončení: ~{s} s",
   "report.etaMinutes": "Přibližný čas dokončení: ~{m} min {r} s",

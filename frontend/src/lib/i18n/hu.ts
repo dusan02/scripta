@@ -909,6 +909,7 @@ const hu: Dict = {
   "ai.forensic_notes": "Jogi kockázatok ellenőrzése",
   "ai.risk_analysis": "Kockázati pontszámok számítása (Altman Z-score, Piotroski modell)",
   "ai.compiling": "PDF jelentés generálása",
+  "completed": "Jelentés elkészült",
   "ai.cross_correlation": "Kockázati profil véglegesítése",
   "ai.cross_validation": "Pénzügyi egészség keresztvalidálása",
   "ai.final_verdict": "Általános kockázat értékelése",

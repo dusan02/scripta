@@ -678,6 +678,14 @@ async def _execute_report_inner(task: ReportTask) -> None:
             verifa_score=verifa_score_snapshot,
         )
 
+        # BUG 4: Update aiStatus to "completed" after successful compile
+        # Previously, aiStatus stayed at "ai.compiling" even after the report finished
+        if final_status in ("COMPLETED", "PARTIAL"):
+            try:
+                await update_report_ai_status(task.report_request_id, "completed", 0)
+            except Exception:
+                pass  # best-effort
+
         # Request credit refund from frontend if report FAILED
         if final_status == "FAILED":
             try:

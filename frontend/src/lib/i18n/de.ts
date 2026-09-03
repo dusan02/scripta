@@ -891,6 +891,7 @@ const de: Dict = {
   "ai.cross_correlation": "Finalisiere Risikoprofil",
   "ai.risk_synthesis": "Generiere Verifa Score",
   "ai.compiling": "Generiere PDF-Bericht",
+  "completed": "Bericht abgeschlossen",
   "failed.orsr_not_found": "IČO existiert nicht im slowakischen Handelsregister",
 
   // ── Report ETA ──

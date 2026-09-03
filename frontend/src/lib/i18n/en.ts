@@ -891,6 +891,7 @@ const en: Dict = {
   "ai.cross_correlation": "Finalizing risk profile",
   "ai.risk_synthesis": "Generating Verifa Score",
   "ai.compiling": "Generating PDF report",
+  "completed": "Report completed",
   "failed.orsr_not_found": "IČO does not exist in the Slovak Commercial Register",
 
   // ── Report ETA ──

@@ -343,6 +343,13 @@ def build_metric_placeholders(
                     pass
         ph["{{CAPEX}}"] = _format_eur(_capex_fallback) if _capex_fallback is not None else "N/A"
 
+    # ── Equity ratio = equity / totalAssets * 100 ──
+    _ta = latest.get("totalAssets")
+    if _eq is not None and _ta is not None and float(_ta) > 0:
+        ph["{{EQUITY_RATIO}}"] = _format_pct((float(_eq) / float(_ta)) * 100)
+    else:
+        ph["{{EQUITY_RATIO}}"] = "N/A"
+
     # ── Working capital = currentAssets - shortTermLiabilities ──
     if _ca is not None and _stl is not None:
         _wc = float(_ca) - float(_stl)
@@ -464,6 +471,20 @@ def _cleanup_dangling_fragments(text: str) -> str:
     text = re.sub(r'\.\s*\.', '.', text)
     # Fix space before punctuation
     text = re.sub(r'\s+([,.])', r'\1', text)
+    # ── Missing value between prepositions (BUG 1: empty placeholders) ──
+    # "representing of total assets" → "of total assets" (missing % before "of")
+    text = re.sub(r'\s+representing\s+of\b', ' of', text, flags=re.IGNORECASE)
+    # "ratio of and" → "ratio and" (missing value between "of" and "and")
+    text = re.sub(r'\s+ratio\s+of\s+and\b', ' ratio and', text, flags=re.IGNORECASE)
+    # "equity ratio of and" → "equity ratio and"
+    text = re.sub(r'\s+equity\s+ratio\s+of\s+and\b', ' equity ratio and', text, flags=re.IGNORECASE)
+    # "from to" → remove (missing two values, e.g. "self-sufficiency from to 60%")
+    text = re.sub(r'\s+from\s+to\b', '', text, flags=re.IGNORECASE)
+    # "from % to" or "from to %" — partial placeholder removal
+    text = re.sub(r'\s+from\s+%\s+to\b', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s+from\s+to\s+%', ' to %', text, flags=re.IGNORECASE)
+    # "increase ... from to" → "increase" (dangling)
+    text = re.sub(r'\s+from\s+(?=(?:to\s|and\s|,\s|\.))', '', text, flags=re.IGNORECASE)
     return text
 
 
@@ -482,6 +503,11 @@ _DANGLING_VALIDATOR_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\b(?:klesol|vzrástol|stúpol|prepadol|rástol)\s+o,\s', re.IGNORECASE), "verb o, [space]"),
     (re.compile(r'\bo,\s*čo\b', re.IGNORECASE), "o, čo"),
     (re.compile(r'\{\{[A-Z_]+\}\}'), "unresolved placeholder"),
+    # BUG 1: Missing values where placeholders were removed
+    (re.compile(r'\brepresenting\s+of\b', re.IGNORECASE), "representing of [missing value]"),
+    (re.compile(r'\bratio\s+of\s+and\b', re.IGNORECASE), "ratio of and [missing value]"),
+    (re.compile(r'\bfrom\s+to\b', re.IGNORECASE), "from to [missing values]"),
+    (re.compile(r'\bfrom\s+%\s+to\b', re.IGNORECASE), "from % to [missing value]"),
 ]
 
 
@@ -555,7 +581,116 @@ def sanitize_final_text(text: str, *, ico: str = "", field: str = "") -> str:
     return " ".join(clean_sentences)
 
 
-# ── Anti-halucinácia: fallback pre prípady, keď LLM ignoruje placeholder pravidlo ──
+# ── Number format normalization (US → SK) ──────────────────────────────────
+# LLM občas generuje US-style čísla v texte (napr. "EUR 25.9M", "2.28") aj keď
+# report je v slovenčine. Toto normalizuje formát na SK štýl (čiarka, medzera tisícov).
+
+def _normalize_number_formats(text: str, language: str = "sk") -> str:
+    """Normalizuje číselné formátovanie v texte na konzistentný štýl.
+
+    Pre SK/CZ/HU/PL: desatinná čiarka, medzera ako oddeľovač tisícov, "mil. €" namiesto "M".
+    Pre EN/DE: desatinná bodka (EN) alebo čiarka (DE).
+
+    Args:
+        text: Text s prípadne nekonzistentnými číslami.
+        language: Cieľový jazyk formátovania.
+
+    Returns:
+        Text s normalizovanými číslami.
+    """
+    if not text:
+        return text
+
+    use_comma = language in ("sk", "cz", "hu", "pl", "de")
+
+    # "EUR 25.9M" / "EUR 25.9 million" / "25.9M EUR" → "25,9 mil. €" (SK) alebo "25.9 mil. €" (EN)
+    def _replace_eur_m(match):
+        num = match.group(1)
+        sep = "," if use_comma else "."
+        num = num.replace(".", sep)
+        curr = "€" if use_comma else "EUR"
+        return f"{num} mil. {curr}"
+
+    text = re.sub(r'EUR\s*(\d[\d.]*?)M\b', _replace_eur_m, text, flags=re.IGNORECASE)
+    text = re.sub(r'EUR\s*(\d[\d.]*?)\s*million\b', _replace_eur_m, text, flags=re.IGNORECASE)
+    text = re.sub(r'(\d[\d.]*?)M\s*EUR\b', _replace_eur_m, text, flags=re.IGNORECASE)
+    text = re.sub(r'(\d[\d.]*?)\s*million\s*EUR\b', _replace_eur_m, text, flags=re.IGNORECASE)
+    text = re.sub(r'(\d[\d.]*?)M\b(?=\s*(?:net|profit|loss|revenue|in|from|to|,|\.))',
+                  lambda m: m.group(1).replace(".", ",") + " mil. €" if use_comma else m.group(1) + " mil. EUR",
+                  text, flags=re.IGNORECASE)
+
+    # "EUR 25.9B" / "25.9 billion" → "25,9 mld. €"
+    def _replace_eur_b(match):
+        num = match.group(1)
+        sep = "," if use_comma else "."
+        num = num.replace(".", sep)
+        curr = "€" if use_comma else "EUR"
+        return f"{num} mld. {curr}"
+
+    text = re.sub(r'EUR\s*(\d[\d.]*?)B\b', _replace_eur_b, text, flags=re.IGNORECASE)
+    text = re.sub(r'EUR\s*(\d[\d.]*?)\s*billion\b', _replace_eur_b, text, flags=re.IGNORECASE)
+
+    # Standalone ratios: "2.28" in ratio context → "2,28" (SK)
+    # Only convert when preceded by ratio keywords (avoids converting years like "2024.5")
+    if use_comma:
+        # "ratio of 2.28" / "ratio: 2.28" / "D/E 0.33" / "Z'' 6.36" / "current ratio 2.28"
+        text = re.sub(
+            r'((?:ratio|D/E|Z[\'\u2019\u2032]{0,2}|current\s+ratio|debt.to.equity)\s*(?:of\s+)?[:\s]*)\s*(\d+\.\d+)',
+            lambda m: m.group(1) + m.group(2).replace(".", ","),
+            text,
+            flags=re.IGNORECASE,
+        )
+
+    return text
+
+
+
+# ── Double negation fix (BUG 5) ─────────────────────────────────────────────
+# LLM občas generuje "decline of -30,9 %" alebo "pokles o -13,2 %" — dvojitá negácia.
+# Správne: "decline of 30,9 %" alebo "pokles o 13,2 %".
+
+def _fix_double_negation(text: str) -> str:
+    """Opraví dvojitú negáciu v texte (decline/pokles + záporné percento)."""
+    if not text:
+        return text
+    # EN: "decline of -30,9 %" / "decline of -30.9%" → "decline of 30,9 %"
+    text = re.sub(
+        r'(decline\s+of|decrease\s+of|drop\s+of|fall\s+of|reduction\s+of)\s+[-−](\d[\d.,]*)\s*%',
+        r'\1 \2 %',
+        text,
+        flags=re.IGNORECASE,
+    )
+    # SK: "pokles o -13,2 %" / "klesol o -5,1 %" → "pokles o 13,2 %" / "klesol o 5,1 %"
+    text = re.sub(
+        r'(pokles\s+o|klesol\s+o|klesli\s+o|kleslo\s+o|poklesla\s+o|zníženie\s+o)\s+[-−](\d[\d.,]*)\s*%',
+        r'\1 \2 %',
+        text,
+        flags=re.IGNORECASE,
+    )
+    # CZ: "pokles o -13,2 %" → "pokles o 13,2 %"
+    text = re.sub(
+        r'(pokles\s+o|klesl\s+o|klesly\s+o|snížení\s+o)\s+[-−](\d[\d.,]*)\s*%',
+        r'\1 \2 %',
+        text,
+        flags=re.IGNORECASE,
+    )
+    # DE: "Rückgang um -13,2 %" → "Rückgang um 13,2 %"
+    text = re.sub(
+        r'(Rückgang\s+um|Rückgänge\s+um|Abnahme\s+um)\s+[-−](\d[\d.,]*)\s*%',
+        r'\1 \2 %',
+        text,
+        flags=re.IGNORECASE,
+    )
+    # PL: "spadek o -13,2 %" → "spadek o 13,2 %"
+    text = re.sub(
+        r'(spadek\s+o|spadku\s+o)\s+[-−](\d[\d.,]*)\s*%',
+        r'\1 \2 %',
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text
+
+
 # Primárna ochrana je cez placeholder systém (build_metric_placeholders + inject_metrics).
 # Tieto patterns zachytávajú prípady, keď LLM napriek inštrukciám napíše konkrétne čísla.
 # Zjednodušené z 58 patterns na ~15 — väčšina dangling cleanup už nie je potrebná,
@@ -667,7 +802,7 @@ def _strip_narrative_financial_metrics(narrative) -> None:
         logger.info(f"[NARRATIVE] Očistené konkrétne finančné metriky z naratívneho textu")
 
 
-def _inject_ncrzp_findings(payload: dict, registry_findings: list[dict], ico: str) -> dict:
+def _inject_ncrzp_findings(payload: dict, registry_findings: list[dict], ico: str, language: str = "sk") -> dict:
     """
     Deterministický inject NCRZP záložných práv do AuditVerdict justification.
     Ak NCRZP scraper našiel záložné práva a LLM ich nespomenul v executiveSummary,
@@ -698,10 +833,42 @@ def _inject_ncrzp_findings(payload: dict, registry_findings: list[dict], ico: st
 
     # Vytvor štruktúrovaný záznam pre justification tabuľku
     evidence_text = ncrzp_findings[:500] if isinstance(ncrzp_findings, str) else str(ncrzp_findings)[:500]
+    # BUG 6: Odstráň "POZOR:" prefix — pre INFO impact je alarmistické a zavádzajúce
+    evidence_text = re.sub(r'^\s*POZOR\s*[:\-—]\s*', '', evidence_text, flags=re.IGNORECASE)
+
+    # BUG 3: Jazykovo závislé claim a source texty
+    _NCRZP_LABELS = {
+        "sk": {
+            "claim": f"Evidované záložné práva v NCRZP ({ncrzp_count} {'záznam' if ncrzp_count == 1 else 'záznamy'})",
+            "source": "Notársky centrálny register záložných práv (NCRZP)",
+        },
+        "en": {
+            "claim": f"Registered pledge rights in NCRZP ({ncrzp_count} {'record' if ncrzp_count == 1 else 'records'})",
+            "source": "Notarial Central Register of Pledge Rights (NCRZP)",
+        },
+        "de": {
+            "claim": f"Eingetragene Pfandrechte im NCRZP ({ncrzp_count} {'Eintrag' if ncrzp_count == 1 else 'Einträge'})",
+            "source": "Notarielles Zentralregister der Pfandrechte (NCRZP)",
+        },
+        "cz": {
+            "claim": f"Evidovaná zástavní práva v NCRZP ({ncrzp_count} {'záznam' if ncrzp_count == 1 else 'záznamy'})",
+            "source": "Notářský centrální registr zástavních práv (NCRZP)",
+        },
+        "hu": {
+            "claim": f"NCRZP-ben nyilvántartott zálogjogok ({ncrzp_count} {'bejegyzés' if ncrzp_count == 1 else 'bejegyzés'})",
+            "source": "Notárius Központi Zálogjogi Nyilvántartás (NCRZP)",
+        },
+        "pl": {
+            "claim": f"Zarejestrowane prawa zastawne w NCRZP ({ncrzp_count} {'wpis' if ncrzp_count == 1 else 'wpisy'})",
+            "source": "Notarialne Centralny Rejestr Praw Zastawnych (NCRZP)",
+        },
+    }
+    _labels = _NCRZP_LABELS.get(language, _NCRZP_LABELS["sk"])
+
     ncrzp_entry = {
-        "claim": f"Evidované záložné práva v NCRZP ({ncrzp_count} {'záznam' if ncrzp_count == 1 else 'záznamy'})",
+        "claim": _labels["claim"],
         "evidence": evidence_text,
-        "source": "Notársky centrálny register záložných práv (NCRZP)",
+        "source": _labels["source"],
         "impact": "INFO",
     }
 

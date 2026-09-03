@@ -891,6 +891,7 @@ const sk: Dict = {
   "ai.cross_correlation": "Finalizujem profil rizika",
   "ai.risk_synthesis": "Generujem Verifa Score",
   "ai.compiling": "Generujem PDF report",
+  "completed": "Report dokončený",
   "failed.orsr_not_found": "IČO neexistuje v Obchodnom registri SR",
 
   // ── Report ETA ──

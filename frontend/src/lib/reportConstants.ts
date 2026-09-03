@@ -52,6 +52,7 @@ export const AI_STATUS_RANGES: Record<string, { start: number; end: number; estS
   "ai.cross_correlation":     { start: 90, end: 95, estSeconds: 90 },
   "ai.risk_synthesis":        { start: 95, end: 97, estSeconds: 15 },
   "ai.compiling":             { start: 97, end: 99, estSeconds: 30 },
+  "completed":                { start: 100, end: 100, estSeconds: 0 },
 };
 
 export function formatDate(iso: string, locale: string) {
@@ -112,6 +113,7 @@ export function getPhaseLabel(aiStatus: string | null | undefined, t: (k: string
   if (["ai.forensic_analysis", "ai.cross_correlation", "ai.risk_synthesis"].includes(aiStatus))
     return t("report.phaseVerdict");
   if (aiStatus === "ai.compiling") return t("report.phaseCompiling");
+  if (aiStatus === "completed") return t("completed");
   return t("report.phaseScraping");
 }
 
