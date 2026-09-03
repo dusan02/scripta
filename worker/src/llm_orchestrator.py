@@ -64,10 +64,10 @@ def get_chief_auditor_model() -> str:
     Vráti model pre Chief Auditora na základe pre-flight checku.
     Ak je expert_mode a 3.1 Pro je dostupný → 3.1 Pro.
     Ak 3.1 Pro nedostupný → 2.5 Pro (stabilný fallback, nie flash).
-    V non-expert móde → 3.7 Flash (štandard).
+    V non-expert móde → 3.8 Flash (štandard).
     """
     if not settings.expert_mode:
-        return "gemini-3.7-flash"
+        return "gemini-3.8-flash"
     # Pre-flight check — ak 3.1 Pro nefunguje, použijeme 2.5 Pro
     cached = _pro_available_cache.get("gemini-3.1-pro-preview")
     if cached and not cached[0]:

@@ -31,32 +31,32 @@ class Settings(BaseSettings):
     proxy_list: Optional[str] = None
 
     # ── Expert Mode ────────────────────────────────────────────────────────────
-    # EXPERT_MODE=1 → Chief Auditor na Pro 3.1 (2-pass: draft→refine), QA na Flash 3.5, viac strán PDF
+    # EXPERT_MODE=1 → Chief Auditor na Pro 3.1 (2-pass: draft→refine), QA na Flash 3.8, viac strán PDF
     expert_mode: bool = False
 
     # ── LLM Model Configuration ──────────────────────────────────────────────
-    # Komplexní agenti (extrakcia, analýza, verdikt): 3.7 Flash — najlepší pomer cena/inteligencia
+    # Komplexní agenti (extrakcia, analýza, verdikt): 3.8 Flash — najlepší pomer cena/inteligencia
     # Jednoduchá štruktúrovaná extrakcia (vestník, staff costs, verify): 3.5 Flash-Lite — najlacnejší
-    # Fallback: 3.5 Flash (stabilný) → 3.5 Flash-Lite (najrýchlejší)
-    # Expert: Chief Auditor on Pro 3.1 (2-pass), QA on 3.7 Flash
-    model_ifrs: str = "gemini-3.7-flash"        # IFRS tabuľky — komplexná extrakcia 50+ polí
-    model_narrative: str = "gemini-3.7-flash"   # Naratívna analýza (VS) — grounding, reasoning
-    model_notes: str = "gemini-3.7-flash"       # Forenzný analytik (poznámky) — related party, riziká
+    # Fallback: 3.7 Flash (stabilný) → 3.5 Flash-Lite (najrýchlejší)
+    # Expert: Chief Auditor on Pro 3.1 (2-pass), QA on 3.8 Flash
+    model_ifrs: str = "gemini-3.8-flash"        # IFRS tabuľky — komplexná extrakcia 50+ polí
+    model_narrative: str = "gemini-3.8-flash"   # Naratívna analýza (VS) — grounding, reasoning
+    model_notes: str = "gemini-3.8-flash"       # Forenzný analytik (poznámky) — related party, riziká
     model_vestnik: str = "gemini-3.5-flash-lite"  # Vestník udalosti — štruktúrovaná extrakcia z krátkeho textu
-    model_cross_analysis: str = "gemini-3.7-flash"  # Cross-Analysis Agent — krížová analýza, reasoning
-    model_fallback: str = "gemini-3.5-flash"      # Fallback pri 404/503 (stabilný, rýchly)
+    model_cross_analysis: str = "gemini-3.8-flash"  # Cross-Analysis Agent — krížová analýza, reasoning
+    model_fallback: str = "gemini-3.7-flash"      # Fallback pri 404/503 (stabilný, rýchly)
     model_fallback_2: str = "gemini-3.5-flash-lite"  # Sekundárny fallback (najlacnejší)
     llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)
 
     @property
     def model_verdict(self) -> str:
-        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.7 in Standard."""
-        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.7-flash"
+        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.8 in Standard."""
+        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.8-flash"
 
     @property
     def model_qa(self) -> str:
-        """QA Agent model — Flash 3.7 in Expert Mode, Flash 3.5 in Standard."""
-        return "gemini-3.7-flash" if self.expert_mode else "gemini-3.5-flash-lite"
+        """QA Agent model — Flash 3.8 in Expert Mode, Flash 3.5 in Standard."""
+        return "gemini-3.8-flash" if self.expert_mode else "gemini-3.5-flash-lite"
 
     @property
     def chief_auditor_two_pass(self) -> bool:
@@ -109,6 +109,7 @@ class Settings(BaseSettings):
             "gemini-3.5-pro":         (2.50, 15.00),
             "gemini-3.1-pro-preview": (2.00, 12.00),
             "gemini-3.7-flash":       (0.75,  3.75),  # Intro pricing do 31.12.2026, potom $1.50/$7.50
+            "gemini-3.8-flash":       (0.75,  3.75),  # Intro pricing do 31.12.2026, potom $1.50/$7.50
         }
 
 

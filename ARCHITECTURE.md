@@ -535,14 +535,14 @@ Retry len UNAVAILABLE a TIMEOUT (network issues), nie FAILED (interné chyby)
 
 | Agent | Model (Standard) | Model (Expert) | Účel |
 |-------|------------------|----------------|------|
-| FinancialAnalyst | gemini-3.7-flash | gemini-3.7-flash | Extrakcia 50+ polí z PDF |
-| Narrative | gemini-3.7-flash | gemini-3.7-flash | Naratívna analýza rizík |
-| NotesForensic | gemini-3.7-flash | gemini-3.7-flash | Related party, off-balance |
+| FinancialAnalyst | gemini-3.8-flash | gemini-3.8-flash | Extrakcia 50+ polí z PDF |
+| Narrative | gemini-3.8-flash | gemini-3.8-flash | Naratívna analýza rizík |
+| NotesForensic | gemini-3.8-flash | gemini-3.8-flash | Related party, off-balance |
 | Vestnik | gemini-3.5-flash-lite | gemini-3.5-flash-lite | Štruktúrovaná extrakcia |
-| CrossAnalysis | gemini-3.7-flash | gemini-3.7-flash | Krížová analýza |
-| ChiefAuditor | gemini-3.7-flash | **gemini-3.1-pro-preview** | Finálny verdikt (2-pass) |
-| ReportQA | gemini-3.5-flash-lite | gemini-3.7-flash | Quality check |
-| Fallback | gemini-3.5-flash → 3.5-flash-lite | — | Pri 404/503/429 |
+| CrossAnalysis | gemini-3.8-flash | gemini-3.8-flash | Krížová analýza |
+| ChiefAuditor | gemini-3.8-flash | **gemini-3.1-pro-preview** | Finálny verdikt (2-pass) |
+| ReportQA | gemini-3.5-flash-lite | gemini-3.8-flash | Quality check |
+| Fallback | gemini-3.7-flash → 3.5-flash-lite | — | Pri 404/503/429 |
 
 ### LLM orchestrácia (`llm_orchestrator.py`)
 
