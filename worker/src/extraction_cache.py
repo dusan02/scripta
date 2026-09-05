@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # This invalidates all cached extractions — next run will re-extract via LLM
 # and store a new cache entry with the new version.
 PROMPT_VERSION = "v4"
-SCHEMA_VERSION = "v1"
+SCHEMA_VERSION = "v2"  # v2: balance sheet integrity check added — re-extract all IFRS PDFs
 
 # Extractor identifiers (stored in ExtractionCache.extractor column)
 EXTRACTOR_FINANCIAL_ANALYST = "GEMINI_FINANCIAL_ANALYST"
