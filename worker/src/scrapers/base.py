@@ -310,7 +310,26 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         if proxy:
             context_kwargs["proxy"] = proxy
 
-        context = await self.browser.new_context(**context_kwargs)
+        # Browser crash guard — browserless kontajner môže crashnúť pod súbežnou
+        # záťažou (OOM, context limit). new_context() potom zlyhá s
+        # "Target page, context or browser has been closed".
+        # Bez tohto guardu scraper vráti FAILED s "Interná chyba scrapera: ..."
+        # čo nie je retryable podľa retry filtra v main.py.
+        # S týmto guardom scraper vráti UNAVAILABLE → automaticky sa retryne.
+        try:
+            context = await self.browser.new_context(**context_kwargs)
+        except PlaywrightError as e:
+            err_str = str(e).lower()
+            if "has been closed" in err_str or "target page" in err_str:
+                try:
+                    from src.browser_manager import browser_manager
+                    browser_manager.report_browser_crash(e)
+                except Exception:
+                    pass
+                raise ScraperUnavailableError(
+                    f"Browser context unavailable (browserless crash): {e}"
+                )
+            raise
         self._contexts.append(context)
 
         # Stealth JS — injektuje sa pred každou stránkou v tomto contexte
