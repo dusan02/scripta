@@ -839,6 +839,7 @@ async def reprocess_report(report_request_id: str):
         vestnik_date_from=getattr(row.user, 'vestnikDateFrom', None).isoformat().split("T")[0] if getattr(row.user, 'vestnikDateFrom', None) else None,
         sources=list(row.selectedSources) if row.selectedSources else [],
         report_language=getattr(row.user, 'reportLanguage', None) or "sk",
+        attachments_config=row.attachmentsConfig if hasattr(row, 'attachmentsConfig') else None,
     )
 
     # Reset status na PROCESSING pred enqueue — inak check_report_cancelled

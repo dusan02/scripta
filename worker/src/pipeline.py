@@ -324,13 +324,44 @@ def _check_balance_sheet_integrity(results: list[CompanyFinancialExtraction]) ->
                     f"Opravujem ST/LT záväzky z total_liab."
                 )
                 m = d['data'].metriky
-                # Keep ST liabilities, compute LT from total
+                # Determine whether total_liab includes reserves or not.
+                # Case A: total_liab = st_liab + lt_liab + reserves → LT = total_liab - st_liab - reserves
+                # Case B: total_liab = st_liab + lt_liab (no reserves)   → LT = total_liab - st_liab
+                # We distinguish by checking if st_liab + lt_liab + reserves ≈ total_liab
+                # using the ORIGINAL (possibly wrong) lt_liab. If the sum matches, total_liab
+                # includes reserves. If st_liab + lt_liab ≈ total_liab (without reserves),
+                # total_liab does NOT include reserves.
+                sum_with_reserves = st_liab + (d['lt_liab'] or 0) + reserves
+                sum_without_reserves = st_liab + (d['lt_liab'] or 0)
+                includes_reserves = (
+                    reserves > 0
+                    and abs(sum_with_reserves - total_liab) / total_liab < 0.05
+                )
+                includes_no_reserves = (
+                    abs(sum_without_reserves - total_liab) / total_liab < 0.05
+                    if total_liab > 0 else False
+                )
+
                 if st_liab > 0 and st_liab < total_liab:
-                    m.dlhodobe_zavazky = total_liab - st_liab - reserves
-                    logger.info(
-                        f"[BALANCE FIX] Rok {y}: LT záväzky opravené "
-                        f"{d['lt_liab']:,.0f} → {m.dlhodobe_zavazky:,.0f}"
-                    )
+                    if includes_reserves and not includes_no_reserves:
+                        # total_liab includes reserves
+                        m.dlhodobe_zavazky = total_liab - st_liab - reserves
+                    else:
+                        # total_liab does NOT include reserves (common in SK GAAP extractions)
+                        m.dlhodobe_zavazky = total_liab - st_liab
+                    # Guard against negative LT — if negative, something is still wrong
+                    if m.dlhodobe_zavazky is not None and m.dlhodobe_zavazky < 0:
+                        logger.warning(
+                            f"[BALANCE FIX] Rok {y}: LT záväzky vychádzajú záporné "
+                            f"({m.dlhodobe_zavazky:,.0f}) — nullujem obe (ST/LT) pre fallback"
+                        )
+                        m.kratkodobe_zavazky = None
+                        m.dlhodobe_zavazky = None
+                    else:
+                        logger.info(
+                            f"[BALANCE FIX] Rok {y}: LT záväzky opravené "
+                            f"{d['lt_liab']:,.0f} → {m.dlhodobe_zavazky:,.0f}"
+                        )
                 else:
                     # Can't determine split — null both and let fallback compute
                     m.kratkodobe_zavazky = None
