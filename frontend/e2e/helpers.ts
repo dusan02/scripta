@@ -5,10 +5,120 @@
  * - Authenticating test users via the NextAuth credentials flow
  * - Creating test data directly in the database (bypassing API)
  * - Cleaning up test data after tests
- * - Generating mock Stripe webhook events
+ * - Generating mock Stripe/Paddle webhook events
  */
 
 import { Page, APIRequestContext } from "@playwright/test";
+import crypto from "crypto";
+import { hashToken } from "@/lib/token";
+
+// ─── Database helpers (direct Prisma access) ────────────────────────────────
+
+/**
+ * Lazy-loaded Prisma client for direct DB access in tests.
+ * Used for: fetching verification tokens, cleaning up test users, checking
+ * credit batches, etc. — operations that bypass the API layer.
+ */
+let _prisma: any = null;
+async function getPrisma() {
+  if (!_prisma) {
+    const { PrismaClient } = require("@prisma/client");
+    _prisma = new PrismaClient();
+  }
+  return _prisma;
+}
+
+/**
+ * Create a user directly in the DB with a verification token.
+ * Returns { user, rawToken } — the rawToken is what would be in the email link.
+ * Useful for testing verify-email flow without an actual email roundtrip.
+ */
+export async function createTestUserWithToken(opts: {
+  email: string;
+  password?: string;
+}): Promise<{ userId: string; rawToken: string }> {
+  const prisma = await getPrisma();
+  const bcrypt = require("bcryptjs");
+  const passwordHash = await bcrypt.hash(opts.password || "TestPass123!", 10);
+
+  // Delete any existing user with this email
+  await prisma.user.deleteMany({ where: { email: opts.email } });
+
+  const user = await prisma.user.create({
+    data: { email: opts.email, passwordHash },
+  });
+
+  // Create verification token
+  await prisma.verificationToken.deleteMany({ where: { email: opts.email } });
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await prisma.verificationToken.create({
+    data: { email: opts.email, token: hashToken(rawToken), expires },
+  });
+
+  return { userId: user.id, rawToken };
+}
+
+/**
+ * Fetch the raw verification token from the DB for a given email.
+ * Since we store hashed tokens, this returns the hash — useful for
+ * verifying that a token was deleted after verification.
+ */
+export async function getVerificationTokenHash(email: string): Promise<string | null> {
+  const prisma = await getPrisma();
+  const record = await prisma.verificationToken.findFirst({
+    where: { email },
+    select: { token: true },
+  });
+  return record?.token || null;
+}
+
+/**
+ * Get a user's credit batches directly from the DB.
+ */
+export async function getUserCreditBatches(userId: string): Promise<Array<{
+  id: string;
+  amount: number;
+  remaining: number;
+  source: string;
+  planName: string | null;
+}>> {
+  const prisma = await getPrisma();
+  return prisma.creditBatch.findMany({
+    where: { userId },
+    select: { id: true, amount: true, remaining: true, source: true, planName: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+/**
+ * Get user's wallet balance directly from the DB.
+ * Returns a number (Prisma returns Decimal, we convert).
+ */
+export async function getUserWalletBalance(userId: string): Promise<number> {
+  const prisma = await getPrisma();
+  const wallet = await prisma.wallet.findUnique({
+    where: { userId },
+    select: { balance: true },
+  });
+  return Number(wallet?.balance ?? 0);
+}
+
+/**
+ * Clean up a test user and all related data (credit batches, wallet,
+ * verification tokens). Safe to call even if the user doesn't exist.
+ */
+export async function cleanupTestUser(email: string): Promise<void> {
+  const prisma = await getPrisma();
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (user) {
+    await prisma.creditBatch.deleteMany({ where: { userId: user.id } });
+    await prisma.wallet.deleteMany({ where: { userId: user.id } });
+  }
+  await prisma.verificationToken.deleteMany({ where: { email } });
+  await prisma.user.deleteMany({ where: { email } });
+  if (_prisma) await _prisma.$disconnect();
+}
 
 // Test user credentials — must exist in the test database.
 // Created via `npm run prisma:seed`.
