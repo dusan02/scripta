@@ -106,7 +106,7 @@ export async function getUserWalletBalance(userId: string): Promise<number> {
 
 /**
  * Clean up a test user and all related data (credit batches, wallet,
- * verification tokens). Safe to call even if the user doesn't exist.
+ * verification tokens, password reset tokens). Safe to call even if the user doesn't exist.
  */
 export async function cleanupTestUser(email: string): Promise<void> {
   const prisma = await getPrisma();
@@ -116,8 +116,39 @@ export async function cleanupTestUser(email: string): Promise<void> {
     await prisma.wallet.deleteMany({ where: { userId: user.id } });
   }
   await prisma.verificationToken.deleteMany({ where: { email } });
+  await prisma.passwordResetToken.deleteMany({ where: { email } });
   await prisma.user.deleteMany({ where: { email } });
   if (_prisma) await _prisma.$disconnect();
+}
+
+/**
+ * Create a password reset token directly in the DB for a given email.
+ * Returns the raw token (what would be in the email link).
+ * The user must already exist — use createTestUserWithToken first if needed.
+ */
+export async function createPasswordResetToken(email: string): Promise<string> {
+  const prisma = await getPrisma();
+  // Delete any existing tokens for this email first (matches API behavior)
+  await prisma.passwordResetToken.deleteMany({ where: { email } });
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await prisma.passwordResetToken.create({
+    data: { email, token: hashToken(rawToken), expires },
+  });
+  return rawToken;
+}
+
+/**
+ * Get user's password hash directly from the DB.
+ * Useful for verifying that a password reset actually changed the hash.
+ */
+export async function getUserPasswordHash(email: string): Promise<string | null> {
+  const prisma = await getPrisma();
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { passwordHash: true },
+  });
+  return user?.passwordHash || null;
 }
 
 // Test user credentials — must exist in the test database.

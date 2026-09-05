@@ -23,6 +23,8 @@ import {
   getUserCreditBatches,
   getUserWalletBalance,
   cleanupTestUser,
+  createPasswordResetToken,
+  getUserPasswordHash,
 } from "./helpers";
 
 // ─── Happy-path: registration → verify-email → login ────────────────────────
@@ -212,6 +214,186 @@ test.describe("Registration → verify-email → login (happy path)", () => {
       expect(sessionCookie).toBeNull();
     } finally {
       await cleanupTestUser(unverifiedEmail);
+    }
+  });
+});
+
+// ─── Happy-path: forgot-password → reset-password → login ───────────────────
+//
+// Tests the full password reset flow:
+//   1. User requests password reset → token created in DB, email sent
+//   2. User uses token to set new password → password hash changed, token deleted
+//   3. User logs in with new password → session cookie returned
+//   4. Old password no longer works
+//   5. Reset token can't be reused (single-use)
+//
+// Email sending is bypassed: we create the reset token directly in the DB,
+// then call the reset-password API with the raw token.
+
+test.describe("Forgot-password → reset-password → login (happy path)", () => {
+  test.skip(!isLocalDB, "DB-dependent tests require local database access");
+
+  test("forgot-password creates reset token for existing user", async ({ request }) => {
+    const email = `e2e-forgot-${Date.now()}@test.verifa.sk`;
+    const { userId } = await createTestUserWithToken({ email, password: "OriginalPass123!" });
+
+    try {
+      // Request password reset
+      const res = await request.post("/api/auth/forgot-password", {
+        headers: { "Content-Type": "application/json" },
+        data: { email },
+      });
+      if (res.status() === 429) { test.skip(); return; }
+      expect(res.status()).toBe(200);
+      const body = await res.json();
+      expect(body.message).toContain("Ak účet existuje");
+
+      // Token should exist in DB (we can't get the raw token from the API,
+      // but we can verify a token was created by checking the DB)
+      const prisma = require("@prisma/client").PrismaClient
+        ? new (require("@prisma/client").PrismaClient)()
+        : null;
+      if (prisma) {
+        const tokens = await prisma.passwordResetToken.findMany({ where: { email } });
+        expect(tokens.length).toBe(1);
+        expect(tokens[0].expires.getTime()).toBeGreaterThan(Date.now());
+        await prisma.$disconnect();
+      }
+    } finally {
+      await cleanupTestUser(email);
+    }
+  });
+
+  test("reset-password changes password and allows login with new password", async ({ request }) => {
+    const email = `e2e-reset-${Date.now()}@test.verifa.sk`;
+    const { userId, rawToken: verifyToken } = await createTestUserWithToken({ email, password: "OldPassword123!" });
+
+    try {
+      // Verify email first — NextAuth rejects login for unverified users
+      const verifyRes = await request.get(`/api/auth/verify-email?token=${verifyToken}`);
+      if (verifyRes.status() === 429) { test.skip(); return; }
+      expect(verifyRes.status()).toBe(200);
+
+      // Get original password hash
+      const hashBefore = await getUserPasswordHash(email);
+      expect(hashBefore).toBeTruthy();
+
+      // Create reset token directly in DB (simulates email link)
+      const rawToken = await createPasswordResetToken(email);
+
+      // Reset password via API
+      const resetRes = await request.post("/api/auth/reset-password", {
+        headers: { "Content-Type": "application/json" },
+        data: { token: rawToken, password: "NewPassword456!" },
+      });
+      if (resetRes.status() === 429) { test.skip(); return; }
+      expect(resetRes.status()).toBe(200);
+      const body = await resetRes.json();
+      expect(body.message).toContain("úspešne zmenené");
+
+      // Password hash should have changed
+      const hashAfter = await getUserPasswordHash(email);
+      expect(hashAfter).toBeTruthy();
+      expect(hashAfter).not.toBe(hashBefore);
+
+      // Login with NEW password → should succeed
+      const csrfRes = await request.get("/api/auth/csrf");
+      const csrfToken = (await csrfRes.json()).csrfToken;
+
+      const loginRes = await request.post("/api/auth/callback/credentials", {
+        form: {
+          email,
+          password: "NewPassword456!",
+          redirect: "false",
+          csrfToken,
+        },
+        maxRedirects: 0,
+      });
+
+      const setCookie = loginRes.headers()["set-cookie"] || "";
+      const sessionCookie = setCookie.match(/(?:__Secure-)?next-auth\.session-token=([^;]+)/);
+      expect(sessionCookie).toBeTruthy();
+
+      // Login with OLD password → should fail (no session cookie)
+      const csrfRes2 = await request.get("/api/auth/csrf");
+      const csrfToken2 = (await csrfRes2.json()).csrfToken;
+
+      const loginRes2 = await request.post("/api/auth/callback/credentials", {
+        form: {
+          email,
+          password: "OldPassword123!",
+          redirect: "false",
+          csrfToken: csrfToken2,
+        },
+        maxRedirects: 0,
+      });
+
+      const setCookie2 = loginRes2.headers()["set-cookie"] || "";
+      const sessionCookie2 = setCookie2.match(/(?:__Secure-)?next-auth\.session-token=([^;]+)/);
+      expect(sessionCookie2).toBeNull();
+    } finally {
+      await cleanupTestUser(email);
+    }
+  });
+
+  test("reset token is single-use (cannot be reused)", async ({ request }) => {
+    const email = `e2e-reuse-${Date.now()}@test.verifa.sk`;
+    await createTestUserWithToken({ email, password: "OriginalPass123!" });
+
+    try {
+      const rawToken = await createPasswordResetToken(email);
+
+      // First reset — should succeed
+      const res1 = await request.post("/api/auth/reset-password", {
+        headers: { "Content-Type": "application/json" },
+        data: { token: rawToken, password: "FirstNewPass123!" },
+      });
+      if (res1.status() === 429) { test.skip(); return; }
+      expect(res1.status()).toBe(200);
+
+      // Second reset with same token — should fail (token was deleted)
+      const res2 = await request.post("/api/auth/reset-password", {
+        headers: { "Content-Type": "application/json" },
+        data: { token: rawToken, password: "SecondNewPass456!" },
+      });
+      expect(res2.status()).toBe(400);
+      const body = await res2.json();
+      expect(body.message).toContain("Neplatný");
+    } finally {
+      await cleanupTestUser(email);
+    }
+  });
+
+  test("expired reset token is rejected", async ({ request }) => {
+    const email = `e2e-expired-${Date.now()}@test.verifa.sk`;
+    await createTestUserWithToken({ email, password: "OriginalPass123!" });
+
+    try {
+      // Create an already-expired token
+      const prisma = new (require("@prisma/client").PrismaClient)();
+      await prisma.passwordResetToken.deleteMany({ where: { email } });
+      const crypto = require("crypto");
+      const { hashToken } = require("@/lib/token");
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      await prisma.passwordResetToken.create({
+        data: {
+          email,
+          token: hashToken(rawToken),
+          expires: new Date(Date.now() - 1000), // Expired 1 second ago
+        },
+      });
+      await prisma.$disconnect();
+
+      const res = await request.post("/api/auth/reset-password", {
+        headers: { "Content-Type": "application/json" },
+        data: { token: rawToken, password: "NewPassword123!" },
+      });
+      if (res.status() === 429) { test.skip(); return; }
+      expect(res.status()).toBe(400);
+      const body = await res.json();
+      expect(body.message).toMatch(/vypršal|expir/i);
+    } finally {
+      await cleanupTestUser(email);
     }
   });
 });
