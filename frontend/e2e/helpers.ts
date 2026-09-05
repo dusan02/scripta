@@ -82,6 +82,23 @@ export async function loginAPIAs(
   };
 }
 
+/**
+ * Try to authenticate via API. Returns null if login fails (instead of throwing).
+ * Useful for tests that should skip gracefully when the test user doesn't exist
+ * in the current database (e.g. local dev without seeded e2e users).
+ */
+export async function tryLoginAPIAs(
+  request: APIRequestContext,
+  email: string,
+  password: string
+): Promise<Record<string, string> | null> {
+  try {
+    return await loginAPIAs(request, email, password);
+  } catch {
+    return null;
+  }
+}
+
 async function getCsrfToken(request: APIRequestContext): Promise<string> {
   const res = await request.get("/api/auth/csrf");
   const body = await res.json();
@@ -197,6 +214,202 @@ export function mockCheckoutCompletedEvent(opts: {
           credits: String(opts.credits || 50),
         },
       },
+    },
+  });
+}
+
+// ─── Paddle helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Sign a mock Paddle webhook event body with the webhook secret.
+ * Paddle uses HMAC-SHA256 with the format `ts:body` (colon separator).
+ * The signature header format is `ts=<timestamp>;h1=<hex>`.
+ */
+export function signPaddleEvent(
+  body: string,
+  secret: string,
+  timestamp: number = Math.floor(Date.now() / 1000),
+): string {
+  const crypto = require("crypto");
+  const payload = `${timestamp}:${body}`;
+  const h1 = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  return `ts=${timestamp};h1=${h1}`;
+}
+
+/**
+ * Generate a mock Paddle `transaction.completed` webhook event body.
+ *
+ * The structure must match what the Paddle SDK's `webhooks.unmarshal()` expects:
+ * - `items[]` with a full `price` object (including `quantity` as an object)
+ * - `payments[]` with `method` containing card details
+ * - `details` with `tax_rates_used[]`, `totals`, `payout_totals`, `line_items[]`
+ *
+ * The `custom_data` field carries `userId` and `planId` which the webhook
+ * route uses to determine how many credits to grant.
+ */
+export function mockPaddleTransactionCompletedEvent(opts: {
+  userId: string;
+  planId?: string;
+  transactionId?: string;
+  eventId?: string;
+  priceId?: string;
+  amount?: string;
+}): string {
+  const planId = opts.planId || "payg1";
+  const txnId = opts.transactionId || `txn_test_${Date.now()}`;
+  const evtId = opts.eventId || `evt_test_${Date.now()}`;
+  const priceId = opts.priceId || "pri_test_001";
+  const amount = opts.amount || "1400";
+  const now = new Date().toISOString();
+
+  return JSON.stringify({
+    event_id: evtId,
+    event_type: "transaction.completed",
+    occurred_at: now,
+    data: {
+      id: txnId,
+      status: "completed",
+      customer_id: `ctm_test_${Date.now()}`,
+      address_id: null,
+      business_id: null,
+      custom_data: { userId: opts.userId, planId },
+      currency_code: "EUR",
+      origin: "api",
+      subscription_id: null,
+      invoice_id: null,
+      invoice_number: null,
+      collection_mode: "automatic",
+      discount_id: null,
+      billing_details: null,
+      billing_period: null,
+      items: [
+        {
+          price_id: priceId,
+          quantity: 1,
+          proration: null,
+          price: {
+            id: priceId,
+            product_id: "pro_test_001",
+            description: "Verifa Report — 1 kredit",
+            name: "Verifa Report — 1 kredit",
+            type: "standard",
+            billing_cycle: null,
+            trial_period: null,
+            tax_mode: "exclusive",
+            unit_price: { amount, currency_code: "EUR" },
+            unit_price_overrides: [],
+            quantity: { minimum: 1, maximum: 1 },
+            status: "active",
+            created_at: now,
+            updated_at: now,
+            custom_data: null,
+            import_meta: null,
+          },
+          product: {
+            id: "pro_test_001",
+            name: "Verifa Report — 1 kredit",
+            type: "standard",
+            status: "active",
+          },
+        },
+      ],
+      details: {
+        tax_rates_used: [],
+        totals: {
+          subtotal: amount,
+          discount: "0",
+          tax: "0",
+          total: amount,
+          credit: "0",
+          credit_to_balance: "0",
+          balance: "0",
+          grand_total: amount,
+          grand_total_tax: "0",
+          fee: null,
+          earnings: null,
+          currency_code: "EUR",
+        },
+        adjusted_totals: null,
+        payout_totals: {
+          subtotal: amount,
+          discount: "0",
+          tax: "0",
+          total: amount,
+          credit: "0",
+          credit_to_balance: "0",
+          balance: "0",
+          grand_total: amount,
+          grand_total_tax: "0",
+          fee: null,
+          earnings: null,
+          currency_code: "EUR",
+          minimum_payout_amount: null,
+          payout_attempt: null,
+        },
+        adjusted_payout_totals: null,
+        line_items: [],
+      },
+      payments: [
+        {
+          type: "payment",
+          status: "captured",
+          method: {
+            type: "card",
+            card: { type: "visa", last4: "4242", expiry_month: "12", expiry_year: "2030" },
+          },
+          amount,
+          currency_code: "EUR",
+        },
+      ],
+      checkout: null,
+      created_at: now,
+      updated_at: now,
+      billed_at: now,
+      revised_at: null,
+    },
+  });
+}
+
+/**
+ * Generate a mock Paddle `adjustment.updated` webhook event body (refund/chargeback).
+ * The webhook route maps this to `charge.refunded` and revokes credits.
+ */
+export function mockPaddleAdjustmentUpdatedEvent(opts: {
+  userId?: string;
+  planId?: string;
+  transactionId: string;
+  adjustmentId?: string;
+  eventId?: string;
+  action?: string;
+  status?: string;
+  total?: string;
+}): string {
+  const adjId = opts.adjustmentId || `adj_test_${Date.now()}`;
+  const evtId = opts.eventId || `evt_test_${Date.now()}`;
+  const action = opts.action || "refund";
+  const status = opts.status || "approved";
+  const total = opts.total || "1400";
+  const now = new Date().toISOString();
+
+  return JSON.stringify({
+    event_id: evtId,
+    event_type: "adjustment.updated",
+    occurred_at: now,
+    data: {
+      id: adjId,
+      action,
+      status,
+      transaction_id: opts.transactionId,
+      customer_id: `ctm_test_${Date.now()}`,
+      currency_code: "EUR",
+      custom_data: opts.userId ? { userId: opts.userId, planId: opts.planId || "payg1" } : null,
+      totals: {
+        total,
+        chargeback_fee: { amount: "0", currency_code: "EUR" },
+        currency_code: "EUR",
+      },
+      created_at: now,
+      updated_at: now,
     },
   });
 }
