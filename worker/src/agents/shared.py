@@ -159,26 +159,34 @@ def get_critical_fallbacks() -> list[dict]:
     return [e for e in _fallback_events if any(k in e["label"] for k in critical_keywords)]
 
 def _log_tokens(model: str, usage, label: str) -> None:
-    """Zaloguje spotrebu tokenov a odhadnuté náklady pre jedno LLM volanie."""
+    """Zaloguje spotrebu tokenov a odhadnuté náklady pre jedno LLM volanie.
+
+    Gemini 3.x modely generujú thinking tokeny (thoughts_token_count) ktoré sú
+    fakturované ako output tokeny. Bez tohto poľa je cost podhodnotený o 70-80%.
+    """
     if not usage:
         return
     from src.log_helpers import get_correlation_id
     inp = getattr(usage, "prompt_token_count", 0) or 0
     out = getattr(usage, "candidates_token_count", 0) or 0
+    thoughts = getattr(usage, "thoughts_token_count", 0) or 0
     price_in, price_out = settings.llm_pricing.get(model, (0.0, 0.0))
-    cost_usd = (inp * price_in + out * price_out) / 1_000_000
+    # Thinking tokeny sa fakturujú ako output tokeny
+    cost_usd = (inp * price_in + (out + thoughts) * price_out) / 1_000_000
     cid = get_correlation_id() or "-"
+    think_str = f" thoughts={thoughts:,}" if thoughts else ""
     logger.info(
         f"[{cid}] LLM TOKENS: {label} | model={model} "
-        f"in={inp:,} out={out:,} tok "
+        f"in={inp:,} out={out:,}{think_str} tok "
         f"cost=${cost_usd:.5f}"
     )
     # Accumulate
     if model not in _token_stats:
-        _token_stats[model] = {"calls": 0, "input": 0, "output": 0, "cost": 0.0}
+        _token_stats[model] = {"calls": 0, "input": 0, "output": 0, "thoughts": 0, "cost": 0.0}
     _token_stats[model]["calls"] += 1
     _token_stats[model]["input"] += inp
     _token_stats[model]["output"] += out
+    _token_stats[model]["thoughts"] = _token_stats[model].get("thoughts", 0) + thoughts
     _token_stats[model]["cost"] += cost_usd
 
 def log_token_summary() -> None:
@@ -190,6 +198,7 @@ def log_token_summary() -> None:
     total_cost = 0.0
     total_in = 0
     total_out = 0
+    total_thoughts = 0
     total_failed_cost = 0.0
     total_failed_calls = 0
     parts = []
@@ -197,18 +206,20 @@ def log_token_summary() -> None:
         total_cost += stats["cost"]
         total_in += stats["input"]
         total_out += stats["output"]
+        total_thoughts += stats.get("thoughts", 0)
         failed_calls = stats.get("failed_calls", 0)
         failed_cost = stats.get("failed_cost", 0.0)
         total_failed_cost += failed_cost
         total_failed_calls += failed_calls
-        part = f"{model}: {stats['calls']} ok calls, {stats['input']:,}+{stats['output']:,} tok, ${stats['cost']:.4f}"
+        thoughts = stats.get("thoughts", 0)
+        part = f"{model}: {stats['calls']} ok calls, {stats['input']:,}+{stats['output']:,}+{thoughts:,}thinking tok, ${stats['cost']:.4f}"
         if failed_calls:
             part += f" | {failed_calls} failed, ~${failed_cost:.4f}"
         parts.append(part)
     grand_total = total_cost + total_failed_cost
     logger.info(
         f"[{cid}] LLM SUMMARY: {len(_token_stats)} models, "
-        f"{total_in:,}+{total_out:,} tok, ${total_cost:.4f} ok"
+        f"{total_in:,}+{total_out:,}+{total_thoughts:,}thinking tok, ${total_cost:.4f} ok"
         + (f" + ~${total_failed_cost:.4f} failed ({total_failed_calls} calls)" if total_failed_calls else "")
         + f" = ~${grand_total:.4f} total | "
         f"{' | '.join(parts)}"
