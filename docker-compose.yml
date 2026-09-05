@@ -46,6 +46,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: ${NEXT_PUBLIC_PADDLE_CLIENT_TOKEN:-}
+        NEXT_PUBLIC_PADDLE_ENVIRONMENT: ${NEXT_PUBLIC_PADDLE_ENVIRONMENT:-sandbox}
     image: verifa-frontend
     container_name: verifa_frontend
     restart: unless-stopped
