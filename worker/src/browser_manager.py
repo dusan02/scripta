@@ -90,5 +90,31 @@ class BrowserManager:
             ]
         )
 
+    def report_browser_crash(self, error: Exception) -> None:
+        """Nahlás browser/context crash zo scraperu.
+
+        Volajú scrapery keď dostanú 'Target page, context or browser has been closed'.
+        Zvýši failure counter a ak je threshold dosiahnutý, prepne Circuit Breaker
+        do OPEN stavu — ďalšie scrapery použijú lokálny fallback Chromium.
+        """
+        err_str = str(error).lower()
+        if "has been closed" not in err_str and "target page" not in err_str:
+            return
+
+        current_time = time.time()
+        if current_time - self.last_failure_time > self.failure_window:
+            self.failures = 1
+        else:
+            self.failures += 1
+
+        self.last_failure_time = current_time
+        logger.warning(
+            f"[BrowserManager] Browser crash nahlásený ({self.failures}/{self.failure_threshold}): {error}"
+        )
+
+        if self.failures >= self.failure_threshold:
+            logger.error("[BrowserManager] Threshold dosiahnutý! Prepínam Circuit Breaker do stavu OPEN (browserless crash).")
+            self.state = "OPEN"
+
 # Globálna inštancia (pre zachovanie stavu v rámci jedného worker procesu)
 browser_manager = BrowserManager()

@@ -368,6 +368,14 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
                 return
             except Exception as e:
                 last_error = e
+                # Nahlás browser/context crash BrowserManageru pre circuit breaker
+                err_str = str(e).lower()
+                if "has been closed" in err_str or "target page" in err_str:
+                    try:
+                        from src.browser_manager import browser_manager
+                        browser_manager.report_browser_crash(e)
+                    except Exception:
+                        pass
                 if not _is_transient_error(e):
                     raise
                 if attempt >= attempts:

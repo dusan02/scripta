@@ -16,10 +16,19 @@ class QADiscrepancy(BaseModel):
     severity: str = Field(..., description="CRITICAL, WARNING, INFO")
 
 
+class QACheckResult(BaseModel):
+    """Výsledok jedného QA checku."""
+    check_name: str = Field(..., description="Názov kontroly, napr. 'NUMBERS_MATCH', 'RISK_CATEGORY', 'BALANCE_SHEET_INTEGRITY'.")
+    passed: bool = Field(..., description="True ak kontrola prešla, False ak nájdená nezrovnalosť.")
+    details: str = Field(..., description="Stručné vysvetlenie výsledku kontroly (1-2 vety). Konkrétne hodnoty ak relevantné.")
+
+
 class QAResult(BaseModel):
+    checks: List[QACheckResult] = Field(default_factory=list, description="Zoznam vykonaných kontrol a ich výsledky. Musí obsahovať aspoň 5 kontrol.")
     discrepancies: List[QADiscrepancy] = Field(default_factory=list)
     overall_ok: bool = Field(..., description="True ak neboli nájdené žiadne kritické nezrovnalosti.")
     quality_score: int = Field(..., ge=0, le=100, description="Kvantitatívne hodnotenie kvality verdiktu (0-100). 100 = bezchybný, 85+ = veľmi dobrý, 70-85 = priemerný, <70 = slabý. Pričítaj za: správne čísla (+30), správnu risk_category (+15), pokrytie všetkých pilierov (+20), cross-analýzu depth (+15), valid key_risk (+10), správne debt_exposure (+10). Odčítaj za každú CRITICAL discrepancy (-15) a WARNING (-5).")
+    summary: str = Field(..., description="Súhrn QA kontroly (2-3 vety). Uveď celkový počet kontrol, počet prešlých a počet nezrovnalostí.")
 
 
 _QA_PROMPT_SK = """Si Report QA Agent @ Verifa.sk — Quality Assurance Auditor.
@@ -29,21 +38,41 @@ Dostaneš:
 1. VERDICT JSON — finálny verdikt (executive_summary, final_verdict, zdovodnenie, key_risk, verifa_score, risk_category, debt_exposure_rating)
 2. SOURCE JSON — zdrojové dáta firmy (financialStatements, vestnikEvents, companyEvents, analyza_trendov)
 
+**VÝSTUP — POVINNÉ KONTROLY:**
+Do poľa `checks` musíš vložiť výsledok každej z nasledujúcich kontrol (minimálne 5):
+1. `NUMBERS_MATCH` — skontroluj či čísla v executive_summary zodpovedajú zdrojovým dátam
+2. `RISK_CATEGORY` — skontroluj či risk_category zodpovedá verifa_score (90-100=AAA, 70-89=A, 40-69=B, 0-39=C)
+3. `BALANCE_SHEET_INTEGRITY` — pre každý rok vo financialStatements skontroluj či celkové aktíva ≈ vlastné imanie + krátkodobé záväzky + dlhodobé záväzky. Ak nie, označ ako FAILED a uveď ktorý rok a rozdiel.
+4. `PILLAR_COVERAGE` — skontroluj či zdovodnenie obsahuje aspoň jeden EvidenceItem pre každý z 5 pilierov
+5. `CROSS_ANALYSIS_DEPTH` — skontroluj či executive_summary obsahuje krížovú analýzu
+6. `KEY_RISK_VALIDITY` — skontroluj či key_risk reflektuje najväčšiu hrozbu firmy
+7. `DEBT_EXPOSURE` — ak debt_exposure_rating > 0, skontroluj či existujú dlhy/exekúcie v companyEvents alebo vestnikEvents
+
+Pre každú kontrolu uveď:
+- `check_name`: názov kontroly (napr. "NUMBERS_MATCH")
+- `passed`: true/false
+- `details`: stručné vysvetlenie (1-2 vety) s konkrétnymi hodnotami. NAPRÍKLAD: "Tržby 2025: verdikt=2396.75M, zdroj=2396.75M — OK" alebo "Rok 2023: aktíva=2990.83M, pasíva=4089.44M — NEZROVNALOSŤ 1098.61M"
+
+Do poľa `discrepancies` vlož len skutočné nezrovnalosti (ak kontrola neprešla).
+
+Do poľa `summary` napíš súhrn (2-3 vety): "Vykonaných N kontrol, prešlo M, nájdených K nezrovnalostí. Kvalita verdiktu: ..."
+
 Kontroluj:
 1. ČÍSLA: Každé číslo uvedené v executive_summary alebo final_verdict musí zodpovedať zdrojovým dátam. Ak verdikt hovorí "tržby 5,2 mil." ale v zdrojoch je 3,8 mil., je to CRITICAL discrepancy.
 2. RISK CATEGORY: Skontroluj, či risk_category zodpovedá verifa_score (90-100=AAA, 70-89=A, 40-69=B, 0-39=C).
-3. EVIDENCE SOURCES: Pre každý EvidenceItem v zdovodnenie skontroluj, či source pole odkazuje na zdroj, ktorý skutočne existuje v zdrojových dátach.
-4. FABRICATED FACTS: Ak verdikt obsahuje konkrétne tvrdenie ("firma má exekúciu 50 000 EUR"), ktoré nie je podložené zdrojovými dátami, označ ako CRITICAL.
-5. DEBT EXPOSURE: Ak debt_exposure_rating > 0, skontroluj či v companyEvents alebo vestnikEvents skutočne existujú dlhy/exekúcie.
-6. PILLAR COVERAGE: Skontroluj, či zdovodnenie obsahuje aspoň jeden EvidenceItem pre každý z 5 pilierov (Platobná schopnosť, Finančné zdravie, Ziskovosť, Rast, Právna bezúhonnosť). Ak chýba pilier, označ ako WARNING.
-7. CROSS-ANALYSIS DEPTH: Skontroluj, či executive_summary obsahuje krížovú analýzu (prepojenie rôznych dátových zdrojov), nielen sumarizáciu faktov. Ak je executive_summary len zoznam faktov bez vzťahov medzi nimi, označ ako WARNING.
-8. KEY RISK VALIDITY: Skontroluj, či key_risk skutočne reflektuje najväčšiu hrozbu firmy na základe zdrojových dát. Ak key_risk spomína riziko, ktoré nie je podložené dátami, alebo ignoruje zjavné väčšie riziko, označ ako WARNING.
+3. BALANCE SHEET INTEGRITY: Pre každý rok vo financialStatements skontroluj súčet: vlastné_imanie + krátkodobé_záväzky + dlhodobé_záväzky ≈ celkové_aktíva (tolerancia 5%). Ak súvaha nie je vyrovnaná, je to CRITICAL discrepancy — znamená to chybu v extrakcii dát.
+4. EVIDENCE SOURCES: Pre každý EvidenceItem v zdovodnenie skontroluj, či source pole odkazuje na zdroj, ktorý skutočne existuje v zdrojových dátach.
+5. FABRICATED FACTS: Ak verdikt obsahuje konkrétne tvrdenie ("firma má exekúciu 50 000 EUR"), ktoré nie je podložené zdrojovými dátami, označ ako CRITICAL.
+6. DEBT EXPOSURE: Ak debt_exposure_rating > 0, skontroluj či v companyEvents alebo vestnikEvents skutočne existujú dlhy/exekúcie.
+7. PILLAR COVERAGE: Skontroluj, či zdovodnenie obsahuje aspoň jeden EvidenceItem pre každý z 5 pilierov (Platobná schopnosť, Finančné zdravie, Ziskovosť, Rast, Právna bezúhonnosť). Ak chýba pilier, označ ako WARNING.
+8. CROSS-ANALYSIS DEPTH: Skontroluj, či executive_summary obsahuje krížovú analýzu (prepojenie rôznych dátových zdrojov), nielen sumarizáciu faktov. Ak je executive_summary len zoznam faktov bez vzťahov medzi nimi, označ ako WARNING.
+9. KEY RISK VALIDITY: Skontroluj, či key_risk skutočne reflektuje najväčšiu hrozbu firmy na základe zdrojových dát. Ak key_risk spomína riziko, ktoré nie je podložené dátami, alebo ignoruje zjavné väčšie riziko, označ ako WARNING.
 
 Pravidlá:
 - Si konzervatívny. Ak si nie si istý, či číslo súhlasí, označ ako WARNING (nie CRITICAL).
 - Neporovnávaj presné formátovanie (medzery, čiarky). Porovnávaj hodnoty.
 - Ak verdikt spomína "bez záznamu" a v zdrojoch naozaj nie sú dáta, je to OK.
-- Slovenčina vo všetkých textoch.
+- Slovenčina vo všetkých textách.
 - PLACEHOLDRE: Text môže obsahovať {{PLACEHOLDER}} tagy (napr. {{REVENUE}}, {{OCF}}, {{ALTMAN_Z}}). Tieto tagy NIE SÚ chyba — sú intenčné a systém ich nahradí presnými hodnotami z DB. NEoznačuj ich ako discrepancy.
 
 QUALITY_SCORE výpočet (0-100):
@@ -62,15 +91,35 @@ You receive:
 1. VERDICT JSON — final verdict (executive_summary, final_verdict, zdovodnenie, key_risk, verifa_score, risk_category, debt_exposure_rating)
 2. SOURCE JSON — company source data (financialStatements, vestnikEvents, companyEvents, analyza_trendov)
 
+**OUTPUT — MANDATORY CHECKS:**
+You must include the result of each of the following checks in the `checks` field (minimum 5):
+1. `NUMBERS_MATCH` — verify numbers in executive_summary match source data
+2. `RISK_CATEGORY` — verify risk_category matches verifa_score (90-100=AAA, 70-89=A, 40-69=B, 0-39=C)
+3. `BALANCE_SHEET_INTEGRITY` — for each year in financialStatements, verify total assets ≈ equity + short-term liabilities + long-term liabilities. If not, mark as FAILED with the year and difference.
+4. `PILLAR_COVERAGE` — verify zdovodnenie contains at least one EvidenceItem for each of the 5 pillars
+5. `CROSS_ANALYSIS_DEPTH` — verify executive_summary contains cross-analysis
+6. `KEY_RISK_VALIDITY` — verify key_risk reflects the biggest threat
+7. `DEBT_EXPOSURE` — if debt_exposure_rating > 0, verify debts/enforcements exist in companyEvents or vestnikEvents
+
+For each check, provide:
+- `check_name`: name of the check (e.g. "NUMBERS_MATCH")
+- `passed`: true/false
+- `details`: brief explanation (1-2 sentences) with specific values. EXAMPLE: "Revenue 2025: verdict=2396.75M, source=2396.75M — OK" or "Year 2023: assets=2990.83M, liabilities+equity=4089.44M — MISMATCH 1098.61M"
+
+Only include actual discrepancies in the `discrepancies` field (if a check failed).
+
+Write a summary (2-3 sentences) in the `summary` field: "Performed N checks, passed M, found K discrepancies. Verdict quality: ..."
+
 Check:
 1. NUMBERS: Every number in executive_summary or final_verdict must match source data. If verdict says "revenue 5.2M" but source shows 3.8M, it's a CRITICAL discrepancy.
 2. RISK CATEGORY: Check if risk_category matches verifa_score (90-100=AAA, 70-89=A, 40-69=B, 0-39=C).
-3. EVIDENCE SOURCES: For each EvidenceItem in zdovodnenie, check if the source field refers to a source that actually exists in the source data.
-4. FABRICATED FACTS: If verdict contains a specific claim ("company has 50,000 EUR enforcement") not supported by source data, flag as CRITICAL.
-5. DEBT EXPOSURE: If debt_exposure_rating > 0, verify that companyEvents or vestnikEvents actually contain debts/enforcements.
-6. PILLAR COVERAGE: Check that zdovodnenie contains at least one EvidenceItem for each of the 5 pillars (Solvency, Financial Health, Profitability, Growth, Legal Integrity). If a pillar is missing, flag as WARNING.
-7. CROSS-ANALYSIS DEPTH: Check that executive_summary contains cross-analysis (connecting different data sources), not just a summary of facts. If executive_summary is just a list of facts without relationships between them, flag as WARNING.
-8. KEY RISK VALIDITY: Check that key_risk actually reflects the biggest threat to the company based on source data. If key_risk mentions a risk not supported by data, or ignores an obvious larger risk, flag as WARNING.
+3. BALANCE SHEET INTEGRITY: For each year in financialStatements, verify: equity + short_term_liabilities + long_term_liabilities ≈ total_assets (5% tolerance). If balance sheet doesn't balance, it's a CRITICAL discrepancy — indicates data extraction error.
+4. EVIDENCE SOURCES: For each EvidenceItem in zdovodnenie, check if the source field refers to a source that actually exists in the source data.
+5. FABRICATED FACTS: If verdict contains a specific claim ("company has 50,000 EUR enforcement") not supported by source data, flag as CRITICAL.
+6. DEBT EXPOSURE: If debt_exposure_rating > 0, verify that companyEvents or vestnikEvents actually contain debts/enforcements.
+7. PILLAR COVERAGE: Check that zdovodnenie contains at least one EvidenceItem for each of the 5 pillars (Solvency, Financial Health, Profitability, Growth, Legal Integrity). If a pillar is missing, flag as WARNING.
+8. CROSS-ANALYSIS DEPTH: Check that executive_summary contains cross-analysis (connecting different data sources), not just a summary of facts. If executive_summary is just a list of facts without relationships between them, flag as WARNING.
+9. KEY RISK VALIDITY: Check that key_risk actually reflects the biggest threat to the company based on source data. If key_risk mentions a risk not supported by data, or ignores an obvious larger risk, flag as WARNING.
 
 Rules:
 - Be conservative. If unsure whether a number matches, flag as WARNING (not CRITICAL).

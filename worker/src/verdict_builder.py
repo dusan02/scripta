@@ -152,7 +152,7 @@ async def run_pdf_reader_agent(ico: str, sources: list, report_language: str = "
     try:
         result = await safe_llm_call(
             extract_company_events, pdf_texts,
-            model=_cfg.model_vestnik,
+            model=_cfg.model_pdf_reader,
             label="PDF Reader Agent",
             report_language=report_language,
         )
@@ -1107,6 +1107,13 @@ async def run_and_save_audit_verdict(
             else:
                 qa_score = getattr(qa_result, "quality_score", None)
                 logger.info(f"[QA OK] IČO {ico}: Report QA Agent nenašiel nezrovnalosti (quality_score={qa_score})")
+            # Log QA checks detail
+            if qa_result and getattr(qa_result, 'checks', None):
+                for chk in qa_result.checks:
+                    status = "PASS" if chk.passed else "FAIL"
+                    logger.info(f"[QA CHECK] IČO {ico}: {chk.check_name}={status} — {chk.details}")
+            if qa_result and getattr(qa_result, 'summary', None):
+                logger.info(f"[QA SUMMARY] IČO {ico}: {qa_result.summary}")
         except Exception as qa_err:
             logger.warning(f"Report QA Agent zlyhal pre IČO {ico}: {qa_err} — preskakujem QA kontrolu.")
 

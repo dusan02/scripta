@@ -356,6 +356,14 @@ async def run_scrapers(
             else:
                 err_msg = str(res)[:200] if str(res) else type(res).__name__
                 logger.error(f"[{source}] Nečakaná chyba v gather: {err_msg}", exc_info=res)
+                # Nahlás browser/context crash BrowserManageru
+                err_str = str(res).lower()
+                if "has been closed" in err_str or "target page" in err_str:
+                    try:
+                        from src.browser_manager import browser_manager
+                        browser_manager.report_browser_crash(res)
+                    except Exception:
+                        pass
                 results_by_source[source] = ScrapedSource(
                     source_type=source,
                     status="FAILED",

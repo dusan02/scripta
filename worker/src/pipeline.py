@@ -247,6 +247,132 @@ def _check_cross_year_duplicates(results: list[CompanyFinancialExtraction]) -> N
         checked.add(year_a)
 
 
+def _check_balance_sheet_integrity(results: list[CompanyFinancialExtraction]) -> None:
+    """
+    Detekuje a opravuje nevyrovnanú súvahu (Assets ≠ Equity + Liabilities).
+
+    LLM extrakcia môže pre niektoré roky vrátiť chybné hodnoty pre dlhodobé záväzky
+    alebo iné položky, čo spôsobí že súvaha nie je vyrovnaná.
+
+    Algoritmus:
+    1. Pre každý rok skontroluj: Assets ≈ Equity + ST_Liab + LT_Liab + Reserves
+    2. Ak odchýlka > 5% aktív, označ rok ako problematický
+    3. Pre problematické roky skús opraviť:
+       a. Ak celkove_cudzie_zdroje existuje a Assets ≈ Equity + celkove_cudzie_zdroje,
+          oprav kratkodobe_zavazky a dlhodobe_zavazky z celkove_cudzie_zdroje
+       b. Ak len jedna zložka (ST alebo LT záväzky) vyzerá ako anomália
+          (výrazne odlišná od susedných rokov), nulluj ju a nech fallback ju doplniť
+    """
+    if len(results) < 2:
+        return
+
+    # Zbierame (year, assets, equity, st_liab, lt_liab, reserves, total_liab)
+    year_data = {}
+    for data in results:
+        m = data.metriky
+        y = m.rok_zavierky
+        if not y or m.celkove_aktiva is None or m.celkove_aktiva <= 0:
+            continue
+        reserves = 0
+        if getattr(m, 'dlhodobe_rezervy', None) is not None:
+            reserves += m.dlhodobe_rezervy
+        if getattr(m, 'kratkodobe_rezervy', None) is not None:
+            reserves += m.kratkodobe_rezervy
+        year_data[y] = {
+            'data': data,
+            'assets': m.celkove_aktiva,
+            'equity': m.vlastne_imanie_celkom,
+            'st_liab': m.kratkodobe_zavazky,
+            'lt_liab': m.dlhodobe_zavazky,
+            'reserves': reserves,
+            'total_liab': getattr(m, 'celkove_cudzie_zdroje', None),
+        }
+
+    if len(year_data) < 1:
+        return
+
+    tolerance = 0.05  # 5% tolerance
+
+    for y, d in year_data.items():
+        assets = d['assets']
+        equity = d['equity'] or 0
+        st_liab = d['st_liab'] or 0
+        lt_liab = d['lt_liab'] or 0
+        reserves = d['reserves']
+
+        # Check using individual components
+        liabilities = st_liab + lt_liab + reserves
+        total_passive = equity + liabilities
+        diff = abs(assets - total_passive)
+        diff_pct = diff / assets if assets > 0 else 0
+
+        if diff_pct <= tolerance:
+            continue  # Balance sheet is OK
+
+        # Try using celkove_cudzie_zdroje (total liabilities) if available
+        total_liab = d['total_liab']
+        if total_liab is not None and total_liab > 0:
+            alt_total_passive = equity + total_liab
+            alt_diff = abs(assets - alt_total_passive)
+            alt_diff_pct = alt_diff / assets if assets > 0 else 0
+
+            if alt_diff_pct <= tolerance:
+                # celkove_cudzie_zdroje matches! Fix ST/LT split
+                logger.warning(
+                    f"[BALANCE FIX] Rok {y}: súvaha nevyrovnaná (diff={diff:,.0f}={diff_pct:.1%}), "
+                    f"ale celkove_cudzie_zdroje={total_liab:,.0f} sedí. "
+                    f"Opravujem ST/LT záväzky z total_liab."
+                )
+                m = d['data'].metriky
+                # Keep ST liabilities, compute LT from total
+                if st_liab > 0 and st_liab < total_liab:
+                    m.dlhodobe_zavazky = total_liab - st_liab - reserves
+                    logger.info(
+                        f"[BALANCE FIX] Rok {y}: LT záväzky opravené "
+                        f"{d['lt_liab']:,.0f} → {m.dlhodobe_zavazky:,.0f}"
+                    )
+                else:
+                    # Can't determine split — null both and let fallback compute
+                    m.kratkodobe_zavazky = None
+                    m.dlhodobe_zavazky = None
+                    logger.warning(
+                        f"[BALANCE FIX] Rok {y}: ST/LT split nejednoznačný, "
+                        f"nullujem obe pre fallback"
+                    )
+                continue
+
+        # No total_liab match — check if LT liabilities are anomalous vs neighbors
+        lt_liab_val = d['lt_liab']
+        if lt_liab_val is not None and lt_liab_val > 0:
+            neighbor_lt = []
+            for other_y, other_d in year_data.items():
+                if other_y != y and other_d['lt_liab'] is not None and other_d['lt_liab'] > 0:
+                    neighbor_lt.append(other_d['lt_liab'])
+
+            if neighbor_lt:
+                max_neighbor = max(neighbor_lt)
+                # If LT liabilities are >5x larger than any neighbor, likely wrong
+                if lt_liab_val > 5 * max_neighbor and lt_liab_val > assets * 0.1:
+                    logger.warning(
+                        f"[BALANCE FIX] Rok {y}: LT záväzky={lt_liab_val:,.0f} "
+                        f"je >5x väčšie než susedné roky (max={max_neighbor:,.0f}) — "
+                        f"pravdepodobne LLM extrakčná chyba. Nullujem."
+                    )
+                    d['data'].metriky.dlhodobe_zavazky = None
+                    # Re-apply balance sheet fallbacks
+                    _apply_balance_sheet_fallbacks(
+                        d['data'].metriky,
+                        {item.field for item in d['data'].verification_confidence if item.confidence == "LOW"},
+                        f"year_{y}"
+                    )
+
+        logger.warning(
+            f"[BALANCE CHECK] Rok {y}: súvaha nevyrovnaná — "
+            f"assets={assets:,.0f} vs equity+liab={total_passive:,.0f} "
+            f"(diff={diff:,.0f}={diff_pct:.1%})"
+        )
+
+
 # ── Debt PDF collection patterns ────────────────────────────────────────────
 _RESULTS_DEBT_PATTERNS = [
     "dovera_dlznici_*{ico}*.pdf",
@@ -773,6 +899,11 @@ async def process_company(
     if len(_ifrs_results) >= 2:
         _check_cross_year_duplicates(_ifrs_results)
 
+    # Balance sheet integrity check — detekuje nevyrovnanú súvahu a pokúša sa opraviť
+    # LLM môže extrahovať chybné LT záväzky (napr. celkové pasíva namiesto LT záväzkov)
+    if len(_ifrs_results) >= 1:
+        _check_balance_sheet_integrity(_ifrs_results)
+
     # CRITICAL CHECK: ak neboli extrahované žiadne finančné údaje, ulož varovanie
     if not _ifrs_results:
         if _llm_quota_exhausted and ifrs_files:
@@ -836,7 +967,7 @@ async def process_company(
     logger.info(
         f"[{get_correlation_id() or '-'}] PIPELINE SUMMARY: ico={ico} "
         f"ifrs={_ifrs_count} vs={_vs_count} "
-        f"models=FinStmts:{_MODEL_IFRS}|AnnReport:{_MODEL_NARRATIVE}|Footnotes:{_MODEL_NOTES}|Vestnik:{_MODEL_VESTNIK}|PDFReader:{_cfg.model_vestnik}|Chief:{_cfg.model_verdict} "
+        f"models=FinStmts:{_MODEL_IFRS}|AnnReport:{_MODEL_NARRATIVE}|Footnotes:{_MODEL_NOTES}|Vestnik:{_MODEL_VESTNIK}|PDFReader:{_cfg.model_pdf_reader}|Chief:{_cfg.model_verdict} "
         f"elapsed={_elapsed:.1f}s"
     )
     log_pipeline_end(ico, "OK", _elapsed)

@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     model_narrative: str = "gemini-3.8-flash"   # Naratívna analýza (VS) — grounding, reasoning
     model_notes: str = "gemini-3.8-flash"       # Forenzný analytik (poznámky) — related party, riziká
     model_vestnik: str = "gemini-3.5-flash-lite"  # Vestník udalosti — štruktúrovaná extrakcia z krátkeho textu
+    model_pdf_reader: str = "gemini-3.8-flash"  # PDF Reader Agent — multimodálna extrakcia z PDF dokumentov
     model_cross_analysis: str = "gemini-3.8-flash"  # Cross-Analysis Agent — krížová analýza, reasoning
     model_fallback: str = "gemini-3.7-flash"      # Fallback pri 404/503 (stabilný, rýchly)
     model_fallback_2: str = "gemini-3.5-flash-lite"  # Sekundárny fallback (najlacnejší)
