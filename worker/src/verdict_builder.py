@@ -1037,15 +1037,8 @@ async def run_and_save_audit_verdict(
             logger.warning(f"Cross-Analysis Agent zlyhal pre IČO {ico}: {cross_err} — Chief Auditor pokračuje bez neho.")
 
         # ── Chief Auditor — finálny verdikt + scorecard + evidence ──
-        # Pre-flight check: ak 3.1 Pro nedostupný, použijeme 2.5 Pro priamo (žiadny flash — halucinuje)
+        # TEMPORARY TEST: model_verdict returns 3.8 Flash — skip Pro pre-flight override.
         _chief_model = _cfg.model_verdict
-        if _cfg.expert_mode:
-            _pro_ok = await check_pro_model_available("gemini-3.1-pro-preview", timeout=8.0)
-            if not _pro_ok:
-                _chief_model = "gemini-2.5-pro"
-                logger.info(f"[{ico}] CHIEF AUDITOR: 3.1 Pro nedostupný → používam {_chief_model}")
-            else:
-                _chief_model = "gemini-3.1-pro-preview"
 
         try:
             logger.info(f"Chief Auditor vstup: {len(auditor_input_json)} chars (redukovaný z {len(company_data)} chars) | model={_chief_model}")

@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     model_ifrs: str = "gemini-3.8-flash"        # IFRS tabuľky — komplexná extrakcia 50+ polí
     model_narrative: str = "gemini-3.8-flash"   # Naratívna analýza (VS) — grounding, reasoning
     model_notes: str = "gemini-3.8-flash"       # Forenzný analytik (poznámky) — related party, riziká
-    model_vestnik: str = "gemini-3.5-flash-lite"  # Vestník udalosti — štruktúrovaná extrakcia z krátkeho textu
+    model_vestnik: str = "gemini-3.8-flash"   # Vestník udalosti — zjednotené s ostatnými agentmi
     model_pdf_reader: str = "gemini-3.8-flash"  # PDF Reader Agent — multimodálna extrakcia z PDF dokumentov
     model_cross_analysis: str = "gemini-3.8-flash"  # Cross-Analysis Agent — krížová analýza, reasoning
     model_fallback: str = "gemini-3.7-flash"      # Fallback pri 404/503 (stabilný, rýchly)
@@ -51,8 +51,9 @@ class Settings(BaseSettings):
 
     @property
     def model_verdict(self) -> str:
-        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.8 in Standard."""
-        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.8-flash"
+        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.8 in Standard.
+        TEMPORARY TEST: Chief Auditor on 3.8 Flash to compare quality vs 3.1 Pro."""
+        return "gemini-3.8-flash"
 
     @property
     def model_qa(self) -> str:
