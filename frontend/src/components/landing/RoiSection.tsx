@@ -11,7 +11,7 @@ const PACKAGES = [
   { id: "50x", reports: 50, totalPrice: 349, perReport: 6.98 },
 ];
 
-const VERIFA_MINUTES = 8;
+const VERIFA_MINUTES = 12;
 
 export default function RoiSection() {
   const t = useT();
