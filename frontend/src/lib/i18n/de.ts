@@ -901,7 +901,7 @@ const de: Dict = {
   "report.patienceBody": "Wir verarbeiten umfangreiche Finanzberichte und Jahresabschlüsse.\nBitte schließen Sie diese Seite nicht — der Bericht wird automatisch fertiggestellt.",
 
   // ── Landing page ──
-  "home.badge": "Business Risk Report in 10 Minuten",
+  "home.badge": "Business Risk Report in 10-15 Minuten",
   "home.heroTitle1": "Unternehmensprüfung",
   "home.heroTitle2": "in einem Bericht",
   "home.heroSubtitle": "Geben Sie eine Firmen-ID ein und erhalten Sie einen vollständigen PDF-Bericht mit automatisiertem Gutachten, Finanzanalyse und Verifa Score — in Minuten, nicht in Stunden.",
@@ -942,7 +942,7 @@ const de: Dict = {
   "home.statReport": "Umfassender Bericht",
   "home.faqTitle": "Häufig gestellte Fragen",
   "home.faq1q": "Wie lange dauert die Berichtserstellung?",
-  "home.faq1a": "Die meisten Berichte sind innerhalb von 10 Minuten nach Eingabe der IČO fertig, abhängig von der Unternehmensgröße.",
+  "home.faq1a": "Die meisten Berichte sind innerhalb von 10-15 Minuten nach Eingabe der IČO fertig, abhängig von der Unternehmensgröße.",
   "home.faq2q": "Sind die Registerdaten aktuell?",
   "home.faq2a": "Ja, die Daten werden zum Zeitpunkt der Berichtserstellung direkt aus den Registern abgerufen.",
   "home.faq3q": "Welche Zahlungsmethoden akzeptieren Sie?",

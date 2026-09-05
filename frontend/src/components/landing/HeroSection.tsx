@@ -63,7 +63,7 @@ export default function HeroSection() {
         <div className="mt-8 flex gap-8 justify-center flex-wrap hero-stats">
           {[
             { num: "25+", label: t("home.statRegisters") },
-            { num: "~8 min", label: t("home.statAvgTime") },
+            { num: "~10-15 min", label: t("home.statAvgTime") },
             { num: "0-100", label: t("home.statScoreRange") },
             { num: "1 PDF", label: t("home.statReport") },
           ].map((s) => (

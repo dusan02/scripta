@@ -901,7 +901,7 @@ const en: Dict = {
   "report.patienceBody": "We are processing extensive financial statements and annual reports.\nPlease do not close this page — the report will complete automatically.",
 
   // ── Landing page ──
-  "home.badge": "Business Risk Report in 10 minutes",
+  "home.badge": "Business Risk Report in 10-15 minutes",
   "home.heroTitle1": "Company verification",
   "home.heroTitle2": "in one report",
   "home.heroSubtitle": "Enter a company ID and get a complete PDF report with automated assessment, financial analysis and Verifa Score — in minutes, not hours.",
@@ -942,7 +942,7 @@ const en: Dict = {
   "home.statReport": "Comprehensive report",
   "home.faqTitle": "Frequently asked questions",
   "home.faq1q": "How long does report processing take?",
-  "home.faq1a": "Most reports are ready within 10 minutes of entering the IČO, depending on company size.",
+  "home.faq1a": "Most reports are ready within 10-15 minutes of entering the IČO, depending on company size.",
   "home.faq2q": "Is the register data current?",
   "home.faq2a": "Yes, data is fetched directly from the registers at the time of report generation.",
   "home.faq3q": "What payment methods do you accept?",

@@ -901,7 +901,7 @@ const sk: Dict = {
   "report.patienceBody": "Spracovávame rozsiahle finančné výkazy a výročné správy.\nProsím, nezatvárajte túto stránku — report sa dokončí automaticky.",
 
   // ── Landing page ──
-  "home.badge": "Business Risk Report do 10 minút",
+  "home.badge": "Business Risk Report do 10-15 minút",
   "home.heroTitle1": "Preverenie firmy",
   "home.heroTitle2": "jedným reportom",
   "home.heroSubtitle": "Zadajte IČO a dostanete kompletný PDF report s automatizovaným posudkom, finančnou analýzou a Verifa Score — za minúty, nie za hodiny.",
@@ -942,7 +942,7 @@ const sk: Dict = {
   "home.statReport": "Komplexný report",
   "home.faqTitle": "Časté otázky",
   "home.faq1q": "Ako dlho trvá spracovanie reportu?",
-  "home.faq1a": "Väčšina reportov je hotových do 10 minút od zadania IČO, v závislosti od veľkosti spoločnosti.",
+  "home.faq1a": "Väčšina reportov je hotových do 10-15 minút od zadania IČO, v závislosti od veľkosti spoločnosti.",
   "home.faq2q": "Sú dáta z registrov aktuálne?",
   "home.faq2a": "Áno, dáta sú získavané priamo z registrov v čase vygenerovania reportu.",
   "home.faq3q": "Aké platobné metódy akceptujete?",
