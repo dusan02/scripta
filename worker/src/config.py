@@ -51,9 +51,8 @@ class Settings(BaseSettings):
 
     @property
     def model_verdict(self) -> str:
-        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.8 in Standard.
-        TEMPORARY TEST: Chief Auditor on 3.8 Flash to compare quality vs 3.1 Pro."""
-        return "gemini-3.8-flash"
+        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.8 in Standard."""
+        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.8-flash"
 
     @property
     def model_qa(self) -> str:
