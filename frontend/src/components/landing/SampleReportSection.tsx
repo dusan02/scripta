@@ -32,11 +32,11 @@ export default function SampleReportSection() {
                 transition: "all 0.2s ease",
               }}
             >
-              {/* PDF preview area — green accent with document icon */}
+              {/* PDF preview area — realistic cover mock */}
               <div
                 className="relative flex items-center justify-center"
                 style={{
-                  background: "linear-gradient(135deg, var(--accent-bg, #ecfdf5) 0%, var(--bg-subtle, #f0fdf4) 100%)",
+                  background: "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)",
                   borderBottom: "1px solid var(--border)",
                   aspectRatio: "3 / 4",
                   maxHeight: "220px",
@@ -44,37 +44,107 @@ export default function SampleReportSection() {
               >
                 {/* Document shape */}
                 <div
-                  className="flex flex-col items-center justify-center gap-2 transition-transform group-hover:scale-105"
+                  className="flex flex-col items-center justify-start pt-4 transition-transform group-hover:scale-105"
                   style={{
-                    width: "60%",
-                    height: "75%",
-                    background: "var(--surface)",
+                    width: "64%",
+                    height: "78%",
+                    background: "#fff",
                     border: "1px solid var(--border)",
-                    borderRadius: "8px",
+                    borderRadius: "10px",
                     boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                    padding: "12px 8px",
+                    overflow: "hidden",
+                    position: "relative",
                   }}
                 >
-                  {/* Verifa logo mark */}
+                  {/* Top green bar like real cover */}
                   <div
-                    className="flex items-center justify-center rounded-lg mb-1"
+                    className="w-full h-2"
+                    style={{ background: "var(--accent)" }}
+                  />
+
+                  {/* Logo: V mark + Verifa */}
+                  <div className="mt-3 mb-2 flex items-center gap-1">
+                    <div
+                      className="flex items-center justify-center rounded"
+                      style={{
+                        width: 22,
+                        height: 22,
+                        background: "var(--accent)",
+                        color: "#fff",
+                        fontSize: 13,
+                        fontWeight: 800,
+                      }}
+                    >
+                      V
+                    </div>
+                    <span style={{ fontSize: 10, color: "var(--text)", fontWeight: 700 }}>
+                      erifa<span style={{ color: "var(--accent)" }}>.sk</span>
+                    </span>
+                  </div>
+
+                  {/* BUSINESS RISK REPORT */}
+                  <div
+                    className="text-center mt-1"
                     style={{
-                      width: 32,
-                      height: 32,
-                      background: "var(--accent)",
+                      fontSize: 6,
+                      letterSpacing: "0.1em",
+                      color: "var(--text-muted)",
+                      fontWeight: 600,
                     }}
                   >
-                    <span style={{ color: "var(--accent-button-text, #fff)", fontSize: 16, fontWeight: 800, letterSpacing: "-0.04em" }}>V</span>
+                    BUSINESS RISK REPORT
                   </div>
-                  {/* Mock lines representing text */}
-                  <div className="w-full flex flex-col gap-1.5 items-center">
-                    <div style={{ width: "80%", height: 4, background: "var(--accent)", borderRadius: 2, opacity: 0.7 }} />
-                    <div style={{ width: "60%", height: 3, background: "var(--border)", borderRadius: 2 }} />
-                    <div style={{ width: "70%", height: 3, background: "var(--border)", borderRadius: 2 }} />
-                    <div style={{ width: "50%", height: 3, background: "var(--border)", borderRadius: 2 }} />
-                    <div style={{ width: "65%", height: 3, background: "var(--border)", borderRadius: 2 }} />
+
+                  {/* Company name */}
+                  <div
+                    className="mt-2 px-4 text-center"
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: "var(--text)",
+                      lineHeight: 1.2,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {r.name.split(",").slice(0, 2).join(",")}
+                  </div>
+
+                  {/* Score badge — circular */}
+                  <div
+                    className="mt-auto mb-6 flex flex-col items-center justify-center"
+                    style={{
+                      width: 58,
+                      height: 58,
+                      borderRadius: "50%",
+                      border: "3px dashed var(--accent)",
+                      borderStyle: "dashed",
+                      background: "rgba(255,255,255,0.8)",
+                    }}
+                  >
+                    <span style={{ fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.08em" }}>VERIFA</span>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: "var(--accent)", lineHeight: 1 }}>83</span>
+                    <span style={{ fontSize: 6, color: "var(--text-muted)" }}>SKÓRE</span>
+                  </div>
+
+                  {/* Bottom colored status bar */}
+                  <div
+                    className="mt-auto w-full flex items-center justify-end gap-1 px-2 py-1"
+                    style={{ background: "rgba(22,163,74,0.08)" }}
+                  >
+                    <div
+                      style={{
+                        width: 22,
+                        height: 6,
+                        background: "var(--accent)",
+                        borderRadius: 3,
+                      }}
+                    />
                   </div>
                 </div>
+
                 {/* PDF badge */}
                 <span
                   className="absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded"
