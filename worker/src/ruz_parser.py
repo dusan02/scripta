@@ -1163,6 +1163,17 @@ def parse_tables_to_metrics(
     if warnings:
         for w in warnings:
             logger.warning(f"[RUZ_PARSER] IČO {ico} rok {year}: {w}")
+        # Data-integrity invariant: a badly unbalanced sheet (>15% off) means
+        # the positional row mapping likely hit a different template layout.
+        # Mark the metrics so compute_data_quality_status() returns
+        # PARSER_ERROR instead of AVAILABLE — the numbers must not silently
+        # pass as valid financial data.
+        if any("Balance sheet large mismatch" in w for w in warnings):
+            metrics = metrics.model_copy(update={"balance_violation": True})
+            logger.error(
+                f"[RUZ_INVARIANT] IČO {ico} rok {year}: balance-sheet identity violated — "
+                f"dataQualityStatus → PARSER_ERROR"
+            )
     else:
         logger.info(f"[RUZ_PARSER] IČO {ico} rok {year}: sanity checks passed")
 
@@ -1250,10 +1261,15 @@ def compute_data_quality_status(metrics: Optional[FinancialMetrics]) -> str:
     (db_repository.save_to_db, save_narrative_to_db, reparse/retry scripts)
     so that the DB status always reflects the actual persisted BS fields.
 
-    - AVAILABLE:   totalAssets AND currentAssets are both present (not None)
-    - SOURCE_GAP:  totalAssets is None, OR totalAssets present but
-                   currentAssets is None (RÚZ source has insufficient
-                   structured balance-sheet data)
+    - AVAILABLE:     totalAssets AND currentAssets are both present (not None)
+                     AND the balance-sheet identity check did not fail badly
+    - SOURCE_GAP:    totalAssets is None, OR totalAssets present but
+                     currentAssets is None (RÚZ source has insufficient
+                     structured balance-sheet data)
+    - PARSER_ERROR:  the balance-sheet invariant (aktíva = pasíva) is
+                     violated by >15% — the positional row mapping likely
+                     hit a different template/layout, so the parsed numbers
+                     must not pass as valid financial data
 
     API_ERROR / PARSER_ERROR are transient states assigned by the
     error-handling/retry layer (see retry_api_errors.py), not by this
@@ -1261,6 +1277,8 @@ def compute_data_quality_status(metrics: Optional[FinancialMetrics]) -> str:
     """
     if metrics is None:
         return "SOURCE_GAP"
+    if getattr(metrics, "balance_violation", False):
+        return "PARSER_ERROR"
     if metrics.celkove_aktiva is not None and metrics.obezny_majetok is not None:
         return "AVAILABLE"
     return "SOURCE_GAP"

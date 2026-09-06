@@ -1263,7 +1263,7 @@ async def run_and_save_audit_verdict(
                                 _spoints[_pi] = _pt
                 verdict_payload['executiveSections'] = json.dumps(_esec_list, ensure_ascii=False)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.warning("[VERDICT_JSON] executiveSections: malformed payload JSON — metric cleanup skipped, original text kept")
 
         # ── Anti-halucinácia pre evidence_list (justification) ──
         # Zdôvodnenie obsahuje "tvrdenie" a "dokaz" polia, ktoré LLM generuje.
@@ -1283,7 +1283,7 @@ async def run_and_save_audit_verdict(
                             _item[_ifield] = _itext
                 verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.warning("[VERDICT_JSON] justification: malformed payload JSON — anti-hallucination cleanup skipped, original text kept")
 
         # ── Deterministická injekcia placeholderov z DB ──
         # Nahradí {{PLACEHOLDER}} tagy presnými hodnotami z DB.
@@ -1319,7 +1319,7 @@ async def run_and_save_audit_verdict(
                                     _spoints[_pi] = _injected_pt
                     verdict_payload['executiveSections'] = json.dumps(_esec_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    logger.warning("[VERDICT_JSON] executiveSections: malformed payload JSON — placeholder injection skipped, original text kept")
             # Injektuj aj do justification evidence items
             _just = verdict_payload.get('justification')
             if _just and isinstance(_just, str):
@@ -1338,7 +1338,7 @@ async def run_and_save_audit_verdict(
                                 _item[_ifield] = _injected_j
                     verdict_payload['justification'] = json.dumps(_just_list, ensure_ascii=False)
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    logger.warning("[VERDICT_JSON] justification: malformed payload JSON — placeholder injection skipped, original text kept")
             # Injektuj placeholdre do findings (Analýza & Nálezy sekcia)
             _findings = verdict_payload.get('findings')
             if _findings:
@@ -1366,7 +1366,7 @@ async def run_and_save_audit_verdict(
                                     _item[_ffield] = _injected_f
                         verdict_payload['findings'] = _findings_list
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    logger.warning("[VERDICT_JSON] findings: malformed payload JSON — placeholder injection skipped, original text kept")
 
         # ── Deterministická anti-halucinácia: odstráň neoveriteľné dlhy z verdict textu ──
         # Ak LLM spomenie konkrétne sumy dlhov voči registrom, ktoré sú CLEAN,

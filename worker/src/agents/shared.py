@@ -300,6 +300,12 @@ class FinancialMetrics(BaseModel):
     zasoby_prev: Optional[float] = Field(None, description="Zásoby za predchádzajúce obdobie.")
     pohladavky_prev: Optional[float] = Field(None, description="Pohľadávky z obchodného styku za predchádzajúce obdobie.")
     zavazky_obchod_prev: Optional[float] = Field(None, description="Záväzky z obchodného styku za predchádzajúce obdobie.")
+    # ── Data-integrity flag (set by ruz_parser._sanity_check, not by the LLM) ──
+    # True when the parsed balance sheet violates the accounting identity
+    # (assets vs equity+liabilities mismatch > 15%) — the row mapping likely
+    # hit a different template layout. compute_data_quality_status() then
+    # returns PARSER_ERROR instead of AVAILABLE.
+    balance_violation: bool = Field(False, description="Internal: set by the RÚZ parser when the balance-sheet identity check fails badly. Never produced by the LLM.")
 
 class VerificationConfidenceItem(BaseModel):
     field: str = Field(..., description="Názov pola, napr. celkove_aktiva, trzby_z_hlavnej_cinnosti.")

@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { seedFromOrsr } from "@/lib/orsr";
+import { checkBalanceSheet } from "@/lib/ruz/balance-invariant";
 
 // ═══════════════════════════════════════════════════════════════
 // RÚZ API client
@@ -250,7 +251,21 @@ function parseStatement(
 
   // dataQualityStatus is NOT NULL — mirrors src/ruz_parser.py::compute_data_quality_status
   // (AVAILABLE only when both totalAssets and currentAssets are present).
-  const dataQualityStatus = totalAssets !== null && currentAssets !== null ? "AVAILABLE" : "SOURCE_GAP";
+  let dataQualityStatus = totalAssets !== null && currentAssets !== null ? "AVAILABLE" : "SOURCE_GAP";
+
+  // ── Balance-sheet invariant (B1 data integrity) ──
+  // The accounting identity Aktíva = Pasíva must hold for a correctly parsed
+  // sheet. A violation means the positional row mapping hit a different
+  // template/layout — the parsed numbers must NOT silently pass as valid.
+  const balance = checkBalanceSheet({ totalAssets, equity, shortTermLiabilities, longTermLiabilities });
+  if (balance.status === "unbalanced") {
+    dataQualityStatus = "PARSER_ERROR";
+    console.error(
+      `[RUZ_INVARIANT] year=${year} balance check FAILED: assets=${totalAssets} pasiva=${balance.pasiva} ` +
+      `diff=${((balance.diffPct ?? 0) * 100).toFixed(1)}% — marking PARSER_ERROR ` +
+      `(equity=${equity}, st=${shortTermLiabilities}, lt=${longTermLiabilities})`
+    );
+  }
 
   return {
     year,
@@ -413,7 +428,15 @@ export async function seedFromRuz(ico: string) {
       }
     }
 
-    if (!parsedTables) continue;
+    if (!parsedTables) {
+      // Explicit failure state — a závierka exists but its tables could not be
+      // identified (template variant / empty obsah). Never silently skip.
+      console.error(
+        `[RUZ_PARSE] ${ico} year=${year}: závierka ${z.id ?? "?"} has no identifiable aktíva/pasíva tables ` +
+        `(${(z.idUctovnychVykazov || []).length} výkazov) — skipping year`
+      );
+      continue;
+    }
 
     stmts.push(parseStatement(year, z.id || null, ruzVykazId, parsedTables));
   }
@@ -542,8 +565,10 @@ export const getCompanyData = cache(async (ico: string) => {
   if (!company) {
     try {
       company = await seedCompany(ico);
-    } catch {
-      // ignore seeding errors
+    } catch (err) {
+      // Seeding failure must be visible — this is the on-demand path for
+      // first-time visitors; silent failure would leave the page empty.
+      console.error(`[RUZ_SEED] on-demand seed failed for ${ico}:`, err);
     }
   }
 
