@@ -1271,3 +1271,70 @@ class TestTemplate687BalanceSheet:
         # 699: r.1, data_cols=4, target=2 → 7671 (WRONG — that's nonCurrentAssets)
         val_699 = _get_activ_value(tables, ROW_TOTAL_ASSETS, id_sablony=699)
         assert val_699 == 7671.0  # This is the bug — 699 mapping on 687 data gives wrong value
+
+
+class TestBalanceViolationDataQuality:
+    """Sprint B1 — balance-sheet invariant → PARSER_ERROR marking.
+
+    A badly unbalanced sheet (>15% off) means the positional row mapping
+    likely hit a different template layout. compute_data_quality_status()
+    must return PARSER_ERROR so the numbers never pass as valid.
+    """
+
+    def _metrics(self, assets, equity, st, lt):
+        from src.agents.shared import FinancialMetrics
+        return FinancialMetrics(
+            rok_zavierky=2024,
+            mena="EUR",
+            typ_zavierky="SK_GAAP",
+            pocet_mesiacov_obdobia=12,
+            is_consolidated=False,
+            celkove_aktiva=assets,
+            obezny_majetok=st * 0.6 if st else None,
+            vlastne_imanie_celkom=equity,
+            kratkodobe_zavazky=st,
+            dlhodobe_zavazky=lt,
+            trzby_z_hlavnej_cinnosti=None,
+            hruba_marza=None,
+            zisk_alebo_strata_po_zdaneni=None,
+            peniaze_a_penazne_ekvivalenty_k_31_12=None,
+            ciste_penazne_toky_z_prevadzkovej_cinnosti=None,
+            osobne_naklady=None,
+            pohladavky_z_obchodneho_styku=None,
+            zavazky_z_obchodneho_styku=None,
+            zasoby=None,
+            odpisy=None,
+            investicny_cash_flow=None,
+            financny_cash_flow=None,
+            uroky=None,
+            dan_z_prijmu=None,
+            pocet_zamestnancov=None,
+        )
+
+    def test_balanced_sheet_is_available(self):
+        from src.ruz_parser import compute_data_quality_status
+        m = self._metrics(1_000_000, 500_000, 400_000, 100_000)
+        assert compute_data_quality_status(m) == "AVAILABLE"
+
+    def test_balance_violation_flag_gives_parser_error(self):
+        from src.ruz_parser import compute_data_quality_status
+        m = self._metrics(1_000_000, 500_000, 400_000, 100_000)
+        corrupted = m.model_copy(update={"balance_violation": True})
+        assert compute_data_quality_status(corrupted) == "PARSER_ERROR"
+
+    def test_default_metrics_have_no_violation(self):
+        from src.agents.shared import FinancialMetrics
+        m = self._metrics(1_000_000, 500_000, 400_000, 100_000)
+        assert m.balance_violation is False
+
+    def test_source_gap_still_works_without_violation(self):
+        from src.ruz_parser import compute_data_quality_status
+        m = self._metrics(None, 500_000, 400_000, 100_000)
+        assert compute_data_quality_status(m) == "SOURCE_GAP"
+
+    def test_violation_takes_precedence_over_available(self):
+        from src.ruz_parser import compute_data_quality_status
+        # Fully present fields but flagged → PARSER_ERROR wins
+        m = self._metrics(1_000_000, 500_000, 400_000, 100_000)
+        corrupted = m.model_copy(update={"balance_violation": True})
+        assert compute_data_quality_status(corrupted) == "PARSER_ERROR"
