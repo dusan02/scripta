@@ -66,6 +66,10 @@ export default withBundleAnalyzer(withSentryConfig(nextConfig, {
     // disables ISR/CDN caching on public pages. Error capture still works via
     // global-error.tsx + instrumentation.ts.
     autoInstrumentServerFunctions: false,
+    // Same reason: the app-directory wrapper wraps EVERY server component
+    // (pages/layouts) with wrapServerComponentWithSentry → headers() read →
+    // all routes become ƒ Dynamic and ISR (revalidate) is silently disabled.
+    autoInstrumentAppDirectory: false,
     // Tree-shake Sentry debug code from the client bundle
     treeshake: {
       removeDebugLogging: true,
