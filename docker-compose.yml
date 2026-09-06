@@ -185,6 +185,7 @@ services:
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      BROWSERLESS_TOKEN: ${BROWSERLESS_TOKEN:?BROWSERLESS_TOKEN must be set - generate with openssl rand -hex 32}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_REGION: ${S3_REGION:-auto}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
@@ -229,6 +230,7 @@ services:
       CRE_USERNAME: ${CRE_USERNAME:-}
       CRE_PASSWORD: ${CRE_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      BROWSERLESS_TOKEN: ${BROWSERLESS_TOKEN:?BROWSERLESS_TOKEN must be set - generate with openssl rand -hex 32}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_REGION: ${S3_REGION:-auto}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
