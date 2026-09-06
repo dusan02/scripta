@@ -90,6 +90,13 @@ remote() {
 echo "=== Verifa.sk Deploy ($([ "$LOCAL_BUILD" = true ] && echo "local-build" || echo "server-build"), service=$SERVICE) ==="
 echo "[$(date)] Starting deploy..."
 
+# Immutable image identity: tag every build with the deployed git SHA.
+# :latest + :rollback remain for compatibility, but SHA tags make every
+# deployed version addressable and rollback-able (never rely on :latest
+# alone — a failed deploy overwrites it).
+DEPLOY_SHA="$(cd "$(dirname "$0")/.." 2>/dev/null && git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+echo "  Deploy SHA: $DEPLOY_SHA"
+
 echo "--- Tagging current image(s) for rollback ---"
 remote "for img in ${IMAGES[*]}; do docker tag \$img \${img}:rollback 2>/dev/null || true; done"
 
@@ -100,6 +107,9 @@ if [ "$LOCAL_BUILD" = true ]; then
 
   echo "--- Building image(s) locally (linux/amd64) ---"
   DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose build $BUILD_TARGETS
+
+  echo "--- Tagging image(s) with deploy SHA ---"
+  for img in "${IMAGES[@]}"; do docker tag "$img" "$img:sha-$DEPLOY_SHA"; done
 
   echo "--- Saving + transferring image(s) to server ---"
   docker save "${IMAGES[@]}" | gzip > "$TAR_FILE"
@@ -137,25 +147,71 @@ if [ -n "$RESTART_TARGETS" ]; then
   remote "cd $REMOTE_DIR && for i in \$(seq 1 15); do if docker compose exec -T worker curl -sf http://localhost:8000/health >/dev/null 2>&1; then echo '  OK worker healthy'; break; fi; sleep 2; done"
 fi
 
+echo ""
+echo "[$(date)] Health gate (60s)..."
+sleep 3
+
+# ── Health gate: verify the NEW containers are healthy; otherwise
+#    automatically roll back to the tagged previous image. ──
+HEALTH_OK=false
+for i in $(seq 1 12); do
+  unhealthy=$(remote "cd $REMOTE_DIR && docker compose ps --format '{{.Name}} {{.Status}}' $BUILD_TARGETS 2>/dev/null | grep -c unhealthy || true")
+  if [ "$unhealthy" = "0" ]; then
+    echo "  OK all recreated containers healthy"
+    HEALTH_OK=true
+    break
+  fi
+  echo "  waiting for health... ($i/12)"
+  sleep 5
+done
+
+if [ "${HEALTH_OK:-false}" != "true" ]; then
+  echo "  ❌ HEALTH GATE FAILED — rolling back to previous image(s)!"
+  remote "for img in ${IMAGES[*]}; do docker tag \${img}:rollback \$img 2>/dev/null || true; done"
+  remote "cd $REMOTE_DIR && docker compose up -d --force-recreate --no-build $BUILD_TARGETS"
+  sleep 10
+  if curl -s -o /dev/null -w "%{http_code}" https://verifa.sk | grep -q "200\|301\|302"; then
+    echo "  ✅ ROLLED BACK — previous version is serving traffic."
+  else
+    echo "  ❌ ROLLBACK ALSO UNHEALTHY — manual intervention required:"
+    echo "     ssh $SERVER 'cd $REMOTE_DIR && docker compose ps && docker compose logs --tail=100'"
+  fi
+  exit 1
+fi
+
+echo "--- Smoke tests ---"
+SMOKE_FAIL=0
+for url in "https://verifa.sk/" "https://verifa.sk/api/health" "https://verifa.sk/firma/35876832-kia-slovakia-s-r-o"; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$url")
+  if [ "$code" = "200" ] || [ "$code" = "301" ] || echo "$code" | grep -qE "^30[12]$"; then
+    echo "  OK $url → $code"
+  else
+    echo "  ❌ SMOKE FAIL: $url → $code"
+    SMOKE_FAIL=1
+  fi
+done
+if [ "$SMOKE_FAIL" != "0" ]; then
+  echo "  ❌ Smoke tests FAILED — rolling back to previous image(s)!"
+  remote "for img in ${IMAGES[*]}; do docker tag \$img:rollback \$img 2>/dev/null || true; done"
+  remote "cd $REMOTE_DIR && docker compose up -d --force-recreate --no-build $BUILD_TARGETS"
+  sleep 10
+  echo "  Rollback complete — verify: https://verifa.sk"
+  exit 1
+fi
+
 echo "--- Reloading nginx ---"
 remote "systemctl reload nginx"
 
 echo "--- Cleaning up old Docker images & build cache ---"
+# NOTE: only DANGLING (untagged) images are pruned — :sha-* and :rollback
+# tags are preserved for rollback.
 remote "docker image prune -f --filter 'until=24h' 2>/dev/null | tail -1 || true; docker builder prune -f --filter 'until=24h' 2>/dev/null | tail -1 || true"
 remote "echo '  Disk:' \$(df -h / | awk 'NR==2 {print \$3 \" / \" \$2 \" (\" \$5 \")\"}')"
 
 echo ""
-echo "[$(date)] Health check..."
-sleep 3
-if curl -s -o /dev/null -w "%{http_code}" https://verifa.sk | grep -q "200\|301\|302"; then
-  echo "  OK site is responding"
-else
-  echo "  WARN site not responding — check: ssh $SERVER 'cd $REMOTE_DIR && docker compose logs -f --tail=50'"
-fi
-
-echo ""
-echo "[$(date)] Deploy complete!"
+echo "[$(date)] Deploy complete! (SHA: $DEPLOY_SHA)"
 echo "  Site: https://verifa.sk"
 echo "  Status: ssh $SERVER 'cd $REMOTE_DIR && docker compose ps'"
 echo "  Logs: ssh $SERVER 'cd $REMOTE_DIR && docker compose logs -f --tail=50'"
 echo "  Rollback: ssh $SERVER \"cd $REMOTE_DIR && $(for img in "${IMAGES[@]}"; do printf 'docker tag %s:rollback %s && ' "$img" "$img"; done)docker compose up -d --force-recreate $BUILD_TARGETS\""
+echo "  SHA images kept: :sha-$DEPLOY_SHA (+ previous :rollback)"
