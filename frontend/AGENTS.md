@@ -152,3 +152,36 @@ All test users have `emailVerified = now()` and a wallet with 5-10 credits.
 - `META_DESC_TOO_LONG` (P2) — some company meta descriptions exceed 160 chars
 - `TITLE_TOO_LONG` (P2) — some company titles exceed 60 chars
 - `H1_NO_COMPANY_NAME` (P2) — H1 uses `IČO {ico}` fallback when name is null
+
+## Data Incident: RPO Import Corrupted Company Names (2026-09-06)
+
+**Symptom:** IČO 35876832 (Kia Slovakia) displayed as "Vilko s.r.o." — its 2004
+predecessor name. Sample check: 9/25 (36%) companies had wrong names.
+
+**Root cause:** `scripts/seed-rpo-dump.ts::extractName()` took `fullNames[0]` —
+the OLDEST entry in the RPO name-history array — and overwrote `Company.name`
+during the Aug 18-20 RPO dump import. Every company that ever renamed itself
+got its oldest historical name.
+
+**Evidence chain (reusable diagnostic pattern):**
+1. RÚZ API returns current official name (`nazovUJ`) — ground truth
+2. ORSR full extract (P=1) shows name history — confirms predecessor names
+3. `Company.updatedAt` falling inside a bulk-import window = import touched it
+4. Sample N companies: DB name vs RÚZ API name → quantifies corruption scale
+
+**Fix:**
+- `extractName()` now takes the LAST fullName (current name)
+- Repair script: `scripts/fix-company-names-ruz.ts` — bulk name repair from
+  RÚZ API using stored `ruzEntityId`, normalized comparison, resumable
+  checkpoint (`/tmp/fix-names-checkpoint.json`), dry-run mode. Run in screen
+  via docker on the verifa_default network (postgres not host-exposed).
+
+**Deployment playbook — rollback-image diagnostic (cheap regression triage):**
+When a production issue appears after a deploy, run the previous image
+(`verifa-frontend:rollback`) on a spare port with the same production DB and
+compare behavior:
+- old image broken too → pre-existing bug (not a regression)
+- old image fine → regression from the new deploy
+- also distinguishes stale-cache vs environment issues
+Example: `docker run --name rollback-test --network verifa_default -p 3003:3000
+--env-file .env -e DATABASE_URL=... verifa-frontend:rollback`
