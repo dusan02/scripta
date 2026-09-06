@@ -114,7 +114,14 @@ function extractLegalFormCode(r: RpoRecord): string | null {
 }
 
 function extractName(r: RpoRecord): string | null {
-  return r.fullNames?.[0]?.value?.trim() || null;
+  // RPO `fullNames` contains the company's FULL NAME HISTORY ordered oldest
+  // → newest. `fullNames[0]` is the OLDEST (often decades-old) name — using
+  // it overwrote ~36% of company names with defunct ones (e.g. Kia Slovakia
+  // showed as "Vilko s.r.o.", its 2004 predecessor). The CURRENT name is
+  // the LAST entry.
+  const names = r.fullNames;
+  if (!names || names.length === 0) return null;
+  return names[names.length - 1]?.value?.trim() || null;
 }
 
 function extractLegalForm(r: RpoRecord): string | null {
