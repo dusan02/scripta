@@ -146,10 +146,12 @@ services:
     environment:
       - CONNECTION_TIMEOUT=300000
       - MAX_CONCURRENT_SESSIONS=5
-      - TOKEN=${BROWSERLESS_TOKEN:-}
+      # Mandatory — an unauthenticated browserless is an SSRF/resource-abuse
+      # pivot for any compromised container on the Docker network.
+      - TOKEN=${BROWSERLESS_TOKEN:?BROWSERLESS_TOKEN must be set (generate: openssl rand -hex 32)}
       - LAUNCH_ARGS=--disable-blink-features=AutomationControlled
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/config"]
+      test: ["CMD", "sh", "-c", "curl -f \"http://localhost:3000/config?token=$$TOKEN\""]
       interval: 30s
       timeout: 10s
       retries: 3

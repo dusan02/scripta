@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { seedFromRuz } from "@/lib/ruz";
 import { seedFromOrsr } from "@/lib/orsr";
+import { verifyCronSecret } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -9,8 +10,10 @@ export const maxDuration = 300;
 const RESEED_BATCH_SIZE = 100;
 
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get("x-cron-secret");
-  if (auth !== process.env.CRON_SECRET) {
+  // Timing-safe verification via the shared helper (same as all other cron
+  // routes) — also enforces a 16-char minimum so an unset CRON_SECRET
+  // cannot grant access.
+  if (!verifyCronSecret(req.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

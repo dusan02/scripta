@@ -1,4 +1,7 @@
-fastapi==0.111.0
+fastapi==0.115.14
+# CVE-2024-47874 (multipart DoS) fixed in starlette 0.40.0 — pinned as a
+# compatible pair with fastapi 0.115.14 (requires starlette>=0.40.0,<0.47.0)
+starlette>=0.40.0,<0.47.0
 uvicorn[standard]==0.30.1
 python-dotenv==1.0.1
 httpx>=0.28.1

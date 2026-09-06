@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 import asyncio
+import hmac
 import logging
 import time
 import random
@@ -96,8 +97,9 @@ async def verify_worker_secret(x_worker_secret: Optional[str] = Header(default=N
         if settings.app_env == "production":
             raise HTTPException(status_code=500, detail="WORKER_SECRET must be set in production")
         return
-        
-    if x_worker_secret != settings.worker_secret:
+
+    # Constant-time comparison — prevents timing side-channel on the secret.
+    if x_worker_secret is None or not hmac.compare_digest(x_worker_secret, settings.worker_secret):
         raise HTTPException(status_code=401, detail="Invalid worker secret")
 
 

@@ -22,10 +22,10 @@ type PendingEmail = {
 let _paddleIpsCache: { ips: string[]; fetchedAt: number } | null = null;
 const PADDLE_IP_TTL_MS = 10 * 60 * 1000;
 
-async function getPaddleIps(): Promise<string[]> {
+async function getPaddleIps(): Promise<{ ips: string[]; stale: boolean }> {
   const now = Date.now();
   if (_paddleIpsCache && now - _paddleIpsCache.fetchedAt < PADDLE_IP_TTL_MS) {
-    return _paddleIpsCache.ips;
+    return { ips: _paddleIpsCache.ips, stale: false };
   }
   try {
     const baseUrl = process.env.PADDLE_ENVIRONMENT === "production"
@@ -36,12 +36,19 @@ async function getPaddleIps(): Promise<string[]> {
     const data = await res.json();
     const cidrs: string[] = (data.data?.ipv4_cidrs || []).map((c: string) => c.replace("/32", ""));
     _paddleIpsCache = { ips: cidrs, fetchedAt: now };
-    return cidrs;
+    return { ips: cidrs, stale: false };
   } catch (err) {
     console.error("[webhook] Failed to fetch Paddle IPs:", err);
-    // On fetch failure, allow through — signature verification is the primary defense.
-    // Blocking on a failed IP fetch would break all webhook deliveries during outages.
-    return [];
+    // Stale-while-error: Paddle's published IPs change rarely — enforce the
+    // last known-good allowlist instead of silently allowing all traffic.
+    if (_paddleIpsCache && _paddleIpsCache.ips.length > 0) {
+      return { ips: _paddleIpsCache.ips, stale: true };
+    }
+    // Never fetched successfully — cannot enforce the allowlist for this
+    // request. Cryptographic signature verification remains the primary
+    // defense; log loudly so this degraded state is visible in monitoring.
+    console.error("[webhook] No cached Paddle IP allowlist available — IP check skipped (signature still enforced)");
+    return { ips: [], stale: false };
   }
 }
 
@@ -64,12 +71,15 @@ export async function POST(req: NextRequest) {
   // This is a defense-in-depth layer on top of cryptographic signature verification.
   // We fetch Paddle's published IPs from their API (source of truth, not hard-coded).
   if (req.headers.get("paddle-signature")) {
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-                     req.headers.get("x-real-ip") || "";
+    // Prefer x-real-ip (set by the reverse proxy from the socket address,
+    // not client-controllable) over x-forwarded-for, whose first entry is
+    // attacker-spoofable when the proxy appends to the client's chain.
+    const clientIp = req.headers.get("x-real-ip") ||
+                     req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "";
     if (clientIp) {
-      const allowedIps = await getPaddleIps();
+      const { ips: allowedIps, stale } = await getPaddleIps();
       if (allowedIps.length > 0 && !allowedIps.includes(clientIp)) {
-        console.warn(`[webhook] Paddle IP rejected: ${clientIp} not in allowlist`);
+        console.warn(`[webhook] Paddle IP rejected${stale ? " (stale allowlist)" : ""}: ${clientIp} not in allowlist`);
         return NextResponse.json({ error: "IP not allowed" }, { status: 403 });
       }
     }
