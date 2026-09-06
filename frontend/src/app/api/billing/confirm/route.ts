@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
-import { PLAN_CREDITS_MAP } from "@/lib/billing/paddle";
+import { PADDLE_PRICE_MAP } from "@/lib/billing/paddle";
 import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 import { confirmSchema } from "@/lib/api-schemas";
 
@@ -66,10 +66,9 @@ export async function POST(req: NextRequest) {
     }
 
     const customData = txn.custom_data || {};
-    const planId = customData.planId;
     const userId = customData.userId;
 
-    if (!planId || !userId) {
+    if (!userId) {
       return NextResponse.json({ error: "Missing custom data" }, { status: 400 });
     }
 
@@ -77,13 +76,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Transaction does not belong to user" }, { status: 403 });
     }
 
-    const credits = PLAN_CREDITS_MAP[planId];
-    if (!credits || credits <= 0) {
+    // Derive plan + credits from the authoritative price_id (server-side map),
+    // not from client-controllable custom_data.planId.
+    const priceId: string | undefined =
+      txn.items?.[0]?.price_id || txn.items?.[0]?.price?.id || undefined;
+    const plan = Object.values(PADDLE_PRICE_MAP).find(
+      (p) => p.priceId && p.priceId === priceId
+    );
+    if (!plan || plan.credits <= 0) {
       return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
     }
 
     // Only verify — credits are granted by the webhook handler.
-    return NextResponse.json({ ok: true, credits, verified: true });
+    return NextResponse.json({ ok: true, credits: plan.credits, verified: true });
   } catch (error) {
     console.error("[confirm] Error:", error);
     return NextResponse.json({ error: "Confirmation failed" }, { status: 500 });

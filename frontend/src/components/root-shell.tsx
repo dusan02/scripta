@@ -18,6 +18,7 @@ import CookieBanner from "@/components/CookieBanner";
 import AuthProvider from "@/components/AuthProvider";
 import SkipToContent from "@/components/SkipToContent";
 import Analytics from "@/components/Analytics";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { getHtmlLang, getLocalizedJsonLd } from "@/lib/seo";
 import type { Lang } from "@/lib/i18n";
 
@@ -60,7 +61,7 @@ export function RootShell({ lang, children }: { lang: Lang; children: React.Reac
           <script
             key={i}
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+            dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
           />
         ))}
       </head>

@@ -23,6 +23,16 @@ export const PADDLE_PRICE_MAP: Record<string, { priceId: string; credits: number
   addon5:    { priceId: process.env.PADDLE_PRICE_ADDON5    || "", credits: 5,  planName: "addon" },
 };
 
+/**
+ * Reverse lookup: verified Paddle price_id → internal plan entry.
+ * This is the AUTHORITATIVE source for plan + credits — custom_data.planId
+ * is client-controllable and must never determine granted credits.
+ */
+function planByPriceId(priceId: string | undefined | null): { priceId: string; credits: number; planName: string } | null {
+  if (!priceId) return null;
+  return Object.values(PADDLE_PRICE_MAP).find((p) => p.priceId && p.priceId === priceId) || null;
+}
+
 let _paddle: Paddle | null = null;
 function getPaddle(): Paddle {
   if (!_paddle) {
@@ -63,25 +73,37 @@ export class PaddleAdapter implements PaymentProviderAdapter {
       case EventName.TransactionCompleted: {
         const txn = eventData.data as any;
         const customData = txn.customData || txn.custom_data || {};
+        // custom_data.userId is the correlation key only (set server-side in
+        // the checkout context cookie). It does NOT influence credit amounts.
         const userId = customData.userId;
-        const planId = customData.planId;
 
-        if (!userId || !planId) {
-          console.error("[PADDLE] transaction.completed: missing userId or planId in custom_data", customData);
+        if (!userId) {
+          console.error("[PADDLE] transaction.completed: missing userId in custom_data", customData);
           break;
         }
 
-        const credits = PLAN_CREDITS_MAP[planId];
-        if (!credits || credits <= 0) {
-          console.error(`[PADDLE] transaction.completed: unknown planId "${planId}" — cannot determine credits`);
+        // AUTHORITATIVE credit determination: take price_id from the verified
+        // transaction items and map it through the server-side PADDLE_PRICE_MAP.
+        // custom_data.planId is client-controllable (sent from the browser via
+        // Paddle.js) and must never decide how many credits are granted.
+        const items: any[] = txn.items || [];
+        const priceId: string | undefined =
+          items[0]?.price_id || items[0]?.priceId || items[0]?.price?.id || undefined;
+        const plan = planByPriceId(priceId);
+
+        if (!plan) {
+          console.error(
+            `[PADDLE] transaction.completed: price_id "${priceId}" is not mapped in PADDLE_PRICE_MAP — rejecting credit grant ` +
+              `(custom_data.planId="${customData.planId}" is NOT trusted as a credit source)`
+          );
           break;
         }
 
         results.push({
           type: "payment.succeeded",
           userId,
-          credits,
-          planName: planId,
+          credits: plan.credits,
+          planName: plan.planName,
           providerReference: txn.id,
           eventId,
           paddleCustomerId: txn.customerId || txn.customer_id,
@@ -128,7 +150,12 @@ export class PaddleAdapter implements PaymentProviderAdapter {
               const txnData = (await txnRes.json()).data;
               const txnCustomData = txnData.custom_data || {};
               userId = txnCustomData.userId;
-              planId = txnCustomData.planId || planId;
+              // Prefer the authoritative price_id → plan mapping over
+              // client-controllable custom_data.planId for revocation amounts.
+              const fetchedPriceId: string | undefined =
+                txnData.items?.[0]?.price_id || txnData.items?.[0]?.price?.id || undefined;
+              const fetchedPlan = planByPriceId(fetchedPriceId);
+              planId = fetchedPlan?.planName || txnCustomData.planId || planId;
             }
           } catch (fetchErr) {
             console.error("[PADDLE] adjustment.updated: failed to fetch transaction for custom_data:", fetchErr);

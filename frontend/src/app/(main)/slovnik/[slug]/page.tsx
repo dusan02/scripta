@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { glossaryTerms, getGlossaryTerm } from "@/lib/glossary";
 import { getLangFromHeaders, getHreflangAlternates, getOgLocale } from "@/lib/seo";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
 export function generateStaticParams() {
   return glossaryTerms.map((term) => ({ slug: term.slug }));
@@ -130,7 +131,7 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <div className="content-page" style={{ maxWidth: 800, margin: "0 auto", padding: "120px 24px 80px" }}>
         <Link
           href="/slovnik"

@@ -85,6 +85,8 @@ class MockPaddle {
 // ─── Set env vars before require so PADDLE_PRICE_MAP picks them up ────────────
 
 process.env.PADDLE_PRICE_1 = "pri_test1";
+process.env.PADDLE_PRICE_10 = "pri_test10";
+process.env.PADDLE_PRICE_50 = "pri_test50";
 
 // ─── Require after mock + env setup ──────────────────────────────────────────
 
@@ -135,6 +137,7 @@ describe("PaddleAdapter", () => {
           id: "txn_01test",
           status: "completed",
           customData: { userId: "user-123", planId: "payg10" },
+          items: [{ price_id: "pri_test10", quantity: 1 }],
         },
       };
 
@@ -156,6 +159,7 @@ describe("PaddleAdapter", () => {
         data: {
           id: "txn_01test",
           status: "completed",
+          items: [{ price_id: "pri_test10", quantity: 1 }],
           customData: { planId: "payg10" },
         },
       };
@@ -164,14 +168,16 @@ describe("PaddleAdapter", () => {
       assert.equal(results.length, 0);
     });
 
-    it("returns empty for missing planId in custom_data", async () => {
+    it("returns empty when transaction has no items/price_id (fail closed)", async () => {
       mockEvent = {
         eventType: "transaction.completed",
         eventId: "evt_01test",
         data: {
           id: "txn_01test",
           status: "completed",
-          customData: { userId: "user-123" },
+          customData: { userId: "user-123", planId: "payg10" },
+          // No items — price_id cannot be verified → reject.
+          // custom_data.planId alone must never grant credits.
         },
       };
 
@@ -179,14 +185,15 @@ describe("PaddleAdapter", () => {
       assert.equal(results.length, 0);
     });
 
-    it("returns empty for unknown planId (server-side credits lookup fails)", async () => {
+    it("returns empty for unknown price_id (not in server-side PADDLE_PRICE_MAP)", async () => {
       mockEvent = {
         eventType: "transaction.completed",
         eventId: "evt_01test",
         data: {
           id: "txn_01test",
           status: "completed",
-          customData: { userId: "user-123", planId: "unknown_plan" },
+          customData: { userId: "user-123", planId: "payg10" },
+          items: [{ price_id: "pri_evil_unknown", quantity: 1 }],
         },
       };
 
@@ -202,6 +209,7 @@ describe("PaddleAdapter", () => {
           id: "txn_01test",
           status: "completed",
           customData: { userId: "user-123", planId: "payg1", credits: "999" },
+          items: [{ price_id: "pri_test1", quantity: 1 }],
         },
       };
 
@@ -218,12 +226,107 @@ describe("PaddleAdapter", () => {
           id: "txn_01test",
           status: "completed",
           custom_data: { userId: "user-123", planId: "payg1" },
+          items: [{ price_id: "pri_test1", quantity: 1 }],
         },
       };
 
       const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
       assert.equal(results.length, 1);
       assert.equal(results[0].credits, 1);
+    });
+  });
+
+  // ── handleWebhook: transaction.completed — price_id is AUTHORITATIVE ───────
+  // Security regression tests: custom_data.planId (client-controllable via
+  // Paddle.js) must NEVER be able to inflate granted credits.
+
+  describe("handleWebhook: price_id is authoritative over custom_data.planId", () => {
+    it("SECURITY: payg1 price_id + tampered custom_data.planId=payg50 → still only 1 credit", async () => {
+      mockEvent = {
+        eventType: "transaction.completed",
+        eventId: "evt_tamper_01",
+        data: {
+          id: "txn_tamper_01",
+          status: "completed",
+          // Attacker paid for payg1 but tampered custom_data to claim payg50
+          customData: { userId: "user-123", planId: "payg50" },
+          items: [{ price_id: "pri_test1", quantity: 1 }],
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+
+      assert.equal(results.length, 1);
+      assert.equal(results[0].credits, 1, "credits must come from price_id (payg1), NOT custom_data.planId (payg50)");
+      assert.equal(results[0].planName, "payg1");
+    });
+
+    it("SECURITY: payg50 price_id + custom_data.planId=payg1 → 50 credits (price_id wins)", async () => {
+      mockEvent = {
+        eventType: "transaction.completed",
+        eventId: "evt_tamper_02",
+        data: {
+          id: "txn_tamper_02",
+          status: "completed",
+          customData: { userId: "user-123", planId: "payg1" },
+          items: [{ price_id: "pri_test50", quantity: 1 }],
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+
+      assert.equal(results.length, 1);
+      assert.equal(results[0].credits, 50, "credits must come from price_id (payg50)");
+      assert.equal(results[0].planName, "payg50");
+    });
+
+    it("SECURITY: unknown price_id + valid-looking custom_data.planId → rejected", async () => {
+      mockEvent = {
+        eventType: "transaction.completed",
+        eventId: "evt_tamper_03",
+        data: {
+          id: "txn_tamper_03",
+          status: "completed",
+          customData: { userId: "user-123", planId: "payg50" },
+          items: [{ price_id: "pri_not_mapped_anywhere", quantity: 1 }],
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+      assert.equal(results.length, 0, "unknown price_id must never grant credits");
+    });
+
+    it("supports SDK camelCase priceId field in items", async () => {
+      mockEvent = {
+        eventType: "transaction.completed",
+        eventId: "evt_tamper_04",
+        data: {
+          id: "txn_tamper_04",
+          status: "completed",
+          customData: { userId: "user-123", planId: "payg50" },
+          items: [{ priceId: "pri_test1", quantity: 1 }],
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+      assert.equal(results.length, 1);
+      assert.equal(results[0].credits, 1);
+    });
+
+    it("passes eventId through so the credit layer can dedupe (idempotency)", async () => {
+      mockEvent = {
+        eventType: "transaction.completed",
+        eventId: "evt_dedupe_01",
+        data: {
+          id: "txn_dedupe_01",
+          status: "completed",
+          customData: { userId: "user-123", planId: "payg1" },
+          items: [{ price_id: "pri_test1", quantity: 1 }],
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+      assert.equal(results[0].eventId, "evt_dedupe_01");
     });
   });
 
@@ -350,6 +453,7 @@ describe("PaddleAdapter", () => {
             id: "txn_api_01",
             status: "completed",
             custom_data: { userId: "user-from-api", planId: "payg10" },
+            items: [{ price_id: "pri_test10", quantity: 1 }],
           },
         },
       };
@@ -362,6 +466,39 @@ describe("PaddleAdapter", () => {
       assert.equal(results[0].planName, "payg10");
       assert.equal(results[0].providerReference, "adj_api_01");
       assert.equal(results[0].originalProviderReference, "txn_api_01");
+    });
+
+    it("SECURITY: refund path derives plan from price_id, not custom_data.planId", async () => {
+      mockEvent = {
+        eventType: "adjustment.updated",
+        eventId: "evt_adj_api_sec",
+        data: {
+          id: "adj_api_sec",
+          action: "refund",
+          status: "approved",
+          transactionId: "txn_api_sec",
+          totals: { total: "14.00" },
+        },
+      };
+
+      // Transaction was paid as payg1 (price_id), but custom_data claims payg50.
+      // Revocation amounts must follow the authoritative price_id → payg1 → 1 credit.
+      mockFetchResponse = {
+        ok: true,
+        body: {
+          data: {
+            id: "txn_api_sec",
+            custom_data: { userId: "user-refund-sec", planId: "payg50" },
+            items: [{ price_id: "pri_test1", quantity: 1 }],
+          },
+        },
+      };
+
+      const results = await adapter.handleWebhook("body", "ts=123;h1=abc");
+
+      assert.equal(results.length, 1);
+      assert.equal(results[0].type, "charge.refunded");
+      assert.equal(results[0].planName, "payg1", "plan must come from price_id, not custom_data.planId");
     });
 
     it("returns empty when API fetch fails and no customData", async () => {

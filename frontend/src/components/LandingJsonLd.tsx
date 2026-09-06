@@ -2,6 +2,7 @@
 
 import { useLang } from "@/components/LanguageProvider";
 import { getServiceJsonLd, getFaqJsonLd } from "@/lib/seo";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
 export default function LandingJsonLd() {
   const { lang } = useLang();
@@ -14,12 +15,12 @@ export default function LandingJsonLd() {
         <script
           key={`service-${i}`}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
         />
       ))}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(faqJsonLd) }}
       />
     </>
   );

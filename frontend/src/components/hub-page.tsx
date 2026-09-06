@@ -3,6 +3,7 @@ import Link from "next/link";
 import { queryHubCompanies, getHubMetadata, getHubJsonLd, type HubParams } from "@/lib/hub";
 import { getHubCompanyCount } from "@/lib/hub";
 import { getLangFromHeaders, getHreflangAlternates } from "@/lib/seo";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { HubTable, SubHubLinks, HubPagination, HubBreadcrumbs } from "@/components/hub-ui";
 import type { Metadata } from "next";
 
@@ -82,7 +83,7 @@ export async function renderHubPage(
         <script
           key={i}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
         />
       ))}
 

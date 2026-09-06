@@ -8,6 +8,7 @@ import { ScreenerFilters } from "@/components/screener-filters";
 import { ScreenerTable } from "@/components/screener-table";
 import { ActiveFilterChips } from "@/components/screener-chips";
 import { ScreenerPresets } from "@/components/screener-presets";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -330,7 +331,7 @@ export default async function ScreenerPage({
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify(buildItemListJsonLd(companies, searchParams)),
+              __html: safeJsonLd(buildItemListJsonLd(companies, searchParams)),
             }}
           />
         )}

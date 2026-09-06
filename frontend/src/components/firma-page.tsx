@@ -28,6 +28,7 @@ import { fmtEUR, num } from "@/lib/format";
 import { calcTrend } from "@/lib/trend";
 import { getCompanyData } from "@/lib/ruz";
 import { generateFirmaMetadata, getCanonicalUrl } from "@/lib/seo";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { translate, type Lang } from "@/lib/i18n";
 import { RelatedFirms } from "@/components/related-firms";
 import { CrossFirmPersons, getCrossFirmPersons } from "@/components/cross-firm-persons";
@@ -247,7 +248,7 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <FirmaPageTracker ico={company.ico} hasRiskSignals={riskCount > 0} riskCount={riskCount} />
 
       {/* ── STICKY HEADER — logo + compact primary CTA (hidden client-side for logged-in users) ── */}
