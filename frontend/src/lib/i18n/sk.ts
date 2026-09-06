@@ -77,6 +77,12 @@ const sk: Dict = {
 
   // ── Company financials (firma-ui) ──
   "firma.celkoveAktiva": "Celkové aktíva",
+  "firma.celkovePasiva": "Celkové pasíva",
+  "firma.celkovePasivaTooltip": "Súčet vlastného imania a záväzkov — účtovná rovnica: aktíva = pasíva",
+  "firma.kontrolaSuvahy": "Kontrola súvahy",
+  "firma.kontrolaSuvahyTooltip": "Porovnanie oboch strán súvahy s toleranciou 1 %",
+  "firma.suvahaVyrovnaná": "Aktíva = Pasíva — súvaha je vyrovnaná",
+  "firma.suvahaNevyrovnaná": "Aktíva ≠ Pasíva — rozdiel {pct} %",
   "firma.obeznyMajetok": "Obežný majetok",
   "firma.zasoby": "Zásoby",
   "firma.pohladavky": "Pohľadávky",

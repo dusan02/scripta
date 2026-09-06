@@ -77,6 +77,12 @@ const en: Dict = {
 
   // ── Company financials (firma-ui) ──
   "firma.celkoveAktiva": "Total assets",
+  "firma.celkovePasiva": "Total liabilities & equity",
+  "firma.celkovePasivaTooltip": "Equity plus liabilities — accounting equation: assets = liabilities",
+  "firma.kontrolaSuvahy": "Balance sheet check",
+  "firma.kontrolaSuvahyTooltip": "Compares both sides of the balance sheet with a 1% tolerance",
+  "firma.suvahaVyrovnaná": "Assets = Liabilities — balance sheet is balanced",
+  "firma.suvahaNevyrovnaná": "Assets ≠ Liabilities — difference {pct}%",
   "firma.obeznyMajetok": "Current assets",
   "firma.zasoby": "Inventory",
   "firma.pohladavky": "Receivables",

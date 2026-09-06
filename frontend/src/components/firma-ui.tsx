@@ -1,6 +1,6 @@
 "use client";
 
-import { fmtNum } from "@/lib/format";
+import { fmtNum, num } from "@/lib/format";
 import { useT } from "@/components/LanguageProvider";
 
 // ═══════════════════════════════════════════════════════════════
@@ -43,7 +43,7 @@ function FormulaTooltip({ text, children }: { text: string; children: React.Reac
   );
 }
 
-function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows: BaseTableRow[]; sectionTitle?: string }) {
+function BaseFinancialTable({ stmts, rows, sectionTitle, footer }: { stmts: any[]; rows: BaseTableRow[]; sectionTitle?: string; footer?: BaseTableRow }) {
   const t = useT();
   const sorted = [...stmts].sort((a, b) => a.year - b.year);
   const colWidth = `${70 / sorted.length}%`;
@@ -97,6 +97,26 @@ function BaseFinancialTable({ stmts, rows, sectionTitle }: { stmts: any[]; rows:
               ))}
             </tr>
           ))}
+          {footer && (
+            <tr style={{ borderTop: "2px solid var(--border)" }}>
+              <td
+                className={TD_LABEL}
+                style={{
+                  color: "var(--text-muted)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  ...(footer.tooltip ? TOOLTIP_STYLE : {}),
+                }}
+              >
+                {footer.tooltip ? <FormulaTooltip text={footer.tooltip}>{footer.label}</FormulaTooltip> : footer.label}
+              </td>
+              {sorted.map(s => (
+                <td key={s.year} className={TD_VALUE} style={{ fontSize: 12 }}>
+                  {footer.renderValue(s)}
+                </td>
+              ))}
+            </tr>
+          )}
         </tbody>
       </table>
       </div>
@@ -122,6 +142,28 @@ function filterEmptyRows(rows: (BaseTableRow & { _key?: string })[], stmts: any[
 // Balance Sheet — Aktíva + Pasíva in one aligned table
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * Celkové pasíva (total equity + liabilities) — accounting identity:
+ *   Celkové aktíva = Celkové pasíva = Vlastné imanie + Záväzky
+ *
+ * Computed from components because the DB has no totalLiabilities column.
+ * Rezervy are NOT added separately — in the RÚZ template-699 pipeline they
+ * are already part of the ST/LT liabilities totals (verified: adding them
+ * breaks the identity for years where the sheet otherwise balances exactly).
+ *
+ * Returns null when there is not enough data to compute (no equity, or both
+ * liability components missing) — the UI then shows "—".
+ */
+function computeTotalPasiva(s: any): number | null {
+  if (s.equity == null) return null;
+  const st = s.shortTermLiabilities;
+  const lt = s.longTermLiabilities;
+  if (st == null && lt == null) return null;
+  const equity = num(s.equity);
+  if (equity === null) return null;
+  return equity + (st != null ? num(st) ?? 0 : 0) + (lt != null ? num(lt) ?? 0 : 0);
+}
+
 export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
   const t = useT();
   const ASSETS_ROWS = [
@@ -133,7 +175,12 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
     dataRow(t("firma.cashEkvivalenty"), "cashAndEquivalents"),
   ];
   const LIABILITIES_ROWS = [
-    dataRow(t("firma.vlastneImanie"), "equity", true),
+    {
+      label: t("firma.celkovePasiva"),
+      bold: true,
+      tooltip: t("firma.celkovePasivaTooltip"),
+      renderValue: (s: any) => fmtNum(computeTotalPasiva(s)),
+    },    dataRow(t("firma.vlastneImanie"), "equity", true),
     dataRow(t("firma.zakladneImanie"), "shareCapital"),
     dataRow(t("firma.kratkodobeZavazky"), "shortTermLiabilities"),
     dataRow(t("firma.zavazkyZObchod"), "tradePayables"),
@@ -141,15 +188,58 @@ export function BalanceSheetTable({ stmts }: { stmts: any[] }) {
   ];
 
   const assetsFiltered = filterEmptyRows(ASSETS_ROWS, stmts);
-  const liabilitiesFiltered = filterEmptyRows(LIABILITIES_ROWS, stmts);
+  const liabilitiesFiltered = filterEmptyRows(LIABILITIES_ROWS as (BaseTableRow & { _key?: string })[], stmts);
 
   return (
     <div>
       <BaseFinancialTable stmts={stmts} rows={assetsFiltered} sectionTitle={t("firma.aktiva")} />
       <div className="mt-2" />
-      <BaseFinancialTable stmts={stmts} rows={liabilitiesFiltered} sectionTitle={t("firma.pasiva")} />
+      <BaseFinancialTable
+        stmts={stmts}
+        rows={liabilitiesFiltered}
+        sectionTitle={t("firma.pasiva")}
+        footer={balanceCheckFooter(stmts, t)}
+      />
     </div>
   );
+}
+
+/**
+ * "Kontrola súvahy" footer row — per-year data-quality check of the
+ * accounting identity Aktíva = Pasíva.
+ *   ✓ green  — both sides present, |diff| < 1% of assets
+ *   ✗ red    — both sides present, discrepancy ≥ 1%
+ *   — muted  — insufficient data to verify
+ */
+function balanceCheckFooter(stmts: any[], t: (key: string) => string): BaseTableRow {
+  const TOLERANCE = 0.01;
+  return {
+    label: t("firma.kontrolaSuvahy"),
+    tooltip: t("firma.kontrolaSuvahyTooltip"),
+    renderValue: (s: any) => {
+      const assets = num(s.totalAssets);
+      const pasiva = computeTotalPasiva(s);
+      if (assets === null || assets <= 0 || pasiva === null) {
+        return <span style={{ color: "var(--text-muted)" }}>—</span>;
+      }
+      const diffPct = Math.abs(assets - pasiva) / assets;
+      if (diffPct < TOLERANCE) {
+        return (
+          <span title={t("firma.suvahaVyrovnaná")} style={{ color: "var(--success, #10b981)", fontWeight: 700 }}>
+            ✓
+          </span>
+        );
+      }
+      return (
+        <span
+          title={t("firma.suvahaNevyrovnaná").replace("{pct}", (diffPct * 100).toFixed(1))}
+          style={{ color: "var(--danger, #ef4444)", fontWeight: 700 }}
+        >
+          ✗ {(diffPct * 100).toFixed(0)}%
+        </span>
+      );
+    },
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════

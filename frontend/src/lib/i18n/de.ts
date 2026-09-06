@@ -77,6 +77,12 @@ const de: Dict = {
 
   // ── Company financials (firma-ui) ──
   "firma.celkoveAktiva": "Gesamtvermögen",
+  "firma.celkovePasiva": "Gesamtpassiva",
+  "firma.celkovePasivaTooltip": "Eigenkapital plus Verbindlichkeiten — Bilanzgleichung: Aktiva = Passiva",
+  "firma.kontrolaSuvahy": "Bilanzprüfung",
+  "firma.kontrolaSuvahyTooltip": "Vergleich beider Bilanzseiten mit 1 % Toleranz",
+  "firma.suvahaVyrovnaná": "Aktiva = Passiva — Bilanz ist ausgeglichen",
+  "firma.suvahaNevyrovnaná": "Aktiva ≠ Passiva — Differenz {pct} %",
   "firma.obeznyMajetok": "Umlaufvermögen",
   "firma.zasoby": "Vorräte",
   "firma.pohladavky": "Forderungen",
