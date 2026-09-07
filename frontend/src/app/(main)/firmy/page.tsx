@@ -1,11 +1,46 @@
+import type { Metadata } from "next";
 import { queryFirmy, getFirmyFilterOptions, type FirmyFilters, type FirmySort } from "@/lib/firmy";
 import { fmtEurK } from "@/lib/format";
 import { FirmyFilters as FirmyFiltersClient } from "@/components/firmy-filters";
 import { slugify } from "@/lib/slug";
 import { getNaceSections, getKrajOptions } from "@/lib/screener";
+import { naceSectionToSlug } from "@/lib/seo-url";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+// ── SEO metadata ─────────────────────────────────────────────────────────────
+// /firmy is indexable (canonical to self). Query-param permutations are noindex.
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}): Promise<Metadata> {
+  const hasFilters = Object.keys(searchParams).some(
+    k => k !== "sort" && k !== "dir" && k !== "page" && searchParams[k]
+  );
+
+  // odvetvie filter → canonical to clean NACE URL
+  const odvetvie = typeof searchParams.odvetvie === "string" ? searchParams.odvetvie : undefined;
+  if (odvetvie && !hasFilters) {
+    const slug = naceSectionToSlug(odvetvie);
+    if (slug) {
+      return {
+        title: "Firmy na Slovensku | Verifa.sk",
+        description: "Zoznam slovenských firiem s finančnými dátami z verejných registrov. Filtrovanie podľa odvetvia, regiónu, tržieb a zisku.",
+        robots: { index: false, follow: true },
+        alternates: { canonical: `https://verifa.sk/firmy/${slug}` },
+      };
+    }
+  }
+
+  return {
+    title: "Firmy na Slovensku | Verifa.sk",
+    description: "Zoznam slovenských firiem s finančnými dátami z verejných registrov. Filtrovanie podľa odvetvia, regiónu, tržieb a zisku.",
+    robots: hasFilters ? { index: false, follow: true } : { index: true, follow: true },
+    alternates: { canonical: "https://verifa.sk/firmy" },
+  };
+}
 
 function parseFilters(searchParams: Record<string, string | string[] | undefined>): FirmyFilters {
   return {
@@ -115,7 +150,7 @@ export default async function FirmyPage({
               {getNaceSections().map((s) => (
                 <Link
                   key={s.section}
-                  href={`/odvetvie/${s.section}`}
+                  href={`/firmy/${naceSectionToSlug(s.section)}`}
                   className="inline-block rounded-full px-2.5 py-1 text-xs font-medium transition-colors hover:opacity-80"
                   style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
                 >

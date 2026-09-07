@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { localizePath } from "@/lib/i18n";
+import { naceSectionToSlug } from "@/lib/seo-url";
 
 export default function ScreenerCtaSection() {
   const t = useT();
@@ -58,16 +59,16 @@ export default function ScreenerCtaSection() {
             <span style={{ color: "var(--text-muted)" }}>
               {lang === "sk" ? "Podľa odvetvia:" : "By industry:"}
             </span>
-            <Link href={localizePath("/odvetvie/C", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+            <Link href={localizePath(`/firmy/${naceSectionToSlug("C")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
               {lang === "sk" ? "Priemysel" : "Manufacturing"}
             </Link>
-            <Link href={localizePath("/odvetvie/G", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+            <Link href={localizePath(`/firmy/${naceSectionToSlug("G")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
               {lang === "sk" ? "Obchod" : "Trade"}
             </Link>
-            <Link href={localizePath("/odvetvie/F", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+            <Link href={localizePath(`/firmy/${naceSectionToSlug("F")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
               {lang === "sk" ? "Stavebníctvo" : "Construction"}
             </Link>
-            <Link href={localizePath("/odvetvie/J", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
+            <Link href={localizePath(`/firmy/${naceSectionToSlug("J")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
               {lang === "sk" ? "IT" : "IT"}
             </Link>
             <span style={{ color: "var(--text-muted)" }}>·</span>

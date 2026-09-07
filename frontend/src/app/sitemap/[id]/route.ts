@@ -58,14 +58,13 @@ function buildStaticPages(): string[] {
 }
 
 function buildScreenerLandingPages(): string[] {
-  const pages: string[] = [];
-  for (const k of getKrajOptions()) {
-    pages.push(buildUrlEntry(`${BASE_URL}/screener/kraj/${k.value}`, new Date(), "weekly", 0.7));
-  }
-  for (const s of getNaceSections()) {
-    pages.push(buildUrlEntry(`${BASE_URL}/screener/odvetvie/${s.section}`, new Date(), "weekly", 0.7));
-  }
-  return pages;
+  // /screener is the only screener URL in sitemap.
+  // /screener/kraj/{kraj} and /screener/odvetvie/{section} are redirect URLs —
+  // removed from sitemap to avoid redirect-in-sitemap SEO error.
+  // Canonical hub URLs (/firmy/{slug}, /kraj/{kraj}) are in buildHubPages().
+  return [
+    buildUrlEntry(`${BASE_URL}/screener`, new Date(), "weekly", 0.7),
+  ];
 }
 
 async function buildHubPages(): Promise<string[]> {

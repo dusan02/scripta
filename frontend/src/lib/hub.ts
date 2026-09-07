@@ -27,6 +27,7 @@ import {
   getKrajLabel,
   getKrajLabelLocative,
 } from "@/lib/screener";
+import { naceSectionToSlug, krajToSlug } from "@/lib/seo-url";
 import { OKRES_CODE_TO_NAME, okresName } from "@/lib/okres-map";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ export type HubParams = {
   kraj?: string;      // NUTS3 code
   okres?: string;     // LAU code
   city?: string;      // City name (raw, not slug)
+  canonicalPath?: string; // Override canonical path (for clean URL routes like /firmy/{slug})
 };
 
 export type SubHubLink = {
@@ -294,8 +296,14 @@ async function getSubHubs(params: HubParams, total: number): Promise<SubHubLink[
       for (const row of rows) {
         const count = Number(row.cnt);
         if (count >= MIN_COMPANIES_FOR_HUB) {
+          // Use clean URL if canonicalPath is set, else legacy /odvetvie/
+          const naceSlug = params.canonicalPath ? naceSectionToSlug(params.section) : null;
+          const krajSlug = naceSlug ? krajToSlug(row.kraj) : null;
+          const href = naceSlug && krajSlug
+            ? `/firmy/${naceSlug}/${krajSlug}`
+            : `/odvetvie/${params.section}/${row.kraj}`;
           subHubs.push({
-            href: `/odvetvie/${params.section}/${row.kraj}`,
+            href,
             label: getKrajLabel(row.kraj) || row.kraj,
             count,
           });
@@ -681,13 +689,15 @@ export function getHubMetadata(params: HubParams, lang: string): {
   const l = normalizeHubLang(lang);
   const templates = HUB_SEO_TEMPLATES[l];
 
-  // Build path
-  let path = "/";
-  if (hubType === "odvetvie") path = `/odvetvie/${params.section}`;
-  else if (hubType === "kraj") path = `/kraj/${params.kraj}`;
-  else if (hubType === "odvetvie-kraj") path = `/odvetvie/${params.section}/${params.kraj}`;
-  else if (hubType === "okres") path = `/okres/${params.okres}`;
-  else if (hubType === "mesto") path = `/mesto/${slugify(params.city)}`;
+  // Build path — use canonicalPath override if provided (for clean URL routes)
+  let path = params.canonicalPath || "/";
+  if (!params.canonicalPath) {
+    if (hubType === "odvetvie") path = `/odvetvie/${params.section}`;
+    else if (hubType === "kraj") path = `/kraj/${params.kraj}`;
+    else if (hubType === "odvetvie-kraj") path = `/odvetvie/${params.section}/${params.kraj}`;
+    else if (hubType === "okres") path = `/okres/${params.okres}`;
+    else if (hubType === "mesto") path = `/mesto/${slugify(params.city)}`;
+  }
 
   // Get i18n labels
   const section = params.section || "";
@@ -740,12 +750,14 @@ export function getHubJsonLd(params: HubParams, companies: HubCompany[], baseUrl
   const label = getHubLabel(params);
   const hubType = getHubType(params);
 
-  let path = "/";
-  if (hubType === "odvetvie") path = `/odvetvie/${params.section}`;
-  else if (hubType === "kraj") path = `/kraj/${params.kraj}`;
-  else if (hubType === "odvetvie-kraj") path = `/odvetvie/${params.section}/${params.kraj}`;
-  else if (hubType === "okres") path = `/okres/${params.okres}`;
-  else if (hubType === "mesto") path = `/mesto/${slugify(params.city)}`;
+  let path = params.canonicalPath || "/";
+  if (!params.canonicalPath) {
+    if (hubType === "odvetvie") path = `/odvetvie/${params.section}`;
+    else if (hubType === "kraj") path = `/kraj/${params.kraj}`;
+    else if (hubType === "odvetvie-kraj") path = `/odvetvie/${params.section}/${params.kraj}`;
+    else if (hubType === "okres") path = `/okres/${params.okres}`;
+    else if (hubType === "mesto") path = `/mesto/${slugify(params.city)}`;
+  }
 
   const url = `${baseUrl}${path}`;
 
@@ -762,7 +774,11 @@ export function getHubJsonLd(params: HubParams, companies: HubCompany[], baseUrl
   } else if (hubType === "odvetvie-kraj") {
     const sectionLabel = getNaceSectionLabel(params.section!) || params.section!;
     const krajLabel = getKrajLabel(params.kraj!) || params.kraj!;
-    breadcrumbs.push({ name: sectionLabel, url: `${baseUrl}/odvetvie/${params.section}` });
+    // Use clean URL for parent NACE if canonicalPath is set, else legacy /odvetvie/
+    const parentPath = params.canonicalPath
+      ? `/firmy/${naceSectionToSlug(params.section!)}`
+      : `/odvetvie/${params.section}`;
+    breadcrumbs.push({ name: sectionLabel, url: `${baseUrl}${parentPath}` });
     breadcrumbs.push({ name: krajLabel, url });
   } else if (hubType === "okres") {
     breadcrumbs.push({ name: label, url });
@@ -844,23 +860,30 @@ export async function getAllHubPaths(): Promise<Array<{
 }>> {
   const paths: Array<{ path: string; priority: number }> = [];
 
-  // NACE section hubs (10)
+  // NACE section hubs — clean URL /firmy/{nace-slug}
   const naceSections = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U"];
   for (const section of naceSections) {
-    paths.push({ path: `/odvetvie/${section}`, priority: 0.8 });
+    const slug = naceSectionToSlug(section);
+    if (slug) {
+      paths.push({ path: `/firmy/${slug}`, priority: 0.8 });
+    }
   }
 
-  // Kraj hubs (8)
+  // Kraj hubs (8) — legacy URL, still canonical for region-only pages
   const kraje = ["SK010", "SK021", "SK022", "SK023", "SK031", "SK032", "SK041", "SK042"];
   for (const kraj of kraje) {
     paths.push({ path: `/kraj/${kraj}`, priority: 0.8 });
   }
 
-  // NACE×kraj hubs — only for combos with ≥20 companies
+  // NACE×kraj hubs — clean URL /firmy/{nace-slug}/{region-slug}
   for (const section of naceSections) {
+    const naceSlug = naceSectionToSlug(section);
+    if (!naceSlug) continue;
     for (const kraj of kraje) {
-      // We'll check count in sitemap generation
-      paths.push({ path: `/odvetvie/${section}/${kraj}`, priority: 0.7 });
+      const krajSlug = krajToSlug(kraj);
+      if (krajSlug) {
+        paths.push({ path: `/firmy/${naceSlug}/${krajSlug}`, priority: 0.7 });
+      }
     }
   }
 

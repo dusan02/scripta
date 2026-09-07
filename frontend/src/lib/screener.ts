@@ -1032,7 +1032,7 @@ async function computeTotalCount(
   const isSelectiveFilter = appliedFilters.some(k =>
     [
       // Text/enum filters with dedicated indexes
-      "q", "okres", "city", "naceCode", "ownershipType", "status",
+      "q", "okres", "city", "naceCode", "naceSection", "ownershipType", "status",
       "sizeCategory", "vestnikClean", "ruzReporting", "hasFinancials",
       // Date filter — establishedAt has btree index
       "ageMin", "ageMax",

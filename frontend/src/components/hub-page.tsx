@@ -5,6 +5,7 @@ import { getHubCompanyCount } from "@/lib/hub";
 import { getLangFromHeaders, getHreflangAlternates } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { HubTable, SubHubLinks, HubPagination, HubBreadcrumbs } from "@/components/hub-ui";
+import { naceSectionToSlug } from "@/lib/seo-url";
 import type { Metadata } from "next";
 
 const BASE_URL = "https://verifa.sk";
@@ -59,9 +60,12 @@ export async function renderHubPage(
   } else if (result.hubType === "kraj") {
     breadcrumbItems.push({ label: result.hubLabel });
   } else if (result.hubType === "odvetvie-kraj") {
-    // Add parent NACE section
+    // Add parent NACE section — use clean URL if canonicalPath is set
     const sectionLabel = result.hubLabel.split(" — ")[0];
-    breadcrumbItems.push({ label: sectionLabel, href: `/odvetvie/${params.section}` });
+    const parentHref = params.canonicalPath
+      ? `/firmy/${naceSectionToSlug(params.section!)}`
+      : `/odvetvie/${params.section}`;
+    breadcrumbItems.push({ label: sectionLabel, href: parentHref });
     breadcrumbItems.push({ label: result.hubLabel.split(" — ")[1] || result.hubLabel });
   } else if (result.hubType === "okres") {
     breadcrumbItems.push({ label: result.hubLabel });
@@ -138,13 +142,15 @@ export async function generateHubMetadata(params: HubParams): Promise<Metadata> 
   const lang = getLangFromHeaders(h);
   const { title, description, canonical } = getHubMetadata(params, lang);
 
-  // Build path for hreflang
-  let path = "/";
-  if (params.section && params.kraj) path = `/odvetvie/${params.section}/${params.kraj}`;
-  else if (params.section) path = `/odvetvie/${params.section}`;
-  else if (params.kraj) path = `/kraj/${params.kraj}`;
-  else if (params.okres) path = `/okres/${params.okres}`;
-  else if (params.city) path = `/mesto/${slugifyInline(params.city)}`;
+  // Build path for hreflang — use canonicalPath if provided
+  let path = params.canonicalPath || "/";
+  if (!params.canonicalPath) {
+    if (params.section && params.kraj) path = `/odvetvie/${params.section}/${params.kraj}`;
+    else if (params.section) path = `/odvetvie/${params.section}`;
+    else if (params.kraj) path = `/kraj/${params.kraj}`;
+    else if (params.okres) path = `/okres/${params.okres}`;
+    else if (params.city) path = `/mesto/${slugifyInline(params.city)}`;
+  }
 
   const alternates = getHreflangAlternates(path);
 

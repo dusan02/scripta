@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
-import { renderHubPage, generateHubMetadata } from "@/components/hub-page";
+import { permanentRedirect, notFound } from "next/navigation";
 import { getNaceSections, getKrajOptions } from "@/lib/screener";
+import { naceSectionToSlug, krajToSlug } from "@/lib/seo-url";
 
 export const revalidate = 3600;
 
-// Generate all NACE×kraj combos
+// Keep generateStaticParams so the route is pre-rendered (and redirect is fast)
 export function generateStaticParams() {
   const sections = getNaceSections().map((s) => s.section);
   const kraje = getKrajOptions().map((k) => k.value);
@@ -17,24 +17,15 @@ export function generateStaticParams() {
   return params;
 }
 
-export async function generateMetadata({
+export default async function OdvetvieKrajRedirect({
   params,
 }: {
   params: { section: string; kraj: string };
-}): Promise<Metadata> {
-  return generateHubMetadata({ section: params.section, kraj: params.kraj });
-}
-
-export default async function OdvetvieKrajPage({
-  params,
-  searchParams,
-}: {
-  params: { section: string; kraj: string };
-  searchParams: Record<string, string | string[] | undefined>;
 }) {
-  return renderHubPage(
-    { section: params.section, kraj: params.kraj },
-    searchParams,
-    `/odvetvie/${params.section}/${params.kraj}`
-  );
+  const naceSlug = naceSectionToSlug(params.section);
+  const krajSlug = krajToSlug(params.kraj);
+  if (naceSlug && krajSlug) {
+    permanentRedirect(`/firmy/${naceSlug}/${krajSlug}`);
+  }
+  notFound();
 }

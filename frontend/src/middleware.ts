@@ -31,6 +31,43 @@ const URL_PREFIXES: Record<string, string> = {
   pl: "pl",
 };
 
+// Edge-safe NACE section → slug mapping (must match src/lib/seo-url.ts)
+const NACE_SLUG_MAP: Record<string, string> = {
+  A: "polnohospodarstvo-a-lesnictvo",
+  B: "tazba-a-dobyanie",
+  C: "priemyselna-vyroba",
+  D: "energetika",
+  E: "vodne-hospodarstvo",
+  F: "stavebnictvo",
+  G: "obchod",
+  H: "doprava-a-skladovanie",
+  I: "ubytovanie-a-stravovanie",
+  J: "informacie-a-komunikacia",
+  K: "financie-a-poisovnictvo",
+  L: "nehnutelnosti",
+  M: "profesionalne-sluzby",
+  N: "administrativne-sluzby",
+  O: "verejna-sprava",
+  P: "vzdelavanie",
+  Q: "zdravotnictvo",
+  R: "kultura-a-zabava",
+  S: "ostatne-sluzby",
+  T: "domacnosti",
+  U: "extrateritorialne-cinnosti",
+};
+
+// Edge-safe kraj → slug mapping (must match src/lib/seo-url.ts)
+const KRAJ_SLUG_MAP: Record<string, string> = {
+  SK010: "bratislavsky-kraj",
+  SK021: "trnavsky-kraj",
+  SK022: "nitriansky-kraj",
+  SK023: "trenciansky-kraj",
+  SK031: "zilinsky-kraj",
+  SK032: "banskobystricky-kraj",
+  SK041: "presovsky-kraj",
+  SK042: "kosicky-kraj",
+};
+
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -68,6 +105,25 @@ export async function middleware(req: NextRequest) {
     redirectUrl.pathname = realPath;
     redirectUrl.searchParams.delete("lang");
     return NextResponse.redirect(redirectUrl, 308);
+  }
+
+  // --- Step 2c: Legacy /odvetvie/ → clean /firmy/ redirect (308 permanent) ---
+  // permanentRedirect() in page.tsx is swallowed by Sentry wrapper → returns 200.
+  // Middleware NextResponse.redirect(308) bypasses Sentry and returns correct HTTP 308.
+  // Edge-safe inline mapping (no Prisma/screener imports allowed in middleware).
+  const odvetvieMatch = realPath.match(/^\/odvetvie\/([A-U])(?:\/(SK\d{3}))?$/);
+  if (odvetvieMatch) {
+    const naceSlug = NACE_SLUG_MAP[odvetvieMatch[1]];
+    if (naceSlug) {
+      const krajSlug = odvetvieMatch[2] ? KRAJ_SLUG_MAP[odvetvieMatch[2]] : null;
+      const targetPath = krajSlug
+        ? `/firmy/${naceSlug}/${krajSlug}`
+        : `/firmy/${naceSlug}`;
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = targetPath;
+      redirectUrl.searchParams.delete("lang");
+      return NextResponse.redirect(redirectUrl, 308);
+    }
   }
 
   // --- Step 3+4: Company pages — static routes per language, no rewrite ---

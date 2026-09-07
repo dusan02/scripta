@@ -452,6 +452,8 @@ async function main() {
   testCountWhereTierAuthorizationPreserved();
   console.log();
   testCountWhereNoExtraCompaniesVsResult();
+  console.log();
+  testNaceSectionCountSelectivity();
 
   console.log("\n=== ALL TESTS PASSED ===");
 }
@@ -888,6 +890,52 @@ function testCountWhereTierAuthorizationPreserved() {
     throw new Error(`FAIL: count WHERE should still contain revenueMin, got ${wCountJson}`);
   }
   console.log("  PASS: count WHERE strips AUTH filters for FREE tier, keeps FREE filters");
+}
+
+function testNaceSectionCountSelectivity() {
+  console.log("Test P0-H: naceSection filter produces real WHERE (not pg_class fallback)");
+
+  // naceSection=I → naceCode range [55, 57) — must be in appliedFilters and produce
+  // a real WHERE with naceCode gte/lt. Previously naceSection was missing from
+  // isSelectiveFilter, causing COUNT to fall back to pg_class (~518K) instead of
+  // the actual ~15K for section I.
+  const { sanitized, appliedFilters } = parseAndAuthorizeParams({ naceSection: "I" }, "FREE");
+  if (!appliedFilters.includes("naceSection")) {
+    throw new Error("FAIL: naceSection=I should be in appliedFilters");
+  }
+  const wCount = buildWhereClauseForCount(sanitized, "FREE");
+  const wCountJson = JSON.stringify(wCount);
+  if (!wCountJson.includes("naceCode") || !wCountJson.includes("gte") || !wCountJson.includes("lt")) {
+    throw new Error(`FAIL: naceSection=I should produce naceCode gte/lt range, got ${wCountJson}`);
+  }
+  // Verify the range is correct: I = codes 55-56 → gte="55", lt="57"
+  if (!wCountJson.includes('"55"') || !wCountJson.includes('"57"')) {
+    throw new Error(`FAIL: naceSection=I should map to gte=55, lt=57, got ${wCountJson}`);
+  }
+  console.log("  PASS: naceSection=I produces naceCode gte=55, lt=57 range for COUNT");
+
+  // Also verify combined naceSection + kraj produces intersection (AND)
+  const { sanitized: sCombo } = parseAndAuthorizeParams({ naceSection: "I", kraj: "SK010" }, "FREE");
+  const wCombo = buildWhereClauseForCount(sCombo, "FREE");
+  const wComboJson = JSON.stringify(wCombo);
+  if (!wComboJson.includes("naceCode") || !wComboJson.includes("kraj") || !wComboJson.includes("SK010")) {
+    throw new Error(`FAIL: naceSection+kraj should produce AND intersection, got ${wComboJson}`);
+  }
+  console.log("  PASS: naceSection + kraj produces intersection WHERE (AND)");
+
+  // Verify all 21 NACE sections produce valid WHERE
+  for (const s of getNaceSections()) {
+    const { sanitized: sNace, appliedFilters: afNace } = parseAndAuthorizeParams({ naceSection: s.section }, "FREE");
+    if (!afNace.includes("naceSection")) {
+      throw new Error(`FAIL: naceSection=${s.section} should be in appliedFilters`);
+    }
+    const w = buildWhereClauseForCount(sNace, "FREE");
+    const wJson = JSON.stringify(w);
+    if (!wJson.includes("naceCode") || !wJson.includes("gte") || !wJson.includes("lt")) {
+      throw new Error(`FAIL: naceSection=${s.section} should produce naceCode range, got ${wJson}`);
+    }
+  }
+  console.log("  PASS: all 21 NACE sections produce valid naceCode range WHERE for COUNT");
 }
 
 function testCountWhereNoExtraCompaniesVsResult() {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { fmtYear, fmtEUR } from "@/lib/format";
 import { useT } from "@/components/LanguageProvider";
+import { naceSectionToSlug } from "@/lib/seo-url";
 
 type CompanyInfo = {
   ico: string;
@@ -135,7 +136,7 @@ export function CompanyHeader({ company, latestYear, riskCount }: { company: Com
           <span>
             <strong>{t("firma.predmetCinnosti")}:</strong>{" "}
             {naceSection && (
-              <Link href={`/odvetvie/${naceSection}`} className="hover:underline" style={{ color: "var(--accent)" }}>
+              <Link href={`/firmy/${naceSectionToSlug(naceSection)}`} className="hover:underline" style={{ color: "var(--accent)" }}>
                 {company.naceText}
               </Link>
             ) || company.naceText}

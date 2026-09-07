@@ -1,28 +1,22 @@
-import type { Metadata } from "next";
-import { renderHubPage, generateHubMetadata } from "@/components/hub-page";
+import { permanentRedirect, notFound } from "next/navigation";
 import { getNaceSections } from "@/lib/screener";
+import { naceSectionToSlug } from "@/lib/seo-url";
 
 export const revalidate = 3600;
 
-// Static params for all NACE sections
+// Keep generateStaticParams so the route is pre-rendered (and redirect is fast)
 export function generateStaticParams() {
   return getNaceSections().map((s) => ({ section: s.section }));
 }
 
-export async function generateMetadata({
+export default async function OdvetvieRedirect({
   params,
 }: {
   params: { section: string };
-}): Promise<Metadata> {
-  return generateHubMetadata({ section: params.section });
-}
-
-export default async function OdvetviePage({
-  params,
-  searchParams,
-}: {
-  params: { section: string };
-  searchParams: Record<string, string | string[] | undefined>;
 }) {
-  return renderHubPage({ section: params.section }, searchParams, `/odvetvie/${params.section}`);
+  const slug = naceSectionToSlug(params.section);
+  if (slug) {
+    permanentRedirect(`/firmy/${slug}`);
+  }
+  notFound();
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
 import { getNaceSectionFromCode, getNaceSectionLabel, getKrajLabel, getKrajLabelLocative } from "@/lib/screener";
+import { naceSectionToSlug, krajToSlug } from "@/lib/seo-url";
 import { translate, type Lang } from "@/lib/i18n";
 
 type RelatedFirm = {
@@ -152,9 +153,15 @@ export async function RelatedFirms({
   const naceSectionLabel = naceSection ? getNaceSectionLabel(naceSection) : null;
   const hubLinks: Array<{ href: string; label: string }> = [];
   if (naceSection && naceSectionLabel) {
-    hubLinks.push({ href: `/odvetvie/${naceSection}`, label: `Firmy — ${naceSectionLabel}` });
-    if (kraj) {
-      hubLinks.push({ href: `/odvetvie/${naceSection}/${kraj}`, label: `${naceSectionLabel} — ${krajLabel}` });
+    const naceSlug = naceSectionToSlug(naceSection);
+    if (naceSlug) {
+      hubLinks.push({ href: `/firmy/${naceSlug}`, label: `Firmy — ${naceSectionLabel}` });
+      if (kraj) {
+        const krajSlug = krajToSlug(kraj);
+        if (krajSlug) {
+          hubLinks.push({ href: `/firmy/${naceSlug}/${krajSlug}`, label: `${naceSectionLabel} — ${krajLabel}` });
+        }
+      }
     }
   }
   if (kraj) {

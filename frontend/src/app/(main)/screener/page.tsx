@@ -9,6 +9,7 @@ import { ScreenerTable } from "@/components/screener-table";
 import { ActiveFilterChips } from "@/components/screener-chips";
 import { ScreenerPresets } from "@/components/screener-presets";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { naceSectionToSlug } from "@/lib/seo-url";
 
 export const dynamic = "force-dynamic";
 
@@ -392,8 +393,8 @@ export async function generateMetadata({
 
   // ── Faceted navigation control (crawl-trap prevention) ──
   // - q (free-text search) → noindex: infinite URL space
-  // - kraj only → canonical to curated SSG hub /screener/kraj/{kraj}
-  // - naceSection only → canonical to curated SSG hub /screener/odvetvie/{section}
+  // - kraj only → canonical to curated hub /kraj/{kraj}
+  // - naceSection only → canonical to clean SEO URL /firmy/{nace-slug}
   // - any other filter combination → noindex (not curated, thin/duplicate)
   // - no filters → index, canonical to clean /screener
   const filterKeys = Object.keys(searchParams).filter(
@@ -405,9 +406,14 @@ export async function generateMetadata({
   if (q) {
     robots = { index: false, follow: true };
   } else if (filterKeys.length === 1 && filterKeys[0] === "kraj") {
-    canonicalOverride = `https://verifa.sk/screener/kraj/${sp("kraj")}`;
+    canonicalOverride = `https://verifa.sk/kraj/${sp("kraj")}`;
   } else if (filterKeys.length === 1 && filterKeys[0] === "naceSection") {
-    canonicalOverride = `https://verifa.sk/screener/odvetvie/${sp("naceSection")}`;
+    const slug = naceSectionToSlug(sp("naceSection"));
+    if (slug) {
+      canonicalOverride = `https://verifa.sk/firmy/${slug}`;
+    } else {
+      robots = { index: false, follow: true };
+    }
   } else if (filterKeys.length > 0) {
     robots = { index: false, follow: true };
   }
