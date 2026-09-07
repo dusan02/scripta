@@ -142,24 +142,47 @@ Finančné údaje, rizikové signály a registrácia firmy Novogal a.s. (IČO 00
 
 Export GSC Performance with date filter for each window.
 
-### Expected outcome
+**IMPORTANT:** Do NOT use `site:verifa.sk/...` search as a measurement method.
+Google SERP title updates are delayed and `site:` results are not a reliable
+analytical dataset. The primary evidence is GSC Performance → Pages/Queries
+comparison for the same 20 URLs.
 
-- **CTR:** +25–100% improvement (from 0.40% to 0.50–0.80% for the test cohort)
-- **Position:** No direct change expected (title/meta doesn't affect ranking directly)
-- **Impressions:** Slight increase possible if Google re-evaluates relevance
+### Metrics to track at D+7 / D+14 / D+30
 
-### Success criteria
+For both the **20-company test cohort** AND **all `/firma/` pages** as a whole:
 
-- ✅ CTR for test cohort increases by ≥25% at D+14
-- ✅ No regression in position
-- ✅ No regression in impressions
-- ✅ Title change visible in Google SERP by D+7
+| Metric | Cohort (20 URLs) | All `/firma/` | Purpose |
+|---|---|---|---|
+| Total impressions | ✅ | ✅ | Did visibility change? |
+| Total clicks | ✅ | ✅ | Did clicks increase? |
+| CTR | ✅ | ✅ | Primary success metric |
+| Average position | ✅ | ✅ | Did ranking change? (shouldn't from title alone) |
+| Pages with impressions | ✅ | ✅ | Did more pages start appearing? |
+| Pages with clicks | ✅ | ✅ | Did more pages start getting clicks? |
 
-### Failure criteria
+Tracking both the cohort and `/firma/` as a whole lets us separate the **title/meta
+effect** from natural ranking growth/fluctuation. If the cohort CTR improves but
+the overall `/firma/` CTR doesn't, the title change worked but only for high-
+impression pages. If both improve, the effect is broader.
 
-- ❌ CTR unchanged or decreased at D+14
-- ❌ Position drops significantly (>2 positions)
-- ❌ Impressions drop >20%
+### Decision framework (D+14)
+
+| Outcome | Interpretation | Action |
+|---|---|---|
+| **A) CTR ≥ +25%** | Title/meta change is effective | Keep template, consider applying to other page types |
+| **B) CTR +10–25%** | Partial effect, room for improvement | Iterate title/description wording, re-test |
+| **C) CTR < +10%** | Metadata is not the bottleneck | Investigate ranking, search intent, snippet rendering |
+| **D) CTR up but impressions/position down** | Metadata changed but something else regressed | Check if title change caused ranking shift or if external factor |
+
+### Experiment isolation
+
+To preserve clean experiment results:
+
+- **Do NOT make any other SEO changes for 7–14 days** after deploy (Sep 7)
+- **Do NOT change ORSR glossary title** during this period
+- **Do NOT create new pages** (NACE × city, business-intent)
+- **Do NOT change URL architecture**
+- The only variable in this period is the company page title/meta template
 
 ---
 
