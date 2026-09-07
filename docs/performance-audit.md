@@ -265,3 +265,39 @@ Konzistencia fsCount vs EXISTS overená: rozdiel 1 riadok z 518,802.
   Amazonbot) — ochrana proti budúcim crawler stormom; vyžaduje rozhodnutie
   vlastníka (SEO/GEO politika — ktoré boty pustiť a ako rýchlo)
 - Zvážiť dlhší ISR revalidate pre /firma/ (3600s → 6-24h; dáta sa menia denne)
+
+---
+
+## Indexácia: 3 self-inflicted blokátory — vyriešené (2026-09-07, commit 366e6c7)
+
+### Kontext
+Google poznal len 6,134 z ~1.78M deklarovaných sitemap URL (0.34% discovery).
+Analýza odhalila, že väčšina blokátorov bola self-inflicted:
+
+| # | Problém | Fix |
+|---|---|---|
+| A | **Sitemap bloat**: 277K firiem × 6 jazykov = ~1.78M URL (near-duplicate thin preklady) diluovali crawl budget | Sitemap obsahuje len SK canonical URL; lokalizované varianty ostávajú live, objavujú sa cez hreflang anotácie |
+| B | **Fake lastmod**: firmy bez auditVerdict mali lastmod = new Date() pri každom fetchi → Google nedôveruje sitemapu | ruzSyncedAt → updatedAt → auditVerdict.createdAt; omitted ak neznáme |
+| C | **/[ico] duplicitná rodina**: Sentry wrapper swallowuje redirect() → /{ico} vracal 200 s plným obsahom bez canonicalu | Middleware 308 /{ico} → /firma/{ico} (bypass Sentry) |
+| E | www variant bez redirectu (duplicitný host) | nginx: www → non-www 308 |
+| F | Middleware slug fetch 3-5s (Data Cache nie je dostupný v middleware runtime) | In-process Map cache (TTL 1h, max 20k, negative caching) |
+| G | Out-of-range sitemap id → empty urlset 200 | 404 |
+
+### Overenie na produkcii
+- `/36204731` → 308 → `/firma/36204731` (bolo 200)
+- sitemap/1.xml: 7,999 URL (bolo 47,994) — 6× redukcia
+- lastmod: reálne dátumy (2026-08-26, 2026-08-14), žiadne "now"
+- /sitemap/99.xml → 404 (bolo 200 empty)
+- www.verifa.sk → 308 verifa.sk
+- no-slug redirect: 3.1s (cold) → 0.53s (cache hit)
+
+### Očakávaný efekt
+- Deklarovaných URL: 1.78M → ~290K (6× menej dilúcie)
+- Google crawl budget sa koncentruje na canonical SK set
+- Sitemap trust sa obnoví (real lastmod)
+- Duplicitná /[ico] rodina zmizne z indexu cez 308
+
+### Meranie
+GSC Coverage D+7/D+14/D+30: discovery rate (6,134 → ?), indexed (4,402 → ?),
+"Duplicate without canonical" (73 → ↓), "Alternate page with proper canonical"
+(189 → ↓ po spracovaní 308).
