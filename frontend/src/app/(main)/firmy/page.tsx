@@ -5,6 +5,7 @@ import { FirmyFilters as FirmyFiltersClient } from "@/components/firmy-filters";
 import { slugify } from "@/lib/slug";
 import { getNaceSections, getKrajOptions } from "@/lib/screener";
 import { naceSectionToSlug } from "@/lib/seo-url";
+import { getHreflangAlternates } from "@/lib/seo";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -34,11 +35,14 @@ export async function generateMetadata({
     }
   }
 
+  const path = "/firmy";
+  const languages = getHreflangAlternates(path);
+
   return {
     title: "Firmy na Slovensku | Verifa.sk",
     description: "Zoznam slovenských firiem s finančnými dátami z verejných registrov. Filtrovanie podľa odvetvia, regiónu, tržieb a zisku.",
     robots: hasFilters ? { index: false, follow: true } : { index: true, follow: true },
-    alternates: { canonical: "https://verifa.sk/firmy" },
+    alternates: { canonical: "https://verifa.sk/firmy", languages },
   };
 }
 

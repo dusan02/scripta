@@ -8,15 +8,16 @@
 
 ### 1.1 Overall (site-wide)
 
-| Metric | Week 1 | Week 2 | Week 3 | Week 4 | Baseline |
-|---|---|---|---|---|---|
-| Total impressions | | | | | TBD |
-| Total clicks | | | | | TBD |
-| Average CTR | | | | | TBD |
-| Average position | | | | | TBD |
-| Indexed pages | | | | | TBD |
-| Submitted URLs (sitemap) | | | | | ~278K |
-| Not indexed (excluded) | | | | | TBD |
+| Metric | Baseline (Sep 4) | +7 days | +14 days | +30 days |
+|---|---|---|---|---|
+| Total impressions/day | ~3,213 avg | | | |
+| Total clicks (period) | 107 (reported) | | | |
+| Average CTR | TBD | | | |
+| Average position | TBD | | | |
+| Indexed pages | 4,402 | | | |
+| Submitted URLs (sitemap) | ~278,000 | | | |
+| Not indexed (excluded) | 1,732 | | | |
+| Google discovery rate | 2.2% (6,134/278K) | | | |
 
 ### 1.2 By URL family
 
