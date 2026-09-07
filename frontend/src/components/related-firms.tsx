@@ -23,12 +23,18 @@ const KRAJ_NAMES: Record<string, string> = {
   SK042: "Košický kraj",
 };
 
+// Quality gate via pre-computed fsCount column — NOT financialStatements: { some: {} }.
+// The relation filter compiles to `ico IN (SELECT companyIco FROM FinancialStatement)`
+// semi-join which, combined with ORDER BY latestRevenue, forces a full revenue-index
+// scan for small cities (5-18s under crawler load). fsCount is a maintained column
+// with its own index — O(1) predicate, planner can use composite (city, revenue) index.
+// See docs/performance-audit.md — Screener/hub performance section.
 async function getRelatedByNaceInKraj(ico: string, naceCode: string | null, kraj: string | null): Promise<RelatedFirm[]> {
   if (!naceCode) return [];
   const where: any = {
     naceCode,
     ico: { not: ico },
-    financialStatements: { some: {} },
+    fsCount: { gte: 1 },
     latestRevenue: { not: null },
   };
   if (kraj) where.kraj = kraj;
@@ -52,7 +58,7 @@ async function getLargestByNace(ico: string, naceCode: string | null): Promise<R
     where: {
       naceCode,
       ico: { not: ico },
-      financialStatements: { some: {} },
+      fsCount: { gte: 1 },
       latestRevenue: { not: null },
     },
     select: { ico: true, name: true, city: true, latestRevenue: true },
@@ -73,7 +79,7 @@ async function getFirmsInCity(ico: string, city: string | null): Promise<Related
     where: {
       city,
       ico: { not: ico },
-      financialStatements: { some: {} },
+      fsCount: { gte: 1 },
       latestRevenue: { not: null },
     },
     select: { ico: true, name: true, city: true, latestRevenue: true },

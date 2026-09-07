@@ -141,23 +141,24 @@ export async function GET(
     ];
   } else {
     // Sitemap 1..N: company pages
+    // fsCount >= 2 replaces financialStatements: { some: {} } + _count + JS filter —
+    // the relation filter compiles to an IN (subquery) semi-join over FinancialStatement
+    // (~1M rows); fsCount is a maintained column with its own index (quality gate).
     const skip = (sitemapId - 1) * COMPANIES_PER_SITEMAP;
     try {
       const companies = await prisma.company.findMany({
-        where: { financialStatements: { some: {} } },
+        where: { fsCount: { gte: 2 } },
         select: {
           ico: true,
           name: true,
           auditVerdict: { select: { createdAt: true } },
-          _count: { select: { financialStatements: true } },
         },
         skip,
         take: COMPANIES_PER_SITEMAP,
         orderBy: { ico: "asc" },
       });
-      const filtered = companies.filter((c) => c._count.financialStatements >= 2);
       entries = buildCompanyPages(
-        filtered.map((c) => ({ ico: c.ico, name: c.name, auditVerdict: c.auditVerdict }))
+        companies.map((c) => ({ ico: c.ico, name: c.name, auditVerdict: c.auditVerdict }))
       );
     } catch {
       // DB unavailable — return empty sitemap

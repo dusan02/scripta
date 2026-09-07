@@ -18,8 +18,11 @@ export async function GET() {
   let sitemapCount = 1; // At least sitemap/0.xml (static + glossary)
 
   try {
+    // fsCount >= 2 replaces financialStatements: { some: {} } — the relation
+    // filter compiles to an IN (subquery) semi-join; fsCount is a maintained
+    // column with its own index (same quality gate as hub pages).
     const companyCount = await prisma.company.count({
-      where: { financialStatements: { some: {} } },
+      where: { fsCount: { gte: 2 } },
     });
     sitemapCount = 1 + Math.ceil(companyCount / COMPANIES_PER_SITEMAP);
   } catch {
