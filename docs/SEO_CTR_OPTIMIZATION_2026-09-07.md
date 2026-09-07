@@ -174,6 +174,38 @@ impression pages. If both improve, the effect is broader.
 | **C) CTR < +10%** | Metadata is not the bottleneck | Investigate ranking, search intent, snippet rendering |
 | **D) CTR up but impressions/position down** | Metadata changed but something else regressed | Check if title change caused ranking shift or if external factor |
 
+### Full-funnel interpretation
+
+CTR alone is not sufficient. Evaluate the full funnel at each checkpoint:
+
+| Pattern | Meaning |
+|---|---|
+| CTR +40%, impressions −50% | Not a clean success — fewer people see it |
+| CTR +20%, impressions +80% | Very good result — more visibility + better click-through |
+| CTR +30%, position same | Strong evidence that metadata (not ranking) drove the change |
+| CTR +5%, position +3 | Problem is likely not title/meta — ranking improved but CTR didn't follow |
+| Impressions growing, CTR flat | Google shows us more, but snippet/intent isn't compelling enough yet |
+
+### Checkpoint schedule
+
+| Checkpoint | Date | Purpose | Action |
+|---|---|---|---|
+| **D+7** | Sep 14 | Diagnostic check only | Passive monitoring — no optimization |
+| **D+14** | Sep 21 | First template decision | Apply A/B/C/D decision framework |
+| **D+30** | Oct 7 | Definitive evaluation | 20-URL sample may be too small at D+14; D+30 gives statistical confidence |
+
+### Passive monitoring during observation period
+
+During the 7–14 day observation window, monitor WITHOUT making changes:
+
+- `/firmy/` URLs starting to gain impressions (new architecture indexation)
+- 404 / soft-404 / 5xx rates not worsening
+- Canonical / hreflang error counts in GSC Coverage
+- New company-query patterns appearing in GSC Performance
+- `/firma/` page count with impressions (is Google showing more pages?)
+
+**Only intervene if there is a critical technical error** (e.g., mass 5xx, sitemap breakage).
+
 ### Experiment isolation
 
 To preserve clean experiment results:
