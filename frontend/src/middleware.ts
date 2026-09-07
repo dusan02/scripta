@@ -68,6 +68,56 @@ const KRAJ_SLUG_MAP: Record<string, string> = {
   SK042: "kosicky-kraj",
 };
 
+// ─── In-process slug cache ─────────────────────────────────────────
+// The Next.js fetch Data Cache is NOT available in middleware runtime —
+// every request re-fetched /api/internal/company-slug (3-5s under load),
+// tripping the 3s AbortSignal timeout and adding +3s to every /firma/ hit.
+// A module-level Map persists per middleware isolate and removes the
+// HTTP round-trip entirely for repeat IČO lookups.
+const slugCache = new Map<string, { name: string | null; ts: number }>();
+const SLUG_TTL_MS = 60 * 60 * 1000; // 1h — company names change only via cron reseed
+const SLUG_CACHE_MAX = 20_000;
+
+async function getCompanyName(ico: string): Promise<string | null | undefined> {
+  const hit = slugCache.get(ico);
+  if (hit && Date.now() - hit.ts < SLUG_TTL_MS) return hit.name;
+
+  try {
+    const res = await fetch(`http://localhost:3000/api/internal/company-slug/${ico}`, {
+      headers: { "x-middleware-internal": "1" },
+      signal: AbortSignal.timeout(3000),
+      cache: "no-store",
+    });
+    if (res.status === 404) {
+      cacheSlug(ico, null); // known-nonexistent — negative cache
+      return null;
+    }
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.name !== undefined) {
+        cacheSlug(ico, data.name as string | null);
+        return data.name as string | null;
+      }
+    }
+    return undefined; // fetch failed — don't cache, let page handle
+  } catch {
+    return undefined;
+  }
+}
+
+function cacheSlug(ico: string, name: string | null) {
+  if (slugCache.size >= SLUG_CACHE_MAX) {
+    // Evict expired first; if still full, clear (slugs are stable per reseed window)
+    const cutoff = Date.now() - SLUG_TTL_MS;
+    for (const [k, v] of Array.from(slugCache)) {
+      if (v.ts < cutoff) slugCache.delete(k);
+      if (slugCache.size < SLUG_CACHE_MAX * 0.9) break;
+    }
+    if (slugCache.size >= SLUG_CACHE_MAX) slugCache.clear();
+  }
+  slugCache.set(ico, { name, ts: Date.now() });
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -126,6 +176,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // --- Step 3a: Bare-IČO URLs (/36204731) → canonical /firma/ path ---
+  // The /[ico] page tried redirect() but Sentry's server-component wrapper
+  // swallows it → returned 200 with full indexable content and NO canonical —
+  // a duplicate URL family per company. Middleware redirect bypasses Sentry.
+  // Two-hop is fine: /{ico} → /firma/{ico} → slug-resolved /firma/{ico}-{slug}.
+  const icoOnlyMatch = realPath.match(/^\/(\d{8,10})$/);
+  if (icoOnlyMatch) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = `/firma/${icoOnlyMatch[1]}`;
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
   // --- Step 3+4: Company pages — static routes per language, no rewrite ---
   // Firma pages have real URL routes for each language (app/(pub-{lang})/{prefix}/firma/...),
   // so they must NOT be rewritten — the lang prefix stays in the URL and the page
@@ -147,34 +209,16 @@ export async function middleware(req: NextRequest) {
       return r;
     }
 
-    // Fetch company name from DB — lightweight query, no relations
-    // We use a direct fetch to the internal API to avoid Prisma in middleware
-    // (Prisma client isn't available in middleware edge runtime)
-    try {
-      // Use internal localhost to avoid round-trip through nginx
-      const internalUrl = `http://localhost:3000/api/internal/company-slug/${ico}`;
-      const res = await fetch(internalUrl, {
-        headers: { "x-middleware-internal": "1" },
-        signal: AbortSignal.timeout(3000),
-        // Cache slug lookups — company names rarely change (re-seeded by cron).
-        // force-cache = use cached response if available, fetch + cache if not.
-        // Next.js data cache persists across requests in the same runtime.
-        cache: "force-cache",
-        next: { revalidate: 3600 },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.name) {
-          const correctSlug = slugify(data.name);
-          if (currentSlug !== correctSlug) {
-            const redirectUrl = req.nextUrl.clone();
-            redirectUrl.pathname = `${urlLangPrefix}/firma/${ico}-${correctSlug}`;
-            return NextResponse.redirect(redirectUrl, 308);
-          }
-        }
+    // Slug validation via in-process cache (falls back to internal API fetch).
+    // undefined = lookup failed → pass through, page renders normally.
+    const companyName = await getCompanyName(ico);
+    if (companyName) {
+      const correctSlug = slugify(companyName);
+      if (currentSlug !== correctSlug) {
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = `${urlLangPrefix}/firma/${ico}-${correctSlug}`;
+        return NextResponse.redirect(redirectUrl, 308);
       }
-    } catch {
-      // If DB lookup fails, let the page render normally
     }
 
     // Unprefixed firma URL + remembered non-SK language → redirect to the

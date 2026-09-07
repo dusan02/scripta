@@ -23,12 +23,15 @@ function xmlEscape(s: string): string {
 
 function buildUrlEntry(
   url: string,
-  lastmod: Date,
+  lastmod: Date | null,
   changefreq: string,
   priority: number,
   alternates?: Record<string, string>
 ): string {
-  let entry = `<url><loc>${xmlEscape(url)}</loc><lastmod>${lastmod.toISOString()}</lastmod>`;
+  let entry = `<url><loc>${xmlEscape(url)}</loc>`;
+  // Omit lastmod when unknown — a fake "now" lastmod teaches Google to distrust
+  // the sitemap and dilutes crawl prioritization (worse than omitting).
+  if (lastmod) entry += `<lastmod>${lastmod.toISOString()}</lastmod>`;
   entry += `<changefreq>${changefreq}</changefreq><priority>${priority}</priority>`;
   if (alternates) {
     for (const [lang, altUrl] of Object.entries(alternates)) {
@@ -99,21 +102,25 @@ function buildGlossaryPages(): string[] {
 }
 
 function buildCompanyPages(
-  companies: { ico: string; name: string | null; auditVerdict: { createdAt: Date } | null }[]
+  companies: { ico: string; name: string | null; auditVerdict: { createdAt: Date } | null; ruzSyncedAt: Date | null; updatedAt: Date }[]
 ): string[] {
+  // SK canonical URL ONLY per company — localized variants (/en/firma/..., /de/...)
+  // are NOT listed as separate <url> entries. They stay live and are discovered
+  // via the hreflang annotations below. Declaring all 6 variants multiplied the
+  // sitemap to ~1.78M URLs (277K × 6) of near-duplicate thin translations, which
+  // diluted Google's crawl budget and suppressed indexation of the canonical set
+  // (4,402 indexed / 1.78M declared = 0.25%).
   return companies
     .filter((c) => VALID_ICO.test(c.ico))
-    .flatMap((c) => {
+    .map((c) => {
       const slug = c.name ? `${c.ico}-${slugify(c.name)}` : c.ico;
       const path = `/firma/${slug}`;
-      const lastMod = c.auditVerdict?.createdAt || new Date();
-      return VALID_LANGS.map((lang) => {
-        const url = `${BASE_URL}${localizePath(path, lang)}`;
-        const alternates = Object.fromEntries(
-          VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
-        );
-        return buildUrlEntry(url, lastMod, "monthly", 0.6, alternates);
-      });
+      // Real content freshness — never fabricate "now" (see buildUrlEntry note)
+      const lastMod = c.ruzSyncedAt ?? c.updatedAt ?? c.auditVerdict?.createdAt ?? null;
+      const alternates = Object.fromEntries(
+        VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
+      );
+      return buildUrlEntry(`${BASE_URL}${path}`, lastMod, "monthly", 0.6, alternates);
     });
 }
 
@@ -152,14 +159,18 @@ export async function GET(
           ico: true,
           name: true,
           auditVerdict: { select: { createdAt: true } },
+          ruzSyncedAt: true,
+          updatedAt: true,
         },
         skip,
         take: COMPANIES_PER_SITEMAP,
         orderBy: { ico: "asc" },
       });
-      entries = buildCompanyPages(
-        companies.map((c) => ({ ico: c.ico, name: c.name, auditVerdict: c.auditVerdict }))
-      );
+      // Out-of-range sitemap id → 404 (previously returned an empty urlset with 200)
+      if (companies.length === 0) {
+        return new NextResponse("Not found", { status: 404 });
+      }
+      entries = buildCompanyPages(companies);
     } catch {
       // DB unavailable — return empty sitemap
       entries = [];
