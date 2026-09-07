@@ -40,7 +40,7 @@ import { FirmaPageTracker } from "@/components/firma-page-tracker";
 // app/(pub)/firma/[ico-slug]        → lang "sk"
 // app/(pub-{en,de,cs,hu,pl})/{prefix}/firma/[ico-slug] → respective lang
 // Language comes from the URL route (not headers/cookies), so these pages
-// are fully static + ISR-cacheable (revalidate = 86400).
+// are fully static + ISR-cacheable (revalidate = 21600, set in route files).
 
 export async function generateFirmaPageMetadata(icoSlug: string, lang: Lang): Promise<Metadata> {
   const parsed = parseCompanySlug(icoSlug);

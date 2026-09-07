@@ -5,7 +5,7 @@ import { FirmaPageContent, generateFirmaPageMetadata } from "@/components/firma-
 // revalidate=3600: company data changes at most daily (cron re-seed), so a
 // 1h stale window is acceptable; dynamicParams=true renders on-demand —
 // no 500k-page upfront build.
-export const revalidate = 3600;
+export const revalidate = 21600; // 6h — company data changes daily (cron re-seed); 1h caused needless re-renders under AI crawler load
 export const dynamicParams = true;
 
 // generateStaticParams with an EMPTY list + dynamicParams=true = on-demand
