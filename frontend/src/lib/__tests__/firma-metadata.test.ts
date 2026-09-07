@@ -145,8 +145,9 @@ describe("generateFirmaMetadata", () => {
   // ── Robots ──
   it("robots index+follow for indexable company", () => {
     const md = generateFirmaMetadata("Novogal a.s.", "00199567", null, "sk", true);
-    assert.equal(md.robots?.index, true);
-    assert.equal(md.robots?.follow, true);
+    const robots = md.robots as { index: boolean; follow: boolean };
+    assert.equal(robots.index, true);
+    assert.equal(robots.follow, true);
   });
 
   // ── No duplicates in title ──
