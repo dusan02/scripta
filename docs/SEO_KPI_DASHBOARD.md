@@ -12,12 +12,24 @@
 |---|---|---|---|---|
 | Total impressions/day | ~3,213 avg | | | |
 | Total clicks (period) | 107 (reported) | | | |
-| Average CTR | TBD | | | |
-| Average position | TBD | | | |
-| Indexed pages | 4,402 | | | |
+| Average CTR | TBD (need Performance export) | | | |
+| Average position | TBD (need Performance export) | | | |
 | Submitted URLs (sitemap) | ~278,000 | | | |
+| URLs known to Google | 6,134 | | | |
+| Indexed pages | 4,402 | | | |
 | Not indexed (excluded) | 1,732 | | | |
-| Google discovery rate | 2.2% (6,134/278K) | | | |
+
+### 1.2 Three distinct indexation KPIs (do NOT conflate)
+
+These are three completely different metrics. Mixing them leads to false conclusions.
+
+| KPI | Formula | Baseline (Sep 4) | Meaning |
+|---|---|---|---|
+| **Google-known indexation rate** | indexed / URLs known to Google | 4,402 / 6,134 = **71.8%** | Of the URLs Google has discovered, how many are indexed? High = Google likes what it finds. |
+| **Sitemap discovery rate** | URLs known to Google / sitemap URLs | 6,134 / 278,000 = **2.2%** | Has Google found our sitemap URLs? Low = Google hasn't crawled most of the site yet. |
+| **Sitemap → indexed** | indexed / sitemap URLs | 4,402 / 278,000 = **1.58%** | What % of our sitemap is actually indexed? This is the ultimate SEO coverage metric. |
+
+**Current interpretation:** Google has only discovered 2.2% of the sitemap. The 71.8% indexation rate is healthy for what Google has found, but the absolute coverage (1.58%) is very low. Post-deploy, we expect the discovery rate to grow as Google crawls the new `/firmy/` hub pages and follows internal links to company pages.
 
 ### 1.2 By URL family
 
