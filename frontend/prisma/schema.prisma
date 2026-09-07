@@ -378,6 +378,11 @@ model Company {
   @@index([naceCode])
   @@index([status])
   @@index([establishedAt])
+  // Screener sort indexes — ASC btree cannot serve DESC NULLS LAST ordering
+  // (caused 36-65s Parallel Seq Scan on 518K rows; see docs/performance-audit.md)
+  @@index([establishedAt(sort: Desc, nulls: Last)], map: "Company_establishedAt_desc_nulls_last_idx")
+  @@index([legalForm(sort: Desc, nulls: Last)], map: "Company_legalForm_desc_nulls_last_idx")
+  @@index([city(sort: Desc, nulls: Last)], map: "Company_city_desc_nulls_last_idx")
   @@index([latestRevenue(sort: Desc, nulls: Last)])
   @@index([latestProfit(sort: Desc, nulls: Last)])
   @@index([latestAssets(sort: Desc, nulls: Last)])

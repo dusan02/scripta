@@ -157,6 +157,49 @@ Komplexný audit celej aplikácie: DB, API routes, page rendering, bundle, middl
 
 ---
 
+## Screener sort performance — vyriešené (2026-09-07)
+
+### Nález
+
+Production load test + `EXPLAIN (ANALYZE, BUFFERS)` odhalil, že 4 z 9 sortov
+v Screeneri trvali 36–65s (Parallel Seq Scan + top-N heapsort na 518K riadkov,
+256K buffer reads):
+
+| Sort | Before | After | Príčina |
+|---|---|---|---|
+| `sort=name&dir=asc` | 36,7s | 0,32s | Iba GIN trigram index existoval — žiadny btree pre ORDER BY. `Company_name_idx` z baseline migrácie chýbal v produkcii (manuálne odstránený pri tvorbe trigram indexu). |
+| `sort=establishedAt&dir=desc` | 53,4s | 0,17s | ASC btree nedokáže slúžiť `DESC NULLS LAST` ordering |
+| `sort=legalForm&dir=desc` | 65,1s | 0,30s | rovnaké |
+| `sort=city&dir=desc` | 55,7s | 0,36s | rovnaké |
+| `sort=city&dir=asc` | 22ms | 22ms | ASC index funguje pre ASC NULLS LAST (NULL prefix skip) |
+| `sort=legalForm&dir=asc` | 13ms | 13ms | rovnaké |
+
+Finančné sorty (`latestRevenue/Profit/Assets/Equity DESC NULLS LAST`) boli vždy
+rýchle — mali `desc_nulls_last` indexy.
+
+### Fix
+
+4 indexy vytvorené na produkcii cez `CREATE INDEX CONCURRENTLY` (bez blokovania
+zápisov) + migrácia `20260907090000_add_screener_sort_indexes` (idempotentná,
+`IF NOT EXISTS` pre name) + `schema.prisma` aktualizovaná s `map` argumentmi.
+
+```sql
+CREATE INDEX "Company_name_idx" ON "Company"("name" ASC);
+CREATE INDEX "Company_establishedAt_desc_nulls_last_idx" ON "Company"("establishedAt" DESC NULLS LAST);
+CREATE INDEX "Company_legalForm_desc_nulls_last_idx" ON "Company"("legalForm" DESC NULLS LAST);
+CREATE INDEX "Company_city_desc_nulls_last_idx" ON "Company"(city DESC NULLS LAST);
+```
+
+### Lekcia
+
+ASC btree index **nedokáže** efektívne slúžiť `ORDER BY col DESC NULLS LAST`
+(Postgres by potreboval backward scan, ktorý planner pri NULLS LAST nevyužije
+spoľahlivo). Pre každý sortovateľný stĺpec v Screeneri musí existovať index
+v presnom poradí, aké query vyžaduje. Prisma `@@index([col])` = ASC NULLS FIRST
+— pre DESC NULLS LAST sorty explicitne `@@index([col(sort: Desc, nulls: Last)])`.
+
+---
+
 ## Prioritizačná matica
 
 ```
