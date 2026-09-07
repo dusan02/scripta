@@ -141,16 +141,27 @@ if (SINCE) {
 if (LINES) lines = lines.slice(-LINES);
 
 // ── Aggregate ────────────────────────────────────────────────────────
-// perBot[botKey] = { requests, uniqueUrls:Set, urls:{urlType:count}, hit, miss, noCache, err5xx, rtSum, rtCount, statusDist }
+// perBot[botKey] = { requests, uniqueUrls:Set, urls:{urlType:count}, hit, miss,
+//   noCache, err5xx, rtSum/rtCount (all), hitRtSum/hitRtCount, missRtSum/missRtCount,
+//   missByHour: { "YYYY-MM-DDTHH": count }, statuses }
 const perBot = {};
-const total = { requests: 0, hit: 0, miss: 0, err5xx: 0, rtSum: 0, rtCount: 0 };
+const total = { requests: 0, hit: 0, miss: 0, err5xx: 0, rtSum: 0, rtCount: 0, hitRtSum: 0, hitRtCount: 0, missRtSum: 0, missRtCount: 0 };
+const missByHour = {};
+
+function hourBucket(nginxTime) {
+  // "07/Sep/2026:12:20:20 +0200" → "2026-09-07T12:00"
+  const m = nginxTime.match(/^(\d+)\/(\w+)\/(\d+):(\d+):/);
+  if (!m) return "unknown";
+  const months = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06", Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
+  return `${m[3]}-${months[m[2]]}-${m[1].padStart(2, "0")}T${m[4]}:00`;
+}
 
 for (const line of lines) {
   const e = parseLine(line);
   if (!e) continue;
   const bot = classifyBot(e.ua);
   if (!perBot[bot]) {
-    perBot[bot] = { requests: 0, urls: new Set(), urlTypes: {}, hit: 0, miss: 0, noCache: 0, err5xx: 0, rtSum: 0, rtCount: 0, statuses: {} };
+    perBot[bot] = { requests: 0, urls: new Set(), urlTypes: {}, hit: 0, miss: 0, noCache: 0, err5xx: 0, rtSum: 0, rtCount: 0, hitRtSum: 0, hitRtCount: 0, missRtSum: 0, missRtCount: 0, missByHour: {}, statuses: {} };
   }
   const b = perBot[bot];
   b.requests++;
@@ -158,13 +169,19 @@ for (const line of lines) {
   const ut = classifyUrl(e.path);
   b.urlTypes[ut] = (b.urlTypes[ut] || 0) + 1;
   if (e.cache === "HIT") b.hit++;
-  else if (e.cache === "MISS") b.miss++;
-  else b.noCache++;
+  else if (e.cache === "MISS") {
+    b.miss++;
+    const h = hourBucket(e.time);
+    b.missByHour[h] = (b.missByHour[h] || 0) + 1;
+    missByHour[h] = (missByHour[h] || 0) + 1;
+  } else b.noCache++;
   if (e.status >= 500) b.err5xx++;
   b.statuses[e.status] = (b.statuses[e.status] || 0) + 1;
   if (e.rt != null) {
     b.rtSum += e.rt;
     b.rtCount++;
+    if (e.cache === "HIT") { b.hitRtSum += e.rt; b.hitRtCount++; }
+    else if (e.cache === "MISS") { b.missRtSum += e.rt; b.missRtCount++; }
   }
   total.requests++;
   if (e.cache === "HIT") total.hit++;
@@ -173,6 +190,8 @@ for (const line of lines) {
   if (e.rt != null) {
     total.rtSum += e.rt;
     total.rtCount++;
+    if (e.cache === "HIT") { total.hitRtSum += e.rt; total.hitRtCount++; }
+    else if (e.cache === "MISS") { total.missRtSum += e.rt; total.missRtCount++; }
   }
 }
 
@@ -245,3 +264,59 @@ for (const [key, b] of bots) {
   }
 }
 if (!hasNon200) console.log(`(všetky requesty 200)`);
+
+// ── TTFB HIT vs MISS — cold-cache render cost ────────────────────────
+console.log(``);
+console.log(`## TTFB: cache HIT vs MISS (render cost)`);
+console.log(``);
+console.log(`| Bot | TTFB HIT | TTFB MISS | MISS/1k req |`);
+console.log(`|---|---:|---:|---:|`);
+for (const [key, b] of bots) {
+  const hitAvg = b.hitRtCount ? `${(b.hitRtSum / b.hitRtCount).toFixed(2)}s (n=${b.hitRtCount})` : "—";
+  const missAvg = b.missRtCount ? `${(b.missRtSum / b.missRtCount).toFixed(2)}s (n=${fmt(b.missRtCount)})` : "—";
+  const missPer1k = b.requests ? fmt(Math.round((b.miss / b.requests) * 1000)) : "—";
+  console.log(`| ${BOT_LABELS[key] || key} | ${hitAvg} | ${missAvg} | ${missPer1k} |`);
+}
+const tHitAvg = total.hitRtCount ? `${(total.hitRtSum / total.hitRtCount).toFixed(2)}s (n=${fmt(total.hitRtCount)})` : "—";
+const tMissAvg = total.missRtCount ? `${(total.missRtSum / total.missRtCount).toFixed(2)}s (n=${fmt(total.missRtCount)})` : "—";
+console.log(`| **TOTAL** | ${tHitAvg} | ${tMissAvg} | ${total.requests ? fmt(Math.round((total.miss / total.requests) * 1000)) : "—"} |`);
+
+// ── MISS per hour — crawl intensity timeline ─────────────────────────
+console.log(``);
+console.log(`## MISS per hour (render intensity — each MISS ≈ 1 full page render)`);
+const hours = Object.entries(missByHour).sort(([a], [b2]) => a.localeCompare(b2));
+if (hours.length) {
+  console.log(``);
+  console.log(`| Hour | MISS renders |`);
+  console.log(`|---|---:|`);
+  for (const [h, c] of hours) console.log(`| ${h} | ${fmt(c)} |`);
+} else {
+  console.log(`(žiadne MISS v okne)`);
+}
+
+// ── Googlebot spotlight ──────────────────────────────────────────────
+const gb = perBot["Googlebot"];
+console.log(``);
+console.log(`## Googlebot spotlight (SEO experiment — sledovať samostatne)`);
+if (gb) {
+  console.log(`- Requests: ${fmt(gb.requests)} | Unique URLs: ${fmt(gb.urls.size)}`);
+  console.log(`- TTFB all: ${gb.rtCount ? (gb.rtSum / gb.rtCount).toFixed(2) + "s" : "—"} | HIT: ${gb.hitRtCount ? (gb.hitRtSum / gb.hitRtCount).toFixed(2) + "s" : "—"} | MISS: ${gb.missRtCount ? (gb.missRtSum / gb.missRtCount).toFixed(2) + "s" : "—"}`);
+  console.log(`- URL typy: ${Object.entries(gb.urlTypes).sort((x, y) => y[1] - x[1]).map(([ut, c]) => `${ut}: ${c}`).join(", ") || "—"}`);
+  console.log(`- Statusy: ${Object.entries(gb.statuses).map(([s, c]) => `${s}: ${c}`).join(", ")}`);
+} else {
+  console.log(`(žiadne Googlebot requesty v okne)`);
+}
+
+// ── Cost proxy KPI ───────────────────────────────────────────────────
+console.log(``);
+console.log(`## Cost proxy (KPI podľa performance-audit.md)`);
+console.log(``);
+console.log(`> HIT ratio NIE JE hlavný KPI pri crawl-e nových URL — 90% MISS môže byť zdravé.`);
+console.log(`> Primárny KPI: **náklady na 1 000 crawler requestov** (proxy: MISS/1k + TTFB MISS).`);
+console.log(`> Konečný KPI: **AI referral návštevy / 100k crawler requestov** (GA — manuálne).`);
+console.log(``);
+const missPer1kTotal = total.requests ? Math.round((total.miss / total.requests) * 1000) : 0;
+console.log(`- MISS/1 000 requestov (celkovo): **${fmt(missPer1kTotal)}** — každý MISS = 1 full render (getCompanyData + 3 RelatedFirms + crossFirm)`);
+console.log(`- TTFB MISS (render cost proxy): **${total.missRtCount ? (total.missRtSum / total.missRtCount).toFixed(2) + "s" : "—"}** vs TTFB HIT (served cost): **${total.hitRtCount ? (total.hitRtSum / total.hitRtCount).toFixed(3) + "s" : "—"}**`);
+console.log(`- Ak TTFB MISS klesne na ~0,5–1s a HIT ratio rastie, crawler storm sa stáva lacným`);
+console.log(`- AI referral attribution: sleduj v GA/analytics (referral z chatgpt.com, perplexity.ai, facebook.com, copilot) — manuálne, nie z access logu`);
