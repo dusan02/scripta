@@ -225,3 +225,43 @@ VYSOKÝ DOPAD / VYSOKÁ NÁROČNOSŤ (naplánovať):
 ---
 
 *Audit vykonaný 4 paralelnými subagentmi nad celým codebase (242 prisma calls, 53 API routes, 47 pages, 20 layouts, middleware, docker-compose, next.config).*
+
+---
+
+## Incident 2026-09-07: AI crawler storm → DB saturation → +3s na každom /firma/ requeste
+
+### Symptom
+Prekliky na firmy stránky trvali 3,1–3,3s TTFB (aj pri ISR cache HIT).
+
+### Príčinový reťazec
+1. AI crawlers masívne crawlovali /firma/ stránky (za ~12h: meta-externalagent
+   ~171K, PerplexityBot 27K, Amazonbot 24K, GPTBot 19K requestov)
+2. Každý cache-miss render spustil 3 RelatedFirms query s
+   `financialStatements: { some: {} }` → `ico IN (SELECT companyIco FROM
+   FinancialStatement)` semi-join + `ORDER BY latestRevenue DESC` — pre malé
+   mestá preskenoval celý revenue index (518K riadkov) kým našiel 6 firiem
+3. Pod concurrent loadom sa query hromadili → pool (15 conn) saturovaný →
+   aj 0,2ms PK lookup trval sekundy
+4. Middleware slug fetch (3s timeout) vypršal → +3s na každom /firma/ requeste
+5. Frontend container unhealthy (healthcheck timeout)
+
+### Fix (commit 279604e)
+`fsCount >= 1` (maintained column, vlastný index) namiesto relation filtra v:
+- related-firms.tsx (3 query)
+- sitemap.xml count (beží pri každom index fetchi)
+- sitemap/[id] findMany (+ zrušený _count + JS filter)
+
+Konzistencia fsCount vs EXISTS overená: rozdiel 1 riadok z 518,802.
+
+### Výsledok
+| Metrika | Before | After |
+|---|---|---|
+| /firma/ TTFB (cache HIT) | 3,1–3,3s | 0,11–0,19s |
+| /firma/ TTFB (cache MISS render) | 3s+ | 0,5–0,9s |
+| Aktívne DB query | 31 | 1 |
+
+### Zostáva (navrhnuté, neimplementované)
+- nginx `limit_req` per-IP pre agresívne boty (meta-externalagent, PerplexityBot,
+  Amazonbot) — ochrana proti budúcim crawler stormom; vyžaduje rozhodnutie
+  vlastníka (SEO/GEO politika — ktoré boty pustiť a ako rýchlo)
+- Zvážiť dlhší ISR revalidate pre /firma/ (3600s → 6-24h; dáta sa menia denne)
