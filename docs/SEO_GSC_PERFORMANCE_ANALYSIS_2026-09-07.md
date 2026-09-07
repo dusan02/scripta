@@ -295,23 +295,27 @@ Top 20 by impressions:
 
 ### Opportunity 1: ORSR glossary page — title/meta optimization
 
-**Current:** `/slovnik/orsr` ranks at position 7.3 for "orsr" with 16,112 impressions and 0.06% CTR (10 clicks).
+**Current:** `/slovnik/orsr` ranks at position 7.3 for "orsr" with 16,112 impressions (3 months) and 0.06% CTR (10 clicks).
 
-**Potential:** If CTR improved to 2% (typical for position 1–3), that's **320 clicks/month**. If position improved to 3, CTR could be 3–5% → **480–800 clicks/month**.
+**Monthly rate:** ~5,371 impressions/month, ~3 clicks/month.
 
-**Action:** Optimize title and meta description for `/slovnik/orsr`. Current title likely says "ORSR — Slovník | Verifa.sk". Better: "ORSR — Obchodný register SR: čo je a ako ho využiť | Verifa.sk". Make it clear this is a useful resource, not just a dictionary entry.
+**Potential:** If CTR improved to 2%, that's ~107 clicks/month. If position improved to 3, CTR could be 3–5% → ~161–269 clicks/month.
 
-**Effort:** 30 minutes. **Value:** High (320–800 clicks/month potential).
+**Action:** Optimize title and meta description for `/slovnik/orsr`. Current title likely says "ORSR — Slovník | Verifa.sk". Better: "ORSR — Obchodný register SR: čo je a ako ho využiť | Verifa.sk". Make it clear this is a useful resource, not just a dictionary entry. **Secondary goal:** convert ORSR informational visitors to company verification / due diligence users.
+
+**Effort:** 30 minutes. **Value:** Medium (107–269 clicks/month potential, but informational traffic).
 
 ### Opportunity 2: Company page title/meta optimization
 
-**Current:** 822 company pages get 5,516 impressions and 76 clicks (1.38% CTR). 147 pages have >10 impressions and 0 clicks.
+**Current:** 822 company pages get 5,516 impressions (3 months) and 76 clicks (1.38% CTR). 147 pages have >10 impressions and 0 clicks.
+
+**Monthly rate:** ~1,839 impressions/month, ~25 clicks/month.
 
 **Pattern:** Company pages at position 6–9 with 20–40 impressions and 0 clicks. Users see Verifa in results but don't click.
 
 **Action:** Improve company page title/meta description. Current title likely: "Firma name — IČO | Verifa.sk". Better: "Firma name — finančné údaje, riziká, IČO {ico} | Verifa.sk". Show value in the snippet — "finančné údaje" and "riziká" signal useful content.
 
-**Effort:** 2–4 hours (template change). **Value:** High — if CTR doubles from 1.38% to 2.76%, that's **76 → 152 clicks/month**.
+**Effort:** 2–4 hours (template change). **Value:** High — if CTR doubles from 1.38% to 2.76%, that's **+25 clicks/month** (25 → 50). Affects existing traffic, fast to measure.
 
 ### Opportunity 3: Company pages without slug — 308 redirect consolidation
 
@@ -369,7 +373,7 @@ Top 20 by impressions:
 
 ### Secondary recommendation: ORSR glossary title optimization (Opportunity 1)
 
-**Why:** 16,112 impressions at 0.06% CTR is the single biggest quick-win. One page, one title change, potential 320–800 clicks/month.
+**Why:** 16,112 impressions (3 months, ~5,371/month) at 0.06% CTR. One page, one title change, potential ~107–269 clicks/month. Secondary goal: convert ORSR visitors to company verification users.
 
 **What to change:**
 - `/slovnik/orsr` title: "ORSR — Obchodný register SR: čo je a ako ho využiť | Verifa.sk"
@@ -379,7 +383,34 @@ Top 20 by impressions:
 
 ## 8. Baseline for D+7/D+14/D+30 comparison
 
-| KPI | Baseline (Sep 5) | D+7 (Sep 14) | D+14 (Sep 21) | D+30 (Oct 7) |
+> **IMPORTANT:** All values below are 3-month rolling totals from GSC Performance export (Jun 7 – Sep 5, 2026). Monthly rates are approximate (total / 3). For post-deploy comparison, use the same 3-month window AND a separate "recent 7/14/30 days" view so the deploy effect is not diluted by the rolling window.
+
+### 3-month totals (locked baseline)
+
+| KPI | Baseline (3mo) | Monthly rate |
+|---|---|---|
+| Total impressions | 25,551 | ~8,517/mo |
+| Total clicks | 107 | ~36/mo |
+| Average CTR | 0.42% | — |
+| Average position | 7.8 | — |
+| Indexed pages | 4,402 | — |
+| Not indexed | 1,732 | — |
+| `/firmy/` impressions | 0 | — |
+| `/firmy/` clicks | 0 | — |
+| `/firma/` impressions | 5,516 | ~1,839/mo |
+| `/firma/` clicks | 76 | ~25/mo |
+| `/slovnik/orsr` impressions | 19,052 | ~5,371/mo |
+| `/slovnik/orsr` clicks | 15 | ~5/mo |
+| `/mesto/` impressions | 139 | ~46/mo |
+| `/mesto/` clicks | 3 | ~1/mo |
+| `/odvetvie/` impressions | 7 | — |
+| Redirect pages (not indexed) | 481 | — |
+| Canonical issues | 214 | — |
+| Crawled not indexed | 256 | — |
+
+### D+7 / D+14 / D+30 tracking
+
+| KPI | Baseline (3mo) | D+7 (Sep 14) | D+14 (Sep 21) | D+30 (Oct 7) |
 |---|---|---|---|---|
 | Total impressions (3mo) | 25,551 | | | |
 | Total clicks (3mo) | 107 | | | |

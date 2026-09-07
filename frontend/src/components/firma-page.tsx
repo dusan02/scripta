@@ -61,17 +61,24 @@ export async function generateFirmaPageMetadata(icoSlug: string, lang: Lang): Pr
   }
 
   const name = company.name || `IČO ${company.ico}`;
+  const stmts = company.financialStatements;
+  const latest = stmts[0];
+
+  // Compute risk signals to determine whether the title/description can
+  // promise "riziká" — only include if the page actually renders them.
+  const signals = computeRiskSignals(company, latest, lang);
+  const hasRiskSignals = signals.length > 0;
 
   // Quality gate: index only firms with ≥2 years of financial data
-  const stmtCount = company.financialStatements.length;
+  const stmtCount = stmts.length;
   if (stmtCount < 2) {
     return {
-      ...generateFirmaMetadata(name, company.ico, company.city || null, lang),
+      ...generateFirmaMetadata(name, company.ico, company.city || null, lang, hasRiskSignals),
       robots: { index: false, follow: true },
     };
   }
 
-  return generateFirmaMetadata(name, company.ico, company.city || null, lang);
+  return generateFirmaMetadata(name, company.ico, company.city || null, lang, hasRiskSignals);
 }
 
 export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lang: Lang }) {

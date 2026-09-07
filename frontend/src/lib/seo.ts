@@ -162,31 +162,54 @@ const PAGE_SEO: Record<string, Record<Lang, { title: string; description: string
   },
 };
 
-/** Firma page SEO — with {name}, {ico}, {city} placeholders */
-const FIRMA_SEO: Record<Lang, { title: string; description: string }> = {
+/** Firma page SEO — with {name}, {ico}, {city} placeholders.
+ *
+ *  Two variants per language:
+ *  - `titleRisk` / `descRisk`    → used when the page has risk signals
+ *  - `titleNoRisk` / `descNoRisk` → used when no risk signals are present
+ *
+ *  This avoids promising "riziká" in the SERP snippet when the page
+ *  doesn't actually render a Risk Signals section.
+ */
+const FIRMA_SEO: Record<Lang, {
+  titleRisk: string; titleNoRisk: string;
+  descRisk: string; descNoRisk: string;
+}> = {
   sk: {
-    title: "{name} ({ico}) — Finančné dáta, zisk, súvaha",
-    description: "{name} ({ico}){city} — účtovné závierky, tržby, zisk, aktíva, osoby a udalosti z verejných registrov SR (ORSR, RÚZ, Obchodný vestník)."
+    titleRisk: "{name} ({ico}) — finančné údaje a riziká | Verifa",
+    titleNoRisk: "{name} ({ico}) — finančné údaje | Verifa",
+    descRisk: "Finančné údaje, rizikové signály a registrácia firmy {name} (IČO {ico}){city}. Overenie z verejných registrov SR.",
+    descNoRisk: "Finančné údaje a registrácia firmy {name} (IČO {ico}){city}. Overenie z verejných registrov SR.",
   },
   en: {
-    title: "{name} ({ico}) — Financial data, profit, balance sheet",
-    description: "{name} ({ico}){city} — financial statements, revenue, profit, assets, persons and events from public Slovak registries (ORSR, RÚZ, Obchodný vestník)."
+    titleRisk: "{name} ({ico}) — financial data and risk signals | Verifa",
+    titleNoRisk: "{name} ({ico}) — financial data | Verifa",
+    descRisk: "Financial data, risk signals and registration for {name} (IČO {ico}){city}. Verification from public Slovak registries.",
+    descNoRisk: "Financial data and registration for {name} (IČO {ico}){city}. Verification from public Slovak registries.",
   },
   de: {
-    title: "{name} ({ico}) — Finanzdaten, Gewinn, Bilanz",
-    description: "{name} ({ico}){city} — Jahresabschlüsse, Umsatz, Gewinn, Aktiva, Personen und Ereignisse aus öffentlichen slowakischen Registern (ORSR, RÚZ, Obchodný vestník)."
+    titleRisk: "{name} ({ico}) — Finanzdaten und Risikosignale | Verifa",
+    titleNoRisk: "{name} ({ico}) — Finanzdaten | Verifa",
+    descRisk: "Finanzdaten, Risikosignale und Registrierung von {name} (IČO {ico}){city}. Überprüfung aus öffentlichen slowakischen Registern.",
+    descNoRisk: "Finanzdaten und Registrierung von {name} (IČO {ico}){city}. Überprüfung aus öffentlichen slowakischen Registern.",
   },
   cz: {
-    title: "{name} ({ico}) — Finanční data, zisk, rozvaha",
-    description: "{name} ({ico}){city} — účetní závěrky, tržby, zisk, aktiva, osoby a události z veřejných registrů SR (ORSR, RÚZ, Obchodný vestník)."
+    titleRisk: "{name} ({ico}) — finanční data a riziková signály | Verifa",
+    titleNoRisk: "{name} ({ico}) — finanční data | Verifa",
+    descRisk: "Finanční data, riziková signály a registrace firmy {name} (IČO {ico}){city}. Ověření z veřejných registrů SR.",
+    descNoRisk: "Finanční data a registrace firmy {name} (IČO {ico}){city}. Ověření z veřejných registrů SR.",
   },
   hu: {
-    title: "{name} ({ico}) — Pénzügyi adatok, profit, mérleg",
-    description: "{name} ({ico}){city} — pénzügyi kimutatások, árbevétel, profit, eszközök, személyek és események szlovák nyilvántartásokból (ORSR, RÚZ, Obchodný vestník)."
+    titleRisk: "{name} ({ico}) — pénzügyi adatok és kockázati jelek | Verifa",
+    titleNoRisk: "{name} ({ico}) — pénzügyi adatok | Verifa",
+    descRisk: "Pénzügyi adatok, kockázati jelek és cégregisztráció: {name} (IČO {ico}){city}. Ellenőrzés szlovák nyilvántartásokból.",
+    descNoRisk: "Pénzügyi adatok és cégregisztráció: {name} (IČO {ico}){city}. Ellenőrzés szlovák nyilvántartásokból.",
   },
   pl: {
-    title: "{name} ({ico}) — Dane finansowe, zysk, bilans",
-    description: "{name} ({ico}){city} — sprawozdania finansowe, przychody, zysk, aktywa, osoby i zdarzenia z publicznych słowackich rejestrów (ORSR, RÚZ, Obchodný vestník)."
+    titleRisk: "{name} ({ico}) — dane finansowe i sygnały ryzyka | Verifa",
+    titleNoRisk: "{name} ({ico}) — dane finansowe | Verifa",
+    descRisk: "Dane finansowe, sygnały ryzyka i rejestracja firmy {name} (IČO {ico}){city}. Weryfikacja ze słowackich rejestrów publicznych.",
+    descNoRisk: "Dane finansowe i rejestracja firmy {name} (IČO {ico}){city}. Weryfikacja ze słowackich rejestrów publicznych.",
   },
 };
 
@@ -339,24 +362,40 @@ function truncateAtWord(str: string, max: number): string {
   return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut) + "…";
 }
 
-/** Generate localized metadata for a company (firma) page */
-export function generateFirmaMetadata(name: string, ico: string, city: string | null, lang: Lang): Metadata {
+/** Generate localized metadata for a company (firma) page.
+ *
+ *  `hasRiskSignals` controls whether the title/description mentions "riziká"
+ *  — only set to true when the page actually renders a Risk Signals section.
+ */
+export function generateFirmaMetadata(
+  name: string,
+  ico: string,
+  city: string | null,
+  lang: Lang,
+  hasRiskSignals = false,
+): Metadata {
   const template = FIRMA_SEO[lang];
+  const titleTemplate = hasRiskSignals ? template.titleRisk : template.titleNoRisk;
+  const descTemplate = hasRiskSignals ? template.descRisk : template.descNoRisk;
 
-  // Title: Google truncates ~60 chars. For long company names, drop the
-  // descriptor suffix first, then truncate the name itself if still too long.
-  let title = template.title
+  // Title: Google truncates ~60 chars. For long company names, progressively
+  // drop suffixes: full → no "| Verifa" → name+ico only → truncated name.
+  let title = titleTemplate
     .replace("{name}", name)
     .replace("{ico}", ico);
-  if (title.length > 60) {
+  if (title.length > 65) {
+    // Drop "| Verifa" suffix
+    title = title.replace(/\s*\|\s*Verifa$/, "");
+  }
+  if (title.length > 65) {
     title = `${name} (${ico})`;
   }
-  if (title.length > 60) {
-    title = `${truncateAtWord(name, 60 - ico.length - 4)} (${ico})`;
+  if (title.length > 65) {
+    title = `${truncateAtWord(name, 65 - ico.length - 4)} (${ico})`;
   }
 
   // Description: ~160 chars. For long names, drop the city, then truncate name.
-  const buildDesc = (n: string, c: string) => template.description
+  const buildDesc = (n: string, c: string) => descTemplate
     .replace("{name}", n)
     .replace("{ico}", ico)
     .replace("{city}", c);
