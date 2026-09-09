@@ -116,6 +116,13 @@ services:
       start_period: 30s
     volumes:
       - ./worker/results:/app/results:ro  # read-only prístup k vygenerovaným PDF
+      # ISR cache na named volumes — zabraňuje rastu writable layer kontajnera
+      - isr_cache_firma:/app/.next/server/app/firma
+      - isr_cache_en:/app/.next/server/app/en
+      - isr_cache_de:/app/.next/server/app/de
+      - isr_cache_cs:/app/.next/server/app/cs
+      - isr_cache_hu:/app/.next/server/app/hu
+      - isr_cache_pl:/app/.next/server/app/pl
     logging:
       driver: json-file
       options:
@@ -286,3 +293,9 @@ volumes:
   postgres_data:
   postgres_wal:
   db_backups:
+  isr_cache_firma:
+  isr_cache_en:
+  isr_cache_de:
+  isr_cache_cs:
+  isr_cache_hu:
+  isr_cache_pl:

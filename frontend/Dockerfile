@@ -73,6 +73,19 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
 
+# Create ISR cache directories for Docker volume mounts
+# (ensures correct ownership when named volumes are first created)
+RUN mkdir -p /app/.next/server/app/firma \
+    /app/.next/server/app/en \
+    /app/.next/server/app/de \
+    /app/.next/server/app/cs \
+    /app/.next/server/app/hu \
+    /app/.next/server/app/pl && \
+    chown nextjs:nodejs /app/.next/server/app/firma \
+    /app/.next/server/app/en /app/.next/server/app/de \
+    /app/.next/server/app/cs /app/.next/server/app/hu \
+    /app/.next/server/app/pl
+
 USER nextjs
 
 EXPOSE 3000
