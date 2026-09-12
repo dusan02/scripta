@@ -49,9 +49,11 @@ function buildStaticPages(): string[] {
       const alternates = Object.fromEntries(
         VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
       );
+      // Omit lastmod for static pages — a fabricated "now" teaches Google to
+      // distrust the sitemap. Google uses its own crawl data for freshness.
       return buildUrlEntry(
         url,
-        new Date(),
+        null,
         path === "/" ? "weekly" : "monthly",
         path === "/" ? 1.0 : 0.8,
         alternates
@@ -66,7 +68,7 @@ function buildScreenerLandingPages(): string[] {
   // removed from sitemap to avoid redirect-in-sitemap SEO error.
   // Canonical hub URLs (/firmy/{slug}, /kraj/{kraj}) are in buildHubPages().
   return [
-    buildUrlEntry(`${BASE_URL}/screener`, new Date(), "weekly", 0.7),
+    buildUrlEntry(`${BASE_URL}/screener`, null, "weekly", 0.7),
   ];
 }
 
@@ -80,7 +82,7 @@ async function buildHubPages(): Promise<string[]> {
         const alternates = Object.fromEntries(
           VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
         );
-        return buildUrlEntry(url, new Date(), "weekly", hub.priority, alternates);
+        return buildUrlEntry(url, null, "weekly", hub.priority, alternates);
       });
     });
   } catch {
@@ -96,7 +98,7 @@ function buildGlossaryPages(): string[] {
       const alternates = Object.fromEntries(
         VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
       );
-      return buildUrlEntry(url, new Date(), "monthly", 0.6, alternates);
+      return buildUrlEntry(url, null, "monthly", 0.6, alternates);
     });
   });
 }

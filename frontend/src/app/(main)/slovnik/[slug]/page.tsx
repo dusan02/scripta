@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { glossaryTerms, getGlossaryTerm } from "@/lib/glossary";
 import { getLangFromHeaders, getHreflangAlternates, getOgLocale } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { GlossaryFeaturedFirms } from "@/components/glossary-featured-firms";
 
 export function generateStaticParams() {
   return glossaryTerms.map((term) => ({ slug: term.slug }));
@@ -21,15 +22,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const lang = getLangFromHeaders(h);
   const path = `/slovnik/${term.slug}`;
 
+  const title = term.seoTitle || `${term.title} — čo to je a ako ho využiť | Verifa.sk`;
+
   return {
-    title: `${term.title} — vysvetlenie`,
+    title: { absolute: title },
     description: term.shortDescription,
     alternates: {
       canonical: `https://verifa.sk${path}`,
       languages: getHreflangAlternates(path),
     },
     openGraph: {
-      title: `${term.title} — vysvetlenie | Verifa.sk`,
+      title: `${title} | Verifa.sk`,
       description: term.shortDescription,
       type: "article",
       locale: getOgLocale(lang),
@@ -177,6 +180,9 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
             Začať overovať →
           </Link>
         </div>
+
+        {/* Internal linking: top firms by revenue — helps Google discover company pages */}
+        <GlossaryFeaturedFirms />
 
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Súvisiace pojmy</h3>

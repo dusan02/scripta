@@ -1,5 +1,3 @@
-"use client";
-
 import LandingJsonLd from "@/components/LandingJsonLd";
 import LandingNav from "@/components/landing/LandingNav";
 import HeroSection from "@/components/landing/HeroSection";
@@ -15,6 +13,7 @@ import PricingSection from "@/components/landing/PricingSection";
 import CtaSection from "@/components/landing/CtaSection";
 import StickyCta from "@/components/landing/StickyCta";
 import LandingFooter from "@/components/landing/LandingFooter";
+import { GlossaryFeaturedFirms } from "@/components/glossary-featured-firms";
 
 export default function LandingPageRoute() {
   return (
@@ -56,6 +55,7 @@ export default function LandingPageRoute() {
       <LandingNav />
       <HeroSection />
       <ScreenerCtaSection />
+      <GlossaryFeaturedFirms />
       <ReportIncludesSection />
       <SampleReportSection />
       <HowItWorksSection />

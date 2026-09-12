@@ -1,6 +1,7 @@
 export interface GlossaryTerm {
   slug: string;
   title: string;
+  seoTitle?: string;
   shortDescription: string;
   fullDescription: string;
   category: "Finančná analýza" | "Finančné ukazovatele" | "Právne registre" | "Risk Assessment";
@@ -102,7 +103,8 @@ Verifa.sk automatizuje proces due diligence tým, že z jedného zadania IČO zo
   {
     slug: "orsr",
     title: "ORSR — Obchodný register SR",
-    shortDescription: "Centrálny register obchodných spoločností na Slovensku.",
+    seoTitle: "ORSR — Obchodný register SR: čo je a ako ho využiť | Verifa.sk",
+    shortDescription: "Centrálny register obchodných spoločností na Slovensku — overenie existencie firmy, štatutárov a predmetov podnikania.",
     fullDescription: `ORSR (Obchodný register Slovenskej republiky) je verejný register, ktorý vedú okresné súdy. Obsahuje základné informácie o všetkých obchodných spoločnostiach a iných právnických osobách registrovaných na Slovensku.
 
 ## Čo ORSR obsahuje

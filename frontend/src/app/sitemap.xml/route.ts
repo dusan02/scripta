@@ -29,12 +29,13 @@ export async function GET() {
     // DB unavailable — return just the static sitemap
   }
 
-  const now = new Date().toISOString();
   const entries: string[] = [];
 
   for (let i = 0; i < sitemapCount; i++) {
+    // Omit lastmod at index level — a fabricated "now" on every child sitemap
+    // teaches Google to distrust the sitemap freshness signal.
     entries.push(
-      `<sitemap><loc>${BASE_URL}/sitemap/${i}.xml</loc><lastmod>${now}</lastmod></sitemap>`
+      `<sitemap><loc>${BASE_URL}/sitemap/${i}.xml</loc></sitemap>`
     );
   }
 
