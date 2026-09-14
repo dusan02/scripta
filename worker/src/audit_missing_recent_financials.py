@@ -59,7 +59,12 @@ async def ruz_get(
     url = f"{RUZ_API}/{endpoint}"
     for attempt in range(max_retries):
         try:
-            resp = await client.get(url, params=params, headers={"User-Agent": UA}, timeout=TIMEOUT)
+            # wait_for = hard deadline; httpx read-timeout alone can hang
+            # forever when a WAF tarpits with slow-drip responses.
+            resp = await asyncio.wait_for(
+                client.get(url, params=params, headers={"User-Agent": UA}, timeout=TIMEOUT),
+                timeout=TIMEOUT + 15,
+            )
             if resp.status_code == 200:
                 return resp.json()
             if resp.status_code in (429, 502, 503):
@@ -72,6 +77,8 @@ async def ruz_get(
             wait = 2 ** attempt
             logger.warning(f"RUZ error for {endpoint}: {e}, retrying in {wait}s")
             await asyncio.sleep(wait)
+        except asyncio.TimeoutError:
+            logger.warning(f"RUZ hard timeout for {endpoint} (attempt {attempt + 1})")
     return None
 
 
