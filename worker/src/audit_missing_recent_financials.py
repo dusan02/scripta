@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
 import json
 import logging
 import sys
@@ -152,28 +153,42 @@ async def run_audit(args: argparse.Namespace) -> None:
     await connect_db()
     db = get_db()
 
-    # Phase 1: DB-only — companies without any FinancialStatement for year >= min_year.
-    # Raw SQL: find_many(select=...) unsupported by the pinned prisma client and
-    # full-model hydration of ~200k rows would be needlessly heavy.
-    rows = await db.query_raw(
-        '''
-        SELECT c."ico" AS ico, c."name" AS name,
-               c."latestYear" AS "latestYear", c."ruzEntityId" AS "ruzEntityId"
-        FROM "Company" c
-        WHERE NOT EXISTS (
-            SELECT 1 FROM "FinancialStatement" f
-            WHERE f."companyIco" = c."ico" AND f."year" >= $1
+    # Phase 1: candidate list — either from a pre-exported CSV (recommended:
+    # the NOT EXISTS query takes ~70s in Postgres and times out through the
+    # prisma query engine) or via query_raw directly.
+    if args.from_file:
+        companies = []
+        with Path(args.from_file).open(encoding="utf-8") as f:
+            for line in f:
+                parts = next(csv.reader([line]))
+                if not parts or not parts[0].strip():
+                    continue
+                companies.append(SimpleNamespace(
+                    ico=parts[0].strip(),
+                    name=parts[1] if len(parts) > 1 and parts[1] else None,
+                    latestYear=int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None,
+                    ruzEntityId=int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else None,
+                ))
+    else:
+        rows = await db.query_raw(
+            '''
+            SELECT c."ico" AS ico, c."name" AS name,
+                   c."latestYear" AS "latestYear", c."ruzEntityId" AS "ruzEntityId"
+            FROM "Company" c
+            WHERE NOT EXISTS (
+                SELECT 1 FROM "FinancialStatement" f
+                WHERE f."companyIco" = c."ico" AND f."year" >= $1
+            )
+            ''',
+            args.min_year,
         )
-        ''',
-        args.min_year,
-    )
-    companies = [
-        SimpleNamespace(
-            ico=r["ico"], name=r.get("name"),
-            latestYear=r.get("latestYear"), ruzEntityId=r.get("ruzEntityId"),
-        )
-        for r in rows
-    ]
+        companies = [
+            SimpleNamespace(
+                ico=r["ico"], name=r.get("name"),
+                latestYear=r.get("latestYear"), ruzEntityId=r.get("ruzEntityId"),
+            )
+            for r in rows
+        ]
     logger.info(f"Phase 1 (DB): {len(companies)} companies without year>={args.min_year} statement")
 
     if args.summary:
@@ -275,6 +290,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-year", type=int, default=2025, help="Target latest year (default 2025)")
     p.add_argument("--include-prev-year", action="store_true",
                    help="Also flag firms whose RÚZ latest == min-year-1 (e.g. 2024)")
+    p.add_argument("--from-file", default="",
+                   help="CSV (ico,name,latestYear,ruzEntityId) with candidates — "
+                        "skips the slow NOT EXISTS DB query")
     p.add_argument("--max", type=int, default=0, help="Limit companies (0 = all)")
     p.add_argument("--concurrency", type=int, default=10)
     p.add_argument("--resume", action="store_true", help="Skip ICOs already present in results file")
