@@ -30,11 +30,16 @@ import argparse
 import asyncio
 import json
 import logging
+import sys
 import time
 from pathlib import Path
 from typing import Optional
 
 import httpx
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+from db_client import connect_db, disconnect_db, get_db
 
 logger = logging.getLogger("enrich_gap")
 
