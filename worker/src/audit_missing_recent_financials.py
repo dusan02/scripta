@@ -73,12 +73,13 @@ async def ruz_get(
                 await asyncio.sleep(wait)
                 continue
             return None
-        except (httpx.TimeoutException, httpx.ConnectError) as e:
+        except (httpx.HTTPError, asyncio.TimeoutError) as e:
+            # HTTPError covers ALL transport errors (ReadError, WriteError,
+            # ConnectError, TimeoutException, ...) — a narrow except let a
+            # single ReadError crash the whole 300k-company run.
             wait = 2 ** attempt
-            logger.warning(f"RUZ error for {endpoint}: {e}, retrying in {wait}s")
+            logger.warning(f"RUZ error for {endpoint}: {type(e).__name__}: {e}, retrying in {wait}s")
             await asyncio.sleep(wait)
-        except asyncio.TimeoutError:
-            logger.warning(f"RUZ hard timeout for {endpoint} (attempt {attempt + 1})")
     return None
 
 
@@ -232,7 +233,12 @@ async def run_audit(args: argparse.Namespace) -> None:
     async def audit_one(c) -> None:
         nonlocal processed
         async with sem:
-            rec = await check_company(client, c, args.min_year, args.include_prev_year)
+            try:
+                rec = await check_company(client, c, args.min_year, args.include_prev_year)
+            except Exception as e:
+                # Never let one company kill the whole run
+                rec = {"ico": c.ico, "name": c.name, "dbLatestYear": c.latestYear,
+                       "classification": "EXCEPTION", "error": f"{type(e).__name__}: {e}"}
             out.write(json.dumps(rec, ensure_ascii=False) + "\n")
             processed += 1
             cls = rec["classification"]
