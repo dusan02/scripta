@@ -1406,47 +1406,6 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
     logger.info(f"PDF úspešne vygenerované: {pdf_path}")
     return pdf_path
 
-
-def _make_web_compatible_html(html_content: str) -> str:
-    """Konvertuje PDF-oriented HTML (file:// cesty) do browser-compatible verzie.
-
-    Playwright (PDF generácia) má prístup k lokálnym súborom cez file://,
-    ale browser ich nemôže načítať. Nahradí:
-    - Tailwind JS → CDN (cdn.tailwindcss.com)
-    - @font-face file:// bloky → Google Fonts <link> pre Inter
-    - DejaVu Sans → systémový fallback (žiadny CDN)
-    """
-    import re
-
-    # 1. Tailwind: file:// → CDN
-    html_content = re.sub(
-        r'<script\s+src="file://[^"]*tailwind\.js">\s*</script>',
-        '<script src="https://cdn.tailwindcss.com"></script>',
-        html_content,
-    )
-
-    # 2. Odstráň @font-face bloky s file:// URL (Inter + DejaVu)
-    html_content = re.sub(
-        r'@font-face\s*\{[^}]*file://[^}]*\}',
-        '/* @font-face removed for web view — loaded via Google Fonts */',
-        html_content,
-    )
-
-    # 3. Pridaj Google Fonts <link> pre Inter hneď po <meta charset>
-    google_fonts_link = (
-        '<link rel="preconnect" href="https://fonts.googleapis.com">'
-        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">'
-    )
-    html_content = html_content.replace(
-        '<meta charset="UTF-8">',
-        '<meta charset="UTF-8">\n    ' + google_fonts_link,
-        1,  # len prvý výskyt (v <head>)
-    )
-
-    return html_content
-
-
 async def generate_forensic_pdf_report(
     ico: str,
     sources: Optional[list] = None,
@@ -1503,20 +1462,7 @@ async def generate_forensic_pdf_report(
         pdf_path = target_path or f"assets/{ico}/Verifa_Forensic_Report_{ico}.pdf"
         await render_pdf_via_playwright(html_content, pdf_path, ico)
 
-        # HTML výstup (web view) — browser-compatible verzia HTML.
-        # PDF verzia používa file:// cesty (Playwright má prístup k lokálnym súborom),
-        # ale browser file:// nemôže načítať — nahradíme Tailwind a fonty za CDN.
-        html_path = str(Path(pdf_path).with_suffix(".html"))
-        try:
-            web_html = _make_web_compatible_html(html_content)
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(web_html)
-            logger.info(f"HTML report uložený: {html_path}")
-        except Exception as html_err:
-            logger.warning(f"Nepodarilo sa uložiť HTML report ({html_path}): {html_err}")
-            html_path = None
-
-        return pdf_path, html_path
+        return pdf_path
 
     finally:
         pass

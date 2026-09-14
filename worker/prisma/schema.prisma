@@ -62,8 +62,6 @@ model ReportRequest {
   selectedSources SourceType[]
   resultUrl       String?
   resultFilePath  String?
-  resultHtmlPath  String?
-  shareToken      String?             @unique
   completedAt     DateTime?
   aiStatus        String?
   eta             Int?

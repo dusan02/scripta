@@ -71,8 +71,6 @@ model ReportRequest {
   selectedSources SourceType[]
   resultUrl       String?
   resultFilePath  String?
-  resultHtmlPath  String?             // S3 key / local path of the HTML report view
-  shareToken      String? @unique     // Public share token for /r/{token} HTML view
   completedAt     DateTime?
   aiStatus        String?
   eta             Int?

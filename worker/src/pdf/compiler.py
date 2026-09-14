@@ -1,7 +1,6 @@
 from __future__ import annotations
 import io
 import os
-import shutil
 import tempfile
 import logging
 from threading import Lock
@@ -187,7 +186,6 @@ class PdfCompiler:
 
         from src.report_generator import generate_forensic_pdf_report
         ico = identifier.replace("IČO ", "").strip()
-        cover_html_path: Optional[Path] = None
 
         # 3. Odhadneme počet strán cover page podľa počtu zdrojov (vyhneme sa dvojitej generácii).
         success_sources = [s for s in sources if s.status == "SUCCESS"]
@@ -198,7 +196,7 @@ class PdfCompiler:
         # Calculate total pages = cover_pages + divider(1) + sum of included source pages
         total_sources_pages = sum(s.page_count for s in sources if s.page_count)
 
-        _, cover_html_path = await generate_forensic_pdf_report(
+        await generate_forensic_pdf_report(
             ico=ico,
             sources=sources,
             start_pages_map=start_pages_map,
@@ -208,13 +206,13 @@ class PdfCompiler:
             report_language=report_language,
             vestnik_date_from=vestnik_date_from,
             company_name_override=company_name,
-        ) or (None, None)
+        )
         actual_cover_pages = len(PdfReader(str(cover_path)).pages)
 
         # 4. Ak sa odhad mýli, regenerujeme s opravenými start_page.
         if actual_cover_pages != estimated_cover_pages:
             _assign_start_pages(actual_cover_pages)
-            _, cover_html_path = await generate_forensic_pdf_report(
+            await generate_forensic_pdf_report(
                 ico=ico,
                 sources=sources,
                 start_pages_map=start_pages_map,
@@ -224,7 +222,7 @@ class PdfCompiler:
                 report_language=report_language,
                 vestnik_date_from=vestnik_date_from,
                 company_name_override=company_name,
-            ) or (None, None)
+            )
 
         # 5. Zlúčime cover page + divider + PDF zdrojov pomocou PdfWriter.
         # Táto operácia je CPU-bound (PyPDF2 merge, page numbering, overlay) a môže trvať
@@ -244,18 +242,7 @@ class PdfCompiler:
             report_language=report_language,
         )
 
-        # HTML výstup (web view) — analytická časť reportu (cover) ako samostatný
-        # HTML súbor vedľa finálneho binderu. None ak sa generovanie HTML nepodarilo.
-        html_path: Optional[Path] = None
-        if cover_html_path and Path(cover_html_path).exists():
-            html_path = output_dir / "report.html"
-            try:
-                shutil.copyfile(cover_html_path, html_path)
-            except Exception as copy_err:
-                logger.warning(f"[PdfCompiler] Kopírovanie HTML reportu zlyhalo: {copy_err}")
-                html_path = None
-
-        return final_path, html_path
+        return final_path
 
     def _merge_pdfs_sync(
         self,

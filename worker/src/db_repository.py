@@ -826,7 +826,6 @@ async def update_report_status(
     report_request_id: str,
     status: str,
     result_file_path: Optional[str] = None,
-    result_html_path: Optional[str] = None,
     company_name: Optional[str] = None,
     verifa_score: Optional[int] = None,
 ) -> None:
@@ -835,8 +834,6 @@ async def update_report_status(
         data = {"status": status}
         if result_file_path is not None:
             data["resultFilePath"] = result_file_path
-        if result_html_path is not None:
-            data["resultHtmlPath"] = result_html_path
         if status in ("COMPLETED", "PARTIAL"):
             data["completedAt"] = datetime.now(timezone.utc)
         if company_name is not None:

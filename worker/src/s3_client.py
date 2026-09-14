@@ -113,12 +113,7 @@ def upload_report_file(
     safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
     key = f"reports/{report_request_id}/{safe_filename}"
 
-    if filename.endswith(".pdf"):
-        content_type = "application/pdf"
-    elif filename.endswith(".html"):
-        content_type = "text/html; charset=utf-8"
-    else:
-        content_type = "application/octet-stream"
+    content_type = "application/pdf" if filename.endswith(".pdf") else "application/octet-stream"
 
     logger.info(f"[s3] Uploading {local_path} → s3://{_s3_bucket}/{key}")
 
