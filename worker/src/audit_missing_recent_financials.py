@@ -158,6 +158,12 @@ async def run_audit(args: argparse.Namespace) -> None:
         handlers=[logging.StreamHandler()],
     )
 
+    if args.summary:
+        # Summary needs no DB — must run BEFORE connect_db: the prisma query
+        # engine times out on the heavy NOT EXISTS candidate query anyway.
+        summarize(Path("results") / f"audit_missing_financials_{args.min_year}.jsonl")
+        return
+
     await connect_db()
     db = get_db()
 
@@ -198,11 +204,6 @@ async def run_audit(args: argparse.Namespace) -> None:
             for r in rows
         ]
     logger.info(f"Phase 1 (DB): {len(companies)} companies without year>={args.min_year} statement")
-
-    if args.summary:
-        summarize(Path("results") / f"audit_missing_financials_{args.min_year}.jsonl")
-        await disconnect_db()
-        return
 
     if args.max:
         companies = companies[: args.max]
