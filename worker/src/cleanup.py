@@ -51,11 +51,13 @@ async def cleanup_old_reports() -> Tuple[int, int]:
 
             # Delete from S3 if the report file was stored there.
             old_report = next((r for r in old_reports if r.id == report_id), None)
-            if old_report and old_report.resultFilePath and not old_report.resultFilePath.startswith("local://"):
-                try:
-                    delete_report_file(old_report.resultFilePath)
-                except Exception as s3_err:
-                    logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
+            if old_report:
+                for s3_path in (old_report.resultFilePath, getattr(old_report, "resultHtmlPath", None)):
+                    if s3_path and not s3_path.startswith("local://"):
+                        try:
+                            delete_report_file(s3_path)
+                        except Exception as s3_err:
+                            logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
 
             # Zmaž zložku z disku (local mode fallback)
             child = results_dir / report_id
@@ -112,11 +114,12 @@ async def cleanup_excess_reports() -> Tuple[int, int]:
                 report_id = ex_row.id
 
                 # Delete from S3 if the report file was stored there.
-                if ex_row.resultFilePath and not ex_row.resultFilePath.startswith("local://"):
-                    try:
-                        delete_report_file(ex_row.resultFilePath)
-                    except Exception as s3_err:
-                        logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
+                for s3_path in (ex_row.resultFilePath, getattr(ex_row, "resultHtmlPath", None)):
+                    if s3_path and not s3_path.startswith("local://"):
+                        try:
+                            delete_report_file(s3_path)
+                        except Exception as s3_err:
+                            logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
 
                 # Zmaž záznam z DB (Cascade sa postará o ReportSource)
                 try:

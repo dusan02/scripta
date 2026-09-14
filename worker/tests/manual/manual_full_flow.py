@@ -46,7 +46,7 @@ async def main():
     print("\nCompiling PDF...")
     compiler = PdfCompiler(results_dir)
     try:
-        final_path = compiler.compile(
+        final_path, _html_path = compiler.compile(
             report_request_id="test-vw-flow",
             target_type="COMPANY",
             identifier="IČO 52252256",

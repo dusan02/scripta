@@ -592,7 +592,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
         async with _pdf_lock:
             _log.info(f"[{_rid}] PDF compile lock acquired")
             with PhaseTimer("PDF compile"):
-                final_path = await compiler.compile(
+                final_path, html_path = await compiler.compile(
                     report_request_id=task.report_request_id,
                     target_type=task.target_type,
                     identifier=_identifier(task),
@@ -633,7 +633,18 @@ async def _execute_report_inner(task: ReportTask) -> None:
             )
             raise
 
-        # Cleanup medziproduktov — ponechať len evidence_binder.pdf
+        # HTML výstup (web view) — non-fatal: ak sa upload nepodarí, report
+        # ostane COMPLETED len bez HTML view.
+        s3_html_key = None
+        if html_path is not None and Path(html_path).exists():
+            try:
+                s3_html_key = upload_report_file(Path(html_path), task.report_request_id, ico=task.ico)
+                _log.info(f"[{_rid}] HTML report stored: {s3_html_key}")
+            except Exception as html_upload_err:
+                _log.warning(f"[{_rid}] HTML upload zlyhal (report ostáva COMPLETED): {html_upload_err}")
+                s3_html_key = None
+
+        # Cleanup medziproduktov — ponechať len evidence_binder.pdf (+ report.html v local mode)
         # (In S3 mode, the local copy is also cleaned up after upload.)
         try:
             for f in report_dir.glob("*.pdf"):
@@ -646,7 +657,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
             # safely in the cloud. In local mode, keep it for download.
             if is_s3_enabled():
                 final_path.unlink(missing_ok=True)
-                _log.debug(f"[{_rid}] Cleanup: local PDF removed (uploaded to S3)")
+                if html_path is not None:
+                    Path(html_path).unlink(missing_ok=True)
+                _log.debug(f"[{_rid}] Cleanup: local PDF+HTML removed (uploaded to S3)")
             else:
                 _log.debug(f"[{_rid}] Cleanup: medziprodukty zmazané (local mode)")
         except Exception as cleanup_err:
@@ -676,6 +689,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
             task.report_request_id,
             final_status,
             result_file_path=s3_key,
+            result_html_path=s3_html_key,
             company_name=company_name,
             verifa_score=verifa_score_snapshot,
         )

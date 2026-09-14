@@ -36,6 +36,8 @@ export default function ReportDetailPage() {
   const [downloadError, setDownloadError] = useState(false);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [viewingOnline, setViewingOnline] = useState(false);
+  const [copyingLink, setCopyingLink] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelCountdown, setCancelCountdown] = useState(15);
@@ -209,6 +211,31 @@ export default function ReportDetailPage() {
       toast.error(t("report.csvChyba"));
     } finally {
       setDownloadingCsv(false);
+    }
+  };
+
+  // "Zobraziť online" — opens the HTML report view in a new tab (owner-only route)
+  const handleViewOnline = () => {
+    setViewingOnline(true);
+    window.open(`/api/reports/${params.id}/html`, "_blank", "noopener");
+    // No way to detect tab load — reset spinner shortly
+    setTimeout(() => setViewingOnline(false), 1500);
+  };
+
+  // "Kopírovať zdieľaný link" — creates (once) and copies the public /r/{token} URL
+  const handleCopyShareLink = async () => {
+    setCopyingLink(true);
+    try {
+      const res = await fetch(`/api/reports/${params.id}/share`, { method: "POST" });
+      if (!res.ok) throw new Error(`Share failed: ${res.status}`);
+      const data = await res.json();
+      const url = `${window.location.origin}${data.sharePath}`;
+      await navigator.clipboard.writeText(url);
+      toast.success(t("report.linkSkopirovany"));
+    } catch {
+      toast.error(t("report.linkChyba"));
+    } finally {
+      setCopyingLink(false);
     }
   };
 
@@ -639,6 +666,29 @@ export default function ReportDetailPage() {
                     )}
                     CSV
                   </button>
+                  <button
+                    onClick={handleViewOnline}
+                    disabled={viewingOnline}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {viewingOnline ? (
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="2" y1="12" x2="22" y2="12" />
+                        <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                      </svg>
+                    )}
+                    {t("report.zobrazitOnline")}
+                  </button>
                 </div>
 
                 <h2 className="text-xl font-bold mb-2 flex items-center gap-2 mt-4" style={{ color: "var(--success)" }}>
@@ -652,18 +702,39 @@ export default function ReportDetailPage() {
                   {t("report.analyzaUspesnaPopis")}
                 </p>
 
-                <button
-                  onClick={handleShareEmail}
-                  disabled={sharing}
-                  className="mt-5 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    <polyline points="22,6 12,13 2,6"></polyline>
-                  </svg>
-                  {t("report.poslatEmailom")}
-                </button>
+                <div className="flex flex-col gap-2 mt-5 items-center">
+                  <button
+                    onClick={handleCopyShareLink}
+                    disabled={copyingLink}
+                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {copyingLink ? (
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M12 2a10 10 0 010 20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+                      </svg>
+                    )}
+                    {t("report.kopirovatLink")}
+                  </button>
+                  <button
+                    onClick={handleShareEmail}
+                    disabled={sharing}
+                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-[13px] transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    {t("report.poslatEmailom")}
+                  </button>
+                </div>
               </div>
             ) : (
               <>

@@ -1462,7 +1462,17 @@ async def generate_forensic_pdf_report(
         pdf_path = target_path or f"assets/{ico}/Verifa_Forensic_Report_{ico}.pdf"
         await render_pdf_via_playwright(html_content, pdf_path, ico)
 
-        return pdf_path
+        # HTML výstup (web view) — ten istý render ako PDF, uložený vedľa neho.
+        html_path = str(Path(pdf_path).with_suffix(".html"))
+        try:
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            logger.info(f"HTML report uložený: {html_path}")
+        except Exception as html_err:
+            logger.warning(f"Nepodarilo sa uložiť HTML report ({html_path}): {html_err}")
+            html_path = None
+
+        return pdf_path, html_path
 
     finally:
         pass
