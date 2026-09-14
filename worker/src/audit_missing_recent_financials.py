@@ -31,6 +31,7 @@ import logging
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Optional
 
 import httpx
@@ -96,8 +97,15 @@ async def check_company(
     }
 
     if not c.ruzEntityId:
-        rec["classification"] = "NO_RUZ_ENTITY_ID"
-        return rec
+        # Resolve entity id by IČO (1 extra API call)
+        eids = await ruz_get(client, "uctovne-jednotky", {
+            "zmenene-od": "2000-01-01", "ico": c.ico, "max-zaznamov": 1,
+        })
+        if not eids or not eids.get("id"):
+            rec["classification"] = "RUZ_ENTITY_NOT_FOUND"
+            return rec
+        c.ruzEntityId = eids["id"][0]
+        rec["ruzEntityId"] = c.ruzEntityId
 
     entity = await ruz_get(client, "uctovna-jednotka", {"id": c.ruzEntityId})
     if not entity:
@@ -117,7 +125,7 @@ async def check_company(
         rec["classification"] = "RUZ_API_ERROR"
         return rec
 
-    ruz_year = _year(latest.get("obdobieDo", ""))
+    ruz_year = _year_from_obdobie(latest.get("obdobieDo", ""))
     rec["ruzLatestYear"] = ruz_year
     rec["ruzLatestZavierkaId"] = latest.get("id")
     rec["ruzKonsolidovana"] = bool(latest.get("konsolidovana", False))
@@ -144,11 +152,28 @@ async def run_audit(args: argparse.Namespace) -> None:
     await connect_db()
     db = get_db()
 
-    # Phase 1: DB-only — companies without any FinancialStatement for year >= min_year
-    companies = await db.company.find_many(
-        where={"financialStatements": {"none": {"year": {"gte": args.min_year}}}},
-        select={"ico": True, "name": True, "latestYear": True, "ruzEntityId": True},
+    # Phase 1: DB-only — companies without any FinancialStatement for year >= min_year.
+    # Raw SQL: find_many(select=...) unsupported by the pinned prisma client and
+    # full-model hydration of ~200k rows would be needlessly heavy.
+    rows = await db.query_raw(
+        '''
+        SELECT c."ico" AS ico, c."name" AS name,
+               c."latestYear" AS "latestYear", c."ruzEntityId" AS "ruzEntityId"
+        FROM "Company" c
+        WHERE NOT EXISTS (
+            SELECT 1 FROM "FinancialStatement" f
+            WHERE f."companyIco" = c."ico" AND f."year" >= $1
+        )
+        ''',
+        args.min_year,
     )
+    companies = [
+        SimpleNamespace(
+            ico=r["ico"], name=r.get("name"),
+            latestYear=r.get("latestYear"), ruzEntityId=r.get("ruzEntityId"),
+        )
+        for r in rows
+    ]
     logger.info(f"Phase 1 (DB): {len(companies)} companies without year>={args.min_year} statement")
 
     if args.summary:
