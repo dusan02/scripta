@@ -181,8 +181,10 @@ fi
 
 echo "--- Smoke tests ---"
 SMOKE_FAIL=0
-for url in "https://verifa.sk/" "https://verifa.sk/api/health" "https://verifa.sk/firma/35876832-kia-slovakia-s-r-o"; do
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$url")
+# -L: firma URLs may 308-redirect to the current company slug (designed
+# behavior of middleware slug validation) — judge by the final status.
+for url in "https://verifa.sk/" "https://verifa.sk/api/health" "https://verifa.sk/firma/35876832-kia-motors-slovakia-s-r-o"; do
+  code=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 "$url")
   if [ "$code" = "200" ] || [ "$code" = "301" ] || echo "$code" | grep -qE "^30[12]$"; then
     echo "  OK $url → $code"
   else
