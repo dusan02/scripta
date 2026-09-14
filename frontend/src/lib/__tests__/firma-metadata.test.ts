@@ -67,10 +67,10 @@ describe("generateFirmaMetadata", () => {
     assert.ok(title.includes("Risikosignale"), `DE title should contain 'Risikosignale': ${title}`);
   });
 
-  it("CS: includes 'riziková signály' when hasRiskSignals=true", () => {
+  it("CS: includes 'rizikové signály' when hasRiskSignals=true", () => {
     const md = generateFirmaMetadata("Test s.r.o.", "12345678", null, "cz", true);
     const title = (md.title as { absolute: string }).absolute;
-    assert.ok(title.includes("riziková signály"), `CS title should contain 'riziková signály': ${title}`);
+    assert.ok(title.includes("rizikové signály"), `CS title should contain 'rizikové signály': ${title}`);
   });
 
   it("HU: includes 'kockázati jelek' when hasRiskSignals=true", () => {

@@ -68,6 +68,11 @@ const KRAJ_SLUG_MAP: Record<string, string> = {
   SK042: "kosicky-kraj",
 };
 
+// Edge-safe slug → kraj reverse mapping (for /kraj/{slug} → /kraj/{CODE} redirect)
+const SLUG_TO_KRAJ: Record<string, string> = Object.fromEntries(
+  Object.entries(KRAJ_SLUG_MAP).map(([kraj, slug]) => [slug, kraj])
+);
+
 // ─── In-process slug cache ─────────────────────────────────────────
 // The Next.js fetch Data Cache is NOT available in middleware runtime —
 // every request re-fetched /api/internal/company-slug (3-5s under load),
@@ -171,6 +176,22 @@ export async function middleware(req: NextRequest) {
         : `/firmy/${naceSlug}`;
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = targetPath;
+      redirectUrl.searchParams.delete("lang");
+      return NextResponse.redirect(redirectUrl, 308);
+    }
+  }
+
+  // --- Step 2d: /kraj/{slug} → canonical /kraj/{NUTS code} (308 permanent) ---
+  // The /kraj/[kraj] page expects a NUTS code (SK010). A slug like
+  // /kraj/bratislavsky-kraj bypassed the label lookup → title "Firmy v
+  // bratislavsky-kraj", hub query matched 0 companies → empty soft-404 page
+  // duplicating the canonical /kraj/SK010. Redirect slugs to the code URL.
+  const krajMatch = realPath.match(/^\/kraj\/([^/]+)$/);
+  if (krajMatch) {
+    const krajCode = SLUG_TO_KRAJ[krajMatch[1].toLowerCase()];
+    if (krajCode) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `${pathname !== realPath ? pathname.slice(0, pathname.length - realPath.length) : ""}/kraj/${krajCode}`;
       redirectUrl.searchParams.delete("lang");
       return NextResponse.redirect(redirectUrl, 308);
     }

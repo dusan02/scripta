@@ -27,7 +27,9 @@ export async function generateMetadata({
     const slug = naceSectionToSlug(odvetvie);
     if (slug) {
       return {
-        title: "Firmy na Slovensku | Verifa.sk",
+        // Root layout template appends " | Verifa.sk" — don't include it here
+        // (was rendering "Firmy na Slovensku | Verifa.sk | Verifa.sk")
+        title: "Firmy na Slovensku",
         description: "Zoznam slovenských firiem s finančnými dátami z verejných registrov. Filtrovanie podľa odvetvia, regiónu, tržieb a zisku.",
         robots: { index: false, follow: true },
         alternates: { canonical: `https://verifa.sk/firmy/${slug}` },
@@ -39,7 +41,7 @@ export async function generateMetadata({
   const languages = getHreflangAlternates(path);
 
   return {
-    title: "Firmy na Slovensku | Verifa.sk",
+    title: "Firmy na Slovensku",
     description: "Zoznam slovenských firiem s finančnými dátami z verejných registrov. Filtrovanie podľa odvetvia, regiónu, tržieb a zisku.",
     robots: hasFilters ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: "https://verifa.sk/firmy", languages },

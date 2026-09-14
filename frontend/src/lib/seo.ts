@@ -36,7 +36,7 @@ const SEO_DATA: Record<Lang, {
 }> = {
   sk: {
     title: "Verifa.sk — Preverenie slovenskej firmy | Business Risk Report",
-    description: "Automatizované preverenie slovenskej firmy — finančné, právne a forenzné riziko v jednom PDF. Manažérske zhrnutie, mapa rizík podvodu, predikcia úpadku, alert na štátne pohľadávky, audítorský posudok a Verifa Score (0–100) z 25+ registrov SR.",
+    description: "Automatizované preverenie slovenskej firmy — finančné, právne a forenzné riziko v jednom PDF. Verifa Score (0–100) a predikcia úpadku z 25+ registrov SR.",
     keywords: ["preverenie firmy", "overenie slovenskej firmy", "previerka firmy", "business risk report", "riziko firmy", "due diligence", "automatizovaný posudok firmy", "predikcia úpadku", "insolvency score", "fraud heatmap", "going concern", "audítorský posudok", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "daňoví dlžníci", "ORSR", "RÚZ", "Obchodný vestník", "insolvencia", "exekúcie", "RPVS", "advokát", "právnik", "notár", "účtovník", "špedícia", "register", "report", "slovenská firma"],
     ogTitle: "Verifa.sk — Preverenie slovenskej firmy | Business Risk Report",
     ogDescription: "Automatizované preverenie slovenskej firmy — manažérske zhrnutie, mapa rizík podvodu, predikcia úpadku, alert na štátne pohľadávky a Verifa Score z 25+ registrov SR.",
@@ -47,7 +47,7 @@ const SEO_DATA: Record<Lang, {
   },
   en: {
     title: "Verifa.sk — Slovak Company Verification | Business Risk Report",
-    description: "Automated verification of Slovak companies — financial, legal and forensic risk in one PDF. Executive summary, fraud risk map, bankruptcy prediction, state receivables alert, audit opinion and Verifa Score (0–100) from 25+ Slovak public registries.",
+    description: "Automated Slovak company verification — financial, legal and forensic risk in one PDF. Verifa Score (0–100) and bankruptcy prediction from 25+ registries.",
     keywords: ["Slovak company verification", "verify Slovak company", "business risk report", "company risk assessment", "due diligence Slovakia", "automated company assessment", "bankruptcy prediction", "insolvency score", "fraud heatmap", "going concern", "audit opinion", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "tax debtors", "ORSR", "RÚZ", "Commercial Bulletin", "insolvency", "executions", "RPVS", "lawyer", "notary", "accountant", "freight forwarder", "registry", "report", "Slovakia company check"],
     ogTitle: "Verifa.sk — Slovak Company Verification | Business Risk Report",
     ogDescription: "Automated verification of Slovak companies — executive summary, fraud risk map, bankruptcy prediction, state receivables alert and Verifa Score from 25+ Slovak registries.",
@@ -58,7 +58,7 @@ const SEO_DATA: Record<Lang, {
   },
   de: {
     title: "Verifa.sk — Prüfung slowakischer Firmen | Business Risk Report",
-    description: "Automatisierte Prüfung slowakischer Firmen — finanzielle, rechtliche und forensische Risiken in einem PDF. Management-Zusammenfassung, Betrugssrisikokarte, Insolvenzvorhersage, Staatliche Forderungen-Warnung, Prüfungsvermerk und Verifa Score (0–100) aus 25+ slowakischen Registern.",
+    description: "Automatisierte Prüfung slowakischer Firmen — finanzielle, rechtliche und forensische Risiken in einem PDF. Verifa Score (0–100) aus 25+ slowakischen Registern.",
     keywords: ["slowakische firmenprüfung", "firmenprüfung slowakei", "business risk report", "unternehmensrisiko", "due diligence", "automatisierte unternehmensbewertung", "insolvenzvorhersage", "insolvency score", "fraud heatmap", "going concern", "prüfungsvermerk", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "steuerschuldner", "ORSR", "RÚZ", "Handelsregister", "insolvenz", "Zwangsvollstreckung", "RPVS", "rechtsanwalt", "notar", "buchhalter", "spediteur", "register", "bericht", "slowakei firmenprüfung"],
     ogTitle: "Verifa.sk — Prüfung slowakischer Firmen | Business Risk Report",
     ogDescription: "Automatisierte Prüfung slowakischer Firmen — Management-Zusammenfassung, Betrugssrisikokarte, Insolvenzvorhersage, Staatliche Forderungen-Warnung und Verifa Score aus 25+ slowakischen Registern.",
@@ -68,19 +68,19 @@ const SEO_DATA: Record<Lang, {
     websiteDescription: "Automatisierte Prüfung slowakischer Firmen — finanzielle, rechtliche und forensische Risiken aus slowakischen Staatsregistern.",
   },
   cz: {
-    title: "Verifa.sk — Převerení slovenské firmy | Business Risk Report",
-    description: "Automatizované převerení slovenské firmy — finanční, právní a forenzní riziko v jednom PDF. Manažerské shrnutí, mapa rizik podvodu, predikce úpadku, alert na státní pohledávky, auditorský posudek a Verifa Score (0–100) z 25+ registrů SR.",
+    title: "Verifa.sk — Ověření slovenské firmy | Business Risk Report",
+    description: "Automatizované ověření slovenské firmy — finanční, právní a forenzní riziko v jednom PDF. Verifa Score (0–100) a predikce úpadku z 25+ registrů SR.",
     keywords: ["převerení firmy", "ověření slovenské firmy", "previerka firmy", "business risk report", "riziko firmy", "due diligence", "automatizovaný posudek firmy", "predikce úpadku", "insolvency score", "fraud heatmap", "going concern", "auditorský posudek", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "daňoví dlužníci", "ORSR", "RÚZ", "Obchodní věstník", "insolvence", "exekuce", "RPVS", "advokát", "právník", "notář", "účetník", "spedice", "registr", "report", "slovenská firma"],
-    ogTitle: "Verifa.sk — Převerení slovenské firmy | Business Risk Report",
+    ogTitle: "Verifa.sk — Ověření slovenské firmy | Business Risk Report",
     ogDescription: "Automatizované převerení slovenské firmy — manažerské shrnutí, mapa rizik podvodu, predikce úpadku, alert na státní pohledávky a Verifa Score z 25+ registrů SR.",
-    twitterTitle: "Verifa.sk — Převerení slovenské firmy | Business Risk Report",
+    twitterTitle: "Verifa.sk — Ověření slovenské firmy | Business Risk Report",
     twitterDescription: "Automatizované převerení slovenské firmy — posudek, fraud heatmap, predikce úpadku a Verifa Score z 25+ registrů SR v jednom PDF.",
     orgDescription: "Automatizované převerení slovenské firmy — finanční, právní a forenzní riziko ze státních registrů SR s automatizovanou analýzou finančního zdraví.",
     websiteDescription: "Automatizované převerení slovenské firmy — finanční, právní a forenzní riziko ze státních registrů SR.",
   },
   hu: {
     title: "Verifa.sk — Szlovák cégellenőrzés | Business Risk Report",
-    description: "Automatizált szlovák cégellenőrzés — a vállalat pénzügyi, jogi és forenzikus kockázata egyetlen PDF-ben. Vezetői összefoglaló, csalási kockázati térkép, csődelőrejelzés, állami követelések figyelmeztetés, könyvvizsgálói jelentés és Verifa Score (0–100) 25+ szlovák nyilvántartásból.",
+    description: "Automatizált szlovák cégellenőrzés — pénzügyi, jogi és forenzikus kockázat egy PDF-ben. Verifa Score (0–100) és csődelőrejelzés 25+ szlovák nyilvántartásból.",
     keywords: ["szlovák cégellenőrzés", "cégellenőrzés", "business risk report", "vállalati kockázat", "due diligence", "automatizált vállalati értékelés", "csődkockázat", "insolvency score", "fraud heatmap", "going concern", "könyvvizsgálói jelentés", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "adós adófizetők", "ORSR", "RÚZ", "Kereskedelmi Közlöny", "csődeljárás", "végrehajtás", "RPVS", "ügyvéd", "jogász", "közjegyző", "könyvelő", "fuvarszervező", "nyilvántartás", "jelentés", "szlovákia cégellenőrzés"],
     ogTitle: "Verifa.sk — Szlovák cégellenőrzés | Business Risk Report",
     ogDescription: "Automatizált szlovák cégellenőrzés — vezetői összefoglaló, csalási kockázati térkép, csődelőrejelzés, állami követelések figyelmeztetés és Verifa Score 25+ szlovák nyilvántartásból.",
@@ -91,7 +91,7 @@ const SEO_DATA: Record<Lang, {
   },
   pl: {
     title: "Verifa.sk — Weryfikacja słowackiej firmy | Business Risk Report",
-    description: "Zautomatyzowana weryfikacja słowackiej firmy — ryzyko finansowe, prawne i forensiczne w jednym PDF. Podsumowanie zarządcze, mapa ryzyka oszustw, predykcja upadłości, alert o roszczeniach państwowych, opinia audytora i Verifa Score (0–100) z 25+ słowackich rejestrów.",
+    description: "Zautomatyzowana weryfikacja słowackiej firmy — ryzyko finansowe, prawne i forensyczne w jednym PDF. Verifa Score (0–100) i predykcja upadłości z 25+ rejestrów.",
     keywords: ["weryfikacja słowackiej firmy", "sprawdzenie słowackiej firmy", "business risk report", "ryzyko firmy", "due diligence", "zautomatyzowana ocena firmy", "predykcja upadłości", "insolvency score", "fraud heatmap", "going concern", "opinia audytora", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "dłużnicy podatkowi", "ORSR", "RÚZ", "Dziennik Handlowy", "upadłość", "egzekucje", "RPVS", "adwokat", "notariusz", "księgowy", "spedycja", "rejestr", "raport", "słowacja sprawdzenie firmy"],
     ogTitle: "Verifa.sk — Weryfikacja słowackiej firmy | Business Risk Report",
     ogDescription: "Zautomatyzowana weryfikacja słowackiej firmy — podsumowanie zarządcze, mapa ryzyka oszustw, predykcja upadłości, alert o roszczeniach państwowych i Verifa Score z 25+ słowackich rejestrów.",
@@ -194,9 +194,9 @@ const FIRMA_SEO: Record<Lang, {
     descNoRisk: "Finanzdaten und Registrierung von {name} (IČO {ico}){city}. Überprüfung aus öffentlichen slowakischen Registern.",
   },
   cz: {
-    titleRisk: "{name} ({ico}) — finanční data a riziková signály | Verifa",
+    titleRisk: "{name} ({ico}) — finanční data a rizikové signály | Verifa",
     titleNoRisk: "{name} ({ico}) — finanční data | Verifa",
-    descRisk: "Finanční data, riziková signály a registrace firmy {name} (IČO {ico}){city}. Ověření z veřejných registrů SR.",
+    descRisk: "Finanční data, rizikové signály a registrace firmy {name} (IČO {ico}){city}. Ověření z veřejných registrů SR.",
     descNoRisk: "Finanční data a registrace firmy {name} (IČO {ico}){city}. Ověření z veřejných registrů SR.",
   },
   hu: {

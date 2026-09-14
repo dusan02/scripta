@@ -10,7 +10,9 @@ export const revalidate = 3600;
 
 const BASE_URL = "https://verifa.sk";
 const COMPANIES_PER_SITEMAP = 8000;
-const VALID_ICO = /^\d{8,10}$/;
+// 8-10 digits, not all zeros (00000000 is an invalid placeholder IČO that
+// leaked into the sitemap as /firma/00000000-...)
+const VALID_ICO = /^(?!0{8,10}$)\d{8,10}$/;
 
 const STATIC_PATHS = [
   "/", "/pricing", "/register", "/documents", "/slovnik",

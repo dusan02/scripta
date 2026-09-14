@@ -893,16 +893,17 @@ export async function getAllHubPaths(): Promise<Array<{
   }
 
   // City hubs — fetched from DB (cities with ≥20 sitemap companies)
-  // Use a JOIN with a subquery to find companies with ≥2 FS — much faster than EXISTS+HAVING
+  // Uses the maintained fsCount column (same quality gate as everywhere else).
+  // The previous version aggregated FinancialStatement in a subquery
+  // (GROUP BY companyIco HAVING COUNT(*) >= 2 over ~1.36M rows) — measured
+  // 178s on production, which made /sitemap/0.xml unfetchable for Google.
+  // fsCount has its own index, so this is an O(rows-with-fs) scan on Company only.
   try {
     const cities = await prisma.$queryRaw<Array<{ city: string; cnt: bigint }>>`
-      SELECT c.city, COUNT(*)::bigint as cnt
-      FROM "Company" c
-      INNER JOIN (
-        SELECT "companyIco" FROM "FinancialStatement" GROUP BY "companyIco" HAVING COUNT(*) >= 2
-      ) fs ON fs."companyIco" = c.ico
-      WHERE c.city IS NOT NULL AND c.city != ''
-      GROUP BY c.city HAVING COUNT(*) >= 20
+      SELECT city, COUNT(*)::bigint as cnt
+      FROM "Company"
+      WHERE "fsCount" >= 2 AND city IS NOT NULL AND city != ''
+      GROUP BY city HAVING COUNT(*) >= 20
       ORDER BY cnt DESC
     `;
     for (const c of cities) {
