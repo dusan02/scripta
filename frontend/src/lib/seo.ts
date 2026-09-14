@@ -290,8 +290,8 @@ export function generateGlobalMetadata(lang: Lang, canonicalPath: string = "/"):
     keywords: seo.keywords,
     robots: { index: true, follow: true },
     icons: {
-      icon: "/icon.svg",
-      shortcut: "/icon.svg",
+      icon: "/icon.png",
+      shortcut: "/icon.png",
     },
     openGraph: {
       type: "website",
