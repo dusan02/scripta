@@ -21,6 +21,7 @@ import {
   StopIcon,
   RestoreIcon,
 } from "@/components/icons";
+import { Tabs } from "@/components/ui/Tabs";
 
 interface ReportSource {
   sourceType: string;
@@ -372,32 +373,20 @@ export default function HistoryPage() {
       </div>
 
       {/* Tabs: Reports / Trash */}
-      <div className="flex items-center gap-1 mb-4 border-b" style={{ borderColor: "var(--border)" }}>
-        <button
-          onClick={() => { setActiveTab("reports"); setPage(1); setSelectedIds(new Set()); }}
-          className="px-4 py-2 text-sm font-medium transition-colors relative"
-          style={{
-            color: activeTab === "reports" ? "var(--accent)" : "var(--text-muted)",
-            borderBottom: activeTab === "reports" ? "2px solid var(--accent)" : "2px solid transparent",
-          }}
-        >
-          {t("history.reporty")}
-        </button>
-        <button
-          onClick={() => { setActiveTab("trash"); setPage(1); setSelectedIds(new Set()); }}
-          className="px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5"
-          style={{
-            color: activeTab === "trash" ? "var(--accent)" : "var(--text-muted)",
-            borderBottom: activeTab === "trash" ? "2px solid var(--accent)" : "2px solid transparent",
-          }}
-        >
-          <TrashIcon size={14} />
-          {t("history.kos")}
-        </button>
-      </div>
+      <Tabs
+        ariaLabel={t("history.historiaReportov")}
+        value={activeTab}
+        onChange={(v) => { setActiveTab(v as "reports" | "trash"); setPage(1); setSelectedIds(new Set()); }}
+        variant="underline"
+        className="mb-4"
+        items={[
+          { value: "reports", label: t("history.reporty") },
+          { value: "trash", label: t("history.kos"), icon: <TrashIcon size={14} /> },
+        ]}
+      />
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 mb-4">
+      <div role="tabpanel" id={`tabpanel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} className="flex flex-col gap-3 mb-4">
         {/* Search input — full width */}
         <div className="relative">
           <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-muted)" }} />

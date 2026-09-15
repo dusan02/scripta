@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { LOCALE_MAP } from "@/lib/i18n";
+import { Tabs } from "@/components/ui/Tabs";
 
 interface Message {
   id: string;
@@ -376,12 +377,16 @@ function MessageList({ t, loading, messages, tab, setTab, formatDate, onOpen, on
       </div>
 
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setTab("inbox")} className={`px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer ${tab === "inbox" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
-          {t("messages.prijate")}
-        </button>
-        <button onClick={() => setTab("sent")} className={`px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer ${tab === "sent" ? "bg-[var(--accent)] text-[var(--accent-button-text)] border-none" : "bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--border)]"}`}>
-          {t("messages.odoslane")}
-        </button>
+        <Tabs
+          ariaLabel={t("messages.spravy")}
+          value={tab}
+          onChange={(v) => setTab(v as "inbox" | "sent")}
+          variant="pill"
+          items={[
+            { value: "inbox", label: t("messages.prijate") },
+            { value: "sent", label: t("messages.odoslane") },
+          ]}
+        />
       </div>
 
       {loading ? (
@@ -391,7 +396,7 @@ function MessageList({ t, loading, messages, tab, setTab, formatDate, onOpen, on
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>{t("messages.ziadneSpravy")}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div role="tabpanel" id={`tabpanel-${tab}`} aria-labelledby={`tab-${tab}`} className="flex flex-col gap-2">
           {messages.map((msg) => (
             <div key={msg.id} onClick={() => onOpen(msg)}
               className="card p-4 cursor-pointer transition-all duration-150 hover:shadow-md"
