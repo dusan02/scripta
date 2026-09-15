@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { TrashIcon, SpinnerIcon, PlusIcon, BellIcon, EditIcon, CheckIcon, CloseIcon } from "@/components/icons";
+import { useT } from "@/components/LanguageProvider";
 
 interface WatchedCompany {
   id: string;
@@ -26,6 +27,7 @@ interface AlertEvent {
 }
 
 export default function WatchedCompanies({ initialWatched }: { initialWatched: WatchedCompany[] }) {
+  const t = useT();
   const [watched, setWatched] = useState<WatchedCompany[]>(initialWatched);
   const [alerts, setAlerts] = useState<AlertEvent[]>([]);
   const [newIco, setNewIco] = useState("");
@@ -55,7 +57,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
   const handleAdd = useCallback(async () => {
     const ico = newIco.trim();
     if (!ico || !/^\d{8}$/.test(ico)) {
-      toast.error("Zadajte platné 8-miestne IČO");
+      toast.error(t("watched.invalidIco"));
       return;
     }
     setAdding(true);
@@ -69,19 +71,19 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
       if (res.ok) {
         if (data.restored) {
           setWatched((prev) => [data.watched, ...prev.filter((w) => w.id !== data.watched.id)]);
-          toast.success("Firma bola obnovená v sledovaní");
+          toast.success(t("watched.restored"));
         } else {
           setWatched((prev) => [data.watched, ...prev]);
-          toast.success("Firma bola pridaná do sledovania");
+          toast.success(t("watched.added"));
         }
         setNewIco("");
         setNewNote("");
         fetchAlerts();
       } else {
-        toast.error(data.error || "Chyba pri pridávaní");
+        toast.error(data.error || t("watched.addError"));
       }
     } catch {
-      toast.error("Chyba pri pridávaní");
+      toast.error(t("watched.addError"));
     } finally {
       setAdding(false);
     }
@@ -93,12 +95,12 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
       const res = await fetch(`/api/watched-companies/${id}`, { method: "DELETE" });
       if (res.ok) {
         setWatched((prev) => prev.filter((w) => w.id !== id));
-        toast.success("Firma bola odstránená zo sledovania");
+        toast.success(t("watched.removed"));
       } else {
-        toast.error("Chyba pri odstraňovaní");
+        toast.error(t("watched.removeError"));
       }
     } catch {
-      toast.error("Chyba pri odstraňovaní");
+      toast.error(t("watched.removeError"));
     } finally {
       setRemoving(null);
     }
@@ -125,13 +127,13 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
       if (res.ok) {
         const data = await res.json();
         setWatched((prev) => prev.map((w) => (w.id === id ? data.watched : w)));
-        toast.success("Poznámka bola uložená");
+        toast.success(t("watched.noteSaved"));
         cancelEdit();
       } else {
-        toast.error("Chyba pri ukladaní");
+        toast.error(t("watched.saveError"));
       }
     } catch {
-      toast.error("Chyba pri ukladaní");
+      toast.error(t("watched.saveError"));
     } finally {
       setSavingEdit(false);
     }
@@ -166,8 +168,8 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
       <div className="rounded-xl overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
         <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)" }}>
           <BellIcon className="w-5 h-5" style={{ color: "var(--text-secondary)" }} />
-          <h2 className="text-lg font-semibold" style={{ color: "var(--text)" }}>Sledované firmy</h2>
-          <span className="ml-auto text-sm" style={{ color: "var(--text-muted)" }}>{watched.length} firma/firiem</span>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--text)" }}>{t("watched.title")}</h2>
+          <span className="ml-auto text-sm" style={{ color: "var(--text-muted)" }}>{t("watched.count", { count: watched.length })}</span>
         </div>
 
         {/* Add form */}
@@ -178,7 +180,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
               value={newIco}
               onChange={(e) => setNewIco(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !adding && handleAdd()}
-              placeholder="IČO (8 čísel)"
+              placeholder={t("watched.icoPlaceholder")}
               className="flex-1 px-3 py-2 text-sm rounded-lg focus:outline-none"
               style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
               maxLength={8}
@@ -188,7 +190,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !adding && handleAdd()}
-              placeholder="Poznámka (voliteľné)"
+              placeholder={t("watched.notePlaceholder")}
               className="flex-1 px-3 py-2 text-sm rounded-lg focus:outline-none"
               style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }}
               maxLength={500}
@@ -200,7 +202,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
               style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
             >
               {adding ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <PlusIcon className="w-4 h-4" />}
-              Pridať
+              {t("watched.add")}
             </button>
           </div>
         </div>
@@ -208,15 +210,15 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
         {/* Watched list — table */}
         {watched.length === 0 ? (
           <div className="px-5 py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-            Zatiaľ nesledujete žiadne firmy. Pridajte firmu zadaním IČO vyššie.
+            {t("watched.empty")}
           </div>
         ) : (
           <table className="w-full" style={{ borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--border)" }}>
-                <th className="text-left py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>IČO</th>
-                <th className="text-left py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Poznámka</th>
-                <th className="text-right py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Akcie</th>
+                <th className="text-left py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{t("watched.ico")}</th>
+                <th className="text-left py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{t("watched.note")}</th>
+                <th className="text-right py-2 px-4 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{t("watched.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -242,7 +244,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
                             if (e.key === "Enter" && !savingEdit) saveEdit(w.id);
                             if (e.key === "Escape") cancelEdit();
                           }}
-                          placeholder="Pridať poznámku..."
+                          placeholder={t("watched.addNotePlaceholder")}
                           className="flex-1 px-2 py-1 text-sm rounded-lg focus:outline-none"
                           style={{ background: "var(--surface)", border: "1px solid var(--accent)", color: "var(--text)" }}
                           maxLength={500}
@@ -253,7 +255,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
                           disabled={savingEdit}
                           className="p-1.5 rounded-lg"
                           style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
-                          title="Uložiť"
+                          title={t("watched.save")}
                         >
                           {savingEdit ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                         </button>
@@ -261,7 +263,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
                           onClick={cancelEdit}
                           className="p-1.5 rounded-lg"
                           style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}
-                          title="Zrušiť"
+                          title={t("watched.cancel")}
                         >
                           <CloseIcon className="w-4 h-4" />
                         </button>
@@ -279,7 +281,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
                           onClick={() => startEdit(w)}
                           className="p-1.5 rounded-lg transition-colors"
                           style={{ color: "var(--text-muted)" }}
-                          title="Upraviť poznámku"
+                          title={t("watched.editNote")}
                         >
                           <EditIcon className="w-4 h-4" />
                         </button>
@@ -289,7 +291,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
                         disabled={removing === w.id}
                         className="p-1.5 rounded-lg transition-colors disabled:opacity-50"
                         style={{ color: "var(--text-muted)" }}
-                        title="Prestať sledovať"
+                        title={t("watched.stopWatching")}
                       >
                         {removing === w.id ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
                       </button>
@@ -306,10 +308,10 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
       {alerts.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)" }}>
-            <h2 className="text-lg font-semibold" style={{ color: "var(--text)" }}>Najnovšie upozornenia</h2>
+            <h2 className="text-lg font-semibold" style={{ color: "var(--text)" }}>{t("watched.recentAlerts")}</h2>
             {unreadCount > 0 && (
               <span className="px-2 py-0.5 text-xs font-medium rounded-full" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
-                {unreadCount} nové
+                {t("watched.newAlerts", { count: unreadCount })}
               </span>
             )}
           </div>
@@ -349,7 +351,7 @@ export default function WatchedCompanies({ initialWatched }: { initialWatched: W
                       className="text-xs"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      Označiť ako prečítané
+                      {t("watched.markAsRead")}
                     </button>
                   )}
                 </div>

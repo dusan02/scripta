@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { slugify } from "@/lib/slug";
 import { fmtEurK, fmtYear } from "@/lib/format";
 import { spStr } from "@/lib/url";
+import { useT } from "@/components/LanguageProvider";
 
 type Company = {
   ico: string;
@@ -28,23 +29,23 @@ type ColKey =
 
 type ColDef = {
   key: ColKey;
-  label: string;
+  labelKey: string;
   sortField?: string;
   align: "left" | "right";
   minWidth?: string;
 };
 
 const ALL_COLUMNS: ColDef[] = [
-  { key: "name", label: "Firma", sortField: "name", align: "left", minWidth: "200px" },
-  { key: "ico", label: "IČO", sortField: "ico", align: "left", minWidth: "100px" },
-  { key: "legalForm", label: "Právna forma", sortField: "legalForm", align: "left", minWidth: "110px" },
-  { key: "city", label: "Mesto", sortField: "city", align: "left", minWidth: "140px" },
-  { key: "establishedAt", label: "Založenie", sortField: "establishedAt", align: "right", minWidth: "90px" },
-  { key: "latestYear", label: "Rok dát", sortField: undefined, align: "right", minWidth: "70px" },
-  { key: "latestRevenue", label: "Tržby", sortField: "latestRevenue", align: "right", minWidth: "110px" },
-  { key: "latestProfit", label: "Zisk", sortField: "latestProfit", align: "right", minWidth: "100px" },
-  { key: "latestAssets", label: "Aktíva", sortField: "latestAssets", align: "right", minWidth: "100px" },
-  { key: "latestEquity", label: "Imanie", sortField: "latestEquity", align: "right", minWidth: "100px" },
+  { key: "name", labelKey: "screener.company", sortField: "name", align: "left", minWidth: "200px" },
+  { key: "ico", labelKey: "screener.ico", sortField: "ico", align: "left", minWidth: "100px" },
+  { key: "legalForm", labelKey: "screener.legalForm", sortField: "legalForm", align: "left", minWidth: "110px" },
+  { key: "city", labelKey: "screener.city", sortField: "city", align: "left", minWidth: "140px" },
+  { key: "establishedAt", labelKey: "screener.founded", sortField: "establishedAt", align: "right", minWidth: "90px" },
+  { key: "latestYear", labelKey: "screener.dataYear", sortField: undefined, align: "right", minWidth: "70px" },
+  { key: "latestRevenue", labelKey: "screener.revenue", sortField: "latestRevenue", align: "right", minWidth: "110px" },
+  { key: "latestProfit", labelKey: "screener.profit", sortField: "latestProfit", align: "right", minWidth: "100px" },
+  { key: "latestAssets", labelKey: "screener.assets", sortField: "latestAssets", align: "right", minWidth: "100px" },
+  { key: "latestEquity", labelKey: "screener.equity", sortField: "latestEquity", align: "right", minWidth: "100px" },
 ];
 
 const DEFAULT_COLUMNS: ColKey[] = ["name", "ico", "city", "establishedAt", "latestYear", "latestRevenue", "latestProfit", "latestAssets", "latestEquity"];
@@ -104,6 +105,7 @@ function ColumnToggle({
   visibleCols: ColKey[];
   onToggle: (key: ColKey) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   return (
@@ -112,14 +114,14 @@ function ColumnToggle({
         onClick={() => setOpen(!open)}
         className="chip flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
         style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-        title="Nastaviť stĺpce"
+        title={t("screener.clickToSort")}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <line x1="9" y1="3" x2="9" y2="21" />
           <line x1="15" y1="3" x2="15" y2="21" />
         </svg>
-        Stĺpce
+        {t("screener.company")}
       </button>
       {open && (
         <>
@@ -129,7 +131,7 @@ function ColumnToggle({
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
             <div className="text-xs font-semibold mb-1.5 px-1" style={{ color: "var(--text-muted)" }}>
-              Viditeľné stĺpce
+              {t("screener.company")}
             </div>
             {columns.map((col) => (
               <label
@@ -143,7 +145,7 @@ function ColumnToggle({
                   onChange={() => onToggle(col.key)}
                   className="accent-[var(--accent)]"
                 />
-                <span className="text-xs">{col.label}</span>
+                <span className="text-xs">{t(col.labelKey)}</span>
               </label>
             ))}
           </div>
@@ -162,6 +164,7 @@ export function ScreenerTable({
   companies: Company[];
   searchParams: Record<string, string | string[] | undefined>;
 }) {
+  const t = useT();
   const router = useRouter();
   const currentSort = spStr(searchParams, "sort") || "latestRevenue";
   const currentDir = spStr(searchParams, "dir") || "desc";
@@ -259,7 +262,7 @@ export function ScreenerTable({
       {/* Toolbar: unit hint + column toggle */}
       <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Finančné ukazovatele v tis. €
+          {t("screener.financialIndicators")}
         </span>
         <ColumnToggle columns={ALL_COLUMNS} visibleCols={visibleCols} onToggle={toggleColumn} />
       </div>
@@ -291,9 +294,9 @@ export function ScreenerTable({
                       borderBottom: isActive ? "2px solid var(--accent)" : "1px solid var(--border)",
                     }}
                     onClick={col.sortField ? () => toggleSort(col.sortField!) : undefined}
-                    title={col.sortField ? "Kliknite pre zoradenie" : undefined}
+                    title={col.sortField ? t("screener.clickToSort") : undefined}
                   >
-                    {col.label}
+                    {t(col.labelKey)}
                     {sortIndicator(col.sortField)}
                   </th>
                 );
@@ -359,19 +362,19 @@ export function ScreenerTable({
                 <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
                   {c.latestRevenue && (
                     <span>
-                      <span style={{ color: "var(--text-muted)" }}>Tržby </span>
+                      <span style={{ color: "var(--text-muted)" }}>{t("screener.revenue")} </span>
                       <span className="font-medium" style={{ color: "var(--text)" }}>{fmtEurK(c.latestRevenue)}</span>
                     </span>
                   )}
                   {c.latestProfit && (
                     <span>
-                      <span style={{ color: "var(--text-muted)" }}>Zisk </span>
+                      <span style={{ color: "var(--text-muted)" }}>{t("screener.profit")} </span>
                       <span className="font-medium" style={{ color: profit !== null && profit < 0 ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestProfit)}</span>
                     </span>
                   )}
                   {c.latestEquity && (
                     <span>
-                      <span style={{ color: "var(--text-muted)" }}>Imanie </span>
+                      <span style={{ color: "var(--text-muted)" }}>{t("screener.equity")} </span>
                       <span className="font-medium" style={{ color: equity !== null && equity < 0 ? "var(--danger)" : "var(--text)" }}>{fmtEurK(c.latestEquity)}</span>
                     </span>
                   )}
