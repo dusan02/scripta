@@ -7,7 +7,7 @@
  * plus per-bot URL-type distribution (/firma/, /firmy/, /mesto/, ...).
  *
  * Log format (verifa_perf, /etc/nginx/conf.d/verifa-logformat.conf):
- *   IP - [time] "REQ" status bytes "referer" "UA" rt=X cache=HIT|MISS
+ *   IP - [time] "REQ" status bytes "referer" "UA" rt=X cache=HIT|MISS|-
  * Falls back to combined format (no rt/cache fields) for /var/log/nginx/access.log.
  *
  * Usage:
@@ -39,15 +39,18 @@ const AS_JSON = hasFlag("--json");
 // Order matters: first match wins. AI crawlers we explicitly allow in robots.txt.
 const BOT_PATTERNS = [
   { key: "Googlebot", label: "Googlebot", re: /Googlebot/i },
+  { key: "GoogleOther", label: "GoogleOther / InspectionTool", re: /GoogleOther|Google-InspectionTool|AdsBot|Mediapartners/i },
   { key: "GPTBot", label: "GPTBot (OpenAI)", re: /GPTBot/i },
   { key: "OAI-SearchBot", label: "OAI-SearchBot", re: /OAI-SearchBot/i },
-  { key: "ChatGPT-User", label: "ChatGPT-User", re: /ChatGPT-User/i },
-  { key: "ClaudeBot", label: "ClaudeBot (Anthropic)", re: /ClaudeBot|claude-web/i },
+  { key: "ChatGPT-User", label: "ChatGPT-User", re: /ChatGPT-User|OpenAI File Downloader|XaiImageApiFetch/i },
+  { key: "ClaudeBot", label: "ClaudeBot (Anthropic)", re: /ClaudeBot|claude-web|Claude-User|Claude-SearchBot/i },
   { key: "PerplexityBot", label: "PerplexityBot", re: /PerplexityBot|Perplexity-User/i },
-  { key: "meta-externalagent", label: "meta-externalagent (Meta AI)", re: /meta-externalagent/i },
-  { key: "FacebookBot", label: "FacebookBot (Meta)", re: /FacebookBot/i },
+  { key: "meta-externalagent", label: "meta-externalagent (Meta AI)", re: /meta-externalagent|meta-webindexer/i },
+  { key: "FacebookBot", label: "FacebookBot (Meta)", re: /FacebookBot|facebookexternalhit/i },
   { key: "Amazonbot", label: "Amazonbot", re: /Amazonbot/i },
   { key: "Applebot", label: "Applebot", re: /Applebot/i },
+  { key: "KeenableBot", label: "KeenableBot (keenable.ai)", re: /KeenableBot/i },
+  { key: "NotebookLM", label: "NotebookLM (Google AI)", re: /NotebookLM/i },
   { key: "Bingbot", label: "Bingbot", re: /bingbot/i },
   { key: "SemrushBot", label: "SemrushBot", re: /SemrushBot/i },
   { key: "AhrefsBot", label: "AhrefsBot", re: /AhrefsBot/i },
@@ -88,7 +91,7 @@ function classifyUrl(path) {
 // ── Log line parsing ─────────────────────────────────────────────────
 // verifa_perf: IP - [time] "REQ" status bytes "ref" "UA" rt=1.234 cache=HIT
 const PERF_RE =
-  /^(\S+) - \[([^\]]+)\] "([^"]*)" (\d{3}) (\d+|-) "([^"]*)" "([^"]*)" rt=([\d.]+) cache=(\w+)$/;
+  /^(\S+) - \[([^\]]+)\] "([^"]*)" (\d{3}) (\d+|-) "([^"]*)" "([^"]*)" rt=([\d.]+) cache=(\S+)$/;
 // combined: IP - - [time] "REQ" status bytes "ref" "UA"
 const COMBINED_RE =
   /^(\S+) \S+ \S+ \[([^\]]+)\] "([^"]*)" (\d{3}) (\d+|-) "([^"]*)" "([^"]*)"/;
@@ -109,6 +112,7 @@ function parseLine(line) {
     method: reqMatch ? reqMatch[1] : "?",
     path: reqMatch ? reqMatch[2] || "/" : "/",
     status: parseInt(status, 10),
+    referer,
     ua,
     rt: hasPerf && rt !== undefined ? parseFloat(rt) : null,
     cache: hasPerf ? cache : null,
@@ -133,7 +137,7 @@ if (SINCE) {
     // nginx time: 07/Sep/2026:12:20:20 +0200 → comparable ISO-ish
     const t = m[1].replace(/^(\d+)\/(\w+)\/(\d+):/, (_, d, mon, y) => {
       const months = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06", Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
-      return `${y}-${months[mon]}-${d.padStart(2, "0")}:`;
+      return `${y}-${months[mon]}-${d.padStart(2, "0")}T`;
     });
     return t >= SINCE;
   });
@@ -147,6 +151,10 @@ if (LINES) lines = lines.slice(-LINES);
 const perBot = {};
 const total = { requests: 0, hit: 0, miss: 0, err5xx: 0, rtSum: 0, rtCount: 0, hitRtSum: 0, hitRtCount: 0, missRtSum: 0, missRtCount: 0 };
 const missByHour = {};
+let unparsed = 0;
+// human IP → { assets, selfRef } — signatúra reálneho prehliadača
+const humanIps = {};
+const ASSET_RE = /^\/_next\//;
 
 function hourBucket(nginxTime) {
   // "07/Sep/2026:12:20:20 +0200" → "2026-09-07T12:00"
@@ -158,7 +166,7 @@ function hourBucket(nginxTime) {
 
 for (const line of lines) {
   const e = parseLine(line);
-  if (!e) continue;
+  if (!e) { unparsed++; continue; }
   const bot = classifyBot(e.ua);
   if (!perBot[bot]) {
     perBot[bot] = { requests: 0, urls: new Set(), urlTypes: {}, hit: 0, miss: 0, noCache: 0, err5xx: 0, rtSum: 0, rtCount: 0, hitRtSum: 0, hitRtCount: 0, missRtSum: 0, missRtCount: 0, missByHour: {}, statuses: {} };
@@ -193,6 +201,11 @@ for (const line of lines) {
     if (e.cache === "HIT") { total.hitRtSum += e.rt; total.hitRtCount++; }
     else if (e.cache === "MISS") { total.missRtSum += e.rt; total.missRtCount++; }
   }
+  if (bot === "human") {
+    if (!humanIps[e.ip]) humanIps[e.ip] = { assets: false, selfRef: false };
+    if (ASSET_RE.test(e.path)) humanIps[e.ip].assets = true;
+    if (e.referer && e.referer.includes("verifa.sk")) humanIps[e.ip].selfRef = true;
+  }
 }
 
 // ── Output ───────────────────────────────────────────────────────────
@@ -202,7 +215,14 @@ if (AS_JSON) {
   const out = {
     log: LOG_PATH,
     linesParsed: lines.length,
+    unparsed,
     window: SINCE || "all",
+    humans: {
+      requests: perBot["human"] ? perBot["human"].requests : 0,
+      uniqueIps: Object.keys(humanIps).length,
+      ipsLoadedJsAssets: Object.values(humanIps).filter((h) => h.assets).length,
+      ipsJsAndSelfRef: Object.values(humanIps).filter((h) => h.assets && h.selfRef).length,
+    },
     total: {
       requests: total.requests,
       cacheHit: total.hit,
@@ -231,7 +251,7 @@ const fmt = (n) => n.toLocaleString("en-US");
 const pct = (n, d) => (d ? `${((n / d) * 100).toFixed(1)}%` : "—");
 
 console.log(`# Verifa.sk — Crawler Observability`);
-console.log(`Log: ${LOG_PATH} | Lines: ${fmt(lines.length)} | Window: ${SINCE || "all"}`);
+console.log(`Log: ${LOG_PATH} | Lines: ${fmt(lines.length)}${unparsed ? ` | Unparsed: ${fmt(unparsed)}` : ""} | Window: ${SINCE || "all"}`);
 console.log(`Generated: ${new Date().toISOString()}`);
 console.log(``);
 console.log(`## Bot dashboard`);
@@ -264,6 +284,21 @@ for (const [key, b] of bots) {
   }
 }
 if (!hasNon200) console.log(`(všetky requesty 200)`);
+
+// ── Real visitors — odhad živej návštevnosti ─────────────────────────
+// Browser-UA requesty sú horný odhad (scrapery spoofujú UA). Signatúra
+// reálneho prehliadača: IP načíta /_next/ JS assety + posiela verifa.sk referer.
+console.log(``);
+console.log(`## Ľudia — odhad reálnych návštevníkov`);
+console.log(``);
+const hReq = perBot["human"] ? perBot["human"].requests : 0;
+const hIpList = Object.values(humanIps);
+const hAssets = hIpList.filter((h) => h.assets).length;
+const hReal = hIpList.filter((h) => h.assets && h.selfRef).length;
+console.log(`- Requesty s browser UA (horný odhad): **${fmt(hReq)}** z ${fmt(hIpList.length)} unikátnych IP`);
+console.log(`- IP, ktoré načítali /_next/ JS assety (spustili JS): **${fmt(hAssets)}**`);
+console.log(`- IP s JS assetmi + interným refererom (≈ reálni návštevníci): **${fmt(hReal)}**`);
+console.log(`- Zvyšok „human" IP = maskovaní scraperi (1-request IP, fake UA, headless bez refereru)`);
 
 // ── TTFB HIT vs MISS — cold-cache render cost ────────────────────────
 console.log(``);
