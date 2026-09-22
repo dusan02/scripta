@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { queryHubCompanies, getHubMetadata, getHubJsonLd, type HubParams } from "@/lib/hub";
-import { getHubCompanyCount } from "@/lib/hub";
+import { getHubCompanyCount, getHubStats, getHubIntro } from "@/lib/hub";
 import { getLangFromHeaders, getHreflangAlternates } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { HubTable, SubHubLinks, HubPagination, HubBreadcrumbs } from "@/components/hub-ui";
@@ -48,6 +48,8 @@ export async function renderHubPage(
   }
 
   const jsonLd = getHubJsonLd(params, result.companies, BASE_URL);
+  const stats = await getHubStats(params);
+  const intro = getHubIntro(params);
 
   // Build breadcrumbs
   const breadcrumbItems: Array<{ label: string; href?: string }> = [
@@ -98,10 +100,36 @@ export async function renderHubPage(
           {result.hubLabel}
         </h1>
 
-        <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
           {result.total.toLocaleString("sk-SK")} firiem s finančnými dátami z verejných registrov SR.
           Zoradené podľa tržieb.
         </p>
+
+        {intro && (
+          <p className="text-sm mb-4 max-w-3xl" style={{ color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            {intro}
+          </p>
+        )}
+
+        {stats && (stats.totalRevenue || stats.profitableCount > 0) && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {stats.totalRevenue && (
+              <span className="text-xs px-3 py-1.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                Kumulované tržby: <strong style={{ color: "var(--text)" }}>{fmtEurShort(stats.totalRevenue)}</strong>
+              </span>
+            )}
+            {stats.profitableCount > 0 && (
+              <span className="text-xs px-3 py-1.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                Ziskových firiem: <strong style={{ color: "var(--text)" }}>{Math.round((stats.profitableCount / result.total) * 100)} %</strong> ({stats.profitableCount.toLocaleString("sk-SK")})
+              </span>
+            )}
+            {stats.cityCount > 1 && (
+              <span className="text-xs px-3 py-1.5 rounded-full" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                Miest a obcí: <strong style={{ color: "var(--text)" }}>{stats.cityCount.toLocaleString("sk-SK")}</strong>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Sub-hub links (for large hubs) */}
         <SubHubLinks subHubs={result.subHubs} title={subHubTitle} />
@@ -172,6 +200,17 @@ export async function generateHubMetadata(params: HubParams): Promise<Metadata> 
       siteName: "Verifa.sk",
     },
   };
+}
+
+/** Format large EUR amounts as "12,4 mld. €" / "850 mil. €" / "350 tis. €". */
+function fmtEurShort(val: string): string {
+  const n = parseFloat(val);
+  if (Number.isNaN(n)) return val;
+  const fmt = (x: number) =>
+    x.toLocaleString("sk-SK", { maximumFractionDigits: 1 }).replace(/[\u00a0\u202f]/g, " ");
+  if (n >= 1e9) return `${fmt(n / 1e9)} mld. €`;
+  if (n >= 1e6) return `${fmt(Math.round(n / 1e6))} mil. €`;
+  return `${fmt(Math.round(n / 1000))} tis. €`;
 }
 
 function slugifyInline(name: string | null | undefined): string {

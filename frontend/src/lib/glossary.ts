@@ -318,6 +318,195 @@ Model kombinuje viacero finančných metrík:
 Insolvency Score je doplnený 3-4 trendmi, ktoré ukazujú smerovanie kľúčových ukazovateľov v čase.`,
     category: "Finančné ukazovatele",
   },
+  {
+    slug: "ico",
+    title: "IČO — identifikačné číslo organizácie",
+    seoTitle: "IČO: čo je identifikačné číslo organizácie a kde ho nájsť | Verifa.sk",
+    shortDescription: "Osemmiestne identifikačné číslo, ktoré jednoznačne identifikuje každú firmu a právnickú osobu na Slovensku.",
+    fullDescription: `IČO (identifikačné číslo organizácie) je osemmiestne číslo, ktoré prideľuje Štatistický úrad SR každej firme, živnostníkovi a právnickej osobe pri jej vzniku. Je to základný identifikátor firmy — podobne ako rodné číslo pre fyzickú osobu.
+
+## Kde IČO nájdete
+
+- **Obchodný register (orsr.sk)** — pri každom zázname firmy
+- **Faktúry a obchodné dokumenty** — povinná náležitosť faktúry
+- **Firemné stránky** — obvykle v pätičke alebo v sekcii Kontakt
+- **Verifa.sk vyhľadávanie** — stačí zadať názov firmy, IČO nájdete v detaile
+
+## Na čo IČO slúži
+
+IČO používate pri overovaní firmy, pri vystavovaní faktúr, pri kontrole v štátnych registroch (Register úpadcov, zoznam daňových dlžníkov) a pri podávaní účtovných závierok. Ak chcete overiť firmu, IČO je najspoľahlivejší vstupný údaj — názvy firiem sa môžu meniť, IČO ostáva rovnaké.
+
+## IČO vs DIČ vs IČ DPH
+
+- **IČO** — identifikácia organizácie všeobecne (štatistický účel)
+- **DIČ** — daňové identifikačné číslo (Finančná správa)
+- **IČ DPH** — identifikácia pre daň z pridanej hodnoty (formát SK + DIČ)
+
+## Verifa.sk a IČO
+
+Stačí zadať IČO a Verifa za minúty stiahne dáta z obchodného registra, RÚZ a ďalších 25+ registrov — a vygeneruje kompletný Business Risk Report s finančnou analýzou a Verifa Score.`,
+    category: "Právne registre",
+  },
+  {
+    slug: "dic",
+    title: "DIČ — daňové identifikačné číslo",
+    seoTitle: "DIČ: čo je daňové identifikačné číslo a čím sa líši od IČO | Verifa.sk",
+    shortDescription: "Desaťmiestne číslo, ktoré prideľuje Finančná správa SR fyzickým a právnickým osobám pre daňové účely.",
+    fullDescription: `DIČ (daňové identifikačné číslo) je desaťmiestne číslo, ktoré prideľuje Finančná správa SR pri registrácii k dani. Používa sa vo všetkej daňovej agende — na faktúrach, daňových priznaniach a pri komunikácii s finančnou správou.
+
+## Rozdiel medzi IČO, DIČ a IČ DPH
+
+- **IČO** (8 číslic) — identifikátor organizácie, prideľuje Štatistický úrad
+- **DIČ** (10 číslic) — daňový identifikátor, prideľuje Finančná správa
+- **IČ DPH** — formát „SK" + DIČ, používa sa pri obchodovaní v rámci EÚ a v systéme VIES
+
+## Kde DIČ overiť
+
+DIČ firmy nájdete na jej faktúrach, v obchodnom registri a v registri platiteľov DPH. Ak partner uvádza DIČ, ktoré nesedí s jeho údajmi v registroch, ide o varovný signál — typický pri podvodných faktúrach alebo tzv. bielych koňoch.
+
+## Verifa.sk a DIČ
+
+Verifa report zobrazuje DIČ aj IČ DPH firmy priamo z oficiálnych registrov a kontroluje, či firma nie je na zozname daňových dlžníkov alebo v registri zrušených platiteľov DPH.`,
+    category: "Právne registre",
+  },
+  {
+    slug: "vypis-obchodny-register",
+    title: "Výpis z obchodného registra",
+    seoTitle: "Výpis z obchodného registra SR: čo obsahuje a kde ho stiahnuť | Verifa.sk",
+    shortDescription: "Oficiálny dokument s aktuálnymi údajmi o firme — štatutári, spoločníci, základné imanie a predmety podnikania.",
+    fullDescription: `Výpis z obchodného registra SR (ORSR) je oficiálny dokument obsahujúci aktuálne údaje zapísané o firme. Získate ho bezplatne na orsr.sk — stačí zadať IČO alebo názov firmy.
+
+## Čo výpis obsahuje
+
+- **Identifikačné údaje** — názov, IČO, DIČ, právna forma, sídlo
+- **Štatutárne orgány** — konatelia, predstavenstvo, dozorná rada a spôsob konania
+- **Spoločníci a vlastníci** — zoznam vlastníkov a výška ich vkladov
+- **Základné imanie** — výška a splatenie
+- **Predmety podnikania** — oprávnené činnosti firmy
+- **Deň zápisu a história zmien** — kedy firma vznikla a čo sa menilo
+
+## Aktuálny vs úplný výpis
+
+- **Aktuálny výpis** — len dnes platné údaje (stačí na rýchle overenie)
+- **Úplný výpis** — vrátane historických zmien (odhalí napr. časté výmeny konateľov — varovný signál)
+
+## Na čo výpis potrebujete
+
+Pri overovaní obchodného partnera, pri zmluvách nad určitú hodnotu, pri úverových konaniach a pri due diligence. Výpis samostatne však nezobrazuje finančné zdravie firmy — na to potrebujete účtovné závierky z RÚZ a kontrolu dlhových registrov.
+
+## Verifa.sk a výpis z ORSR
+
+Verifa report obsahuje aktuálny výpis z obchodného registra ako prílohu a automaticky kontroluje nedávne zmeny v registri — vrátane zmien štatutárov a vlastníctva, ktoré môžu signalizovať riziko.`,
+    category: "Právne registre",
+  },
+  {
+    slug: "ruz",
+    title: "RÚZ — Register účtovných závierok",
+    seoTitle: "RÚZ — Register účtovných závierok: čo obsahuje a ako čítať výkazy | Verifa.sk",
+    shortDescription: "Verejný register účtovných závierok slovenských firiem — súvahy, výkazy ziskov a strát a poznámky.",
+    fullDescription: `Register účtovných závierok (RÚZ) je verejná databáza, do ktorej slovenské firmy povinne ukladajú svoje účtovné závierky. Vedie ho Ministerstvo financií SR a nájdete ho na registeruz.sk.
+
+## Čo RÚZ obsahuje
+
+- **Súvaha (balancia)** — aktíva a pasíva firmy ku dňu závierky
+- **Výkaz ziskov a strát** — tržby, náklady a výsledok hospodárenia
+- **Poznámky** — metodika, záväzky, pohľadávky a ďalšie detaily
+- **Správa audítora** — ak má firma povinný audit
+
+## Kto má povinnosť ukladať závierky
+
+Všetky právnické osoby s účtovnou povinnosťou — s.r.o., a.s., družstvá aj niektoré živnosti. Firma, ktorá závierky neukladá, porušuje zákon — absencia závierok v RÚZ je sama o sebe rizikový signál.
+
+## Ako čítať údaje z RÚZ
+
+Najdôležitejšie ukazovatele: tržby (obrat), čistý zisk/strata, vlastné imanie (ak je záporné, firma je technicky v úpadku) a celkové záväzky. Trend za posledné 3 roky hovorí viac než jeden rok.
+
+## Verifa.sk a RÚZ
+
+Verifa automaticky stiahne účtovné závierky z RÚZ, vypočíta finančné ukazovatele (likvidita, zadlženosť, rentabilita) a zaradí ich do Business Risk Reportu — nemusíte výkazy čítať manuálne.`,
+    category: "Právne registre",
+  },
+  {
+    slug: "insolventnost",
+    title: "Insolventnosť a úpadok firmy",
+    seoTitle: "Insolventnosť firmy: čo to je, znaky a ako ju overiť | Verifa.sk",
+    shortDescription: "Stav, keď firma nedokáže platiť svoje záväzky — ako ju rozpoznať a kde ju overiť ešte pred formálnym úpadkom.",
+    fullDescription: `Firma je insolventná (v úpadku), ak je predlžená alebo v platobnej neschopnosti. Predlženie znamená, že záväzky presahujú hodnotu majetku; platobná neschopnosť znamená, že firma neplatí dva a viac záväzky viac než 30 dní po splatnosti.
+
+## Typické znaky insolventnosti
+
+- **Záznam v Registri úpadcov** — konkurz alebo reštrukturalizácia
+- **Daňové dlhy** — firma na zozname daňových dlžníkov Finančnej správy
+- **Dlhy voči poisťovniam** — nedoplatky Sociálnej a zdravotnej poisťovni
+- **Záporné vlastné imanie** — účtovná strata presahuje imanie
+- **Exekúcie a súdne spory** — veritelia si nárokujú pohľadávky súdnou cestou
+
+## Prečo insolventnosť kontrolovať pred zmluvou
+
+Ak dodáte tovar alebo službu firme, ktorá následne skrachuje, stanete sa len jedným z veriteľov v konkurze — s priemerným uspokojením v jednotkách percent. Overenie partnera pred podpisom zmluvy je najlacnejšia poistka.
+
+## Ako overiť insolventnosť
+
+Priamo v Registri úpadcov (ru.justice.sk) a v insolvenčnom registri Ministerstva spravodlivosti. Problém: firma sa môže nachádzať „na hrane" mesiace predtým, než sa objaví v registri.
+
+## Verifa.sk a predikcia úpadku
+
+Verifa report kontroluje Register úpadcov automaticky a navyše vypočíta Insolvency Score — predikciu rizika úpadku na základe finančných ukazovateľov, ktorá odhalí riziko skôr, než firma formálne vstúpi do insolvenčného konania.`,
+    category: "Risk Assessment",
+  },
+  {
+    slug: "konkurz",
+    title: "Konkurz a reštrukturalizácia",
+    seoTitle: "Konkurz vs reštrukturalizácia: rozdiely a čo znamenajú pre veriteľov | Verifa.sk",
+    shortDescription: "Dve formy úpadkového konania — čo znamenajú pre dodávateľov a obchodných partnerov firmy.",
+    fullDescription: `Konkurz a reštrukturalizácia sú dve formy riešenia úpadku firmy podľa zákona o konkurze a reštrukturalizácii. Obe sa evidujú v Registri úpadcov, ale majú pre veriteľov zásadne odlišné dôsledky.
+
+## Konkurz
+
+Konkurz znamená likvidáciu firmy — správca speňaží majetok a výťažok rozdelí veriteľom. Ak firma v konkurze dlhujete vám, získate typicky len malé percento pohľadávky (v praxi často pod 10 %). Firma po konkurze zaniká.
+
+## Reštrukturalizácia
+
+Reštrukturalizácia je pokus o záchranu firmy — dlžník pokračuje v podnikaní pod dohľadom správcu a veritelia schvália reštrukturalizačný plán. Pre veriteľa je to lepší scenár než konkurz, ale plnenie pohľadávok je spravidla znížené a rozložené v čase.
+
+## Čo to znamená pre obchodného partnera
+
+- **Nikdy nedodávajte firme v úpadku na faktúru** — riziko je extrémne
+- **Prihláška pohľadávky** — ak už pohľadávku máte, prihláste ju v zákonom stanovenej lehote, inak prepadne
+- **Skontrolujte partnerov pravidelne** — úpadok môže nastať aj počas dlhodobej spolupráce
+
+## Verifa.sk a konkurz
+
+Verifa report kontroluje Register úpadcov pri každom overení a zobrazí aktívne konania aj ich históriu. Insolvency Score navyše signalizuje riziko ešte predtým, než konanie začne.`,
+    category: "Risk Assessment",
+  },
+  {
+    slug: "danovy-dlznik",
+    title: "Daňový dlžník — dlhy firmy voči štátu",
+    seoTitle: "Daňový dlžník: ako zistiť, či firma dlhuje štátu | Verifa.sk",
+    shortDescription: "Zoznamy daňových dlžníkov Finančnej správy a dlhy voči poisťovniam — kľúčový varovný signál pri overovaní firmy.",
+    fullDescription: `Daňový dlžník je firma, ktorá má evidované daňové nedoplatky voči Finančnej správe SR. Zoznamy dlžníkov sú verejné — Finančná správa ich zverejňuje pravidelne na svojom webe.
+
+## Aké dlhy voči štátu sa dajú overiť
+
+- **Daňové nedoplatky** — zoznam daňových dlžníkov Finančnej správy
+- **Dlhy voči Sociálnej poisťovni** — zoznam dlžníkov Sociálnej poisťovne
+- **Dlhy voči zdravotným poisťovniam** — nedoplatky na zdravotnom poistení
+- **Colné a spotrebné dlhy** — pri relevantných odvetviach
+
+## Prečo sú štátne dlhy varovným signálom
+
+Firma, ktorá neplatí štátu, zvyčajne neplatí ani dodávateľom — štát je len prvý, kto si dlh vymáha. Daňové dlhy navyše znamenajú riziko blokácie účtu firmy exekúciou, čím sa jej platobná schopnosť zastaví zo dňa na deň.
+
+## Praktický limit
+
+Finančná správa zverejňuje dlhy nad určitú hranicu (typicky 170 €). Menšie nedoplatky v zozname nenájdete — preto sa oplatí kombinovať viacero zdrojov.
+
+## Verifa.sk a štátne pohľadávky
+
+Verifa report obsahuje alert na štátne pohľadávky — automaticky skontroluje daňové dlhy, dlhy voči poisťovniam a upozorní na riziko nezaplatenia faktúr.`,
+    category: "Risk Assessment",
+  },
 ];
 
 export function getGlossaryTerm(slug: string): GlossaryTerm | undefined {

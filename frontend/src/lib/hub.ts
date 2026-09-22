@@ -238,6 +238,118 @@ export async function queryHubCompanies(
   };
 }
 
+/**
+ * Aggregate stats for a hub — total revenue, profitable share, city count.
+ * Used to enrich hub pages with unique data points for SEO.
+ */
+export async function getHubStats(params: HubParams): Promise<{
+  totalRevenue: string | null;
+  profitableCount: number;
+  cityCount: number;
+} | null> {
+  const conditions: string[] = [`"fsCount" >= 2`];
+  const replacements: unknown[] = [];
+
+  if (params.section) {
+    const range = naceSectionToPrefixFilter(params.section);
+    if (range) {
+      conditions.push(`"naceCode" >= $${replacements.length + 1} AND "naceCode" < $${replacements.length + 2}`);
+      replacements.push(range.gte, range.lt);
+    }
+  }
+  if (params.kraj) {
+    conditions.push(`kraj = $${replacements.length + 1}`);
+    replacements.push(params.kraj);
+  }
+  if (params.okres) {
+    conditions.push(`okres = $${replacements.length + 1}`);
+    replacements.push(params.okres);
+  }
+  if (params.city) {
+    conditions.push(`city = $${replacements.length + 1}`);
+    replacements.push(params.city);
+  }
+
+  try {
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      rev: bigint | null; prof: bigint; cities: bigint;
+    }>>(
+      `SELECT SUM("latestRevenue")::bigint AS rev,
+              COUNT(*) FILTER (WHERE "latestProfit" > 0)::bigint AS prof,
+              COUNT(DISTINCT city)::bigint AS cities
+       FROM "Company" WHERE ${conditions.join(" AND ")}`,
+      ...replacements
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return {
+      totalRevenue: r.rev?.toString() ?? null,
+      profitableCount: Number(r.prof),
+      cityCount: Number(r.cities),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Hub intro texts (unique per NACE section — SEO content) ──────────
+
+const NACE_SECTION_INTRO: Record<string, string> = {
+  A: "Zahŕňa firmy v rastlinnej a živočíšnej výrobe, lesníctve a rybárstve — od rodinných fariem a družstiev po spracovateľov poľnohospodárskych produktov.",
+  B: "Zahŕňa firmy ťažiace nerastné suroviny — lomy, pieskovne, baňe a soľné výrobky. Typicky kapitálovo náročné podniky so stabilnými tržbami.",
+  C: "Najväčšie priemyselné odvetvie — výroba potravín, áut, strojov, elektroniky, chemikálií a kovov. Tvorí jadro slovenského exportu a priemyselnej výroby.",
+  D: "Energetika — výroba a distribúcia elektriny, plynu, tepla a klimatizácie. Dominujú regulované spoločnosti a obchodníci s energiou.",
+  E: "Vodné hospodárstvo a odpadové hospodárstvo — vodárne, čistiareň a firmy na zber, triedenie a zhodnocovanie odpadu.",
+  F: "Stavebné firmy — pozemné a inžinierske stavby, špecializované stavebné práce a stavebné inštalácie. Ovetvie citlivé na cykly a šedú ekonomiku — overovanie partnerov je tu obzvlášť dôležité.",
+  G: "Obchod — veľkoobchod, maloobchod, e-commerce a obchod s motorovými vozidlami. Najpočetnejšie odvetvie slovenských firiem s vysokou obrátkou a nízkymi maržami.",
+  H: "Doprava a logistika — cestná nákladná doprava, sklady, kuriérske služby a železničná doprava. Typické sú tenké marže a vysoká citlivosť na ceny pohonných látok.",
+  I: "Hotely, reštaurácie a gastronómia — ubytovacie zariadenia, stravovacie služby a catering. Ovetvie s výraznou sezónnosťou a vysokým podielom mzíd.",
+  J: "IT a médiá — softvérové firmy, IT služby, telekomunikácie, vydavateľstvá a filmová produkcia. Najrýchlejšie rastúce odvetvie s vysokými maržami.",
+  K: "Banky, poisťovne, leasing, investičné fondy a finančné sprostredkovanie. Regulované odvetvie — licencie NBS sú overiteľné v registri.",
+  L: "Prenájom a správa nehnuteľností, realitné kancelárie a developerské projekty. Ovetvie s vysokým podielom projektových firiem (SPV) — kľúčová je kontrola vlastníctva.",
+  M: "Právne, účtovnícke, poradenské, architektonické, inžinierske a reklamné služby. Typicky firmy služieb s nízkymi fixnými aktívami.",
+  N: "Administratívne a podporné služby — cestovné kancelárie, personálne agentúry, bezpečnostné služby, upratovanie a call centrá.",
+  O: "Verejná správa, obrana a povinné sociálne zabezpečenie — štátne a samosprávne organizácie s rozpočtovým financovaním.",
+  P: "Školy, škôlky, vzdelávacie centrá a jazykové školy — súkromné aj verejné vzdelávacie inštitúcie.",
+  Q: "Zdravotníctvo a sociálne služby — ambulancie, nemocnice, domovy sociálnych služieb a laboratóriá.",
+  R: "Kultúra, umenie, zábava a šport — divadlá, múzeá, fitness centrá, lotérie a športové kluby.",
+  S: "Ostatné služby — opravy, kaderníctva, kozmetika, práčovne, organizácie a združenia.",
+  T: "Domácnosti ako zamestnávatelia domácich pracovníkov a produkcia domácností pre vlastnú spotrebu.",
+  U: "Extrateritoriálne organizácie a orgány — medzinárodné inštitúcie pôsobiace na Slovensku.",
+};
+
+/**
+ * Unique intro paragraph for a hub page (SK only — hub pages render Slovak content).
+ * Returns null when no meaningful intro can be generated.
+ */
+export function getHubIntro(params: HubParams): string | null {
+  const sectionGen = params.section ? getNaceSectionGenitive(params.section) : null;
+  const krajLoc = params.kraj ? getKrajLabelLocative(params.kraj) : null;
+
+  if (params.section && params.kraj) {
+    const intro = NACE_SECTION_INTRO[params.section.toUpperCase()];
+    if (intro) {
+      return `Firmy v odvetví ${sectionGen} v ${krajLoc}. ${intro} Nižšie nájdete kompletný zoznam firiem zoradený podľa tržieb s údajmi z oficiálnych registrov SR.`;
+    }
+  }
+  if (params.section) {
+    const intro = NACE_SECTION_INTRO[params.section.toUpperCase()];
+    if (intro) {
+      return `${intro} Nižšie nájdete kompletný zoznam slovenských firiem v odvetví ${sectionGen}, zoradený podľa tržieb — vrátane tržieb, zisku a miesta sídla z oficiálnych registrov.`;
+    }
+  }
+  if (params.kraj) {
+    return `Kompletný prehľad firiem v ${krajLoc} s dostupnými účtovnými závierkami. Zoznam obsahuje tržby, zisk a sídlo každej firmy z oficiálnych registrov SR — kliknutím na firmu získate detailný profil vrátane finančných ukazovateľov.`;
+  }
+  if (params.okres) {
+    return `Kompletný prehľad firiem v okrese ${okresName(params.okres)} s dostupnými účtovnými závierkami. Zoznam obsahuje tržby, zisk a sídlo každej firmy z oficiálnych registrov SR.`;
+  }
+  if (params.city) {
+    return `Kompletný prehľad firiem v meste ${params.city} s dostupnými účtovnými závierkami. Zoznam obsahuje tržby, zisk a sídlo každej firmy z oficiálnych registrov SR.`;
+  }
+  return null;
+}
+
 // ── Hub type detection ───────────────────────────────────────────────
 
 function getHubType(params: HubParams): HubType | null {
