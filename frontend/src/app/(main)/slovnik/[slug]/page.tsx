@@ -164,21 +164,39 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
           <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 24, maxWidth: 500, margin: "0 auto 24px" }}>
             Vygenerujte Business Risk Report a získajte {term.title} pre vašu cieľovú firmu.
           </p>
-          <Link
-            href="/register"
-            style={{
-              display: "inline-block",
-              background: "var(--accent)",
-              color: "var(--accent-button-text)",
-              padding: "14px 32px",
-              borderRadius: 12,
-              textDecoration: "none",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            Začať overovať →
-          </Link>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link
+              href="/register"
+              style={{
+                display: "inline-block",
+                background: "var(--accent)",
+                color: "var(--accent-button-text)",
+                padding: "14px 32px",
+                borderRadius: 12,
+                textDecoration: "none",
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              Začať overovať →
+            </Link>
+            <Link
+              href="/screener"
+              style={{
+                display: "inline-block",
+                background: "transparent",
+                color: "var(--text)",
+                padding: "14px 32px",
+                borderRadius: 12,
+                textDecoration: "none",
+                fontWeight: 700,
+                fontSize: 15,
+                border: "1px solid var(--border)",
+              }}
+            >
+              Vyhľadať firmu
+            </Link>
+          </div>
         </div>
 
         {/* Internal linking: top firms by revenue — helps Google discover company pages */}

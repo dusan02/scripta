@@ -482,6 +482,10 @@ export function getLocalizedJsonLd(lang: Lang) {
 export function getFaqJsonLd(lang: Lang) {
   const t = translations[lang];
   const faqKeys = [
+    { q: "home.faq13q", a: "home.faq13a" },
+    { q: "home.faq12q", a: "home.faq12a" },
+    { q: "home.faq14q", a: "home.faq14a" },
+    { q: "home.faq15q", a: "home.faq15a" },
     { q: "home.faq1q", a: "home.faq1a" },
     { q: "home.faq2q", a: "home.faq2a" },
     { q: "home.faq3q", a: "home.faq3a" },

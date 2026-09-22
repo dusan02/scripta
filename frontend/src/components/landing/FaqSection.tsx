@@ -8,6 +8,10 @@ export default function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const items = [
+    { q: t("home.faq13q"), a: t("home.faq13a") },
+    { q: t("home.faq12q"), a: t("home.faq12a") },
+    { q: t("home.faq14q"), a: t("home.faq14a") },
+    { q: t("home.faq15q"), a: t("home.faq15a") },
     { q: t("home.faq1q"), a: t("home.faq1a") },
     { q: t("home.faq2q"), a: t("home.faq2a") },
     { q: t("home.faq8q"), a: t("home.faq8a") },
