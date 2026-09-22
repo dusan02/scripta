@@ -910,7 +910,7 @@ const sk: Dict = {
   "home.badge": "Business Risk Report do 10-15 minút",
   "home.heroTitle1": "Preverenie firmy",
   "home.heroTitle2": "jedným reportom",
-  "home.heroSubtitle": "Overenie slovenskej firmy za minúty — zadajte IČO a dostanete PDF report z obchodného registra a 25+ registrov: dlhy, insolvencia, finančná analýza a Verifa Score.",
+  "home.heroSubtitle": "Overenie firmy za minúty — zadajte IČO a dostanete PDF report z obchodného registra SR a 25+ registrov: dlhy, insolvencia, finančná analýza a Verifa Score.",
   "home.heroCtaRegister": "Vyskúšať zadarmo → 1 report zdarma bez karty",
   "home.heroHintGuest": "Bez záväzkov · Pri registrácii dostanete kredit na overenie 1 firmy",
   "home.trustGdpr": "GDPR compliant",
