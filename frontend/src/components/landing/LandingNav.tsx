@@ -14,8 +14,8 @@ import { localizePath, delocalizePath } from "@/lib/i18n";
 
 const NAV_ITEMS = [
   { hash: "#obsah", key: "home.navFeatures" },
-  { hash: "#ukazka", key: "nav.reporty" },
   { hash: "#registre", key: "home.navRegistries" },
+  { hash: "#ukazka", key: "nav.reporty" },
   { hash: "#pricing", key: "home.navPricing" },
 ];
 
