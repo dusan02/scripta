@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 const GUEST_PLANS = [
   { id: "payg1", label: "1 report", price: "14 €" },
@@ -169,6 +170,28 @@ function ObjednatForm() {
       <p className="text-xs mt-4 text-center" style={{ color: "var(--text-muted)" }}>
         Platba cez Paddle — bezpečná platobná brána. Registrácia nie je potrebná.
       </p>
+
+      <div
+        className="mt-6 pt-4 text-center text-sm"
+        style={{ borderTop: "1px solid var(--border)", color: "var(--text-secondary)" }}
+      >
+        Máte už účet?{" "}
+        <Link
+          href={`/login?callbackUrl=${encodeURIComponent(`/objednat${ico ? `?ico=${ico}` : ""}`)}`}
+          className="font-medium hover:underline"
+          style={{ color: "var(--accent)" }}
+        >
+          Prihláste sa
+        </Link>
+        <span style={{ color: "var(--border)" }}> · </span>
+        <Link
+          href="/register"
+          className="font-medium hover:underline"
+          style={{ color: "var(--accent)" }}
+        >
+          Zaregistrujte sa
+        </Link>
+      </div>
     </div>
   );
 }
