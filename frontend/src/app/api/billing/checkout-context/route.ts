@@ -14,7 +14,31 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const session = await getServerSession();
   if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Guest checkout path — context lives in the guest_ctx cookie set by
+    // /api/billing/guest-checkout, backed by a server-side GuestCheckout row.
+    const guestCookie = req.cookies.get("guest_ctx");
+    if (!guestCookie?.value) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    try {
+      const { guestId } = JSON.parse(guestCookie.value);
+      const gc = await prisma.guestCheckout.findUnique({ where: { id: guestId } });
+      if (!gc || gc.status !== "PENDING" || gc.expiresAt < new Date()) {
+        return NextResponse.json({ error: "Checkout expired" }, { status: 410 });
+      }
+      const plan = PADDLE_PRICE_MAP[gc.planId];
+      if (!plan || !plan.priceId) {
+        return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+      }
+      return NextResponse.json({
+        priceId: plan.priceId,
+        planId: gc.planId,
+        guestId: gc.id,
+        email: gc.email,
+      });
+    } catch {
+      return NextResponse.json({ error: "Invalid checkout context" }, { status: 400 });
+    }
   }
 
   const cookie = req.cookies.get("checkout_ctx");

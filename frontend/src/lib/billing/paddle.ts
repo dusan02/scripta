@@ -75,10 +75,13 @@ export class PaddleAdapter implements PaymentProviderAdapter {
         const customData = txn.customData || txn.custom_data || {};
         // custom_data.userId is the correlation key only (set server-side in
         // the checkout context cookie). It does NOT influence credit amounts.
+        // Guest checkouts carry custom_data.guestId instead — resolved to a
+        // user in the webhook route via the GuestCheckout record.
         const userId = customData.userId;
+        const guestCheckoutId = customData.guestId;
 
-        if (!userId) {
-          console.error("[PADDLE] transaction.completed: missing userId in custom_data", customData);
+        if (!userId && !guestCheckoutId) {
+          console.error("[PADDLE] transaction.completed: missing userId and guestId in custom_data", customData);
           break;
         }
 
@@ -102,6 +105,9 @@ export class PaddleAdapter implements PaymentProviderAdapter {
         results.push({
           type: "payment.succeeded",
           userId,
+          guestCheckoutId,
+          customerEmail:
+            txn.customer?.email || txn.customerEmail || txn.customer_email || undefined,
           credits: plan.credits,
           planName: plan.planName,
           providerReference: txn.id,
@@ -134,9 +140,10 @@ export class PaddleAdapter implements PaymentProviderAdapter {
         // Fetch the original transaction to get custom_data (userId, planId).
         const customData = adj.customData || adj.custom_data || {};
         let userId = customData.userId;
+        let guestCheckoutId = customData.guestId;
         let planId = customData.planId;
 
-        if (!userId) {
+        if (!userId && !guestCheckoutId) {
           try {
             const paddle = getPaddle();
             const baseUrl = process.env.PADDLE_ENVIRONMENT === "production"
@@ -150,6 +157,7 @@ export class PaddleAdapter implements PaymentProviderAdapter {
               const txnData = (await txnRes.json()).data;
               const txnCustomData = txnData.custom_data || {};
               userId = txnCustomData.userId;
+              guestCheckoutId = txnCustomData.guestId;
               // Prefer the authoritative price_id → plan mapping over
               // client-controllable custom_data.planId for revocation amounts.
               const fetchedPriceId: string | undefined =
@@ -162,8 +170,8 @@ export class PaddleAdapter implements PaymentProviderAdapter {
           }
         }
 
-        if (!userId) {
-          console.error("[PADDLE] adjustment.updated: missing userId — not in adjustment custom_data and transaction fetch failed");
+        if (!userId && !guestCheckoutId) {
+          console.error("[PADDLE] adjustment.updated: missing userId/guestId — not in adjustment custom_data and transaction fetch failed");
           break;
         }
 
@@ -186,6 +194,7 @@ export class PaddleAdapter implements PaymentProviderAdapter {
         results.push({
           type: "charge.refunded",
           userId,
+          guestCheckoutId,
           credits: creditsToRevoke,
           planName: planId || undefined,
           providerReference: adj.id,

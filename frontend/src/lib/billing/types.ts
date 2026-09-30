@@ -22,7 +22,9 @@ export interface WebhookResult {
     | "subscription.reactivated"
     | "payment.failed"
     | "charge.refunded";
-  userId: string;
+  /** Present for authenticated purchases; guest checkouts carry
+   *  guestCheckoutId instead and resolve userId in the webhook route. */
+  userId?: string;
   credits: number;
   planName?: string;
   providerReference: string;
@@ -35,6 +37,12 @@ export interface WebhookResult {
   originalProviderReference?: string;
   /** Paddle webhook event_id for deduplication (evt_xxx). */
   eventId?: string;
+  /** Guest checkout reference (custom_data.guestId) — present instead of
+   *  userId for unauthenticated purchases. The webhook route resolves it
+   *  to a real user via the GuestCheckout record. */
+  guestCheckoutId?: string;
+  /** Paddle-collected customer email on the transaction (guest checkouts). */
+  customerEmail?: string;
   /** Paddle customer ID (ctm_...) — saved to User for Retain pwCustomer. */
   paddleCustomerId?: string;
 }

@@ -313,7 +313,7 @@ export async function middleware(req: NextRequest) {
   ];
   const isProtected = protectedRoutes.some(
     (route) => realPath === route || realPath.startsWith(route + "/")
-  );
+  ) && realPath !== "/credits/checkout"; // guest checkout runs unauthenticated
 
   if (isProtected && !token?.id) {
     const loginUrl = new URL("/login", req.url);

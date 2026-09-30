@@ -61,7 +61,7 @@ export function ReportCTA({ ico, name }: { ico: string; name: string }) {
             <span className="text-sm ml-1" style={{ color: "var(--text-muted)" }}>/ report</span>
           </div>
           <Link
-            href={localizePath(`/dashboard?ico=${ico}`, lang)}
+            href={localizePath(`/objednat?ico=${ico}`, lang)}
             onClick={() => trackReportCtaClick(ico, "preverte_firmu")}
             className="w-full px-6 py-3 rounded-xl font-bold text-sm transition-all hover:scale-105 mb-4"
             style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
@@ -91,7 +91,7 @@ export function CompactReportCTA({ ico, source }: { ico: string; source: "sticky
   const { lang } = useLang();
   return (
     <Link
-      href={localizePath(`/dashboard?ico=${ico}`, lang)}
+      href={localizePath(`/objednat?ico=${ico}`, lang)}
       onClick={() => trackReportCtaClick(ico, source)}
       className="text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg transition-all hover:scale-105 whitespace-nowrap"
       style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
@@ -114,7 +114,7 @@ export function InlineReportCTA({ ico, name }: { ico: string; name: string }) {
         <span className="font-normal" style={{ color: "var(--text-secondary)" }}> — 14 € / report</span>
       </p>
       <Link
-        href={localizePath(`/dashboard?ico=${ico}`, lang)}
+        href={localizePath(`/objednat?ico=${ico}`, lang)}
         onClick={() => trackReportCtaClick(ico, "post_kpi_banner")}
         className="px-5 py-2.5 rounded-lg font-bold text-sm transition-all hover:scale-105 text-center whitespace-nowrap"
         style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}

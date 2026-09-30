@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { addCreditBatch, cancelSubscription, revokeCreditsOnRefund } from "@/lib/credits";
 import { getBillingAdapter } from "@/lib/billing";
 import { sendEmail, emailShell, emailButton } from "@/lib/email";
+import { resolveGuestUser, createGuestReport, buildGuestEmails } from "@/lib/guest-checkout";
 import { escapeHtml } from "@/lib/sanitize";
 import { NEXTAUTH_URL } from "@/lib/env";
 
@@ -102,7 +103,30 @@ export async function POST(req: NextRequest) {
     for (const event of events) {
       switch (event.type) {
         case "payment.succeeded": {
-          if (event.credits > 0) {
+          // Guest checkout: the Paddle transaction carries custom_data.guestId
+          // instead of userId. Resolve/create the account first — the
+          // GuestCheckout row (server-side) is authoritative for ico+email.
+          let guest = null;
+          if (!event.userId && event.guestCheckoutId) {
+            guest = await resolveGuestUser(
+              event.guestCheckoutId,
+              event.providerReference,
+              event.customerEmail
+            );
+            if (!guest) {
+              console.error(`[webhook] Guest checkout resolution failed: ${event.guestCheckoutId}`);
+              pendingEmails.push({
+                to: "info@verifa.sk",
+                subject: "[Verifa.sk] GUEST PLATBA BEZ FULFILLMENTU",
+                text: `Paddle transaction ${event.providerReference} odkazuje na guestCheckout ${event.guestCheckoutId}, ktorý sa nedá splniť (neexistuje / soft-deleted user). Vyžaduje manuálny zásah.`,
+                html: `<p><strong>Guest platba bez fulfillmentu</strong></p><p>Transaction: ${escapeHtml(event.providerReference)}</p><p>GuestCheckout: ${escapeHtml(event.guestCheckoutId)}</p>`,
+              });
+              break;
+            }
+            event.userId = guest.userId;
+          }
+
+          if (event.credits > 0 && event.userId) {
             // One-time purchases (payg1, payg10, payg50) are "addon" source.
             // Subscription plans use "subscription" source.
             const isOneTime = event.planName?.startsWith("payg") || !event.planName || event.planName === "addon";
@@ -137,17 +161,41 @@ export async function POST(req: NextRequest) {
               }).catch(() => {}); // non-critical — don't fail the webhook
             }
           }
+
+          // Guest fulfillment: after credits land, create + enqueue the paid
+          // report and queue the welcome/order emails.
+          if (guest?.shouldCreateReport) {
+            const reportResult = await createGuestReport(
+              event.guestCheckoutId!,
+              guest.userId,
+              guest.ico,
+              guest.companyName
+            );
+            const guestEmails = await buildGuestEmails({
+              email: guest.email,
+              isNewUser: guest.isNewUser,
+              ico: guest.ico,
+              companyName: guest.companyName,
+              planName: event.planName,
+              reportOk: reportResult.ok,
+            }).catch((err) => {
+              console.error("[webhook] buildGuestEmails failed:", err);
+              return [];
+            });
+            pendingEmails.push(...guestEmails);
+          }
           break;
         }
 
         case "subscription.canceled": {
-          if (event.endsAt) {
+          if (event.userId && event.endsAt) {
             await cancelSubscription(event.userId, event.endsAt);
           }
           break;
         }
 
         case "subscription.reactivated": {
+          if (!event.userId) break;
           await prisma.user.update({
             where: { id: event.userId },
             data: {
@@ -159,6 +207,7 @@ export async function POST(req: NextRequest) {
         }
 
         case "payment.failed": {
+          if (!event.userId) break;
           await prisma.user.update({
             where: { id: event.userId },
             data: { subscriptionStatus: "past_due" },
@@ -167,6 +216,19 @@ export async function POST(req: NextRequest) {
         }
 
         case "charge.refunded": {
+          // Guest checkouts carry guestId instead of userId — resolve to the
+          // user created at fulfillment time (GuestCheckout.userId).
+          if (!event.userId && event.guestCheckoutId) {
+            const gc = await prisma.guestCheckout.findUnique({
+              where: { id: event.guestCheckoutId },
+              select: { userId: true },
+            });
+            if (gc?.userId) event.userId = gc.userId;
+          }
+          if (!event.userId) {
+            console.error(`[webhook] charge.refunded: no user resolvable (guestCheckout=${event.guestCheckoutId})`);
+            break;
+          }
           // Revoke credits that were granted for the refunded payment.
           if (event.credits !== 0 && event.originalProviderReference) {
             const result = await revokeCreditsOnRefund(

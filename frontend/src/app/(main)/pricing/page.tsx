@@ -77,6 +77,9 @@ export default function PricingPage() {
       const data = await res.json();
       if (res.ok && data.url) {
         router.push(data.url);
+      } else if (res.status === 401) {
+        // Anonymous visitor — guest checkout (ICO + email + pay, no registration)
+        router.push(`/objednat?plan=${planId}`);
       } else {
         toast.error(t("pricing.checkoutChyba"));
       }

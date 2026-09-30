@@ -180,6 +180,27 @@ model VerificationToken {
   @@index([expires])
 }
 
+// Guest checkout — paid report purchased without registration.
+// Created by POST /api/billing/guest-checkout, fulfilled by the Paddle webhook.
+model GuestCheckout {
+  id              String    @id @default(cuid())
+  ico             String
+  companyName     String?
+  email           String
+  planId          String
+  status          String    @default("PENDING") // PENDING | FULFILLING | FULFILLED | FAILED
+  userId          String?
+  reportRequestId String?
+  transactionId   String?
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime
+  fulfilledAt     DateTime?
+
+  @@index([email])
+  @@index([status])
+  @@index([transactionId])
+}
+
 model PasswordResetToken {
   id        String   @id @default(cuid())
   email     String

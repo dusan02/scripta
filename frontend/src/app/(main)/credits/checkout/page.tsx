@@ -63,9 +63,9 @@ export default function CheckoutPage() {
           return;
         }
         const ctx = await ctxRes.json();
-        const { priceId, userId, email, paddleCustomerId } = ctx;
+        const { priceId, userId, guestId, email, paddleCustomerId } = ctx;
 
-        if (!priceId || !userId) {
+        if (!priceId || (!userId && !guestId)) {
           setStatus("error");
           setErrorMsg(t("checkout.missingParams"));
           return;
@@ -102,6 +102,12 @@ export default function CheckoutPage() {
             if (data?.event === "checkout.completed") {
               const txnId = data?.data?.transaction_id || data?.data?.id;
               trackCheckoutComplete(planId || "", 0);
+              // Guest checkouts have no session — skip the (auth-required)
+              // confirm call; the webhook is the source of truth anyway.
+              if (guestId) {
+                router.replace("/objednat/hotovo");
+                return;
+              }
               if (txnId) {
                 fetch("/api/billing/confirm", {
                   method: "POST",
@@ -117,7 +123,7 @@ export default function CheckoutPage() {
               }
             }
             if (data?.event === "checkout.closed") {
-              router.replace("/credits");
+              router.replace(guestId ? "/objednat" : "/credits");
             }
           },
         });
@@ -125,7 +131,7 @@ export default function CheckoutPage() {
         window.Paddle.Checkout.open({
           items: [{ priceId, quantity: 1 }],
           customer: email ? { email } : undefined,
-          customData: { userId, planId },
+          customData: guestId ? { guestId, planId } : { userId, planId },
           settings: {
             successUrl: `${window.location.origin}/credits?success=1`,
             displayMode: "overlay",
