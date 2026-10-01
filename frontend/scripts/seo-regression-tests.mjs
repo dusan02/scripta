@@ -36,6 +36,8 @@ const STATIC_PAGES = ["/", "/pricing", "/register", "/terms", "/privacy", "/dpa"
 const GLOSSARY_SLUGS = [
   "altman-z-score", "piotroski-f-score", "due-diligence",
   "insolvencia", "konkurz", "likvidacia",
+  "overenie-firmy", "bonita", "register-dlznikov",
+  "overenie-obchodneho-partnera", "finstat-alternativa", "insolvencie-statistiky",
 ];
 
 const COMPANY_URLS = [

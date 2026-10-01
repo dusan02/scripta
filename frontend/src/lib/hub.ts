@@ -318,6 +318,27 @@ const NACE_SECTION_INTRO: Record<string, string> = {
   U: "Extrateritoriálne organizácie a orgány — medzinárodné inštitúcie pôsobiace na Slovensku.",
 };
 
+// ── Kraj intro texts (unique per region — SEO content) ───────────────
+
+const KRAJ_INTRO: Record<string, string> = {
+  SK010:
+    "Najsilnejší región podľa počtu firiem a tržieb — centrum financií, IT, korporátnych centier a developerských projektov. Vysoký podiel novozaložených s.r.o. znamená, že pri overovaní partnera tu často narazíte na firmy s krátkou históriou.",
+  SK021:
+    "Región s výrazným zastúpením výrobných firiem — automobilový priemysel, priemyselné zóny a pestovanie. Kľúčové je overiť väzby firiem na dodávateľské reťazce a sezónnosť poľnohospodárskych podnikov.",
+  SK022:
+    "Západoslovenský región s bohatým obchodným a priemyselným zázemím — mesta ako Trnava, Senica či Galanta majú vysokú koncentráciu výrobných a logistických firiem.",
+  SK023:
+    "Región s tradíciou baníctva a energetiky, doplnený modernými výrobnými firmami v okolí Nitry a Levíc. Poľnohospodárske družstvá tu patria medzi najväčších zamestnávateľov.",
+  SK031:
+    "Stredoslovenský región so silným priemyselným jadrom — strojárstvo, spracovanie kovov a dopravná infraštruktúra. Pre overovanie dodávateľov tu typicky hrajú úlohu dlhodobé kontraktové väzby.",
+  SK032:
+    "Región s rozmanitou štruktúrou — od priemyselných centier po lesníctvo, agropotravinárstvo a turistiku. Pre B2B overovanie je typická vyššia fragmentácia firiem do menších jednotiek.",
+  SK041:
+    "Východoslovenský región s koncentráciou firiem v Prešove a okolí — obchod, služby a menší priemysel. Pri overovaní si treba všímať vyšší podiel mikrofiriem a firiem s obmedzenou finančnou históriou.",
+  SK042:
+    "Druhé najväčšie ekonomické centrum Slovenska — Košice a priemyselné pásmo s výrazným podielom veľkých zamestnávateľov, oceliarskeho priemyslu a IT sektora.",
+};
+
 /**
  * Unique intro paragraph for a hub page (SK only — hub pages render Slovak content).
  * Returns null when no meaningful intro can be generated.
@@ -339,6 +360,10 @@ export function getHubIntro(params: HubParams): string | null {
     }
   }
   if (params.kraj) {
+    const krajIntro = KRAJ_INTRO[params.kraj.toUpperCase()];
+    if (krajIntro) {
+      return `${krajIntro} Nižšie nájdete kompletný zoznam firiem v ${krajLoc} zoradený podľa tržieb, s údajmi z oficiálnych registrov SR.`;
+    }
     return `Kompletný prehľad firiem v ${krajLoc} s dostupnými účtovnými závierkami. Zoznam obsahuje tržby, zisk a sídlo každej firmy z oficiálnych registrov SR — kliknutím na firmu získate detailný profil vrátane finančných ukazovateľov.`;
   }
   if (params.okres) {

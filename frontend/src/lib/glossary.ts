@@ -507,6 +507,180 @@ Finančná správa zverejňuje dlhy nad určitú hranicu (typicky 170 €). Men�
 Verifa report obsahuje alert na štátne pohľadávky — automaticky skontroluje daňové dlhy, dlhy voči poisťovniam a upozorní na riziko nezaplatenia faktúr.`,
     category: "Risk Assessment",
   },
+  {
+    slug: "overenie-firmy",
+    title: "Overenie firmy",
+    seoTitle: "Overenie firmy online — ako preveriť slovenskú firmu podľa IČO | Verifa.sk",
+    shortDescription: "Ako overiť slovenskú firmu podľa IČO — registre, dlhy, insolvencia, finančné výsledky a vlastníci na jednom mieste.",
+    fullDescription: `Overenie firmy znamená preverenie jej existencie, finančného zdravia, dlhov a právnych väzieb pred uzavretím zmluvy alebo obchodnej spolupráce. Na Slovensku sú údaje o firmách roztrúsené v desiatkach verejných registrov — manuálna kontrola trvá hodiny.
+
+## Čo všetko overiť pri firme
+
+- **Existencia a právny stav** — [Obchodný register SR (ORSR)](/slovnik/orsr): IČO, sídlo, právna forma, konatelia, spoločníci
+- **Finančné zdravie** — účtovné závierky v [Registri účtovných závierok (RÚZ)](/slovnik/ruz): tržby, zisk, vlastné imanie, záväzky
+- **Dlhy voči štátu** — [daňové nedoplatky](/slovnik/danovy-dlznik), dlhy Sociálnej poisťovni a zdravotných poisťovní
+- **Insolvencia** — [Register úpadcov](/slovnik/register-upadcov): konkurz, reštrukturalizácia, predchádzajúce konania
+- **Obchodný vestník** — zmeny v spoločnosti, zrušenia, návrhy na výmaz
+- **Skutoční vlastníci (RPVS)** — kto firmu reálne ovláda
+- **Súdne a exekučné riziká** — rozhodnutia, diskvalifikácie konateľov, [registre dlžníkov](/slovnik/register-dlznikov)
+
+## Ako overiť firmu online
+
+Najrýchlejšia cesta je zadať IČO do nástroja, ktorý skontroluje všetky registre naraz. Manuálne overovanie znamená navštíviť orsr.sk, registeruz.sk, zoznamy Finančnej správy, Sociálnej poisťovne a Register úpadcov samostatne — a dáta zvládnuť interpretovať.
+
+## Typické scenáre, kedy overenie firmy ušetrí peniaze
+
+- Nový dodávateľ žiada zálohu predplatene
+- Klient má meškať s platbami a zvažujete ďalšie dodávky
+- Prijímate väčšiu zákazku od firmy, ktorú nepoznáte
+- Realitná alebo M&A transakcia — due diligence cieľa
+
+## Verifa.sk — overenie firmy za minúty
+
+Verifa.sk z jedného zadania IČO skontroluje 25+ registrov naraz a vygeneruje Business Risk Report: finančná analýza, dlhy, insolvencia, [Verifa Score](/slovnik/verifa-score) a [Insolvency Score](/slovnik/insolvency-score). [Report v PDF stojí 14 € a je hotový do pár minút — bez registrácie](/objednat).`,
+    category: "Risk Assessment",
+  },
+  {
+    slug: "bonita",
+    title: "Bonita firmy",
+    seoTitle: "Bonita firmy — čo to je a ako zistiť bonitu slovenskej firmy | Verifa.sk",
+    shortDescription: "Bonita = úverová spôsobilosť a spoľahlivosť firmy. Ako ju zistiť, čo ju ovplyvňuje a ako overiť bonitu partnera.",
+    fullDescription: `Bonita je celkové hodnotenie úverovej spôsobilosti a spoľahlivosti firmy — teda pravdepodobnosť, že firma splní svoje záväzky. V praxi sa slovo „bonita" používa ako synonymum pre overenie, či je firma dôveryhodný obchodný partner.
+
+## Čo ovplyvňuje bonitu firmy
+
+- **Finančné ukazovatele** — ziskovosť, zadlženosť, likvidita, vývoj tržieb
+- **Platobná disciplína** — meškanie s platbami faktúr, exekúcie
+- **Dlhy voči štátu** — daňové nedoplatky, nedoplatky poisťovniam
+- **Právne riziká** — insolvenčné konania, súdne spory, diskvalifikovaní konatelia
+- **Stáť firmy a stabilita** — novo založené firmy bez histórie majú prirodzene nižšiu bonitu
+- **Vlastnícka štruktúra** — koncernové väzby, skutoční vlastníci
+
+## Ako zistiť bonitu firmy na Slovensku
+
+Bonitu komerčne vyhodnocujú agentúry ako Creditinfo alebo Dun & Bradstreet. Základnú bonitu si viete odvodiť aj sami z verejných zdrojov — [účtovných závierok (RÚZ)](/slovnik/ruz), [zoznamov dlžníkov](/slovnik/register-dlznikov) a [Registra úpadcov](/slovnik/register-upadcov). Praktická skratka: skóre typu [Verifa Score](/slovnik/verifa-score) a [Insolvency Score](/slovnik/insolvency-score) agregujú tieto zdroje do jedného čísla.
+
+## Prečo bonitu kontrolovať pravidelne
+
+Bonita nie je konštanta — firma, ktorá bola vlani spoľahlivá, môže tento rok mať daňové dlhy alebo vstúpiť do reštrukturalizácie. Pri opakovaných dodávkach alebo revolvingových zmluvách sa oplatí kontrolovať partnerov pravidelne, nie raz pri podpise.
+
+## Verifa.sk a bonita
+
+Verifa report kombinuje finančné ukazovatele (Altman Z-Score, Piotroski F-Score) s kontrolou dlhov a právnych registrov do Verifa Score — praktického obrazu bonity firmy z verejných dát SR, dostupného za pár minút.`,
+    category: "Risk Assessment",
+  },
+  {
+    slug: "register-dlznikov",
+    title: "Register dlžníkov",
+    seoTitle: "Register dlžníkov SR — kde zistiť, či firma dlhuje | Verifa.sk",
+    shortDescription: "Prehľad verejných registrov dlžníkov na Slovensku — daňoví dlžníci, Sociálna poisťovňa, zdravotné poisťovne a ako overiť firmu.",
+    fullDescription: `Register dlžníkov nie je jediný zoznam — na Slovensku existuje niekoľko verejných registrov, kde viete overiť dlhy firmy. Každý pokrýva iný typ pohľadávky a má inú hranicu zverejnenia.
+
+## Verejné registre dlžníkov na Slovensku
+
+- **Zoznam daňových dlžníkov (Finančná správa)** — firmy s [daňovými nedoplatkami](/slovnik/danovy-dlznik); zverejňujú sa dlhy nad zákonom stanovenú hranicu
+- **Zoznam dlžníkov Sociálnej poisťovne** — nedoplatky na sociálnom poistení
+- **Zoznamy zdravotných poisťovní** — VšZP, Dôvera, Union zverejňujú dlžníkov na zdravotnom poistení
+- **[Register úpadcov](/slovnik/register-upadcov)** — nie je „register dlžníkov", ale obsahuje firmy v [konkurze](/slovnik/konkurz) a reštrukturalizácii, teda najťažšie prípady neplatenia
+- **Centrálny register exekúcií a exekútori** — informácie o exekučných konaniach
+
+## Čo v zoznamoch nenájdete
+
+Bankové a nebankové úverové registre (napr. SBCB, Non-Banking Credit Bureau) nie sú verejné — dlhy voči bankám a leasingom zistíte len so súhlasom firmy alebo cez komerčné služby. Rovnako menšie nedoplatky pod hranicu zverejnenia v zoznamoch nefigurujú.
+
+## Ako overiť dlhy konkrétnej firmy
+
+Manuálne: prejsť každý zoznam zvlášť a hľadať podľa [IČO](/slovnik/ico). Automatizovane: [Verifa.sk report](/objednat) skontroluje daňové dlhy, dlhy voči poisťovniam a Register úpadcov v jednom kroku — a zobrazí ich spolu s finančnou analýzou a rizikovým skóre.`,
+    category: "Právne registre",
+  },
+  {
+    slug: "overenie-obchodneho-partnera",
+    title: "Overenie obchodného partnera",
+    seoTitle: "Overenie obchodného partnera — checklist pred podpisom zmluvy | Verifa.sk",
+    shortDescription: "Ako preveriť obchodného partnera pred zmluvou — registre, dlhy, insolvencia, konatelia a reálni vlastníci.",
+    fullDescription: `Overenie obchodného partnera (KYC/duediligence screening) je kontrola firmy pred uzavretím zmluvy, väčšou objednávkou alebo dodávkou na faktúru. Cieľ: odhaliť firmy, ktoré nezaplatia, skrachujú alebo sú štruktúrou shell company.
+
+## Checklist overenia partnera
+
+1. **Základná identita** — [IČO](/slovnik/ico), [DIČ](/slovnik/dic), sídlo, právny stav v [ORSR](/slovnik/orsr) (existuje? nie je v likvidácii/výmaze?)
+2. **Kto za firmou stojí** — konatelia, spoločníci, [skutoční vlastníci (RPVS)](/slovnik/rpvs); zhoda osôb s inými problémovými firmami
+3. **Finančná sila** — posledné účtovné závierky: tržby, zisk/strata, záporné vlastné imanie, audítorská správa s výhradami
+4. **Dlhy** — daňoví dlžníci, Sociálna poisťovňa, zdravotné poisťovne
+5. **Právne riziká** — Register úpadcov, súdne rozhodnutia, exekúcie, diskvalifikácie
+6. **História a stabilita** — rok založenia, časté zmeny sídla/konanie/názvu, zmeny vo vestníku
+
+## Červené vlajky (red flags)
+
+- Firma založená nedávno + žiada veľkú zálohu
+- Konateľ figuruje v desiatkach firiem alebo bol diskvalifikovaný
+- Záporné vlastné imanie alebo dlhodobá strata
+- Sídlo na adrese s desiatkami registrovaných firiem
+- Daňové dlhy alebo záznam v Registri úpadcov
+
+## Verifa.sk — automatizovaný screening
+
+[Verifa report](/objednat) prejde za vás 25+ registrov a zhrnie red flags vrátane [Verifa Score](/slovnik/verifa-score) a [Insolvency Score](/slovnik/insolvency-score) — typický nástroj pre účtovníčky, realitných maklérov a B2B predaj, ktorí overujú partnerov opakovane.`,
+    category: "Risk Assessment",
+  },
+  {
+    slug: "finstat-alternativa",
+    title: "Finstat alternatíva",
+    seoTitle: "Alternatíva k Finstatu — rýchlejšie overenie firiem bez abonentu | Verifa.sk",
+    shortDescription: "Hľadáte alternatívu k Finstatu? Verifa.sk overí firmu za minúty — jednorazový report bez mesačného poplatku.",
+    fullDescription: `Finstat je najznámejší slovenský nástroj na prehľad firiem a finančných dát. Ak hľadáte alternatívu — napríklad pre jednorazové overenie bez predplatného alebo pre automatizované rizikové skóre — existujú riešenia ako Verifa.sk, ktoré cielia priamo na rýchle overenie.
+
+## Kedy hľadať alternatívu
+
+- Potrebujete **jednorazový report** o konkrétnej firme, nie mesačné predplatné
+- Chcete report **bez registrácie** — zadať IČO, zaplatiť, dostať PDF na e-mail
+- Zaujíma vás **skóre rizika** (Verifa Score, Insolvency Score) a automatizované red flags namiesto surových tabuliek
+- Potrebujete dáta z registrov mimo RÚZ — register úpadcov, daňové dlhy, poisťovne, vestník — v jednom dokumente
+
+## Čo Verifa.sk robí inak
+
+- **Pay-per-report** — zaplatíte len za report, ktorý potrebujete (14 €/report), bez abonentu
+- **AI analýza** — okrem surových dát z registrov report obsahuje vyhodnotenie rizík a skóre
+- **25+ registrov naraz** — [ORSR](/slovnik/orsr), [RÚZ](/slovnik/ruz), [register úpadcov](/slovnik/register-upadcov), daňové a poisťovňové dlhy, RPVS, vestník, súdne rozhodnutia a ďalšie
+- **PDF za minúty** — report pripravený do ~5–15 minút, doručený e-mailom
+
+## Pre koho
+
+Kto overuje firmy príležitostne (kúpa od neznámeho dodávateľa, nový klient, jednorazová due diligence) alebo komu stačí prehľad bez plateného účtu. Pri dennom hromadnom screeningu má predplatné zmysel — pri sporadickom overovaní sa oplatí pay-per-use.`,
+    category: "Risk Assessment",
+  },
+  {
+    slug: "insolvencie-statistiky",
+    title: "Insolvencie slovenských firiem — štatistiky",
+    seoTitle: "Insolvencie a straty firiem SR 2026 — štatistiky z verejných registrov | Verifa.sk",
+    shortDescription: "Štatistiky finančného zdravia slovenských firiem: koľko firiem je v strate, v likvidácii a koľko má účtovné závierky.",
+    fullDescription: `Dáta z verejných registrov SR, ktoré Verifa.sk agreguje (stav databázy: jeseň 2026), ukazujú finančné zdravie slovenských firiem v číslach.
+
+## Slovenské firmy v číslach
+
+- **518 807 firiem** evidovaných v databáze (Register právnických osôb / ORSR)
+- **~300 000 firiem** má aspoň jednu účtovnú závierku v RÚZ
+- **11 685 firiem** je aktuálne v likvidácii
+- **~500 000 firiem** má aktívny právny status
+
+## Koľko firiem je v strate
+
+Podľa posledných kompletných účtovných závierok (účtovný rok 2024):
+
+- **75 779 z 217 040 firiem vykázalo stratu — cca 34,9 %**
+- V roku 2023 to bolo 70 775 z 223 796 (31,6 %)
+- Vykázaný rok 2025 (čiastočne podané závierky): 68 927 strát z 205 292 (33,6 %)
+
+Takmer každá tretia slovenská firma s účtovnou závierkou skončila rok v strate — preto sa pri overovaní partnera oplatí pozrieť nielen tržby, ale aj dlhy a vlastné imanie.
+
+## Prečo na štatistikách záleží
+
+Priemerná firma vyzerá zvonku zdravo aj keď je vnútre v problémoch. Jednotlivé signály (strata, daňový dlh, záznam vo vestníku) dávajú zmysel až spolu — presne to robí Verifa Score a Insolvency Score: vypočítané z tých istých registrov, z ktorých pochádzajú tieto štatistiky.
+
+## Overte si konkrétnu firmu
+
+Tieto štatistiky vychádzajú z databázy, ktorú Verifa.sk používa pri každom reporte. Ak overujete dodávateľa alebo klienta, [Business Risk Report](/objednat) vám ukáže, kde sa firma v týchto číslach nachádza — alebo si najprv prejdite [firmy podľa odvetvia](/firmy).`,
+    category: "Risk Assessment",
+  },
 ];
 
 export function getGlossaryTerm(slug: string): GlossaryTerm | undefined {

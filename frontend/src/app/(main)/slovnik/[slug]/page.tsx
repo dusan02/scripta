@@ -40,6 +40,26 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
+/** Render inline markdown: **bold** and [text](url) links. */
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
+  return parts.map((part, j) => {
+    const key = `${keyPrefix}-${j}`;
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={key} style={{ color: "var(--text)" }}>{part.slice(2, -2)}</strong>;
+    }
+    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (linkMatch) {
+      return (
+        <Link key={key} href={linkMatch[2]} style={{ color: "var(--accent)", fontWeight: 600 }}>
+          {linkMatch[1]}
+        </Link>
+      );
+    }
+    return part;
+  });
+}
+
 function renderMarkdown(md: string): React.ReactNode {
   const lines = md.split("\n");
   const elements: React.ReactNode[] = [];
@@ -73,29 +93,22 @@ function renderMarkdown(md: string): React.ReactNode {
       listItems.push(
         <li key={`li-${i}`} style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
           <strong style={{ color: "var(--text)" }}>{boldText}</strong>
-          {restText}
+          {renderInline(restText, `rest-${i}`)}
         </li>
       );
     } else if (line.startsWith("- ")) {
       listItems.push(
         <li key={`li-${i}`} style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-          {line.slice(2)}
+          {renderInline(line.slice(2), `li-${i}`)}
         </li>
       );
     } else if (line.trim() === "") {
       flushList();
     } else {
       flushList();
-      const parts = line.split(/(\*\*[^*]+\*\*)/g);
-      const rendered = parts.map((part, j) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return <strong key={j} style={{ color: "var(--text)" }}>{part.slice(2, -2)}</strong>;
-        }
-        return part;
-      });
       elements.push(
         <p key={`p-${i}`} style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 16 }}>
-          {rendered}
+          {renderInline(line, `p-${i}`)}
         </p>
       );
     }
@@ -166,7 +179,7 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link
-              href="/register"
+              href="/objednat"
               style={{
                 display: "inline-block",
                 background: "var(--accent)",
@@ -178,7 +191,7 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
                 fontSize: 15,
               }}
             >
-              Začať overovať →
+              Objednať report — 14 € →
             </Link>
             <Link
               href="/screener"
