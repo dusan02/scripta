@@ -12,11 +12,27 @@ const KEY_LOCATION = `https://${HOST}/${KEY}.txt`;
 const SITEMAP = `https://${HOST}/sitemap.xml`;
 const CHUNK = 10000; // IndexNow max URLs per POST
 
+async function fetchXml(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  if (!res.ok) throw new Error(`fetch ${url}: ${res.status}`);
+  return res.text();
+}
+
+const locs = (xml) => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+
+async function collectUrls(sitemapUrl, depth = 0) {
+  const xml = await fetchXml(sitemapUrl);
+  // Sitemap index → recurse into child sitemaps (verifa.sk serves one).
+  if (xml.includes('<sitemapindex')) {
+    const children = locs(xml);
+    const nested = await Promise.all(children.map((c) => collectUrls(c, depth + 1)));
+    return nested.flat();
+  }
+  return locs(xml);
+}
+
 async function main() {
-  const res = await fetch(SITEMAP, { signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error(`sitemap fetch: ${res.status}`);
-  const xml = await res.text();
-  const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  const urls = await collectUrls(SITEMAP);
   if (urls.length === 0) throw new Error('sitemap returned 0 URLs — refusing to submit empty list');
   console.log(`[indexnow] ${urls.length} URLs from sitemap`);
 
