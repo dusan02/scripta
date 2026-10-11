@@ -13,20 +13,23 @@ const SITEMAP = `https://${HOST}/sitemap.xml`;
 const CHUNK = 10000; // IndexNow max URLs per POST
 
 async function fetchXml(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
   if (!res.ok) throw new Error(`fetch ${url}: ${res.status}`);
   return res.text();
 }
 
 const locs = (xml) => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 
-async function collectUrls(sitemapUrl, depth = 0) {
+async function collectUrls(sitemapUrl) {
   const xml = await fetchXml(sitemapUrl);
   // Sitemap index → recurse into child sitemaps (verifa.sk serves one).
+  // Sequential — the origin renders each child slowly, parallel fetch
+  // times out on the largest ones.
   if (xml.includes('<sitemapindex')) {
     const children = locs(xml);
-    const nested = await Promise.all(children.map((c) => collectUrls(c, depth + 1)));
-    return nested.flat();
+    const urls = [];
+    for (const child of children) urls.push(...(await collectUrls(child)));
+    return urls;
   }
   return locs(xml);
 }
