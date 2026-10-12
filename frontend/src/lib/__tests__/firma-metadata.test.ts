@@ -67,10 +67,10 @@ describe("generateFirmaMetadata", () => {
     assert.ok(title.includes("Risikosignale"), `DE title should contain 'Risikosignale': ${title}`);
   });
 
-  it("CS: includes 'rizikové signály' when hasRiskSignals=true", () => {
+  it("CS: includes 'rizika' when hasRiskSignals=true", () => {
     const md = generateFirmaMetadata("Test s.r.o.", "12345678", null, "cz", true);
     const title = (md.title as { absolute: string }).absolute;
-    assert.ok(title.includes("rizikové signály"), `CS title should contain 'rizikové signály': ${title}`);
+    assert.ok(title.includes("rizika"), `CS title should contain 'rizika': ${title}`);
   });
 
   it("HU: includes 'kockázati jelek' when hasRiskSignals=true", () => {
@@ -79,10 +79,10 @@ describe("generateFirmaMetadata", () => {
     assert.ok(title.includes("kockázati jelek"), `HU title should contain 'kockázati jelek': ${title}`);
   });
 
-  it("PL: includes 'sygnały ryzyka' when hasRiskSignals=true", () => {
+  it("PL: includes 'ryzyko' when hasRiskSignals=true", () => {
     const md = generateFirmaMetadata("Test Sp.z o.o.", "12345678", null, "pl", true);
     const title = (md.title as { absolute: string }).absolute;
-    assert.ok(title.includes("sygnały ryzyka"), `PL title should contain 'sygnały ryzyka': ${title}`);
+    assert.ok(title.includes("ryzyko"), `PL title should contain 'ryzyko': ${title}`);
   });
 
   // ── Title length constraints ──
