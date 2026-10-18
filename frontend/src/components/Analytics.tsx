@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 declare global {
   interface Window {
@@ -44,6 +45,7 @@ export function loadGA4(gaId: string) {
 
 export default function Analytics() {
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const pathname = usePathname();
   const [consentGranted, setConsentGranted] = useState(false);
 
   useEffect(() => {
@@ -62,6 +64,14 @@ export default function Analytics() {
     if (!gaId || !consentGranted) return;
     loadGA4(gaId);
   }, [gaId, consentGranted]);
+
+  // Track SPA route transitions after initial GA4 load
+  useEffect(() => {
+    if (!gaId || !consentGranted || typeof window === "undefined" || !window.gtag) return;
+    (window.gtag as any)("config", gaId, {
+      page_path: pathname + (window.location.search || ""),
+    });
+  }, [gaId, consentGranted, pathname]);
 
   return null;
 }

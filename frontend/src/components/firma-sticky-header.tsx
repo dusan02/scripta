@@ -8,6 +8,7 @@ import { PrintButton } from "@/components/PrintButton";
 import { CompactReportCTA } from "@/components/report-cta";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { localizePath } from "@/lib/i18n";
+import { PublicCompanySearch } from "@/components/PublicCompanySearch";
 
 /**
  * Sticky header for public firma pages.
@@ -23,12 +24,15 @@ export function FirmaStickyHeader({ ico }: { ico: string }) {
   if (status === "authenticated") return null;
 
   return (
-    <header style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 10 }}>
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-        <Link href={localizePath("/", lang)} className="flex items-center gap-2">
+    <header style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 30 }}>
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
+        <Link href={localizePath("/", lang)} className="flex items-center gap-2 shrink-0">
           <Logo size="sm" />
         </Link>
-        <div className="flex items-center gap-1.5 sm:gap-2 no-print">
+        <div className="hidden md:flex flex-1 justify-center max-w-sm no-print">
+          <PublicCompanySearch variant="compact" placeholder="Hľadať inú firmu alebo IČO…" />
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 no-print">
           <CompactReportCTA ico={ico} source="sticky_header" />
           <PrintButton />
           <ThemeToggle size="sm" />
@@ -40,6 +44,9 @@ export function FirmaStickyHeader({ ico }: { ico: string }) {
             {t("firma.prihlasitSa")}
           </Link>
         </div>
+      </div>
+      <div className="md:hidden px-4 pb-2.5 no-print">
+        <PublicCompanySearch variant="compact" placeholder="Hľadať inú firmu alebo IČO…" />
       </div>
     </header>
   );

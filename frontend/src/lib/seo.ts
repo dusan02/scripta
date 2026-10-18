@@ -379,7 +379,7 @@ export function generateFirmaMetadata(
   const descTemplate = hasRiskSignals ? template.descRisk : template.descNoRisk;
 
   // Title: Google truncates ~60 chars. For long company names, progressively
-  // drop suffixes: full → no "| Verifa" → name+ico only → truncated name.
+  // drop suffixes: full → no "| Verifa" → truncated name + compact keyword suffix.
   let title = titleTemplate
     .replace("{name}", name)
     .replace("{ico}", ico);
@@ -388,10 +388,11 @@ export function generateFirmaMetadata(
     title = title.replace(/\s*\|\s*Verifa$/, "");
   }
   if (title.length > 65) {
-    title = `${name} (${ico})`;
-  }
-  if (title.length > 65) {
-    title = `${truncateAtWord(name, 65 - ico.length - 4)} (${ico})`;
+    const shortSuffix = lang === "sk"
+      ? (hasRiskSignals ? " — dlhy a riziká" : " — tržby a ORSR")
+      : "";
+    const budget = 65 - ico.length - 3 - shortSuffix.length;
+    title = `${truncateAtWord(name, budget)} (${ico})${shortSuffix}`;
   }
 
   // Description: ~160 chars. For long names, drop the city, then truncate name.

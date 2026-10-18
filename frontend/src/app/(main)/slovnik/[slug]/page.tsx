@@ -6,6 +6,7 @@ import { glossaryTerms, getGlossaryTerm } from "@/lib/glossary";
 import { getLangFromHeaders, getHreflangAlternates, getOgLocale } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { GlossaryFeaturedFirms } from "@/components/glossary-featured-firms";
+import { PublicCompanySearch } from "@/components/PublicCompanySearch";
 
 export function generateStaticParams() {
   return glossaryTerms.map((term) => ({ slug: term.slug }));
@@ -164,9 +165,26 @@ export default function GlossaryTermPage({ params }: { params: { slug: string } 
           {term.title}
         </h1>
 
-        <p style={{ fontSize: 17, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 32 }}>
+        <p style={{ fontSize: 17, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 24 }}>
           {term.shortDescription}
         </p>
+
+        {/* Instant company search box — turns /slovnik/orsr (45k Google impressions)
+            into an interactive ORSR/RÚZ lookup tool right above the fold */}
+        <div
+          style={{
+            padding: "20px",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 16,
+            marginBottom: 36,
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 10 }}>
+            Vyhľadávanie firmy v ORSR a finančných registroch (518 000+ subjektov):
+          </div>
+          <PublicCompanySearch variant="hero" />
+        </div>
 
         <div style={{ marginBottom: 48 }}>
           {renderMarkdown(term.fullDescription)}
