@@ -5,6 +5,7 @@ import { getHubCompanyCount, getHubStats, getHubIntro } from "@/lib/hub";
 import { getLangFromHeaders, getHreflangAlternates } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { HubTable, SubHubLinks, HubPagination, HubBreadcrumbs } from "@/components/hub-ui";
+import { PublicCompanySearch } from "@/components/PublicCompanySearch";
 import { naceSectionToSlug } from "@/lib/seo-url";
 import type { Metadata } from "next";
 
@@ -130,6 +131,22 @@ export async function renderHubPage(
             )}
           </div>
         )}
+
+        {/* Company search — Google visitors can look up any firm immediately */}
+        <div
+          className="mb-6"
+          style={{
+            padding: "14px 16px",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 14,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>
+            Hľadať firmu podľa názvu alebo IČO:
+          </div>
+          <PublicCompanySearch variant="hero" />
+        </div>
 
         {/* Sub-hub links (for large hubs) */}
         <SubHubLinks subHubs={result.subHubs} title={subHubTitle} />
