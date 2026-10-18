@@ -170,7 +170,7 @@ if [ "${HEALTH_OK:-false}" != "true" ]; then
   remote "for img in ${IMAGES[*]}; do docker tag \${img}:rollback \$img 2>/dev/null || true; done"
   remote "cd $REMOTE_DIR && docker compose up -d --force-recreate --no-build $BUILD_TARGETS"
   sleep 10
-  if curl -s -o /dev/null -w "%{http_code}" https://verifa.sk | grep -q "200\|301\|302"; then
+  if curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" https://verifa.sk | grep -q "200\|301\|302"; then
     echo "  ✅ ROLLED BACK — previous version is serving traffic."
   else
     echo "  ❌ ROLLBACK ALSO UNHEALTHY — manual intervention required:"
@@ -181,10 +181,12 @@ fi
 
 echo "--- Smoke tests ---"
 SMOKE_FAIL=0
+# Browser UA — the nginx junk filter 403s curl/wget-style agents.
+SMOKE_UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 # -L: firma URLs may 308-redirect to the current company slug (designed
 # behavior of middleware slug validation) — judge by the final status.
-for url in "https://verifa.sk/" "https://verifa.sk/api/health" "https://verifa.sk/firma/35876832-kia-motors-slovakia-s-r-o"; do
-  code=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 "$url")
+for url in "https://verifa.sk/" "https://verifa.sk/api/health" "https://verifa.sk/firma/35876832-kia-motors-slovakia-s-r-o" "https://verifa.sk/orsr"; do
+  code=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 15 -A "$SMOKE_UA" "$url")
   if [ "$code" = "200" ] || [ "$code" = "301" ] || echo "$code" | grep -qE "^30[12]$"; then
     echo "  OK $url → $code"
   else

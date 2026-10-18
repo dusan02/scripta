@@ -53,6 +53,12 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // Short memorable alias — ranking authority stays on /slovnik/orsr
+      { source: '/orsr', destination: '/slovnik/orsr', permanent: true },
+    ];
+  },
 };
 
 export default withBundleAnalyzer(withSentryConfig(nextConfig, {
