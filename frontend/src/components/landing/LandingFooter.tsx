@@ -40,6 +40,9 @@ export default function LandingFooter() {
               <a href={navHref("#ukazka")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.reporty")}</a>
               <a href={navHref("#registre")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navRegistries")}</a>
               <a href={navHref("#pricing")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.navPricing")}</a>
+              <Link href={lhref("/slovnik/orsr")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>ORSR — Obchodný register</Link>
+              <Link href={lhref("/screener")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("nav.screener")}</Link>
+              <Link href={lhref("/firmy")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>Firmy na Slovensku</Link>
               <Link href={lhref("/slovnik")} style={{ fontSize: 14, color: "var(--text-secondary)", textDecoration: "none" }}>{t("home.footerGlossary")}</Link>
             </div>
           </div>

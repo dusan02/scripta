@@ -6,6 +6,7 @@ import { slugify } from "@/lib/slug";
 import { getNaceSections, getKrajOptions } from "@/lib/screener";
 import { naceSectionToSlug } from "@/lib/seo-url";
 import { getHreflangAlternates } from "@/lib/seo";
+import { PublicCompanySearch } from "@/components/PublicCompanySearch";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -112,17 +113,6 @@ export default async function FirmyPage({
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <header className="sticky top-0 z-50 border-b" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold" style={{ color: "var(--text)" }}>Verifa.sk</Link>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-colors" style={{ border: "1px solid var(--border)", color: "var(--text)" }}>
-              Prihlásiť sa
-            </Link>
-          </div>
-        </div>
-      </header>
-
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <div className="flex items-center gap-2 text-xs sm:text-sm mb-4" style={{ color: "var(--text-muted)" }}>
           <Link href="/" className="hover:underline">Verifa.sk</Link>
@@ -132,6 +122,25 @@ export default async function FirmyPage({
         <h1 className="text-2xl sm:text-3xl font-black mb-2" style={{ color: "var(--text)" }}>
           Firmy na Slovensku
         </h1>
+
+        <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+          Prehľad a vyhľadávanie 518 000+ slovenských firiem v ORSR a RÚZ podľa názvu, IČO, odvetvia, regiónu a tržieb.
+        </p>
+
+        <div
+          className="mb-6"
+          style={{
+            padding: "14px 16px",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 14,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>
+            Rýchle vyhľadávanie firmy podľa názvu alebo IČO:
+          </div>
+          <PublicCompanySearch variant="hero" />
+        </div>
 
         <div className="mb-6 p-3 rounded-lg flex items-center justify-between gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>

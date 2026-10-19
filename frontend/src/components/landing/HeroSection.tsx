@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useT, useLang } from "@/components/LanguageProvider";
 import { localizePath } from "@/lib/i18n";
+import { PublicCompanySearch } from "@/components/PublicCompanySearch";
 
 export default function HeroSection() {
   const t = useT();
@@ -22,9 +23,14 @@ export default function HeroSection() {
           {t("home.heroTitle1")}<br /><span style={{ color: "var(--accent)" }}>{t("home.heroTitle2")}</span>
         </h1>
 
-        <p className="text-[var(--text-secondary)] leading-relaxed mx-auto mb-8" style={{ fontSize: "clamp(15px, 2vw, 17px)", maxWidth: 620 }}>
+        <p className="text-[var(--text-secondary)] leading-relaxed mx-auto mb-6" style={{ fontSize: "clamp(15px, 2vw, 17px)", maxWidth: 620 }}>
           {t("home.heroSubtitle")}
         </p>
+
+        {/* Instant ORSR / RÚZ company lookup right in the hero */}
+        <div className="max-w-[640px] mx-auto mb-6 text-left">
+          <PublicCompanySearch variant="hero" />
+        </div>
 
         <div className="mb-4 flex flex-col sm:flex-row gap-3 items-center justify-center hero-cta">
           <Link

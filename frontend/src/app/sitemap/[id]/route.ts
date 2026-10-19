@@ -95,12 +95,19 @@ async function buildHubPages(): Promise<string[]> {
 function buildGlossaryPages(): string[] {
   return glossaryTerms.flatMap((term) => {
     const path = `/slovnik/${term.slug}`;
+    const isOrsr = term.slug === "orsr";
     return VALID_LANGS.map((lang) => {
       const url = `${BASE_URL}${localizePath(path, lang)}`;
       const alternates = Object.fromEntries(
         VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
       );
-      return buildUrlEntry(url, null, "monthly", 0.6, alternates);
+      return buildUrlEntry(
+        url,
+        null,
+        isOrsr ? "weekly" : "monthly",
+        isOrsr ? 0.9 : 0.6,
+        alternates
+      );
     });
   });
 }

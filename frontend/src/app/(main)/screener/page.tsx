@@ -8,6 +8,7 @@ import { ScreenerFilters } from "@/components/screener-filters";
 import { ScreenerTable } from "@/components/screener-table";
 import { ActiveFilterChips } from "@/components/screener-chips";
 import { ScreenerPresets } from "@/components/screener-presets";
+import { PublicCompanySearch } from "@/components/PublicCompanySearch";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { naceSectionToSlug } from "@/lib/seo-url";
 
@@ -131,6 +132,27 @@ export default async function ScreenerPage({
               </Link>
               <div className="flex items-center gap-3">
                 <Link
+                  href="/slovnik/orsr"
+                  className="hidden sm:inline-block text-xs sm:text-sm font-medium transition-colors hover:text-[var(--accent)]"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  ORSR vyhľadávanie
+                </Link>
+                <Link
+                  href="/firmy"
+                  className="hidden sm:inline-block text-xs sm:text-sm font-medium transition-colors hover:text-[var(--accent)]"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  Firmy podľa odvetvia
+                </Link>
+                <Link
+                  href="/register"
+                  className="hidden sm:inline-block text-xs sm:text-sm font-medium px-3.5 py-2 rounded-lg border transition-opacity hover:opacity-80"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  Registrácia
+                </Link>
+                <Link
                   href="/login"
                   className="text-xs sm:text-sm font-medium px-4 py-2 rounded-lg transition-opacity hover:opacity-90"
                   style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
@@ -162,6 +184,22 @@ export default async function ScreenerPage({
             {buildDynamicSubtitle(searchParams, total)}
             {tier === "FREE" && " Prihláste sa pre viac výsledkov a pokročilé filtre."}
           </p>
+        </div>
+
+        {/* Direct company lookup bar — visible immediately on mobile & desktop */}
+        <div
+          className="mb-4"
+          style={{
+            padding: "12px 14px",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 12,
+          }}
+        >
+          <PublicCompanySearch
+            variant="hero"
+            placeholder="Rýchle vyhľadávanie firmy podľa názvu alebo IČO (napr. ESET, 31333532)…"
+          />
         </div>
 
         {/* Quick presets */}

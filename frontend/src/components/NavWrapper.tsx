@@ -46,5 +46,12 @@ export default function NavWrapper() {
   // /okres/*, /firmy/*, /pricing, /documents, etc.) get the public LandingNav
   // instead of the authenticated NavBar (prevents prefetching /dashboard,
   // /settings, /credits, /history, /messages which 307-redirect to /login).
-  return <LandingNav />;
+  // LandingNav is position:fixed (h-16 on desktop, ~104px with mobile auth bar),
+  // so include a matching spacer to prevent overlapping breadcrumbs/H1.
+  return (
+    <>
+      <LandingNav />
+      <div className="h-28 md:h-16" aria-hidden="true" />
+    </>
+  );
 }
