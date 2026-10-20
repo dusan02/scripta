@@ -879,15 +879,16 @@ LIVE_CHECK_SOURCES = [
 ]
 
 # Live-check timeouty — user čaká v modale, takže kratšie než report mode
-# (150-180s). Najpomalší register určuje wall-time celého checku.
+# (150-180s), ale dlžnícke registre reálne potrebujú 100-180s (75s ich zabilo
+# v polovici behu — VšZP/Dôvera/SP boli mid-search pri timeoute).
 LIVE_CHECK_TIMEOUTS = {
-    "SP_DLZNICI": 75,
-    "VSZP_DLZNICI": 75,
-    "DOVERA_DLZNICI": 75,
-    "UNION_DLZNICI": 75,
+    "SP_DLZNICI": 120,
+    "VSZP_DLZNICI": 120,
+    "DOVERA_DLZNICI": 120,
+    "UNION_DLZNICI": 120,
     "FS_DPH_RUSENIE": 90,
     "FS_DANOVE_DLZNICI": 90,
-    "INSOLVENCY": 60,
+    "INSOLVENCY": 90,
 }
 
 LIVE_CHECK_LABELS = {

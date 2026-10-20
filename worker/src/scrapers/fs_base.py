@@ -159,6 +159,30 @@ class FinancnaSpravaBase(BaseScraper):
         Subclassy môžu prepísať pre špecifickú interakciu pred kliknutím na link."""
         return None
 
+    async def _navigate_to_link(self, page: Page, link) -> None:
+        """Naviguje na cieľ linku — preferuje priame page.goto(href) pred klikom.
+
+        Click + wait_for_load_state("domcontentloaded") má race: ak sa navigácia
+        po kliku ešte nezačala, wait sa resolvne proti UŽ načítanej starej stránke
+        a kód beží ďalej na starom DOMe (input sa nájde cez 'any-text-first'
+        fallback na zlej stránke, Vyhľadať sa nenájde). Priame goto je
+        deterministické — čaká na commit novej navigácie.
+        Fallback na klik ostáva pre linky bez href (JS-driven)."""
+        href = await link.get_attribute("href")
+        if href:
+            from urllib.parse import urljoin
+            await page.goto(
+                urljoin(page.url, href),
+                wait_until="domcontentloaded",
+                timeout=30000,
+            )
+            return
+        # Link bez href — klasický klik s očakávaním navigácie
+        async with page.expect_navigation(
+            wait_until="domcontentloaded", timeout=15000
+        ):
+            await link.click(force=True)
+
     async def _is_empty_page(self, page: Page) -> bool:
         """Skontroluje či stránka obsahuje text indikujúci prázdny zoznam."""
         try:
@@ -301,8 +325,7 @@ class FinancnaSpravaBase(BaseScraper):
                 try:
                     link = page.locator(self.zoznam_link_selector).first
                     await link.wait_for(timeout=10000)
-                    await link.click(force=True)
-                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    await self._navigate_to_link(page, link)
                     logger.info(f"[{self.source_type}] Na stránke zoznamu (CSS selector), URL: {page.url}")
                     link_clicked = True
                 except PlaywrightTimeoutError:
@@ -312,8 +335,7 @@ class FinancnaSpravaBase(BaseScraper):
                 try:
                     link = page.get_by_role("link", name=self.zoznam_link_name).first
                     await link.wait_for(timeout=10000)
-                    await link.click(force=True)
-                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    await self._navigate_to_link(page, link)
                     logger.info(f"[{self.source_type}] Na stránke zoznamu, URL: {page.url}")
                     link_clicked = True
                 except PlaywrightTimeoutError:
@@ -324,8 +346,7 @@ class FinancnaSpravaBase(BaseScraper):
                 try:
                     partial_link = page.get_by_role("link", name=self.zoznam_link_name, exact=False).first
                     await partial_link.wait_for(timeout=5000)
-                    await partial_link.click(force=True)
-                    await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    await self._navigate_to_link(page, partial_link)
                     logger.info(f"[{self.source_type}] Na stránke zoznamu (partial match), URL: {page.url}")
                     link_clicked = True
                 except PlaywrightTimeoutError:
