@@ -165,6 +165,7 @@ async def run_scrapers(
     disable_circuit_breaker: bool = False,
     company_name: Optional[str] = None,
     company_city: Optional[str] = None,
+    timeout_overrides: Optional[Dict[str, int]] = None,
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
     dependencia skončí (paralelne s ostatnými nezávislými).
@@ -175,7 +176,11 @@ async def run_scrapers(
 
     disable_circuit_breaker: Ak True, circuit breaker sa ignoruje — každý scraper
     sa skúsi aspoň raz. Používa sa pre single-report mode (user čaká na výsledok),
-    na rozdiel od bulk processing kde circuit breaker šetrí API calls."""
+    na rozdiel od bulk processing kde circuit breaker šetrí API calls.
+
+    timeout_overrides: Voliteľné per-source prepísanie timeoutu v sekundách.
+    Používa sa pre live-check, kde user čaká v UI — kratšie timeouty než report
+    mode (150-180s) znamenajú rýchlejšie UNAVAILABLE namiesto dlhého čakania."""
 
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
     # FS semaphore 3 — 7 FS scraperov zdieľa rovnaký server, 3 súbežné = 3 vlny (3+3+1)
@@ -236,17 +241,25 @@ async def run_scrapers(
                     await asyncio.wait_for(sem.acquire(), timeout=_SEMAPHORE_QUEUE_TIMEOUT)
                 except asyncio.TimeoutError:
                     logger.warning(f"[TIMING] ✗ {source_type} semafor queue timeout ({_SEMAPHORE_QUEUE_TIMEOUT}s)")
-                    return ScrapedSource(
+                    queue_result = ScrapedSource(
                         source_type=source_type,
                         status="UNAVAILABLE",
                         status_message=f"Scraper čakal príliš dlho na semafor ({_SEMAPHORE_QUEUE_TIMEOUT}s).",
                     )
+                    if on_source_done:
+                        try:
+                            on_source_done(queue_result)
+                        except Exception as cb_err:
+                            logger.warning(f"on_source_done callback zlyhal pre {source_type}: {cb_err}")
+                    return queue_result
             try:
                 _t_run = time.perf_counter()
                 if _t_run - _t_start > 0.05:
                     logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
                 # Per-scraper timeout — jeden pomalý register nezrúši celý batch
-                _scraper_timeout = _get_scraper_timeout(source_type)
+                _scraper_timeout = (timeout_overrides or {}).get(
+                    source_type, _get_scraper_timeout(source_type)
+                )
                 result = await asyncio.wait_for(
                     scraper.run(
                         output_dir=output_dir,
@@ -264,11 +277,17 @@ async def run_scrapers(
                 )
             except asyncio.TimeoutError:
                 logger.warning(f"[TIMING] ✗ {source_type} TIMEOUT po {_scraper_timeout}s")
-                return ScrapedSource(
+                timeout_result = ScrapedSource(
                     source_type=source_type,
                     status="FAILED",
                     status_message=f"Scraper timeout ({_scraper_timeout}s)",
                 )
+                if on_source_done:
+                    try:
+                        on_source_done(timeout_result)
+                    except Exception as cb_err:
+                        logger.warning(f"on_source_done callback zlyhal pre {source_type}: {cb_err}")
+                return timeout_result
             finally:
                 for sem in reversed(semaphores):
                     sem.release()

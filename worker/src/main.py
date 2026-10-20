@@ -878,6 +878,18 @@ LIVE_CHECK_SOURCES = [
     "INSOLVENCY",
 ]
 
+# Live-check timeouty — user čaká v modale, takže kratšie než report mode
+# (150-180s). Najpomalší register určuje wall-time celého checku.
+LIVE_CHECK_TIMEOUTS = {
+    "SP_DLZNICI": 75,
+    "VSZP_DLZNICI": 75,
+    "DOVERA_DLZNICI": 75,
+    "UNION_DLZNICI": 75,
+    "FS_DPH_RUSENIE": 90,
+    "FS_DANOVE_DLZNICI": 90,
+    "INSOLVENCY": 60,
+}
+
 LIVE_CHECK_LABELS = {
     "SP_DLZNICI": "Sociálna poisťovňa (Zoznam dlžníkov)",
     "VSZP_DLZNICI": "Všeobecná zdravotná poisťovňa (VšZP)",
@@ -1018,6 +1030,7 @@ async def _execute_live_check(ico: str, company_name: Optional[str] = None, comp
             disable_circuit_breaker=True,
             company_name=company_name,
             company_city=company_city,
+            timeout_overrides=LIVE_CHECK_TIMEOUTS,
         )
         if pending_tasks:
             await asyncio.gather(*pending_tasks, return_exceptions=True)
