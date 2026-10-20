@@ -414,7 +414,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
                         </div>
                       ) : (
                         <div>
-                          <span>{item.description}</span>
+                          <span>{item.state === "UNAVAILABLE" ? "—" : item.description}</span>
                           {item.amount != null && item.amount > 0 && (
                             <span
                               className="ml-2 font-bold px-2 py-0.5 rounded text-xs"
@@ -561,7 +561,9 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
                     <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
                       {item.state === "RUNNING"
                         ? t("liveCheck.rowConnecting", { authority: item.authority, ico })
-                        : item.description}
+                        : item.state === "UNAVAILABLE"
+                          ? "—"
+                          : item.description}
                     </div>
                   </div>
                   <StatusBadgePill state={item.state} t={t} />

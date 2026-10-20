@@ -925,8 +925,9 @@ async def _save_live_source_result(ico: str, res) -> None:
     if res.status in ("FAILED", "UNAVAILABLE"):
         state = "UNAVAILABLE"
         severity = "LOW"
-        if not findings_text:
-            findings_text = f"Register {label} je momentálne nedostupný."
+        # Verejný popis nesmie ukazovať surové chyby ("Scraper timeout (180s)")
+        # — technický detail ostáva v metadata.statusMessage pre debugging.
+        findings_text = f"Register {label} sa nepodarilo overiť."
     elif findings_text.startswith("__AMBIGUOUS__|"):
         # Name-alike match on a registry without IČO filter (e.g. FS tax debtors)
         # — cannot safely attribute the debt, so neither DEBT nor CLEAN.
