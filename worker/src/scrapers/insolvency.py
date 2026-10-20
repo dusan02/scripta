@@ -185,25 +185,27 @@ class InsolvencyScraper(BaseScraper):
             )
 
         # Dodatočné overenie cez text vygenerovaného PDF (double-check bezpečnosti)
-        try:
-            from PyPDF2 import PdfReader
-            
-            reader = PdfReader(str(pdf_output))
-            pdf_text = "".join([p.extract_text() or "" for p in reader.pages])
-            
-            # 1. Ak PDF explicitne obsahuje informáciu, že sa nič nenašlo
-            if "Nenašli sa žiadne" in pdf_text or "žiadne konania" in pdf_text:
-                has_results = False
-                findings = "Subjekt nemá negatívne záznamy v registri úpadcov."
-            else:
-                # 2. Ak PDF obsahuje počet výsledkov väčší ako 0 (zo zoznamu) ALEBO ak sme už v detaile konania
-                match = re.search(r"P\s*o\s*č\s*e\s*t\s*v\s*[yý]\s*s\s*l\s*e\s*d\s*k\s*o\s*v\s*:\s*([1-9]\d*)", pdf_text, re.IGNORECASE)
-                is_detail = "Spisová značka" in pdf_text or "História stavov konania" in pdf_text or "História stavov" in pdf_text
-                if match or is_detail:
-                    has_results = True
-                    findings = "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt je v konkurze/reštrukturalizácii."
-        except Exception as pdf_err:
-            logger.warning(f"[{self.source_type}] Zlyhalo overenie textu vygenerovaného PDF: {pdf_err}")
+        from .mixins import SKIP_PDF_VAR
+        if not SKIP_PDF_VAR.get() and pdf_output.exists():
+            try:
+                from PyPDF2 import PdfReader
+                
+                reader = PdfReader(str(pdf_output))
+                pdf_text = "".join([p.extract_text() or "" for p in reader.pages])
+                
+                # 1. Ak PDF explicitne obsahuje informáciu, že sa nič nenašlo
+                if "Nenašli sa žiadne" in pdf_text or "žiadne konania" in pdf_text:
+                    has_results = False
+                    findings = "Subjekt nemá negatívne záznamy v registri úpadcov."
+                else:
+                    # 2. Ak PDF obsahuje počet výsledkov väčší ako 0 (zo zoznamu) ALEBO ak sme už v detaile konania
+                    match = re.search(r"P\s*o\s*č\s*e\s*t\s*v\s*[yý]\s*s\s*l\s*e\s*d\s*k\s*o\s*v\s*:\s*([1-9]\d*)", pdf_text, re.IGNORECASE)
+                    is_detail = "Spisová značka" in pdf_text or "História stavov konania" in pdf_text or "História stavov" in pdf_text
+                    if match or is_detail:
+                        has_results = True
+                        findings = "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt je v konkurze/reštrukturalizácii."
+            except Exception as pdf_err:
+                logger.warning(f"[{self.source_type}] Zlyhalo overenie textu vygenerovaného PDF: {pdf_err}")
 
         if not has_results:
             logger.info(f"[{self.source_type}] Neboli nájdené žiadne záznamy.")

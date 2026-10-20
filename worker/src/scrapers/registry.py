@@ -24,6 +24,7 @@ from .fs_dan_z_prijmov import FsDanZPrijmovScraper
 from .fs_dph_nadmerny_odpocet import FsDphNadmernyOdpocetScraper
 from .fs_dph_registrovani import FsDphRegistrovaniScraper
 from .fs_dan_prijmov_reg import FsDanPrijmovRegistrovaniScraper
+from .fs_danove_dlznici import FsDanoveDlzniciScraper
 from .registeruz import RegisterUzScraper
 from .crz import CrzScraper
 from .uvo import UvoScraper
@@ -42,7 +43,7 @@ from src.log_helpers import log_scraper_result, get_correlation_id
 _FS_SOURCE_TYPES = {
     "FINANCNA_SPRAVA", "FS_DPH_RUSENIE", "FS_DPH_VYMAZANI", "FS_DANOVE_SUBJEKTY",
     "FS_DAN_Z_PRIJMOV", "FS_DPH_NADMERNY_ODPOCET", "FS_DPH_REGISTROVANI",
-    "FS_DAN_PRIJMOV_REG",
+    "FS_DAN_PRIJMOV_REG", "FS_DANOVE_DLZNICI",
 }
 
 # API scrapery — nepotrebujú browser context, neblokujú global_semaphore
@@ -74,6 +75,7 @@ _SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "FS_DPH_NADMERNY_ODPOCET": FsDphNadmernyOdpocetScraper,
     "FS_DPH_REGISTROVANI": FsDphRegistrovaniScraper,
     "FS_DAN_PRIJMOV_REG": FsDanPrijmovRegistrovaniScraper,
+    "FS_DANOVE_DLZNICI": FsDanoveDlzniciScraper,
     "SP_DLZNICI": SpDlzniciScraper,
     "VSZP_DLZNICI": VszpDlzniciScraper,
     "DOVERA_DLZNICI": DoveraDlzniciScraper,
@@ -161,6 +163,8 @@ async def run_scrapers(
     on_source_done: Optional[Callable[[ScrapedSource], None]] = None,
     report_language: str = "sk",
     disable_circuit_breaker: bool = False,
+    company_name: Optional[str] = None,
+    company_city: Optional[str] = None,
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
     dependencia skončí (paralelne s ostatnými nezávislými).
@@ -252,6 +256,8 @@ async def run_scrapers(
                         crz_date_from=crz_date_from,
                         rozhodnutia_date_from=rozhodnutia_date_from,
                         report_language=report_language,
+                        **({"company_name": company_name} if company_name and "company_name" not in extra_kwargs else {}),
+                        **({"company_city": company_city} if company_city and "company_city" not in extra_kwargs else {}),
                         **extra_kwargs,
                     ),
                     timeout=_scraper_timeout,

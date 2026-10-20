@@ -309,22 +309,27 @@ async def test_union_page_loads(browser):
 
 @pytest.mark.asyncio
 async def test_union_has_search_input(browser):
-    """UNION: nájde sa input pole pre IČO."""
+    """UNION: nájde sa input pole pre IČO (na portáli po click-through)."""
     scraper = UnionDlzniciScraper(browser)
     page = await scraper._get_page()
     try:
         await page.goto(scraper.base_url, timeout=15000, wait_until='domcontentloaded')
         await page.wait_for_timeout(2000)
-        # UNION používa get_by_role textbox
-        textbox = page.get_by_role("textbox", name="Zadajte priezvisko, IČO,")
+        # Cookie banner ak je
         try:
-            await textbox.wait_for(timeout=5000)
-            assert True
+            cookie_btn = page.locator("button:has-text('Súhlasím'), button:has-text('Prijať'), button:has-text('Accept')")
+            if await cookie_btn.count() > 0:
+                await cookie_btn.first.click(timeout=2000)
+                await page.wait_for_timeout(500)
         except Exception:
-            # Fallback: skúsime nájsť akýkoľvek text input
-            inputs = page.locator("input[type='text'], input:not([type])")
-            cnt = await inputs.count()
-            assert cnt > 0, "Nenašiel sa žiadny text input na UNION stránke"
+            pass
+        # Vyhľadávanie je na portáli portal.unionzp.sk — treba kliknúť cez
+        await page.get_by_role("button", name="Vyhľadať v zozname dlžníkov").click(timeout=8000)
+        await page.wait_for_load_state("domcontentloaded")
+        await page.wait_for_timeout(2000)
+        inputs = page.locator("input[type='text'], input:not([type]), input#input-v-5")
+        cnt = await inputs.count()
+        assert cnt > 0, "Nenašiel sa žiadny text input na UNION portáli"
     finally:
         await scraper._close()
 

@@ -518,7 +518,16 @@ export async function seedFromRuz(ico: string) {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { where: { isActive: true }, orderBy: { rawName: "asc" }, take: 50 },
-      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: {
+        where: {
+          OR: [
+            { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } },
+            { eventType: "LIVE_REGISTRY_CHECK" },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
     },
   });
 }
@@ -539,7 +548,16 @@ async function seedCompany(ico: string) {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { where: { isActive: true }, orderBy: { rawName: "asc" }, take: 50 },
-      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: {
+        where: {
+          OR: [
+            { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } },
+            { eventType: "LIVE_REGISTRY_CHECK" },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
     },
   });
 }
@@ -551,7 +569,16 @@ export const getCompanyData = cache(async (ico: string) => {
       financialStatements: { orderBy: { year: "desc" }, take: 5 },
       vestnikEvents: { orderBy: { publishedAt: "desc" }, take: 10 },
       companyPersons: { orderBy: [{ isActive: "desc" }, { rawName: "asc" }], take: 100 },
-      companyEvents: { where: { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } }, orderBy: { createdAt: "desc" }, take: 10 },
+      companyEvents: {
+        where: {
+          OR: [
+            { source: { in: ["ORSR", "VESTNIK"] }, eventType: { not: "FORENSIC_ANALYSIS" } },
+            { eventType: "LIVE_REGISTRY_CHECK" },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
     },
   });
 

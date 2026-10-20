@@ -35,6 +35,8 @@ import { CrossFirmPersons, getCrossFirmPersons } from "@/components/cross-firm-p
 import { VestnikEvents } from "@/components/vestnik-events";
 import { CompanyEvents } from "@/components/company-events";
 import { FirmaPageTracker } from "@/components/firma-page-tracker";
+import { buildLiveCheckSummary } from "@/lib/liveRegistryCheck";
+import { LiveRegistryCheck } from "@/components/live-registry-check";
 
 // ─── Shared firma page — rendered by static route groups ───
 // app/(pub)/firma/[ico-slug]        → lang "sk"
@@ -223,6 +225,17 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
   const signals = computeRiskSignals(company, latest, lang);
   const riskCount = signals.length;
 
+  // ── Live 6-registry debtor check (SP, VšZP, Dôvera, Union, FS DPH, Insolvency) ──
+  const liveCheckSummary = buildLiveCheckSummary(company.ico, (company.companyEvents || []) as any);
+  const orsrCompanyEvents = (company.companyEvents || []).filter(
+    (e: any) => e.eventType !== "LIVE_REGISTRY_CHECK"
+  );
+  const debtFaqAnswer = liveCheckSummary.hasCheck && !liveCheckSummary.isRunning
+    ? liveCheckSummary.debtCount > 0
+      ? t("liveCheck.faq.debt", { name, ico: company.ico, n: liveCheckSummary.debtCount })
+      : t("liveCheck.faq.clean", { name, ico: company.ico })
+    : t("liveCheck.faq.none", { name, ico: company.ico });
+
   // ── Cross-firm persons — fetch links for deduplication ──
   const crossFirmLinks = await getCrossFirmPersons(company.ico);
   const crossFirmIcos = crossFirmLinks.map(f => f.ico);
@@ -252,6 +265,12 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
       syncedAt: company.vestnikSyncedAt ?? null,
     });
   }
+  if (liveCheckSummary.hasCheck && liveCheckSummary.lastCheckedAt) {
+    dataSources.push({
+      name: "Registre dlžníkov SR (Sociálna poisťovňa, VšZP, Dôvera, Union, Finančná správa, Register úpadcov)",
+      syncedAt: new Date(liveCheckSummary.lastCheckedAt),
+    });
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
@@ -269,76 +288,85 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
           <span style={{ color: "var(--text)" }}>{name}</span>
         </div>
 
-        <CompanyHeader
-          company={{
-            ...company,
-            shareCapital: company.shareCapital != null ? Number(company.shareCapital) : null,
-          }}
-          latestYear={latest?.year}
-          riskCount={riskCount}
-        />
+        {/* ── TOP HEADER ROW: Company identity + Key facts on left, compact Report CTA card on right ── */}
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
+          <div className="min-w-0 flex-1">
+            <CompanyHeader
+              company={{
+                ...company,
+                shareCapital: company.shareCapital != null ? Number(company.shareCapital) : null,
+              }}
+              latestYear={latest?.year}
+              riskCount={riskCount}
+            />
 
-        {/* Print-only header with logo — fixed to appear on every page */}
-        <div className="print-only-logo">
-          <img src="/logo-verifa.png" alt="Verifa.sk" width="118" height="40" />
-        </div>
-
-        {/* Print-only footer — consistent on every page */}
-        <div className="print-only-footer">
-          <span>© 2026 Verifa.sk</span>
-          <span>Business risk report</span>
-        </div>
-
-        {/* ── KEY FACTS — merged source attribution + provenance into one row ── */}
-        {(() => {
-          const hasKonkurz = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("konkurz"));
-          const hasLikvidacia = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("likvid"));
-          return (
-            <div className="mb-4 no-print">
-              {hasKonkurz && (
-                <div className="rounded-lg p-3 mb-2" style={{ background: "var(--danger-bg, #fef2f2)", border: "1px solid var(--danger-border, #fecaca)" }}>
-                  <p className="text-sm font-medium" style={{ color: "var(--danger, #dc2626)" }}>
-                    {t("firma.firmaVKonkurze")}
-                  </p>
-                </div>
-              )}
-              {hasLikvidacia && !hasKonkurz && (
-                <div className="rounded-lg p-3 mb-2" style={{ background: "var(--warning-bg, #fffbeb)", border: "1px solid var(--warning-border, #fde68a)" }}>
-                  <p className="text-sm font-medium" style={{ color: "var(--warning, #d97706)" }}>
-                    {t("firma.firmaVLikvidacii")}
-                  </p>
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs" style={{ color: "var(--text-muted)" }}>
-                {company.employeeCount != null && (
-                  <span>{t("firma.zamestnanci", { value: company.employeeCount })}</span>
-                )}
-                {company.sizeCategory && (
-                  <><span>·</span><span>{t("firma.velkostFirmy", { value: company.sizeCategory })}</span></>
-                )}
-                {company.ownershipType && (
-                  <><span>·</span><span>{t("firma.druhVlastnictva", { value: company.ownershipType })}</span></>
-                )}
-                {company.shareCapital != null && Number(company.shareCapital) > 0 && (
-                  <><span>·</span><span>{t("firma.zakladneImanie")}: {fmtEUR(Number(company.shareCapital))}</span></>
-                )}
-                {latest?.year && (
-                  <><span>·</span><span>{t("firma.zavierkaRok", { year: latest.year })}</span></>
-                )}
-                {stmts.length > 0 && (
-                  <><span>·</span><span>{t("firma.provenanceObdobie")}: {stmts[stmts.length - 1]?.year}–{latest?.year}</span></>
-                )}
-                {company.ruzSyncedAt && (
-                  <><span>·</span><span>{t("firma.aktualizovane")}: {new Date(company.ruzSyncedAt).toLocaleDateString(lang === "sk" ? "sk-SK" : "en-GB")}</span></>
-                )}
-              </div>
+            {/* Print-only header with logo — fixed to appear on every page */}
+            <div className="print-only-logo">
+              <img src="/logo-verifa.png" alt="Verifa.sk" width="118" height="40" />
             </div>
-          );
-        })()}
+
+            {/* Print-only footer — consistent on every page */}
+            <div className="print-only-footer">
+              <span>© 2026 Verifa.sk</span>
+              <span>Business risk report</span>
+            </div>
+
+            {/* ── KEY FACTS — merged source attribution + provenance into one row ── */}
+            {(() => {
+              const hasKonkurz = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("konkurz"));
+              const hasLikvidacia = company.vestnikEvents?.some((e: any) => e.eventType?.toLowerCase().includes("likvid"));
+              return (
+                <div className="no-print">
+                  {hasKonkurz && (
+                    <div className="rounded-lg p-3 mb-2" style={{ background: "var(--danger-bg, #fef2f2)", border: "1px solid var(--danger-border, #fecaca)" }}>
+                      <p className="text-sm font-medium" style={{ color: "var(--danger, #dc2626)" }}>
+                        {t("firma.firmaVKonkurze")}
+                      </p>
+                    </div>
+                  )}
+                  {hasLikvidacia && !hasKonkurz && (
+                    <div className="rounded-lg p-3 mb-2" style={{ background: "var(--warning-bg, #fffbeb)", border: "1px solid var(--warning-border, #fde68a)" }}>
+                      <p className="text-sm font-medium" style={{ color: "var(--warning, #d97706)" }}>
+                        {t("firma.firmaVLikvidacii")}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs" style={{ color: "var(--text-muted)" }}>
+                    {company.employeeCount != null && (
+                      <span>{t("firma.zamestnanci", { value: company.employeeCount })}</span>
+                    )}
+                    {company.sizeCategory && (
+                      <><span>·</span><span>{t("firma.velkostFirmy", { value: company.sizeCategory })}</span></>
+                    )}
+                    {company.ownershipType && (
+                      <><span>·</span><span>{t("firma.druhVlastnictva", { value: company.ownershipType })}</span></>
+                    )}
+                    {company.shareCapital != null && Number(company.shareCapital) > 0 && (
+                      <><span>·</span><span>{t("firma.zakladneImanie")}: {fmtEUR(Number(company.shareCapital))}</span></>
+                    )}
+                    {latest?.year && (
+                      <><span>·</span><span>{t("firma.zavierkaRok", { year: latest.year })}</span></>
+                    )}
+                    {stmts.length > 0 && (
+                      <><span>·</span><span>{t("firma.provenanceObdobie")}: {stmts[stmts.length - 1]?.year}–{latest?.year}</span></>
+                    )}
+                    {company.ruzSyncedAt && (
+                      <><span>·</span><span>{t("firma.aktualizovane")}: {new Date(company.ruzSyncedAt).toLocaleDateString(lang === "sk" ? "sk-SK" : "en-GB")}</span></>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {stmts.length > 0 && (
+            <InlineReportCTA ico={company.ico} name={name} />
+          )}
+        </div>
 
         {/* ── KPI CARDS — reordered: Tržby, Zisk, Vlastné imanie, Aktíva ── */}
         {stmts.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-3">
             <MetricCard label={t("firma.kpiTrzby")} value={fmtEUR(latest?.mainActivityRevenue)} sub={latest ? t("firma.kpiRok", { year: latest.year }) : ""} color="#3b82f6" trend={trends.revenue} />
             <MetricCard
               label={t("firma.kpiZiskStrata")}
@@ -361,28 +389,61 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
           </div>
         )}
 
-        {/* ── INLINE CTA — above the fold, right after KPI cards ── */}
-        {stmts.length > 0 && (
-          <InlineReportCTA ico={company.ico} name={name} />
-        )}
-
-        {/* ── FINANCIAL SUMMARY (H2) — 1-2 sentence narrative, replaces CompanyInsights ── */}
-        {financialSummary && (
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-lg sm:text-xl font-bold mb-2" style={{ color: "var(--text)" }}>
-              {t("firma.financneZhrnutie")}
-            </h2>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              {financialSummary}
+        {/* ── COMPACT FINANCIAL SUMMARY + SECTION JUMP BAR ── */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 mb-5 py-2.5 px-3.5 rounded-xl no-print" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          {financialSummary ? (
+            <p className="text-xs sm:text-sm leading-snug" style={{ color: "var(--text-secondary)" }}>
+              <strong style={{ color: "var(--text)" }}>{t("firma.financneZhrnutie")}:</strong> {financialSummary}
             </p>
+          ) : <div />}
+          <nav aria-label="Sekcie profilu firmy" className="flex items-center gap-1.5 flex-wrap text-xs shrink-0">
+            <a href="#live-registry-check" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--accent)", background: "var(--accent-light)" }}>
+              {t("liveCheck.anchor")}
+            </a>
+            {riskCount > 0 && (
+              <a href="#sekcia-rizika" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--danger, #dc2626)", background: "var(--danger-bg, #fef2f2)" }}>
+                Riziká ({riskCount})
+              </a>
+            )}
+            {persons.length > 0 && (
+              <a href="#sekcia-osoby" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+                {t("firma.osoby")}
+              </a>
+            )}
+            {balanceData && balanceData.totalAssets != null && (
+              <a href="#sekcia-suvaha" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+                {t("firma.suvaha")}
+              </a>
+            )}
+            {chartData.length > 0 && (
+              <a href="#sekcia-vykaz" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+                Výkaz ziskov a strát
+              </a>
+            )}
+            {stmts.length >= 2 && (
+              <a href="#sekcia-fscore" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+                F-Score
+              </a>
+            )}
+          </nav>
+        </div>
+
+        {/* ── LIVE 6-REGISTRY DEBTOR CHECK (Playwright, 0 LLM cost, cached 7d in DB for SEO/GEO) ── */}
+        <LiveRegistryCheck
+          ico={company.ico}
+          companyName={name}
+          initialSummary={liveCheckSummary}
+        />
+
+        {/* ── RISK SIGNALS (H2) — moved up from #11 to #6 ── */}
+        {riskCount > 0 && (
+          <div id="sekcia-rizika" className="scroll-mt-20">
+            <RiskSignals signals={signals} />
           </div>
         )}
 
-        {/* ── RISK SIGNALS (H2) — moved up from #11 to #6 ── */}
-        {riskCount > 0 && <RiskSignals signals={signals} />}
-
         {/* Vestník events + Company events as H3 under Risk Signals */}
-        {((company.vestnikEvents && company.vestnikEvents.length > 0) || (company.companyEvents && company.companyEvents.length > 0)) && (
+        {((company.vestnikEvents && company.vestnikEvents.length > 0) || orsrCompanyEvents.length > 0) && (
           <div className="mb-6 sm:mb-8 no-print">
             {company.vestnikEvents && company.vestnikEvents.length > 0 && (
               <div className="mt-3">
@@ -392,12 +453,12 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
                 <VestnikEvents events={company.vestnikEvents as any} noHeading />
               </div>
             )}
-            {company.companyEvents && company.companyEvents.length > 0 && (
+            {orsrCompanyEvents.length > 0 && (
               <div className="mt-3">
                 <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>
                   {t("firma.orsrUdalosti")}
                 </h3>
-                <CompanyEvents events={company.companyEvents as any} noHeading />
+                <CompanyEvents events={orsrCompanyEvents as any} noHeading />
               </div>
             )}
           </div>
@@ -405,7 +466,7 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
 
         {/* ── PEOPLE (H2) — with Signing Authority as H3 ── */}
         {persons.length > 0 && (
-          <div className="mb-6 sm:mb-8 no-print">
+          <div id="sekcia-osoby" className="mb-6 sm:mb-8 no-print scroll-mt-20">
             <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
               {t("firma.osoby")}
             </h2>
@@ -428,7 +489,7 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
 
         {/* ── SÚVAHA (H2) — chart + table ── */}
         {balanceData && balanceData.totalAssets != null && (
-          <div className="mb-6 sm:mb-8 print-section">
+          <div id="sekcia-suvaha" className="mb-6 sm:mb-8 print-section scroll-mt-20">
             <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
               {t("firma.suvaha")}
             </h2>
@@ -453,7 +514,7 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
 
         {/* ── VÝKAZ ZISKOV A STRÁT (H2) — chart + table ── */}
         {chartData.length > 0 && (
-          <div className="mb-6 sm:mb-8 print-section print-break-before">
+          <div id="sekcia-vykaz" className="mb-6 sm:mb-8 print-section print-break-before scroll-mt-20">
             <h2 className="text-lg sm:text-xl font-bold mb-3" style={{ color: "var(--text)" }}>
               {t("firma.vykazZiskovStrat")}
             </h2>
@@ -470,7 +531,7 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
 
         {/* ── PIOTROSKI F-SCORE (H2) — samostatná sekcia ── */}
         {stmts.length >= 2 && (
-          <div className="mb-6 sm:mb-8 print-section">
+          <div id="sekcia-fscore" className="mb-6 sm:mb-8 print-section scroll-mt-20">
             <PiotroskiCard result={computePiotroski(stmts)} />
           </div>
         )}
@@ -548,6 +609,7 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
           latestProfit={latest ? fmtEUR(latest.netProfitLoss) : null}
           latestProfitRaw={latest ? Number(latest.netProfitLoss) : null}
           latestYear={latest?.year}
+          debtStatusSummary={debtFaqAnswer}
         />
 
         {/* ── ZDROJE ÚDAJOV (H2, collapsible) ── */}

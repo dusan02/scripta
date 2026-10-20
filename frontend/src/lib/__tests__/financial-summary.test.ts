@@ -18,7 +18,8 @@ describe("generateFinancialSummary", () => {
     assert.ok(s);
     assert.ok(s.includes("TestFirma, s.r.o. dosiahla rast tržieb o 20%"));
     assert.ok(s.includes("zisk vzrástol o 20%"));
-    assert.ok(s.includes("Zisková marža dosiahla 10.0%"));
+    // joined mid-sentence parts are lowercased — capital "Zisková" after a comma was a typo
+    assert.ok(s.includes("zisková marža dosiahla 10.0%"));
     assert.ok(s.endsWith("."));
   });
 
@@ -42,7 +43,7 @@ describe("generateFinancialSummary", () => {
     );
     assert.ok(s!.includes("Acme Ltd. achieved revenue growth of 10%"));
     assert.ok(s!.includes("profit rose by 10%"));
-    assert.ok(s!.includes("Profit margin reached 5.0%"));
+    assert.ok(s!.includes("profit margin reached 5.0%"));
   });
 
   it("mentions stable revenue when trend is flat", () => {

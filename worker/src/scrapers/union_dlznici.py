@@ -108,9 +108,11 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Kliknúť "Hľadať" — Vuetify button selector
+            # Kliknúť "Hľadať" — prefer presný match na tlačidlo HĽADAŤ,
+            # inak hrozí klik na jedno z predvyplnených "NÁMIETKA" tlačidiel.
             search_clicked = False
             for btn_sel in [
+                page.get_by_role("button", name="HĽADAŤ"),
                 page.locator("button.v-btn--variant-elevated.bg-primary"),
                 page.locator("button:has-text('Hľadať')"),
                 page.locator("button[type='submit']:visible"),
@@ -144,20 +146,11 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Počkať na výsledky — čakáme na tabuľku alebo text o prázdnych výsledkoch
-            empty_locator = page.locator("text=Nenašli sa žiadne záznamy")
-            table_locator = page.locator("table tbody tr, .table tbody tr, .result-table tr")
-            try:
-                await empty_locator.or_(table_locator).first.wait_for(timeout=8000)
-            except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
-
-            # Skontrolovať výsledky — vyžadujeme obe podmienky pre negatívny výsledok:
-            # (1) IČO musí byť na stránke (dôkaz že sa hľadalo to správne IČO)
-            # (2) text o negatívnom výsledku
-            body_text = await page.inner_text("body")
-
-            # UNION zobrazuje "Nenašli sa žiadne záznamy" alebo podobné keď nie sú výsledky
+            # Počkať na VÝSLEDKY vyhľadávania. Pozor: portál má tabuľku
+            # dlžníkov predvyplnenú ~10 riadkami cudzích subjektov ešte pred
+            # hľadaním — wait na 'table tbody tr' by sa splnil okamžite a
+            # extrakcia by bežala nad starými dátami → false negative "CLEAN".
+            # Čakáme na riadok s hľadaným IČO, alebo text o prázdnom výsledku.
             empty_markers = [
                 "nenašli sa žiadne",
                 "žiadne výsledky",
@@ -167,16 +160,43 @@ class UnionDlzniciScraper(BaseScraper):
                 "neboli nájdené žiadne",
                 "žiadne záznamy",
             ]
+            ico_row_locator = page.locator("table tbody tr", has_text=ico)
+            for _ in range(16):  # max ~12 s
+                try:
+                    if await ico_row_locator.count() > 0:
+                        break
+                except PlaywrightError:
+                    pass
+                try:
+                    body_lower_poll = (await page.inner_text("body")).lower()
+                except PlaywrightError:
+                    body_lower_poll = ""
+                if any(m in body_lower_poll for m in empty_markers):
+                    break
+                await page.wait_for_timeout(750)
+
+            # Skontrolovať výsledky — vyžadujeme obe podmienky pre negatívny výsledok:
+            # (1) IČO musí byť na stránke (dôkaz že sa hľadalo to správne IČO)
+            # (2) text o negatívnom výsledku
+            body_text = await page.inner_text("body")
+
             is_empty = any(marker in body_text.lower() for marker in empty_markers)
             has_ico_on_page = ico in re.findall(r"\d+", body_text)
+            try:
+                has_ico_row = (await ico_row_locator.count()) > 0
+            except PlaywrightError:
+                has_ico_row = False
 
             # Najprv skúsime extrahovať nálezy z tabuľky — to je spoľahlivé
             # (na rozdiel od kontroly "ico in body_text" ktorá môže matchnúť
             # IČO v hlavičke/footri/JS kóde stránky)
             findings = None
             is_debtor = False
-            if not is_empty:
+            if has_ico_row and not is_empty:
                 findings = await self._extract_table_findings(page, ico, source_name="UNION")
+                if findings:
+                    # vyčistiť artefakt tlačidla "NÁMIETKA" z buniek tabuľky
+                    findings = re.sub(r"\s*\|\s*NÁMIETKA", "", findings)
                 # _extract_table_findings vracia POZOR len ak našla riadky v tabuľke
                 is_debtor = findings is not None and "POZOR" in findings
                 # Dodatočná kontrola: IČO by malo byť v extrahovaných nálezoch
@@ -185,8 +205,35 @@ class UnionDlzniciScraper(BaseScraper):
                     is_debtor = False
                     findings = None
 
-            # Ak subjekt nie je dlžník, rovno vygenerujeme 'No results' PDF a returneme
             pdf_output = output_dir / f"union_dlznici_{ico}.pdf"
+
+            # Nejednoznačný výsledok — ani riadok s hľadaným IČO, ani text o
+            # prázdnom výsledku (hľadanie sa nespustilo, alebo portál vrátil
+            # len predvyplnenú tabuľku cudzích dlžníkov). Bezpečnejšie je
+            # UNAVAILABLE než falošný "bez nedoplatku".
+            if not is_debtor and not is_empty:
+                logger.warning(
+                    f"[{self.source_type}] Nejednoznačný výsledok pre IČO {ico} — "
+                    f"ani zhoda v tabuľke, ani text o prázdnom výsledku."
+                )
+                try:
+                    await self._generate_debtor_no_results_pdf(
+                        page, pdf_output, ico,
+                        source_name="UNION",
+                        has_ico=has_ico_on_page,
+                        has_no_results_text=False,
+                    )
+                except Exception as e:
+                    logger.error(f"[{self.source_type}] Zlyhalo fallback PDF: {e}")
+                return self._make_result(
+                    status="UNAVAILABLE",
+                    file_path=str(pdf_output),
+                    page_count=1,
+                    status_message="UNION: nepodarilo sa potvrdiť výsledok vyhľadávania.",
+                    findings="Register nevrátil jednoznačný výsledok — overenie zopakujte neskôr.",
+                )
+
+            # Ak subjekt nie je dlžník, rovno vygenerujeme 'No results' PDF a returneme
             if not is_debtor or findings is None:
                 logger.info(
                     f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov UNION "

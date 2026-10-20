@@ -52,5 +52,8 @@ export function generateFinancialSummary(
   }
 
   if (parts.length === 0) return null;
-  return parts.join(", ") + ".";
+  const normalized = parts.map((p, idx) =>
+    idx === 0 ? p : p.charAt(0).toLowerCase() + p.slice(1)
+  );
+  return normalized.join(", ") + ".";
 }

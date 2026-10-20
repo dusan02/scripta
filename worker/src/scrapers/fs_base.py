@@ -233,8 +233,11 @@ class FinancnaSpravaBase(BaseScraper):
             logger.warning(f"[{self.source_type}] Extrakcia tabuľky s hlavičkou zlyhala: {e}")
             return []
 
-    async def run(self, *, ico: str, output_dir: Path, company_name: Optional[str] = None, **kwargs) -> ScrapedSource:
+    async def run(self, *, ico: str, output_dir: Path, company_name: Optional[str] = None, company_city: Optional[str] = None, **kwargs) -> ScrapedSource:
         page: Optional[Page] = None
+        # Store on self — subclasses' _extract_findings signatures don't take
+        # extra kwargs, and this scraper instance is per-run anyway.
+        self._company_city = company_city
         try:
             if self.search_by == "name" and not company_name:
                 logger.info(f"[{self.source_type}] Preskakujem — chýba názov subjektu (ORSR ho neposkytol).")
@@ -419,6 +422,18 @@ class FinancnaSpravaBase(BaseScraper):
                 ic_dph = await self._extract_ic_dph(page)
                 if ic_dph:
                     logger.info(f"[{self.source_type}] IČ DPH extrahované: {ic_dph}")
+
+            # Ak sme v režime skip_pdf (live-check na webe), preskočíme sťahovanie PDF
+            from .mixins import SKIP_PDF_VAR
+            if SKIP_PDF_VAR.get():
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=None,
+                    status_message=findings or f"Subjekt preverený v {self.source_type}.",
+                    findings=findings or self._empty_findings(),
+                    company_name=company_name,
+                    ic_dph=ic_dph,
+                )
 
             # Ak sú výsledky, skúsime PDF export
             pdf_output = output_dir / f"{self.file_prefix}_{ico}.pdf"

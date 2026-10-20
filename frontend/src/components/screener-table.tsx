@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { slugify } from "@/lib/slug";
 import { fmtEurK, fmtYear } from "@/lib/format";
 import { spStr } from "@/lib/url";
@@ -166,6 +167,8 @@ export function ScreenerTable({
 }) {
   const t = useT();
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAuthenticated = !!session?.user;
   const currentSort = spStr(searchParams, "sort") || "latestRevenue";
   const currentDir = spStr(searchParams, "dir") || "desc";
 
@@ -185,7 +188,8 @@ export function ScreenerTable({
       }
     } catch {}
 
-    // 2. Sync from server (if authenticated, overrides localStorage)
+    // 2. Sync from server (only if authenticated — avoids 401 console noise for anonymous visitors)
+    if (!isAuthenticated) return () => { cancelled = true; };
     fetch("/api/user/prefs")
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -200,7 +204,7 @@ export function ScreenerTable({
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [isAuthenticated]);
 
   // Save column preferences + sync to API for authenticated users
   const toggleColumn = (key: ColKey) => {
@@ -222,7 +226,7 @@ export function ScreenerTable({
 
   const saveColumns = (cols: ColKey[]) => {
     try { localStorage.setItem("screener-columns", JSON.stringify(cols)); } catch {}
-    // Fire-and-forget sync to server (401 = anonymous, silently ignore)
+    if (!isAuthenticated) return;
     fetch("/api/user/prefs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

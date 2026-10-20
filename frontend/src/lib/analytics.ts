@@ -49,9 +49,32 @@ export function trackFirmaPageView(ico: string, hasRiskSignals: boolean, riskCou
   });
 }
 
-export function trackReportCtaClick(ico: string, location: "sticky_header" | "preverte_firmu" | "faq" | "post_kpi_banner") {
+export function trackReportCtaClick(ico: string, location: "sticky_header" | "preverte_firmu" | "faq" | "post_kpi_banner" | "live_check_banner") {
   trackEvent("report_cta_click", {
     ico,
     cta_location: location,
+  });
+}
+
+// ── Live registry check funnel ──
+
+export function trackLiveCheckClick(ico: string, source: "cta_button" | "registry_pill" | "detail_button" | "recheck_button") {
+  trackEvent("live_check_click", { ico, source });
+}
+
+export function trackLiveCheckStarted(ico: string) {
+  trackEvent("live_check_started", { ico });
+}
+
+export function trackLiveCheckLimitHit(ico: string, type: "anon" | "user") {
+  trackEvent("live_check_limit_hit", { ico, limit_type: type });
+}
+
+export function trackLiveCheckCompleted(ico: string, cleanCount: number, debtCount: number, totalDebtEur: number) {
+  trackEvent("live_check_completed", {
+    ico,
+    clean_count: cleanCount,
+    debt_count: debtCount,
+    total_debt_eur: totalDebtEur,
   });
 }

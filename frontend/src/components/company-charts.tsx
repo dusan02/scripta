@@ -113,7 +113,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
   const axisColor = "var(--text-muted)";
   const gridColor = "var(--border)";
   const yAxisWidth = isPrint ? 38 : 45;
-  const margin = isPrint ? { top: 0, right: 10, left: 0, bottom: 0 } : { top: 0, right: 5, left: -5, bottom: 0 };
+  const margin = isPrint ? { top: 4, right: 10, left: 0, bottom: 8 } : { top: 4, right: 5, left: -5, bottom: 10 };
 
   // Detect scale mismatch: if revenue is >10x profit, split into two charts
   const revValues = data.map(d => Math.abs(d.tržby ?? 0)).filter(v => v > 0);
@@ -160,7 +160,7 @@ export function RevenueProfitChart({ data }: { data: ChartData[] }) {
           </ResponsiveContainer>
         )}
         {/* Profit + Tax chart */}
-        <ResponsiveContainer width="100%" height={isPrint ? 120 : 140} minHeight={isPrint ? 120 : 140}>
+        <ResponsiveContainer width="100%" height={isPrint ? 130 : 160} minHeight={isPrint ? 130 : 160}>
           <BarChart data={data} margin={margin} barGap={2} barCategoryGap="20%">
             <XAxis dataKey="year" tick={{ fill: axisColor, fontSize: isPrint ? 9 : 11 }} axisLine={{ stroke: gridColor }} tickLine={false} />
             <YAxis domain={profitDomain} tickFormatter={fmtAxis} tick={{ fill: axisColor, fontSize: isPrint ? 8 : 10 }} axisLine={false} tickLine={false} width={yAxisWidth} />

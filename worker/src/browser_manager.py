@@ -1,5 +1,6 @@
 import asyncio
 import os
+import socket
 import time
 import logging
 from playwright.async_api import Browser
@@ -27,6 +28,13 @@ class BrowserManager:
             else:
                 logger.warning("[BrowserManager] Circuit Breaker OPEN. Používam lokálny fallback Chromium.")
                 return await self._launch_local(playwright)
+
+        # Ak bežíme lokálne mimo Docker siete (host 'browserless' neexistuje),
+        # okamžite použi lokálny Chromium bez čakania na 3× timeout.
+        try:
+            socket.gethostbyname("browserless")
+        except socket.gaierror:
+            return await self._launch_local(playwright)
 
         try:
             # Skúšame pripojenie na Browserless

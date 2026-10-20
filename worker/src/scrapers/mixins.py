@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import re
 from pathlib import Path
 from typing import Optional
 
 from playwright.async_api import Page, async_playwright, TimeoutError as PlaywrightTimeout, Error as PlaywrightError
+
+# When True (e.g. in /live-check/{ico}), scrapers extract findings from DOM
+# and skip all PDF rendering/validation for ~2-3× faster execution and 0 disk I/O.
+SKIP_PDF_VAR: contextvars.ContextVar[bool] = contextvars.ContextVar("skip_pdf", default=False)
 
 from ..config import settings
 from ..models import ScrapedSource
@@ -23,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 class PdfGeneratorMixin:
     async def _print_page_to_pdf(self, page: Page, output_path: Path) -> int:
+        if SKIP_PDF_VAR.get():
+            return 1
         try:
             await page.wait_for_load_state("load", timeout=15000)
         except PlaywrightTimeout:
@@ -86,6 +93,8 @@ class PdfGeneratorMixin:
     async def _generate_no_results_pdf(
         self, page: Page, output_path: Path, ico: str, *, title: str, message: str
     ) -> None:
+        if SKIP_PDF_VAR.get():
+            return None
         """Vygeneruje PDF zo SKUTOČNEJ výsledkovej stránky (screenshot dôkaz).
 
         Namiesto vymazania obsahu zachováme reálnu stránku — vyhľadávacie pole
@@ -157,6 +166,8 @@ class PdfGeneratorMixin:
         format: str = "A3",
         scale: float = 0.85,
     ) -> None:
+        if SKIP_PDF_VAR.get():
+            return None
         await page.set_viewport_size({"width": 1920, "height": 1080})
 
         await page.evaluate(
@@ -365,6 +376,8 @@ class StealthDebtorMixin:
         self, page: Page, output_path: Path, ico: str,
         *, source_name: str, has_ico: bool, has_no_results_text: bool,
     ) -> None:
+        if SKIP_PDF_VAR.get():
+            return None
         """Vygeneruje PDF s dôkazom negatívneho výsledku pre debtor scrapery.
 
         Rebuildne body tak, aby bol dôkaz vždy viditeľný a neobsahoval
@@ -546,10 +559,17 @@ class TableExtractorMixin:
                         val = re.sub(r'\s+', ' ', val).strip()
                         if not val or val == "-":
                             continue
+                        matched_cls = False
                         for cls_key, cls_label in field_map.items():
                             if cls_key in cls:
                                 row[cls_label] = val
+                                matched_cls = True
                                 break
+                        if not matched_cls:
+                            if re.search(r"\d+[,\.]\d{2}", val):
+                                row["Dlžná suma"] = val
+                            else:
+                                row[f"Stĺpec {c + 1}"] = val
                     if row:
                         rows_data.append(row)
                 else:

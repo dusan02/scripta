@@ -4,11 +4,13 @@ import { rateLimitByKey, rateLimitResponse } from "@/lib/rateLimit";
 import { slugify } from "@/lib/slug";
 
 function getClientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  // x-real-ip is set by nginx from $remote_addr (not client-controllable).
+  // x-forwarded-for appends client-supplied values FIRST — the leftmost entry
+  // is spoofable, so take the LAST one (the real client IP seen by nginx).
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  const xff = req.headers.get("x-forwarded-for")?.split(",");
+  return xff?.[xff.length - 1]?.trim() || "unknown";
 }
 
 /**

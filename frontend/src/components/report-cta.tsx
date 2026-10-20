@@ -106,17 +106,36 @@ export function InlineReportCTA({ ico, name }: { ico: string; name: string }) {
   const { lang } = useLang();
   return (
     <div
-      className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-xl px-4 py-3 mb-4 sm:mb-6 no-print"
-      style={{ background: "linear-gradient(135deg, var(--accent-light), var(--info-bg))", border: "1px solid var(--accent-border)" }}
+      className="flex flex-col justify-between gap-2.5 rounded-xl p-4 md:w-[285px] shrink-0 no-print"
+      style={{
+        background: "linear-gradient(135deg, var(--accent-light), var(--info-bg))",
+        border: "1px solid var(--accent-border)",
+      }}
     >
-      <p className="flex-1 text-sm font-medium" style={{ color: "var(--text)" }}>
-        {t("firma.ctaHeadline", { name })}
-        <span className="font-normal" style={{ color: "var(--text-secondary)" }}> — 14 € / report</span>
-      </p>
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <span
+            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            style={{
+              background: "var(--surface)",
+              color: "var(--accent)",
+              border: "1px solid var(--accent-border)",
+            }}
+          >
+            Due Diligence PDF
+          </span>
+          <span className="text-sm font-black" style={{ color: "var(--text)" }}>
+            14 € <span className="text-[11px] font-normal" style={{ color: "var(--text-muted)" }}>/ report</span>
+          </span>
+        </div>
+        <p className="text-xs font-semibold leading-snug" style={{ color: "var(--text)" }}>
+          {t("firma.ctaHeadline", { name })}
+        </p>
+      </div>
       <Link
         href={localizePath(`/objednat?ico=${ico}`, lang)}
         onClick={() => trackReportCtaClick(ico, "post_kpi_banner")}
-        className="px-5 py-2.5 rounded-lg font-bold text-sm transition-all hover:scale-105 text-center whitespace-nowrap"
+        className="w-full px-4 py-2 rounded-lg font-bold text-xs transition-all hover:opacity-95 text-center whitespace-nowrap no-underline"
         style={{ background: "var(--accent)", color: "var(--accent-button-text)", boxShadow: "var(--glow-accent)" }}
       >
         {t("firma.ctaButton")}
@@ -139,11 +158,19 @@ type FAQProps = {
   latestProfit?: string | null;
   latestProfitRaw?: number | null;
   latestYear?: number | null;
+  debtStatusSummary?: string | null;
 };
 
-export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestRevenue, latestProfit, latestProfitRaw, latestYear }: FAQProps) {
+export function CompanyFAQ({ name, ico, city, legalForm, foundedYear, latestRevenue, latestProfit, latestProfitRaw, latestYear, debtStatusSummary }: FAQProps) {
   const t = useT();
   const faqs: { q: string; a: string }[] = [];
+
+  if (debtStatusSummary) {
+    faqs.push({
+      q: `Má firma ${name} (IČO ${ico}) evidované nedoplatky v Sociálnej poisťovni, zdravotných poisťovniach alebo konkurz?`,
+      a: debtStatusSummary,
+    });
+  }
 
   if (latestRevenue && latestYear) {
     faqs.push({

@@ -15,7 +15,7 @@ import httpx
 from arq import create_pool
 from arq.connections import RedisSettings
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Body, Depends, FastAPI, Header, HTTPException
 from playwright.async_api import async_playwright
 
 from .config import settings
@@ -75,12 +75,19 @@ async def lifespan(app: FastAPI):
     await connect_db()
 
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    app.state.redis = await create_pool(RedisSettings.from_dsn(redis_url))
+    try:
+        app.state.redis = await create_pool(RedisSettings.from_dsn(redis_url))
+    except Exception as redis_err:
+        if settings.app_env == "production":
+            raise
+        logger.warning(f"Redis unavailable in dev mode ({redis_err}) — continuing without arq pool")
+        app.state.redis = None
     
     cleanup_task = asyncio.create_task(_cleanup_loop())
     yield
     cleanup_task.cancel()
-    await app.state.redis.close()
+    if getattr(app.state, "redis", None) is not None:
+        await app.state.redis.close()
     await disconnect_db()
 
 
@@ -858,6 +865,197 @@ async def reprocess_report(report_request_id: str):
 
     await app.state.redis.enqueue_job('execute_report_task', task.dict())
     return {"taskId": report_request_id, "status": "reprocessing"}
+
+
+# ── Live Registry Check (0 LLM calls, skip_pdf=True) ─────────────────────────
+LIVE_CHECK_SOURCES = [
+    "SP_DLZNICI",
+    "VSZP_DLZNICI",
+    "DOVERA_DLZNICI",
+    "UNION_DLZNICI",
+    "FS_DPH_RUSENIE",
+    "FS_DANOVE_DLZNICI",
+    "INSOLVENCY",
+]
+
+LIVE_CHECK_LABELS = {
+    "SP_DLZNICI": "Sociálna poisťovňa (Zoznam dlžníkov)",
+    "VSZP_DLZNICI": "Všeobecná zdravotná poisťovňa (VšZP)",
+    "DOVERA_DLZNICI": "Dôvera zdravotná poisťovňa",
+    "UNION_DLZNICI": "Union zdravotná poisťovňa",
+    "FS_DPH_RUSENIE": "Finančná správa SR (Riziko zrušenia DPH)",
+    "FS_DANOVE_DLZNICI": "Finančná správa SR (Zoznam daňových dlžníkov)",
+    "INSOLVENCY": "Register úpadcov SR (Konkurzy a reštrukturalizácie)",
+}
+
+_live_checks_in_flight: set[str] = set()
+
+
+def _parse_eur_amount(text: Optional[str]) -> Optional[float]:
+    if not text:
+        return None
+    import re as _re
+    # Match explicit "13 641,26 €" first, or decimal "13 641,26" / "27936.63" in table cells
+    m = _re.search(r"(\d[\d\s\xa0]*[,\.]\d{2})\s*€", text)
+    if not m:
+        m = _re.search(r"(?:Dlžná suma|Suma nedoplatkov|Dlh):\s*(\d{1,3}(?:[\s\xa0]?\d{3})*[,\.]\d{2})\b", text)
+    if not m:
+        m = _re.search(r"\|\s*(\d{1,3}(?:[\s\xa0]?\d{3})*[,\.]\d{2})\b", text)
+    if not m:
+        return None
+    raw = m.group(1).replace(" ", "").replace("\xa0", "").replace(",", ".")
+    try:
+        val = float(raw)
+        return val if val > 0 else None
+    except ValueError:
+        return None
+
+
+async def _save_live_source_result(ico: str, res) -> None:
+    """Persist single scraper result into CompanyEvent (eventType='LIVE_REGISTRY_CHECK')."""
+    from decimal import Decimal
+    from prisma import Json
+    from src.db_client import get_db
+
+    source = res.source_type
+    label = LIVE_CHECK_LABELS.get(source, source)
+    findings_text = (res.findings or res.status_message or "").strip()
+    combined_lower = f"{res.findings or ''} {res.status_message or ''}".lower()
+
+    if res.status in ("FAILED", "UNAVAILABLE"):
+        state = "UNAVAILABLE"
+        severity = "LOW"
+        if not findings_text:
+            findings_text = f"Register {label} je momentálne nedostupný."
+    elif findings_text.startswith("__AMBIGUOUS__|"):
+        # Name-alike match on a registry without IČO filter (e.g. FS tax debtors)
+        # — cannot safely attribute the debt, so neither DEBT nor CLEAN.
+        state = "AMBIGUOUS"
+        severity = "MEDIUM"
+        findings_text = findings_text.split("|", 1)[-1].strip() or "Nález je nejednoznačný — vyžaduje manuálne overenie."
+    else:
+        has_warning = (
+            "pozor" in combined_lower
+            or "nájdený záznam v insolvenčnom" in combined_lower
+            or ("je v zozname dlžníkov" in combined_lower and "nie je v zozname" not in combined_lower)
+            or ("dôvodmi na zrušenie" in combined_lower and "nie je v zozname" not in combined_lower and "bez zistených" not in combined_lower)
+        )
+        state = "DEBT" if has_warning else "CLEAN"
+        severity = "HIGH" if has_warning else "INFO"
+        if not findings_text:
+            findings_text = (
+                f"Evidovaný záznam v registri {label}."
+                if has_warning
+                else f"Bez evidovaného nedoplatku / záznamu v registri {label}."
+            )
+
+    amount_val = _parse_eur_amount(findings_text) if state == "DEBT" else None
+    now_utc = datetime.now(timezone.utc)
+
+    db = get_db()
+    existing = await db.companyevent.find_first(
+        where={
+            "companyIco": ico,
+            "eventType": "LIVE_REGISTRY_CHECK",
+            "source": source,
+        }
+    )
+    meta = Json({
+        "state": state,
+        "checkedAt": now_utc.isoformat(),
+        "statusMessage": res.status_message or "",
+    })
+    data_payload = {
+        "severity": severity,
+        "title": label,
+        "description": findings_text,
+        "amount": Decimal(str(amount_val)) if amount_val is not None else None,
+        "metadata": meta,
+        "createdAt": now_utc,
+    }
+    if existing:
+        await db.companyevent.update(
+            where={"id": existing.id},
+            data=data_payload,
+        )
+    else:
+        await db.companyevent.create(
+            data={
+                "companyIco": ico,
+                "source": source,
+                "eventType": "LIVE_REGISTRY_CHECK",
+                **data_payload,
+            }
+        )
+
+
+async def _execute_live_check(ico: str, company_name: Optional[str] = None, company_city: Optional[str] = None) -> None:
+    from .scrapers.mixins import SKIP_PDF_VAR
+    from .browser_manager import browser_manager
+
+    token = SKIP_PDF_VAR.set(True)
+    playwright = None
+    browser = None
+    pending_tasks: list[asyncio.Task] = []
+    out_dir = Path("/tmp") / f"live_check_{ico}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def _on_done(res) -> None:
+        t = asyncio.create_task(_save_live_source_result(ico, res))
+        pending_tasks.append(t)
+
+    try:
+        playwright = await async_playwright().start()
+        browser = await browser_manager.get_browser(playwright)
+        results = await run_scrapers(
+            LIVE_CHECK_SOURCES,
+            output_dir=out_dir,
+            browser=browser,
+            target_type="COMPANY",
+            ico=ico,
+            on_source_done=_on_done,
+            disable_circuit_breaker=True,
+            company_name=company_name,
+            company_city=company_city,
+        )
+        if pending_tasks:
+            await asyncio.gather(*pending_tasks, return_exceptions=True)
+        # Ensure all 6 sources are persisted even if a callback was missed
+        for r in results:
+            await _save_live_source_result(ico, r)
+    except Exception as e:
+        logger.error(f"[LiveCheck] Error checking {ico}: {e}", exc_info=True)
+    finally:
+        SKIP_PDF_VAR.reset(token)
+        _live_checks_in_flight.discard(ico)
+        try:
+            shutil.rmtree(out_dir, ignore_errors=True)
+        except Exception:
+            pass
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+        if playwright:
+            try:
+                await playwright.stop()
+            except Exception:
+                pass
+
+
+@app.post("/live-check/{ico}", dependencies=[Depends(verify_worker_secret)])
+async def start_live_check(ico: str, payload: Optional[dict] = Body(default=None)):
+    """Trigger fast parallel Playwright check across 7 debtor/insolvency registries (0 LLM calls, skip_pdf=True)."""
+    if not ico or not ico.isdigit() or len(ico) not in (8, 9, 10):
+        raise HTTPException(status_code=400, detail="Invalid IČO")
+    if ico in _live_checks_in_flight:
+        return {"ico": ico, "status": "already_running", "sources": LIVE_CHECK_SOURCES}
+    _live_checks_in_flight.add(ico)
+    company_name = (payload or {}).get("company_name")
+    company_city = (payload or {}).get("company_city")
+    asyncio.create_task(_execute_live_check(ico, company_name, company_city))
+    return {"ico": ico, "status": "started", "sources": LIVE_CHECK_SOURCES}
 
 
 if __name__ == "__main__":

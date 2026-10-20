@@ -53,19 +53,20 @@ export function RootShell({ lang, children }: { lang: Lang; children: React.Reac
 
   return (
     <html lang={htmlLang} suppressHydrationWarning className={inter.variable}>
-      <head>
+      <head suppressHydrationWarning>
         {/* No-flash theme script — must run before any rendering */}
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body>
         {/* JSON-LD structured data for SEO (localized) */}
         {jsonLd.map((schema, i) => (
           <script
             key={i}
             type="application/ld+json"
+            suppressHydrationWarning
             dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
           />
         ))}
-      </head>
-      <body>
         <Analytics />
         <ThemeProvider>
           <AuthProvider>

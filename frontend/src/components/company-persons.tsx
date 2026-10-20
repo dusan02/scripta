@@ -32,6 +32,36 @@ function fmtFunctionPeriod(p: { functionStart: Date | null; functionEnd: Date | 
 
 const COLLAPSE_THRESHOLD = 6;
 
+/**
+ * Deduplicate ORSR/RPO person records by normalized name within the same role.
+ * Multiple historical ORSR entries often repeat the same person with different
+ * functionStart dates — merge them and keep the earliest functionStart.
+ */
+function dedupePersons(list: Person[]): Person[] {
+  const byName = new Map<string, Person>();
+  for (const p of list) {
+    const displayName = (p.cleanName || p.rawName || "").replace(/\s+/g, " ").trim();
+    const key = displayName.toLowerCase();
+    if (!key) continue;
+    const prev = byName.get(key);
+    if (!prev) {
+      byName.set(key, p);
+      continue;
+    }
+    const prevStart = prev.functionStart ? new Date(prev.functionStart).getTime() : Infinity;
+    const curStart = p.functionStart ? new Date(p.functionStart).getTime() : Infinity;
+    const earliestStart = curStart < prevStart ? p.functionStart : prev.functionStart;
+    byName.set(key, {
+      ...prev,
+      city: prev.city || p.city,
+      zipCode: prev.zipCode || p.zipCode,
+      functionStart: earliestStart,
+      functionEnd: prev.functionEnd || p.functionEnd,
+    });
+  }
+  return Array.from(byName.values());
+}
+
 function PersonList({ list }: { list: Person[] }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -85,13 +115,14 @@ export function CompanyPersons({ persons }: { persons: Person[] }) {
 
   const activePersons = persons.filter(p => p.isActive);
   const formerPersons = persons.filter(p => !p.isActive);
-  const formerCount = formerPersons.length;
+  const dedupedFormerAll = dedupePersons(formerPersons);
+  const formerCount = dedupedFormerAll.length;
 
   return (
     <div className="space-y-4">
       {/* Active persons — all roles */}
       {Object.entries(ROLE_LABELS).map(([role, label]) => {
-        const rolePersons = activePersons.filter(p => p.role === role);
+        const rolePersons = dedupePersons(activePersons.filter(p => p.role === role));
         if (rolePersons.length === 0) return null;
         return (
           <ChartCard key={role} title={`${label}${rolePersons.length > COLLAPSE_THRESHOLD ? ` (${rolePersons.length})` : ""}`}>
@@ -115,7 +146,7 @@ export function CompanyPersons({ persons }: { persons: Person[] }) {
           {showFormer && (
             <div className="space-y-3">
               {Object.entries(ROLE_LABELS).map(([role, label]) => {
-                const rolePersons = formerPersons.filter(p => p.role === role);
+                const rolePersons = dedupePersons(formerPersons.filter(p => p.role === role));
                 if (rolePersons.length === 0) return null;
                 return (
                   <ChartCard key={`former-${role}`} title={`${label} (${t("firma.bývalé") || "bývalé"})`}>

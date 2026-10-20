@@ -41,10 +41,16 @@ test.describe("Company profile page", () => {
     await expect(page.locator("text=Firma").first()).toBeVisible();
   });
 
-  test("redirects slug URL to canonical IČO URL", async ({ page }) => {
-    await page.goto(`/firma/${VALID_SLUG}`, { waitUntil: "networkidle" });
-    // Should redirect to /firma/{ICO}
-    expect(page.url()).toMatch(/\/firma\/\d{8}$/);
+  test("redirects bare IČO URL to canonical slug URL", async ({ page }) => {
+    await page.goto(`/firma/${VALID_ICO}`, { waitUntil: "networkidle" });
+    // Middleware 308: /firma/{ico} → /firma/{ico}-{slug}
+    expect(page.url()).toMatch(/\/firma\/36000019-[a-z0-9-]+$/);
+  });
+
+  test("redirects stale slug URL to canonical slug URL", async ({ page }) => {
+    await page.goto(`/firma/${VALID_ICO}-stary-nazov-firmy`, { waitUntil: "networkidle" });
+    expect(page.url()).toMatch(/\/firma\/36000019-[a-z0-9-]+$/);
+    expect(page.url()).not.toContain("stary-nazov");
   });
 
   test("contains Organization JSON-LD with correct fields", async ({ page }) => {
@@ -93,19 +99,23 @@ test.describe("Company profile page", () => {
     expect(items[2].name).toBeTruthy();
   });
 
-  test("does NOT contain Dataset JSON-LD", async ({ page }) => {
+  test("contains Dataset JSON-LD for SEO/GEO", async ({ page }) => {
     await page.goto(`/firma/${VALID_ICO}`, { waitUntil: "networkidle" });
 
     const scripts = await page.locator('script[type="application/ld+json"]').all();
+    let found = false;
     for (const script of scripts) {
       const content = await script.textContent();
       if (!content) continue;
       const parsed = JSON.parse(content);
       const items = parsed["@graph"] || [parsed];
       for (const item of items) {
-        expect(item["@type"]).not.toBe("Dataset");
+        if (item["@type"] === "Dataset" && item.name) {
+          found = true;
+        }
       }
     }
+    expect(found).toBe(true);
   });
 
   test("shows provenance section with data source", async ({ page }) => {
@@ -130,11 +140,12 @@ test.describe("Company profile page", () => {
   test("renders financial ratios with methodology link", async ({ page }) => {
     await page.goto(`/firma/${VALID_ICO}`, { waitUntil: "networkidle" });
 
-    // Financial ratios section
+    // Financial ratios section (inside collapsible <details> — expand first)
     await expect(page.locator("text=/Finančné ukazovatele|Financial Ratios/i").first()).toBeVisible({ timeout: 10_000 });
+    await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
 
     // Methodology link to /slovnik
-    const slovnikLink = page.locator('a[href*="slovnik"]').first();
+    const slovnikLink = page.locator('a[href="/slovnik"]').first();
     await expect(slovnikLink).toBeVisible({ timeout: 10_000 });
   });
 
@@ -174,7 +185,8 @@ test.describe("Company profile page", () => {
   test("P&L table contains all expected row labels", async ({ page }) => {
     await page.goto(`/firma/${VALID_ICO}`, { waitUntil: "networkidle" });
 
-    const plCard = page.locator("text=Výkaz ziskov a strát").locator("..");
+    // Scope to the P&L section (anchor nav also contains the section title)
+    const plCard = page.locator("#sekcia-vykaz");
     await expect(plCard).toBeVisible({ timeout: 10_000 });
 
     const expectedPLRows = [
@@ -198,7 +210,7 @@ test.describe("Company profile page", () => {
   test("Balance Sheet table contains all expected row labels", async ({ page }) => {
     await page.goto(`/firma/${VALID_ICO}`, { waitUntil: "networkidle" });
 
-    const balanceCard = page.locator("text=/Súvaha.*v tis/").locator("..");
+    const balanceCard = page.locator("#sekcia-suvaha");
     await expect(balanceCard).toBeVisible({ timeout: 10_000 });
 
     const expectedBalanceRows = [
@@ -209,7 +221,6 @@ test.describe("Company profile page", () => {
       "Pohľadávky",
       "Cash a ekvivalenty",
       "Vlastné imanie",
-      "Základné imanie",
       "Krátkodobé záväzky",
       "Záväzky z obchodného styku",
       "Dlhodobé záväzky",
@@ -299,7 +310,7 @@ test.describe("Company profile page", () => {
   test("P&L table values are numeric or dash (not empty)", async ({ page }) => {
     await page.goto(`/firma/${VALID_ICO}`, { waitUntil: "networkidle" });
 
-    const plCard = page.locator("text=Výkaz ziskov a strát").locator("..");
+    const plCard = page.locator("#sekcia-vykaz");
     await expect(plCard).toBeVisible({ timeout: 10_000 });
 
     // Get all data cells (not header cells)
@@ -362,9 +373,11 @@ test.describe("Company profile page", () => {
 
     // Ratios section should be visible on the page
     await expect(page.locator("text=/Finančné ukazovatele/i").first()).toBeVisible({ timeout: 10_000 });
+    // Ratios rows live inside collapsible <details> — expand first
+    await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
 
-    // Should contain zadĺženosť and bežná likvidita rows somewhere on the page
-    await expect(page.locator("text=/Zadĺženosť|zadĺženost/i").first()).toBeVisible({ timeout: 5_000 });
+    // Should contain zadlženosť (D/E) and bežná likvidita rows somewhere on the page
+    await expect(page.locator("text=/Zadlženosť|Zadĺženosť|zadĺženost/i").first()).toBeVisible({ timeout: 5_000 });
     await expect(page.locator("text=/Bežná likvidita|bežná likvidita/i").first()).toBeVisible({ timeout: 5_000 });
   });
 

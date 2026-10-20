@@ -204,7 +204,7 @@ export default async function ScreenerPage({
 
         {/* Quick presets */}
         <div className="mb-4">
-          <ScreenerPresets />
+          <ScreenerPresets searchParams={searchParams} />
         </div>
 
         {/* Layout: sidebar + results */}

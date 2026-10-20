@@ -1,12 +1,28 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+type SearchParamsMap = Record<string, string | string[] | undefined>;
+
+function spGet(sp: SearchParamsMap | undefined, key: string): string | null {
+  if (!sp) return null;
+  const v = sp[key];
+  if (!v) return null;
+  return typeof v === "string" ? v : v[0] ?? null;
+}
+
+function hasAnyFilter(sp: SearchParamsMap | undefined): boolean {
+  if (!sp) return false;
+  return Object.entries(sp).some(([, v]) =>
+    typeof v === "string" ? v.length > 0 : Array.isArray(v) && v.length > 0
+  );
+}
 
 type Preset = {
   label: string;
   url: string;
   icon: string;
-  match: (sp: URLSearchParams) => boolean;
+  match: (sp: SearchParamsMap | undefined) => boolean;
 };
 
 const PRESETS: Preset[] = [
@@ -14,67 +30,78 @@ const PRESETS: Preset[] = [
     label: "Top firmy podľa tržieb",
     url: "/screener",
     icon: "🏆",
-    match: (sp) => sp.toString() === "" || (sp.get("sort") === "latestRevenue" && sp.get("dir") !== "asc" && !sp.get("naceSection") && !sp.get("profitMax")),
+    match: (sp) =>
+      !hasAnyFilter(sp) ||
+      (spGet(sp, "sort") === "latestRevenue" &&
+        spGet(sp, "dir") !== "asc" &&
+        !spGet(sp, "naceSection") &&
+        !spGet(sp, "profitMax")),
   },
   {
     label: "Najziskovejšie",
     url: "/screener?sort=latestProfit&dir=desc",
     icon: "💰",
-    match: (sp) => sp.get("sort") === "latestProfit" && sp.get("dir") === "desc" && !sp.get("profitMax"),
+    match: (sp) =>
+      spGet(sp, "sort") === "latestProfit" &&
+      spGet(sp, "dir") === "desc" &&
+      !spGet(sp, "profitMax"),
   },
   {
     label: "Najväčšie aktíva",
     url: "/screener?sort=latestAssets&dir=desc",
     icon: "🏦",
-    match: (sp) => sp.get("sort") === "latestAssets" && sp.get("dir") === "desc",
+    match: (sp) => spGet(sp, "sort") === "latestAssets" && spGet(sp, "dir") === "desc",
   },
   {
     label: "Firmy v strate",
     url: "/screener?profitMax=0&sort=latestProfit&dir=asc",
-    icon: "�",
-    match: (sp) => sp.get("profitMax") === "0",
+    icon: "📉",
+    match: (sp) => spGet(sp, "profitMax") === "0",
   },
   {
     label: "Najstaršie firmy",
     url: "/screener?sort=establishedAt&dir=asc",
-    icon: "�️",
-    match: (sp) => sp.get("sort") === "establishedAt" && sp.get("dir") === "asc",
+    icon: "🏛️",
+    match: (sp) => spGet(sp, "sort") === "establishedAt" && spGet(sp, "dir") === "asc",
   },
   {
     label: "Priemyselná výroba",
     url: "/screener?naceSection=C",
     icon: "🏭",
-    match: (sp) => sp.get("naceSection") === "C",
+    match: (sp) => spGet(sp, "naceSection") === "C",
   },
   {
     label: "IT a komunikácie",
     url: "/screener?naceSection=J",
     icon: "💻",
-    match: (sp) => sp.get("naceSection") === "J",
+    match: (sp) => spGet(sp, "naceSection") === "J",
   },
   {
     label: "Stavebníctvo",
     url: "/screener?naceSection=F",
     icon: "🏗️",
-    match: (sp) => sp.get("naceSection") === "F",
+    match: (sp) => spGet(sp, "naceSection") === "F",
   },
   {
     label: "Obchod",
     url: "/screener?naceSection=G",
     icon: "🛒",
-    match: (sp) => sp.get("naceSection") === "G",
+    match: (sp) => spGet(sp, "naceSection") === "G",
   },
   {
     label: "Doprava a skladovanie",
     url: "/screener?naceSection=H",
     icon: "🚚",
-    match: (sp) => sp.get("naceSection") === "H",
+    match: (sp) => spGet(sp, "naceSection") === "H",
   },
 ];
 
-export function ScreenerPresets() {
+export function ScreenerPresets({
+  searchParams,
+}: {
+  searchParams?: SearchParamsMap;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   return (
     <div className="flex flex-wrap gap-2">

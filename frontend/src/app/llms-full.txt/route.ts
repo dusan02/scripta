@@ -50,6 +50,10 @@ const FAQ: Array<{ q: string; a: string }> = [
     q: "Upozorní ma report na daňové dlhy firmy?",
     a: "Áno, report obsahuje alert na štátne pohľadávky — upozornenie na daňové dlhy, sociálnu a zdravotnú poisťovňu. Ak firma dlží štátu, je vysoké riziko nezaplatenia faktúry. Systém tiež kontroluje Register úpadcov a insolvenčný register.",
   },
+  {
+    q: "Môžem si overiť nedoplatky firmy v Sociálnej poisťovni, VšZP, Dôvere, Unione a na Finančnej správe zadarmo?",
+    a: "Áno. Na každom verejnom profile firmy (/firma/{ico}-{slug}) je dostupné tlačidlo 'Overiť firmu v registroch zadarmo', ktoré naživo preverí IČO v 7 oficiálnych štátnych registroch (Sociálna poisťovňa, VšZP, Dôvera, Union, Finančná správa SR — DPH a zoznam daňových dlžníkov, Register úpadcov SR) a výsledok uloží priamo na stránku firmy.",
+  },
 ];
 
 function buildLlmsFullTxt(): string {

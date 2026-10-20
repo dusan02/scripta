@@ -53,7 +53,7 @@ test.describe("GDPR — cookie consent gate for GA4", () => {
     await page.waitForTimeout(2000);
 
     // Click decline
-    const declineBtn = page.locator("button", { hasText: /odmietnuť|decline|ablehnen|odmítnout|elutasítás|odrzuć/i });
+    const declineBtn = page.getByRole("button", { name: /^(Odmietnuť|Decline|Ablehnen|Odmítnout|Elutasítás|Odrzuć)$/i });
     if (await declineBtn.isVisible()) {
       await declineBtn.click();
     }
@@ -70,7 +70,7 @@ test.describe("GDPR — cookie consent gate for GA4", () => {
     await page.waitForTimeout(2000);
 
     // Click accept
-    const acceptBtn = page.locator("button", { hasText: /prijať|accept|akzeptieren|přijmout|elfogadás|akceptuj/i });
+    const acceptBtn = page.getByRole("button", { name: /^(Prijať|Accept|Akzeptieren|Přijmout|Elfogadás|Akceptuję)$/i });
     await acceptBtn.click();
     await page.waitForTimeout(2000);
 
@@ -114,7 +114,7 @@ test.describe("GDPR — cookie consent gate for GA4", () => {
     await page.goto("/");
     await page.waitForTimeout(2000);
 
-    const acceptBtn = page.locator("button", { hasText: /prijať|accept|akzeptieren|přijmout|elfogadás|akceptuj/i });
+    const acceptBtn = page.getByRole("button", { name: /^(Prijať|Accept|Akzeptieren|Přijmout|Elfogadás|Akceptuję)$/i });
     await acceptBtn.click();
     await page.waitForTimeout(500);
 
@@ -126,7 +126,7 @@ test.describe("GDPR — cookie consent gate for GA4", () => {
     await page.goto("/");
     await page.waitForTimeout(2000);
 
-    const declineBtn = page.locator("button", { hasText: /odmietnuť|decline|ablehnen|odmítnout|elutasítás|odrzuć/i });
+    const declineBtn = page.getByRole("button", { name: /^(Odmietnuť|Decline|Ablehnen|Odmítnout|Elutasítás|Odrzuć)$/i });
     await declineBtn.click();
     await page.waitForTimeout(500);
 
@@ -140,7 +140,7 @@ test.describe("GDPR — cookie consent gate for GA4", () => {
     await page.waitForTimeout(2000);
 
     // Decline first
-    const declineBtn = page.locator("button", { hasText: /odmietnuť|decline|ablehnen|odmítnout|elutasítás|odrzuć/i });
+    const declineBtn = page.getByRole("button", { name: /^(Odmietnuť|Decline|Ablehnen|Odmítnout|Elutasítás|Odrzuć)$/i });
     await declineBtn.click();
     await page.waitForTimeout(500);
 
