@@ -30,15 +30,44 @@ mkdir -p "${BACKUP_DIR}"
 
 echo "[$(date)] Starting backup of ${DB_NAME}..."
 
-docker exec "${DOCKER_CONTAINER}" pg_dump \
-  --host="${DB_HOST}" \
-  --port="${DB_PORT}" \
-  --username="${DB_USER}" \
-  --dbname="${DB_NAME}" \
-  --format=custom \
-  --no-owner \
-  --no-privileges \
-  | gzip > "${BACKUP_FILE}"
+# Host run: docker exec into the postgres container.
+# In-container run (db-backup service): pg_dump is local and connects over
+# the compose network (DB_HOST=postgres, PGPASSWORD from env) — `docker`
+# doesn't exist inside the container, so exec would produce empty 20-byte
+# gz files every night.
+if command -v docker >/dev/null 2>&1 && docker inspect "${DOCKER_CONTAINER}" >/dev/null 2>&1; then
+  # Propagate PGPASSWORD only if set (empty password would break auth).
+  pg_env_args=()
+  [ -n "${PGPASSWORD:-}" ] && pg_env_args=(-e "PGPASSWORD=${PGPASSWORD}")
+  docker exec "${pg_env_args[@]}" "${DOCKER_CONTAINER}" pg_dump \
+    --host="${DB_HOST}" \
+    --port="${DB_PORT}" \
+    --username="${DB_USER}" \
+    --dbname="${DB_NAME}" \
+    --format=custom \
+    --no-owner \
+    --no-privileges \
+    | gzip > "${BACKUP_FILE}"
+else
+  pg_dump \
+    --host="${DB_HOST}" \
+    --port="${DB_PORT}" \
+    --username="${DB_USER}" \
+    --dbname="${DB_NAME}" \
+    --format=custom \
+    --no-owner \
+    --no-privileges \
+    | gzip > "${BACKUP_FILE}"
+fi
+
+# Sanity check — a near-empty dump means something failed silently
+# (missing pg_dump, auth failure) even if the pipeline exit code passed.
+size_bytes=$(stat -c%s "${BACKUP_FILE}" 2>/dev/null || stat -f%z "${BACKUP_FILE}" 2>/dev/null || echo 0)
+if [ "${size_bytes}" -lt 1024 ]; then
+  echo "[$(date)] ERROR: backup file suspiciously small (${size_bytes}B) — deleting and failing."
+  rm -f "${BACKUP_FILE}"
+  exit 1
+fi
 
 BACKUP_SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
 echo "[$(date)] Backup created: ${BACKUP_FILE} (${BACKUP_SIZE})"
