@@ -27,15 +27,26 @@ export function hasAnalyticsConsent(): boolean {
 export function loadGA4(gaId: string) {
   if (window.gtag) return;
 
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function gtag() {
+    window.dataLayer!.push(arguments);
+  };
+  // Consent Mode v2 — the cookie banner already granted analytics consent
+  // (loadGA4 only runs after "Prijať"), so declare it before gtag.js loads.
+  // Without it, hits carry denied consent signals (npa/dma/gcd) and GA4
+  // drops them from reports as cookieless pings.
+  (window.gtag as any)("consent", "default", {
+    analytics_storage: "granted",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+  });
+
   const script = document.createElement("script");
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
   document.head.appendChild(script);
 
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag() {
-    window.dataLayer!.push(arguments);
-  };
   (window.gtag as any)("js", new Date());
   (window.gtag as any)("config", gaId, {
     anonymize_ip: true,
