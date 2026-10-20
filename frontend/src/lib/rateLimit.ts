@@ -136,6 +136,9 @@ async function getLocalRedis(): Promise<any> {
 async function localRedisRateLimit(key: string, options: RateLimitOptions): Promise<RateLimitResult> {
   const redis = await getLocalRedis();
   if (!redis) {
+    if (options.failClosed) {
+      return { allowed: false, remaining: 0, resetTime: Date.now() + options.windowMs };
+    }
     return memRateLimit(key, options);
   }
 
@@ -152,6 +155,10 @@ async function localRedisRateLimit(key: string, options: RateLimitOptions): Prom
     }
     return { allowed: true, remaining: options.maxRequests - count, resetTime };
   } catch (err) {
+    if (options.failClosed) {
+      console.error("[rateLimit] Local Redis failed — failing closed:", err);
+      return { allowed: false, remaining: 0, resetTime };
+    }
     console.error("[rateLimit] Local Redis failed — falling back to in-memory:", err);
     return memRateLimit(key, options);
   }
@@ -163,8 +170,11 @@ export async function rateLimit(
   req: NextRequest,
   options: RateLimitOptions
 ): Promise<RateLimitResult> {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-             req.headers.get("x-real-ip") ||
+  // x-real-ip is set by nginx from $remote_addr (not client-controllable).
+  // x-forwarded-for appends client-supplied values FIRST — the leftmost entry
+  // is spoofable, so take the LAST one (the real client IP seen by nginx).
+  const ip = req.headers.get("x-real-ip")?.trim() ||
+             req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
              "unknown";
 
   const key = `${ip}:${options.windowMs}:${options.maxRequests}`;

@@ -88,11 +88,14 @@ export async function POST(
   const session = await getServerSession();
   const userId = session?.user?.id;
   const ip = getClientIp(req);
+  // failClosed — drahý Playwright beh nesmie prejsť pri Redis výpadku
+  // (memStore fallback by stratil Redis count → limit bypass).
   const rl = await rateLimitByKey(
     userId ? `live-check:user:${userId}` : `live-check:anon:${ip}`,
     {
       windowMs: 24 * 60 * 60 * 1000,
       maxRequests: userId ? 5 : 1,
+      failClosed: true,
     }
   );
   if (!rl.allowed) {
