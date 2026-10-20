@@ -1338,7 +1338,7 @@ const en: Dict = {
   "liveCheck.step1": "1. Request received ✓",
   "liveCheck.step2": "2. Checking registries ({done}/{total})",
   "liveCheck.step3": "3. Saving to profile",
-  "liveCheck.rowConnecting": "Connecting to {authority} and verifying IČO {ico}…",
+  "liveCheck.rowChecking": "Verification in progress…",
   "liveCheck.modalNote": "The check runs on our server — the result is saved to the company's page even if you close this window.",
   "liveCheck.recheck": "🔄 Check again",
   "liveCheck.hide": "Hide (runs in background)",

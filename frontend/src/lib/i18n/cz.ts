@@ -1242,7 +1242,7 @@ const cz: Dict = {
   "liveCheck.step1": "1. Požadavek přijat ✓",
   "liveCheck.step2": "2. Kontrola registrů ({done}/{total})",
   "liveCheck.step3": "3. Zápis do profilu",
-  "liveCheck.rowConnecting": "Připojuji se na {authority} a ověřuji IČO {ico}…",
+  "liveCheck.rowChecking": "Ověřování údajů probíhá…",
   "liveCheck.modalNote": "Kontrola běží na serveru — výsledek se uloží na stránku firmy i po zavření okna.",
   "liveCheck.recheck": "🔄 Ověřit znovu",
   "liveCheck.hide": "Skrýt (běží na pozadí)",

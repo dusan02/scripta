@@ -1341,7 +1341,7 @@ const sk: Dict = {
   "liveCheck.step1": "1. Požiadavka prijatá ✓",
   "liveCheck.step2": "2. Kontrola registrov ({done}/{total})",
   "liveCheck.step3": "3. Zápis do profilu",
-  "liveCheck.rowConnecting": "Pripájam sa na {authority} a overujem IČO {ico}…",
+  "liveCheck.rowChecking": "Overovanie údajov prebieha…",
   "liveCheck.modalNote": "Kontrola beží na serveri — aj po zatvorení okna sa výsledok uloží na stránku firmy.",
   "liveCheck.recheck": "🔄 Preveriť znova",
   "liveCheck.hide": "Skryť (beží na pozadí)",

@@ -560,7 +560,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
                     </div>
                     <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
                       {item.state === "RUNNING"
-                        ? t("liveCheck.rowConnecting", { authority: item.authority, ico })
+                        ? t("liveCheck.rowChecking")
                         : item.state === "UNAVAILABLE"
                           ? "—"
                           : item.description}

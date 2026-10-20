@@ -1242,7 +1242,7 @@ const hu: Dict = {
   "liveCheck.step1": "1. Kérés fogadva ✓",
   "liveCheck.step2": "2. Nyilvántartások ellenőrzése ({done}/{total})",
   "liveCheck.step3": "3. Mentés a profilba",
-  "liveCheck.rowConnecting": "Csatlakozás a(z) {authority} szolgáltatáshoz, IČO {ico} ellenőrzése…",
+  "liveCheck.rowChecking": "Adatok ellenőrzése folyamatban…",
   "liveCheck.modalNote": "Az ellenőrzés a szerveren fut — az eredmény az ablak bezárása után is mentésre kerül a cég oldalára.",
   "liveCheck.recheck": "🔄 Újraellenőrzés",
   "liveCheck.hide": "Elrejtés (háttérben fut)",

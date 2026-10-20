@@ -1242,7 +1242,7 @@ const pl: Dict = {
   "liveCheck.step1": "1. Żądanie przyjęte ✓",
   "liveCheck.step2": "2. Sprawdzanie rejestrów ({done}/{total})",
   "liveCheck.step3": "3. Zapis do profilu",
-  "liveCheck.rowConnecting": "Łączenie z {authority} i weryfikacja IČO {ico}…",
+  "liveCheck.rowChecking": "Trwa weryfikacja danych…",
   "liveCheck.modalNote": "Weryfikacja działa na serwerze — wynik zostanie zapisany na stronie firmy nawet po zamknięciu okna.",
   "liveCheck.recheck": "🔄 Sprawdź ponownie",
   "liveCheck.hide": "Ukryj (działa w tle)",
