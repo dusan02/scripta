@@ -143,13 +143,7 @@ class DoveraDlzniciScraper(BaseScraper):
             except (PlaywrightTimeoutError, PlaywrightError):
                 continue
         # Fallback — role-based (pierce shadow DOM)
-        try:
-            btn = page.get_by_role("button", name="Prijať všetky")
-            await btn.first.wait_for(state="visible", timeout=3000)
-            await btn.first.click()
-            logger.info(f"[{self.source_type}] Cookies prijaté cez role 'Prijať všetky'.")
-        except (PlaywrightTimeoutError, PlaywrightError):
-            pass
+        await self._try_click(page, "button", "Prijať všetky", timeout=3000)
 
     async def _try_click(self, page: Page, role: Literal["button", "link"], name: str, timeout: int = 3000) -> bool:
         try:

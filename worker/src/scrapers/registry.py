@@ -197,6 +197,17 @@ async def run_scrapers(
 
     results_by_source: Dict[str, ScrapedSource] = {}
 
+    def _notify_done(result: ScrapedSource) -> None:
+        """Bezpečne zavolá on_source_done — zlyhanie callbacku nesmie zabiť
+        scraper. Finálny zápis všetkých výsledkov robí fallback slučka vo
+        volajúcom kóde, callback je len pre postupný progress."""
+        if not on_source_done:
+            return
+        try:
+            on_source_done(result)
+        except Exception as cb_err:
+            logger.warning(f"on_source_done callback zlyhal pre {result.source_type}: {cb_err}")
+
     async def run_one(source_type: str, **extra_kwargs) -> ScrapedSource:
         # Circuit breaker — ak register/API je nedostupný, preskoč.
         # V single-report mode (disable_circuit_breaker=True) sa ignoruje —
@@ -209,11 +220,7 @@ async def run_scrapers(
                 status="UNAVAILABLE",
                 status_message=f"Register {source_type} je dočasne nedostupný (circuit breaker).",
             )
-            if on_source_done:
-                try:
-                    on_source_done(result)
-                except Exception:
-                    pass
+            _notify_done(result)
             return result
 
         scraper_cls = get_scraper(source_type)
@@ -246,11 +253,7 @@ async def run_scrapers(
                         status="UNAVAILABLE",
                         status_message=f"Scraper čakal príliš dlho na semafor ({_SEMAPHORE_QUEUE_TIMEOUT}s).",
                     )
-                    if on_source_done:
-                        try:
-                            on_source_done(queue_result)
-                        except Exception as cb_err:
-                            logger.warning(f"on_source_done callback zlyhal pre {source_type}: {cb_err}")
+                    _notify_done(queue_result)
                     return queue_result
             try:
                 _t_run = time.perf_counter()
@@ -282,11 +285,7 @@ async def run_scrapers(
                     status="FAILED",
                     status_message=f"Scraper timeout ({_scraper_timeout}s)",
                 )
-                if on_source_done:
-                    try:
-                        on_source_done(timeout_result)
-                    except Exception as cb_err:
-                        logger.warning(f"on_source_done callback zlyhal pre {source_type}: {cb_err}")
+                _notify_done(timeout_result)
                 return timeout_result
             finally:
                 for sem in reversed(semaphores):
@@ -300,11 +299,8 @@ async def run_scrapers(
                 circuit_record_failure(source_type)
             findings = result.findings or result.status_message or "" if result else ""
             log_scraper_result(source_type, status, findings, elapsed)
-            if on_source_done and result:
-                try:
-                    on_source_done(result)
-                except Exception as cb_err:
-                    logger.warning(f"on_source_done callback zlyhal pre {source_type}: {cb_err}")
+            if result:
+                _notify_done(result)
             return result
         except BaseException as e:
             logger.debug(f"[TIMING] ✗ {source_type} CHYBA za {time.perf_counter() - _t_start:.2f}s: {type(e).__name__}")
@@ -347,11 +343,7 @@ async def run_scrapers(
                     status_message=f"Závislosť {dep_source_type} neposkytla potrebné údaje.",
                 )
                 results_by_source[source] = skip_result
-                if on_source_done:
-                    try:
-                        on_source_done(skip_result)
-                    except Exception as cb_err:
-                        logger.warning(f"on_source_done callback zlyhal pre {source}: {cb_err}")
+                _notify_done(skip_result)
                 continue
 
             task = asyncio.ensure_future(run_one(source, **extra_kwargs))
@@ -431,11 +423,7 @@ async def run_scrapers(
             status_message=f"Závislosť {dependency} nebola dostupná — názov subjektu sa nezískal.",
         )
         results_by_source[source] = skip_result
-        if on_source_done:
-            try:
-                on_source_done(skip_result)
-            except Exception as cb_err:
-                logger.warning(f"on_source_done callback zlyhal pre {source}: {cb_err}")
+        _notify_done(skip_result)
 
     # Vrátime v pôvodnom poradí
     # Log retry metrics súhrn (ak nejaké retrye nastali)
