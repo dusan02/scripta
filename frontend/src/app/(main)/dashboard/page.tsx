@@ -66,7 +66,7 @@ export default async function DashboardPage() {
   const [user, reports, watchedCompaniesRaw] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { trialEndsAt: true, planName: true },
+      select: { trialEndsAt: true, planName: true, createdAt: true },
     }),
     getRecentReports(session.user.id),
     prisma.watchedCompany.findMany({
@@ -116,7 +116,12 @@ export default async function DashboardPage() {
   if (process.env.NODE_ENV === "production") {
     console.log(`[dashboard] auth=${_t1 - _t0}ms parallel_queries=${_t2 - _t1}ms credits=${_t3 - _t2}ms total=${_t3 - _t0}ms`);
   }
-  const isNewUser = reports.length === 0;
+  // Welcome banner is for genuinely new accounts — not every login of an old
+  // account that simply never created a report.
+  const isNewUser =
+    reports.length === 0 &&
+    !!user?.createdAt &&
+    Date.now() - user.createdAt.getTime() < 7 * 24 * 60 * 60 * 1000;
   const watchedCompanies = watchedCompaniesRaw.map((w) => ({
     ...w,
     createdAt: w.createdAt.toISOString(),
