@@ -39,7 +39,7 @@ class DoveraDlzniciScraper(BaseScraper):
 
             # 2. Cloudflare + cookies (quick, non-blocking if absent)
             await self._handle_cloudflare_challenge(page, max_attempts=1)
-            await self._try_click(page, "button", "Prijať všetky", timeout=2000)
+            await self._accept_cookies(page)
             await self._try_click(page, "button", "Close", timeout=2000)
 
             # 3. Fill IČO
@@ -62,7 +62,7 @@ class DoveraDlzniciScraper(BaseScraper):
             no_results = page.locator("text=sme nenašli žiadne výsledky")
             table = page.locator("table tbody tr, .result-table tr, .table tbody tr")
             try:
-                await no_results.or_(table).first.wait_for(timeout=8000)
+                await no_results.or_(table).first.wait_for(timeout=15000)
             except PlaywrightTimeoutError:
                 logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
 
@@ -129,6 +129,28 @@ class DoveraDlzniciScraper(BaseScraper):
                 status_message="Dôvera: dočasne nedostupné — skúste vygenerovať report znovu.",
             )
 
+    async def _accept_cookies(self, page: Page) -> None:
+        """Usercentrics CMP — tlačidlo '#accept' je v shadow DOM.
+        Playwright CSS/role selektory pierce shadow root automaticky (XPath nie).
+        CMP sa načíta cez JS s oneskorením — treba pár sekúnd počkať."""
+        for sel in ["#accept", "button.uc-accept-button", "button#accept"]:
+            try:
+                btn = page.locator(sel).first
+                await btn.wait_for(state="visible", timeout=4000)
+                await btn.click()
+                logger.info(f"[{self.source_type}] Cookies prijaté cez '{sel}'.")
+                return
+            except (PlaywrightTimeoutError, PlaywrightError):
+                continue
+        # Fallback — role-based (pierce shadow DOM)
+        try:
+            btn = page.get_by_role("button", name="Prijať všetky")
+            await btn.first.wait_for(state="visible", timeout=3000)
+            await btn.first.click()
+            logger.info(f"[{self.source_type}] Cookies prijaté cez role 'Prijať všetky'.")
+        except (PlaywrightTimeoutError, PlaywrightError):
+            pass
+
     async def _try_click(self, page: Page, role: Literal["button", "link"], name: str, timeout: int = 3000) -> bool:
         try:
             btn = page.get_by_role(role, name=name)
@@ -140,12 +162,17 @@ class DoveraDlzniciScraper(BaseScraper):
             return False
 
     async def _fill_ico_field(self, page: Page, ico: str) -> bool:
-        # Presné CSS selektory: input[class='input'] (name='q')
+        # Na stránke sú DVA input[name='q'] — hlavičkové site-search
+        # (class='input input--small') a dlžnícky (class='input'). Scoped
+        # selektory na dlžnícky formulár idú prvé, aby sa IČO nevyplnilo
+        # do site-search a Enter nehodil na /vyhladavanie.
         for selector in [
-            "input[name='q'].input",
+            "form[action='/overenia/dlznici/zoznam-dlznikov'] input[name='q']",
+            "form[action*='/overenia/dlznici'] input[name='q']",
             "input[class='input']",
+            "input[name='q'].input:not(.input--small)",
             "input[placeholder*='IČO']", "input[placeholder*='ico']", "input[placeholder*='Obchodné']",
-            "input[type='text']", "input[type='search']", "#ico", "input.search-input",
+            "input[type='search']", "#ico", "input.search-input",
             "input[name*='ico']", "input[name*='search']", "input[name*='query']",
         ]:
             try:
@@ -170,21 +197,17 @@ class DoveraDlzniciScraper(BaseScraper):
             return False
 
     async def _click_search(self, page: Page) -> bool:
-        # Skús Enter key na inpute ako najrýchlejšiu cestu
-        try:
-            await page.keyboard.press("Enter")
-            logger.info(f"[{self.source_type}] Search cez Enter key.")
-            return True
-        except (PlaywrightTimeoutError, PlaywrightError):
-            pass
-
-        # Presný CSS selector: div[class='btn-layout btn-layout--vertical no-mrg-bottom'] button[type='submit']
+        # Reálny submit button dlžníckeho formulára — Enter je až fallback,
+        # lebo ak focus sedí v hlavičkovom site-search inpute, Enter hodí
+        # na /vyhladavanie namiesto odoslania formulára.
         for selector in [
+            "form[action='/overenia/dlznici/zoznam-dlznikov'] button[type='submit']",
+            "form[action*='/overenia/dlznici'] button[type='submit']",
             "div.btn-layout.btn-layout--vertical.no-mrg-bottom button[type='submit']",
             "div.btn-layout--vertical button[type='submit']",
             "button:has-text('Hľadať')",
-            "input[value='Hľadať']", "button[type='submit']",
-            "a:has-text('Hľadať')", ".search-button", "button:has-text('Vyhľadať')",
+            "input[value='Hľadať']", "a:has-text('Hľadať')",
+            ".search-button", "button:has-text('Vyhľadať')",
         ]:
             try:
                 btn = page.locator(selector).first
@@ -199,6 +222,14 @@ class DoveraDlzniciScraper(BaseScraper):
             search_btn = page.get_by_text("Hľadať", exact=True)
             await search_btn.wait_for(timeout=2000)
             await search_btn.click()
+            return True
+        except (PlaywrightTimeoutError, PlaywrightError):
+            pass
+
+        # Posledná možnosť — Enter (focus by mal byť v dlžníckom inpute)
+        try:
+            await page.keyboard.press("Enter")
+            logger.info(f"[{self.source_type}] Search cez Enter key.")
             return True
         except (PlaywrightTimeoutError, PlaywrightError):
             return False
