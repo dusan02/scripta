@@ -4,11 +4,38 @@ declare global {
   }
 }
 
+// Events mirrored to server-side AnalyticsEvent table — GA4 only covers
+// consent-granted users, server tracking gives full funnel counts.
+const SERVER_TRACKED = new Set([
+  "live_check_click",
+  "live_check_started",
+  "live_check_limit_hit",
+  "live_check_completed",
+]);
+
+function sendServerEvent(
+  event: string,
+  props?: Record<string, string | number | boolean>,
+) {
+  try {
+    fetch("/api/analytics/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, ...props }),
+      keepalive: true,
+    });
+  } catch {
+    // analytics failure must never break the UI
+  }
+}
+
 export function trackEvent(
   event: string,
   props?: Record<string, string | number | boolean>,
 ) {
-  if (typeof window !== "undefined" && window.gtag) {
+  if (typeof window === "undefined") return;
+  if (SERVER_TRACKED.has(event)) sendServerEvent(event, props);
+  if (window.gtag) {
     window.gtag("event", event, props);
   }
 }

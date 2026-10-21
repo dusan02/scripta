@@ -810,3 +810,18 @@ model VestnikSyncCheckpoint {
   savedEvents     Int      @default(0)
   durationMs      Int      @default(0)
 }
+
+// Server-side funnel events — zaznamenávané aj bez cookie súhlasu
+// (GA4 pokrýva len consent userov). Anonymné: IP len ako hash.
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  event      String   // live_check_click, live_check_started, live_check_limit_hit, live_check_completed
+  companyIco String?
+  props      Json?    // source, limit_type, clean_count, debt_count, total_debt_eur...
+  ipHash     String?  // sha256(ip + salt) — hrubá deduplikácia bez ukladania IP
+  registered Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([companyIco])
+}
