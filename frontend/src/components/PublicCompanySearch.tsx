@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useT } from "@/components/LanguageProvider";
 
 interface SearchResultItem {
   ico: string;
@@ -22,12 +23,13 @@ function fmtRevenueCompact(val: number | null): string | null {
 
 export function PublicCompanySearch({
   variant = "hero",
-  placeholder = "Zadajte názov firmy alebo IČO (napr. ESET, 31333532)…",
+  placeholder,
 }: {
   variant?: "hero" | "compact";
   placeholder?: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -142,8 +144,8 @@ export function PublicCompanySearch({
               setOpen(false);
             }
           }}
-          placeholder={placeholder}
-          aria-label="Vyhľadať firmu podľa názvu alebo IČO"
+          placeholder={placeholder ?? t("search.placeholder")}
+          aria-label={t("search.ariaLabel")}
           style={{
             width: "100%",
             height: isHero ? 52 : 36,
@@ -174,7 +176,7 @@ export function PublicCompanySearch({
               cursor: "pointer",
             }}
           >
-            Hľadať
+            {t("search.button")}
           </button>
         )}
       </form>

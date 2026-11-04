@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
+import { translate, type Lang } from "@/lib/i18n";
 
 /**
  * Featured firms section for glossary pages — internal linking from
@@ -9,7 +10,7 @@ import { buildCompanyUrl } from "@/lib/slug";
  *
  * Fetches the largest companies by revenue from the DB (cached via ISR).
  */
-export async function GlossaryFeaturedFirms({ limit = 12 }: { limit?: number }) {
+export async function GlossaryFeaturedFirms({ limit = 12, lang = "sk" }: { limit?: number; lang?: Lang }) {
   let firms: Array<{ ico: string; name: string | null; city: string | null; latestRevenue: string | null }> = [];
   try {
     const rows = await prisma.company.findMany({
@@ -41,10 +42,10 @@ export async function GlossaryFeaturedFirms({ limit = 12 }: { limit?: number }) 
   return (
     <div style={{ marginTop: 48, marginBottom: 48 }}>
       <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-        Najväčšie slovenské firmy
+        {translate(lang, "featured.title")}
       </h3>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
-        Preverte finančné údaje a rizikové signály týchto firiem v ich verejných profiloch na Verifa.sk.
+        {translate(lang, "featured.desc")}
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 12 }}>
         {firms.map((f) => (

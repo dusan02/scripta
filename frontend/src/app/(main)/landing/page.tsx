@@ -14,8 +14,11 @@ import CtaSection from "@/components/landing/CtaSection";
 import StickyCta from "@/components/landing/StickyCta";
 import LandingFooter from "@/components/landing/LandingFooter";
 import { GlossaryFeaturedFirms } from "@/components/glossary-featured-firms";
+import { headers } from "next/headers";
+import { getLangFromHeaders } from "@/lib/seo";
 
-export default function LandingPageRoute() {
+export default async function LandingPageRoute() {
+  const lang = getLangFromHeaders(await headers());
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <LandingJsonLd />
@@ -55,7 +58,7 @@ export default function LandingPageRoute() {
       <LandingNav />
       <HeroSection />
       <ScreenerCtaSection />
-      <GlossaryFeaturedFirms />
+      <GlossaryFeaturedFirms lang={lang} />
       <ReportIncludesSection />
       <SampleReportSection />
       <HowItWorksSection />
