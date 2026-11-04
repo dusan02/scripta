@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLang } from "@/components/LanguageProvider";
+import { localizePath } from "@/lib/i18n";
 
 interface SearchResultItem {
   ico: string;
@@ -22,12 +24,23 @@ function fmtRevenueCompact(val: number | null): string | null {
 
 export function PublicCompanySearch({
   variant = "hero",
-  placeholder = "Zadajte názov firmy alebo IČO (napr. ESET, 31333532)…",
+  placeholder,
 }: {
   variant?: "hero" | "compact";
   placeholder?: string;
 }) {
   const router = useRouter();
+  const { lang } = useLang();
+  const defaultPlaceholder =
+    lang === "cz"
+      ? "Zadejte název firmy nebo IČO (např. ESET, 31333532)…"
+      : lang === "de"
+      ? "Firmennamen oder ID eingeben…"
+      : lang === "en"
+      ? "Enter company name or ID…"
+      : "Zadajte názov firmy alebo IČO (napr. ESET, 31333532)…";
+  const effectivePlaceholder = placeholder || defaultPlaceholder;
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -142,8 +155,8 @@ export function PublicCompanySearch({
               setOpen(false);
             }
           }}
-          placeholder={placeholder}
-          aria-label="Vyhľadať firmu podľa názvu alebo IČO"
+          placeholder={effectivePlaceholder}
+          aria-label={lang === "cz" ? "Vyhledat firmu podle názvu nebo IČO" : lang === "en" ? "Search company by name or ID" : "Vyhľadať firmu podľa názvu alebo IČO"}
           style={{
             width: "100%",
             height: isHero ? 52 : 36,
@@ -174,7 +187,7 @@ export function PublicCompanySearch({
               cursor: "pointer",
             }}
           >
-            Hľadať
+            {lang === "cz" ? "Hledat" : lang === "de" ? "Suchen" : lang === "en" ? "Search" : "Hľadať"}
           </button>
         )}
       </form>
@@ -196,17 +209,17 @@ export function PublicCompanySearch({
         >
           {loading && results.length === 0 ? (
             <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--text-muted)" }}>
-              Hľadám v ORSR a RÚZ…
+              {lang === "cz" ? "Hledám v ORSR a RÚZ…" : lang === "en" ? "Searching registries…" : "Hľadám v ORSR a RÚZ…"}
             </div>
           ) : results.length === 0 ? (
             <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--text-muted)" }}>
-              Žiadna firma sa nenašla —{" "}
+              {lang === "cz" ? "Žádná firma nebyla nalezena — " : "Žiadna firma sa nenašla — "}
               <Link
-                href={`/screener?q=${encodeURIComponent(query.trim())}`}
+                href={localizePath(`/screener?q=${encodeURIComponent(query.trim())}`, lang)}
                 onClick={() => setOpen(false)}
                 style={{ color: "var(--accent)", fontWeight: 600 }}
               >
-                otvoriť rozšírené vyhľadávanie →
+                {lang === "cz" ? "otevřít rozšířené vyhledávání →" : "otvoriť rozšírené vyhľadávanie →"}
               </Link>
             </div>
           ) : (
@@ -218,7 +231,7 @@ export function PublicCompanySearch({
                   return (
                     <li key={item.ico}>
                       <Link
-                        href={item.href}
+                        href={localizePath(item.href, lang)}
                         onClick={() => setOpen(false)}
                         style={{
                           display: "flex",
@@ -267,7 +280,7 @@ export function PublicCompanySearch({
                 })}
               </ul>
               <Link
-                href={`/screener?q=${encodeURIComponent(query.trim())}`}
+                href={localizePath(`/screener?q=${encodeURIComponent(query.trim())}`, lang)}
                 onClick={() => setOpen(false)}
                 style={{
                   display: "block",
@@ -280,7 +293,9 @@ export function PublicCompanySearch({
                   background: "var(--bg-muted)",
                 }}
               >
-                Zobraziť všetky výsledky pre „{query.trim()}“ v screeneri →
+                {lang === "cz"
+                  ? `Zobrazit všechny výsledky pro „${query.trim()}“ ve screeneru →`
+                  : `Zobraziť všetky výsledky pre „${query.trim()}“ v screeneri →`}
               </Link>
             </>
           )}

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useT } from "@/components/LanguageProvider";
+import { useT, useLang } from "@/components/LanguageProvider";
 
-const REGISTRY_GROUPS = [
+const REGISTRY_GROUPS_SK = [
   {
     icon: "🏢",
     categoryKey: "landing.regGroup1",
@@ -36,9 +36,44 @@ const REGISTRY_GROUPS = [
   },
 ];
 
+const REGISTRY_GROUPS_CZ = [
+  {
+    icon: "🏢",
+    categoryKey: "landing.regGroup1",
+    items: ["Obchodní rejstřík SR (ORSR)", "Živnostenský rejstřík (ŽRSR)", "Registr právnických osob (RPO)", "Registr partnerů veř. sektoru (RPVS)", "Obchodní věstník"],
+  },
+  {
+    icon: "⚠️",
+    categoryKey: "landing.regGroup2",
+    items: ["Registr úpadců", "Pověření k exekucím", "Daňoví dlužníci", "Sociální pojišťovna", "VšZP", "Dôvera", "Union"],
+  },
+  {
+    icon: "💰",
+    categoryKey: "landing.regGroup3",
+    items: ["Index daň. spolehlivosti", "Plátci DPH", "Zrušení DPH", "Vymazaní z DPH", "Nadměrný odpočet", "Daň z příjmů PO", "Reg. k dani z příjmů"],
+  },
+  {
+    icon: "⚖️",
+    categoryKey: "landing.regGroup4",
+    items: ["Registr diskvalifikací"],
+  },
+  {
+    icon: "🏛️",
+    categoryKey: "landing.regGroup5",
+    items: ["Účetní závěrky (RÚZ)", "Centrální registr smluv (CRZ)", "Veřejné zakázky (ÚVO)"],
+  },
+  {
+    icon: "🛡️",
+    categoryKey: "landing.regGroup6",
+    items: ["Zástavní práva", "Registr dražeb"],
+  },
+];
+
 export default function RegistriesSection() {
   const t = useT();
+  const { lang } = useLang();
   const [showRegistries, setShowRegistries] = useState(false);
+  const registryGroups = lang === "cz" ? REGISTRY_GROUPS_CZ : REGISTRY_GROUPS_SK;
 
   return (
     <section id="registre" style={{ padding: "80px 24px", maxWidth: 1200, margin: "0 auto", scrollMarginTop: 80 }} className="section-pad">
@@ -73,7 +108,7 @@ export default function RegistriesSection() {
 
       {showRegistries && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, alignItems: "stretch" }} className="registries-grid">
-          {REGISTRY_GROUPS.map((group) => (
+          {registryGroups.map((group) => (
             <div key={group.categoryKey} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 22, display: "flex", flexDirection: "column" }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: "var(--accent-light)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 14 }}>
                 {group.icon}

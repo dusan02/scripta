@@ -45,7 +45,7 @@ export default function HeroSection() {
             className="inline-block px-6 py-4 rounded-xl no-underline font-semibold text-[15px] transition-all hover:opacity-80"
             style={{ border: "1px solid var(--border)", color: "var(--text)" }}
           >
-            {lang === "sk" ? "Preskúmať slovenské firmy →" : lang === "de" ? "Slowakische Firmen durchsuchen →" : "Explore Slovak companies →"}
+            {lang === "sk" ? "Preskúmať slovenské firmy →" : lang === "cz" ? "Prozkoumat slovenské firmy →" : lang === "de" ? "Slowakische Firmen durchsuchen →" : "Explore Slovak companies →"}
           </Link>
         </div>
 

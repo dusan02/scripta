@@ -24,16 +24,18 @@ export default function ScreenerCtaSection() {
             className="inline-block px-4 py-2 rounded-full text-[12px] font-semibold mb-4"
             style={{ background: "var(--accent-light)", border: "1px solid var(--accent-border)", color: "var(--accent)" }}
           >
-            🔍 {lang === "sk" ? "Databáza firiem" : "Company database"}
+            🔍 {lang === "sk" ? "Databáza firiem" : lang === "cz" ? "Databáze firem" : "Company database"}
           </div>
 
           <h2 className="font-black leading-tight mb-3" style={{ fontSize: "clamp(24px, 3.5vw, 32px)" }}>
-            {lang === "sk" ? "Preskúmajte slovenské firmy" : "Explore Slovak companies"}
+            {lang === "sk" ? "Preskúmajte slovenské firmy" : lang === "cz" ? "Prozkoumejte slovenské firmy" : "Explore Slovak companies"}
           </h2>
 
           <p className="text-[var(--text-secondary)] leading-relaxed mb-6 mx-auto" style={{ fontSize: "clamp(14px, 2vw, 16px)", maxWidth: 520 }}>
             {lang === "sk"
               ? "Vyhľadávajte a filtrujte 500 000+ slovenských spoločností podľa odvetvia, kraja, finančných ukazovateľov a ďalších kritérií."
+              : lang === "cz"
+              ? "Vyhledávejte a filtrujte 500 000+ slovenských společností podle odvětví, kraje, finančních ukazatelů a dalších kritérií."
               : "Search and filter 500,000+ Slovak companies by industry, region, financial indicators and more."}
           </p>
 
@@ -43,7 +45,7 @@ export default function ScreenerCtaSection() {
               className="inline-block px-8 py-3.5 rounded-xl no-underline font-bold text-[15px] transition-all hover:opacity-90"
               style={{ background: "var(--accent)", color: "var(--accent-button-text)" }}
             >
-              {lang === "sk" ? "Prehliadať firmy →" : "Browse companies →"}
+              {lang === "sk" ? "Prehliadať firmy →" : lang === "cz" ? "Procházet firmy →" : "Browse companies →"}
             </Link>
             <Link
               href={localizePath("/screener", lang)}
@@ -57,23 +59,23 @@ export default function ScreenerCtaSection() {
           {/* Hub links for crawl discovery */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-[13px]">
             <span style={{ color: "var(--text-muted)" }}>
-              {lang === "sk" ? "Podľa odvetvia:" : "By industry:"}
+              {lang === "sk" ? "Podľa odvetvia:" : lang === "cz" ? "Podle odvětví:" : "By industry:"}
             </span>
             <Link href={localizePath(`/firmy/${naceSectionToSlug("C")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
-              {lang === "sk" ? "Priemysel" : "Manufacturing"}
+              {lang === "sk" ? "Priemysel" : lang === "cz" ? "Průmysl" : "Manufacturing"}
             </Link>
             <Link href={localizePath(`/firmy/${naceSectionToSlug("G")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
-              {lang === "sk" ? "Obchod" : "Trade"}
+              {lang === "sk" ? "Obchod" : lang === "cz" ? "Obchod" : "Trade"}
             </Link>
             <Link href={localizePath(`/firmy/${naceSectionToSlug("F")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
-              {lang === "sk" ? "Stavebníctvo" : "Construction"}
+              {lang === "sk" ? "Stavebníctvo" : lang === "cz" ? "Stavebnictví" : "Construction"}
             </Link>
             <Link href={localizePath(`/firmy/${naceSectionToSlug("J")}`, lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
               {lang === "sk" ? "IT" : "IT"}
             </Link>
             <span style={{ color: "var(--text-muted)" }}>·</span>
             <span style={{ color: "var(--text-muted)" }}>
-              {lang === "sk" ? "Podľa regiónu:" : "By region:"}
+              {lang === "sk" ? "Podľa regiónu:" : lang === "cz" ? "Podle regionu:" : "By region:"}
             </span>
             <Link href={localizePath("/kraj/SK010", lang)} className="hover:underline" style={{ color: "var(--accent)" }}>
               {lang === "sk" ? "Bratislava" : "Bratislava"}

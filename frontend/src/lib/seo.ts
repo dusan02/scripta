@@ -70,13 +70,13 @@ const SEO_DATA: Record<Lang, {
   cz: {
     title: "Verifa.sk — Ověření slovenské firmy | Business Risk Report",
     description: "Automatizované ověření slovenské firmy — finanční, právní a forenzní riziko v jednom PDF. Verifa Score (0–100) a predikce úpadku z 25+ registrů SR.",
-    keywords: ["převerení firmy", "ověření slovenské firmy", "previerka firmy", "business risk report", "riziko firmy", "due diligence", "automatizovaný posudek firmy", "predikce úpadku", "insolvency score", "fraud heatmap", "going concern", "auditorský posudek", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "daňoví dlužníci", "ORSR", "RÚZ", "Obchodní věstník", "insolvence", "exekuce", "RPVS", "advokát", "právník", "notář", "účetník", "spedice", "registr", "report", "slovenská firma"],
+    keywords: ["prověření firmy", "ověření slovenské firmy", "prověrka firmy", "business risk report", "riziko firmy", "due diligence", "automatizovaný posudek firmy", "predikce úpadku", "insolvency score", "fraud heatmap", "going concern", "auditorský posudek", "Verifa Score", "Altman Z-Score", "Piotroski F-Score", "Beneish M-Score", "daňoví dlužníci", "ORSR", "RÚZ", "Obchodní věstník", "insolvence", "exekuce", "RPVS", "advokát", "právník", "notář", "účetní", "spedice", "registr", "report", "slovenská firma"],
     ogTitle: "Verifa.sk — Ověření slovenské firmy | Business Risk Report",
-    ogDescription: "Automatizované převerení slovenské firmy — manažerské shrnutí, mapa rizik podvodu, predikce úpadku, alert na státní pohledávky a Verifa Score z 25+ registrů SR.",
+    ogDescription: "Automatizované prověření slovenské firmy — manažerské shrnutí, mapa rizik podvodu, predikce úpadku, alert na státní pohledávky a Verifa Score z 25+ registrů SR.",
     twitterTitle: "Verifa.sk — Ověření slovenské firmy | Business Risk Report",
-    twitterDescription: "Automatizované převerení slovenské firmy — posudek, fraud heatmap, predikce úpadku a Verifa Score z 25+ registrů SR v jednom PDF.",
-    orgDescription: "Automatizované převerení slovenské firmy — finanční, právní a forenzní riziko ze státních registrů SR s automatizovanou analýzou finančního zdraví.",
-    websiteDescription: "Automatizované převerení slovenské firmy — finanční, právní a forenzní riziko ze státních registrů SR.",
+    twitterDescription: "Automatizované prověření slovenské firmy — posudek, fraud heatmap, predikce úpadku a Verifa Score z 25+ registrů SR v jednom PDF.",
+    orgDescription: "Automatizované prověření slovenské firmy — finanční, právní a forenzní riziko ze státních registrů SR s automatizovanou analýzou finančního zdraví.",
+    websiteDescription: "Automatizované prověření slovenské firmy — finanční, právní a forenzní riziko ze státních registrů SR.",
   },
   hu: {
     title: "Verifa.sk — Szlovák cégellenőrzés | Business Risk Report",

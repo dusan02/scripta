@@ -29,7 +29,9 @@ export default function PricingSection() {
               )}
               <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>{t(plan.nameKey)}</h3>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14 }}>{t(plan.subtitleKey)}</p>
-              <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>{plan.price} €{plan.isSubscription ? " / mesiac" : ""}</div>
+              <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
+                {plan.price} €{plan.isSubscription ? (lang === "cz" ? " / měsíc" : lang === "de" ? " / Monat" : lang === "pl" ? " / miesiąc" : lang === "hu" ? " / hó" : lang === "en" ? " / month" : " / mesiac") : ""}
+              </div>
               <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
                 {plan.isSubscription
                   ? t("pricing.mesiacne", { n: plan.reports, price: plan.pricePerReport })

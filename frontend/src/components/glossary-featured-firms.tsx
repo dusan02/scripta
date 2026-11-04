@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
+import { getLangFromHeaders } from "@/lib/seo";
+import { localizePath } from "@/lib/i18n";
 
 /**
  * Featured firms section for glossary pages — internal linking from
@@ -38,19 +41,41 @@ export async function GlossaryFeaturedFirms({ limit = 12 }: { limit?: number }) 
 
   if (firms.length === 0) return null;
 
+  let lang = "sk";
+  try {
+    const h = await headers();
+    lang = getLangFromHeaders(h);
+  } catch {
+    // fallback to sk
+  }
+
+  const title =
+    lang === "cz"
+      ? "Největší slovenské firmy"
+      : lang === "sk"
+      ? "Najväčšie slovenské firmy"
+      : "Largest Slovak companies";
+
+  const subtitle =
+    lang === "cz"
+      ? "Prověřte finanční údaje a rizikové signály těchto firem v jejich veřejných profilech na Verifa.sk."
+      : lang === "sk"
+      ? "Preverte finančné údaje a rizikové signály týchto firiem v ich verejných profiloch na Verifa.sk."
+      : "Check financial data and risk signals of these companies in their public profiles on Verifa.sk.";
+
   return (
     <div style={{ marginTop: 48, marginBottom: 48 }}>
       <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
-        Najväčšie slovenské firmy
+        {title}
       </h3>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
-        Preverte finančné údaje a rizikové signály týchto firiem v ich verejných profiloch na Verifa.sk.
+        {subtitle}
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 12 }}>
         {firms.map((f) => (
           <Link
             key={f.ico}
-            href={buildCompanyUrl(f.ico, f.name)}
+            href={localizePath(buildCompanyUrl(f.ico, f.name), lang as any)}
             style={{
               display: "block",
               padding: "14px 18px",
