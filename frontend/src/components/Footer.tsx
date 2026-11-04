@@ -28,19 +28,19 @@ export default function Footer() {
         <div className="flex flex-wrap items-center justify-between gap-4 text-xs" style={{ color: "var(--text-secondary)" }}>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <Link href={lhref("/slovnik/orsr")} className="hover:underline font-medium" style={{ color: "var(--text)" }}>
-              ORSR vyhľadávanie
+              {t("footer.orsrSearch")}
             </Link>
             <Link href={lhref("/screener")} className="hover:underline">
-              Screener firiem
+              {t("footer.screenerFirms")}
             </Link>
             <Link href={lhref("/firmy")} className="hover:underline">
-              Firmy na Slovensku
+              {t("footer.companiesSk")}
             </Link>
             <Link href={lhref("/slovnik")} className="hover:underline">
-              Slovník pojmov
+              {t("home.footerGlossary")}
             </Link>
             <Link href={lhref("/pricing")} className="hover:underline">
-              Cenník
+              {t("home.navPricing")}
             </Link>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5" style={{ color: "var(--text-muted)" }}>
