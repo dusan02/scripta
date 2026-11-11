@@ -190,7 +190,16 @@ export function buildLiveCheckSummary(
   });
 
   const hasCheck = bySource.size > 0;
-  const isFresh = hasCheck && !isRunning && latestTs > 0 && now - latestTs < LIVE_CHECK_TTL_MS;
+  const trulyUnavailableCount = items.filter((i) => i.state === "UNAVAILABLE").length;
+  // A check with UNAVAILABLE registries (or zero completed CLEAN/DEBT rows) is
+  // not considered fresh — otherwise a partial/failed run locks the company for 7 days.
+  const isFresh =
+    hasCheck &&
+    !isRunning &&
+    trulyUnavailableCount === 0 &&
+    cleanCount + debtCount > 0 &&
+    latestTs > 0 &&
+    now - latestTs < LIVE_CHECK_TTL_MS;
 
   return {
     ico,

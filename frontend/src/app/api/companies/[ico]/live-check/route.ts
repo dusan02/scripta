@@ -74,7 +74,11 @@ export async function POST(
   });
 
   const currentSummary = buildLiveCheckSummary(ico, existingEvents);
-  const force = req.nextUrl.searchParams.get("force") === "1" && process.env.NODE_ENV !== "production";
+  // Allow ?force=1 in dev, or in production when any registry is UNAVAILABLE
+  const hasUnavailable = currentSummary.items.some((i) => i.state === "UNAVAILABLE");
+  const force =
+    req.nextUrl.searchParams.get("force") === "1" &&
+    (process.env.NODE_ENV !== "production" || hasUnavailable || !currentSummary.isFresh);
 
   // If already running or fresh (<7 days), return current state without re-running Playwright
   if (!force && (currentSummary.isRunning || currentSummary.isFresh)) {
@@ -114,34 +118,31 @@ export async function POST(
 
   const now = new Date();
 
-  // Seed/reset all 7 registry rows into RUNNING state so polling immediately shows 7 spinners
-  await prisma.$transaction(
-    LIVE_CHECK_REGISTRIES.map((reg) =>
-      prisma.companyEvent.deleteMany({
-        where: {
-          companyIco: ico,
-          eventType: "LIVE_REGISTRY_CHECK",
-          source: reg.source,
-        },
-      })
-    )
-  );
-
-  await prisma.companyEvent.createMany({
-    data: LIVE_CHECK_REGISTRIES.map((reg) => ({
-      companyIco: ico,
-      source: reg.source,
-      eventType: "LIVE_REGISTRY_CHECK",
-      severity: "LOW",
-      title: reg.fullLabel,
-      description: "Prebieha živé overenie v štátnom registri…",
-      metadata: {
-        state: "RUNNING",
-        checkedAt: now.toISOString(),
+  // Seed/reset all 7 registry rows into RUNNING state atomically in a single transaction
+  await prisma.$transaction([
+    prisma.companyEvent.deleteMany({
+      where: {
+        companyIco: ico,
+        eventType: "LIVE_REGISTRY_CHECK",
+        source: { in: LIVE_CHECK_REGISTRIES.map((r) => r.source) },
       },
-      createdAt: now,
-    })),
-  });
+    }),
+    prisma.companyEvent.createMany({
+      data: LIVE_CHECK_REGISTRIES.map((reg) => ({
+        companyIco: ico,
+        source: reg.source,
+        eventType: "LIVE_REGISTRY_CHECK",
+        severity: "LOW",
+        title: reg.fullLabel,
+        description: "Prebieha živé overenie v štátnom registri…",
+        metadata: {
+          state: "RUNNING",
+          checkedAt: now.toISOString(),
+        },
+        createdAt: now,
+      })),
+    }),
+  ]);
 
   // Trigger Python worker /live-check/{ico}
   const headers: Record<string, string> = { "Content-Type": "application/json" };

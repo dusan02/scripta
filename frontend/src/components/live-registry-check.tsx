@@ -179,6 +179,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
   const completedCount = summary.items.filter(
     (i) => i.state === "CLEAN" || i.state === "DEBT" || i.state === "UNAVAILABLE" || i.state === "AMBIGUOUS"
   ).length;
+  const hasUnavailableItem = summary.items.some((i) => i.state === "UNAVAILABLE");
   const totalCount = summary.items.length;
   const progressPct = Math.round((completedCount / totalCount) * 100);
 
@@ -576,7 +577,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
                 {t("liveCheck.modalNote")}
               </p>
               <div className="flex items-center gap-2">
-                {!summary.isRunning && summary.hasCheck && (
+                {!summary.isRunning && summary.hasCheck && (hasUnavailableItem || !summary.isFresh) && (
                   <button
                     type="button"
                     onClick={() => handleStartCheck(true, "recheck_button")}

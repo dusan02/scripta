@@ -13,9 +13,9 @@ from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
 
-_SCRAPER_TIMEOUT = 90  # max seconds for entire scraper attempt
+_SCRAPER_TIMEOUT = 45  # max seconds per attempt (3 attempts fit inside 120s outer timeout)
 _MAX_RETRIES = 3
-_RETRY_DELAY = settings.scraper_retry_delay  # unified: 1.5s base (exponential below)
+_RETRY_DELAY = settings.scraper_retry_delay
 
 
 class DoveraDlzniciScraper(BaseScraper):
@@ -29,44 +29,50 @@ class DoveraDlzniciScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Začínam pre IČO: {ico}")
             pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
 
-            # 1. Navigate
+            # Dôvera search form submits GET ?q=<ico> and SSR-renders results into
+            # ul > li.dlznici__item (debtor) or "sme nenašli žiadne výsledky" (clean).
+            # Navigating directly with ?q= avoids cookie-banner / double-input-q
+            # form interactions and cuts ~25s of timeouts per run.
+            from .mixins import SKIP_PDF_VAR
+            if SKIP_PDF_VAR.get():
+                async def _block_heavy(route):
+                    req = route.request
+                    if req.resource_type in ("image", "media", "font", "stylesheet") or any(
+                        d in req.url for d in ("usercentrics", "googletagmanager", "google-analytics", "facebook", "hotjar", "doubleclick")
+                    ):
+                        await route.abort()
+                    else:
+                        await route.continue_()
+                await page.route("**/*", _block_heavy)
+
+            search_url = f"{self.base_url}?q={ico}"
             try:
-                await page.goto(self.base_url, timeout=30000, wait_until='domcontentloaded')
+                await page.goto(search_url, timeout=25000, wait_until="domcontentloaded")
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] Dôvera nedostupná ({e}) — fallback PDF.")
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=False, has_no_results_text=False)
                 return self._make_result(status="UNAVAILABLE", file_path=str(pdf_output), page_count=1, status_message="Dôvera: dáta dočasne nedostupné.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
 
-            # 2. Cloudflare + cookies (quick, non-blocking if absent)
-            await self._handle_cloudflare_challenge(page, max_attempts=1)
-            await self._accept_cookies(page)
-            await self._try_click(page, "button", "Close", timeout=2000)
-
-            # 3. Fill IČO
-            if not await self._fill_ico_field(page, ico):
-                logger.error(f"[{self.source_type}] Pole pre IČO sa nenašlo — fallback PDF.")
-                await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=False, has_no_results_text=False)
-                return self._make_result(status="UNAVAILABLE", file_path=str(pdf_output), page_count=1, status_message="Dôvera: dáta dočasne nedostupné.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
-
-            # 4. Click search
-            if not await self._click_search(page):
-                logger.error(f"[{self.source_type}] Tlačidlo Hľadať sa nenašlo — fallback PDF.")
-                await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=True, has_no_results_text=False)
-                return self._make_result(status="UNAVAILABLE", file_path=str(pdf_output), page_count=1, status_message="Dôvera: dáta dočasne nedostupné.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
-
-            # 5. Cloudflare may appear after search
-            await self._handle_cloudflare_challenge(page, max_attempts=1)
-            await self._try_click(page, "button", "Close", timeout=2000)
-
-            # 6. Wait for results
+            # Wait for SSR result list or empty-result message (NOT 'table tbody tr',
+            # which never existed on Dôvera and previously wasted 15s every call).
             no_results = page.locator("text=sme nenašli žiadne výsledky")
-            table = page.locator("table tbody tr, .result-table tr, .table tbody tr")
+            debtor_item = page.locator("li.dlznici__item")
             try:
-                await no_results.or_(table).first.wait_for(timeout=15000)
+                await no_results.or_(debtor_item).first.wait_for(timeout=8000)
             except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
+                # Only if SSR results did not render, check whether Cloudflare blocked us
+                if await page.locator("iframe[src*='challenges.cloudflare.com']").count() > 0:
+                    await self._handle_cloudflare_challenge(page, max_attempts=1)
+                    try:
+                        await no_results.or_(debtor_item).first.wait_for(timeout=8000)
+                    except PlaywrightTimeoutError:
+                        pass
 
-            # 7. Check results
+            # Dismiss cookie banner only when we actually need a clean PDF screenshot
+            from .mixins import SKIP_PDF_VAR
+            if not SKIP_PDF_VAR.get():
+                await self._accept_cookies(page)
+
             body_text = await page.inner_text("body")
             is_empty = "sme nenašli žiadne výsledky" in body_text
             has_ico_on_page = ico in re.findall(r"\d+", body_text)
@@ -80,12 +86,17 @@ class DoveraDlzniciScraper(BaseScraper):
                     is_debtor = False
                     findings = None
 
-            # 8. Generate PDF
+            # Ambiguous guard: neither empty message nor debtor row rendered
+            if not is_debtor and not is_empty:
+                logger.warning(f"[{self.source_type}] Nejednoznačná odpoveď Dôvery pre IČO {ico}.")
+                await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=has_ico_on_page, has_no_results_text=False)
+                return self._make_result(status="UNAVAILABLE", file_path=str(pdf_output), page_count=1, status_message="Dôvera: nepodarilo sa potvrdiť výsledok vyhľadávania.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
+
             if not is_debtor or findings is None:
                 logger.info(f"[{self.source_type}] Subjekt {ico} nie je v zozname dlžníkov Dôvery.")
                 findings = "Žiadny záznam — subjekt nie je v zozname dlžníkov Dôvery."
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=has_ico_on_page, has_no_results_text=is_empty)
-                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message=f"Subjekt {ico} nie je v zozname dlžníkov Dôvery.", findings=findings)
+                return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message=f"Subjekt {ico} nie je v zozname dlžníkov Dôvery.", findings=findings, has_finding=False)
 
             # Debtor found — hide ad banner, generate clean PDF
             try:
@@ -101,166 +112,86 @@ class DoveraDlzniciScraper(BaseScraper):
                 pass
 
             await self._generate_clean_pdf(page, pdf_output, title="Zoznam dlžníkov Dôvera")
-            return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message=f"Subjekt {ico} je v zozname dlžníkov Dôvery.", findings=findings)
+            return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message=f"Subjekt {ico} je v zozname dlžníkov Dôvery.", findings=findings, has_finding=True)
 
-        # Wrap with unified retry_async_call + overall timeout per attempt
         async def _do_scrape() -> ScrapedSource:
             result = await asyncio.wait_for(
-                self._run_debtor_scraper(_scrape, unavailable_msg="Register Dôvery je nedostupný"),
+                self._run_debtor_scraper(_scrape, unavailable_msg="Register Dôvery je nedostupný", max_attempts=1),
                 timeout=_SCRAPER_TIMEOUT,
             )
             if result.status == "SUCCESS":
                 return result
-            # Non-success = retryable (register môže vrátiť chybu, ktorá prejde pri retry)
             raise ScraperUnavailableError(f"Dôvera: pokus vrátil {result.status}")
 
+        from .mixins import SKIP_PDF_VAR
+        is_live = SKIP_PDF_VAR.get()
+        max_attempts = 1 if is_live else _MAX_RETRIES
         try:
             return await retry_async_call(
                 _do_scrape,
                 source_type=self.source_type,
-                max_attempts=_MAX_RETRIES,
-                base_delay=_RETRY_DELAY,
+                max_attempts=max_attempts,
+                base_delay=1.0 if is_live else _RETRY_DELAY,
             )
         except ScraperUnavailableError:
-            # All retries exhausted — return UNAVAILABLE with user-friendly message
-            logger.error(f"[{self.source_type}] Všetky {_MAX_RETRIES} pokusy zlyhali pre IČO {ico}")
+            logger.error(f"[{self.source_type}] Všetky {max_attempts} pokusy zlyhali pre IČO {ico}")
             return self._make_result(
                 status="UNAVAILABLE",
                 status_message="Dôvera: dočasne nedostupné — skúste vygenerovať report znovu.",
             )
 
     async def _accept_cookies(self, page: Page) -> None:
-        """Usercentrics CMP — tlačidlo '#accept' je v shadow DOM.
-        Playwright CSS/role selektory pierce shadow root automaticky (XPath nie).
-        CMP sa načíta cez JS s oneskorením — treba pár sekúnd počkať."""
-        for sel in ["#accept", "button.uc-accept-button", "button#accept"]:
+        """Usercentrics CMP — tlačidlo '#accept' je v shadow DOM."""
+        for sel in ["#accept", "button.uc-accept-button"]:
             try:
                 btn = page.locator(sel).first
-                await btn.wait_for(state="visible", timeout=4000)
+                await btn.wait_for(state="visible", timeout=2000)
                 await btn.click()
                 logger.info(f"[{self.source_type}] Cookies prijaté cez '{sel}'.")
                 return
             except (PlaywrightTimeoutError, PlaywrightError):
                 continue
-        # Fallback — role-based (pierce shadow DOM)
-        await self._try_click(page, "button", "Prijať všetky", timeout=3000)
-
-    async def _try_click(self, page: Page, role: Literal["button", "link"], name: str, timeout: int = 3000) -> bool:
-        try:
-            btn = page.get_by_role(role, name=name)
-            await btn.wait_for(timeout=timeout)
-            await btn.click()
-            logger.info(f"[{self.source_type}] {name} kliknuté.")
-            return True
-        except PlaywrightTimeoutError:
-            return False
-
-    async def _fill_ico_field(self, page: Page, ico: str) -> bool:
-        # Na stránke sú DVA input[name='q'] — hlavičkové site-search
-        # (class='input input--small') a dlžnícky (class='input'). Scoped
-        # selektory na dlžnícky formulár idú prvé, aby sa IČO nevyplnilo
-        # do site-search a Enter nehodil na /vyhladavanie.
-        for selector in [
-            "form[action='/overenia/dlznici/zoznam-dlznikov'] input[name='q']",
-            "form[action*='/overenia/dlznici'] input[name='q']",
-            "input[class='input']",
-            "input[name='q'].input:not(.input--small)",
-            "input[placeholder*='IČO']", "input[placeholder*='ico']", "input[placeholder*='Obchodné']",
-            "input[type='search']", "#ico", "input.search-input",
-            "input[name*='ico']", "input[name*='search']", "input[name*='query']",
-        ]:
-            try:
-                el = page.locator(selector).first
-                await el.wait_for(timeout=1500)
-                await el.click()
-                await el.fill(ico)
-                logger.info(f"[{self.source_type}] IČO vyplnené ({selector}): {ico}")
-                return True
-            except (PlaywrightTimeoutError, PlaywrightError):
-                continue
-
-        # Last resort: role-based
-        try:
-            textbox = page.get_by_role("textbox")
-            await textbox.first.wait_for(timeout=2000)
-            await textbox.first.click()
-            await textbox.first.fill(ico)
-            logger.info(f"[{self.source_type}] IČO vyplnené cez get_by_role: {ico}")
-            return True
-        except (PlaywrightTimeoutError, PlaywrightError):
-            return False
-
-    async def _click_search(self, page: Page) -> bool:
-        # Reálny submit button dlžníckeho formulára — Enter je až fallback,
-        # lebo ak focus sedí v hlavičkovom site-search inpute, Enter hodí
-        # na /vyhladavanie namiesto odoslania formulára.
-        for selector in [
-            "form[action='/overenia/dlznici/zoznam-dlznikov'] button[type='submit']",
-            "form[action*='/overenia/dlznici'] button[type='submit']",
-            "div.btn-layout.btn-layout--vertical.no-mrg-bottom button[type='submit']",
-            "div.btn-layout--vertical button[type='submit']",
-            "button:has-text('Hľadať')",
-            "input[value='Hľadať']", "a:has-text('Hľadať')",
-            ".search-button", "button:has-text('Vyhľadať')",
-        ]:
-            try:
-                btn = page.locator(selector).first
-                await btn.wait_for(timeout=1500)
-                await btn.click()
-                logger.info(f"[{self.source_type}] Hľadať kliknuté ({selector}).")
-                return True
-            except (PlaywrightTimeoutError, PlaywrightError):
-                continue
-
-        try:
-            search_btn = page.get_by_text("Hľadať", exact=True)
-            await search_btn.wait_for(timeout=2000)
-            await search_btn.click()
-            return True
-        except (PlaywrightTimeoutError, PlaywrightError):
-            pass
-
-        # Posledná možnosť — Enter (focus by mal byť v dlžníckom inpute)
-        try:
-            await page.keyboard.press("Enter")
-            logger.info(f"[{self.source_type}] Search cez Enter key.")
-            return True
-        except (PlaywrightTimeoutError, PlaywrightError):
-            return False
 
     async def _extract_findings(self, page: Page, ico: str) -> Optional[str]:
-        """Extrahuje nálezy zo stránky — hľadá elementy obsahujúce IČO."""
+        """Extrahuje nálezy zo zoznamu li.dlznici__item (vrátane dlžnej sumy v .item-sum)."""
         try:
-            # Hľadaj všetky texty obsahujúce IČO
-            elements = page.locator(f"text={ico}")
-            count = await elements.count()
-            if count == 0:
-                return None
-
-            # Zbieraj texty z okolitých elementov
-            texts = []
-            for i in range(min(count, 5)):
+            items = page.locator("li.dlznici__item")
+            item_count = await items.count()
+            texts: list[str] = []
+            for i in range(min(item_count, 5)):
                 try:
-                    el = elements.nth(i)
-                    # Skús získať text z rodičovského elementu pre kontext
-                    parent = el.locator("xpath=..")
-                    parent_text = (await parent.inner_text(timeout=2000)).strip()
-                    parent_text = re.sub(r'\s+', ' ', parent_text)
-                    if parent_text:
-                        texts.append(parent_text)
+                    raw = (await items.nth(i).inner_text(timeout=2000)).strip()
+                    if ico not in raw:
+                        continue
+                    # Strip UI action button labels ("Riešiť dlh", "Namietať")
+                    cleaned = re.sub(r"\b(Riešiť dlh|Namietať)\b", "", raw)
+                    lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in cleaned.splitlines()]
+                    cleaned = " | ".join(ln for ln in lines if ln)
+                    if cleaned:
+                        texts.append(cleaned)
                 except PlaywrightTimeoutError:
                     continue
+
+            # Fallback if Dôvera changes list markup
+            if not texts:
+                elements = page.locator(f"text={ico}")
+                count = await elements.count()
+                for i in range(min(count, 5)):
+                    try:
+                        parent = elements.nth(i).locator("xpath=../..")
+                        parent_text = re.sub(r"\s+", " ", (await parent.inner_text(timeout=2000)).strip())
+                        if parent_text and ico in parent_text:
+                            texts.append(parent_text)
+                    except PlaywrightTimeoutError:
+                        continue
 
             if not texts:
                 return None
 
-            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Dôvery."]
-            for t in texts:
-                parts.append(t)
+            parts = [f"POZOR: Subjekt (IČO: {ico}) je v zozname dlžníkov Dôvery."] + texts
             findings = "\n".join(parts)
             logger.info(f"[{self.source_type}] Findings extrahované: {findings[:200]}")
             return findings
-
         except Exception as e:
             logger.warning(f"[{self.source_type}] Extrakcia nálezov zlyhala: {e}")
             return None

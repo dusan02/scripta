@@ -36,8 +36,10 @@ class SpDlzniciScraper(BaseScraper):
         """Naviguje na SP stránku s content check — retry cez retry_async.
         Raises ContentCheckError ak 'Server je nedostupný' (retry sa pokúsi znova).
         Raises ScraperUnavailableError pri perzistentnom timeoute."""
-        await page.goto(self.base_url, timeout=30000, wait_until='commit')
-        await page.wait_for_load_state('domcontentloaded', timeout=30000)
+        from .mixins import SKIP_PDF_VAR
+        nav_timeout = 15000 if SKIP_PDF_VAR.get() else 30000
+        await page.goto(self.base_url, timeout=nav_timeout, wait_until='commit')
+        await page.wait_for_load_state('domcontentloaded', timeout=nav_timeout)
         logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
         # Content check: "Server je nedostupný" = retry
         body_text = await page.inner_text("body")
@@ -56,15 +58,16 @@ class SpDlzniciScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
-            # Unified retry s content check — 3 pokusy, exponential backoff s jitterom
-            # retry_async_call:
-            #   - pri ContentCheckError s result → vráti result (UNAVAILABLE)
-            #   - pri perzistentnom timeoute → raise ScraperUnavailableError
+            # Unified retry s content check — v live check len 1 pokus bez backoffu
+            from .mixins import SKIP_PDF_VAR
+            is_live = SKIP_PDF_VAR.get()
+            max_nav_attempts = 1 if is_live else (settings.scraper_retries + 1)
             try:
                 nav_result = await retry_async_call(
                     self._navigate_sp, page,
                     source_type=self.source_type,
-                    max_attempts=settings.scraper_retries + 1,
+                    max_attempts=max_nav_attempts,
+                    base_delay=1.0 if is_live else settings.scraper_retry_delay,
                 )
             except ScraperUnavailableError:
                 return self._make_result(
@@ -164,6 +167,7 @@ class SpDlzniciScraper(BaseScraper):
                     page_count=1,
                     status_message=f"Subjekt {ico} nie je v zozname dlžníkov Sociálnej poisťovne.",
                     findings=findings,
+                    has_finding=False,
                 )
 
             # is_debtor = True — generovať PDF z reálnej stránky
@@ -187,6 +191,7 @@ class SpDlzniciScraper(BaseScraper):
                 page_count=1,
                 status_message=f"Subjekt {ico} je v zozname dlžníkov Sociálnej poisťovne.",
                 findings=findings,
+                has_finding=True,
             )
 
         return await self._run_debtor_scraper(_scrape, unavailable_msg="Register Sociálnej poisťovne je nedostupný")

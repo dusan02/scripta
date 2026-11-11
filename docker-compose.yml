@@ -155,7 +155,7 @@ services:
     mem_limit: 3g
     environment:
       - CONNECTION_TIMEOUT=300000
-      - MAX_CONCURRENT_SESSIONS=5
+      - MAX_CONCURRENT_SESSIONS=10
       # Mandatory — an unauthenticated browserless is an SSRF/resource-abuse
       # pivot for any compromised container on the Docker network.
       - TOKEN=${BROWSERLESS_TOKEN:?BROWSERLESS_TOKEN must be set - generate with openssl rand -hex 32}

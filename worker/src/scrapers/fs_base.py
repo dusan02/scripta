@@ -421,6 +421,7 @@ class FinancnaSpravaBase(BaseScraper):
                     file_path=None,
                     status_message=f"Subjekt nie je v zozname ({self.source_type}).",
                     findings=self._empty_findings(),
+                    has_finding=False,
                     company_name=company_name,
                 )
 
@@ -452,6 +453,7 @@ class FinancnaSpravaBase(BaseScraper):
                     file_path=None,
                     status_message=findings or f"Subjekt preverený v {self.source_type}.",
                     findings=findings or self._empty_findings(),
+                    has_finding=bool(findings and "POZOR" in findings),
                     company_name=company_name,
                     ic_dph=ic_dph,
                 )

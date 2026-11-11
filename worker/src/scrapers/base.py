@@ -448,6 +448,7 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         share_capital: Optional[float] = None,
         signing_authority: Optional[str] = None,
         business_activity: Optional[str] = None,
+        has_finding: Optional[bool] = None,
     ) -> ScrapedSource:
         return ScrapedSource(
             source_type=self.source_type,
@@ -464,4 +465,5 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
             share_capital=share_capital,
             signing_authority=signing_authority,
             business_activity=business_activity,
+            has_finding=has_finding,
         )

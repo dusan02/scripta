@@ -166,6 +166,7 @@ async def run_scrapers(
     company_name: Optional[str] = None,
     company_city: Optional[str] = None,
     timeout_overrides: Optional[Dict[str, int]] = None,
+    max_concurrency: Optional[int] = None,
 ) -> List[ScrapedSource]:
     """Spustí scrapery — nezávislé paralelne; závislé sa spustia hneď ako ich
     dependencia skončí (paralelne s ostatnými nezávislými).
@@ -186,10 +187,10 @@ async def run_scrapers(
     # FS semaphore 3 — 7 FS scraperov zdieľa rovnaký server, 3 súbežné = 3 vlny (3+3+1)
     # Redukované z 4 na 3 — FS server je pomalý a rate-limituje pri 4+ súbežných.
     fs_semaphore = asyncio.Semaphore(3)
-    # Všetky browser scrapery — 5 slotov zodpovedá MAX_CONCURRENT_SESSIONS=5 v browserless.
-    # 8GB server s 2-core CPU: 2 súbežné reporty × 5 browser contextov = max 10 contexts,
-    # ale _scraper_lock garantuje len 1 report scrapuje naraz → max 5 súbežných.
-    global_semaphore = asyncio.Semaphore(5)
+    # Všetky browser scrapery — default 8 slotov zodpovedá MAX_CONCURRENT_SESSIONS=10 v browserless.
+    # Umožňuje spustiť všetkých 7 live-check scraperov paralelne bez čakania v rade.
+    concurrency_limit = max_concurrency or 8
+    global_semaphore = asyncio.Semaphore(concurrency_limit)
 
     # Rozdelíme na nezávislé a závislé scrapery
     independent = [s for s in sources if s not in _DEPENDS_ON]

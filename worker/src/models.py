@@ -76,6 +76,7 @@ class ScrapedSource(BaseModel):
     share_capital: Optional[float] = None       # Základné imanie v EUR
     signing_authority: Optional[str] = None     # Konanie menom spoločnosti
     business_activity: Optional[str] = None     # Predmet podnikania (činnosti)
+    has_finding: Optional[bool] = None          # Explicit debtor/insolvency finding flag (True=DEBT, False=CLEAN)
 
     @property
     def message(self) -> Optional[str]:  # backward compat alias

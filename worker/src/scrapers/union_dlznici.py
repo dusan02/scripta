@@ -18,17 +18,19 @@ class UnionDlzniciScraper(BaseScraper):
     """
 
     source_type = "UNION_DLZNICI"
-    base_url = "https://www.union.sk/zoznam-dlznikov/"
+    base_url = "https://portal.unionzp.sk/pub/dlznici"
 
     async def run(self, *, ico: str, output_dir: Path, **kwargs) -> ScrapedSource:
         async def _scrape(page: Page) -> ScrapedSource:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
+            from .mixins import SKIP_PDF_VAR
+            nav_timeout = 15000 if SKIP_PDF_VAR.get() else 30000
             try:
-                await page.goto(self.base_url, timeout=30000, wait_until='domcontentloaded')
+                await page.goto(self.base_url, timeout=nav_timeout, wait_until='domcontentloaded')
                 try:
-                    await page.wait_for_load_state('networkidle', timeout=10000)
+                    await page.wait_for_load_state('networkidle', timeout=5000 if SKIP_PDF_VAR.get() else 10000)
                 except PlaywrightTimeoutError:
                     pass
             except (PlaywrightTimeoutError, PlaywrightError) as e:
@@ -52,24 +54,8 @@ class UnionDlzniciScraper(BaseScraper):
                     findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
                 )
 
-            # Cookie banner
-            try:
-                cookie_btn = page.get_by_role("button", name="Akceptovať všetky cookies")
-                await cookie_btn.wait_for(timeout=10000)
-                await cookie_btn.click()
-                logger.info(f"[{self.source_type}] Cookie banner prijatý.")
-            except PlaywrightTimeoutError:
-                logger.info(f"[{self.source_type}] Cookie banner sa nezobrazil.")
-
-            # Kliknúť "Vyhľadať v zozname dlžníkov" pre zobrazenie vyhľadávacieho formulára
-            try:
-                open_search_btn = page.get_by_role("button", name="Vyhľadať v zozname dlžníkov")
-                await open_search_btn.wait_for(timeout=10000)
-                await open_search_btn.click()
-                logger.info(f"[{self.source_type}] Vyhľadávací formulár otvorený.")
-                await page.wait_for_timeout(2000)
-            except PlaywrightTimeoutError:
-                logger.info(f"[{self.source_type}] Tlačidlo 'Vyhľadať v zozname dlžníkov' sa nenašlo — formulár môže byť už otvorený.")
+            # Direct navigation to portal.unionzp.sk/pub/dlznici skips the marketing
+            # landing page (cookie banner + 'Vyhľadať v zozname dlžníkov' redirect).
 
             # Vyplniť IČO — presný CSS selector #input-v-5 (Vuetify), fallback na .v-field__input
             ico_filled = False
@@ -257,6 +243,7 @@ class UnionDlzniciScraper(BaseScraper):
                     page_count=1,
                     status_message=f"Subjekt {ico} nie je v zozname dlžníkov UNION.",
                     findings=findings,
+                    has_finding=False,
                 )
 
             # Inak sme našli subjekt v tabuľke (is_debtor = True).
@@ -295,6 +282,7 @@ class UnionDlzniciScraper(BaseScraper):
                 page_count=1,
                 status_message=f"Subjekt {ico} je v zozname dlžníkov UNION.",
                 findings=findings,
+                has_finding=True,
             )
 
         return await self._run_debtor_scraper(_scrape, unavailable_msg="Register UNION je nedostupný")

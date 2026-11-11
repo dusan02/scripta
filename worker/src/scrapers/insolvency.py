@@ -146,6 +146,28 @@ class InsolvencyScraper(BaseScraper):
         logger.debug(f"[{self.source_type}] ⏱ extract_findings: {time.perf_counter() - _t:.2f}s")
         _t = time.perf_counter()
 
+        from .mixins import SKIP_PDF_VAR
+        if SKIP_PDF_VAR.get():
+            if not has_results:
+                logger.info(f"[{self.source_type}] Neboli nájdené žiadne záznamy (skip_pdf).")
+                return self._make_result(
+                    status="SUCCESS",
+                    file_path=None,
+                    page_count=1,
+                    status_message="Subjekt nemá negatívne záznamy v insolvenčnom registri.",
+                    findings=findings,
+                    has_finding=False,
+                )
+            logger.info(f"[{self.source_type}] Nájdené záznamy v insolvenčnom registri (skip_pdf).")
+            return self._make_result(
+                status="SUCCESS",
+                file_path=None,
+                page_count=1,
+                status_message="Boli nájdené záznamy v insolvenčnom registri (POZOR).",
+                findings=findings or "Nájdený záznam v insolvenčnom registri — POZOR! Subjekt je v konkurze/reštrukturalizácii.",
+                has_finding=True,
+            )
+
         if has_results:
             # Klikneme na detail konania, aby sme ho stiahli namiesto zoznamu vyhľadávania
             detail_link = page.locator("a[href*='konanieDetail.xhtml']").first
@@ -215,6 +237,7 @@ class InsolvencyScraper(BaseScraper):
                 page_count=1,
                 status_message="Subjekt nemá negatívne záznamy v insolvenčnom registri.",
                 findings=findings,
+                has_finding=False,
             )
 
         return self._make_result(
@@ -223,6 +246,7 @@ class InsolvencyScraper(BaseScraper):
             page_count=1,
             status_message="Boli nájdené záznamy v insolvenčnom registri (POZOR).",
             findings=findings,
+            has_finding=True,
         )
 
     async def _extract_findings(self, page: Page, search_query: str = "") -> tuple[bool, str]:

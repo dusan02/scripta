@@ -878,17 +878,15 @@ LIVE_CHECK_SOURCES = [
     "INSOLVENCY",
 ]
 
-# Live-check timeouty — user čaká v modale, takže kratšie než report mode
-# (150-180s), ale dlžnícke registre reálne potrebujú 100-180s (75s ich zabilo
-# v polovici behu — VšZP/Dôvera/SP boli mid-search pri timeoute).
+# Live-check timeouty — user čaká v modale, fail-fast timeout (max 45s) ak register neodpovedá
 LIVE_CHECK_TIMEOUTS = {
-    "SP_DLZNICI": 120,
-    "VSZP_DLZNICI": 120,
-    "DOVERA_DLZNICI": 120,
-    "UNION_DLZNICI": 120,
-    "FS_DPH_RUSENIE": 90,
-    "FS_DANOVE_DLZNICI": 90,
-    "INSOLVENCY": 90,
+    "SP_DLZNICI": 45,
+    "VSZP_DLZNICI": 45,
+    "DOVERA_DLZNICI": 45,
+    "UNION_DLZNICI": 45,
+    "FS_DPH_RUSENIE": 45,
+    "FS_DANOVE_DLZNICI": 45,
+    "INSOLVENCY": 45,
 }
 
 LIVE_CHECK_LABELS = {
@@ -908,18 +906,21 @@ def _parse_eur_amount(text: Optional[str]) -> Optional[float]:
     if not text:
         return None
     import re as _re
-    # Match explicit "13 641,26 €" first, or decimal "13 641,26" / "27936.63" in table cells
-    m = _re.search(r"(\d[\d\s\xa0]*[,\.]\d{2})\s*€", text)
+    # Match explicit "110 378,24 €" (up to 3 space-separated thousand groups so a preceding
+    # IČO or ZIP code on the same line cannot merge into the number and overflow numeric(15,2))
+    m = _re.search(r"(?<!\d)(\d{1,3}(?:[ \t\xa0]\d{3}){0,3}[,\.]\d{2})\s*€", text)
     if not m:
-        m = _re.search(r"(?:Dlžná suma|Suma nedoplatkov|Dlh):\s*(\d{1,3}(?:[\s\xa0]?\d{3})*[,\.]\d{2})\b", text)
+        m = _re.search(r"(?<!\d)(\d{1,9}[,\.]\d{2})\s*€", text)
     if not m:
-        m = _re.search(r"\|\s*(\d{1,3}(?:[\s\xa0]?\d{3})*[,\.]\d{2})\b", text)
+        m = _re.search(r"(?:Dlžná suma|Suma nedoplatkov|Dlh):\s*(\d{1,9}(?:[ \t\xa0]?\d{3}){0,3}[,\.]\d{2})(?!\d)", text)
+    if not m:
+        m = _re.search(r"\|\s*(\d{1,9}(?:[ \t\xa0]?\d{3}){0,3}[,\.]\d{2})(?!\d)", text)
     if not m:
         return None
-    raw = m.group(1).replace(" ", "").replace("\xa0", "").replace(",", ".")
+    raw = m.group(1).replace(" ", "").replace("\t", "").replace("\xa0", "").replace(",", ".")
     try:
         val = float(raw)
-        return val if val > 0 else None
+        return val if 0 < val < 10_000_000_000 else None
     except ValueError:
         return None
 
@@ -948,12 +949,16 @@ async def _save_live_source_result(ico: str, res) -> None:
         severity = "MEDIUM"
         findings_text = findings_text.split("|", 1)[-1].strip() or "Nález je nejednoznačný — vyžaduje manuálne overenie."
     else:
-        has_warning = (
-            "pozor" in combined_lower
-            or "nájdený záznam v insolvenčnom" in combined_lower
-            or ("je v zozname dlžníkov" in combined_lower and "nie je v zozname" not in combined_lower)
-            or ("dôvodmi na zrušenie" in combined_lower and "nie je v zozname" not in combined_lower and "bez zistených" not in combined_lower)
-        )
+        explicit = getattr(res, "has_finding", None)
+        if explicit is not None:
+            has_warning = bool(explicit)
+        else:
+            has_warning = (
+                "pozor" in combined_lower
+                or "nájdený záznam v insolvenčnom" in combined_lower
+                or ("je v zozname dlžníkov" in combined_lower and "nie je v zozname" not in combined_lower)
+                or ("dôvodmi na zrušenie" in combined_lower and "nie je v zozname" not in combined_lower and "bez zistených" not in combined_lower)
+            )
         state = "DEBT" if has_warning else "CLEAN"
         severity = "HIGH" if has_warning else "INFO"
         if not findings_text:
@@ -1013,31 +1018,47 @@ async def _execute_live_check(ico: str, company_name: Optional[str] = None, comp
     pending_tasks: list[asyncio.Task] = []
     out_dir = Path("/tmp") / f"live_check_{ico}"
     out_dir.mkdir(parents=True, exist_ok=True)
+    saved_sources: set[str] = set()
+
+    async def _save_and_mark(res) -> None:
+        await _save_live_source_result(ico, res)
+        saved_sources.add(res.source_type)
 
     def _on_done(res) -> None:
-        t = asyncio.create_task(_save_live_source_result(ico, res))
+        t = asyncio.create_task(_save_and_mark(res))
         pending_tasks.append(t)
 
     try:
-        playwright = await async_playwright().start()
-        browser = await browser_manager.get_browser(playwright)
-        results = await run_scrapers(
-            LIVE_CHECK_SOURCES,
-            output_dir=out_dir,
-            browser=browser,
-            target_type="COMPANY",
-            ico=ico,
-            on_source_done=_on_done,
-            disable_circuit_breaker=True,
-            company_name=company_name,
-            company_city=company_city,
-            timeout_overrides=LIVE_CHECK_TIMEOUTS,
-        )
+        async def _run_guarded() -> list:
+            nonlocal playwright, browser
+            playwright = await async_playwright().start()
+            browser = await browser_manager.get_browser(playwright)
+            return await run_scrapers(
+                LIVE_CHECK_SOURCES,
+                output_dir=out_dir,
+                browser=browser,
+                target_type="COMPANY",
+                ico=ico,
+                on_source_done=_on_done,
+                disable_circuit_breaker=True,
+                company_name=company_name,
+                company_city=company_city,
+                timeout_overrides=LIVE_CHECK_TIMEOUTS,
+                max_concurrency=len(LIVE_CHECK_SOURCES),
+            )
+
+        if _scraper_lock is not None:
+            async with _scraper_lock:
+                results = await _run_guarded()
+        else:
+            results = await _run_guarded()
+
         if pending_tasks:
             await asyncio.gather(*pending_tasks, return_exceptions=True)
-        # Ensure all 6 sources are persisted even if a callback was missed
+        # Only persist sources whose _on_done callback did not complete
         for r in results:
-            await _save_live_source_result(ico, r)
+            if r.source_type not in saved_sources:
+                await _save_live_source_result(ico, r)
     except Exception as e:
         logger.error(f"[LiveCheck] Error checking {ico}: {e}", exc_info=True)
     finally:

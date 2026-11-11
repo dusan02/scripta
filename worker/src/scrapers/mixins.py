@@ -291,6 +291,7 @@ class StealthDebtorMixin:
         company_name: Optional[str] = None,
         ic_dph: Optional[str] = None,
         persons: Optional[list] = None,
+        has_finding: Optional[bool] = None,
     ) -> ScrapedSource:
         """Helper to create ScrapedSource results. Must be called on classes with source_type attribute."""
         return ScrapedSource(
@@ -303,6 +304,7 @@ class StealthDebtorMixin:
             company_name=company_name,
             ic_dph=ic_dph,
             persons=persons,
+            has_finding=has_finding,
         )
 
     async def _get_stealth_page(self) -> Page:
@@ -328,6 +330,16 @@ class StealthDebtorMixin:
 
         await ctx.add_init_script(STEALTH_JS)
         page = await ctx.new_page()
+        if SKIP_PDF_VAR.get():
+            async def _block_live_check_bloat(route):
+                req = route.request
+                if req.resource_type in ("image", "media", "font") or any(
+                    d in req.url for d in ("usercentrics", "googletagmanager", "google-analytics", "facebook", "hotjar", "doubleclick")
+                ):
+                    await route.abort()
+                else:
+                    await route.continue_()
+            await page.route("**/*", _block_live_check_bloat)
 
         async def _close_context_on_page_close(page_to_close: Page) -> None:
             """Close browser context when page closes to prevent memory leaks."""
@@ -351,26 +363,40 @@ class StealthDebtorMixin:
         scrape_fn,
         *,
         unavailable_msg: str,
+        max_attempts: int = 2,
     ) -> ScrapedSource:
-        page: Optional[Page] = None
-        try:
-            page = await self._get_stealth_page()
-            return await scrape_fn(page)
-        except ScraperUnavailableError as e:
-            logger.error(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Nedostupné: {e}")
-            return self._make_result(status="UNAVAILABLE", status_message=f"{unavailable_msg}: {e}")
-        except PlaywrightError as e:
-            logger.error(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Playwright chyba: {e}")
-            return self._make_result(status="FAILED", status_message=f"Sieťová chyba pri spracovaní: {e}")
-        except Exception as e:
-            logger.error(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Nečakaná chyba: {e}", exc_info=True)
-            return self._make_result(status="FAILED", status_message=f"Neznáma chyba pri spracovaní: {type(e).__name__}: {e}")
-        finally:
-            if page:
-                try:
-                    await page.close()
-                except Exception:
-                    pass
+        last_res: Optional[ScrapedSource] = None
+        src = getattr(self, "source_type", "UNKNOWN")
+        # In live-check mode (user waiting in UI), fail fast without slow retries
+        if SKIP_PDF_VAR.get():
+            max_attempts = 1
+        for attempt in range(1, max_attempts + 1):
+            page: Optional[Page] = None
+            try:
+                page = await self._get_stealth_page()
+                res = await scrape_fn(page)
+                if res.status == "SUCCESS":
+                    return res
+                last_res = res
+                logger.warning(f"[{src}] Pokus {attempt}/{max_attempts} vrátil {res.status} ({res.status_message})")
+            except ScraperUnavailableError as e:
+                logger.warning(f"[{src}] Nedostupné (pokus {attempt}/{max_attempts}): {e}")
+                last_res = self._make_result(status="UNAVAILABLE", status_message=f"{unavailable_msg}: {e}")
+            except PlaywrightError as e:
+                logger.warning(f"[{src}] Playwright chyba (pokus {attempt}/{max_attempts}): {e}")
+                last_res = self._make_result(status="FAILED", status_message=f"Sieťová chyba pri spracovaní: {e}")
+            except Exception as e:
+                logger.error(f"[{src}] Nečakaná chyba (pokus {attempt}/{max_attempts}): {e}", exc_info=True)
+                last_res = self._make_result(status="FAILED", status_message=f"Neznáma chyba pri spracovaní: {type(e).__name__}: {e}")
+            finally:
+                if page:
+                    try:
+                        await page.close()
+                    except Exception:
+                        pass
+            if attempt < max_attempts:
+                await asyncio.sleep(1.5 * attempt)
+        return last_res or self._make_result(status="UNAVAILABLE", status_message=unavailable_msg)
 
     async def _generate_debtor_no_results_pdf(
         self, page: Page, output_path: Path, ico: str,

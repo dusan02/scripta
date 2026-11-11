@@ -41,9 +41,11 @@ class VszpDlzniciScraper(BaseScraper):
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
+            from .mixins import SKIP_PDF_VAR
+            nav_timeout = 15000 if SKIP_PDF_VAR.get() else 30000
             try:
-                await page.goto(self.base_url, timeout=30000, wait_until='commit')
-                await page.wait_for_load_state('domcontentloaded', timeout=30000)
+                await page.goto(self.base_url, timeout=nav_timeout, wait_until='commit')
+                await page.wait_for_load_state('domcontentloaded', timeout=nav_timeout)
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 raise ScraperUnavailableError(f"VšZP nedostupná: {e}")
 
@@ -264,6 +266,7 @@ class VszpDlzniciScraper(BaseScraper):
                     page_count=1,
                     status_message=f"Subjekt {ico} nie je v zozname dlžníkov VšZP.",
                     findings=findings,
+                    has_finding=False,
                 )
 
             # Inak sme našli subjekt v tabuľke (is_debtor = True).
@@ -302,6 +305,7 @@ class VszpDlzniciScraper(BaseScraper):
                 page_count=1,
                 status_message=f"Subjekt {ico} je v zozname dlžníkov VšZP.",
                 findings=findings,
+                has_finding=True,
             )
 
         return await self._run_debtor_scraper(_scrape, unavailable_msg="Register VšZP je nedostupný")
