@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import json
 import os
 import socket
 import time
@@ -6,6 +8,11 @@ import logging
 from playwright.async_api import Browser
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_DESKTOP_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+)
 
 class BrowserManager:
     def __init__(self):
@@ -41,7 +48,15 @@ class BrowserManager:
             # stealth=1 v browserless zapína starý Node.js plugin (@zorilla/puppeteer-extra-plugin-stealth),
             # ktorý pri súbežných taboch spôsobuje TargetCloseError (Network.setUserAgentOverride)
             # a zhodí celý browser. Stealth ochranu robí náš Python kód cez STEALTH_JS v mixins.py.
-            _launch_b64 = "eyJhcmdzIjpbIi0tZGlzYWJsZS1ibGluay1mZWF0dXJlcz1BdXRvbWF0aW9uQ29udHJvbGxlZCJdfQ=="
+            # Explicitný --user-agent prepíše defaultný HeadlessChrome v Chromium procese,
+            # čím obíde WAF blokovanie (napr. Sociálna poisťovňa vracia 500 pre HeadlessChrome).
+            _launch_payload = json.dumps({
+                "args": [
+                    "--disable-blink-features=AutomationControlled",
+                    f"--user-agent={_DEFAULT_DESKTOP_UA}",
+                ]
+            })
+            _launch_b64 = base64.b64encode(_launch_payload.encode()).decode()
             _bl_token = os.environ.get("BROWSERLESS_TOKEN", "")
             _token_param = f"&token={_bl_token}" if _bl_token else ""
             browserless_url = f"ws://browserless:3000?launch={_launch_b64}{_token_param}"
@@ -94,6 +109,7 @@ class BrowserManager:
                 "--disable-setuid-sandbox",
                 "--disable-gpu",
                 "--disable-blink-features=AutomationControlled",
+                f"--user-agent={_DEFAULT_DESKTOP_UA}",
             ]
         )
 

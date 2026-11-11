@@ -159,7 +159,7 @@ services:
       # Mandatory — an unauthenticated browserless is an SSRF/resource-abuse
       # pivot for any compromised container on the Docker network.
       - TOKEN=${BROWSERLESS_TOKEN:?BROWSERLESS_TOKEN must be set - generate with openssl rand -hex 32}
-      - LAUNCH_ARGS=--disable-blink-features=AutomationControlled
+      - LAUNCH_ARGS=--disable-blink-features=AutomationControlled --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f \"http://localhost:3000/config?token=$$TOKEN\""]
       interval: 30s
