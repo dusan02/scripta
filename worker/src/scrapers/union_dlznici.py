@@ -26,11 +26,11 @@ class UnionDlzniciScraper(BaseScraper):
 
             logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
             from .mixins import SKIP_PDF_VAR
-            nav_timeout = 15000 if SKIP_PDF_VAR.get() else 30000
+            nav_timeout = 25000 if SKIP_PDF_VAR.get() else 30000
             try:
                 await page.goto(self.base_url, timeout=nav_timeout, wait_until='domcontentloaded')
                 try:
-                    await page.wait_for_load_state('networkidle', timeout=5000 if SKIP_PDF_VAR.get() else 10000)
+                    await page.wait_for_load_state('networkidle', timeout=8000 if SKIP_PDF_VAR.get() else 10000)
                 except PlaywrightTimeoutError:
                     pass
             except (PlaywrightTimeoutError, PlaywrightError) as e:

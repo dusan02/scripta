@@ -37,7 +37,7 @@ class SpDlzniciScraper(BaseScraper):
         Raises ContentCheckError ak 'Server je nedostupný' (retry sa pokúsi znova).
         Raises ScraperUnavailableError pri perzistentnom timeoute."""
         from .mixins import SKIP_PDF_VAR
-        nav_timeout = 15000 if SKIP_PDF_VAR.get() else 30000
+        nav_timeout = 25000 if SKIP_PDF_VAR.get() else 30000
         await page.goto(self.base_url, timeout=nav_timeout, wait_until='commit')
         await page.wait_for_load_state('domcontentloaded', timeout=nav_timeout)
         logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")

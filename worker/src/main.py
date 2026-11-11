@@ -878,15 +878,15 @@ LIVE_CHECK_SOURCES = [
     "INSOLVENCY",
 ]
 
-# Live-check timeouty — user čaká v modale, fail-fast timeout (max 45s) ak register neodpovedá
+# Live-check timeouty — user čaká v modale, fail-fast per-register timeout
 LIVE_CHECK_TIMEOUTS = {
-    "SP_DLZNICI": 45,
+    "SP_DLZNICI": 60,
     "VSZP_DLZNICI": 45,
-    "DOVERA_DLZNICI": 45,
-    "UNION_DLZNICI": 45,
-    "FS_DPH_RUSENIE": 45,
-    "FS_DANOVE_DLZNICI": 45,
-    "INSOLVENCY": 45,
+    "DOVERA_DLZNICI": 60,
+    "UNION_DLZNICI": 60,
+    "FS_DPH_RUSENIE": 75,
+    "FS_DANOVE_DLZNICI": 75,
+    "INSOLVENCY": 60,
 }
 
 LIVE_CHECK_LABELS = {
