@@ -881,11 +881,11 @@ LIVE_CHECK_SOURCES = [
 # Live-check timeouty — user čaká v modale, fail-fast per-register timeout
 LIVE_CHECK_TIMEOUTS = {
     "SP_DLZNICI": 60,
-    "VSZP_DLZNICI": 45,
-    "DOVERA_DLZNICI": 60,
+    "VSZP_DLZNICI": 35,
+    "DOVERA_DLZNICI": 65,
     "UNION_DLZNICI": 60,
-    "FS_DPH_RUSENIE": 75,
-    "FS_DANOVE_DLZNICI": 75,
+    "FS_DPH_RUSENIE": 85,
+    "FS_DANOVE_DLZNICI": 85,
     "INSOLVENCY": 60,
 }
 
@@ -1044,7 +1044,7 @@ async def _execute_live_check(ico: str, company_name: Optional[str] = None, comp
                 company_name=company_name,
                 company_city=company_city,
                 timeout_overrides=LIVE_CHECK_TIMEOUTS,
-                max_concurrency=len(LIVE_CHECK_SOURCES),
+                max_concurrency=4,
             )
 
         if _scraper_lock is not None:
