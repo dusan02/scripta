@@ -330,16 +330,6 @@ class StealthDebtorMixin:
 
         await ctx.add_init_script(STEALTH_JS)
         page = await ctx.new_page()
-        if SKIP_PDF_VAR.get():
-            async def _block_live_check_bloat(route):
-                req = route.request
-                if req.resource_type in ("image", "media", "font") or any(
-                    d in req.url for d in ("usercentrics", "googletagmanager", "google-analytics", "facebook", "hotjar", "doubleclick")
-                ):
-                    await route.abort()
-                else:
-                    await route.continue_()
-            await page.route("**/*", _block_live_check_bloat)
 
         async def _close_context_on_page_close(page_to_close: Page) -> None:
             """Close browser context when page closes to prevent memory leaks."""

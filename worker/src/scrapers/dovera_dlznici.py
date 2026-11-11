@@ -33,18 +33,6 @@ class DoveraDlzniciScraper(BaseScraper):
             # ul > li.dlznici__item (debtor) or "sme nenašli žiadne výsledky" (clean).
             # Navigating directly with ?q= avoids cookie-banner / double-input-q
             # form interactions and cuts ~25s of timeouts per run.
-            from .mixins import SKIP_PDF_VAR
-            if SKIP_PDF_VAR.get():
-                async def _block_heavy(route):
-                    req = route.request
-                    if req.resource_type in ("image", "media", "font", "stylesheet") or any(
-                        d in req.url for d in ("usercentrics", "googletagmanager", "google-analytics", "facebook", "hotjar", "doubleclick")
-                    ):
-                        await route.abort()
-                    else:
-                        await route.continue_()
-                await page.route("**/*", _block_heavy)
-
             search_url = f"{self.base_url}?q={ico}"
             try:
                 await page.goto(search_url, timeout=25000, wait_until="domcontentloaded")
