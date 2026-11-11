@@ -37,19 +37,14 @@ class BrowserManager:
             return await self._launch_local(playwright)
 
         try:
-            # Skúšame pripojenie na Browserless
-            # stealth=1 zapne stealth plugin proti anti-bot detekcii
-            # blockAds=false — ad-blocker môže zablokovať funkčné requesty (captcha, API calls)
-            # launch= base64-encoded JSON: {"args":["--disable-blink-features=AutomationControlled"]}
-            # Required for UVO and other sites that detect headless Chrome via blink features.
-            # stealth=1 alone is not sufficient — some sites check navigator.webdriver before
-            # our STEALTH_JS can override it; the blink flag prevents Chrome from setting it.
+            # Browserless pripojenie:
+            # stealth=1 v browserless zapína starý Node.js plugin (@zorilla/puppeteer-extra-plugin-stealth),
+            # ktorý pri súbežných taboch spôsobuje TargetCloseError (Network.setUserAgentOverride)
+            # a zhodí celý browser. Stealth ochranu robí náš Python kód cez STEALTH_JS v mixins.py.
             _launch_b64 = "eyJhcmdzIjpbIi0tZGlzYWJsZS1ibGluay1mZWF0dXJlcz1BdXRvbWF0aW9uQ29udHJvbGxlZCJdfQ=="
-            # BROWSERLESS_TOKEN is mandatory in production (browserless rejects
-            # unauthenticated connections when TOKEN is set server-side).
             _bl_token = os.environ.get("BROWSERLESS_TOKEN", "")
             _token_param = f"&token={_bl_token}" if _bl_token else ""
-            browserless_url = f"ws://browserless:3000?stealth=1&launch={_launch_b64}{_token_param}"
+            browserless_url = f"ws://browserless:3000?launch={_launch_b64}{_token_param}"
             browser = await playwright.chromium.connect_over_cdp(browserless_url, timeout=15000)
             
             # Pre-flight health check — over že browser je skutočne funkčný
