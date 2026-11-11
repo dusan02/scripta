@@ -205,6 +205,7 @@ services:
       HOME: /tmp
     volumes:
       - ./worker/results:/app/results  # Evidence Binder PDF súbory
+      - ./worker/src:/app/src
     logging:
       driver: json-file
       options:
@@ -248,6 +249,9 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       EXPERT_MODE: "1"
       HOME: /tmp
+    volumes:
+      - ./worker/results:/app/results
+      - ./worker/src:/app/src
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8011/health')"]
       interval: 10s
