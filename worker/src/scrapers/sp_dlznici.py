@@ -32,13 +32,13 @@ class SpDlzniciScraper(BaseScraper):
     source_type = "SP_DLZNICI"
     base_url = "https://socpoist.sk/nastroje-sluzby/zoznam-dlznikov"
 
-    async def _navigate_sp(self, page: Page) -> Page:
+    async def _navigate_sp(self, page: Page, url: str) -> Page:
         """Naviguje na SP stránku s content check — retry cez retry_async.
         Raises ContentCheckError ak 'Server je nedostupný' (retry sa pokúsi znova).
         Raises ScraperUnavailableError pri perzistentnom timeoute."""
         from .mixins import SKIP_PDF_VAR
         nav_timeout = 25000 if SKIP_PDF_VAR.get() else 30000
-        await page.goto(self.base_url, timeout=nav_timeout, wait_until='commit')
+        await page.goto(url, timeout=nav_timeout, wait_until='commit')
         await page.wait_for_load_state('domcontentloaded', timeout=nav_timeout)
         logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
         # Content check: "Server je nedostupný" = retry
@@ -57,14 +57,18 @@ class SpDlzniciScraper(BaseScraper):
         async def _scrape(page: Page) -> ScrapedSource:
             logger.info(f"[{self.source_type}] Začínam vyhľadávanie pre IČO: {ico}")
 
-            logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
+            # Priama navigácia na GET vyhľadávací filter — Drupal SSR vráti výsledky
+            # okamžite bez potreby vypĺňania a klikania na formulár.
+            search_url = f"{self.base_url}?name=&city=&glossary=&ico={ico}"
+            logger.info(f"[{self.source_type}] Navigujem na {search_url}")
+
             # Unified retry s content check — v live check len 1 pokus bez backoffu
             from .mixins import SKIP_PDF_VAR
             is_live = SKIP_PDF_VAR.get()
             max_nav_attempts = 1 if is_live else (settings.scraper_retries + 1)
             try:
                 nav_result = await retry_async_call(
-                    self._navigate_sp, page,
+                    self._navigate_sp, page, search_url,
                     source_type=self.source_type,
                     max_attempts=max_nav_attempts,
                     base_delay=1.0 if is_live else settings.scraper_retry_delay,
@@ -81,66 +85,20 @@ class SpDlzniciScraper(BaseScraper):
             # Zavri cookie banner ak sa zobrazil
             await self._dismiss_cookie_banner(page)
 
-            # Vyplniť IČO — presný CSS selector #edit-ico--2 (Drupal form)
-            ico_input = page.locator('#edit-ico--2, input[name="ico"]')
-            try:
-                await ico_input.first.wait_for(timeout=15000)
-                await ico_input.first.fill(ico)
-                logger.info(f"[{self.source_type}] IČO vyplnené: {ico}")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Pole IČO sa nenašlo.")
-                return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť pole IČO na stránke Sociálnej poisťovne.",
-                )
+            # Skontrolovať tabuľku s výsledkami
+            table_rows = page.locator("table.cols-6 tbody tr, table tbody tr")
+            row_count = await table_rows.count()
 
-            # Kliknúť na Potvrdiť — presný CSS selector #edit-submit-debitors--2 (input[type=submit])
-            submit_btn = page.locator('#edit-submit-debitors--2, input[value="Potvrdiť"]')
-            try:
-                await submit_btn.first.wait_for(timeout=15000)
-                await submit_btn.first.click()
-                logger.info(f"[{self.source_type}] Tlačidlo Potvrdiť kliknuté.")
-            except PlaywrightTimeoutError:
-                logger.error(f"[{self.source_type}] Tlačidlo Potvrdiť sa nenašlo.")
-                return self._make_result(
-                    status="FAILED",
-                    status_message="Nepodarilo sa nájsť tlačidlo Potvrdiť na stránke Sociálnej poisťovne.",
-                )
-
-            # Počkať na výsledky — čakáme na tabuľku alebo text o prázdnych výsledkoch
-            empty_locator = page.locator("text=neobsahuje žiadne položky")
-            table_locator = page.locator("table tbody tr, .table tbody tr, .result-table tr")
-            try:
-                await empty_locator.or_(table_locator).first.wait_for(timeout=8000)
-            except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem.")
-
-            # Skontrolovať či sú výsledky — vyžadujeme obe podmienky pre negatívny výsledok:
-            # (1) IČO musí byť na stránke (dôkaz že sa hľadalo to správne IČO)
-            # (2) text o negatívnom výsledku
-            text_content = await page.inner_text("body")
-            text_lower = text_content.lower()
-
-            # Prázdne výsledky — žiadne položky
-            empty_markers = [
-                "zoznam neobsahuje žiadne položky",
-                "nenašli sa žiadne",
-                "žiadny záznam",
-                "bez výsledkov",
-                "neboli nájdené žiadne",
-                "žiadne výsledky",
-            ]
-            is_empty = any(marker in text_lower for marker in empty_markers)
-            has_ico_on_page = ico in re.findall(r"\d+", text_content)
-
-            # Ak sme prešli empty markers, skontrolujeme či hľadané IČO je v tabuľke
             findings = None
             is_debtor = False
-            if not is_empty:
+
+            if row_count > 0:
                 findings = await self._extract_table_findings(page, ico, source_name="Sociálnej poisťovne", field_map=_SP_FIELD_MAP)
-                # _extract_table_findings already filters rows by IČO match (line 505 in mixins.py),
-                # so if findings is non-None with POZOR, the IČO was verified at row level.
                 is_debtor = findings is not None and "POZOR" in findings
+
+            text_content = await page.inner_text("body")
+            has_ico_on_page = (ico in re.findall(r"\d+", text_content)) or (await page.locator(f'input[value="{ico}"]').count() > 0)
+            is_empty = row_count == 0
 
             pdf_output = output_dir / f"sp_dlznici_{ico}.pdf"
 

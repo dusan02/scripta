@@ -422,16 +422,18 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
             "[id*='cookie'] button:first-child",
             "[id*='consent'] button:first-child",
         ]
-        for selector in cookie_selectors:
-            try:
-                btn = page.locator(selector).first
-                await btn.wait_for(state="visible", timeout=3000)
-                await btn.click()
-                logger.debug(f"[{self.source_type}] Cookie banner zatvorený: {selector}")
+        combined_selectors = ", ".join(cookie_selectors)
+        try:
+            btn = page.locator(combined_selectors).first
+            if await btn.is_visible():
+                await btn.click(timeout=1000)
+                logger.debug(f"[{self.source_type}] Cookie banner zatvorený.")
                 return
-            except Exception:
-                continue
-        logger.debug(f"[{self.source_type}] Cookie banner sa nenašiel (žiadny selector nezabral).")
+            await btn.wait_for(state="visible", timeout=1200)
+            await btn.click(timeout=1000)
+            logger.debug(f"[{self.source_type}] Cookie banner zatvorený.")
+        except Exception:
+            logger.debug(f"[{self.source_type}] Cookie banner sa nenašiel.")
 
     def _make_result(
         self,

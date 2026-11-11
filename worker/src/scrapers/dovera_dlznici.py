@@ -35,7 +35,7 @@ class DoveraDlzniciScraper(BaseScraper):
             # form interactions and cuts ~25s of timeouts per run.
             search_url = f"{self.base_url}?q={ico}"
             try:
-                await page.goto(search_url, timeout=25000, wait_until="domcontentloaded")
+                await page.goto(search_url, timeout=35000, wait_until="domcontentloaded")
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] Dôvera nedostupná ({e}) — fallback PDF.")
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=False, has_no_results_text=False)
