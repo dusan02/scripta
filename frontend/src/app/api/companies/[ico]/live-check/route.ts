@@ -4,6 +4,7 @@ import { getServerSession } from "@/lib/auth";
 import { rateLimitByKey } from "@/lib/rateLimit";
 import {
   LIVE_CHECK_REGISTRIES,
+  LIVE_CHECK_TTL_MS,
   buildLiveCheckSummary,
 } from "@/lib/liveRegistryCheck";
 
@@ -85,50 +86,73 @@ export async function POST(
     return NextResponse.json(currentSummary);
   }
 
+  // Ak v rámci 7-dňového TTL niektoré registre skončili ako UNAVAILABLE,
+  // ide o opravný retry neúplného behu:
+  //   1. Neodpočítavame znova dennú kvótu (používateľ si už toto IČO „zaplatil“ kvótou).
+  //   2. Spustíme iba UNAVAILABLE / IDLE registre, aby sme nezahodili už overené CLEAN/DEBT výsledky.
+  const latestCheckedMs = currentSummary.lastCheckedAt
+    ? new Date(currentSummary.lastCheckedAt).getTime()
+    : 0;
+  const isWithinTtl =
+    latestCheckedMs > 0 && Date.now() - latestCheckedMs < LIVE_CHECK_TTL_MS;
+  const isRetryOfFailed = isWithinTtl && hasUnavailable;
+
+  const partialRegistries = isRetryOfFailed
+    ? LIVE_CHECK_REGISTRIES.filter((reg) => {
+        const item = currentSummary.items.find((i) => i.source === reg.source);
+        return !item || item.state === "UNAVAILABLE" || item.state === "IDLE";
+      })
+    : [];
+  const targetRegistries =
+    partialRegistries.length > 0 ? partialRegistries : LIVE_CHECK_REGISTRIES;
+  const targetSources = targetRegistries.map((r) => r.source);
+
   // Denná kvóta pre drahé Playwright behy (limituje sa len SPUSTENIE nového
-  // overenia — pozeranie cache-ovaných výsledkov je vždy zadarmo):
+  // overenia — pozeranie cache-ovaných výsledkov a retry zlyhaných registrov je zadarmo):
   //   anonym → 1 overenie / deň / IP
   //   prihlásený → 5 overení / deň / user
-  const session = await getServerSession();
-  const userId = session?.user?.id;
-  const ip = getClientIp(req);
-  // failClosed — drahý Playwright beh nesmie prejsť pri Redis výpadku
-  // (memStore fallback by stratil Redis count → limit bypass).
-  const rl = await rateLimitByKey(
-    userId ? `live-check:user:${userId}` : `live-check:anon:${ip}`,
-    {
-      windowMs: 24 * 60 * 60 * 1000,
-      maxRequests: userId ? 5 : 1,
-      failClosed: true,
-    }
-  );
-  if (!rl.allowed) {
-    return NextResponse.json(
+  if (!isRetryOfFailed) {
+    const session = await getServerSession();
+    const userId = session?.user?.id;
+    const ip = getClientIp(req);
+    // failClosed — drahý Playwright beh nesmie prejsť pri Redis výpadku
+    // (memStore fallback by stratil Redis count → limit bypass).
+    const rl = await rateLimitByKey(
+      userId ? `live-check:user:${userId}` : `live-check:anon:${ip}`,
       {
-        error: userId
-          ? "Vyčerpali ste dnešný limit 5 bezplatných overení. Skúste to znova zajtra."
-          : "Bez registrácie môžete spustiť 1 bezplatné overenie denne.",
-        code: "DAILY_LIMIT",
-        registered: Boolean(userId),
-        resetAt: rl.resetTime,
-      },
-      { status: 429 }
+        windowMs: 24 * 60 * 60 * 1000,
+        maxRequests: userId ? 5 : 1,
+        failClosed: true,
+      }
     );
+    if (!rl.allowed) {
+      return NextResponse.json(
+        {
+          error: userId
+            ? "Vyčerpali ste dnešný limit 5 bezplatných overení. Skúste to znova zajtra."
+            : "Bez registrácie môžete spustiť 1 bezplatné overenie denne.",
+          code: "DAILY_LIMIT",
+          registered: Boolean(userId),
+          resetAt: rl.resetTime,
+        },
+        { status: 429 }
+      );
+    }
   }
 
   const now = new Date();
 
-  // Seed/reset all 7 registry rows into RUNNING state atomically in a single transaction
+  // Seed/reset target registry rows into RUNNING state atomically in a single transaction
   await prisma.$transaction([
     prisma.companyEvent.deleteMany({
       where: {
         companyIco: ico,
         eventType: "LIVE_REGISTRY_CHECK",
-        source: { in: LIVE_CHECK_REGISTRIES.map((r) => r.source) },
+        source: { in: targetSources },
       },
     }),
     prisma.companyEvent.createMany({
-      data: LIVE_CHECK_REGISTRIES.map((reg) => ({
+      data: targetRegistries.map((reg) => ({
         companyIco: ico,
         source: reg.source,
         eventType: "LIVE_REGISTRY_CHECK",
@@ -154,7 +178,11 @@ export async function POST(
     const workerRes = await fetch(`${WORKER_URL}/live-check/${ico}`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ company_name: company.name, company_city: company.city }),
+      body: JSON.stringify({
+        company_name: company.name,
+        company_city: company.city,
+        sources: targetSources,
+      }),
       signal: AbortSignal.timeout(8000),
     });
     if (!workerRes.ok) {
@@ -162,11 +190,12 @@ export async function POST(
       throw new Error(`Worker HTTP ${workerRes.status}: ${errText}`);
     }
   } catch (err: any) {
-    // Mark rows as UNAVAILABLE so UI doesn't stay stuck in RUNNING if worker is offline
+    // Mark only target rows as UNAVAILABLE so UI doesn't stay stuck in RUNNING if worker is offline
     await prisma.companyEvent.updateMany({
       where: {
         companyIco: ico,
         eventType: "LIVE_REGISTRY_CHECK",
+        source: { in: targetSources },
       },
       data: {
         severity: "LOW",

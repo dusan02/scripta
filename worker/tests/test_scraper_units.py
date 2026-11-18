@@ -419,3 +419,74 @@ class TestDoveraDlzniciUnit:
 
         assert res.status == "UNAVAILABLE"
         assert "HTTP 429" in (res.status_message or "")
+
+
+class TestLiveCheckOrchestration:
+    """Verify _execute_live_check Wave 1 + Wave 2 retry and max_concurrency=2."""
+
+    def test_wave1_failure_triggers_wave2_retry(self):
+        from src.models import ScrapedSource
+        import src.main as main_mod
+
+        saved: list[tuple[str, str]] = []
+
+        async def fake_save(ico: str, res: ScrapedSource):
+            saved.append((res.source_type, res.status))
+
+        calls: list[tuple[list[str], int]] = []
+
+        async def fake_run_scrapers(sources, *, on_source_done=None, max_concurrency=None, **kwargs):
+            calls.append((list(sources), max_concurrency))
+            out = []
+            if len(calls) == 1:
+                # Wave 1: SP succeeds, VSZP fails
+                r1 = ScrapedSource(source_type="SP_DLZNICI", status="SUCCESS", has_finding=False)
+                r2 = ScrapedSource(source_type="VSZP_DLZNICI", status="FAILED", status_message="Scraper timeout")
+                if on_source_done:
+                    on_source_done(r1)
+                    on_source_done(r2)
+                out.extend([r1, r2])
+            else:
+                # Wave 2: only VSZP retried and succeeds
+                r2_ok = ScrapedSource(source_type="VSZP_DLZNICI", status="SUCCESS", has_finding=False)
+                if on_source_done:
+                    on_source_done(r2_ok)
+                out.append(r2_ok)
+            return out
+
+        mock_pw_inst = MagicMock()
+        mock_pw_inst.stop = AsyncMock()
+        mock_pw_cm = MagicMock()
+        mock_pw_cm.start = AsyncMock(return_value=mock_pw_inst)
+
+        mock_browser = MagicMock()
+        mock_browser.is_connected = MagicMock(return_value=True)
+        mock_browser.close = AsyncMock()
+
+        mock_db = MagicMock()
+        mock_db.companyevent.update_many = AsyncMock()
+
+        with (
+            patch.object(main_mod, "_save_live_source_result", side_effect=fake_save),
+            patch.object(main_mod, "run_scrapers", side_effect=fake_run_scrapers),
+            patch.object(main_mod, "async_playwright", return_value=mock_pw_cm),
+            patch("src.browser_manager.browser_manager.get_browser", AsyncMock(return_value=mock_browser)),
+            patch("src.db_client.get_db", return_value=mock_db),
+            patch("asyncio.sleep", AsyncMock()),
+        ):
+            asyncio.run(
+                main_mod._execute_live_check(
+                    "00151653",
+                    sources=["SP_DLZNICI", "VSZP_DLZNICI"],
+                )
+            )
+
+        assert calls == [
+            (["SP_DLZNICI", "VSZP_DLZNICI"], 2),
+            (["VSZP_DLZNICI"], 2),
+        ]
+        # Wave 1 FAILED must NOT be saved prematurely; only final SUCCESS for both is saved
+        assert saved == [
+            ("SP_DLZNICI", "SUCCESS"),
+            ("VSZP_DLZNICI", "SUCCESS"),
+        ]

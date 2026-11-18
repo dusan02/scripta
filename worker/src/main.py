@@ -38,7 +38,7 @@ from .db_repository import (
     check_report_cancelled,
     ReportCancelledError,
 )
-from .models import ReportTask
+from .models import ReportTask, ScrapedSource
 from .pdf.compiler import PdfCompiler
 from .scrapers.registry import run_scrapers
 from .cleanup import _cleanup_loop
@@ -71,6 +71,24 @@ async def lifespan(app: FastAPI):
     _report_semaphore = asyncio.Semaphore(2)
     _scraper_lock = asyncio.Lock()
     _pdf_lock = asyncio.Lock()
+
+    loop = asyncio.get_running_loop()
+    _orig_exc_handler = loop.get_exception_handler()
+
+    def _ignore_target_closed_handler(loop_obj, context):
+        exc = context.get("exception")
+        if exc is not None and (
+            type(exc).__name__ == "TargetClosedError"
+            or "Target page, context or browser has been closed" in str(exc)
+        ):
+            logger.debug(f"[Playwright] Ignorovaná osiustená TargetClosedError po zrušení tasku: {exc}")
+            return
+        if _orig_exc_handler is not None:
+            _orig_exc_handler(loop_obj, context)
+        else:
+            loop_obj.default_exception_handler(context)
+
+    loop.set_exception_handler(_ignore_target_closed_handler)
 
     await connect_db()
 
@@ -881,7 +899,7 @@ LIVE_CHECK_SOURCES = [
 # Live-check timeouty — user čaká v modale, fail-fast per-register timeout
 LIVE_CHECK_TIMEOUTS = {
     "SP_DLZNICI": 60,
-    "VSZP_DLZNICI": 35,
+    "VSZP_DLZNICI": 45,
     "DOVERA_DLZNICI": 65,
     "UNION_DLZNICI": 60,
     "FS_DPH_RUSENIE": 85,
@@ -1008,9 +1026,19 @@ async def _save_live_source_result(ico: str, res) -> None:
         )
 
 
-async def _execute_live_check(ico: str, company_name: Optional[str] = None, company_city: Optional[str] = None) -> None:
+async def _execute_live_check(
+    ico: str,
+    company_name: Optional[str] = None,
+    company_city: Optional[str] = None,
+    sources: Optional[list[str]] = None,
+) -> None:
     from .scrapers.mixins import SKIP_PDF_VAR
     from .browser_manager import browser_manager
+    from src.db_client import get_db
+
+    target_sources = [s for s in (sources or LIVE_CHECK_SOURCES) if s in LIVE_CHECK_SOURCES]
+    if not target_sources:
+        target_sources = list(LIVE_CHECK_SOURCES)
 
     token = SKIP_PDF_VAR.set(True)
     playwright = None
@@ -1028,13 +1056,67 @@ async def _execute_live_check(ico: str, company_name: Optional[str] = None, comp
         t = asyncio.create_task(_save_and_mark(res))
         pending_tasks.append(t)
 
+    def _on_wave1_done(res) -> None:
+        # Persist SUCCESS immediately so UI updates progressively; hold FAILED/UNAVAILABLE
+        # in RUNNING state so the automatic Wave 2 retry can recover them seamlessly.
+        if res.status not in ("FAILED", "UNAVAILABLE"):
+            _on_done(res)
+
+    async def _touch_running_timestamps() -> None:
+        """Refresh createdAt once _scraper_lock is acquired so queue wait time does not trigger UI timeout."""
+        try:
+            db = get_db()
+            now_utc = datetime.now(timezone.utc)
+            await db.companyevent.update_many(
+                where={
+                    "companyIco": ico,
+                    "eventType": "LIVE_REGISTRY_CHECK",
+                    "source": {"in": target_sources},
+                },
+                data={"createdAt": now_utc},
+            )
+        except Exception as touch_err:
+            logger.debug(f"[LiveCheck] Nepodarilo sa aktualizovať createdAt pre {ico}: {touch_err}")
+
     try:
         async def _run_guarded() -> list:
             nonlocal playwright, browser
+            await _touch_running_timestamps()
             playwright = await async_playwright().start()
             browser = await browser_manager.get_browser(playwright)
-            return await run_scrapers(
-                LIVE_CHECK_SOURCES,
+            wave1_results = await run_scrapers(
+                target_sources,
+                output_dir=out_dir,
+                browser=browser,
+                target_type="COMPANY",
+                ico=ico,
+                on_source_done=_on_wave1_done,
+                disable_circuit_breaker=True,
+                company_name=company_name,
+                company_city=company_city,
+                timeout_overrides=LIVE_CHECK_TIMEOUTS,
+                max_concurrency=2,
+            )
+
+            failed_sources = [
+                r.source_type for r in wave1_results if r.status in ("FAILED", "UNAVAILABLE")
+            ]
+            if not failed_sources:
+                return wave1_results
+
+            logger.info(
+                f"[LiveCheck] Wave 1 pre {ico}: {len(failed_sources)}/{len(target_sources)} "
+                f"zlyhalo ({failed_sources}) — spúšťam automatický retry (max_concurrency=2)."
+            )
+            await asyncio.sleep(1.5)
+            try:
+                if browser is None or not browser.is_connected():
+                    browser = await browser_manager.get_browser(playwright)
+            except Exception:
+                browser = await browser_manager.get_browser(playwright)
+
+            retry_results = await run_scrapers(
+                failed_sources,
                 output_dir=out_dir,
                 browser=browser,
                 target_type="COMPANY",
@@ -1044,8 +1126,10 @@ async def _execute_live_check(ico: str, company_name: Optional[str] = None, comp
                 company_name=company_name,
                 company_city=company_city,
                 timeout_overrides=LIVE_CHECK_TIMEOUTS,
-                max_concurrency=4,
+                max_concurrency=2,
             )
+            retry_by_source = {r.source_type: r for r in retry_results}
+            return [retry_by_source.get(r.source_type, r) for r in wave1_results]
 
         if _scraper_lock is not None:
             async with _scraper_lock:
@@ -1059,9 +1143,23 @@ async def _execute_live_check(ico: str, company_name: Optional[str] = None, comp
         for r in results:
             if r.source_type not in saved_sources:
                 await _save_live_source_result(ico, r)
+                saved_sources.add(r.source_type)
     except Exception as e:
         logger.error(f"[LiveCheck] Error checking {ico}: {e}", exc_info=True)
     finally:
+        # Ensure no target source remains stuck in RUNNING if an outer exception occurred
+        for src in target_sources:
+            if src not in saved_sources:
+                try:
+                    fallback_res = ScrapedSource(
+                        source_type=src,
+                        status="UNAVAILABLE",
+                        status_message="Kontrola registra bola prerušená.",
+                    )
+                    await _save_live_source_result(ico, fallback_res)
+                    saved_sources.add(src)
+                except Exception:
+                    pass
         SKIP_PDF_VAR.reset(token)
         _live_checks_in_flight.discard(ico)
         try:
@@ -1085,13 +1183,20 @@ async def start_live_check(ico: str, payload: Optional[dict] = Body(default=None
     """Trigger fast parallel Playwright check across 7 debtor/insolvency registries (0 LLM calls, skip_pdf=True)."""
     if not ico or not ico.isdigit() or len(ico) not in (8, 9, 10):
         raise HTTPException(status_code=400, detail="Invalid IČO")
+    requested_sources = (payload or {}).get("sources")
+    if requested_sources and isinstance(requested_sources, list):
+        target_sources = [s for s in requested_sources if s in LIVE_CHECK_SOURCES]
+    else:
+        target_sources = list(LIVE_CHECK_SOURCES)
+    if not target_sources:
+        target_sources = list(LIVE_CHECK_SOURCES)
     if ico in _live_checks_in_flight:
-        return {"ico": ico, "status": "already_running", "sources": LIVE_CHECK_SOURCES}
+        return {"ico": ico, "status": "already_running", "sources": target_sources}
     _live_checks_in_flight.add(ico)
     company_name = (payload or {}).get("company_name")
     company_city = (payload or {}).get("company_city")
-    asyncio.create_task(_execute_live_check(ico, company_name, company_city))
-    return {"ico": ico, "status": "started", "sources": LIVE_CHECK_SOURCES}
+    asyncio.create_task(_execute_live_check(ico, company_name, company_city, sources=target_sources))
+    return {"ico": ico, "status": "started", "sources": target_sources}
 
 
 if __name__ == "__main__":
