@@ -51,13 +51,18 @@ fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Stuck host scripts terminated: $KILLED_COUNT" >> "$LOG"
 
 # 2. Clean up orphaned local fallback Chromium processes inside worker containers (> 15m old)
+# Uses `docker top` (which runs host `ps` and outputs host PIDs) since python:3.11-slim lacks `procps`.
 for cname in verifa_worker verifa_arq_worker; do
   if docker ps --format '{{.Names}}' | grep -qx "$cname"; then
-    docker exec "$cname" sh -c "
-      ps -eo pid=,etimes=,args= | awk '\$2 > $MAX_CHROMIUM_AGE_SEC && (\$3 ~ /chrom/ || \$3 ~ /headless_shell/) { print \$1 }' | while read -r cpid; do
-        [ -n \"\$cpid\" ] && kill -KILL \"\$cpid\" 2>/dev/null || true
-      done
-    " >> "$LOG" 2>&1 || true
+    ORPHAN_PIDS=$(docker top "$cname" -eo pid=,etimes=,args= 2>/dev/null | awk -v max_age="$MAX_CHROMIUM_AGE_SEC" '
+      $2 > max_age && ($0 ~ /chrom/ || $0 ~ /headless_shell/) { print $1 }
+    ')
+    for cpid in $ORPHAN_PIDS; do
+      if [ -n "$cpid" ] && kill -0 "$cpid" 2>/dev/null; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Killing orphaned Chromium in $cname (host PID $cpid)" >> "$LOG"
+        kill -KILL "$cpid" 2>/dev/null || true
+      fi
+    done
   fi
 done
 
