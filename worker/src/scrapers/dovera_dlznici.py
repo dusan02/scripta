@@ -13,7 +13,7 @@ from ..models import ScrapedSource
 
 logger = logging.getLogger(__name__)
 
-_SCRAPER_TIMEOUT = 45  # max seconds per attempt (3 attempts fit inside 120s outer timeout)
+_SCRAPER_TIMEOUT = 60  # max seconds per attempt (3 attempts fit inside 180s outer timeout)
 _MAX_RETRIES = 3
 _RETRY_DELAY = settings.scraper_retry_delay
 
@@ -30,31 +30,31 @@ class DoveraDlzniciScraper(BaseScraper):
             pdf_output = output_dir / f"dovera_dlznici_{ico}.pdf"
 
             # Dôvera search form submits GET ?q=<ico> and SSR-renders results into
-            # ul > li.dlznici__item (debtor) or "sme nenašli žiadne výsledky" (clean).
-            # Navigating directly with ?q= avoids cookie-banner / double-input-q
-            # form interactions and cuts ~25s of timeouts per run.
+            # ul#dlznici_table.dlznici-list > li.dlznici-list__item (debtor)
+            # or "sme nenašli žiadne výsledky" (clean).
             search_url = f"{self.base_url}?q={ico}"
             try:
-                await page.goto(search_url, timeout=35000, wait_until="domcontentloaded")
+                resp = await page.goto(search_url, timeout=35000, wait_until="domcontentloaded")
             except (PlaywrightTimeoutError, PlaywrightError) as e:
                 logger.warning(f"[{self.source_type}] Dôvera nedostupná ({e}) — fallback PDF.")
                 await self._generate_debtor_no_results_pdf(page, pdf_output, ico, source_name="Dôvera", has_ico=False, has_no_results_text=False)
                 return self._make_result(status="UNAVAILABLE", file_path=str(pdf_output), page_count=1, status_message="Dôvera: dáta dočasne nedostupné.", findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.")
 
-            # Wait for SSR result list or empty-result message (NOT 'table tbody tr',
-            # which never existed on Dôvera and previously wasted 15s every call).
+            if resp is not None and resp.status in (403, 429, 503):
+                logger.warning(f"[{self.source_type}] Dôvera vrátila HTTP {resp.status} (pravdepodobná anti-bot/rate-limit ochrana).")
+                return self._make_result(
+                    status="UNAVAILABLE",
+                    status_message=f"Dôvera: HTTP {resp.status} (prístup obmedzený).",
+                    findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
+                )
+
+            # Wait for SSR result list or empty-result message
             no_results = page.locator("text=sme nenašli žiadne výsledky")
-            debtor_item = page.locator("li.dlznici__item")
+            debtor_item = page.locator("li.dlznici-list__item, li.dlznici__item")
             try:
                 await no_results.or_(debtor_item).first.wait_for(timeout=8000)
             except PlaywrightTimeoutError:
-                # Only if SSR results did not render, check whether Cloudflare blocked us
-                if await page.locator("iframe[src*='challenges.cloudflare.com']").count() > 0:
-                    await self._handle_cloudflare_challenge(page, max_attempts=1)
-                    try:
-                        await no_results.or_(debtor_item).first.wait_for(timeout=8000)
-                    except PlaywrightTimeoutError:
-                        pass
+                pass
 
             # Dismiss cookie banner only when we actually need a clean PDF screenshot
             from .mixins import SKIP_PDF_VAR
@@ -99,17 +99,25 @@ class DoveraDlzniciScraper(BaseScraper):
             except Exception:
                 pass
 
-            await self._generate_clean_pdf(page, pdf_output, title="Zoznam dlžníkov Dôvera")
+            await self._generate_clean_pdf(
+                page, pdf_output,
+                title="Zoznam dlžníkov Dôvera",
+                content_selector="#dlznici_table, ul.dlznici-list, main",
+            )
             return self._make_result(status="SUCCESS", file_path=str(pdf_output), page_count=1, status_message=f"Subjekt {ico} je v zozname dlžníkov Dôvery.", findings=findings, has_finding=True)
 
+        last_status_message: Optional[str] = None
+
         async def _do_scrape() -> ScrapedSource:
+            nonlocal last_status_message
             result = await asyncio.wait_for(
                 self._run_debtor_scraper(_scrape, unavailable_msg="Register Dôvery je nedostupný", max_attempts=1),
                 timeout=_SCRAPER_TIMEOUT,
             )
             if result.status == "SUCCESS":
                 return result
-            raise ScraperUnavailableError(f"Dôvera: pokus vrátil {result.status}")
+            last_status_message = result.status_message
+            raise ScraperUnavailableError(result.status_message or f"Dôvera: pokus vrátil {result.status}")
 
         from .mixins import SKIP_PDF_VAR
         is_live = SKIP_PDF_VAR.get()
@@ -125,7 +133,8 @@ class DoveraDlzniciScraper(BaseScraper):
             logger.error(f"[{self.source_type}] Všetky {max_attempts} pokusy zlyhali pre IČO {ico}")
             return self._make_result(
                 status="UNAVAILABLE",
-                status_message="Dôvera: dočasne nedostupné — skúste vygenerovať report znovu.",
+                status_message=last_status_message or "Dôvera: dočasne nedostupné — skúste vygenerovať report znovu.",
+                findings="Dáta dočasne nedostupné — skúste vygenerovať report znovu.",
             )
 
     async def _accept_cookies(self, page: Page) -> None:
@@ -141,9 +150,9 @@ class DoveraDlzniciScraper(BaseScraper):
                 continue
 
     async def _extract_findings(self, page: Page, ico: str) -> Optional[str]:
-        """Extrahuje nálezy zo zoznamu li.dlznici__item (vrátane dlžnej sumy v .item-sum)."""
+        """Extrahuje nálezy zo zoznamu li.dlznici-list__item (vrátane dlžnej sumy v .dlznici-list__sum)."""
         try:
-            items = page.locator("li.dlznici__item")
+            items = page.locator("li.dlznici-list__item, li.dlznici__item")
             item_count = await items.count()
             texts: list[str] = []
             for i in range(min(item_count, 5)):

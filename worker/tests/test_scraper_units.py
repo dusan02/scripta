@@ -244,3 +244,178 @@ class TestSafeGotoPageLeak:
             assert closed_count == len(pages_created), (
                 f"Not all pages closed. Closed: {closed_count}/{len(pages_created)}"
             )
+
+
+# ── VšZP / Dôvera URL & selector regression tests ─────────────────────────
+
+class TestManualLookupUrls:
+    """Verify manual lookup URLs for VšZP and Dôvera are valid and properly keyed."""
+
+    def test_vszp_and_dovera_lookup_urls(self):
+        from src.report_translators import _MANUAL_LOOKUP_URLS
+
+        assert "VszP_DLZNICI" not in _MANUAL_LOOKUP_URLS
+        assert _MANUAL_LOOKUP_URLS["VSZP_DLZNICI"] == (
+            "https://www.vszp.sk/platitelia/platenie-poistneho/zoznam-dlznikov.html"
+        )
+        assert _MANUAL_LOOKUP_URLS["DOVERA_DLZNICI"] == (
+            "https://www.dovera.sk/overenia/dlznici/zoznam-dlznikov"
+        )
+
+
+def _make_mock_locator(*, count: int = 0, texts: list[str] | None = None):
+    loc = MagicMock()
+    loc.count = AsyncMock(return_value=count)
+    loc.wait_for = AsyncMock(return_value=None)
+    loc.first = loc
+    loc.or_ = MagicMock(return_value=loc)
+
+    def _nth(idx: int):
+        item = MagicMock()
+        val = texts[idx] if texts and idx < len(texts) else ""
+        item.inner_text = AsyncMock(return_value=val)
+        return item
+
+    loc.nth = MagicMock(side_effect=_nth)
+    return loc
+
+
+class TestVszpDlzniciUnit:
+    """Verify VszpDlzniciScraper direct GET, clean, debtor, and ambiguous guard."""
+
+    def test_direct_get_clean_in_live_mode(self, tmp_path):
+        from src.scrapers.vszp_dlznici import VszpDlzniciScraper
+        from src.scrapers.mixins import SKIP_PDF_VAR
+
+        page = MagicMock()
+        resp = MagicMock(status=200)
+        page.goto = AsyncMock(return_value=resp)
+        page.wait_for_load_state = AsyncMock()
+        page.inner_text = AsyncMock(return_value="Nenašli sa žiadne záznamy.")
+        page.close = AsyncMock()
+
+        empty_loc = _make_mock_locator(count=1)
+        ico_loc = _make_mock_locator(count=1)
+        page.locator = MagicMock(side_effect=lambda sel: empty_loc if "Nenašli" in sel else ico_loc)
+
+        scraper = VszpDlzniciScraper(browser=MagicMock())
+        scraper._get_stealth_page = AsyncMock(return_value=page)
+
+        token = SKIP_PDF_VAR.set(True)
+        try:
+            res = asyncio.run(scraper.run(ico="00151653", output_dir=tmp_path))
+        finally:
+            SKIP_PDF_VAR.reset(token)
+
+        assert res.status == "SUCCESS"
+        assert res.has_finding is False
+        called_url = page.goto.call_args[0][0]
+        assert called_url == (
+            "https://www.vszp.sk/platitelia/platenie-poistneho/zoznam-dlznikov.html"
+            "?typ=1&nazov=00151653&proceed=true#vyhl"
+        )
+
+    def test_direct_get_debtor_in_live_mode(self, tmp_path):
+        from src.scrapers.vszp_dlznici import VszpDlzniciScraper
+        from src.scrapers.mixins import SKIP_PDF_VAR
+
+        page = MagicMock()
+        page.goto = AsyncMock(return_value=MagicMock(status=200))
+        page.wait_for_load_state = AsyncMock()
+        page.inner_text = AsyncMock(return_value="A - BODKA, S.R.O. IČO: 36591980 302,65")
+        page.evaluate = AsyncMock()
+        page.close = AsyncMock()
+
+        table_loc = _make_mock_locator(count=1)
+        page.locator = MagicMock(return_value=table_loc)
+
+        scraper = VszpDlzniciScraper(browser=MagicMock())
+        scraper._get_stealth_page = AsyncMock(return_value=page)
+        scraper._extract_table_findings = AsyncMock(
+            return_value=(
+                "POZOR: Subjekt (IČO: 36591980) je v zozname dlžníkov VšZP.\n"
+                "A - BODKA, S.R.O. IČO: 36591980 | KOŠICE | 302,65 | Zamestnávateľ"
+            )
+        )
+
+        token = SKIP_PDF_VAR.set(True)
+        try:
+            res = asyncio.run(scraper.run(ico="36591980", output_dir=tmp_path))
+        finally:
+            SKIP_PDF_VAR.reset(token)
+
+        assert res.status == "SUCCESS"
+        assert res.has_finding is True
+        assert "36591980" in (res.findings or "")
+
+    def test_ambiguous_response_returns_unavailable(self, tmp_path):
+        from src.scrapers.vszp_dlznici import VszpDlzniciScraper
+        from src.scrapers.mixins import SKIP_PDF_VAR
+
+        page = MagicMock()
+        page.goto = AsyncMock(return_value=MagicMock(status=200))
+        page.wait_for_load_state = AsyncMock()
+        page.inner_text = AsyncMock(return_value="Údržba systému")
+        page.close = AsyncMock()
+
+        empty_loc = _make_mock_locator(count=0)
+        page.locator = MagicMock(return_value=empty_loc)
+
+        scraper = VszpDlzniciScraper(browser=MagicMock())
+        scraper._get_stealth_page = AsyncMock(return_value=page)
+        scraper._extract_table_findings = AsyncMock(return_value=None)
+
+        token = SKIP_PDF_VAR.set(True)
+        try:
+            res = asyncio.run(scraper.run(ico="00151653", output_dir=tmp_path))
+        finally:
+            SKIP_PDF_VAR.reset(token)
+
+        assert res.status == "UNAVAILABLE"
+
+
+class TestDoveraDlzniciUnit:
+    """Verify DoveraDlzniciScraper updated selector and HTTP 429 handling."""
+
+    def test_extract_findings_uses_dlznici_list_item(self):
+        from src.scrapers.dovera_dlznici import DoveraDlzniciScraper
+
+        item_text = (
+            "WIRECARD SLOVAKIA S.R.O., V KONKURZE\n"
+            "IČO: 51489236\n"
+            "ŠTÚROVA 27, 04001 KOŠICE-STARÉ MESTO\n"
+            "150 988,12 €\n"
+            "Riešiť dlh  Namietať"
+        )
+        list_loc = _make_mock_locator(count=1, texts=[item_text])
+        page = MagicMock()
+        page.locator = MagicMock(side_effect=lambda sel: list_loc if "dlznici-list__item" in sel else _make_mock_locator())
+
+        scraper = DoveraDlzniciScraper(browser=MagicMock())
+        findings = asyncio.run(scraper._extract_findings(page, "51489236"))
+
+        assert findings is not None
+        assert "POZOR: Subjekt (IČO: 51489236)" in findings
+        assert "150 988,12 €" in findings
+        assert "Riešiť dlh" not in findings
+        assert "Namietať" not in findings
+
+    def test_http_429_preserves_status_message(self, tmp_path):
+        from src.scrapers.dovera_dlznici import DoveraDlzniciScraper
+        from src.scrapers.mixins import SKIP_PDF_VAR
+
+        page = MagicMock()
+        page.goto = AsyncMock(return_value=MagicMock(status=429))
+        page.close = AsyncMock()
+
+        scraper = DoveraDlzniciScraper(browser=MagicMock())
+        scraper._get_stealth_page = AsyncMock(return_value=page)
+
+        token = SKIP_PDF_VAR.set(True)
+        try:
+            res = asyncio.run(scraper.run(ico="00151653", output_dir=tmp_path))
+        finally:
+            SKIP_PDF_VAR.reset(token)
+
+        assert res.status == "UNAVAILABLE"
+        assert "HTTP 429" in (res.status_message or "")
