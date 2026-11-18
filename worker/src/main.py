@@ -385,9 +385,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
             # 3h: Browser health check pred retry — ak browser spadol, re-launch
             if browser:
                 try:
-                    _ = browser.contexts
-                    if not browser.contexts:
-                        raise RuntimeError("Browser has no contexts")
+                    if not browser.is_connected():
+                        raise RuntimeError("Browser disconnected")
                 except Exception as browser_err:
                     _log.warning(f"[{_rid}] Browser unhealthy before retry pass {retry_pass + 1}: {browser_err} — re-launching.")
                     try:
@@ -460,9 +459,8 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # 3h: Browser health check — ak browser spadol počas scrapovania, re-launch
         if browser:
             try:
-                pages = browser.contexts
-                if not pages:
-                    raise RuntimeError("Browser has no contexts")
+                if not browser.is_connected():
+                    raise RuntimeError("Browser disconnected")
             except Exception as browser_err:
                 _log.warning(f"[{_rid}] Browser unhealthy after scrapers: {browser_err} — re-launching.")
                 try:
@@ -1111,8 +1109,18 @@ async def _execute_live_check(
             await asyncio.sleep(1.5)
             try:
                 if browser is None or not browser.is_connected():
+                    if browser is not None:
+                        try:
+                            await browser.close()
+                        except Exception:
+                            pass
                     browser = await browser_manager.get_browser(playwright)
             except Exception:
+                try:
+                    if browser is not None:
+                        await browser.close()
+                except Exception:
+                    pass
                 browser = await browser_manager.get_browser(playwright)
 
             retry_results = await run_scrapers(

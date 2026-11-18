@@ -604,6 +604,9 @@ async def _playwright_fallback(
 
     saved_files: list[str] = []
     _pw = None
+    browser = None
+    context = None
+    page = None
     try:
         _pw = await async_playwright().start()
         from src.browser_manager import browser_manager
@@ -760,18 +763,29 @@ async def _playwright_fallback(
         except Exception as e:
             logger.warning(f"[RUZ_PW] Chyba pri hľadaní 'Stiahnuť' linkov: {e}")
 
-        # Explicit page close prevents resource leak
-        try:
-            await page.close()
-        except Exception:
-            pass
-        await context.close()
-
     except Exception as e:
         logger.error(f"[RUZ_PW] Playwright fallback chyba: {e}", exc_info=True)
     finally:
+        if page:
+            try:
+                await page.close()
+            except Exception:
+                pass
+        if context:
+            try:
+                await context.close()
+            except Exception:
+                pass
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
         if _pw:
-            await _pw.stop()
+            try:
+                await _pw.stop()
+            except Exception:
+                pass
 
     return saved_files
 
