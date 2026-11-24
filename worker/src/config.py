@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     # Debug screenshoty počas scrapovania — vypnuté v produkcii (spomaľujú a zapisujú na disk)
     debug_screenshots: bool = False
 
-    # Cleanup — automatické mazanie starých reportov
-    cleanup_max_age_days: int = 30          # reporty staršie ako X dní sa zmažú
-    cleanup_max_reports_per_user: int = 50  # max počet reportov per user (najstaršie sa zmažú)
+    # Cleanup — mazanie starých lokálnych scratch adresárov (DB + S3 PDF sa nikdy nemažú)
+    cleanup_max_age_days: int = 30          # lokálne scratch súbory staršie ako X dní sa zmažú
+    cleanup_max_reports_per_user: int = 50  # deprecated (P0.4 retention: užívateľské reporty sa nemažú)
     cleanup_interval_hours: int = 1         # ako často beží cleanup loop (1h — častejšie pre stuck recovery)
     stale_report_threshold_minutes: int = 60  # reporty v PROCESSING dlhšie ako X min → FAILED + refund
 

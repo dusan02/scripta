@@ -1,6 +1,7 @@
 server {
     server_name verifa.sk;
     include /etc/nginx/snippets/junk_filter.conf;
+    # Keeps snippets/farm_asn_filter.conf parity via $verifa_farm_block (prevents Sunday pmp-farm-asn-map overwrite)
     if ($verifa_farm_block) { return 403; }
 
     # Zero-value SEO crawlers (~32% of weekly volume) - hard 403 (map in conf.d/zz-verifa-limits.conf)

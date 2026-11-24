@@ -1,143 +1,133 @@
-"""Cleanup old generated PDF files to prevent disk exhaustion.
+"""Cleanup old local worker scratch directories without deleting paid reports.
 
-Two strategies:
-1. Age-based — delete report dirs older than cleanup_max_age_days
-2. Count-based — keep only cleanup_max_reports_per_user per user (oldest first)
-
-Also clears resultFilePath in DB for deleted reports."""
+Retention policy (P0.4):
+- Paid/generated ReportRequest DB rows, ReportSource rows, and S3 final PDFs
+  are NEVER deleted by periodic age-based or count-based cleanup.
+- cleanup_old_reports() removes only local worker scratch directories older than
+  cleanup_max_age_days (after S3 archival, or for FAILED/CANCELLED/orphan dirs),
+  preserving local:// fallback PDFs for active COMPLETED/PARTIAL reports.
+- cleanup_excess_reports() is intentionally a no-op so multi-pack/50-report
+  buyers never lose historical reports.
+- recover_stale_reports() marks hung PROCESSING reports (> threshold) as FAILED.
+"""
 from __future__ import annotations
 
 import asyncio
 import logging
 import shutil
 from datetime import datetime, timezone, timedelta
-from typing import List, Tuple
+from pathlib import Path
+from typing import Optional, Tuple
 
 from .config import settings
 from .db_client import get_db
-from .s3_client import delete_report_file, is_s3_enabled
 
 logger = logging.getLogger(__name__)
 
 
+def _is_before_cutoff(dt: Optional[datetime], cutoff_naive_utc: datetime) -> Optional[bool]:
+    """Compare aware or naive datetimes cleanly against naive UTC cutoff."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt < cutoff_naive_utc
+
+
+async def _clean_local_scratch_only(report_dir: Path) -> None:
+    """Remove debug/intermediate scratch artifacts while preserving evidence_binder.pdf."""
+    debug_dir = report_dir / "debug"
+    if debug_dir.exists() and debug_dir.is_dir():
+        await asyncio.to_thread(shutil.rmtree, debug_dir, True)
+    for pdf in report_dir.glob("*.pdf"):
+        if pdf.name != "evidence_binder.pdf":
+            pdf.unlink(missing_ok=True)
+
+
 async def cleanup_old_reports() -> Tuple[int, int]:
-    """Remove report directories older than cleanup_max_age_days.
-    Also clears resultFilePath in DB for those reports.
-    Returns (dirs_removed, db_rows_cleared)."""
+    """Clean expired local worker scratch directories older than cleanup_max_age_days.
+
+    Never deletes ReportRequest DB rows or S3 report PDFs.
+    Returns (dirs_removed, db_rows_cleared) where db_rows_cleared is always 0.
+    """
     results_dir = settings.results_dir
     if not results_dir.exists():
         return 0, 0
 
+    child_dirs = [c for c in results_dir.iterdir() if c.is_dir()]
+    if not child_dirs:
+        return 0, 0
+
     cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=settings.cleanup_max_age_days)
+    cutoff_ts = datetime.now(timezone.utc).timestamp() - (settings.cleanup_max_age_days * 86400)
     removed = 0
-    db_cleared = 0
 
     db = get_db()
     try:
-        # Vytiahneme ID starých reportov
-        old_reports = await db.reportrequest.find_many(
-            where={"createdAt": {"lt": cutoff}}
+        dir_ids = [c.name for c in child_dirs]
+        reports = await db.reportrequest.find_many(
+            where={"id": {"in": dir_ids}}
         )
-        if not old_reports:
-            return 0, 0
-            
-        ids_to_delete = [r.id for r in old_reports]
-        
-        # Zmažeme ich z DB (Cascade sa postará o ReportSource)
-        await db.reportrequest.delete_many(where={"id": {"in": ids_to_delete}})
-        
-        for report_id in ids_to_delete:
-            db_cleared += 1
+        report_by_id = {r.id: r for r in reports}
 
-            # Delete from S3 if the report file was stored there.
-            old_report = next((r for r in old_reports if r.id == report_id), None)
-            if old_report and old_report.resultFilePath and not old_report.resultFilePath.startswith("local://"):
-                try:
-                    delete_report_file(old_report.resultFilePath)
-                except Exception as s3_err:
-                    logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
+        for child in child_dirs:
+            try:
+                mtime_older = child.stat().st_mtime < cutoff_ts
+            except OSError:
+                continue
 
-            # Zmaž zložku z disku (local mode fallback)
-            child = results_dir / report_id
-            if child.exists() and child.is_dir():
+            report = report_by_id.get(child.name)
+            if report is None:
+                # Orphan scratch directory without any ReportRequest record
+                if mtime_older:
+                    try:
+                        await asyncio.to_thread(shutil.rmtree, child, True)
+                        removed += 1
+                        logger.info(f"[CLEANUP] Removed orphan scratch dir: {child.name}")
+                    except Exception as e:
+                        logger.warning(f"[CLEANUP] Failed to remove orphan dir {child.name}: {e}")
+                continue
+
+            created_old = _is_before_cutoff(getattr(report, "createdAt", None), cutoff)
+            is_old = created_old if created_old is not None else mtime_older
+            if not is_old:
+                continue
+
+            status = getattr(report, "status", None)
+            deleted_at = getattr(report, "deletedAt", None)
+            result_path = getattr(report, "resultFilePath", None) or ""
+
+            # Never disturb jobs still queued or actively running
+            if status in ("PENDING", "PROCESSING") and deleted_at is None:
+                continue
+
+            # Retain local final PDFs unless an S3 key is explicitly recorded
+            has_s3_copy = bool(result_path) and not result_path.startswith("local://")
+            if status in ("COMPLETED", "PARTIAL") and deleted_at is None and not has_s3_copy:
                 try:
-                    await asyncio.to_thread(shutil.rmtree, child, True)
-                    removed += 1
-                    logger.info(f"[CLEANUP] Removed old report completely: {report_id}")
+                    await _clean_local_scratch_only(child)
                 except Exception as e:
-                    logger.warning(f"[CLEANUP] Failed to remove dir {child.name}: {e}")
-                    
-    except Exception as e:
-        logger.error(f"[CLEANUP] Error deleting old reports from DB: {e}", exc_info=True)
-    finally:
-        pass
+                    logger.warning(f"[CLEANUP] Failed to clean scratch inside local report {child.name}: {e}")
+                continue
 
-    return removed, db_cleared
+            # For S3-archived completed reports, FAILED/CANCELLED, or soft-deleted reports,
+            # removing only local worker scratch frees disk while keeping DB + S3 intact.
+            try:
+                await asyncio.to_thread(shutil.rmtree, child, True)
+                removed += 1
+                logger.info(f"[CLEANUP] Removed local scratch dir (DB + S3 retained): {child.name}")
+            except Exception as e:
+                logger.warning(f"[CLEANUP] Failed to remove dir {child.name}: {e}")
+
+    except Exception as e:
+        logger.error(f"[CLEANUP] Scratch cleanup error: {e}", exc_info=True)
+
+    return removed, 0
 
 
 async def cleanup_excess_reports() -> Tuple[int, int]:
-    """Remove oldest reports per user that exceed cleanup_max_reports_per_user.
-    Returns (dirs_removed, db_rows_cleared)."""
-    max_reports = settings.cleanup_max_reports_per_user
-    results_dir = settings.results_dir
-    removed = 0
-    db_cleared = 0
-
-    db = get_db()
-
-    try:
-        # Find users with more than max_reports completed/partial reports
-        rows = await db.query_raw(
-            '''SELECT "userId", COUNT(*) as cnt FROM "ReportRequest" 
-               WHERE status IN ('COMPLETED', 'PARTIAL') 
-               GROUP BY "userId" HAVING COUNT(*) > $1''',
-            max_reports,
-        )
-
-        for row in rows:
-            user_id = row["userId"]
-            cnt = int(row["cnt"])
-            
-            # Get oldest report IDs to delete (beyond the limit)
-            excess = await db.reportrequest.find_many(
-                where={
-                    "userId": user_id, 
-                    "status": {"in": ["COMPLETED", "PARTIAL"]}
-                },
-                order={"createdAt": "asc"},
-                take=(cnt - max_reports),
-            )
-
-            for ex_row in excess:
-                report_id = ex_row.id
-
-                # Delete from S3 if the report file was stored there.
-                if ex_row.resultFilePath and not ex_row.resultFilePath.startswith("local://"):
-                    try:
-                        delete_report_file(ex_row.resultFilePath)
-                    except Exception as s3_err:
-                        logger.warning(f"[CLEANUP] S3 delete failed for {report_id}: {s3_err}")
-
-                # Zmaž záznam z DB (Cascade sa postará o ReportSource)
-                try:
-                    await db.reportrequest.delete(where={"id": report_id})
-                    db_cleared += 1
-                except Exception as db_err:
-                    logger.warning(f"[CLEANUP] Failed to delete DB record for {report_id}: {db_err}")
-
-                # Delete files from disk (local mode fallback)
-                report_dir = results_dir / report_id
-                if report_dir.exists():
-                    await asyncio.to_thread(shutil.rmtree, report_dir, True)
-                    removed += 1
-                    logger.info(f"[CLEANUP] Removed excess report completely for user {user_id}: {report_id}")
-
-    except Exception as e:
-        logger.error(f"[CLEANUP] Excess cleanup error: {e}", exc_info=True)
-    finally:
-        pass
-
-    return removed, db_cleared
+    """No-op retention guard (P0.4): never delete user ReportRequest rows or S3 PDFs."""
+    return 0, 0
 
 
 async def recover_stale_reports() -> int:
