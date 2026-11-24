@@ -67,3 +67,20 @@ export function shouldRetryMissingTopupOnRefund(guestCheckout: GuestRefundState)
   }
   return true;
 }
+
+/**
+ * Distinguish cryptographic webhook signature verification failures (HTTP 403)
+ * from malformed request bodies or internal errors (HTTP 400).
+ */
+export function isWebhookSignatureError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  const name = err.name.toLowerCase();
+  const rawType = (err as Error & { type?: unknown }).type;
+  const type = typeof rawType === "string" ? rawType.toLowerCase() : "";
+  return (
+    name.includes("signature") ||
+    type.includes("signature") ||
+    msg.includes("signature")
+  );
+}

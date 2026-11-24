@@ -9,6 +9,7 @@ import { NEXTAUTH_URL } from "@/lib/env";
 import {
   extractWebhookClientIp,
   isAllowedPaddleIp,
+  isWebhookSignatureError,
   normalizePaddleIpList,
   shouldRetryMissingTopupOnRefund,
 } from "@/lib/billing/webhook-guard";
@@ -97,6 +98,9 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[webhook] handleWebhook error:", message);
+    if (isWebhookSignatureError(err)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+    }
     return NextResponse.json({ error: "Invalid signature or payload" }, { status: 400 });
   }
 

@@ -1,6 +1,6 @@
 --- a/etc/nginx/conf.d/zz-verifa-limits.conf
 +++ b/etc/nginx/conf.d/zz-verifa-limits.conf
-@@ -25,5 +25,18 @@
+@@ -25,5 +25,31 @@
      default "";
  }
  
@@ -17,21 +17,48 @@
 +    "~^1:" 1;
 +}
 +
++# ── Verifa-only junk-UA override for signed webhooks (P0.1) ─────────────────
++# Chains $junk_ua from shared zz-junk-filter.conf (blocks Go-http-client,
++# axios/, undici, curl/, etc.) without touching shared zz-junk-filter.conf or
++# snippets/junk_filter.conf — keeping the other 4 domains on the VPS untouched.
++# Only exact POST webhook endpoints bypass $junk_ua; Next.js still enforces
++# Paddle signature + /ips allowlist (403) and Svix HMAC verification (401).
++map "$junk_ua:$request_method:$uri" $verifa_junk_ua {
++    default 0;
++    "~^1:POST:/api/billing/webhook/?$" 0;
++    "~^1:POST:/api/email/(events|inbound)/?$" 0;
++    "~^1:" 1;
++}
++
  limit_req_zone $verifa_page_key zone=verifa_pages:20m rate=120r/m;
  limit_req_status 429;
 --- a/etc/nginx/sites-enabled/verifa.sk
 +++ b/etc/nginx/sites-enabled/verifa.sk
-@@ -1,7 +1,7 @@
+@@ -1,8 +1,21 @@
  server {
      server_name verifa.sk;
-     include /etc/nginx/snippets/junk_filter.conf;
+-    include /etc/nginx/snippets/junk_filter.conf;
 -    include /etc/nginx/snippets/farm_asn_filter.conf;
++    # Keeps snippets/junk_filter.conf parity via $verifa_junk_ua + scanner locations
++    # without modifying shared conf.d/zz-junk-filter.conf or snippets/junk_filter.conf
++    # (other 4 domains on the VPS stay completely untouched).
++    if ($verifa_junk_ua) { return 403; }
+ 
++    # Scanner/WordPress/exploit probe paths → 404 (verbatim from snippets/junk_filter.conf).
++    location ~* ^/(wp|wordpress|xmlrpc|vendor/|node_modules/|composer\.|\.env|\.git|\.svn|\.hg|\.bzr|\.aws|\.ssh|\.npm|\.yarn|\.config|\.docker|\.kube|etc/passwd|proc/self) {
++        return 404;
++    }
++    location ~* \.(php[0-9]*|phtml|phar|cgi|pl|asp|aspx|ashx|jsp|do|action|cfm|sql|bak|old|orig|swp|swo|save|tmp|temp|zip|tar|gz|tgz|rar|7z|bz2|xz|exe|dll|msi|sh|bash|bat|cmd|ps1|ini|cfg|conf|env|ya?ml|sqlite|db|dbf|mdb|log|out|err|dump|core|pem|key|crt|der|p12|pfx|jks|keystore|ppk|pub)$ {
++        return 404;
++    }
++
 +    # Keeps snippets/farm_asn_filter.conf parity via $verifa_farm_block (prevents Sunday pmp-farm-asn-map overwrite)
 +    if ($verifa_farm_block) { return 403; }
- 
++
      # Zero-value SEO crawlers (~32% of weekly volume) - hard 403 (map in conf.d/zz-verifa-limits.conf)
      if ($seo_bot_ua) { return 403; }
-@@ -172,4 +172,4 @@
+     # Per-IP HTML page rate limit (assets/API excluded via $verifa_page map)
+@@ -172,4 +185,4 @@
  
  
  

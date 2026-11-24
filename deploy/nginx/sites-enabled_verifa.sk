@@ -1,6 +1,18 @@
 server {
     server_name verifa.sk;
-    include /etc/nginx/snippets/junk_filter.conf;
+    # Keeps snippets/junk_filter.conf parity via $verifa_junk_ua + scanner locations
+    # without modifying shared conf.d/zz-junk-filter.conf or snippets/junk_filter.conf
+    # (other 4 domains on the VPS stay completely untouched).
+    if ($verifa_junk_ua) { return 403; }
+
+    # Scanner/WordPress/exploit probe paths → 404 (verbatim from snippets/junk_filter.conf).
+    location ~* ^/(wp|wordpress|xmlrpc|vendor/|node_modules/|composer\.|\.env|\.git|\.svn|\.hg|\.bzr|\.aws|\.ssh|\.npm|\.yarn|\.config|\.docker|\.kube|etc/passwd|proc/self) {
+        return 404;
+    }
+    location ~* \.(php[0-9]*|phtml|phar|cgi|pl|asp|aspx|ashx|jsp|do|action|cfm|sql|bak|old|orig|swp|swo|save|tmp|temp|zip|tar|gz|tgz|rar|7z|bz2|xz|exe|dll|msi|sh|bash|bat|cmd|ps1|ini|cfg|conf|env|ya?ml|sqlite|db|dbf|mdb|log|out|err|dump|core|pem|key|crt|der|p12|pfx|jks|keystore|ppk|pub)$ {
+        return 404;
+    }
+
     # Keeps snippets/farm_asn_filter.conf parity via $verifa_farm_block (prevents Sunday pmp-farm-asn-map overwrite)
     if ($verifa_farm_block) { return 403; }
 
