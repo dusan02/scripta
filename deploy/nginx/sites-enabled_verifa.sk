@@ -1,0 +1,175 @@
+server {
+    server_name verifa.sk;
+    include /etc/nginx/snippets/junk_filter.conf;
+    if ($verifa_farm_block) { return 403; }
+
+    # Zero-value SEO crawlers (~32% of weekly volume) - hard 403 (map in conf.d/zz-verifa-limits.conf)
+    if ($seo_bot_ua) { return 403; }
+    # Per-IP HTML page rate limit (assets/API excluded via $verifa_page map)
+    limit_req zone=verifa_pages burst=60 nodelay;
+
+    # Crawler observability log (rt = request_time, cache = Next.js ISR status)
+    access_log /var/log/nginx/verifa_perf.log verifa_perf;
+
+    client_max_body_size 50M;
+
+    # PDF download — disable buffering for large files (150MB+)
+    location ~ ^/api/reports/.+/download$ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        client_max_body_size 0;
+    }
+
+    # AI bot rate limits on localized /firma/ paths (Experiment 3b+4)
+    # Claude: 1 req/s | Perplexity: 0.5 req/s | Meta-webindexer: 0.5 req/s
+    # Meta-external: 1 req/s | Amazon: 2 req/s | Googlebot: NO LIMIT
+    location ~ ^/(en|de|cs|hu|pl)/firma/ {
+        limit_req zone=perplexity_firma burst=2 nodelay;
+        limit_req zone=claude_firma burst=2 nodelay;
+        limit_req zone=meta_webindexer_firma burst=2 nodelay;
+        limit_req zone=meta_external_firma burst=2 nodelay;
+        limit_req zone=amazon_firma burst=2 nodelay;
+        limit_req zone=verifa_pages burst=60 nodelay;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_buffering on;
+        proxy_buffer_size 16k;
+        proxy_buffers 16 16k;
+        proxy_max_temp_file_size 50m;
+    }
+
+    # AI bot rate limits on /firma/ paths (Experiment 2+3+4)
+    # Perplexity: 0.5 req/s | Claude: 1 req/s | Meta-webindexer: 0.5 req/s
+    # Meta-external: 1 req/s | Amazon: 2 req/s | Googlebot: NO LIMIT
+    location ~ ^/firma/ {
+        limit_req zone=perplexity_firma burst=2 nodelay;
+        limit_req zone=claude_firma burst=2 nodelay;
+        limit_req zone=meta_webindexer_firma burst=2 nodelay;
+        limit_req zone=meta_external_firma burst=2 nodelay;
+        limit_req zone=amazon_firma burst=2 nodelay;
+        limit_req zone=verifa_pages burst=60 nodelay;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_buffering on;
+        proxy_buffer_size 16k;
+        proxy_buffers 16 16k;
+        proxy_max_temp_file_size 50m;
+    }
+
+    # Next.js frontend
+    # IndexNow key file — served directly (standalone Next does not pick up
+    # public files added post-build)
+    location = /9141a55f71827fa50be4dda1ffbcc66e.txt {
+        alias /var/www/verifa/frontend/public/9141a55f71827fa50be4dda1ffbcc66e.txt;
+        default_type text/plain;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_buffering on;
+        proxy_buffer_size 16k;
+        proxy_buffers 16 16k;
+        proxy_max_temp_file_size 50m;
+    }
+
+    # Worker API
+    location /api/worker/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Static PDF samples — no upgrade headers
+    location /samples/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        add_header Content-Disposition "inline";
+        add_header X-Content-Type-Options nosniff;
+        add_header Accept-Ranges bytes;
+        proxy_read_timeout 300s;
+    }
+
+    # Static files (generated PDFs)
+    location /results/ {
+        alias /var/www/verifa/worker/results/;
+        try_files $uri =404;
+    }
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/verifa.sk/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/verifa.sk/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+    # ── Security headers ──
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+
+
+}
+server {
+    if ($host = www.verifa.sk) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = verifa.sk) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    listen [::]:80;
+    server_name verifa.sk;
+
+    # Crawler observability log (rt = request_time, cache = Next.js ISR status)
+    access_log /var/log/nginx/verifa_perf.log verifa_perf;
+    return 404; # managed by Certbot
+
+
+
+
+}

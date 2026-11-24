@@ -34,20 +34,27 @@ const DEFAULT_ATTACHMENTS = {
   "uctovna_zavierka_a_poznámky": false,
 };
 
+export const STALE_FULFILLING_RECOVERY_MS = 60_000;
+
 /**
  * Claim a GuestCheckout (PENDING → FULFILLING, atomic) and resolve the
  * recipient user — find by email, or create a verified account with no
  * password (the set-password link in the welcome email is the activation).
- * Returns null only when the checkout record does not exist.
+ * Also recovers stale crashed FULFILLING rows (>60s old with no reportRequestId)
+ * on webhook retry without creating duplicate users or duplicate reports.
+ * Returns null only when the checkout record does not exist or belongs to a
+ * soft-deleted user.
  */
 export async function resolveGuestUser(
   guestCheckoutId: string,
   transactionId: string,
   paddleEmail?: string
 ): Promise<GuestResolution | null> {
+  const now = new Date();
+  const leaseUntil = new Date(now.getTime() + STALE_FULFILLING_RECOVERY_MS);
   const claimed = await prisma.guestCheckout.updateMany({
     where: { id: guestCheckoutId, status: "PENDING" },
-    data: { status: "FULFILLING", transactionId },
+    data: { status: "FULFILLING", transactionId, expiresAt: leaseUntil },
   });
 
   const gc = await prisma.guestCheckout.findUnique({ where: { id: guestCheckoutId } });
@@ -56,28 +63,53 @@ export async function resolveGuestUser(
     return null;
   }
 
+  let recoveredFromStaleClaim = false;
   if (claimed.count === 0) {
-    // Already claimed by a concurrent/previous webhook delivery — return the
-    // resolved userId so the generic (idempotent) credit grant can still run.
-    if (!gc.userId) return null;
-    return {
-      userId: gc.userId,
-      email: gc.email,
-      ico: gc.ico,
-      companyName: gc.companyName,
-      isNewUser: false,
-      shouldCreateReport: false,
-    };
+    // expiresAt doubles as an atomic 60s fulfillment lease while status=FULFILLING
+    // so crashed deliveries can be safely reclaimed on provider retries without a schema migration.
+    const isStaleIncomplete =
+      gc.status === "FULFILLING" &&
+      !gc.reportRequestId &&
+      gc.expiresAt.getTime() <= now.getTime();
+
+    if (isStaleIncomplete) {
+      const reclaimed = await prisma.guestCheckout.updateMany({
+        where: {
+          id: guestCheckoutId,
+          status: "FULFILLING",
+          reportRequestId: null,
+          expiresAt: { lte: now },
+        },
+        data: { transactionId, expiresAt: leaseUntil },
+      });
+      recoveredFromStaleClaim = reclaimed.count === 1;
+    }
+
+    if (!recoveredFromStaleClaim) {
+      // Already claimed or fulfilled by a concurrent/previous webhook delivery —
+      // return resolved userId so idempotent credit grants can still run safely.
+      if (!gc.userId) return null;
+      return {
+        userId: gc.userId,
+        email: gc.email,
+        ico: gc.ico,
+        companyName: gc.companyName,
+        isNewUser: false,
+        shouldCreateReport: false,
+      };
+    }
   }
 
   // We own fulfillment — find or create the user account. Prefer the email
   // Paddle collected at payment over the one typed into our form.
   const email = (paddleEmail || gc.email).toLowerCase().trim();
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = gc.userId
+    ? await prisma.user.findUnique({ where: { id: gc.userId } })
+    : await prisma.user.findUnique({ where: { email } });
 
   if (existing?.deletedAt) {
-    // Soft-deleted account — credits cannot be safely attached. Leave the
-    // record in FULFILLING and alert admin via the caller's email queue.
+    // Soft-deleted account — credits cannot be safely attached. Mark FAILED
+    // and alert admin via the caller's email queue.
     console.error(`[guest-checkout] Email belongs to soft-deleted user: ${email} (checkout ${gc.id})`);
     await prisma.guestCheckout.update({
       where: { id: gc.id },
@@ -96,10 +128,38 @@ export async function resolveGuestUser(
       },
     }));
 
-  await prisma.guestCheckout.update({
-    where: { id: gc.id },
-    data: { userId: user.id },
-  });
+  if (gc.userId !== user.id) {
+    await prisma.guestCheckout.update({
+      where: { id: gc.id },
+      data: { userId: user.id },
+    });
+  }
+
+  // If recovering a crashed FULFILLING claim, verify no report was already
+  // created for this checkout window before asking caller to run createGuestReport.
+  let shouldCreateReport = true;
+  if (recoveredFromStaleClaim) {
+    const existingReport = await prisma.reportRequest.findFirst({
+      where: {
+        userId: user.id,
+        ico: gc.ico,
+        createdAt: { gte: gc.createdAt },
+      },
+      select: { id: true },
+      orderBy: { createdAt: "desc" },
+    });
+    if (existingReport) {
+      await prisma.guestCheckout.update({
+        where: { id: gc.id },
+        data: {
+          status: "FULFILLED",
+          reportRequestId: existingReport.id,
+          fulfilledAt: gc.fulfilledAt ?? new Date(),
+        },
+      });
+      shouldCreateReport = false;
+    }
+  }
 
   return {
     userId: user.id,
@@ -107,7 +167,7 @@ export async function resolveGuestUser(
     ico: gc.ico,
     companyName: gc.companyName,
     isNewUser,
-    shouldCreateReport: true,
+    shouldCreateReport,
   };
 }
 

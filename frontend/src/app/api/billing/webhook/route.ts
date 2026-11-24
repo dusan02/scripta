@@ -6,6 +6,12 @@ import { sendEmail, emailShell, emailButton } from "@/lib/email";
 import { resolveGuestUser, createGuestReport, buildGuestEmails } from "@/lib/guest-checkout";
 import { escapeHtml } from "@/lib/sanitize";
 import { NEXTAUTH_URL } from "@/lib/env";
+import {
+  extractWebhookClientIp,
+  isAllowedPaddleIp,
+  normalizePaddleIpList,
+  shouldRetryMissingTopupOnRefund,
+} from "@/lib/billing/webhook-guard";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,7 +41,7 @@ async function getPaddleIps(): Promise<{ ips: string[]; stale: boolean }> {
     const res = await fetch(`${baseUrl}/ips`, { cache: "no-store" });
     if (!res.ok) throw new Error(`Paddle /ips returned ${res.status}`);
     const data = await res.json();
-    const cidrs: string[] = (data.data?.ipv4_cidrs || []).map((c: string) => c.replace("/32", ""));
+    const cidrs: string[] = normalizePaddleIpList(data.data?.ipv4_cidrs || []);
     _paddleIpsCache = { ips: cidrs, fetchedAt: now };
     return { ips: cidrs, stale: false };
   } catch (err) {
@@ -75,11 +81,10 @@ export async function POST(req: NextRequest) {
     // Prefer x-real-ip (set by the reverse proxy from the socket address,
     // not client-controllable) over x-forwarded-for, whose first entry is
     // attacker-spoofable when the proxy appends to the client's chain.
-    const clientIp = req.headers.get("x-real-ip") ||
-                     req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "";
+    const clientIp = extractWebhookClientIp(req.headers);
     if (clientIp) {
       const { ips: allowedIps, stale } = await getPaddleIps();
-      if (allowedIps.length > 0 && !allowedIps.includes(clientIp)) {
+      if (!isAllowedPaddleIp(clientIp, allowedIps)) {
         console.warn(`[webhook] Paddle IP rejected${stale ? " (stale allowlist)" : ""}: ${clientIp} not in allowlist`);
         return NextResponse.json({ error: "IP not allowed" }, { status: 403 });
       }
@@ -218,15 +223,18 @@ export async function POST(req: NextRequest) {
         case "charge.refunded": {
           // Guest checkouts carry guestId instead of userId — resolve to the
           // user created at fulfillment time (GuestCheckout.userId).
-          if (!event.userId && event.guestCheckoutId) {
-            const gc = await prisma.guestCheckout.findUnique({
+          let guestRefundState: { status: string; userId: string | null; reportRequestId: string | null } | null = null;
+          if (event.guestCheckoutId) {
+            guestRefundState = await prisma.guestCheckout.findUnique({
               where: { id: event.guestCheckoutId },
-              select: { userId: true },
+              select: { status: true, userId: true, reportRequestId: true },
             });
-            if (gc?.userId) event.userId = gc.userId;
+            if (!event.userId && guestRefundState?.userId) {
+              event.userId = guestRefundState.userId;
+            }
           }
           if (!event.userId) {
-            console.error(`[webhook] charge.refunded: no user resolvable (guestCheckout=${event.guestCheckoutId})`);
+            console.warn(`[webhook] charge.refunded: no user resolvable (guestCheckout=${event.guestCheckoutId})`);
             break;
           }
           // Revoke credits that were granted for the refunded payment.
@@ -241,8 +249,16 @@ export async function POST(req: NextRequest) {
             );
 
             // If the original TOPUP hasn't been processed yet (out-of-order
-            // webhook delivery), return 500 so Stripe retries the event later.
+            // webhook delivery), return 500 so provider retries — EXCEPT when
+            // refunding an unfulfilled/failed guest order that never had a TOPUP.
             if (result.revoked === -1) {
+              if (!shouldRetryMissingTopupOnRefund(guestRefundState)) {
+                console.warn(
+                  `[webhook] charge.refunded: skipping missing TOPUP retry for unfulfilled ` +
+                  `guestCheckout ${event.guestCheckoutId} (status=${guestRefundState?.status}, ref=${event.originalProviderReference}).`
+                );
+                break;
+              }
               console.warn(
                 `[webhook] charge.refunded: original TOPUP not found for ` +
                 `user ${event.userId}, ref ${event.originalProviderReference}. ` +
