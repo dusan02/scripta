@@ -17,6 +17,17 @@
   - `HostConfig.Init = null` (no tini reaper).
   - Live healthcheck uses `CMD-SHELL` (`interval: 15s`, `timeout: 5s`) without `AbortSignal.timeout` or explicit `process.exit(0)`. When `/api/health` stalls >5s behind Prisma pool exhaustion, Docker kills `/bin/sh`, orphaning `node -e` to PID 1 (`next-server`), which never calls `waitpid()`.
 
+#### Proof: Zombies Come Exclusively from Docker's `CMD-SHELL` Healthcheck (Not App Code)
+1. **Zero runtime child-process spawning in `frontend/src/`:**
+   - Full codebase grep across `frontend/` for `child_process`, `worker_threads`, `spawn`, `execFile`, `execSync`, `exec(`, and `fork(` returns **0 matches** in `frontend/src/`, `frontend/next.config*`, tests, and runtime bundles.
+   - The sole match in the entire `frontend/` tree is an offline CLI script (`frontend/scripts/audit-data-consistency.ts:10`, `execSync`), which is never imported by Next.js and not copied into the production runner image (`frontend/Dockerfile`).
+   - Prisma runs in-process via the N-API library engine (`PRISMA_CLIENT_ENGINE_TYPE=library`, observed as 2 `tokio-runtime-w` threads inside `next-server`), not as a child process.
+2. **Exact 20–21s zombie cadence matching Docker healthcheck `Interval (15s) + Timeout (5s)`:**
+   - Consecutive `Z node` children of container PID 1 (`PPid = 109033`) have exact 20–21s start-time spacing:
+     `09:54:51` → `09:55:12` (+21s) → `09:55:32` (+20s) → `09:55:53` (+21s) → `09:56:13` (+20s) → `09:56:33` (+20s) → `09:56:54` (+21s).
+   - Between two read-only snapshots 10 minutes apart (`14:08` → `14:18 CET`), `Z node` count grew from **153 → 163** (+10 zombies, pushing `verifa_frontend` to `178 / 200` PIDs).
+   - **Mechanism:** Docker `CMD-SHELL` runs `/bin/sh -c "node -e \"fetch('http://localhost:3000/api/health')...\""`. When `/api/health` stalls >5s behind Prisma pool exhaustion, Docker terminates `/bin/sh` at the 5s timeout, reparenting the orphaned `node -e` child to PID 1 (`next-server`). When `node -e` subsequently exits, `next-server` never calls `waitpid()`, permanently leaking 1 `Z node` PID into the cgroup.
+
 ### [CRITICAL] Prisma `P2024` Connection Pool Exhaustion (9,981 Errors in 72h)
 - **Observed:**
   - **9,981** `P2024` (`Timed out fetching a new connection from the connection pool... Current connection pool timeout: 10, connection limit: 30`) errors in `verifa_frontend` logs over the last 72h.
