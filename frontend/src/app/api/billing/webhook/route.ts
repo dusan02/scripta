@@ -8,9 +8,11 @@ import { escapeHtml } from "@/lib/sanitize";
 import { NEXTAUTH_URL } from "@/lib/env";
 import {
   extractWebhookClientIp,
+  fetchPaddleIpsWithFallback,
   isAllowedPaddleIp,
   isWebhookSignatureError,
-  normalizePaddleIpList,
+  PADDLE_IP_FETCH_TIMEOUT_MS,
+  type PaddleIpsCache,
   shouldRetryMissingTopupOnRefund,
 } from "@/lib/billing/webhook-guard";
 
@@ -27,37 +29,16 @@ type PendingEmail = {
 
 // Cache Paddle IPs for 10 minutes — the endpoint is the source of truth
 // but we don't want to fetch on every webhook delivery.
-let _paddleIpsCache: { ips: string[]; fetchedAt: number } | null = null;
-const PADDLE_IP_TTL_MS = 10 * 60 * 1000;
+let _paddleIpsCache: PaddleIpsCache = null;
 
 async function getPaddleIps(): Promise<{ ips: string[]; stale: boolean }> {
-  const now = Date.now();
-  if (_paddleIpsCache && now - _paddleIpsCache.fetchedAt < PADDLE_IP_TTL_MS) {
-    return { ips: _paddleIpsCache.ips, stale: false };
-  }
-  try {
-    const baseUrl = process.env.PADDLE_ENVIRONMENT === "production"
-      ? "https://api.paddle.com"
-      : "https://sandbox-api.paddle.com";
-    const res = await fetch(`${baseUrl}/ips`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Paddle /ips returned ${res.status}`);
-    const data = await res.json();
-    const cidrs: string[] = normalizePaddleIpList(data.data?.ipv4_cidrs || []);
-    _paddleIpsCache = { ips: cidrs, fetchedAt: now };
-    return { ips: cidrs, stale: false };
-  } catch (err) {
-    console.error("[webhook] Failed to fetch Paddle IPs:", err);
-    // Stale-while-error: Paddle's published IPs change rarely — enforce the
-    // last known-good allowlist instead of silently allowing all traffic.
-    if (_paddleIpsCache && _paddleIpsCache.ips.length > 0) {
-      return { ips: _paddleIpsCache.ips, stale: true };
-    }
-    // Never fetched successfully — cannot enforce the allowlist for this
-    // request. Cryptographic signature verification remains the primary
-    // defense; log loudly so this degraded state is visible in monitoring.
-    console.error("[webhook] No cached Paddle IP allowlist available — IP check skipped (signature still enforced)");
-    return { ips: [], stale: false };
-  }
+  const result = await fetchPaddleIpsWithFallback({
+    environment: process.env.PADDLE_ENVIRONMENT,
+    cache: _paddleIpsCache,
+    timeoutMs: PADDLE_IP_FETCH_TIMEOUT_MS,
+  });
+  _paddleIpsCache = result.cache;
+  return { ips: result.ips, stale: result.stale };
 }
 
 export async function POST(req: NextRequest) {

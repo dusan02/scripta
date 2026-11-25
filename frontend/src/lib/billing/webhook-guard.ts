@@ -84,3 +84,64 @@ export function isWebhookSignatureError(err: unknown): boolean {
     msg.includes("signature")
   );
 }
+
+export const PADDLE_IP_TTL_MS = 10 * 60 * 1000;
+export const PADDLE_IP_FETCH_TIMEOUT_MS = 2500;
+
+export type PaddleIpsCache = {
+  ips: string[];
+  fetchedAt: number;
+} | null;
+
+/**
+ * Fetch Paddle's published /ips allowlist with a bounded timeout so an unresponsive
+ * Paddle IP endpoint cannot consume the 5-second webhook acknowledgement window.
+ * Preserves stale-while-error allowlisting and signature-only degraded fallback.
+ */
+export async function fetchPaddleIpsWithFallback(opts: {
+  environment?: string;
+  cache: PaddleIpsCache;
+  now?: number;
+  timeoutMs?: number;
+  ttlMs?: number;
+  fetchImpl?: typeof fetch;
+}): Promise<{ ips: string[]; stale: boolean; cache: PaddleIpsCache }> {
+  const now = opts.now ?? Date.now();
+  const ttlMs = opts.ttlMs ?? PADDLE_IP_TTL_MS;
+  const timeoutMs = opts.timeoutMs ?? PADDLE_IP_FETCH_TIMEOUT_MS;
+  const fetchFn = opts.fetchImpl ?? fetch;
+
+  if (opts.cache && now - opts.cache.fetchedAt < ttlMs) {
+    return { ips: opts.cache.ips, stale: false, cache: opts.cache };
+  }
+
+  try {
+    const baseUrl =
+      opts.environment === "production"
+        ? "https://api.paddle.com"
+        : "https://sandbox-api.paddle.com";
+    const res = await fetchFn(`${baseUrl}/ips`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) throw new Error(`Paddle /ips returned ${res.status}`);
+    const data = await res.json();
+    const cidrs: string[] = normalizePaddleIpList(data.data?.ipv4_cidrs || []);
+    const nextCache: PaddleIpsCache = { ips: cidrs, fetchedAt: now };
+    return { ips: cidrs, stale: false, cache: nextCache };
+  } catch (err) {
+    console.error("[webhook] Failed to fetch Paddle IPs:", err);
+    // Stale-while-error: Paddle's published IPs change rarely — enforce the
+    // last known-good allowlist instead of silently allowing all traffic.
+    if (opts.cache && opts.cache.ips.length > 0) {
+      return { ips: opts.cache.ips, stale: true, cache: opts.cache };
+    }
+    // Never fetched successfully — cannot enforce the allowlist for this
+    // request. Cryptographic signature verification remains the primary
+    // defense; log loudly so this degraded state is visible in monitoring.
+    console.error(
+      "[webhook] No cached Paddle IP allowlist available — IP check skipped (signature still enforced)"
+    );
+    return { ips: [], stale: false, cache: opts.cache };
+  }
+}

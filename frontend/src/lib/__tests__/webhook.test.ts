@@ -8,6 +8,7 @@
  */
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "module";
@@ -16,10 +17,13 @@ import { Webhook } from "svix";
 
 import {
   extractWebhookClientIp,
+  fetchPaddleIpsWithFallback,
   isAllowedPaddleIp,
   isWebhookSignatureError,
   normalizeClientIp,
   normalizePaddleIpList,
+  PADDLE_IP_FETCH_TIMEOUT_MS,
+  PADDLE_IP_TTL_MS,
   shouldRetryMissingTopupOnRefund,
 } from "@/lib/billing/webhook-guard";
 
@@ -526,6 +530,86 @@ describe("Webhook route cryptographic rejection (Scenarios 6 & 7)", () => {
     assert.equal(isWebhookSignatureError(new Error("[Paddle] Webhook signature verification failed")), true);
     assert.equal(isWebhookSignatureError(new Error("[Paddle] Invalid webhook signature")), true);
     assert.equal(isWebhookSignatureError(new Error("Unexpected token in JSON payload")), false);
+  });
+
+  it("enforces AbortSignal.timeout(2500) on Paddle /ips and falls back cleanly on timeout/error", async () => {
+    assert.equal(PADDLE_IP_FETCH_TIMEOUT_MS, 2500);
+
+    let capturedSignal: AbortSignal | undefined;
+    const hangingFetch: typeof fetch = (_input, init) => {
+      capturedSignal = init?.signal ?? undefined;
+      return new Promise((_resolve, reject) => {
+        if (!init?.signal) return reject(new Error("Missing AbortSignal"));
+        if (init.signal.aborted) return reject(init.signal.reason);
+        init.signal.addEventListener("abort", () => reject(init.signal!.reason), { once: true });
+      });
+    };
+
+    // Cold cache timeout -> falls back to empty allowlist (signature verification still runs)
+    const coldRes = await fetchPaddleIpsWithFallback({
+      environment: "production",
+      cache: null,
+      timeoutMs: 25,
+      fetchImpl: hangingFetch,
+    });
+    assert.ok(capturedSignal instanceof AbortSignal);
+    assert.equal(capturedSignal.aborted, true);
+    assert.deepEqual(coldRes.ips, []);
+    assert.equal(coldRes.stale, false);
+    assert.equal(coldRes.cache, null);
+
+    // Expired cache timeout -> keeps last known-good allowlist (stale-while-error)
+    const expiredCache = { ips: ["34.237.3.244"], fetchedAt: 1000 };
+    const staleRes = await fetchPaddleIpsWithFallback({
+      environment: "production",
+      cache: expiredCache,
+      now: 1000 + PADDLE_IP_TTL_MS + 5000,
+      timeoutMs: 25,
+      fetchImpl: hangingFetch,
+    });
+    assert.deepEqual(staleRes.ips, ["34.237.3.244"]);
+    assert.equal(staleRes.stale, true);
+    assert.equal(isAllowedPaddleIp("34.237.3.244", staleRes.ips), true);
+    assert.equal(isAllowedPaddleIp("203.0.113.99", staleRes.ips), false);
+  });
+
+  it("accepts a validly signed Paddle webhook (HTTP 200) even when cold /ips fetch times out", async () => {
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.endsWith("/ips")) {
+        assert.ok(init?.signal instanceof AbortSignal, "fetch must pass AbortSignal.timeout");
+        throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      }
+      throw new Error(`Unexpected fetch during cold timeout test: ${url}`);
+    };
+
+    const { POST } = await import("@/app/api/billing/webhook/route");
+    const ts = Math.floor(Date.now() / 1000);
+    const body = JSON.stringify({
+      event_id: "evt_timeout_fallback_1",
+      event_type: "customer.created",
+      occurred_at: new Date(ts * 1000).toISOString(),
+      data: { id: "ctm_test_1", email: "ok@verifa.sk", status: "active" },
+    });
+    const h1 = crypto
+      .createHmac("sha256", process.env.PADDLE_WEBHOOK_SECRET!)
+      .update(`${ts}:${body}`)
+      .digest("hex");
+
+    const req = new NextRequest("https://verifa.sk/api/billing/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "user-agent": "Go-http-client/1.1",
+        "x-real-ip": "34.237.3.244",
+        "paddle-signature": `ts=${ts};h1=${h1}`,
+      },
+      body,
+    });
+    const res = await POST(req);
+    assert.equal(res.status, 200);
+    const json = await res.json();
+    assert.equal(json.received, true);
   });
 
   it("Scenario 6: rejects forged or malformed Paddle-Signature with HTTP 403", async () => {
