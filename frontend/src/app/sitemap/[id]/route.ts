@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { glossaryTerms } from "@/lib/glossary";
 import { VALID_LANGS, localizePath, HREFLANG_MAP } from "@/lib/i18n";
@@ -112,28 +113,60 @@ function buildGlossaryPages(): string[] {
   });
 }
 
-function buildCompanyPages(
-  companies: { ico: string; name: string | null; auditVerdict: { createdAt: Date } | null; ruzSyncedAt: Date | null; updatedAt: Date }[]
-): string[] {
+type SitemapCompanyRow = {
+  ico: string;
+  name: string | null;
+  ruzSyncedAt: Date | string | null;
+  updatedAt: Date | string;
+};
+
+function toDateOrNull(v: Date | string | null | undefined): Date | null {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function buildCompanyPages(companies: SitemapCompanyRow[]): string[] {
   // SK canonical URL ONLY per company — localized variants (/en/firma/..., /de/...)
   // are NOT listed as separate <url> entries. They stay live and are discovered
-  // via the hreflang annotations below. Declaring all 6 variants multiplied the
-  // sitemap to ~1.78M URLs (277K × 6) of near-duplicate thin translations, which
-  // diluted Google's crawl budget and suppressed indexation of the canonical set
-  // (4,402 indexed / 1.78M declared = 0.25%).
+  // via the hreflang annotations below.
   return companies
     .filter((c) => VALID_ICO.test(c.ico))
     .map((c) => {
       const slug = c.name ? `${c.ico}-${slugify(c.name)}` : c.ico;
       const path = `/firma/${slug}`;
-      // Real content freshness — never fabricate "now" (see buildUrlEntry note)
-      const lastMod = c.ruzSyncedAt ?? c.updatedAt ?? c.auditVerdict?.createdAt ?? null;
+      // Real content freshness — never fabricate "now" (updatedAt is non-nullable on Company)
+      const lastMod = toDateOrNull(c.ruzSyncedAt) ?? toDateOrNull(c.updatedAt);
       const alternates = Object.fromEntries(
         VALID_LANGS.map((l) => [HREFLANG_MAP[l], `${BASE_URL}${localizePath(path, l)}`])
       );
       return buildUrlEntry(`${BASE_URL}${path}`, lastMod, "monthly", 0.6, alternates);
     });
 }
+
+async function queryCompanySitemapChunk(sitemapId: number): Promise<SitemapCompanyRow[]> {
+  const skip = (sitemapId - 1) * COMPANIES_PER_SITEMAP;
+  // Removed dead auditVerdict LEFT JOIN (updatedAt is non-nullable on Company).
+  // Designed for index-only scan on Company_fscount2_ico_sitemap_idx (ico ASC INCLUDE name, ruzSyncedAt, updatedAt WHERE fsCount >= 2).
+  return prisma.company.findMany({
+    where: { fsCount: { gte: 2 } },
+    select: {
+      ico: true,
+      name: true,
+      ruzSyncedAt: true,
+      updatedAt: true,
+    },
+    skip,
+    take: COMPANIES_PER_SITEMAP,
+    orderBy: { ico: "asc" },
+  });
+}
+
+const getCachedCompanySitemapChunk = unstable_cache(
+  async (sitemapId: number) => queryCompanySitemapChunk(sitemapId),
+  ["sitemap-company-chunk"],
+  { revalidate: 3600 }
+);
 
 export async function GET(
   _req: NextRequest,
@@ -158,33 +191,27 @@ export async function GET(
       ...buildGlossaryPages(),
     ];
   } else {
-    // Sitemap 1..N: company pages
-    // fsCount >= 2 replaces financialStatements: { some: {} } + _count + JS filter —
-    // the relation filter compiles to an IN (subquery) semi-join over FinancialStatement
-    // (~1M rows); fsCount is a maintained column with its own index (quality gate).
-    const skip = (sitemapId - 1) * COMPANIES_PER_SITEMAP;
+    // Sitemap 1..N: company pages (cached 1h; returns 503 on DB error instead of 200 empty urlset)
     try {
-      const companies = await prisma.company.findMany({
-        where: { fsCount: { gte: 2 } },
-        select: {
-          ico: true,
-          name: true,
-          auditVerdict: { select: { createdAt: true } },
-          ruzSyncedAt: true,
-          updatedAt: true,
-        },
-        skip,
-        take: COMPANIES_PER_SITEMAP,
-        orderBy: { ico: "asc" },
-      });
-      // Out-of-range sitemap id → 404 (previously returned an empty urlset with 200)
+      let companies: SitemapCompanyRow[];
+      try {
+        companies = await getCachedCompanySitemapChunk(sitemapId);
+      } catch {
+        companies = await queryCompanySitemapChunk(sitemapId);
+      }
       if (companies.length === 0) {
         return new NextResponse("Not found", { status: 404 });
       }
       entries = buildCompanyPages(companies);
     } catch {
-      // DB unavailable — return empty sitemap
-      entries = [];
+      return new NextResponse("Service Unavailable", {
+        status: 503,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-store",
+          "Retry-After": "60",
+        },
+      });
     }
   }
 

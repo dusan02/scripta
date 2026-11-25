@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
 import { getNaceSectionFromCode, getNaceSectionLabel, getKrajLabel, getKrajLabelLocative } from "@/lib/screener";
@@ -23,17 +24,22 @@ const KRAJ_NAMES: Record<string, string> = {
   SK042: "Košický kraj",
 };
 
-// Quality gate via pre-computed fsCount column — NOT financialStatements: { some: {} }.
-// The relation filter compiles to `ico IN (SELECT companyIco FROM FinancialStatement)`
-// semi-join which, combined with ORDER BY latestRevenue, forces a full revenue-index
-// scan for small cities (5-18s under crawler load). fsCount is a maintained column
-// with its own index — O(1) predicate, planner can use composite (city, revenue) index.
-// See docs/performance-audit.md — Screener/hub performance section.
-async function getRelatedByNaceInKraj(ico: string, naceCode: string | null, kraj: string | null): Promise<RelatedFirm[]> {
-  if (!naceCode) return [];
-  const where: any = {
+const RELATED_CACHE_TTL_SEC = 21600; // 6h, aligned with firma page revalidate
+
+function mapFirms(
+  firms: Array<{ ico: string; name: string | null; city: string | null; latestRevenue: { toString(): string } | null }>
+): RelatedFirm[] {
+  return firms.map((f) => ({
+    ico: f.ico,
+    name: f.name,
+    city: f.city,
+    latestRevenue: f.latestRevenue?.toString() ?? null,
+  }));
+}
+
+async function queryTopByNaceInKraj(naceCode: string, kraj: string | null): Promise<RelatedFirm[]> {
+  const where: Record<string, unknown> = {
     naceCode,
-    ico: { not: ico },
     fsCount: { gte: 1 },
     latestRevenue: { not: null },
   };
@@ -42,56 +48,90 @@ async function getRelatedByNaceInKraj(ico: string, naceCode: string | null, kraj
     where,
     select: { ico: true, name: true, city: true, latestRevenue: true },
     orderBy: { latestRevenue: "desc" },
-    take: 6,
+    take: 7,
   });
-  return firms.map((f) => ({
-    ico: f.ico,
-    name: f.name,
-    city: f.city,
-    latestRevenue: f.latestRevenue?.toString() ?? null,
-  }));
+  return mapFirms(firms);
+}
+
+async function queryTopByNace(naceCode: string): Promise<RelatedFirm[]> {
+  const firms = await prisma.company.findMany({
+    where: {
+      naceCode,
+      fsCount: { gte: 1 },
+      latestRevenue: { not: null },
+    },
+    select: { ico: true, name: true, city: true, latestRevenue: true },
+    orderBy: { latestRevenue: "desc" },
+    take: 7,
+  });
+  return mapFirms(firms);
+}
+
+async function queryTopInCity(city: string): Promise<RelatedFirm[]> {
+  const firms = await prisma.company.findMany({
+    where: {
+      city,
+      fsCount: { gte: 1 },
+      latestRevenue: { not: null },
+    },
+    select: { ico: true, name: true, city: true, latestRevenue: true },
+    orderBy: { latestRevenue: "desc" },
+    take: 7,
+  });
+  return mapFirms(firms);
+}
+
+const _cachedTopByNaceInKraj = unstable_cache(
+  async (naceCode: string, kraj: string) => queryTopByNaceInKraj(naceCode, kraj || null),
+  ["related-firms-nace-kraj"],
+  { revalidate: RELATED_CACHE_TTL_SEC }
+);
+
+const _cachedTopByNace = unstable_cache(
+  async (naceCode: string) => queryTopByNace(naceCode),
+  ["related-firms-nace"],
+  { revalidate: RELATED_CACHE_TTL_SEC }
+);
+
+const _cachedTopInCity = unstable_cache(
+  async (city: string) => queryTopInCity(city),
+  ["related-firms-city"],
+  { revalidate: RELATED_CACHE_TTL_SEC }
+);
+
+// Share top-7 results across all companies in the same (naceCode, kraj) / naceCode / city,
+// excluding the current `ico` in memory. Eliminates per-company DB scans across 6 locales.
+async function getRelatedByNaceInKraj(ico: string, naceCode: string | null, kraj: string | null): Promise<RelatedFirm[]> {
+  if (!naceCode) return [];
+  let firms: RelatedFirm[];
+  try {
+    firms = await _cachedTopByNaceInKraj(naceCode, kraj ?? "");
+  } catch {
+    firms = await queryTopByNaceInKraj(naceCode, kraj);
+  }
+  return firms.filter((f) => f.ico !== ico).slice(0, 6);
 }
 
 async function getLargestByNace(ico: string, naceCode: string | null): Promise<RelatedFirm[]> {
   if (!naceCode) return [];
-  const firms = await prisma.company.findMany({
-    where: {
-      naceCode,
-      ico: { not: ico },
-      fsCount: { gte: 1 },
-      latestRevenue: { not: null },
-    },
-    select: { ico: true, name: true, city: true, latestRevenue: true },
-    orderBy: { latestRevenue: "desc" },
-    take: 6,
-  });
-  return firms.map((f) => ({
-    ico: f.ico,
-    name: f.name,
-    city: f.city,
-    latestRevenue: f.latestRevenue?.toString() ?? null,
-  }));
+  let firms: RelatedFirm[];
+  try {
+    firms = await _cachedTopByNace(naceCode);
+  } catch {
+    firms = await queryTopByNace(naceCode);
+  }
+  return firms.filter((f) => f.ico !== ico).slice(0, 6);
 }
 
 async function getFirmsInCity(ico: string, city: string | null): Promise<RelatedFirm[]> {
   if (!city) return [];
-  const firms = await prisma.company.findMany({
-    where: {
-      city,
-      ico: { not: ico },
-      fsCount: { gte: 1 },
-      latestRevenue: { not: null },
-    },
-    select: { ico: true, name: true, city: true, latestRevenue: true },
-    orderBy: { latestRevenue: "desc" },
-    take: 6,
-  });
-  return firms.map((f) => ({
-    ico: f.ico,
-    name: f.name,
-    city: f.city,
-    latestRevenue: f.latestRevenue?.toString() ?? null,
-  }));
+  let firms: RelatedFirm[];
+  try {
+    firms = await _cachedTopInCity(city);
+  } catch {
+    firms = await queryTopInCity(city);
+  }
+  return firms.filter((f) => f.ico !== ico).slice(0, 6);
 }
 
 function formatRevenue(rev: string | null): string {

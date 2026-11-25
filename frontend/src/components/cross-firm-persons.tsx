@@ -26,45 +26,87 @@ const COMMON_NAMES = new Set([
   "jan gabor", "peter gabor",
 ]);
 
-export async function getCrossFirmPersons(ico: string): Promise<CrossFirmLink[]> {
-  // Get active statutars/spolocnici for this company
-  const persons = await prisma.companyPerson.findMany({
-    where: {
-      companyIco: ico,
-      isActive: true,
-      role: { in: ["statutar", "spolocnik"] },
-    },
-    select: { cleanName: true, city: true },
-    take: 5,
-  });
+export type PreloadedPerson = {
+  cleanName: string | null;
+  city: string | null;
+  isActive?: boolean;
+  role?: string;
+};
 
-  const results: CrossFirmLink[] = [];
-  const seenIcos = new Set<string>([ico]);
-
+export function filterEligibleCrossFirmPersons(
+  persons: PreloadedPerson[]
+): Array<{ cleanName: string; city: string | null }> {
+  const seen = new Set<string>();
+  const eligible: Array<{ cleanName: string; city: string | null }> = [];
   for (const person of persons) {
     if (!person.cleanName) continue;
     const normalized = person.cleanName.toLowerCase().trim();
     if (COMMON_NAMES.has(normalized)) continue;
     if (normalized.length < 8) continue; // skip very short names
+    const dedupeKey = `${normalized}|${person.city ?? ""}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    eligible.push({ cleanName: person.cleanName, city: person.city ?? null });
+    if (eligible.length >= 5) break;
+  }
+  return eligible;
+}
 
-    // Find other companies where this person is an active statutar
-    const otherPersons = await prisma.companyPerson.findMany({
-      where: {
-        companyIco: { not: ico },
-        isActive: true,
-        role: "statutar",
-        cleanName: person.cleanName,
-        ...(person.city ? { city: person.city } : {}),
-      },
-      select: {
-        companyIco: true,
-        role: true,
-        company: { select: { name: true } },
-      },
-      take: 3,
-    });
+export async function getCrossFirmPersons(
+  ico: string,
+  preloadedPersons?: PreloadedPerson[]
+): Promise<CrossFirmLink[]> {
+  // Reuse preloaded companyPersons when available; otherwise fetch up to 5 active statutars/spolocnici.
+  const persons: PreloadedPerson[] = preloadedPersons
+    ? preloadedPersons
+        .filter(
+          (p) =>
+            p.isActive !== false &&
+            (!p.role || p.role === "statutar" || p.role === "spolocnik")
+        )
+        .slice(0, 5)
+    : await prisma.companyPerson.findMany({
+        where: {
+          companyIco: ico,
+          isActive: true,
+          role: { in: ["statutar", "spolocnik"] },
+        },
+        select: { cleanName: true, city: true },
+        take: 5,
+      });
 
+  const eligible = filterEligibleCrossFirmPersons(persons);
+  if (eligible.length === 0) return [];
+
+  // Single batched query replaces up to 5 sequential N+1 findMany calls.
+  const otherPersons = await prisma.companyPerson.findMany({
+    where: {
+      companyIco: { not: ico },
+      isActive: true,
+      role: "statutar",
+      OR: eligible.map((p) => ({
+        cleanName: p.cleanName,
+        ...(p.city ? { city: p.city } : {}),
+      })),
+    },
+    select: {
+      companyIco: true,
+      role: true,
+      cleanName: true,
+      city: true,
+      company: { select: { name: true } },
+    },
+    take: 25,
+  });
+
+  // Preserve original per-person priority order (max 3 per person, max 5 total, unique companyIco).
+  const results: CrossFirmLink[] = [];
+  const seenIcos = new Set<string>([ico]);
+  for (const person of eligible) {
+    let addedForPerson = 0;
     for (const op of otherPersons) {
+      if (op.cleanName !== person.cleanName) continue;
+      if (person.city && op.city !== person.city) continue;
       if (seenIcos.has(op.companyIco)) continue;
       seenIcos.add(op.companyIco);
       results.push({
@@ -73,8 +115,9 @@ export async function getCrossFirmPersons(ico: string): Promise<CrossFirmLink[]>
         role: op.role,
         personName: person.cleanName,
       });
+      addedForPerson++;
+      if (addedForPerson >= 3 || results.length >= 5) break;
     }
-
     if (results.length >= 5) break;
   }
 

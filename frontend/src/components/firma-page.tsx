@@ -236,8 +236,8 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
       : t("liveCheck.faq.clean", { name, ico: company.ico })
     : t("liveCheck.faq.none", { name, ico: company.ico });
 
-  // ── Cross-firm persons — fetch links for deduplication ──
-  const crossFirmLinks = await getCrossFirmPersons(company.ico);
+  // ── Cross-firm persons — reuse preloaded companyPersons to eliminate N+1 queries ──
+  const crossFirmLinks = await getCrossFirmPersons(company.ico, company.companyPersons);
   const crossFirmIcos = crossFirmLinks.map(f => f.ico);
 
   // ── Financial Summary — 1-2 sentence narrative (i18n'd in lib/financial-summary.ts) ──
