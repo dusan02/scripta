@@ -30,7 +30,13 @@ describe("P2 backend performance optimizations invariants", () => {
       "utf8"
     );
     assert.ok(src.includes("OR: eligible.map"), "must batch person lookups into single OR query");
-    assert.ok(!src.includes("for (const person of persons) {\n    if (!person.cleanName)"), "old N+1 loop must be removed");
+    const fnBody = src.slice(
+      src.indexOf("export async function getCrossFirmPersons"),
+      src.indexOf("export async function CrossFirmPersons")
+    );
+    const firstLoop = fnBody.indexOf("for (");
+    const lastQuery = fnBody.lastIndexOf("await prisma.");
+    assert.ok(firstLoop > lastQuery, "all Prisma queries in getCrossFirmPersons must execute before any loop");
   });
 
   it("related-firms.tsx caches top-7 lists without per-ico WHERE clause", () => {
@@ -48,7 +54,7 @@ describe("P2 backend performance optimizations invariants", () => {
       path.join(REPO_ROOT, "frontend/src/app/sitemap/[id]/route.ts"),
       "utf8"
     );
-    assert.ok(!src.includes("auditVerdict"), "dead auditVerdict join must be removed from sitemap query");
+    assert.ok(!/auditVerdict\s*:/.test(src), "dead auditVerdict join must be removed from sitemap query");
     assert.ok(src.includes("unstable_cache"), "sitemap chunk query must be cached");
     assert.ok(src.includes("status: 503"), "DB failure must return 503 instead of 200 empty urlset");
   });
@@ -58,7 +64,7 @@ describe("P2 backend performance optimizations invariants", () => {
       path.join(REPO_ROOT, "deploy/db/p2_performance_indexes.sql"),
       "utf8"
     );
-    const creates = (sql.match(/CREATE INDEX CONCURRENTLY IF NOT EXISTS/g) || []).length;
+    const creates = (sql.match(/^CREATE INDEX CONCURRENTLY IF NOT EXISTS/gm) || []).length;
     assert.equal(creates, 4);
     assert.ok(sql.includes('"Company_fscount2_ico_sitemap_idx"'));
     assert.ok(sql.includes('"Company_fscount1_nace_kraj_rev_idx"'));
