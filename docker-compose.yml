@@ -51,6 +51,7 @@ services:
     image: verifa-frontend
     container_name: verifa_frontend
     restart: unless-stopped
+    init: true
     mem_limit: 1536m
     pids_limit: 200
     depends_on:
@@ -60,7 +61,8 @@ services:
         condition: service_healthy
     environment:
       NODE_OPTIONS: --max-old-space-size=1024
-      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}?connection_limit=30
+      UV_THREADPOOL_SIZE: "4"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}?connection_limit=${PRISMA_CONNECTION_LIMIT:-20}&pool_timeout=${PRISMA_POOL_TIMEOUT:-15}&connect_timeout=${PRISMA_CONNECT_TIMEOUT:-5}&application_name=verifa_frontend
       DATABASE_URL_UNPOOLED: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
@@ -109,8 +111,8 @@ services:
       # ports bypass UFW entirely via iptables).
       - "127.0.0.1:3000:3000"
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
-      interval: 15s
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s

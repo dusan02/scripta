@@ -58,11 +58,12 @@ FROM node:20-slim AS runner
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+    apt-get update && apt-get install -y --no-install-recommends openssl tini && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV UV_THREADPOOL_SIZE=4
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -90,4 +91,5 @@ USER nextjs
 
 EXPOSE 3000
 
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "server.js"]
