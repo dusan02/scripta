@@ -196,16 +196,19 @@ describe("createDbHealthChecker concurrency and timeout guardrails", () => {
 });
 
 describe("Stream 1 container and Dockerfile stability invariants", () => {
-  it("docker-compose.yml frontend has tini init, bounded limits, pool params, and shell-less healthcheck", () => {
+  it("docker-compose.yml frontend has init: true, bounded limits, pool params, and shell-less healthcheck", () => {
     const compose = fs.readFileSync(path.join(REPO_ROOT, "docker-compose.yml"), "utf8");
     const frontendSection = compose.slice(
       compose.indexOf("container_name: verifa_frontend"),
       compose.indexOf("container_name: verifa_redis")
     );
-    assert.ok(frontendSection.includes("init: true"), "frontend must enable init: true");
+    assert.ok(frontendSection.includes("init: true"), "frontend must enable native Docker init: true");
     assert.ok(frontendSection.includes("pids_limit: 200"), "pids_limit must stay bounded at 200");
     assert.ok(frontendSection.includes("mem_limit: 1536m"), "mem_limit must stay bounded at 1536m");
-    assert.ok(frontendSection.includes('UV_THREADPOOL_SIZE: "4"'), "UV_THREADPOOL_SIZE should be pinned");
+    assert.ok(
+      !frontendSection.includes("UV_THREADPOOL_SIZE"),
+      "avoid redundant UV_THREADPOOL_SIZE=4 (Node.js default is 4)"
+    );
     assert.ok(frontendSection.includes("pool_timeout="), "DATABASE_URL must specify pool_timeout");
     assert.ok(frontendSection.includes("connect_timeout="), "DATABASE_URL must specify connect_timeout");
     assert.ok(
@@ -220,14 +223,48 @@ describe("Stream 1 container and Dockerfile stability invariants", () => {
     assert.ok(frontendSection.includes("process.exit(r.ok?0:1)"), "healthcheck must explicitly exit");
   });
 
-  it("frontend/Dockerfile installs tini and configures ENTRYPOINT for PID 1 zombie reaping", () => {
+  it("frontend/Dockerfile relies on Compose init: true without redundant double-tini", () => {
     const dockerfile = fs.readFileSync(path.join(REPO_ROOT, "frontend/Dockerfile"), "utf8");
     const runnerStage = dockerfile.slice(dockerfile.indexOf("AS runner"));
-    assert.ok(runnerStage.includes("tini"), "runner stage must install tini");
     assert.ok(
-      runnerStage.includes('ENTRYPOINT ["/usr/bin/tini", "--"]'),
-      "runner stage must set tini as ENTRYPOINT"
+      !runnerStage.includes('ENTRYPOINT ["/usr/bin/tini"'),
+      "avoid redundant double-tini when Compose sets init: true"
     );
-    assert.ok(runnerStage.includes("ENV UV_THREADPOOL_SIZE=4"), "runner stage must pin UV_THREADPOOL_SIZE");
+    assert.ok(runnerStage.includes('CMD ["node", "server.js"]'), "runner starts node server.js cleanly");
+  });
+
+  it("exec-form healthcheck command exits cleanly on 200 and aborts promptly on stalled endpoint", async () => {
+    const http = await import("node:http");
+    const { spawn } = await import("node:child_process");
+
+    const runProbe = (url: string, timeoutMs: number) =>
+      new Promise<{ code: number | null; elapsedMs: number }>((resolve) => {
+        const start = Date.now();
+        const expr = `fetch(${JSON.stringify(url)},{signal:AbortSignal.timeout(${timeoutMs})}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))`;
+        const child = spawn(process.execPath, ["-e", expr], { stdio: "ignore" });
+        child.on("exit", (code) => resolve({ code, elapsedMs: Date.now() - start }));
+      });
+
+    const server = http.createServer((req, res) => {
+      if (req.url === "/ok") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end('{"status":"ok"}');
+      } else if (req.url === "/stall") {
+        // Intentionally never responds to simulate stalled DB pool
+      }
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const addr = server.address() as { port: number };
+    try {
+      const okRes = await runProbe(`http://127.0.0.1:${addr.port}/ok`, 1000);
+      assert.equal(okRes.code, 0, "healthy probe must exit 0");
+
+      const stallRes = await runProbe(`http://127.0.0.1:${addr.port}/stall`, 250);
+      assert.equal(stallRes.code, 1, "stalled probe must exit 1 via AbortSignal.timeout");
+      assert.ok(stallRes.elapsedMs < 1500, `stalled probe must terminate promptly (took ${stallRes.elapsedMs}ms)`);
+    } finally {
+      server.closeAllConnections();
+      server.close();
+    }
   });
 });

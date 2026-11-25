@@ -61,7 +61,6 @@ services:
         condition: service_healthy
     environment:
       NODE_OPTIONS: --max-old-space-size=1024
-      UV_THREADPOOL_SIZE: "4"
       DATABASE_URL: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}?connection_limit=${PRISMA_CONNECTION_LIMIT:-20}&pool_timeout=${PRISMA_POOL_TIMEOUT:-15}&connect_timeout=${PRISMA_CONNECT_TIMEOUT:-5}&application_name=verifa_frontend
       DATABASE_URL_UNPOOLED: postgresql://${POSTGRES_USER:-verifa}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-verifa}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1

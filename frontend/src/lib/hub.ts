@@ -18,6 +18,7 @@
  * Quality gate: ≥2 financial statements (same as sitemap)
  */
 
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import {
@@ -191,26 +192,26 @@ export async function queryHubCompanies(
 
   const whereClause = conditions.join(" AND ");
 
-  // Query companies — ordered by revenue DESC (uses composite index)
-  const companies = await prisma.$queryRawUnsafe<Array<{
-    ico: string; name: string | null; city: string | null;
-    "naceText": string | null; "sizeCategory": string | null;
-    "latestRevenue": bigint | null; "latestProfit": bigint | null;
-    "latestYear": number | null;
-  }>>(
-    `SELECT ico, name, city, "naceText", "sizeCategory", "latestRevenue", "latestProfit", "latestYear"
-     FROM "Company"
-     WHERE ${whereClause}
-     ORDER BY "latestRevenue" DESC NULLS LAST
-     LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
-    ...replacements
-  );
-
-  // Count total — same WHERE but COUNT(*) instead of fetching rows
-  const countResult = await prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
-    `SELECT COUNT(*)::bigint as cnt FROM "Company" WHERE ${whereClause}`,
-    ...replacements
-  );
+  // Query companies and total count concurrently
+  const [companies, countResult] = await Promise.all([
+    prisma.$queryRawUnsafe<Array<{
+      ico: string; name: string | null; city: string | null;
+      "naceText": string | null; "sizeCategory": string | null;
+      "latestRevenue": bigint | null; "latestProfit": bigint | null;
+      "latestYear": number | null;
+    }>>(
+      `SELECT ico, name, city, "naceText", "sizeCategory", "latestRevenue", "latestProfit", "latestYear"
+       FROM "Company"
+       WHERE ${whereClause}
+       ORDER BY "latestRevenue" DESC NULLS LAST
+       LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+      ...replacements
+    ),
+    prisma.$queryRawUnsafe<Array<{ cnt: bigint }>>(
+      `SELECT COUNT(*)::bigint as cnt FROM "Company" WHERE ${whereClause}`,
+      ...replacements
+    ),
+  ]);
   const total = Number(countResult[0]?.cnt ?? 0);
 
   const totalPages = Math.min(Math.ceil(total / PAGE_SIZE), MAX_PAGES);
@@ -289,6 +290,66 @@ export async function getHubStats(params: HubParams): Promise<{
     };
   } catch {
     return null;
+  }
+}
+
+export function normalizeHubCacheKey(params: HubParams, page?: number): string {
+  return JSON.stringify({
+    section: params.section ?? null,
+    kraj: params.kraj ?? null,
+    okres: params.okres ?? null,
+    city: params.city ?? null,
+    canonicalPath: params.canonicalPath ?? null,
+    ...(page !== undefined ? { page } : {}),
+  });
+}
+
+const _cachedHubCompanyCount = unstable_cache(
+  async (_key: string, params: HubParams) => getHubCompanyCount(params),
+  ["hub-company-count"],
+  { revalidate: 3600 }
+);
+
+const _cachedHubCompanies = unstable_cache(
+  async (_key: string, params: HubParams, page: number) => queryHubCompanies(params, page),
+  ["hub-companies-query"],
+  { revalidate: 3600 }
+);
+
+const _cachedHubStats = unstable_cache(
+  async (_key: string, params: HubParams) => getHubStats(params),
+  ["hub-stats"],
+  { revalidate: 3600 }
+);
+
+export async function getHubCompanyCountCached(params: HubParams): Promise<number> {
+  try {
+    return await _cachedHubCompanyCount(normalizeHubCacheKey(params), params);
+  } catch {
+    return getHubCompanyCount(params);
+  }
+}
+
+export async function queryHubCompaniesCached(
+  params: HubParams,
+  page: number = 1
+): Promise<HubResult | null> {
+  try {
+    return await _cachedHubCompanies(normalizeHubCacheKey(params, page), params, page);
+  } catch {
+    return queryHubCompanies(params, page);
+  }
+}
+
+export async function getHubStatsCached(params: HubParams): Promise<{
+  totalRevenue: string | null;
+  profitableCount: number;
+  cityCount: number;
+} | null> {
+  try {
+    return await _cachedHubStats(normalizeHubCacheKey(params), params);
+  } catch {
+    return getHubStats(params);
   }
 }
 

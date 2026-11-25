@@ -145,7 +145,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         <>
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>The Processor undertakes to:</p>
           <ul style={ulStyle}>
-            <li style={liStyle}>Process personal data exclusively for the purpose of providing the service and in accordance with the Controller's instructions.</li>
+            <li style={liStyle}>Process personal data exclusively for the purpose of providing the service and in accordance with the Controller&apos;s instructions.</li>
             <li style={liStyle}>Ensure that persons authorized to process data are bound by confidentiality.</li>
             <li style={liStyle}>Implement appropriate technical and organizational measures to protect data.</li>
             <li style={liStyle}>Not entrust data processing to third parties without the prior consent of the Controller.</li>
@@ -175,7 +175,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
       )},
       { heading: "7. Duration and termination", body: (
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-          This agreement enters into force upon the Controller's registration with the Verifa.sk service and remains valid for the entire duration of the service. Upon termination of the contractual relationship, the Processor shall delete all of the Controller's personal data within 30 days, unless otherwise required by law.
+          This agreement enters into force upon the Controller&apos;s registration with the Verifa.sk service and remains valid for the entire duration of the service. Upon termination of the contractual relationship, the Processor shall delete all of the Controller&apos;s personal data within 30 days, unless otherwise required by law.
         </p>
       )},
       { heading: "8. Contact", body: (

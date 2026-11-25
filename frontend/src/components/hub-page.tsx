@@ -1,7 +1,14 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { queryHubCompanies, getHubMetadata, getHubJsonLd, type HubParams } from "@/lib/hub";
-import { getHubCompanyCount, getHubStats, getHubIntro } from "@/lib/hub";
+import {
+  queryHubCompaniesCached as queryHubCompanies,
+  getHubMetadata,
+  getHubJsonLd,
+  getHubCompanyCountCached as getHubCompanyCount,
+  getHubStatsCached as getHubStats,
+  getHubIntro,
+  type HubParams,
+} from "@/lib/hub";
 import { getLangFromHeaders, getHreflangAlternates } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { HubTable, SubHubLinks, HubPagination, HubBreadcrumbs } from "@/components/hub-ui";
@@ -26,7 +33,10 @@ export async function renderHubPage(
   const page = typeof searchParams.page === "string" ? parseInt(searchParams.page, 10) : 1;
   const safePage = isNaN(page) || page < 1 ? 1 : Math.min(page, 10);
 
-  const result = await queryHubCompanies(params, safePage);
+  const [result, stats] = await Promise.all([
+    queryHubCompanies(params, safePage),
+    getHubStats(params),
+  ]);
 
   if (!result || result.total === 0) {
     return (
@@ -49,7 +59,6 @@ export async function renderHubPage(
   }
 
   const jsonLd = getHubJsonLd(params, result.companies, BASE_URL);
-  const stats = await getHubStats(params);
   const intro = getHubIntro(params);
 
   // Build breadcrumbs

@@ -184,7 +184,7 @@ const CONTENT: Record<Lang, { title: string; sections: Section[]; lastUpdated: s
         body: (
           <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7 }}>
             If a user files a chargeback (bank-initiated refund) without a legitimate reason stated in this Refund Policy, Verifa.sk reserves the right to:<br />
-            (a) block the user's account,<br />
+            (a) block the user&apos;s account,<br />
             (b) withhold remaining credits,<br />
             (c) submit evidence of services rendered to the bank and Paddle to defend the chargeback.<br /><br />
             Before filing a chargeback, we encourage you to contact <a href="mailto:info@verifa.sk" style={linkStyle}>info@verifa.sk</a> first — most disputes can be resolved directly.
