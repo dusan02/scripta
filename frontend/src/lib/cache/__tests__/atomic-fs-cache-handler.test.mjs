@@ -251,4 +251,87 @@ describe('AtomicFsCacheHandler', () => {
     assert.equal(routeHit.value.kind, 'ROUTE');
     assert.equal(routeHit.value.body.toString(), '<urlset></urlset>');
   });
+
+  it('survives concurrent get() + set() stress on hot keys with zero partial reads, JSON errors, or 0-byte .html', async () => {
+    // Force disk I/O on every get() so readers exercise live atomic renames
+    const writerA = new AtomicFsCacheHandler({ serverDistDir, _appDir: true, maxMemoryCacheSize: 0 });
+    const writerB = new AtomicFsCacheHandler({ serverDistDir, _appDir: true, maxMemoryCacheSize: 0 });
+    const readerA = new AtomicFsCacheHandler({ serverDistDir, _appDir: true, maxMemoryCacheSize: 0 });
+    const readerB = new AtomicFsCacheHandler({ serverDistDir, _appDir: true, maxMemoryCacheSize: 0 });
+
+    const hotKeys = ['/firma/hot-1', '/firma/hot-2', '/firma/hot-3'];
+    const iterations = 40;
+    let totalReads = 0;
+    let validHits = 0;
+
+    const runWriter = async (handler, writerId) => {
+      for (let i = 0; i < iterations; i++) {
+        const key = hotKeys[i % hotKeys.length];
+        const ver = `${writerId}-${i}`;
+        const pad = 'Z'.repeat(256 + (i % 7) * 64);
+        await handler.set(key, {
+          kind: 'PAGE',
+          html: `<html><body>ver=${ver}:${pad}</body></html>`,
+          pageData: `rsc:${ver}:${pad}`,
+          headers: {
+            'x-version': ver,
+            'x-next-cache-tags': `_N_T_${key},stress`,
+          },
+          status: 200,
+        });
+      }
+    };
+
+    const runReader = async (handler) => {
+      for (let i = 0; i < iterations * 2; i++) {
+        const key = hotKeys[i % hotKeys.length];
+        const res = await handler.get(key, { kindHint: 'app' });
+        totalReads += 1;
+        if (res === null) continue;
+        validHits += 1;
+        assert.equal(res.value.kind, 'PAGE');
+        assert.equal(typeof res.value.html, 'string');
+        assert.ok(res.value.html.length > 0, 'html must never be 0 bytes');
+        assert.ok(
+          res.value.html.startsWith('<html><body>ver=') && res.value.html.endsWith('</body></html>'),
+          `truncated/corrupt html observed: ${res.value.html.slice(0, 80)}`
+        );
+        assert.equal(typeof res.value.pageData, 'string');
+        assert.ok(res.value.pageData.startsWith('rsc:'), 'truncated/corrupt pageData observed');
+        assert.ok(res.value.headers && typeof res.value.headers['x-version'] === 'string', 'missing/invalid headers');
+        assert.equal(res.value.status, 200);
+      }
+    };
+
+    await Promise.all([
+      runWriter(writerA, 'wA'),
+      runWriter(writerB, 'wB'),
+      runReader(readerA),
+      runReader(readerB),
+    ]);
+
+    assert.equal(totalReads, iterations * 4);
+    assert.ok(validHits > 0, 'expected concurrent readers to observe valid disk hits');
+
+    // Verify final on-disk state: zero 0-byte .html files, valid JSON .meta, zero .tmp leftovers
+    const firmaDir = path.join(serverDistDir, 'app', 'firma');
+    const files = await fsp.readdir(firmaDir);
+    assert.equal(files.some((f) => f.endsWith('.tmp')), false, `leftover tmp files: ${files}`);
+
+    for (const key of hotKeys) {
+      const slug = key.split('/').pop();
+      const htmlBuf = await fsp.readFile(path.join(firmaDir, `${slug}.html`), 'utf8');
+      const rscBuf = await fsp.readFile(path.join(firmaDir, `${slug}.rsc`), 'utf8');
+      const metaObj = JSON.parse(await fsp.readFile(path.join(firmaDir, `${slug}.meta`), 'utf8'));
+      assert.ok(htmlBuf.length > 0 && htmlBuf.endsWith('</body></html>'));
+      assert.ok(rscBuf.length > 0 && rscBuf.startsWith('rsc:'));
+      assert.equal(metaObj.status, 200);
+      assert.equal(typeof metaObj.headers['x-version'], 'string');
+    }
+
+    assert.equal(writerA.getStats().atomicWriteFailures, 0);
+    assert.equal(writerB.getStats().atomicWriteFailures, 0);
+    assert.equal(readerA.getStats().zeroByteRejects, 0);
+    assert.equal(readerB.getStats().zeroByteRejects, 0);
+  });
 });
