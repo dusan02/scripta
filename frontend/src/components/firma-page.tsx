@@ -396,32 +396,32 @@ export async function FirmaPageContent({ icoSlug, lang }: { icoSlug: string; lan
               <strong style={{ color: "var(--text)" }}>{t("firma.financneZhrnutie")}:</strong> {financialSummary}
             </p>
           ) : <div />}
-          <nav aria-label="Sekcie profilu firmy" className="flex items-center gap-1.5 flex-wrap text-xs shrink-0">
-            <a href="#live-registry-check" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--accent)", background: "var(--accent-light)" }}>
+          <nav aria-label="Sekcie profilu firmy" className="flex items-center gap-1.5 overflow-x-auto lg:flex-wrap whitespace-nowrap no-scrollbar -mx-1 px-1 py-0.5 text-xs shrink-0">
+            <a href="#live-registry-check" className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline shrink-0" style={{ color: "var(--accent)", background: "var(--accent-light)" }}>
               {t("liveCheck.anchor")}
             </a>
             {riskCount > 0 && (
-              <a href="#sekcia-rizika" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--danger, #dc2626)", background: "var(--danger-bg, #fef2f2)" }}>
+              <a href="#sekcia-rizika" className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline shrink-0" style={{ color: "var(--danger, #dc2626)", background: "var(--danger-bg, #fef2f2)" }}>
                 Riziká ({riskCount})
               </a>
             )}
             {persons.length > 0 && (
-              <a href="#sekcia-osoby" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+              <a href="#sekcia-osoby" className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline shrink-0" style={{ color: "var(--text-secondary)" }}>
                 {t("firma.osoby")}
               </a>
             )}
             {balanceData && balanceData.totalAssets != null && (
-              <a href="#sekcia-suvaha" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+              <a href="#sekcia-suvaha" className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline shrink-0" style={{ color: "var(--text-secondary)" }}>
                 {t("firma.suvaha")}
               </a>
             )}
             {chartData.length > 0 && (
-              <a href="#sekcia-vykaz" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+              <a href="#sekcia-vykaz" className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline shrink-0" style={{ color: "var(--text-secondary)" }}>
                 Výkaz ziskov a strát
               </a>
             )}
             {stmts.length >= 2 && (
-              <a href="#sekcia-fscore" className="px-2.5 py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline" style={{ color: "var(--text-secondary)" }}>
+              <a href="#sekcia-fscore" className="px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg font-medium hover:bg-[var(--surface-hover)] no-underline shrink-0" style={{ color: "var(--text-secondary)" }}>
                 F-Score
               </a>
             )}
