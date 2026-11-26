@@ -147,6 +147,23 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
     return () => clearInterval(interval);
   }, [summary.isRunning, pollStatus]);
 
+  useEffect(() => {
+    if (!modalOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModalOpen(false);
+        setDailyLimitHit(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [modalOpen]);
+
   const handleStartCheck = async (force = false, source: "cta_button" | "registry_pill" | "recheck_button" = "cta_button") => {
     trackLiveCheckClick(ico, source);
     setErrorMsg(null);
@@ -441,147 +458,187 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
       {/* Live Progress Modal (like PDF report generation progress) */}
       {modalOpen && !dailyLimitHit && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="live-check-modal-title"
+          onClick={() => setModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ background: "rgba(0, 0, 0, 0.55)", backdropFilter: "blur(4px)" }}
         >
           <div
-            className="w-full max-w-xl rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full sm:max-w-xl max-h-[92dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
               color: "var(--text)",
             }}
           >
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <span
-                  className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
-                  style={{
-                    background: "var(--accent-light)",
-                    color: "var(--accent)",
-                  }}
-                >
-                  {summary.isRunning ? t("liveCheck.modalRunning") : t("liveCheck.modalDone")}
-                </span>
-                <h3 className="text-lg font-bold mt-1">
-                  {companyName} (IČO {ico})
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="text-sm px-2.5 py-1 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer"
-                style={{ color: "var(--text-muted)" }}
-                aria-label={t("liveCheck.close")}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* 3-step timeline */}
-            <div className="grid grid-cols-3 gap-2 mb-4 text-center text-xs">
+            {/* Mobile sheet handle */}
+            <div className="sm:hidden flex justify-center pt-2.5 pb-0.5 shrink-0">
               <div
-                className="p-2 rounded-lg font-semibold"
-                style={{
-                  background: "var(--success-bg, rgba(16,185,129,0.12))",
-                  color: "var(--success-text, #059669)",
-                }}
-              >
-                {t("liveCheck.step1")}
-              </div>
-              <div
-                className="p-2 rounded-lg font-semibold"
-                style={{
-                  background: summary.isRunning
-                    ? "var(--info-bg, rgba(59,130,246,0.12))"
-                    : "var(--success-bg, rgba(16,185,129,0.12))",
-                  color: summary.isRunning
-                    ? "var(--info-text, #2563eb)"
-                    : "var(--success-text, #059669)",
-                }}
-              >
-                {t("liveCheck.step2", { done: completedCount, total: totalCount })}
-              </div>
-              <div
-                className="p-2 rounded-lg font-semibold"
-                style={{
-                  background: !summary.isRunning && summary.hasCheck
-                    ? "var(--success-bg, rgba(16,185,129,0.12))"
-                    : "var(--bg-muted)",
-                  color: !summary.isRunning && summary.hasCheck
-                    ? "var(--success-text, #059669)"
-                    : "var(--text-muted)",
-                }}
-              >
-                {t("liveCheck.step3")} {!summary.isRunning && summary.hasCheck ? "✓" : ""}
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div
-              className="w-full h-2.5 rounded-full overflow-hidden mb-5"
-              style={{ background: "var(--bg-muted)" }}
-            >
-              <div
-                className="h-full transition-all duration-500 rounded-full"
-                style={{
-                  width: `${Math.max(10, progressPct)}%`,
-                  background: "var(--accent)",
-                }}
+                className="w-10 h-1 rounded-full"
+                style={{ background: "var(--border-strong, var(--border))" }}
               />
             </div>
 
-            {errorMsg && (
-              <div
-                className="p-3 rounded-lg mb-4 text-xs font-medium"
-                style={{
-                  background: "var(--danger-bg, #fef2f2)",
-                  color: "var(--danger, #dc2626)",
-                  border: "1px solid var(--danger-border, #fecaca)",
-                }}
-              >
-                {errorMsg}
+            {/* Sticky header + steps + progress */}
+            <div className="shrink-0 px-4 pt-3 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
+              <div className="flex items-start justify-between gap-2.5 mb-3 sm:mb-4">
+                <div className="min-w-0 flex-1">
+                  <span
+                    className="inline-block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full leading-snug"
+                    style={{
+                      background: "var(--accent-light)",
+                      color: "var(--accent)",
+                    }}
+                  >
+                    {summary.isRunning ? t("liveCheck.modalRunning") : t("liveCheck.modalDone")}
+                  </span>
+                  <h3
+                    id="live-check-modal-title"
+                    className="text-base sm:text-lg font-bold mt-1.5 leading-snug break-words"
+                  >
+                    {companyName} (IČO {ico})
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="shrink-0 w-9 h-9 -mr-1.5 -mt-1 flex items-center justify-center rounded-lg text-base hover:bg-[var(--surface-hover)] cursor-pointer transition-colors"
+                  style={{ color: "var(--text-muted)" }}
+                  aria-label={t("liveCheck.close")}
+                >
+                  ✕
+                </button>
               </div>
-            )}
 
-            {/* 7 Registry Live Rows */}
-            <div className="space-y-2.5 mb-5">
-              {summary.items.map((item) => (
+              {/* 3-step timeline */}
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mb-3 sm:mb-4 text-center text-[11px] sm:text-xs leading-tight">
                 <div
-                  key={item.source}
-                  className="flex items-center justify-between gap-3 p-3 rounded-xl border"
+                  className="flex items-center justify-center px-1.5 py-1.5 sm:p-2 rounded-lg font-semibold"
                   style={{
-                    borderColor: "var(--border)",
-                    background: "var(--bg)",
+                    background: "var(--success-bg, rgba(16,185,129,0.12))",
+                    color: "var(--success-text, #059669)",
                   }}
                 >
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>
-                      {item.fullLabel}
-                    </div>
-                    <div className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                      {item.state === "RUNNING"
-                        ? t("liveCheck.rowChecking")
-                        : item.state === "UNAVAILABLE"
-                          ? "—"
-                          : item.description}
-                    </div>
-                  </div>
-                  <StatusBadgePill state={item.state} t={t} />
+                  {t("liveCheck.step1")}
                 </div>
-              ))}
+                <div
+                  className="flex items-center justify-center px-1.5 py-1.5 sm:p-2 rounded-lg font-semibold"
+                  style={{
+                    background: summary.isRunning
+                      ? "var(--info-bg, rgba(59,130,246,0.12))"
+                      : "var(--success-bg, rgba(16,185,129,0.12))",
+                    color: summary.isRunning
+                      ? "var(--info-text, #2563eb)"
+                      : "var(--success-text, #059669)",
+                  }}
+                >
+                  {t("liveCheck.step2", { done: completedCount, total: totalCount })}
+                </div>
+                <div
+                  className="flex items-center justify-center px-1.5 py-1.5 sm:p-2 rounded-lg font-semibold"
+                  style={{
+                    background: !summary.isRunning && summary.hasCheck
+                      ? "var(--success-bg, rgba(16,185,129,0.12))"
+                      : "var(--bg-muted)",
+                    color: !summary.isRunning && summary.hasCheck
+                      ? "var(--success-text, #059669)"
+                      : "var(--text-muted)",
+                  }}
+                >
+                  {t("liveCheck.step3")} {!summary.isRunning && summary.hasCheck ? "✓" : ""}
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div
+                className="w-full h-2 sm:h-2.5 rounded-full overflow-hidden"
+                style={{ background: "var(--bg-muted)" }}
+              >
+                <div
+                  className="h-full transition-all duration-500 rounded-full"
+                  style={{
+                    width: `${Math.max(10, progressPct)}%`,
+                    background: "var(--accent)",
+                  }}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 px-4 pb-4 sm:px-6 sm:pb-5">
+              {errorMsg && (
+                <div
+                  className="p-3 rounded-lg mb-3 sm:mb-4 text-xs font-medium"
+                  style={{
+                    background: "var(--danger-bg, #fef2f2)",
+                    color: "var(--danger, #dc2626)",
+                    border: "1px solid var(--danger-border, #fecaca)",
+                  }}
+                >
+                  {errorMsg}
+                </div>
+              )}
+
+              {/* 7 Registry Live Rows */}
+              <div className="space-y-2 sm:space-y-2.5">
+                {summary.items.map((item) => (
+                  <div
+                    key={item.source}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-3 rounded-xl border"
+                    style={{
+                      borderColor: "var(--border)",
+                      background: "var(--bg)",
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="text-[13px] sm:text-sm font-semibold leading-snug sm:truncate"
+                        style={{ color: "var(--text)" }}
+                      >
+                        {item.fullLabel}
+                      </div>
+                      <div
+                        className="text-xs leading-snug mt-0.5 sm:truncate"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {item.state === "RUNNING"
+                          ? t("liveCheck.rowChecking")
+                          : item.state === "UNAVAILABLE"
+                            ? "—"
+                            : item.description}
+                      </div>
+                    </div>
+                    <div className="shrink-0 self-start sm:self-center">
+                      <StatusBadgePill state={item.state} t={t} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sticky footer */}
+            <div
+              className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 px-4 pt-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 border-t"
+              style={{
+                borderColor: "var(--border)",
+                background: "var(--surface)",
+              }}
+            >
+              <p
+                className="text-[11px] sm:text-xs leading-relaxed text-center sm:text-left"
+                style={{ color: "var(--text-muted)" }}
+              >
                 {t("liveCheck.modalNote")}
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
                 {!summary.isRunning && summary.hasCheck && (hasUnavailableItem || !summary.isFresh) && (
                   <button
                     type="button"
                     onClick={() => handleStartCheck(true, "recheck_button")}
-                    className="px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer hover:bg-[var(--surface-hover)]"
+                    className="w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer hover:bg-[var(--surface-hover)] text-center"
                     style={{
                       border: "1px solid var(--border)",
                       color: "var(--text-secondary)",
@@ -593,7 +650,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl text-sm sm:text-xs font-bold whitespace-nowrap cursor-pointer text-center"
                   style={{
                     background: "var(--accent)",
                     color: "var(--accent-button-text)",
@@ -610,11 +667,18 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
       {/* Daily limit modal — registration upsell */}
       {modalOpen && dailyLimitHit && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            setModalOpen(false);
+            setDailyLimitHit(null);
+          }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ background: "rgba(0, 0, 0, 0.55)", backdropFilter: "blur(4px)" }}
         >
           <div
-            className="w-full max-w-md rounded-2xl p-6 shadow-2xl text-center"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl text-center"
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
@@ -662,7 +726,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
                 setModalOpen(false);
                 setDailyLimitHit(null);
               }}
-              className="mt-4 text-xs cursor-pointer hover:underline"
+              className="mt-4 px-4 py-2 text-xs cursor-pointer hover:underline"
               style={{ color: "var(--text-muted)" }}
             >
               {t("liveCheck.close")}
