@@ -541,7 +541,17 @@ describe("Webhook route cryptographic rejection (Scenarios 6 & 7)", () => {
       return new Promise((_resolve, reject) => {
         if (!init?.signal) return reject(new Error("Missing AbortSignal"));
         if (init.signal.aborted) return reject(init.signal.reason);
-        init.signal.addEventListener("abort", () => reject(init.signal!.reason), { once: true });
+        // Keep the Node 20 event loop alive while simulating a hung socket;
+        // AbortSignal.timeout() uses an unref'd timer in Node 20.
+        const keepAlive = setTimeout(() => {}, 5000);
+        init.signal.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(keepAlive);
+            reject(init.signal!.reason);
+          },
+          { once: true }
+        );
       });
     };
 

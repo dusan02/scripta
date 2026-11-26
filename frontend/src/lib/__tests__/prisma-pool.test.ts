@@ -186,8 +186,15 @@ describe("createDbHealthChecker concurrency and timeout guardrails", () => {
       { timeoutMs: 30, errorCacheTtlMs: 0 }
     );
 
-    const res = await check();
-    assert.equal(res.ok, false);
+    // Keep the Node 20 event loop alive while awaiting an unref'd timeout timer
+    // (simulates a real pending DB socket that keeps the loop ref'd).
+    const keepAlive = setTimeout(() => {}, 5000);
+    try {
+      const res = await check();
+      assert.equal(res.ok, false);
+    } finally {
+      clearTimeout(keepAlive);
+    }
 
     // Trigger late rejection after timeout already resolved; should not cause unhandledRejection
     rejectLate(new Error("late P2024 error"));
