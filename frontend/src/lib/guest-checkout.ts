@@ -118,15 +118,30 @@ export async function resolveGuestUser(
     return null;
   }
 
-  const isNewUser = !existing;
-  const user =
-    existing ??
-    (await prisma.user.create({
-      data: {
-        email,
-        emailVerified: new Date(), // activated via the set-password link we email
-      },
-    }));
+  let user = existing;
+  if (!user) {
+    try {
+      user = await prisma.user.create({
+        data: {
+          email,
+          emailVerified: new Date(), // activated via the set-password link we email
+        },
+      });
+    } catch (err: any) {
+      if (err?.code === "P2002") {
+        user = await prisma.user.findUnique({ where: { email } });
+      }
+      if (!user) throw err;
+    }
+  } else if (user.emailVerified === null) {
+    // Paying via Paddle verifies ownership of the email — unlock login so
+    // previously unverified registrants aren't blocked by EMAIL_NOT_VERIFIED.
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: new Date() },
+    });
+  }
+  const isNewUser = !existing || user.passwordHash === null;
 
   if (gc.userId !== user.id) {
     await prisma.guestCheckout.update({

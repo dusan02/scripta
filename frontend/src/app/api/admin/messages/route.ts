@@ -83,17 +83,48 @@ export async function POST(req: NextRequest) {
     }
 
     const msgType = (type || (replyToMessageId ? "REPLY" : "ANNOUNCEMENT")) as "ANNOUNCEMENT" | "REPLY" | "SYSTEM";
+    const trimmedTitle = title.trim().slice(0, 200);
+    const trimmedBody = message.trim().slice(0, 5000);
 
-    // If targetUserId is provided, send to specific user; otherwise broadcast (userId = null)
-    const msg = await prisma.userMessage.create({
-      data: {
+    // Targeted message: create 1 row; Broadcast: fan out per-user rows so each
+    // user can mark-read / delete independently without affecting others.
+    let msg: { id: string; type: string; userId: string | null; title: string; body: string; createdAt: Date } | null = null;
+    if (resolvedTargetUserId) {
+      msg = await prisma.userMessage.create({
+        data: {
+          type: msgType,
+          senderId: adminUser.id,
+          userId: resolvedTargetUserId,
+          title: trimmedTitle,
+          body: trimmedBody,
+        },
+      });
+    } else {
+      const recipients = await prisma.user.findMany({
+        where: { deletedAt: null },
+        select: { id: true },
+        take: 10000,
+      });
+      if (recipients.length > 0) {
+        await prisma.userMessage.createMany({
+          data: recipients.map((u) => ({
+            type: msgType,
+            senderId: adminUser.id,
+            userId: u.id,
+            title: trimmedTitle,
+            body: trimmedBody,
+          })),
+        });
+      }
+      msg = {
+        id: "broadcast",
         type: msgType,
-        senderId: adminUser.id,
-        userId: resolvedTargetUserId,
-        title: title.trim().slice(0, 200),
-        body: message.trim().slice(0, 5000),
-      },
-    });
+        userId: null,
+        title: trimmedTitle,
+        body: trimmedBody,
+        createdAt: new Date(),
+      };
+    }
 
     // If targeted, send email notification
     let emailSkipped = false;
@@ -117,7 +148,7 @@ export async function POST(req: NextRequest) {
               <p style="white-space: pre-wrap;">${escapeHtml(message.trim())}</p>
               <p style="font-size: 12px; color: #888;">Táto správa bola odoslaná z admin panelu Verifa.sk. Môžete odpovedať priamo na tento e-mail.</p>
             `),
-            replyTo: getReplyToAddress(resolvedTargetUserId),
+            replyTo: "info@verifa.sk",
           });
         } catch (emailErr) {
           console.error("Failed to send email to user", emailErr);

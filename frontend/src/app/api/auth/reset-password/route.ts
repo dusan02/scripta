@@ -55,13 +55,18 @@ export async function POST(req: NextRequest) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Update user (password + tokenVersion) and delete token in a transaction
+    // Update user (password + tokenVersion + verify email if unverified) and delete token in a transaction
     await prisma.$transaction(async (tx) => {
+      const existingUser = await tx.user.findUnique({
+        where: { email: resetTokenRecord.email },
+        select: { emailVerified: true },
+      });
       await tx.user.update({
         where: { email: resetTokenRecord.email },
         data: {
           passwordHash,
           tokenVersion: { increment: 1 },
+          ...(existingUser && !existingUser.emailVerified ? { emailVerified: new Date() } : {}),
         },
       });
 

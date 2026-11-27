@@ -38,7 +38,15 @@ class SpDlzniciScraper(BaseScraper):
         Raises ScraperUnavailableError pri perzistentnom timeoute."""
         from .mixins import SKIP_PDF_VAR
         nav_timeout = 25000 if SKIP_PDF_VAR.get() else 30000
-        await page.goto(url, timeout=nav_timeout, wait_until='commit')
+        resp = await page.goto(url, timeout=nav_timeout, wait_until='commit')
+        if resp and resp.status >= 400:
+            raise ContentCheckError(
+                f"SP HTTP {resp.status}",
+                result=self._make_result(
+                    status="UNAVAILABLE",
+                    status_message=f"Sociálna poisťovňa vrátila HTTP {resp.status}.",
+                ),
+            )
         await page.wait_for_load_state('domcontentloaded', timeout=nav_timeout)
         logger.info(f"[{self.source_type}] Stránka načítaná, URL: {page.url}")
         # Content check: "Server je nedostupný" = retry
@@ -101,6 +109,15 @@ class SpDlzniciScraper(BaseScraper):
             is_empty = row_count == 0
 
             pdf_output = output_dir / f"sp_dlznici_{ico}.pdf"
+
+            if not is_debtor and not has_ico_on_page:
+                logger.warning(
+                    f"[{self.source_type}] Nejednoznačný výsledok pre {ico} — IČO sa nenachádza na stránke (riadkov: {row_count})."
+                )
+                return self._make_result(
+                    status="UNAVAILABLE",
+                    status_message="Sociálna poisťovňa — nejednoznačná odpoveď portálu (filter IČO sa nepotvrdil).",
+                )
 
             if not is_debtor:
                 logger.info(

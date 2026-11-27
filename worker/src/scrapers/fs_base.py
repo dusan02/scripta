@@ -397,12 +397,17 @@ class FinancnaSpravaBase(BaseScraper):
             _t = time.perf_counter()
 
             logger.info(f"[{self.source_type}] Vyhľadávanie spustené, čakám na výsledky...")
-            # Smart wait — skončíme hneď ako sa objaví výsledková tabuľka (zvyčajne <1s).
-            # Ak sa neobjaví do 3.5s, je to pravdepodobne prázdny výsledok — pokračujeme.
+            # Čakáme až kým ASP.NET postback vykreslí buď výsledkovú tabuľku, alebo prázdny marker.
+            # Pevný 3.5s timeout na tabuľku predtým spôsoboval falošné DEBT/CLEAN výsledky pri pomalom portáli FS.
             try:
-                await page.wait_for_selector(
-                    "table tbody tr, .table tbody tr, .datagrid tbody tr",
-                    timeout=3500,
+                await page.wait_for_function(
+                    """(emptyMarkers) => {
+                        if (document.querySelector('table tbody tr, .table tbody tr, .datagrid tbody tr')) return true;
+                        const text = (document.body && document.body.innerText || '').toLowerCase();
+                        return emptyMarkers.some((m) => text.includes(m));
+                    }""",
+                    arg=[m.lower() for m in self.EMPTY_MARKERS],
+                    timeout=12000,
                 )
             except PlaywrightTimeoutError:
                 pass
@@ -423,6 +428,12 @@ class FinancnaSpravaBase(BaseScraper):
                     findings=self._empty_findings(),
                     has_finding=False,
                     company_name=company_name,
+                )
+
+            row_count = await page.locator("table tbody tr, .table tbody tr, .datagrid tbody tr").count()
+            if row_count == 0:
+                raise ScraperUnavailableError(
+                    f"[{self.source_type}] Postback na Finančnej správe nedobehol — nevykreslila sa tabuľka ani prázdny stav."
                 )
 
             # Extrahovať findings

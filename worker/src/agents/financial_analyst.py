@@ -126,14 +126,28 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
         if multiplier > 1:
             _MONETARY_FIELDS = [
                 "celkove_aktiva", "obezny_majetok", "vlastne_imanie_celkom",
-                "kratkodobe_zavazky", "dlhodobe_zavazky", "trzby_z_hlavnej_cinnosti",
-                "hruba_marza", "zisk_alebo_strata_po_zdaneni",
+                "kratkodobe_zavazky", "dlhodobe_zavazky", "celkove_cudzie_zdroje",
+                "trzby_z_hlavnej_cinnosti", "hruba_marza", "zisk_alebo_strata_po_zdaneni",
                 "peniaze_a_penazne_ekvivalenty_k_31_12",
                 "ciste_penazne_toky_z_prevadzkovej_cinnosti",
                 "osobne_naklady", "pohladavky_z_obchodneho_styku",
                 "zavazky_z_obchodneho_styku", "zasoby", "odpisy",
                 "investicny_cash_flow", "financny_cash_flow", "uroky", "dan_z_prijmu",
                 "zavazky_sp", "danove_zavazky", "zavazky_zamestnanci",
+                # Extended template 699 monetary fields
+                "neobezny_majetok", "dlhodoby_nehmotny_majetok", "dlhodoby_hmotny_majetok",
+                "dlhodoby_financny_majetok", "dlhodobe_pohladavky", "kratkodoby_financny_majetok",
+                "casove_rozlisenie_aktiv", "zakladne_imanie", "emisione_azio",
+                "ostatne_kapitalove_fondy", "zakonne_rezervne_fondy", "ostatne_fondy_zo_zisku",
+                "vysledok_minuly_rokov", "nerozdeleny_zisk", "neuhradena_strata",
+                "vysledok_beziaceho_roka", "dlhodobe_rezervy", "kratkodobe_rezervy",
+                "bezne_bankove_uvery", "kratkodobe_financne_vypomoci",
+                "naklady_na_hosp_cinnost", "spotreba_materialu", "sluzby",
+                "mzdove_naklady", "dane_a_poplatky", "vysledok_z_fin_cinnosti",
+                "zisk_pred_zdanenim", "prevod_podielov_spolocnikom",
+                # Previous-period monetary fields
+                "kratkodobe_zavazky_prev", "obezny_majetok_prev", "zasoby_prev",
+                "pohladavky_prev", "zavazky_obchod_prev",
             ]
             for field_name in _MONETARY_FIELDS:
                 val = getattr(m, field_name, None)

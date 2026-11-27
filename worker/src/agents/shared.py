@@ -126,13 +126,23 @@ def _gemini_uploaded_file(client: genai.Client, file_path: str):
 # ── Token cost accumulator ────────────────────────────────────────────
 _token_stats: dict[str, dict] = {}
 
-# ── Fallback tracker (per-report) ─────────────────────────────────────
-_fallback_events: list[dict] = []
+# ── Fallback tracker (per-report ContextVar so concurrent Arq jobs never leak banners) ──
+import contextvars as _contextvars
+_fallback_events_var: _contextvars.ContextVar[Optional[list[dict]]] = _contextvars.ContextVar(
+    "_fallback_events_var", default=None
+)
+
+def _get_fb_list() -> list[dict]:
+    lst = _fallback_events_var.get()
+    if lst is None:
+        lst = []
+        _fallback_events_var.set(lst)
+    return lst
 
 def reset_token_stats() -> None:
     """Reset accumulator na začiatku nového reportu."""
     _token_stats.clear()
-    _fallback_events.clear()
+    _fallback_events_var.set([])
 
 def record_fallback(label: str, original_model: str, fallback_model: str, reason: str) -> None:
     """Zaznamená fallback udalosť pre neskoršie varovanie v reporte."""
@@ -144,19 +154,19 @@ def record_fallback(label: str, original_model: str, fallback_model: str, reason
         "fallback_model": fallback_model,
         "reason": reason,
     }
-    _fallback_events.append(event)
+    _get_fb_list().append(event)
     logger.warning(
         f"[{cid}] MODEL FALLBACK: {label} {original_model} → {fallback_model} ({reason})"
     )
 
 def get_fallback_events() -> list[dict]:
     """Vráti zoznam fallback udalostí pre aktuálny report."""
-    return list(_fallback_events)
+    return list(_get_fb_list())
 
 def get_critical_fallbacks() -> list[dict]:
     """Vráti fallbacky kritických agentov (Chief, Cross-Analysis, QA) — tie ovplyvňujú kvalitu obsahu."""
     critical_keywords = ("Chief", "Cross-Analysis", "Report QA")
-    return [e for e in _fallback_events if any(k in e["label"] for k in critical_keywords)]
+    return [e for e in _get_fb_list() if any(k in e["label"] for k in critical_keywords)]
 
 def _log_tokens(model: str, usage, label: str) -> None:
     """Zaloguje spotrebu tokenov a odhadnuté náklady pre jedno LLM volanie.

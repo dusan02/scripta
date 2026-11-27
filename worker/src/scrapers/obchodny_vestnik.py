@@ -8,7 +8,7 @@ from typing import List, Optional, Dict
 from src.llm_extractor import extract_vestnik_event, extract_vestnik_events_batch, VestnikExtraction, VestnikBatchResult
 from src.db_client import get_db
 from ..models import ScrapedSource
-from .base import BaseScraper, ScraperInputError
+from .base import BaseScraper, ScraperInputError, ScraperUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,16 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
     async def run(self, **kwargs) -> ScrapedSource:
         res = await self.run_xml(**kwargs)
-        findings = json.dumps(res.get("events", []), ensure_ascii=False) if res.get("events") else None
+        events = res.get("events", [])
+        findings = (
+            json.dumps(
+                events,
+                ensure_ascii=False,
+                default=lambda o: o.model_dump() if hasattr(o, "model_dump") else str(o),
+            )
+            if events
+            else None
+        )
         return self._make_result(status=res["status"], findings=findings)
 
     async def run_xml(self, **kwargs) -> Dict:
@@ -62,7 +71,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
         except Exception as e:
             logger.error(f"[OV] Chyba pri fetch z ekosystem API: {e}")
-            return {"status": "SUCCESS", "events_found": 0, "events": []}
+            return {"status": "UNAVAILABLE", "events_found": 0, "events": []}
 
         logger.info(f"[OV] IČO {ico_clean}: nájdených {len(found_events)} relevantných záznamov")
 
@@ -92,7 +101,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
                             "sourceId": event["id"],
                             "publishedAt": event.get("published_at", "UNKNOWN"),
                             "rawType": event.get("kind_name", event.get("file_name", "Neznámy typ")),
-                            "analysis": extraction,
+                            "analysis": extraction.model_dump(),
                         })
 
                 if batch_result.white_horse_risk:
@@ -110,7 +119,7 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
                             "sourceId": event["id"],
                             "publishedAt": event.get("published_at", "UNKNOWN"),
                             "rawType": event.get("kind_name", event.get("file_name", "Neznámy typ")),
-                            "analysis": extraction,
+                            "analysis": extraction.model_dump(),
                         })
                     except Exception as e2:
                         logger.warning(f"[OV] Gemini analýza zlyhala pre záznam {event['id']}: {e2}")
@@ -200,6 +209,8 @@ class ObchodnyVestnikXmlScraper(BaseScraper):
 
         except Exception as e:
             logger.warning(f"[OV] Sync API {endpoint} zlyhalo (page {pages_fetched}): {e}")
+            if pages_fetched == 0:
+                raise ScraperUnavailableError(f"Obchodný vestník API nedostupné ({endpoint}): {e}") from e
 
         logger.info(f"[OV] {endpoint}: prehľadaných {pages_fetched} strán, nájdených {len(results)} záznamov pre IČO {ico_clean}")
         return results
@@ -256,7 +267,17 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
         saved = []
         async with db.tx() as transaction:
             for e in events:
-                analysis: VestnikExtraction = e["analysis"]
+                raw_analysis = e["analysis"]
+                if isinstance(raw_analysis, dict):
+                    typ_udalosti = raw_analysis.get("typ_udalosti", "INÉ")
+                    rizikovost = raw_analysis.get("rizikovost", "LOW")
+                    zhrnutie = raw_analysis.get("zhrnutie", "")
+                    red_flags = raw_analysis.get("red_flags", []) or []
+                else:
+                    typ_udalosti = raw_analysis.typ_udalosti
+                    rizikovost = raw_analysis.rizikovost
+                    zhrnutie = raw_analysis.zhrnutie
+                    red_flags = raw_analysis.red_flags or []
 
                 # Formátovanie dátumu (ak je 'UNKNOWN', použijeme aktuálny)
                 from datetime import datetime
@@ -273,22 +294,23 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
                 # Use upsert with (companyIco, sourceId) unique constraint for dedup.
                 # If sourceId is None, upsert falls back to create (no conflict possible).
                 source_id = e.get("sourceId")
+                summary_text = zhrnutie + ("\nVarovné indikátory: " + ", ".join(red_flags) if red_flags else "")
                 if source_id:
                     record = await transaction.vestnikevent.upsert(
-                        where={"companyIco_sourceId": {"companyIco": ico, "sourceId": source_id}},
+                        where={"companyIco_sourceId": {"companyIco": ico, "sourceId": str(source_id)}},
                         data={
                             "create": {
                                 "companyIco": ico,
-                                "eventType": analysis.typ_udalosti,
-                                "severityLevel": analysis.rizikovost,
-                                "summary": analysis.zhrnutie + "\nVarovné indikátory: " + ", ".join(analysis.red_flags),
+                                "eventType": typ_udalosti,
+                                "severityLevel": rizikovost,
+                                "summary": summary_text,
                                 "publishedAt": pub_date,
-                                "sourceId": source_id,
+                                "sourceId": str(source_id),
                             },
                             "update": {
-                                "eventType": analysis.typ_udalosti,
-                                "severityLevel": analysis.rizikovost,
-                                "summary": analysis.zhrnutie + "\nVarovné indikátory: " + ", ".join(analysis.red_flags),
+                                "eventType": typ_udalosti,
+                                "severityLevel": rizikovost,
+                                "summary": summary_text,
                                 "publishedAt": pub_date,
                             },
                         }

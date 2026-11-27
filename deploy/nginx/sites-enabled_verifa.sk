@@ -117,14 +117,6 @@ server {
         proxy_max_temp_file_size 50m;
     }
 
-    # Worker API
-    location /api/worker/ {
-        proxy_pass http://127.0.0.1:8000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
     # Static PDF samples — no upgrade headers
     location /samples/ {
         proxy_pass http://127.0.0.1:3000;
@@ -134,16 +126,13 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_buffering off;
-        add_header Content-Disposition "inline";
-        add_header X-Content-Type-Options nosniff;
+        add_header Content-Disposition "inline" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Accept-Ranges bytes;
         proxy_read_timeout 300s;
-    }
-
-    # Static files (generated PDFs)
-    location /results/ {
-        alias /var/www/verifa/worker/results/;
-        try_files $uri =404;
     }
 
     listen [::]:443 ssl ipv6only=on; # managed by Certbot

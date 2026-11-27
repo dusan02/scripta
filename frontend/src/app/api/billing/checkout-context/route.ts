@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
  * Also returns paddleCustomerId for Retain pwCustomer if available.
  */
 export async function GET(req: NextRequest) {
-  const session = await getServerSession();
+  const isGuestQuery = req.nextUrl.searchParams.get("guest") === "1";
+  const session = isGuestQuery ? null : await getServerSession();
   if (!session?.user) {
     // Guest checkout path — context lives in the guest_ctx cookie set by
     // /api/billing/guest-checkout, backed by a server-side GuestCheckout row.

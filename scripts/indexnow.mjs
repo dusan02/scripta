@@ -12,8 +12,14 @@ const KEY_LOCATION = `https://${HOST}/${KEY}.txt`;
 const SITEMAP = `https://${HOST}/sitemap.xml`;
 const CHUNK = 10000; // IndexNow max URLs per POST
 
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
 async function fetchXml(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
+  const res = await fetch(url, {
+    headers: { 'User-Agent': BROWSER_UA },
+    signal: AbortSignal.timeout(60000),
+  });
   if (!res.ok) throw new Error(`fetch ${url}: ${res.status}`);
   return res.text();
 }

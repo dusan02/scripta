@@ -244,19 +244,22 @@ async def run_scrapers(
             # Pre dependent scrapery dávame 220s (môžu čakať 2 vlny po 5 slotoch),
             # pre nezávislé 150s (štartujú hneď, stačí 1 vlna).
             _SEMAPHORE_QUEUE_TIMEOUT = 220 if source_type in _DEPENDS_ON else 150
-            for sem in semaphores:
-                try:
-                    await asyncio.wait_for(sem.acquire(), timeout=_SEMAPHORE_QUEUE_TIMEOUT)
-                except asyncio.TimeoutError:
-                    logger.warning(f"[TIMING] ✗ {source_type} semafor queue timeout ({_SEMAPHORE_QUEUE_TIMEOUT}s)")
-                    queue_result = ScrapedSource(
-                        source_type=source_type,
-                        status="UNAVAILABLE",
-                        status_message=f"Scraper čakal príliš dlho na semafor ({_SEMAPHORE_QUEUE_TIMEOUT}s).",
-                    )
-                    _notify_done(queue_result)
-                    return queue_result
+            acquired_semaphores = []
             try:
+                for sem in semaphores:
+                    try:
+                        await asyncio.wait_for(sem.acquire(), timeout=_SEMAPHORE_QUEUE_TIMEOUT)
+                        acquired_semaphores.append(sem)
+                    except asyncio.TimeoutError:
+                        logger.warning(f"[TIMING] ✗ {source_type} semafor queue timeout ({_SEMAPHORE_QUEUE_TIMEOUT}s)")
+                        queue_result = ScrapedSource(
+                            source_type=source_type,
+                            status="UNAVAILABLE",
+                            status_message=f"Scraper čakal príliš dlho na semafor ({_SEMAPHORE_QUEUE_TIMEOUT}s).",
+                        )
+                        _notify_done(queue_result)
+                        return queue_result
+
                 _t_run = time.perf_counter()
                 if _t_run - _t_start > 0.05:
                     logger.debug(f"[TIMING] {source_type} čakal na semafor: {_t_run - _t_start:.2f}s")
@@ -289,7 +292,7 @@ async def run_scrapers(
                 _notify_done(timeout_result)
                 return timeout_result
             finally:
-                for sem in reversed(semaphores):
+                for sem in reversed(acquired_semaphores):
                     sem.release()
             elapsed = time.perf_counter() - _t_start
             status = result.status if result else "UNKNOWN"

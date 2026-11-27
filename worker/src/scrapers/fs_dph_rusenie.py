@@ -29,16 +29,11 @@ class FsDphRusenieScraper(FinancnaSpravaBase):
             if await self._is_empty_page(page):
                 return self._empty_findings()
 
-            text_lower = (await page.inner_text("body")).lower()
-            has_results = "rušenie" in text_lower or "zrušenie" in text_lower or "dph" in text_lower
+            formatted = await self._parse_table_with_headers(page)
+            if formatted:
+                return f"POZOR: Subjekt (IČO: {search_term}) je v zozname platiteľov DPH s dôvodmi na zrušenie registrácie.\n" + "\n\n".join(formatted)
 
-            if has_results:
-                formatted = await self._parse_table_with_headers(page)
-                if formatted:
-                    return f"POZOR: Subjekt (IČO: {search_term}) je v zozname platiteľov DPH s dôvodmi na zrušenie registrácie.\n" + "\n\n".join(formatted)
-                return f"POZOR: Subjekt (IČO: {search_term}) je v zozname platiteľov DPH s dôvodmi na zrušenie registrácie (detaily v PDF)."
-
-            return f"Subjekt (IČO: {search_term}) nájdený bez zistených dôvodov na zrušenie registrácie DPH."
+            return self._empty_findings()
 
         except Exception as e:
             logger.warning(f"[{self.source_type}] Nepodarilo sa extrahovať nálezy: {e}")

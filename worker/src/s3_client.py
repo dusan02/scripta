@@ -25,8 +25,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# CUID pattern — validates report_request_id to prevent key injection
-_CUID_PATTERN = re.compile(r"^[a-zA-Z0-9]{20,30}$")
+# CUID / UUID pattern — validates report_request_id to prevent key injection
+_CUID_PATTERN = re.compile(r"^[a-zA-Z0-9-]{20,40}$")
 
 # Retry configuration for S3 uploads
 S3_UPLOAD_MAX_RETRIES = 3

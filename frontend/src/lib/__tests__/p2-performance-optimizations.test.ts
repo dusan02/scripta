@@ -65,7 +65,7 @@ describe("P2 backend performance optimizations invariants", () => {
       "utf8"
     );
     const creates = (sql.match(/^CREATE INDEX CONCURRENTLY IF NOT EXISTS/gm) || []).length;
-    assert.equal(creates, 4);
+    assert.equal(creates, 7);
     assert.ok(sql.includes('"Company_fscount2_ico_sitemap_idx"'));
     assert.ok(sql.includes('"Company_fscount1_nace_kraj_rev_idx"'));
     assert.ok(!/^DROP INDEX/m.test(sql), "must not execute DROP INDEX statements");

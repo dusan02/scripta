@@ -60,9 +60,17 @@ async function redisRateLimit(key: string, options: RateLimitOptions): Promise<R
   const resetTime = now + options.windowMs;
   const redisKey = `ratelimit:${key}`;
 
-  const url = `${UPSTASH_URL}/incr/${encodeURIComponent(redisKey)}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+  const ttlSeconds = Math.ceil(options.windowMs / 1000);
+  const res = await fetch(`${UPSTASH_URL}/pipeline`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${UPSTASH_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify([
+      ["INCR", redisKey],
+      ["EXPIRE", redisKey, ttlSeconds, "NX"],
+    ]),
     signal: AbortSignal.timeout(1500),
   });
 
@@ -76,15 +84,8 @@ async function redisRateLimit(key: string, options: RateLimitOptions): Promise<R
   }
 
   const data = await res.json();
-  const count = parseInt(data.result ?? "0", 10);
-
-  if (count === 1) {
-    const expireUrl = `${UPSTASH_URL}/expire/${encodeURIComponent(redisKey)}/${Math.ceil(options.windowMs / 1000)}`;
-    await fetch(expireUrl, {
-      headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
-      signal: AbortSignal.timeout(1500),
-    });
-  }
+  const incrEntry = Array.isArray(data) ? data[0] : data;
+  const count = parseInt(incrEntry?.result ?? "0", 10);
 
   if (count > options.maxRequests) {
     return { allowed: false, remaining: 0, resetTime };
@@ -146,9 +147,16 @@ async function localRedisRateLimit(key: string, options: RateLimitOptions): Prom
   const redisKey = `ratelimit:${key}`;
 
   try {
-    const count = await redis.incr(redisKey);
-    if (count === 1) {
-      await redis.expire(redisKey, Math.ceil(options.windowMs / 1000));
+    const ttlSeconds = Math.ceil(options.windowMs / 1000);
+    let count: number;
+    if (typeof redis.multi === "function") {
+      const execRes = await redis.multi().incr(redisKey).expire(redisKey, ttlSeconds, "NX").exec();
+      count = Number(execRes?.[0]?.[1] ?? 0);
+    } else {
+      count = await redis.incr(redisKey);
+      if (count === 1 || (typeof redis.ttl === "function" && (await redis.ttl(redisKey)) === -1)) {
+        await redis.expire(redisKey, ttlSeconds);
+      }
     }
     if (count > options.maxRequests) {
       return { allowed: false, remaining: 0, resetTime };
@@ -177,7 +185,8 @@ export async function rateLimit(
              req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
              "unknown";
 
-  const key = `${ip}:${options.windowMs}:${options.maxRequests}`;
+  const routePath = req.nextUrl?.pathname || "global";
+  const key = `${routePath}:${ip}:${options.windowMs}:${options.maxRequests}`;
 
   if (UPSTASH_URL && UPSTASH_TOKEN) {
     try {

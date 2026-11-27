@@ -86,9 +86,35 @@ async def execute_report_task(ctx, task_dict: dict):
     logger.info(f"Spracovávam IČO: {ico} (Pokus {job_try}/{MAX_TRIES})")
 
     try:
-        # Volanie skutočnej orchestration funkcie
-        await _execute_report_inner(task)
+        # Volanie skutočnej orchestration funkcie — pri pokusoch < MAX_TRIES
+        # odkladáme označenie FAILED a refund až na vyčerpanie všetkých pokusov.
+        await _execute_report_inner(task, defer_terminal_failure=(job_try < MAX_TRIES))
         logger.info(f"Úloha pre IČO {ico} bola úspešne dokončená.")
+    except asyncio.CancelledError:
+        logger.warning(f"[ARQ] Úloha pre IČO {ico} ({report_request_id}) bola zrušená / timeoutovaná (CancelledError).")
+        try:
+            db = get_db()
+            existing_req = await db.reportrequest.find_unique(where={'id': report_request_id})
+            if existing_req and existing_req.status not in ('CANCELLED', 'COMPLETED', 'PARTIAL', 'FAILED'):
+                await db.reportrequest.update(
+                    where={'id': report_request_id},
+                    data={
+                        'status': 'FAILED',
+                        'completedAt': datetime.now(timezone.utc),
+                    }
+                )
+                import httpx
+                frontend_url = os.environ.get("NEXTAUTH_URL", "http://localhost:3000")
+                worker_secret = os.environ.get("WORKER_SECRET", "")
+                async with httpx.AsyncClient(timeout=10) as client:
+                    await client.post(
+                        f"{frontend_url}/api/reports/{report_request_id}/refund",
+                        headers={"x-worker-secret": worker_secret},
+                    )
+                logger.info(f"[ARQ] Report {report_request_id} označený ako FAILED + refund po CancelledError.")
+        except Exception as cancel_err:
+            logger.error(f"[ARQ] Zlyhalo ošetrenie CancelledError pre {report_request_id}: {cancel_err}")
+        raise
     except Exception as e:
         # ReportCancelledError — user zrušil report, nereťartuj
         from src.db_repository import ReportCancelledError

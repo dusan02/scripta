@@ -13,6 +13,11 @@ const PLAN_LIMITS: Record<string, number> = {
   STARTER: 10,
   PRO: 50,
   ENTERPRISE: 200,
+  freelance: 10,
+  firma: 50,
+  korporat: 200,
+  payg10: 10,
+  payg50: 50,
 };
 
 // GET — list user's watched companies (IDOR protected)

@@ -180,7 +180,21 @@ def _determine_final_status(sources) -> str:
     return "FAILED"
 
 
-async def _execute_report_inner(task: ReportTask) -> None:
+async def _trigger_frontend_refund(report_request_id: str, reason: str = "") -> None:
+    try:
+        frontend_url = os.environ.get("NEXTAUTH_URL", "http://localhost:3000")
+        worker_secret = os.environ.get("WORKER_SECRET", "")
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                f"{frontend_url}/api/reports/{report_request_id}/refund",
+                headers={"x-worker-secret": worker_secret},
+            )
+        _log.info(f"[{report_request_id[:8]}] Credit refund requested ({reason})")
+    except Exception as refund_err:
+        _log.warning(f"[{report_request_id[:8]}] Credit refund request failed ({reason}): {refund_err}")
+
+
+async def _execute_report_inner(task: ReportTask, *, defer_terminal_failure: bool = False) -> None:
     """Interná implementácia — volaná pod semaphore."""
     t_start = time.perf_counter()
     _rid = task.report_request_id[:12]  # krátky ID pre logy
@@ -338,6 +352,7 @@ async def _execute_report_inner(task: ReportTask) -> None:
                     _log.error(f"[{_rid}] HARD STOP: IČO {task.ico} — {orsr_result.status_message}")
                     await update_report_status(task.report_request_id, "FAILED")
                     await update_report_ai_status(task.report_request_id, "failed.orsr_not_found", 0)
+                    await _trigger_frontend_refund(task.report_request_id, "orsr_not_found")
                     return
 
         _log.info(f"[{_rid}] Scraper lock released (initial scrape done)")
@@ -491,12 +506,17 @@ async def _execute_report_inner(task: ReportTask) -> None:
 
             ov_source = next((s for s in sources if s.source_type == "OBCHODNY_VESTNIK" and s.status == "SUCCESS"), None)
             ov_events: Optional[list] = None
-            if ov_source and ov_source.findings:
-                try:
-                    import json as _json
-                    ov_events = _json.loads(ov_source.findings)
-                except Exception:
-                    ov_events = None
+            if ov_source is not None:
+                if ov_source.findings:
+                    try:
+                        import json as _json
+                        ov_events = _json.loads(ov_source.findings)
+                    except Exception:
+                        ov_events = None
+                else:
+                    # 0 events found on initial scrape — pass [] (not None) so pipeline
+                    # does NOT re-run 100 Vestník XML HTTP requests a second time!
+                    ov_events = []
 
             parallel_tasks.append(asyncio.create_task(
                 process_company(
@@ -639,7 +659,9 @@ async def _execute_report_inner(task: ReportTask) -> None:
         # upload_report_file has built-in retry with exponential backoff (3 attempts).
         # If all retries fail, mark the report as FAILED so it doesn't stay stuck in PROCESSING.
         try:
-            s3_key = upload_report_file(final_path, task.report_request_id, ico=task.ico)
+            s3_key = await asyncio.to_thread(
+                upload_report_file, final_path, task.report_request_id, ico=task.ico
+            )
             _log.info(f"[{_rid}] Report file stored: {s3_key}")
         except Exception as upload_err:
             _log.error(f"[{_rid}] S3 upload failed after all retries: {upload_err}")
@@ -744,26 +766,20 @@ async def _execute_report_inner(task: ReportTask) -> None:
             f"(browser {t_browser - t_start:.1f}s, scrapers {t_scrape - t_browser:.1f}s, compile {t_compile - t_scrape:.1f}s) "
             f"sources: {_source_summary}"
         )
+    except ReportCancelledError:
+        # User cancelled the report — keep CANCELLED status (do not overwrite to FAILED)
+        _log.info(f"[{_rid}] Report {task.report_request_id} cancelled by user — aborting cleanly")
+        raise
     except Exception as exc:
-        # Ak celý worker zlyhá, report označíme ako FAILED.
-        _log.error(f"[{_rid}] Report {task.report_request_id} failed", exc_info=True)
-        await update_report_status(task.report_request_id, "FAILED")
-        await create_bug_report(
-            task.report_request_id,
-            f"Výnimka: {type(exc).__name__}: {exc}",
-        )
-        # Request credit refund from frontend
-        try:
-            frontend_url = os.environ.get("NEXTAUTH_URL", "http://localhost:3000")
-            worker_secret = os.environ.get("WORKER_SECRET", "")
-            async with httpx.AsyncClient(timeout=10) as client:
-                await client.post(
-                    f"{frontend_url}/api/reports/{task.report_request_id}/refund",
-                    headers={"x-worker-secret": worker_secret},
-                )
-            _log.info(f"[{_rid}] Credit refund requested (exception path)")
-        except Exception as refund_err:
-            _log.warning(f"[{_rid}] Credit refund request failed (exception path): {refund_err}")
+        _log.error(f"[{_rid}] Report {task.report_request_id} failed (defer_terminal={defer_terminal_failure})", exc_info=True)
+        if not defer_terminal_failure:
+            # Terminal failure (final Arq attempt or direct call): mark FAILED + refund credit.
+            await update_report_status(task.report_request_id, "FAILED")
+            await create_bug_report(
+                task.report_request_id,
+                f"Výnimka: {type(exc).__name__}: {exc}",
+            )
+            await _trigger_frontend_refund(task.report_request_id, "exception_path")
         raise
     finally:
         # browser.close() môže vyhodiť výnimku (browser už crashol, connection

@@ -120,25 +120,36 @@ if [ "$LOCAL_BUILD" = true ]; then
 
   echo "--- Pulling latest code on server ---"
   remote "cd $REMOTE_DIR && git pull"
+  DEPLOY_SHA=$(remote "cd $REMOTE_DIR && git rev-parse --short HEAD 2>/dev/null || echo $DEPLOY_SHA")
+  remote "for img in ${IMAGES[*]}; do docker tag \$img \${img}:sha-$DEPLOY_SHA 2>/dev/null || true; done"
 
-  echo "--- Gracefully stopping ORSR V2 seed (if running) ---"
-  remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker python -c \"import os, signal; os.kill(\$LOCK_PID, signal.SIGTERM)\" 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
+  if [ "$SERVICE" = "all" ] || [ "$SERVICE" = "worker" ]; then
+    echo "--- Gracefully stopping ORSR V2 seed (if running) ---"
+    remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker python -c \"import os, signal; os.kill(\$LOCK_PID, signal.SIGTERM)\" 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
+  fi
 
   echo "--- Recreating container(s) (no rebuild) ---"
-  remote "cd $REMOTE_DIR && docker compose up -d --no-build $BUILD_TARGETS"
+  NO_DEPS_FLAG="$([ "$SERVICE" = "frontend" ] && echo "--no-deps" || echo "")"
+  remote "cd $REMOTE_DIR && docker compose up -d --no-build $NO_DEPS_FLAG $BUILD_TARGETS"
 else
   echo "--- Pulling latest code on server ---"
   remote "cd $REMOTE_DIR && git pull"
+  DEPLOY_SHA=$(remote "cd $REMOTE_DIR && git rev-parse --short HEAD 2>/dev/null || echo $DEPLOY_SHA")
 
-  echo "--- Gracefully stopping ORSR V2 seed (if running) ---"
-  remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker python -c \"import os, signal; os.kill(\$LOCK_PID, signal.SIGTERM)\" 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
+  if [ "$SERVICE" = "all" ] || [ "$SERVICE" = "worker" ]; then
+    echo "--- Gracefully stopping ORSR V2 seed (if running) ---"
+    remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker python -c \"import os, signal; os.kill(\$LOCK_PID, signal.SIGTERM)\" 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
+  fi
 
   echo "--- Building + recreating container(s) on server ---"
-  remote "cd $REMOTE_DIR && docker compose up -d --build $BUILD_TARGETS"
+  NO_DEPS_FLAG="$([ "$SERVICE" = "frontend" ] && echo "--no-deps" || echo "")"
+  remote "cd $REMOTE_DIR && docker compose build $BUILD_TARGETS && for img in ${IMAGES[*]}; do docker tag \$img \${img}:sha-$DEPLOY_SHA 2>/dev/null || true; done && docker compose up -d --no-build $NO_DEPS_FLAG $BUILD_TARGETS"
 fi
 
-echo "--- Running DB migration ---"
-remote "cd $REMOTE_DIR && docker compose exec -T -e HOME=/tmp -u root frontend node /app/node_modules/prisma/build/index.js migrate deploy"
+if [ "$SERVICE" = "all" ] || [ "$SERVICE" = "frontend" ]; then
+  echo "--- Running DB migration ---"
+  remote "cd $REMOTE_DIR && docker compose exec -T -e HOME=/tmp -u root frontend sh -c 'if [ -f /opt/prisma-cli/node_modules/prisma/build/index.js ]; then node /opt/prisma-cli/node_modules/prisma/build/index.js migrate deploy; else node /app/node_modules/prisma/build/index.js migrate deploy; fi'"
+fi
 
 if [ -n "$RESTART_TARGETS" ]; then
   echo "--- Restarting $RESTART_TARGETS (ensure new image is running) ---"
@@ -154,14 +165,14 @@ sleep 3
 # ── Health gate: verify the NEW containers are healthy; otherwise
 #    automatically roll back to the tagged previous image. ──
 HEALTH_OK=false
-for i in $(seq 1 12); do
-  unhealthy=$(remote "cd $REMOTE_DIR && docker compose ps --format '{{.Name}} {{.Status}}' $BUILD_TARGETS 2>/dev/null | grep -c unhealthy || true")
-  if [ "$unhealthy" = "0" ]; then
-    echo "  OK all recreated containers healthy"
+for i in $(seq 1 18); do
+  not_ready=$(remote "cd $REMOTE_DIR && for svc in $BUILD_TARGETS; do cid=\$(docker compose ps -q \$svc 2>/dev/null); if [ -z \"\$cid\" ]; then echo missing; continue; fi; st=\$(docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}healthy{{end}}' \$cid 2>/dev/null); [ \"\$st\" = 'running|healthy' ] || echo \"\$svc:\$st\"; done" | grep -c . || true)
+  if [ "$not_ready" = "0" ]; then
+    echo "  OK all recreated containers running & healthy"
     HEALTH_OK=true
     break
   fi
-  echo "  waiting for health... ($i/12)"
+  echo "  waiting for health... ($i/18)"
   sleep 5
 done
 

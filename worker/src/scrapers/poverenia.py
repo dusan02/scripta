@@ -207,14 +207,20 @@ class PovereniaScraper(BaseScraper):
         )
 
     async def _make_fallback_result(self, page: Page, pdf_output: Path, ico: str) -> ScrapedSource:
-        await self._generate_pdf(page, pdf_output)
-        findings = await self._extract_findings(page, ico)
+        # Ak sa v SPA nevykreslil ani pozitívny záznam ("poverenie ecli"), ani negatívny marker
+        # ("neexistuje žiadne poverenie"), stav je nejednoznačný — nesmieme vrátiť SUCCESS,
+        # inak verdict_builder udelí falošnú penalizáciu -15 bodov!
+        try:
+            await self._generate_pdf(page, pdf_output)
+            fpath = str(pdf_output)
+        except Exception:
+            fpath = None
         return self._make_result(
-            status="SUCCESS",
-            file_path=str(pdf_output),
-            page_count=1,
-            status_message="Výpis z registra poverení úspešne vygenerovaný.",
-            findings=findings,
+            status="UNAVAILABLE",
+            file_path=fpath,
+            page_count=1 if fpath else 0,
+            status_message="Register poverení na exekúcie nevrátil jednoznačný výsledok v časovom limite.",
+            findings=None,
         )
 
     # ── Step methods ────────────────────────────────────────────────

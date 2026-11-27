@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "@/lib/auth";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { num } from "@/lib/format";
@@ -121,6 +123,24 @@ export default async function DashboardPage({
   params: { ico: string };
 }) {
   const ico = params.ico;
+
+  // Access control: forensic AI verdicts are paid content. Only the owner of a
+  // completed/partial report for this IČO (or an admin) may view this page.
+  const session = await getServerSession();
+  if (!session?.user) redirect("/login");
+  if (session.user.role !== "ADMIN") {
+    const owned = await prisma.reportRequest.findFirst({
+      where: {
+        userId: session.user.id,
+        ico,
+        status: { in: ["COMPLETED", "PARTIAL"] },
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!owned) redirect(`/firma/${ico}`);
+  }
+
   const h = await headers();
   const lang: Lang = getLangFromHeaders(h);
   const t = (key: string, params?: Record<string, string | number>) => translate(lang, key, params);
@@ -703,7 +723,8 @@ export default async function DashboardPage({
               let equityStr = "0";
               let nYears = company.financialStatements.length;
               if (nYears > 0 && nYears <= 2) {
-                const latest = company.financialStatements[nYears - 1];
+                // financialStatements are ordered year DESC → [0] is the latest year
+                const latest = company.financialStatements[0];
                 const rev = num(latest.mainActivityRevenue);
                 const eq = num(latest.equity);
                 const assets = num(latest.totalAssets);

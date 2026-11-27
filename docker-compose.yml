@@ -38,6 +38,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   # ─── Next.js Frontend + API ───────────────────────────────
   frontend:
@@ -140,12 +145,17 @@ services:
       redis-server
       --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       --maxmemory 400mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy volatile-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli --no-auth-warning ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ─── Browserless (Playwright Scraping) ────────────────────
   browserless:
@@ -167,6 +177,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ─── Python FastAPI Worker ────────────────────────────────
   worker:
@@ -204,9 +219,14 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       EXPERT_MODE: "1"
       HOME: /tmp
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     volumes:
       - ./worker/results:/app/results  # Evidence Binder PDF súbory
-      - ./worker/src:/app/src
     logging:
       driver: json-file
       options:
@@ -258,7 +278,6 @@ services:
       start_period: 30s
     volumes:
       - ./worker/results:/app/results
-      - ./worker/src:/app/src
     logging:
       driver: json-file
       options:
@@ -281,6 +300,10 @@ services:
       BACKUP_DIR: /backups
       RETENTION_DAYS: "30"
       S3_BUCKET: ${S3_BACKUP_BUCKET:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       TZ: Europe/Bratislava
     volumes:
@@ -291,6 +314,11 @@ services:
       - |
         echo "0 3 * * * /backup-db.sh >> /var/log/backup.log 2>&1" > /etc/crontabs/root &&
         crond -f -l 2
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:

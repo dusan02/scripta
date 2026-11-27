@@ -1,6 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "linux-arm64-openssl-1.1.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 // generator client_py {
@@ -522,6 +522,7 @@ model FinancialStatement {
   equity                                Decimal?  @db.Decimal(15, 2)
   shortTermLiabilities                  Decimal?  @db.Decimal(15, 2)
   longTermLiabilities                   Decimal?  @db.Decimal(15, 2)        // Dlhodobé záväzky (bankové úvery, dlhopisy...)
+  totalLiabilities                      Decimal?  @db.Decimal(18, 2)        // Celkové cudzie zdroje (zdieľané s workerom)
   mainActivityRevenue                   Decimal?  @db.Decimal(15, 2)
   grossProfit                           Decimal?  @db.Decimal(15, 2)        // Hrubý zisk (Revenue - COGS) — pre obchodné firmy
   netProfitLoss                         Decimal?  @db.Decimal(15, 2)
@@ -824,4 +825,29 @@ model AnalyticsEvent {
 
   @@index([event, createdAt])
   @@index([companyIco])
+}
+
+model ExtractionCache {
+  id              String    @id @default(uuid())
+  pdfHash         String
+  companyIco      String
+  fileName        String
+  extractor       String
+  model           String
+  promptVersion   String
+  schemaVersion   String
+  temperature     Float     @default(0.0)
+  rawResponse     Json
+  normalizedData  Json
+  confidence      String    @default("UNKNOWN")
+  warnings        String[]  @default([])
+  missingFields   String[]  @default([])
+  sourceSize      Int
+  sourceType      String
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+
+  @@unique([pdfHash, extractor, model, promptVersion, schemaVersion])
+  @@index([companyIco])
+  @@index([createdAt])
 }

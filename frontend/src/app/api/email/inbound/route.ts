@@ -99,6 +99,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "user not found" });
     }
 
+    // Extract raw sender email from "Name <addr@domain>" or "addr@domain"
+    const senderMatch = from.match(/<([^>]+)>/) || [null, from];
+    const senderEmail = (senderMatch[1] || from).trim().toLowerCase();
+
+    // Authorize sender:
+    //  1. Target user replying to their own thread -> store as outgoing USER message for admins
+    //  2. Verified ADMIN user or @verifa.sk support address -> store as REPLY in user's inbox
+    //  3. Unknown third-party sender -> reject to prevent inbox spoofing
+    const isTargetUserSender = senderEmail === user.email.trim().toLowerCase();
+    let isAuthorizedAdminSender = senderEmail.endsWith("@verifa.sk");
+    if (!isTargetUserSender && !isAuthorizedAdminSender) {
+      const senderAccount = await prisma.user.findUnique({
+        where: { email: senderEmail },
+        select: { role: true, deletedAt: true },
+      });
+      isAuthorizedAdminSender = Boolean(senderAccount && !senderAccount.deletedAt && senderAccount.role === "ADMIN");
+    }
+
+    if (!isTargetUserSender && !isAuthorizedAdminSender) {
+      console.warn(`[inbound] Rejected unauthorized sender ${senderEmail} targeting user ${user.id}`);
+      return NextResponse.json({ error: "Forbidden sender" }, { status: 403 });
+    }
+
     // Fetch full email content from Resend API
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
@@ -108,6 +131,7 @@ export async function POST(req: NextRequest) {
 
     const emailRes = await fetch(`https://api.resend.com/emails/receiving/${email_id}`, {
       headers: { Authorization: `Bearer ${resendApiKey}` },
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!emailRes.ok) {
@@ -154,18 +178,30 @@ export async function POST(req: NextRequest) {
       .replace(/^\[Verifa\.sk\]\s*/i, "")
       .trim() || translate(lang, "email.inboundOdpoved");
 
-    // Create REPLY message in user's inbox
-    await prisma.userMessage.create({
-      data: {
-        type: "REPLY",
-        userId: user.id,
-        title: cleanSubject.slice(0, 200),
-        body: body.slice(0, 5000),
-        read: false,
-      },
-    });
-
-    console.log(`[inbound] Reply delivered to user ${user.email} from ${from}`);
+    if (isTargetUserSender) {
+      await prisma.userMessage.create({
+        data: {
+          type: "USER",
+          senderId: user.id,
+          userId: null,
+          title: cleanSubject.slice(0, 200),
+          body: body.slice(0, 5000),
+          read: false,
+        },
+      });
+      console.log(`[inbound] User reply from ${user.email} routed to admin inbox`);
+    } else {
+      await prisma.userMessage.create({
+        data: {
+          type: "REPLY",
+          userId: user.id,
+          title: cleanSubject.slice(0, 200),
+          body: body.slice(0, 5000),
+          read: false,
+        },
+      });
+      console.log(`[inbound] Admin reply delivered to user ${user.email} from ${from}`);
+    }
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[inbound] Error processing webhook:", error);

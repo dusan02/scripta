@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
@@ -34,7 +34,19 @@ export async function PATCH(req: NextRequest) {
     select: { screenerPrefs: true },
   });
 
-  const currentPrefs = (user?.screenerPrefs as Record<string, unknown> | null) || {};
+  let currentPrefs: Record<string, unknown> = {};
+  if (typeof user?.screenerPrefs === "string") {
+    try {
+      const parsedLegacy = JSON.parse(user.screenerPrefs);
+      if (parsedLegacy && typeof parsedLegacy === "object" && !Array.isArray(parsedLegacy)) {
+        currentPrefs = { ...(parsedLegacy as Record<string, unknown>) };
+      }
+    } catch {
+      currentPrefs = {};
+    }
+  } else if (user?.screenerPrefs && typeof user.screenerPrefs === "object" && !Array.isArray(user.screenerPrefs)) {
+    currentPrefs = { ...(user.screenerPrefs as Record<string, unknown>) };
+  }
 
   if (parsed.data.screenerColumns) {
     // Validate columns
@@ -44,7 +56,7 @@ export async function PATCH(req: NextRequest) {
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { screenerPrefs: JSON.stringify(currentPrefs) },
+    data: { screenerPrefs: currentPrefs as any },
   });
 
   return NextResponse.json({ ok: true });
@@ -62,6 +74,18 @@ export async function GET() {
     select: { screenerPrefs: true },
   });
 
-  const prefs = (user?.screenerPrefs as Record<string, unknown> | null) || {};
+  let prefs: Record<string, unknown> = {};
+  if (typeof user?.screenerPrefs === "string") {
+    try {
+      const parsedLegacy = JSON.parse(user.screenerPrefs);
+      if (parsedLegacy && typeof parsedLegacy === "object" && !Array.isArray(parsedLegacy)) {
+        prefs = parsedLegacy as Record<string, unknown>;
+      }
+    } catch {
+      prefs = {};
+    }
+  } else if (user?.screenerPrefs && typeof user.screenerPrefs === "object" && !Array.isArray(user.screenerPrefs)) {
+    prefs = user.screenerPrefs as Record<string, unknown>;
+  }
   return NextResponse.json({ prefs });
 }

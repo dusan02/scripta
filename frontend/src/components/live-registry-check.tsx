@@ -137,6 +137,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
   const [dragOffsetY, setDragOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
+  const startedByUserRef = useRef(false);
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
@@ -149,6 +150,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
   }, [summary.isRunning]);
 
   const pollStatus = useCallback(async () => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
     try {
       const res = await fetch(`/api/companies/${ico}/live-check`, {
         cache: "no-store",
@@ -156,8 +158,9 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
       if (!res.ok) return;
       const data: LiveCheckSummary = await res.json();
       setSummary((prev) => {
-        // Detect running→finished transition for funnel tracking
-        if (prev.isRunning && !data.isRunning && data.hasCheck) {
+        // Detect running→finished transition for funnel tracking (only when initiated in this session)
+        if (startedByUserRef.current && prev.isRunning && !data.isRunning && data.hasCheck) {
+          startedByUserRef.current = false;
           trackLiveCheckCompleted(ico, data.cleanCount, data.debtCount, data.totalDebtEur);
         }
         return data;
@@ -166,6 +169,26 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
       // ignore transient network error during poll
     }
   }, [ico]);
+
+  // Refresh stale ISR snapshot once on mount so visitors see recent checks immediately
+  useEffect(() => {
+    if (initialSummary.isFresh && !initialSummary.isRunning) return;
+    let cancelled = false;
+    fetch(`/api/companies/${ico}/live-check`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: LiveCheckSummary | null) => {
+        if (!cancelled && data) {
+          setSummary(data);
+          if (!data.isRunning && initialSummary.isRunning) {
+            setMinimizedMonitor(false);
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [ico, initialSummary.isFresh, initialSummary.isRunning]);
 
   useEffect(() => {
     if (!summary.isRunning) return;
@@ -234,6 +257,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
         return;
       }
       setSummary(data);
+      startedByUserRef.current = true;
       setMinimizedMonitor(true);
       trackLiveCheckStarted(ico);
     } catch {
@@ -257,6 +281,7 @@ export function LiveRegistryCheck({ ico, companyName, initialSummary }: Props) {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "Europe/Bratislava",
       })
     : null;
 

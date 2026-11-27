@@ -1,20 +1,13 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { buildCompanyUrl } from "@/lib/slug";
 import { getLangFromHeaders } from "@/lib/seo";
 import { localizePath } from "@/lib/i18n";
 
-/**
- * Featured firms section for glossary pages — internal linking from
- * high-traffic glossary pages (e.g. /slovnik/orsr with 16k impressions)
- * to top company pages, helping Google discover them via internal links.
- *
- * Fetches the largest companies by revenue from the DB (cached via ISR).
- */
-export async function GlossaryFeaturedFirms({ limit = 12 }: { limit?: number }) {
-  let firms: Array<{ ico: string; name: string | null; city: string | null; latestRevenue: string | null }> = [];
-  try {
+const getCachedFeaturedFirms = unstable_cache(
+  async (limit: number) => {
     const rows = await prisma.company.findMany({
       where: {
         fsCount: { gte: 2 },
@@ -29,12 +22,28 @@ export async function GlossaryFeaturedFirms({ limit = 12 }: { limit?: number }) 
       orderBy: { latestRevenue: "desc" },
       take: limit,
     });
-    firms = rows.map((r) => ({
+    return rows.map((r) => ({
       ico: r.ico,
       name: r.name,
       city: r.city,
       latestRevenue: r.latestRevenue ? r.latestRevenue.toString() : null,
     }));
+  },
+  ["glossary-featured-firms"],
+  { revalidate: 3600 }
+);
+
+/**
+ * Featured firms section for glossary pages — internal linking from
+ * high-traffic glossary pages (e.g. /slovnik/orsr with 16k impressions)
+ * to top company pages, helping Google discover them via internal links.
+ *
+ * Fetches the largest companies by revenue from the DB (cached 1h).
+ */
+export async function GlossaryFeaturedFirms({ limit = 12 }: { limit?: number }) {
+  let firms: Array<{ ico: string; name: string | null; city: string | null; latestRevenue: string | null }> = [];
+  try {
+    firms = await getCachedFeaturedFirms(limit);
   } catch {
     return null;
   }

@@ -10,11 +10,11 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting cleanup" >> $LOG
 BEFORE=$(df / | awk 'NR==2 {print $5}')
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Disk usage before: $BEFORE" >> $LOG
 
-# Prune build cache (all, including unused)
-docker builder prune -f --all >> $LOG 2>&1
+# Prune build cache older than 7 days while keeping 4GB hot cache for fast deploys
+docker builder prune -f --keep-storage=4GB --filter "until=168h" >> $LOG 2>&1
 
-# Prune ALL unused images (not just dangling) — removes old tags, rollbacks, etc.
-docker image prune -a -f >> $LOG 2>&1
+# Prune ONLY dangling (untagged) images older than 24h — preserves :rollback and :sha-* tags!
+docker image prune -f --filter "until=24h" >> $LOG 2>&1
 
 # Prune stopped containers (older than 24h)
 docker container prune -f --filter "until=24h" >> $LOG 2>&1

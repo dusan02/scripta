@@ -33,8 +33,9 @@ function getS3Client(): S3Client | null {
 }
 
 // Validate S3 object key — prevent path traversal and invalid characters.
-// Valid keys: reports/{cuid}/{sanitized_filename}
-const S3_KEY_PATTERN = /^reports\/[a-zA-Z0-9]{20,40}\/[a-zA-Z0-9._-]+$/;
+// Valid keys: reports/{cuid|uuid}/{sanitized_filename}
+// reportId may be a CUID (25 chars) or a hyphenated UUID (36 chars).
+const S3_KEY_PATTERN = /^reports\/[a-zA-Z0-9-]{20,40}\/[a-zA-Z0-9._-]+$/;
 function isValidS3Key(key: string): boolean {
   if (!key || key.length > 512) return false;
   if (key.includes("..") || key.includes("\0")) return false;
@@ -166,6 +167,7 @@ export async function GET(
 
     const stat = statSync(resolvedFilePath);
     const nodeStream = createReadStream(resolvedFilePath);
+    req.signal.addEventListener("abort", () => nodeStream.destroy(), { once: true });
     const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
 
     const disposition = req.nextUrl.searchParams.get("filename") ? "attachment" : "inline";

@@ -60,15 +60,28 @@ export async function POST(
       console.error("Worker cancel request failed", e);
     }
 
-    // 2. Atomically refund credit + update report status to CANCELLED.
-    // If refund fails, report stays in its current status (not CANCELLED without refund).
-    await prisma.$transaction(async (tx) => {
-      await refundCreditsTx(tx, user.id, 1, params.id);
-      await tx.reportRequest.update({
-        where: { id: params.id },
+    // 2. Atomically transition PENDING/PROCESSING -> CANCELLED first, then refund credit.
+    // Prevents racing with worker completion (never overwrites COMPLETED/PARTIAL).
+    const cancelled = await prisma.$transaction(async (tx) => {
+      const res = await tx.reportRequest.updateMany({
+        where: {
+          id: params.id,
+          userId: user.id,
+          status: { in: ["PENDING", "PROCESSING"] },
+        },
         data: { status: "CANCELLED", completedAt: new Date() },
       });
+      if (res.count === 0) return false;
+      await refundCreditsTx(tx, user.id, 1, params.id);
+      return true;
     });
+
+    if (!cancelled) {
+      return NextResponse.json(
+        { error: "Report už je dokončený alebo zrušený." },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({ status: "cancelled" });
   } catch (error) {

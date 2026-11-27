@@ -143,30 +143,35 @@ export class PaddleAdapter implements PaymentProviderAdapter {
         let guestCheckoutId = customData.guestId;
         let planId = customData.planId;
 
-        if (!userId && !guestCheckoutId) {
+        let originalChargeAmount = 0;
+        if (transactionId) {
           try {
-            const paddle = getPaddle();
+            getPaddle();
             const baseUrl = process.env.PADDLE_ENVIRONMENT === "production"
               ? "https://api.paddle.com"
               : "https://sandbox-api.paddle.com";
             const apiKey = process.env.PADDLE_API_KEY;
             const txnRes = await fetch(`${baseUrl}/transactions/${transactionId}`, {
               headers: { Authorization: `Bearer ${apiKey}` },
+              signal: AbortSignal.timeout(5000),
             });
             if (txnRes.ok) {
               const txnData = (await txnRes.json()).data;
-              const txnCustomData = txnData.custom_data || {};
-              userId = txnCustomData.userId;
-              guestCheckoutId = txnCustomData.guestId;
+              const txnCustomData = txnData?.custom_data || {};
+              if (!userId) userId = txnCustomData.userId;
+              if (!guestCheckoutId) guestCheckoutId = txnCustomData.guestId;
               // Prefer the authoritative price_id → plan mapping over
               // client-controllable custom_data.planId for revocation amounts.
               const fetchedPriceId: string | undefined =
-                txnData.items?.[0]?.price_id || txnData.items?.[0]?.price?.id || undefined;
+                txnData?.items?.[0]?.price_id || txnData?.items?.[0]?.price?.id || undefined;
               const fetchedPlan = planByPriceId(fetchedPriceId);
               planId = fetchedPlan?.planName || txnCustomData.planId || planId;
+              originalChargeAmount = parseFloat(
+                txnData?.details?.totals?.total || txnData?.totals?.total || "0"
+              );
             }
           } catch (fetchErr) {
-            console.error("[PADDLE] adjustment.updated: failed to fetch transaction for custom_data:", fetchErr);
+            console.error("[PADDLE] adjustment.updated: failed to fetch transaction:", fetchErr);
           }
         }
 
@@ -177,15 +182,20 @@ export class PaddleAdapter implements PaymentProviderAdapter {
 
         const totals = adj.totals || {};
         const refundAmount = parseFloat(totals.total || "0");
-        const chargeAmount = parseFloat(adj.totals?.chargebackFee?.amount || totals.total || "0");
+        const isChargeback = adj.action === "chargeback";
 
         let creditsToRevoke = -1;
         if (planId && PLAN_CREDITS_MAP[planId]) {
           const originalCredits = PLAN_CREDITS_MAP[planId];
-          if (refundAmount > 0 && chargeAmount > 0 && refundAmount >= chargeAmount) {
+          if (isChargeback) {
             creditsToRevoke = originalCredits;
-          } else if (refundAmount > 0 && chargeAmount > 0) {
-            creditsToRevoke = Math.ceil((refundAmount / chargeAmount) * originalCredits);
+          } else if (refundAmount > 0 && originalChargeAmount > 0 && refundAmount >= originalChargeAmount) {
+            creditsToRevoke = originalCredits;
+          } else if (refundAmount > 0 && originalChargeAmount > 0) {
+            creditsToRevoke = Math.min(
+              originalCredits,
+              Math.ceil((refundAmount / originalChargeAmount) * originalCredits)
+            );
           } else {
             creditsToRevoke = originalCredits;
           }

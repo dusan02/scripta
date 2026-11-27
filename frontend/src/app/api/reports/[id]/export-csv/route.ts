@@ -7,8 +7,12 @@ export const dynamic = "force-dynamic";
 
 function escapeCsv(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+  let str = String(value);
+  // Prevent CSV formula injection on non-numeric string values (e.g. opinionType)
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(str) && !/^-?\d+(\.\d+)?$/.test(str)) {
+    str = `'${str}`;
+  }
+  if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
@@ -67,12 +71,14 @@ export async function GET(
       "year",
       "monthsInPeriod",
       "mainActivityRevenue",
-      "totalRevenue",
-      "costOfGoodsSold",
       "grossProfit",
-      "operatingExpenses",
-      "operatingProfit",
-      "financialExpenses",
+      "operatingCosts",
+      "materialConsumption",
+      "servicesCosts",
+      "staffCosts",
+      "depreciation",
+      "financialResult",
+      "interestExpense",
       "profitBeforeTax",
       "incomeTax",
       "netProfitLoss",
@@ -89,18 +95,22 @@ export async function GET(
       "shortTermLiabilities",
       "longTermLiabilities",
       "tradePayables",
-      "bankLoans",
+      "stBankLoans",
       "operatingCashFlow",
       "investingCashFlow",
       "financingCashFlow",
-      "altmanZScore",
-      "piotroskiScore",
     ];
 
     const header = ["Metric", ...stmts.map((s) => String(s.year))].join(",");
     const rows = fields.map((field) => {
       const values = stmts.map((s) => {
-        const val = (s as Record<string, unknown>)[field];
+        const rec = s as Record<string, unknown>;
+        let val = rec[field];
+        if (field === "totalLiabilities" && (val === undefined || val === null)) {
+          if (s.shortTermLiabilities !== null || s.longTermLiabilities !== null) {
+            val = (Number(s.shortTermLiabilities ?? 0) + Number(s.longTermLiabilities ?? 0)).toFixed(2);
+          }
+        }
         return escapeCsv(val);
       });
       return [field, ...values].join(",");

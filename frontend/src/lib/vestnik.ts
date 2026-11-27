@@ -325,34 +325,15 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
 
   const cursorBefore = `last_id=${checkpoint.lastId}, since=${checkpoint.sinceTimestamp}`;
 
-  // Load all company IČOs from DB into a Set for O(1) lookup.
-  // Paginate to avoid loading 518K+ rows into memory in a single query.
-  const icoIntMap = new Map<number, string>();
-  let cursor: string | null = null;
-  while (true) {
-    const batch: { ico: string }[] = await prisma.company.findMany({
-      select: { ico: true },
-      orderBy: { ico: "asc" },
-      take: 5000,
-      ...(cursor ? { cursor: { ico: cursor }, skip: 1 } : {}),
-    });
-    if (batch.length === 0) break;
-    for (const c of batch) {
-      const icoInt = parseInt(c.ico, 10);
-      if (!isNaN(icoInt)) icoIntMap.set(icoInt, c.ico);
-    }
-    cursor = batch[batch.length - 1].ico;
-  }
-
   let url: string | null = `${API_BASE}/${endpoint}/sync?since=${sinceDate}`;
   let pagesFetched = 0;
   let totalEvents = 0;
   let savedEvents = 0;
   const matchedIcos = new Set<string>();
-  // Track the last successfully processed item's id and published_at.
-  // These become the checkpoint cursor — NOT the "next URL" params.
-  let lastProcessedId: number | null = null;
-  let lastProcessedSince: string = sinceDate;
+  // Initialize cursor with the existing checkpoint so 0-item holiday periods
+  // NEVER overwrite checkpoint.lastId with null!
+  let lastProcessedId: number | null = checkpoint.lastId;
+  let lastProcessedSince: string = checkpoint.sinceTimestamp;
   let allSuccess = true;
 
   while (url && pagesFetched < CRON_MAX_PAGES) {
@@ -373,13 +354,6 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
         : data.items || data.data || [];
 
       // P0-3: Track cursor from the LAST item on the page, regardless of match.
-      // API cursor semantics (empirically verified):
-      //   last_id = id of last item on page
-      //   since   = updated_at of last item on page (NOT created_at — old records
-      //             get re-indexed with updated_at > created_at)
-      // Items are sorted by updated_at. If we only track matched items,
-      // the cursor won't advance past unmatched items → re-fetching (inefficient).
-      // Must be set BEFORE the match filter loop.
       if (items.length > 0) {
         const lastItem = items[items.length - 1];
         const lastItemId = lastItem.id;
@@ -396,11 +370,32 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
         }
       }
 
+      // Per-page batched IČO lookup instead of scanning all 518K companies up front
+      const candidateIcos = new Set<string>();
+      for (const item of items) {
+        const itemIco = extractIco(item);
+        if (itemIco !== null) {
+          candidateIcos.add(String(itemIco).padStart(8, "0"));
+          candidateIcos.add(String(itemIco));
+        }
+      }
+      const pageIcoMap = new Map<number, string>();
+      if (candidateIcos.size > 0) {
+        const matchedRows = await prisma.company.findMany({
+          where: { ico: { in: Array.from(candidateIcos) } },
+          select: { ico: true },
+        });
+        for (const row of matchedRows) {
+          const icoInt = parseInt(row.ico, 10);
+          if (!isNaN(icoInt)) pageIcoMap.set(icoInt, row.ico);
+        }
+      }
+
       for (const item of items) {
         const itemIco = extractIco(item);
         if (itemIco === null) continue;
 
-        const icoStr = icoIntMap.get(itemIco);
+        const icoStr = pageIcoMap.get(itemIco);
         if (!icoStr) continue;
 
         const text = extractText(item);
@@ -463,6 +458,13 @@ export async function ingestVestnikForAllCompanies(): Promise<IngestResult> {
   const cursorAfter = allSuccess && lastProcessedId != null
     ? `last_id=${lastProcessedId}, since=${lastProcessedSince}`
     : null;
+
+  if (matchedIcos.size > 0) {
+    await prisma.company.updateMany({
+      where: { ico: { in: Array.from(matchedIcos) } },
+      data: { vestnikSyncedAt: new Date() },
+    });
+  }
 
   // Update checkpoint in DB — only advance cursor on full success
   // (no errors AND no remaining pages)

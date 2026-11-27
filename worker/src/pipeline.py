@@ -670,18 +670,6 @@ async def process_company(
                     )
                     verify_data = None
 
-            # ── Cache the LLM extraction result ──
-            if data:
-                await cache_store(
-                    file_path,
-                    company_ico=ico,
-                    extractor=EXTRACTOR_FINANCIAL_ANALYST,
-                    model=_MODEL_IFRS,
-                    data=data,
-                    confidence="UNKNOWN",  # Will be refined by verification below
-                    hash_override=_pdf_hash,
-                )
-
             if data:
                 if verify_data:
                     def values_match(pro: Optional[float], flash: Optional[float], tolerance: float = 0.01) -> bool:
@@ -728,6 +716,19 @@ async def process_company(
                 m = data.metriky
                 _low_confidence_fields = {item.field for item in data.verification_confidence if item.confidence == "LOW"}
                 _apply_balance_sheet_fallbacks(m, _low_confidence_fields, file_name)
+
+                # Store in ExtractionCache AFTER verification, staff-cost retry, and fallbacks
+                _overall_conf = "LOW" if _low_confidence_fields else ("HIGH" if verify_data else "MEDIUM")
+                await cache_store(
+                    file_path,
+                    company_ico=ico,
+                    extractor=EXTRACTOR_FINANCIAL_ANALYST,
+                    model=_MODEL_IFRS,
+                    data=data,
+                    confidence=_overall_conf,
+                    hash_override=_pdf_hash,
+                )
+
                 logger.info(
                     f"[IFRS OK] {file_name} → rok={data.metriky.rok_zavierky} "
                     f"ico={data.ico} assets={data.metriky.celkove_aktiva} "
@@ -943,27 +944,35 @@ async def process_company(
             # keď sa Gemini credits doplnia.
             logger.error(f"[PIPELINE] EXTRACTION_PENDING: IČO {ico} — PDF súbory existujú ({len(ifrs_files)}) ale Gemini LLM je nedostupný (429). Reprocessovať po doplnení kreditov.")
             try:
+                from datetime import datetime, timezone
                 from src.db_repository import append_company_event_to_db
-                await append_company_event_to_db(ico, {
-                    "source": "PIPELINE",
-                    "eventType": "EXTRACTION_PENDING",
-                    "severity": "HIGH",
-                    "description": "Finančné výkazy boli stiahnuté z RÚZ, ale extrakcia zlyhala — Gemini API credits vyčerpané (429 RESOURCE_EXHAUSTED). Reprocessovať po doplnení kreditov.",
-                    "metadata": {"ifrs_files": len(ifrs_files), "vs_files": len(vs_files), "reason": "LLM_QUOTA_EXHAUSTED"},
-                })
+                from src.models import CompanyEvent
+                await append_company_event_to_db(ico, CompanyEvent(
+                    event_date=datetime.now(timezone.utc).replace(tzinfo=None),
+                    source="PIPELINE",
+                    event_type="EXTRACTION_PENDING",
+                    severity="HIGH",
+                    title="Finančná extrakcia čaká na spracovanie",
+                    description="Finančné výkazy boli stiahnuté z RÚZ, ale extrakcia zlyhala — Gemini API credits vyčerpané (429 RESOURCE_EXHAUSTED). Reprocessovať po doplnení kreditov.",
+                    metadata={"ifrs_files": len(ifrs_files), "vs_files": len(vs_files), "reason": "LLM_QUOTA_EXHAUSTED"},
+                ))
             except Exception as e:
                 logger.warning(f"[PIPELINE] Nepodarilo sa uložiť EXTRACTION_PENDING event: {e}")
         else:
             logger.error(f"[PIPELINE] CRITICAL: Žiadne finančné údaje extrahované pre IČO {ico} — report bude bez finančnej analýzy! (ifrs_files={len(ifrs_files)}, vs_files={len(vs_files)})")
             try:
+                from datetime import datetime, timezone
                 from src.db_repository import append_company_event_to_db
-                await append_company_event_to_db(ico, {
-                    "source": "PIPELINE",
-                    "eventType": "FINANCIAL_DATA_MISSING",
-                    "severity": "CRITICAL",
-                    "description": "Nepodarilo sa získať finančné údaje z RÚZ — report je bez finančnej analýzy.",
-                    "metadata": {"ifrs_files": len(ifrs_files), "vs_files": len(vs_files)},
-                })
+                from src.models import CompanyEvent
+                await append_company_event_to_db(ico, CompanyEvent(
+                    event_date=datetime.now(timezone.utc).replace(tzinfo=None),
+                    source="PIPELINE",
+                    event_type="FINANCIAL_DATA_MISSING",
+                    severity="CRITICAL",
+                    title="Chýbajúce finančné údaje z RÚZ",
+                    description="Nepodarilo sa získať finančné údaje z RÚZ — report je bez finančnej analýzy.",
+                    metadata={"ifrs_files": len(ifrs_files), "vs_files": len(vs_files)},
+                ))
             except Exception as e:
                 logger.warning(f"[PIPELINE] Nepodarilo sa uložiť FINANCIAL_DATA_MISSING event: {e}")
 

@@ -14,6 +14,9 @@
 --
 -- IF NOT EXISTS keeps this migration idempotent.
 
+-- Ensure fsCount column exists before creating indexes (fixes clean `prisma migrate deploy` on fresh DBs)
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "fsCount" INTEGER NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS "Company_fsCount_idx" ON "Company"("fsCount");
 CREATE INDEX IF NOT EXISTS "Company_city_fscount_idx" ON "Company"(city)
   WHERE "fsCount" >= 2 AND city IS NOT NULL AND city <> '';

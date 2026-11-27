@@ -75,14 +75,19 @@ export async function POST(
   });
 
   const currentSummary = buildLiveCheckSummary(ico, existingEvents);
-  // Allow ?force=1 in dev, or in production when any registry is UNAVAILABLE
+  // Never allow ?force=1 to bypass an already RUNNING check (prevents duplicate Playwright runs)
+  if (currentSummary.isRunning) {
+    return NextResponse.json(currentSummary);
+  }
+
+  // Allow ?force=1 in dev, or in production ONLY when at least one registry is UNAVAILABLE
   const hasUnavailable = currentSummary.items.some((i) => i.state === "UNAVAILABLE");
   const force =
     req.nextUrl.searchParams.get("force") === "1" &&
-    (process.env.NODE_ENV !== "production" || hasUnavailable || !currentSummary.isFresh);
+    (process.env.NODE_ENV !== "production" || hasUnavailable);
 
-  // If already running or fresh (<7 days), return current state without re-running Playwright
-  if (!force && (currentSummary.isRunning || currentSummary.isFresh)) {
+  // If fresh (<7 days) and not an allowed retry, return cached state
+  if (!force && currentSummary.isFresh) {
     return NextResponse.json(currentSummary);
   }
 
@@ -111,7 +116,21 @@ export async function POST(
   // overenia — pozeranie cache-ovaných výsledkov a retry zlyhaných registrov je zadarmo):
   //   anonym → 1 overenie / deň / IP
   //   prihlásený → 5 overení / deň / user
-  if (!isRetryOfFailed) {
+  if (isRetryOfFailed) {
+    // Throttle retries of UNAVAILABLE registries so callers can't loop POSTs unthrottled
+    const ip = getClientIp(req);
+    const retryRl = await rateLimitByKey(`live-check:retry:${ip}:${ico}`, {
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 3,
+      failClosed: false,
+    });
+    if (!retryRl.allowed) {
+      return NextResponse.json(
+        { error: "Príliš veľa opakovaných pokusov. Skúste to o chvíľu.", resetAt: retryRl.resetTime },
+        { status: 429 }
+      );
+    }
+  } else {
     const session = await getServerSession();
     const userId = session?.user?.id;
     const ip = getClientIp(req);

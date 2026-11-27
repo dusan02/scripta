@@ -123,9 +123,18 @@ export const authOptions: NextAuthOptions = {
         const email = credentials.email.trim().toLowerCase();
 
         // ── Brute-force protection ──────────────────────────────────
+        // NextAuth v4 passes req.headers as a plain JS object (Record<string, string>),
+        // not a Fetch Headers instance. Prefer nginx-set x-real-ip over rightmost XFF.
+        const rawHeaders = (req as any)?.headers;
+        const readHeader = (name: string): string | undefined => {
+          if (!rawHeaders) return undefined;
+          if (typeof rawHeaders.get === "function") return rawHeaders.get(name) ?? undefined;
+          const val = rawHeaders[name] ?? rawHeaders[name.toLowerCase()];
+          return Array.isArray(val) ? val[0] : val;
+        };
         const ipAddress =
-          (req as any)?.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim() ||
-          (req as any)?.headers?.get?.("x-real-ip") ||
+          readHeader("x-real-ip")?.trim() ||
+          readHeader("x-forwarded-for")?.split(",").pop()?.trim() ||
           "unknown";
         const emailKey = `login:${email}`;
         const ipKey = `login:${ipAddress}`;

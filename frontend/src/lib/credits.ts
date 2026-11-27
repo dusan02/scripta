@@ -43,8 +43,12 @@ export async function addCreditBatch(
     `;
     let wallet = walletRows[0];
     if (!wallet) {
-      // No wallet yet — create one with zero balance, then re-lock.
-      await tx.wallet.create({ data: { userId, balance: 0, currency: "EUR" } });
+      // No wallet yet — create one (ignoring P2002 race under concurrent webhooks), then re-lock.
+      try {
+        await tx.wallet.create({ data: { userId, balance: 0, currency: "EUR" } });
+      } catch (err: any) {
+        if (err?.code !== "P2002") throw err;
+      }
       const relocked = await tx.$queryRaw<any[]>`
         SELECT * FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE
       `;

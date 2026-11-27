@@ -106,9 +106,17 @@ export default async function DashboardPage() {
     userBalance = validBatches._sum.remaining ?? 0;
     const hasCredits = userBalance > 0;
 
-    // Only redirect to pricing if user has NO plan AND no credits
+    // Only redirect brand-new accounts (no plan, no credits, no history) to pricing.
+    // PAYG / trial customers who spent their last credit must keep access to
+    // their purchased reports and watched companies.
     if (!hasPlan && !hasCredits) {
-      redirect("/pricing");
+      const [reportCount, watchedCount] = await Promise.all([
+        prisma.reportRequest.count({ where: { userId: session.user.id, deletedAt: null } }),
+        prisma.watchedCompany.count({ where: { userId: session.user.id } }),
+      ]);
+      if (reportCount === 0 && watchedCount === 0) {
+        redirect("/pricing");
+      }
     }
   }
   const _t3 = Date.now();

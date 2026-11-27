@@ -11,20 +11,22 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser(req);
-    const rateLimitKey = user ? `messages:${user.id}` : `messages:ip:${req.headers.get("x-forwarded-for") || "unknown"}`;
-    const rl = await rateLimitByKey(rateLimitKey, { windowMs: 60 * 1000, maxRequests: 30 });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const rl = await rateLimitByKey(`messages:${user.id}`, { windowMs: 60 * 1000, maxRequests: 30 });
     if (!rl.allowed) return rateLimitResponse(rl);
 
-    // Správy pre všetkých (userId = null) + správy pre konkrétneho používateľa
+    // Správy pre všetkých (legacy userId = null) + správy pre konkrétneho používateľa
     // USER-type messages are outgoing (sent BY user), not shown in inbox
     // Filter out soft-deleted messages
-    const where = user
-      ? { AND: [
-          { OR: [{ userId: null }, { userId: user.id }] },
-          { NOT: { type: "USER" as const } },
-          { deletedAt: null },
-        ]}
-      : { AND: [{ userId: null }, { NOT: { type: "USER" as const } }, { deletedAt: null }] };
+    const where = {
+      AND: [
+        { OR: [{ userId: null }, { userId: user.id }] },
+        { NOT: { type: "USER" as const } },
+        { deletedAt: null },
+      ],
+    };
 
     const messages = await prisma.userMessage.findMany({
       where,
@@ -123,11 +125,11 @@ export async function PATCH(req: NextRequest) {
     }
     const { messageIds } = parsed.data;
 
-    // Označiť správy ako prečítané (len pre prihláseného používateľa, nie soft-deleted)
+    // Označiť správy ako prečítané (výhradne správy patriace prihlásenému používateľovi)
     await prisma.userMessage.updateMany({
       where: {
         id: { in: messageIds },
-        OR: [{ userId: null }, { userId: user.id }],
+        userId: user.id,
         deletedAt: null,
       },
       data: { read: true },
@@ -154,11 +156,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Message ID required" }, { status: 400 });
     }
 
-    // Soft-delete — len správy patriace používateľovi alebo broadcast
+    // Soft-delete — výhradne správy patriace používateľovi (nikdy nie globálne broadcasty)
     const result = await prisma.userMessage.updateMany({
       where: {
         id: messageId,
-        OR: [{ userId: user.id }, { userId: null }],
+        userId: user.id,
         deletedAt: null,
       },
       data: { deletedAt: new Date() },

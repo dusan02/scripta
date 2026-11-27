@@ -36,23 +36,25 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const [transactions, reports, creditBatches] = await Promise.all([
-      prisma.walletTransaction.findMany({
-        where: { walletId: user.wallet?.id },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        select: {
-          id: true,
-          amount: true,
-          type: true,
-          status: true,
-          description: true,
-          provider: true,
-          providerReference: true,
-          reportRequestId: true,
-          createdAt: true,
-        },
-      }),
+    const [transactions, reports, totalReportsCount, creditBatches] = await Promise.all([
+      user.wallet
+        ? prisma.walletTransaction.findMany({
+            where: { walletId: user.wallet.id },
+            orderBy: { createdAt: "desc" },
+            take: 50,
+            select: {
+              id: true,
+              amount: true,
+              type: true,
+              status: true,
+              description: true,
+              provider: true,
+              providerReference: true,
+              reportRequestId: true,
+              createdAt: true,
+            },
+          })
+        : Promise.resolve([]),
       prisma.reportRequest.findMany({
         where: { userId: params.id, deletedAt: null },
         orderBy: { createdAt: "desc" },
@@ -65,6 +67,9 @@ export async function GET(
           createdAt: true,
           completedAt: true,
         },
+      }),
+      prisma.reportRequest.count({
+        where: { userId: params.id, deletedAt: null },
       }),
       prisma.creditBatch.findMany({
         where: { userId: params.id },
@@ -105,7 +110,7 @@ export async function GET(
         totalRefunded,
         walletBalance: user.wallet ? Number(user.wallet.balance) : 0,
         activeBatches: creditBatches.filter((b) => b.remaining > 0).length,
-        totalReports: reports.length,
+        totalReports: totalReportsCount,
       },
     });
   } catch (error) {

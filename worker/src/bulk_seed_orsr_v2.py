@@ -207,10 +207,11 @@ async def get_companies_batch_cursor(
         )
         return [{"ico": c.ico, "name": c.name} for c in companies]
 
-    # Build query based on mode
-    cursor_condition = "" if gap_fill else "AND ico > $2"
-    params = [_LEGAL_FORMS, batch_size] if gap_fill else [_LEGAL_FORMS, last_ico, batch_size]
-    param_offset = 0 if gap_fill else 1
+    # Always advance by ico > $2 (in gap_fill mode last_ico starts at "" for a single full pass,
+    # preventing an infinite loop re-fetching the same NOT_FOUND / FAILED IČOs forever).
+    cursor_condition = "AND ico > $2"
+    params = [_LEGAL_FORMS, last_ico, batch_size]
+    param_offset = 1
 
     if only_with_financials:
         rows = await db.query_raw(
@@ -694,8 +695,9 @@ async def main(args):
 
                 if not companies:
                     if not gap_fill_mode:
-                        logger.info("Cursor-based pass complete. Starting gap-fill pass for remaining pending firms.")
+                        logger.info("Cursor-based pass complete. Starting single gap-fill pass from ico='' for remaining pending firms.")
                         gap_fill_mode = True
+                        last_ico = ""
                         continue
                     else:
                         logger.info("No more companies to process (gap-fill complete).")
@@ -711,9 +713,9 @@ async def main(args):
                 sub_batch_size = 10
                 for i in range(0, len(companies), sub_batch_size):
                     if _shutdown_requested:
-                        logger.warning("Shutdown requested — saving checkpoint and exiting gracefully.")
+                        logger.warning("Shutdown requested — saving checkpoint and exiting with SIGTERM status (143).")
                         save_checkpoint(checkpoint)
-                        return
+                        sys.exit(143)
 
                     sub = companies[i:i + sub_batch_size]
                     results = await process_batch(sub, concurrency=args.concurrency, scraper=scraper)
@@ -736,8 +738,12 @@ async def main(args):
 
                     save_checkpoint(checkpoint)
 
-                # Update cursor for next batch
-                last_ico = checkpoint["last_ico"]
+                # Advance cursor for next batch (in gap_fill_mode advance from current batch tail so
+                # we don't jump back to checkpoint["last_ico"] which is already at max_ico).
+                if gap_fill_mode:
+                    last_ico = companies[-1]["ico"]
+                else:
+                    last_ico = checkpoint["last_ico"]
 
         finally:
             await OrsrScraper.close_shared_client()

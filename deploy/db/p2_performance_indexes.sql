@@ -13,6 +13,9 @@
 --   DROP INDEX CONCURRENTLY IF EXISTS "Company_fscount1_nace_kraj_rev_idx";
 --   DROP INDEX CONCURRENTLY IF EXISTS "Company_fscount1_nace_rev_idx";
 --   DROP INDEX CONCURRENTLY IF EXISTS "Company_fscount1_city_rev_idx";
+--   DROP INDEX CONCURRENTLY IF EXISTS "Company_fscount2_kraj_rev_idx";
+--   DROP INDEX CONCURRENTLY IF EXISTS "Company_fscount2_okres_rev_idx";
+--   DROP INDEX CONCURRENTLY IF EXISTS "Company_fscount2_city_rev_idx";
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS "Company_fscount2_ico_sitemap_idx"
   ON "Company" ("ico" ASC)
@@ -33,5 +36,20 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS "Company_fscount1_city_rev_idx"
   ON "Company" ("city", "latestRevenue" DESC NULLS LAST)
   INCLUDE ("ico", "name")
   WHERE "fsCount" >= 1 AND "latestRevenue" IS NOT NULL;
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "Company_fscount2_kraj_rev_idx"
+  ON "Company" ("kraj", "latestRevenue" DESC NULLS LAST)
+  INCLUDE ("ico", "name", "city")
+  WHERE "fsCount" >= 2;
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "Company_fscount2_okres_rev_idx"
+  ON "Company" ("okres", "latestRevenue" DESC NULLS LAST)
+  INCLUDE ("ico", "name", "city")
+  WHERE "fsCount" >= 2;
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "Company_fscount2_city_rev_idx"
+  ON "Company" ("city", "latestRevenue" DESC NULLS LAST)
+  INCLUDE ("ico", "name")
+  WHERE "fsCount" >= 2;
 
 ANALYZE "Company";

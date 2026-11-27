@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/components/LanguageProvider";
 import Link from "next/link";
-import { getServerSession } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 
 interface Stats {
   totalUsers: number;
@@ -58,27 +55,7 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
   );
 }
 
-export default async function AdminOverviewPage() {
-  const session = await getServerSession();
-  if (!session?.user) redirect("/login");
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-
-  if (user?.role !== "ADMIN") {
-    return (
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-8 pb-8">
-        <div className="card p-8 text-center">
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Prístup zamietnutý. Vyžaduje sa rola ADMIN.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+export default function AdminOverviewPage() {
   return <AdminOverviewContent />;
 }
 

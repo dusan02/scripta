@@ -1,6 +1,4 @@
 node_modules
-!node_modules/.prisma
-!node_modules/@prisma/client
 .next
 .git
 .env
@@ -8,3 +6,12 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
+e2e
+playwright-report
+test-results
+src/lib/__tests__
+src/lib/cache/__tests__
+src/scripts
+*.tsbuildinfo
+* [0-9].*
+* [0-9]
