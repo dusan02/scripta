@@ -29,6 +29,7 @@ export const rootViewport: Viewport = {
 };
 
 // Inline script to prevent flash of wrong theme before React hydrates
+// and auto-recover once from stale deploy ChunkLoadError / 404 chunk scripts.
 const themeScript = `
 (function() {
   try {
@@ -39,6 +40,46 @@ const themeScript = `
       document.documentElement.setAttribute('data-theme', 'light');
     }
   } catch(e) {}
+
+  function reloadOnceOnChunkError() {
+    try {
+      var key = 'verifa-chunk-reload:' + location.pathname;
+      var last = Number(sessionStorage.getItem(key) || '0');
+      var now = Date.now();
+      if (!last || now - last > 15000) {
+        sessionStorage.setItem(key, String(now));
+        location.reload();
+      }
+    } catch(e) {}
+  }
+
+  function isChunkErrorMessage(msg, name) {
+    if (name === 'ChunkLoadError') return true;
+    if (!msg) return false;
+    return /ChunkLoadError|Loading (CSS )?chunk [\\w-]+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(String(msg));
+  }
+
+  window.addEventListener('error', function(e) {
+    var t = e && e.target;
+    if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+      var url = t.src || t.href || '';
+      if (url.indexOf('/_next/static/') !== -1) {
+        reloadOnceOnChunkError();
+        return;
+      }
+    }
+    var err = e && e.error;
+    if (isChunkErrorMessage(e && e.message, err && err.name) || isChunkErrorMessage(err && err.message, err && err.name)) {
+      reloadOnceOnChunkError();
+    }
+  }, true);
+
+  window.addEventListener('unhandledrejection', function(e) {
+    var r = e && e.reason;
+    if (isChunkErrorMessage(r && (r.message || r), r && r.name)) {
+      reloadOnceOnChunkError();
+    }
+  });
 })();
 `;
 

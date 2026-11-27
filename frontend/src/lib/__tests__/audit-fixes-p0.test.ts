@@ -111,5 +111,44 @@ describe("P0–P2 Audit Regression Suite", () => {
       dockerfile.includes("--mount=type=cache,target=/app/.next/cache"),
       "builder must cache /app/.next/cache via BuildKit"
     );
+    assert.ok(
+      runner.includes("ioredis@") && runner.includes("sharp@") && runner.includes("NODE_PATH=/opt/runtime-deps/node_modules"),
+      "runner must provide ioredis (eval require in rateLimit.ts) and sharp via /opt/runtime-deps"
+    );
+  });
+
+  it("prevents stale ISR ChunkLoadError via Nginx static archive, deploy sync, and client auto-reload", () => {
+    const nginx = fs.readFileSync(
+      path.join(REPO_ROOT, "deploy/nginx/sites-enabled_verifa.sk"),
+      "utf8"
+    );
+    assert.ok(
+      nginx.includes("location ^~ /_next/static/") &&
+        nginx.includes("root /var/www/verifa/.next-static-root;") &&
+        nginx.includes("try_files $uri @nextjs_static;"),
+      "Nginx must serve archived static chunks with @nextjs_static fallback"
+    );
+
+    const deploySh = fs.readFileSync(path.join(REPO_ROOT, "scripts/deploy.sh"), "utf8");
+    assert.ok(
+      deploySh.includes("archive_frontend_static") && deploySh.includes(".next-static-archive"),
+      "deploy.sh must archive frontend static chunks across builds"
+    );
+
+    const rootShell = fs.readFileSync(
+      path.join(FRONTEND_ROOT, "src/components/root-shell.tsx"),
+      "utf8"
+    );
+    assert.ok(
+      rootShell.includes("reloadOnceOnChunkError") && rootShell.includes("/_next/static/"),
+      "RootShell must auto-reload once if a stale chunk fails to load"
+    );
+
+    for (const group of ["(main)", "(pub)", "(pub-en)", "(pub-de)", "(pub-cs)", "(pub-hu)", "(pub-pl)"]) {
+      assert.ok(
+        fs.existsSync(path.join(FRONTEND_ROOT, "src/app", group, "error.tsx")),
+        `Expected error.tsx boundary in src/app/${group}`
+      );
+    }
   });
 });

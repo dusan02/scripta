@@ -67,6 +67,17 @@ RUN --mount=type=cache,target=/root/.npm \
     mkdir -p /opt/prisma-cli && cd /opt/prisma-cli && \
     npm init -y >/dev/null 2>&1 && npm install --no-save prisma@5.15.0
 
+# Standalone runtime packages not traced by @vercel/nft:
+# - ioredis: loaded via eval("require")("ioredis") in src/lib/rateLimit.ts
+# - sharp: required by Next.js standalone image optimizer
+RUN --mount=type=cache,target=/root/.npm \
+    mkdir -p /opt/runtime-deps && cd /opt/runtime-deps && \
+    npm init -y >/dev/null 2>&1 && \
+    npm install --no-save --omit=dev ioredis@6.0.0 sharp@0.33.5
+
+ENV NODE_PATH=/opt/runtime-deps/node_modules
+ENV NEXT_SHARP_PATH=/opt/runtime-deps/node_modules/sharp
+
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static

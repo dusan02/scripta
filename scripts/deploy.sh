@@ -87,6 +87,15 @@ remote() {
   fi
 }
 
+archive_frontend_static() {
+  # Sync /app/.next/static from the running frontend container into the host
+  # archive served by Nginx (/var/www/verifa/.next-static-root/_next/static)
+  # so stale ISR pages never 404 on previous builds' JS/CSS chunks.
+  if [ "$SERVICE" = "all" ] || [ "$SERVICE" = "frontend" ]; then
+    remote "mkdir -p $REMOTE_DIR/.next-static-archive $REMOTE_DIR/.next-static-root/_next && ln -sfn $REMOTE_DIR/.next-static-archive $REMOTE_DIR/.next-static-root/_next/static && cid=\$(cd $REMOTE_DIR && docker compose ps -q frontend 2>/dev/null || true); if [ -n \"\$cid\" ]; then docker cp \"\$cid:/app/.next/static/.\" $REMOTE_DIR/.next-static-archive/ 2>/dev/null || true; fi && chmod -R a+rX $REMOTE_DIR/.next-static-archive $REMOTE_DIR/.next-static-root && find $REMOTE_DIR/.next-static-archive -type f -mtime +14 -delete 2>/dev/null || true"
+  fi
+}
+
 echo "=== Verifa.sk Deploy ($([ "$LOCAL_BUILD" = true ] && echo "local-build" || echo "server-build"), service=$SERVICE) ==="
 echo "[$(date)] Starting deploy..."
 
@@ -128,9 +137,15 @@ if [ "$LOCAL_BUILD" = true ]; then
     remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker python -c \"import os, signal; os.kill(\$LOCK_PID, signal.SIGTERM)\" 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
   fi
 
+  echo "--- Archiving outgoing frontend static chunks ---"
+  archive_frontend_static
+
   echo "--- Recreating container(s) (no rebuild) ---"
   NO_DEPS_FLAG="$([ "$SERVICE" = "frontend" ] && echo "--no-deps" || echo "")"
   remote "cd $REMOTE_DIR && docker compose up -d --no-build $NO_DEPS_FLAG $BUILD_TARGETS"
+
+  echo "--- Syncing new frontend static chunks to host archive ---"
+  archive_frontend_static
 else
   echo "--- Pulling latest code on server ---"
   remote "cd $REMOTE_DIR && git pull"
@@ -141,9 +156,15 @@ else
     remote "cd $REMOTE_DIR && LOCK_PID=\$(cat ./worker/results/orsr_v2.lock 2>/dev/null || echo ''); if [ -n \"\$LOCK_PID\" ] && docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null; then echo \"  V2 running (PID \$LOCK_PID) — sending SIGTERM...\"; docker compose exec -T worker python -c \"import os, signal; os.kill(\$LOCK_PID, signal.SIGTERM)\" 2>/dev/null || true; echo \"  Waiting up to 15s for graceful shutdown...\"; for i in \$(seq 1 15); do docker compose exec -T worker test -d /proc/\$LOCK_PID 2>/dev/null || { echo '  V2 stopped gracefully.'; break; }; sleep 1; done; else echo '  V2 not running.'; fi"
   fi
 
+  echo "--- Archiving outgoing frontend static chunks ---"
+  archive_frontend_static
+
   echo "--- Building + recreating container(s) on server ---"
   NO_DEPS_FLAG="$([ "$SERVICE" = "frontend" ] && echo "--no-deps" || echo "")"
   remote "cd $REMOTE_DIR && docker compose build $BUILD_TARGETS && for img in ${IMAGES[*]}; do docker tag \$img \${img}:sha-$DEPLOY_SHA 2>/dev/null || true; done && docker compose up -d --no-build $NO_DEPS_FLAG $BUILD_TARGETS"
+
+  echo "--- Syncing new frontend static chunks to host archive ---"
+  archive_frontend_static
 fi
 
 if [ "$SERVICE" = "all" ] || [ "$SERVICE" = "frontend" ]; then
