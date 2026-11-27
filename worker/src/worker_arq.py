@@ -73,7 +73,7 @@ MAX_TRIES = int(os.getenv("ARQ_MAX_TRIES", "3"))
 
 async def execute_report_task(ctx, task_dict: dict):
     from src.models import ReportTask
-    from src.main import _execute_report_inner
+    from src.main import _execute_report_inner, _trigger_frontend_refund
     from arq import Retry
     from src.db_client import get_db
     from datetime import datetime, timezone
@@ -103,14 +103,7 @@ async def execute_report_task(ctx, task_dict: dict):
                         'completedAt': datetime.now(timezone.utc),
                     }
                 )
-                import httpx
-                frontend_url = os.environ.get("NEXTAUTH_URL", "http://localhost:3000")
-                worker_secret = os.environ.get("WORKER_SECRET", "")
-                async with httpx.AsyncClient(timeout=10) as client:
-                    await client.post(
-                        f"{frontend_url}/api/reports/{report_request_id}/refund",
-                        headers={"x-worker-secret": worker_secret},
-                    )
+                await _trigger_frontend_refund(report_request_id, "arq_cancelled_or_timeout")
                 logger.info(f"[ARQ] Report {report_request_id} označený ako FAILED + refund po CancelledError.")
         except Exception as cancel_err:
             logger.error(f"[ARQ] Zlyhalo ošetrenie CancelledError pre {report_request_id}: {cancel_err}")

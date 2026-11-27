@@ -18,13 +18,34 @@ server {
 
     # Zero-value SEO crawlers (~32% of weekly volume) - hard 403 (map in conf.d/zz-verifa-limits.conf)
     if ($seo_bot_ua) { return 403; }
-    # Per-IP HTML page rate limit (assets/API excluded via $verifa_page map)
-    limit_req zone=verifa_pages burst=60 nodelay;
+
+    # Verifa-only crawler & scraper guards (Krok B / Stream 2)
+    # Googlebot and signed POST webhooks (/api/billing/webhook, /api/email/*) unaffected.
+    if ($verifa_unwanted_bot_ua)    { return 403; }
+    if ($verifa_spoofed_browser_ua) { return 403; }
+    if ($verifa_bot_rsc_block)      { return 403; }
+    if ($verifa_bot_objednat_block) { return 403; }
+
+    # Per-IP HTML page rate limit (assets/API excluded via $verifa_page map) + GPTBot cap
+    limit_req zone=verifa_pages  burst=60 nodelay;
+    limit_req zone=verifa_gptbot burst=3  nodelay;
 
     # Crawler observability log (rt = request_time, cache = Next.js ISR status)
     access_log /var/log/nginx/verifa_perf.log verifa_perf;
 
     client_max_body_size 50M;
+
+    # Dedicated rate limit for NextAuth session polling flood (~23k/day)
+    location = /api/auth/session {
+        limit_req zone=verifa_auth_session burst=30 nodelay;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+    }
 
     # PDF download — disable buffering for large files (150MB+)
     location ~ ^/api/reports/.+/download$ {
@@ -50,6 +71,9 @@ server {
         limit_req zone=meta_external_firma burst=2 nodelay;
         limit_req zone=amazon_firma burst=2 nodelay;
         limit_req zone=verifa_pages burst=60 nodelay;
+        limit_req zone=verifa_gptbot burst=3 nodelay;
+        limit_req zone=verifa_bingbot_loc burst=2 nodelay;
+        limit_req zone=verifa_exabot burst=3 nodelay;
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -76,6 +100,9 @@ server {
         limit_req zone=meta_external_firma burst=2 nodelay;
         limit_req zone=amazon_firma burst=2 nodelay;
         limit_req zone=verifa_pages burst=60 nodelay;
+        limit_req zone=verifa_gptbot burst=3 nodelay;
+        limit_req zone=verifa_bingbot_firma burst=10 nodelay;
+        limit_req zone=verifa_exabot burst=3 nodelay;
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -116,7 +143,6 @@ server {
         proxy_buffers 16 16k;
         proxy_max_temp_file_size 50m;
     }
-
     # Static PDF samples — no upgrade headers
     location /samples/ {
         proxy_pass http://127.0.0.1:3000;
@@ -134,7 +160,6 @@ server {
         add_header Accept-Ranges bytes;
         proxy_read_timeout 300s;
     }
-
     listen [::]:443 ssl ipv6only=on; # managed by Certbot
     listen 443 ssl; # managed by Certbot
     ssl_certificate /etc/letsencrypt/live/verifa.sk/fullchain.pem; # managed by Certbot
