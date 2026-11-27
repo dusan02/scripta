@@ -33,7 +33,7 @@ class CrzScraper(BaseScraper):
             page = await self._get_page(block_images=False)
 
             await self._navigate(page)
-            await self._accept_cookies(page)
+            await self._dismiss_cookie_banner(page)
             await self._open_advanced_search(page)
             await self._fill_ico(page, ico)
 
@@ -109,19 +109,10 @@ class CrzScraper(BaseScraper):
 
     async def _navigate(self, page: Page) -> None:
         logger.info(f"[{self.source_type}] Navigujem na {self.base_url}")
-        try:
-            await page.goto(self.base_url, timeout=30000, wait_until="domcontentloaded")
-        except (PlaywrightTimeoutError, PlaywrightError) as e:
-            raise ScraperUnavailableError(f"CRZ nedostupná: {e}")
+        await self._safe_goto(page, self.base_url, timeout_ms=25000)
 
     async def _accept_cookies(self, page: Page) -> None:
-        try:
-            btn = page.get_by_role("button", name="Prijať všetko")
-            await btn.wait_for(timeout=5000)
-            await btn.click()
-            logger.info(f"[{self.source_type}] Cookie banner prijatý.")
-        except PlaywrightTimeoutError:
-            logger.info(f"[{self.source_type}] Cookie banner sa nezobrazil.")
+        await self._dismiss_cookie_banner(page)
 
     async def _open_advanced_search(self, page: Page) -> None:
         try:
@@ -201,8 +192,7 @@ class CrzScraper(BaseScraper):
 
     async def _check_no_results(self, page: Page) -> bool:
         body_text = await page.inner_text("body")
-        lowered = body_text.lower()
-        return any(marker in lowered for marker in ["nenašli sa žiadne", "žiadne záznamy", "neobsahuje žiadne", "0 záznamov"])
+        return self._has_no_results_text(body_text)
 
     async def _make_no_results_result(self, page: Page, ico: str, output_dir: Path, date_from_str: str) -> ScrapedSource:
         logger.info(f"[{self.source_type}] Žiadne záznamy pre IČO {ico}.")
@@ -221,12 +211,13 @@ class CrzScraper(BaseScraper):
         )
 
     async def _collect_all_rows(self, page: Page) -> tuple[list[str], int]:
-        """Zbiera riadky tabuľky cez pagination stránky, max 30 najnovších zmlúv."""
+        """Zbiera riadky tabuľky cez pagination stránky, max 30 najnovších zmlúv (max 5 strán)."""
         MAX_CONTRACTS = 30
+        MAX_PAGES = 5
         all_rows_html: list[str] = []
         page_num = 1
 
-        while True:
+        while page_num <= MAX_PAGES:
             rows_html = await page.evaluate("""() => {
                 const tbody = document.querySelector('table tbody');
                 if (!tbody) return [];
@@ -241,43 +232,51 @@ class CrzScraper(BaseScraper):
                 logger.info(f"[{self.source_type}] Dosiahnutý limit {MAX_CONTRACTS} zmlúv — zastavujem pagination.")
                 break
 
+            if page_num >= MAX_PAGES:
+                break
+
             next_link = await self._find_next_page_link(page, page_num)
             if not next_link:
                 break
 
+            prev_first_row = rows_html[0] if rows_html else ""
             page_num += 1
             logger.info(f"[{self.source_type}] Prechádzam na stranu {page_num}")
-            await next_link.click()
             try:
+                await next_link.click(timeout=8000)
                 await page.wait_for_function(
-                    "() => document.querySelector('table tbody tr') !== null",
+                    """(prevRow) => {
+                        const first = document.querySelector('table tbody tr');
+                        return first !== null && first.outerHTML !== prevRow;
+                    }""",
+                    arg=prev_first_row,
                     timeout=10000,
                 )
             except PlaywrightTimeoutError:
-                pass
+                logger.warning(f"[{self.source_type}] Pagination na stranu {page_num} vypršala — zastavujem.")
+                break
 
         return all_rows_html, page_num
 
     async def _find_next_page_link(self, page: Page, current_page: int):
-        """Nájde pagination odkaz na nasledujúcu stranu."""
+        """Nájde pagination odkaz na nasledujúcu stranu striktne v pagination kontajneri."""
         try:
-            # CRZ používa štandardnú pagination — odkazy s číslami strán
-            pagination_links = page.locator(
-                "a:has-text('2'), a:has-text('3'), a:has-text('4'), a:has-text('5'), "
-                "a:has-text('6'), a:has-text('7'), a:has-text('8'), a:has-text('9'), "
-                "a:has-text('10'), a:has-text('11'), a:has-text('12'), a:has-text('13'), "
-                "a:has-text('14'), a:has-text('15'), a:has-text('16'), a:has-text('17'), "
-                "a:has-text('18'), a:has-text('19'), a:has-text('20')"
+            target_text = str(current_page + 1)
+            # Striktne obmedzené na pagination kontajnery (predtým a:has-text('2')..('20')
+            # matchovalo všetky zmluvy s dátumami na celej stránke a robilo desiatky CDP volaní!)
+            pager_links = page.locator(
+                "ul.pagination a, .pagination a, nav[aria-label*='paginat' i] a, .pager a, .strankovanie a"
             )
-            count = await pagination_links.count()
-            for i in range(count):
-                link = pagination_links.nth(i)
-                link_text = (await link.inner_text()).strip()
-                if link_text == str(current_page + 1):
+            count = await pager_links.count()
+            for i in range(min(count, 25)):
+                link = pager_links.nth(i)
+                link_text = (await link.inner_text(timeout=2000)).strip()
+                if link_text == target_text:
                     return link
 
-            # Skús "Ďalej" / "Next" tlačidlo
-            next_btn = page.locator("a:has-text('Ďalej'), a:has-text('Next'), li.next a").first
+            next_btn = page.locator(
+                "ul.pagination li.next a, .pagination a[rel='next'], a[rel='next'], .pagination a:has-text('Ďalej'), .pagination a:has-text('»')"
+            ).first
             if await next_btn.count() > 0:
                 return next_btn
         except Exception:

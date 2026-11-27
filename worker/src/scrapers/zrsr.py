@@ -53,6 +53,12 @@ class ZrsrScraper(BaseScraper):
                     status="FAILED",
                     status_message="Pre ZRSR je potrebné zadať IČO alebo Meno a Priezvisko.",
                 )
+        except ScraperUnavailableError as e:
+            logger.warning(f"[{self.source_type}] Nedostupné: {e}")
+            return self._make_result(
+                status="UNAVAILABLE",
+                status_message=str(e),
+            )
         except PlaywrightError as e:
             logger.error(f"[{self.source_type}] Playwright chyba: {e}")
             return self._make_result(
@@ -88,10 +94,7 @@ class ZrsrScraper(BaseScraper):
 
         logger.info(f"[{self.source_type}] Navigujem na {self._base_url_company}")
         _t = time.perf_counter()
-        try:
-            await page.goto(self._base_url_company, timeout=45000, wait_until="domcontentloaded")
-        except PlaywrightTimeoutError:
-            raise ScraperUnavailableError("Timeout pri načítaní stránky ZRSR.")
+        await self._safe_goto(page, self._base_url_company, timeout_ms=30000)
         logger.debug(f"[{self.source_type}] ⏱ goto: {time.perf_counter() - _t:.2f}s")
         _t = time.perf_counter()
 
@@ -139,10 +142,7 @@ class ZrsrScraper(BaseScraper):
             )
 
         logger.info(f"[{self.source_type}] Navigujem na {self._base_url_person}")
-        try:
-            await page.goto(self._base_url_person, timeout=45000, wait_until="domcontentloaded")
-        except PlaywrightTimeoutError:
-            raise ScraperUnavailableError("Timeout pri načítaní stránky ZRSR.")
+        await self._safe_goto(page, self._base_url_person, timeout_ms=30000)
 
         try:
             logger.info(f"[{self.source_type}] Vypĺňam Meno: {name}, Priezvisko: {surname}")
@@ -178,7 +178,7 @@ class ZrsrScraper(BaseScraper):
         _t = time.perf_counter()
         
         text_content = await page.inner_text("body")
-        if "Neboli nájdené žiadne záznamy" in text_content or "Nenašiel sa žiadny" in text_content:
+        if self._has_no_results_text(text_content):
             logger.info(f"[{self.source_type}] Záznam nenájdený.")
             return self._make_result(
                 status="SUCCESS",
@@ -193,7 +193,7 @@ class ZrsrScraper(BaseScraper):
             try:
                 # Počkáme, kým sa zjaví link na detail
                 try:
-                    await page.wait_for_selector("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']", timeout=10000)
+                    await page.wait_for_selector("a.govuk-link[href*='Detail'], a.govuk-link[href*='detail']", timeout=5000)
                 except PlaywrightTimeoutError:
                     pass
                 

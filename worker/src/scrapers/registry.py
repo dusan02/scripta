@@ -117,31 +117,31 @@ _SCRAPER_TIMEOUTS: Dict[str, int] = {
     "ROZHODNUTIA": 45,
     # Rýchle browser scrapery
     "ORSR": 60,
-    "ZRSR": 90,
+    "ZRSR": 120,
     "INSOLVENCY": 90,
-    "RPVS": 90,
+    "RPVS": 120,
     "UVO": 90,
-    "CRZ": 90,
+    "CRZ": 120,
     "POVERENIA": 120,
     "NCRZP": 120,
     "NCRD": 120,
     "DISKVALIFIKACIE": 120,
     # FS scrapery — zdieľajú server, pomalé
-    "FINANCNA_SPRAVA": 150,
-    "FS_DPH_RUSENIE": 150,
-    "FS_DPH_VYMAZANI": 150,
-    "FS_DANOVE_SUBJEKTY": 150,
-    "FS_DAN_Z_PRIJMOV": 150,
-    "FS_DPH_NADMERNY_ODPOCET": 150,
-    "FS_DPH_REGISTROVANI": 150,
-    "FS_DAN_PRIJMOV_REG": 150,
+    "FINANCNA_SPRAVA": 120,
+    "FS_DPH_RUSENIE": 120,
+    "FS_DPH_VYMAZANI": 120,
+    "FS_DANOVE_SUBJEKTY": 120,
+    "FS_DAN_Z_PRIJMOV": 120,
+    "FS_DPH_NADMERNY_ODPOCET": 120,
+    "FS_DPH_REGISTROVANI": 120,
+    "FS_DAN_PRIJMOV_REG": 120,
     # Najpomalsie browser scrapery — štátne dlžnícke registre
-    "SP_DLZNICI": 180,
-    "VSZP_DLZNICI": 180,
-    "DOVERA_DLZNICI": 180,
-    "UNION_DLZNICI": 180,
+    "SP_DLZNICI": 150,
+    "VSZP_DLZNICI": 150,
+    "DOVERA_DLZNICI": 150,
+    "UNION_DLZNICI": 150,
     # RPO — React SPA, pomalé načítanie
-    "RPO": 180,
+    "RPO": 150,
 }
 
 
@@ -184,12 +184,11 @@ async def run_scrapers(
     mode (150-180s) znamenajú rýchlejšie UNAVAILABLE namiesto dlhého čakania."""
 
     # Semafóry vytvárame tu (nie na module úrovni), aby sa naviazali na aktuálny event loop.
-    # FS semaphore 3 — 7 FS scraperov zdieľa rovnaký server, 3 súbežné = 3 vlny (3+3+1)
-    # Redukované z 4 na 3 — FS server je pomalý a rate-limituje pri 4+ súbežných.
-    fs_semaphore = asyncio.Semaphore(3)
-    # Všetky browser scrapery — default 8 slotov zodpovedá MAX_CONCURRENT_SESSIONS=10 v browserless.
-    # Umožňuje spustiť všetkých 7 live-check scraperov paralelne bez čakania v rade.
-    concurrency_limit = max_concurrency or 8
+    # FS semaphore 2 — FS scrapery zdieľajú rovnaký server, 2 súbežné minimalizujú rate-limiting/timeouty.
+    fs_semaphore = asyncio.Semaphore(2)
+    # Všetky browser scrapery — default 3 sloty zabraňujú CPU/RAM zahlteniu browserless na 2 vCPU VPS
+    # (predtým 8 slotov spôsobovalo hromadné 90s timeouty na ZRSR, RPVS, CRZ).
+    concurrency_limit = max_concurrency or 3
     global_semaphore = asyncio.Semaphore(concurrency_limit)
 
     # Rozdelíme na nezávislé a závislé scrapery

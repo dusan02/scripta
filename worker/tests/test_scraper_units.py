@@ -490,3 +490,58 @@ class TestLiveCheckOrchestration:
             ("SP_DLZNICI", "SUCCESS"),
             ("VSZP_DLZNICI", "SUCCESS"),
         ]
+
+
+class TestPaidReportScraperOptimizations:
+    """Verify shared no-results detection, scoped CRZ pagination, ZRSR UNAVAILABLE handling, and timeouts."""
+
+    def test_shared_no_results_text_detection(self):
+        from src.scrapers.base import BaseScraper
+
+        assert BaseScraper._has_no_results_text("Neboli nájdené žiadne záznamy pre zadané kritériá.")
+        assert BaseScraper._has_no_results_text("Zobrazené 0 až 0 z 0 záznamov")
+        assert BaseScraper._has_no_results_text("Tabuľka neobsahuje žiadne dáta")
+        assert not BaseScraper._has_no_results_text("Volvo Group Slovakia, s.r.o. IČO 35729066")
+
+    def test_zrsr_unavailable_error_returns_unavailable_status(self, tmp_path):
+        from src.scrapers.zrsr import ZrsrScraper
+        from src.scrapers.base import ScraperUnavailableError
+
+        page = MagicMock()
+        page.close = AsyncMock()
+        scraper = ZrsrScraper(browser=MagicMock())
+        scraper._get_page = AsyncMock(return_value=page)
+        scraper._safe_goto = AsyncMock(side_effect=ScraperUnavailableError("ZRSR timeout"))
+
+        res = asyncio.run(scraper.run(ico="35729066", output_dir=tmp_path))
+        assert res.status == "UNAVAILABLE"
+        assert "ZRSR timeout" in (res.status_message or "")
+
+    def test_crz_pagination_scoped_to_pager_containers(self):
+        from src.scrapers.crz import CrzScraper
+
+        pager_loc = _make_mock_locator(count=2, texts=["1", "2"])
+        seen_selectors: list[str] = []
+
+        def fake_locator(sel: str):
+            seen_selectors.append(sel)
+            if "pagination" in sel and "next" not in sel and "Ďalej" not in sel:
+                return pager_loc
+            return _make_mock_locator(count=0)
+
+        page = MagicMock()
+        page.locator = MagicMock(side_effect=fake_locator)
+
+        scraper = CrzScraper(browser=MagicMock())
+        link = asyncio.run(scraper._find_next_page_link(page, current_page=1))
+        assert link is not None
+        assert any("pagination" in s for s in seen_selectors)
+        # Must never use unscoped global a:has-text('2') across contract rows
+        assert not any(s.startswith("a:has-text('2')") for s in seen_selectors)
+
+    def test_registry_timeouts_for_zrsr_rpvs_crz(self):
+        from src.scrapers.registry import _SCRAPER_TIMEOUTS
+
+        assert _SCRAPER_TIMEOUTS["ZRSR"] == 120
+        assert _SCRAPER_TIMEOUTS["RPVS"] == 120
+        assert _SCRAPER_TIMEOUTS["CRZ"] == 120

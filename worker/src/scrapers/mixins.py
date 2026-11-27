@@ -31,7 +31,7 @@ class PdfGeneratorMixin:
         if SKIP_PDF_VAR.get():
             return 1
         try:
-            await page.wait_for_load_state("load", timeout=15000)
+            await page.wait_for_load_state("load", timeout=8000)
         except PlaywrightTimeout:
             logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] load event timeout — pokračujem s generovaním PDF napriek tomu.")
 
@@ -40,7 +40,7 @@ class PdfGeneratorMixin:
         try:
             await page.wait_for_selector(
                 "table, .detail, .main-content, [class*='detail'], [class*='content'], main",
-                timeout=8000,
+                timeout=4000,
             )
         except PlaywrightTimeout:
             logger.warning(f"[{getattr(self, 'source_type', 'UNKNOWN')}] Content selector timeout — stránka možno nemá dáta.")
@@ -54,7 +54,7 @@ class PdfGeneratorMixin:
                         return new Promise(resolve => {
                             img.addEventListener('load', resolve, { once: true });
                             img.addEventListener('error', resolve, { once: true });
-                            setTimeout(resolve, 3000);
+                            setTimeout(resolve, 1500);
                         });
                     }));
                 }
@@ -80,9 +80,15 @@ class PdfGeneratorMixin:
 
         return 1
 
-    async def _download_pdf(self, page: Page, download_button_selector: str, output_path: Path) -> int:
-        async with page.expect_download() as download_info:
-            await page.click(download_button_selector)
+    async def _download_pdf(
+        self,
+        page: Page,
+        download_button_selector: str,
+        output_path: Path,
+        timeout: int = 15000,
+    ) -> int:
+        async with page.expect_download(timeout=timeout) as download_info:
+            await page.click(download_button_selector, timeout=min(timeout, 10000))
         download = await download_info.value
         await download.save_as(str(output_path))
         if output_path.exists() and output_path.stat().st_size > 0:

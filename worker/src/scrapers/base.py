@@ -339,22 +339,9 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
 
         page = await context.new_page()
 
-        # Block unnecessary resources to speed up page loads (len ak block_images=True).
-        # Obrázky blokujeme pri text-only scraperoch; fonty/media vždy (nepotrebné pre PDF).
-        if block_images:
-            async def _block_resources(route):
-                if route.request.resource_type in ("image", "font", "media"):
-                    await route.abort()
-                else:
-                    await route.continue_()
-            await page.route("**/*", _block_resources)
-        else:
-            async def _block_media_only(route):
-                if route.request.resource_type in ("font", "media"):
-                    await route.abort()
-                else:
-                    await route.continue_()
-            await page.route("**/*", _block_media_only)
+        # Pozn.: page.route("**/*", ...) bolo odstránené aj z _get_stealth_page (commit e2c42fc),
+        # pretože CDP route interception posiela každý HTTP request cez WebSocket do Pythonu
+        # a pod záťažou výrazne spomaľuje/blokuje browserless taby.
         return page
 
     async def _close(self) -> None:
@@ -370,20 +357,18 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
             if hasattr(self, "_playwright"):
                 await self._playwright.stop()
 
-    async def _safe_goto(self, page: Page, url: str, retries: int = None) -> None:
+    async def _safe_goto(self, page: Page, url: str, retries: int = None, timeout_ms: int = 25000) -> None:
         """Go to URL with unified retry; mark as UNAVAILABLE on persistent failures.
 
         Používa exponential backoff s jitterom zo unified retry helpera.
-        Timeout: 40s goto — slovenské štátne registre (RPO, Dovera, SP, FS)
-        často odpovedajú 15-30s, najmä počas pracovných hodín.
-        Zvýšené z 20s na 40s pre maximálnu úspešnosť scraperov.
+        Default: max 2 pokusy po 25s (namiesto 3×40s = 120s, čo presahovalo 90s per-scraper timeout).
         """
-        attempts = (retries or settings.scraper_retries) + 1
+        attempts = (retries if retries is not None else min(settings.scraper_retries, 1)) + 1
         delay = settings.scraper_retry_delay
         last_error: Optional[Exception] = None
         for attempt in range(1, attempts + 1):
             try:
-                await page.goto(url, timeout=40000, wait_until="domcontentloaded")
+                await page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
                 return
             except Exception as e:
                 last_error = e
@@ -404,6 +389,29 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
                 await asyncio.sleep(wait)
         raise ScraperUnavailableError(f"Register {url} unreachable after {attempts} attempts: {last_error}")
 
+    # Spoločné slovenské markery pre prázdne výsledky vyhľadávania naprieč registrami
+    COMMON_NO_RESULTS_MARKERS: tuple[str, ...] = (
+        "neboli nájdené žiadne záznamy",
+        "nenašiel sa žiadny",
+        "nenašli sa žiadne",
+        "žiadne záznamy",
+        "neobsahuje žiadne",
+        "0 záznamov",
+        "0 celkom 0",
+        "0 až 0",
+        "žiadne dáta",
+        "žiadne data",
+    )
+
+    @classmethod
+    def _has_no_results_text(cls, body_text: str, extra_markers: tuple[str, ...] = ()) -> bool:
+        """Zjednotená detekcia prázdneho výsledku vyhľadávania zo získaného textu stránky."""
+        if not body_text:
+            return False
+        lowered = body_text.lower()
+        markers = cls.COMMON_NO_RESULTS_MARKERS + extra_markers
+        return any(m in lowered for m in markers)
+
     async def _dismiss_cookie_banner(self, page: Page) -> None:
         """Skúsi zavrieť cookie banner ak existuje — bežné na slovenských štátnych portáloch.
         Nezlyhá ak banner nie je prítomný. Loguje warning ak žiadny selector nezabral."""
@@ -414,6 +422,7 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
             "button:has-text('Accept all')",
             "button:has-text('Prijať všetko')",
             "button:has-text('Prijať všetky')",
+            "button:has-text('Prijať analytické cookies')",
             "button:has-text('Akceptovať všetky cookies')",
             "button:has-text('OK')",
             "#consent-accept-all",

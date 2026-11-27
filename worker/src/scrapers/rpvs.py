@@ -87,9 +87,10 @@ class RpvsScraper(BaseScraper):
             try:
                 await page.wait_for_function(
                     """(ico) => {
-                        const text = document.body.innerText;
+                        const text = (document.body && document.body.innerText || '').toLowerCase();
                         const table = document.querySelector('#table-VyhladavaniePartnera');
                         if (!table) return false;
+                        if (table.querySelector('.dataTables_empty')) return true;
                         const rows = Array.from(table.querySelectorAll('tbody tr'));
                         const cleanTarget = ico.replace(/\\D/g, '');
                         const hasIco = rows.some(tr =>
@@ -97,7 +98,7 @@ class RpvsScraper(BaseScraper):
                                 td.innerText.replace(/\\D/g, '').includes(cleanTarget)
                             )
                         );
-                        const hasNoResults = text.includes('Nenašli sa žiadne')
+                        const hasNoResults = text.includes('nenašli sa žiadne')
                             || text.includes('0 celkom 0')
                             || text.includes('0 až 0');
                         return hasIco || hasNoResults;
@@ -123,7 +124,7 @@ class RpvsScraper(BaseScraper):
                     findings="Subjekt nie je evidovaný ako partner verejného sektora.",
                 )
             body_text = await page.inner_text("body")
-            if "Nenašli sa žiadne" in body_text or "0 až 0" in body_text or "0 celkom 0" in body_text:
+            if self._has_no_results_text(body_text):
                 logger.info(f"[{self.source_type}] IČO {ico} nebolo nájdené v RPVS (text).")
                 return self._make_result(
                     status="SUCCESS",
@@ -144,13 +145,20 @@ class RpvsScraper(BaseScraper):
             for i in range(row_count):
                 row = rows.nth(i)
                 try:
-                    status_text = await row.locator("td:nth-child(7)").inner_text()
+                    # Ochrana pred 30s hangom na prázdnom/colspan riadku (<7 stĺpcov)
+                    if await row.locator("td").count() < 7:
+                        continue
+                    status_text = await row.locator("td:nth-child(7)").inner_text(timeout=3000)
                     if "Platný" in status_text.strip():
                         link = row.locator("td:nth-child(2) a").first
                         if await link.count() > 0:
-                            company_name = (await link.inner_text()).strip()
+                            company_name = (await link.inner_text(timeout=3000)).strip()
                             logger.info(f"[{self.source_type}] Klikám na platný záznam: {company_name} (riadok {i+1})")
-                            await link.click()
+                            try:
+                                async with page.expect_navigation(timeout=20000, wait_until="domcontentloaded"):
+                                    await link.click(timeout=10000)
+                            except PlaywrightTimeoutError:
+                                logger.warning(f"[{self.source_type}] Navigation timeout po kliku na detail, pokračujem.")
                             detail_loaded = True
                             break
                 except Exception:
@@ -161,31 +169,31 @@ class RpvsScraper(BaseScraper):
                 logger.warning(f"[{self.source_type}] Nenájdený riadok so statusom 'Platný', skúšam prvý odkaz.")
                 first_link = result_table.locator("tbody tr td:nth-child(2) a").first
                 try:
-                    await first_link.wait_for(state="visible", timeout=10000)
-                    company_name = (await first_link.inner_text()).strip()
+                    await first_link.wait_for(state="visible", timeout=8000)
+                    company_name = (await first_link.inner_text(timeout=3000)).strip()
                     logger.info(f"[{self.source_type}] Klikám na prvý záznam: {company_name}")
-                    await first_link.click()
+                    try:
+                        async with page.expect_navigation(timeout=20000, wait_until="domcontentloaded"):
+                            await first_link.click(timeout=10000)
+                    except PlaywrightTimeoutError:
+                        pass
                 except PlaywrightTimeoutError:
                     logger.warning(f"[{self.source_type}] Prvý odkaz nenájdený, skúšam fallback odd/even.")
                     company_link = result_table.locator("tbody tr.odd td:nth-child(2) a, tbody tr.even td:nth-child(2) a").first
-                    await company_link.wait_for(state="visible", timeout=10000)
-                    company_name = (await company_link.inner_text()).strip()
-                    await company_link.click()
+                    await company_link.wait_for(state="visible", timeout=8000)
+                    company_name = (await company_link.inner_text(timeout=3000)).strip()
+                    try:
+                        async with page.expect_navigation(timeout=20000, wait_until="domcontentloaded"):
+                            await company_link.click(timeout=10000)
+                    except PlaywrightTimeoutError:
+                        pass
 
-            # 9. Počkaj na načítanie detailnej stránky
+            # 9. Overenie detailnej stránky (rýchly kombinovaný wait)
             try:
-                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                await page.wait_for_selector("text=Aktuálne údaje", timeout=8000)
+                logger.info(f"[{self.source_type}] Stránka detailu overená ('Aktuálne údaje').")
             except PlaywrightTimeoutError:
-                pass
-
-            # 10. Overenie detailnej stránky
-            try:
-                heading_partner = page.get_by_role("heading", name="Partner verejného sektora")
-                await heading_partner.wait_for(state="visible", timeout=10000)
-                await page.wait_for_selector("text=Aktuálne údaje", timeout=10000)
-                logger.info(f"[{self.source_type}] Stránka detailu overená ('Partner verejného sektora' + 'Aktuálne údaje').")
-            except PlaywrightTimeoutError:
-                logger.warning(f"[{self.source_type}] Nadpisy na detailnej stránke sa nenašli, overujem IČO v texte.")
+                logger.warning(f"[{self.source_type}] Nadpis 'Aktuálne údaje' na detailnej stránke sa nenašiel, overujem IČO v texte.")
 
             # Overenie IČO na stránke
             try:

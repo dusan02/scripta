@@ -271,19 +271,29 @@ async def _execute_report_inner(task: ReportTask, *, defer_terminal_failure: boo
                         _background_tasks.add(t2b)
                         t2b.add_done_callback(_background_tasks.discard)
 
-                # Progress-based ETA: odhad remaining na základe pomeru dokončených zdrojov
+                # Progress-based ETA: plynulé miešanie historického odhadu a reálneho tempa.
+                # Pri prvých 1–3 zdrojoch (napr. 1/26 po 60s) naivná extrapolácia `elapsed / progress`
+                # ukazovala nereálnych ~24 minút, hoci ostatné zdroje bežali paralelne.
                 if _sources_total > 1:
                     elapsed_scrape = time.perf_counter() - _t_scrape_start
                     progress = _sources_done_count / _sources_total
                     if progress > 0:
-                        # Zostávajúci čas pre scrapovanie = koľko ešte treba podľa aktuálneho tempa
-                        scrape_remaining = (elapsed_scrape / progress) - elapsed_scrape
-                        
-                        # Čas pre ďalšie fázy (AI, Auditor, Compile)
                         other_phases_eta = 60
                         if _phase_historical:
                             other_phases_eta = sum(v or 0 for k, v in _phase_historical.items() if k in ['ai', 'auditor', 'compile'])
-                            
+
+                        # Zostávajúci čas pre scrapovanie: postupný prechod z počiatočného odhadu na reálne tempo
+                        initial_scrape_eta = max(60, initial_eta - other_phases_eta)
+                        baseline_remaining = max(5.0, initial_scrape_eta - elapsed_scrape)
+                        linear_remaining = (elapsed_scrape / progress) - elapsed_scrape
+                        # Váha reálneho tempa rastie s počtom dokončených zdrojov (plná váha od 25% alebo 4 zdrojov)
+                        ramp_threshold = max(4, int(_sources_total * 0.25))
+                        weight = min(1.0, _sources_done_count / ramp_threshold)
+                        blended_remaining = (1.0 - weight) * baseline_remaining + weight * linear_remaining
+                        # Nikdy neprekroč globálny timeout scraperov (300s)
+                        max_possible_scrape_remaining = max(5.0, 300.0 - elapsed_scrape)
+                        scrape_remaining = min(blended_remaining, max_possible_scrape_remaining)
+
                         remaining = max(5, int(scrape_remaining + other_phases_eta))
                         t3 = loop.create_task(
                             update_report_ai_status(task.report_request_id, None, remaining)
@@ -316,6 +326,7 @@ async def _execute_report_inner(task: ReportTask, *, defer_terminal_failure: boo
                     rozhodnutia_date_from=task.rozhodnutia_date_from,
                     on_source_done=_on_source_done,
                     disable_circuit_breaker=True,  # Single-report mode: skús každý scraper
+                    max_concurrency=3,  # Zabráni CPU/RAM zahlteniu browserless na 2 vCPU VPS
                 )
             )
             try:
@@ -361,17 +372,30 @@ async def _execute_report_inner(task: ReportTask, *, defer_terminal_failure: boo
         # Retry loop runs OUTSIDE _scraper_lock — sleeps don't block other reports.
         # Lock is acquired only for the duration of each run_scrapers call.
         # 3c: Retry aj UNAVAILABLE (register bol nedostupný — presne to čo retry rieši)
-        # 3a: Exponential backoff: ~2s, ~5s, ~15s, ~30s, ~60s (with ±30% jitter) — max 5 pokusov
-        # 3b: Total retry budget 600s — skip ďalšie passy ak sme nad limit
+        # 3a: Exponential backoff: ~3s, ~10s, ~25s (with ±30% jitter) — max 3 fokusované pokusy
+        # 3b: Total retry budget 240s — zabráni 10+ minútovému čakaniu pri nedostupnom štátnom portáli
         # 3d: Retry len UNAVAILABLE a TIMEOUT (network issues) — nie FAILED z interných chýb
         # 3h: Browser health check pred každým retry passom
-        # 5. pass (60s delay) — pre veľmi pomalé registre ktoré sa zotavujú pomaly
-        _RETRY_DELAYS = [2, 5, 15, 30, 60]
-        _RETRY_TOTAL_BUDGET = 600  # sekundy — max čas na všetky retry passy (vrátane scraper execution)
+        _RETRY_DELAYS = [3, 10, 25]
+        _RETRY_TOTAL_BUDGET = 240  # sekundy — max čas na všetky retry passy (vrátane scraper execution)
         # Snapshot pre-retry failure count — post-retry merge by tento údaj prekazil
         _initial_failed = sum(1 for s in sources if s.status in ("FAILED", "UNAVAILABLE"))
         _retry_elapsed = 0.0
         retry_pass = 0
+
+        def _on_retry_source_done(source) -> None:
+            """Ihneď zapíš úspešný retry výsledok do DB, aby sa UI aktualizovalo priebežne."""
+            if source.status != "SUCCESS":
+                return
+            if not getattr(source, "checked_at", None):
+                source.checked_at = datetime.now(timezone.utc).isoformat()
+            try:
+                loop = asyncio.get_running_loop()
+                t = loop.create_task(upsert_single_report_source(task.report_request_id, source))
+                _background_tasks.add(t)
+                t.add_done_callback(_background_tasks.discard)
+            except RuntimeError:
+                pass
         for retry_pass, base_delay in enumerate(_RETRY_DELAYS):
             # 3d: Retry len network-related stavy, nie interné chyby (bugy sa nepotvrdia znova)
             retryable_sources = [
@@ -425,7 +449,9 @@ async def _execute_report_inner(task: ReportTask, *, defer_terminal_failure: boo
                     orsr_extract_type=task.orsr_extract_type,
                     crz_date_from=task.crz_date_from,
                     rozhodnutia_date_from=task.rozhodnutia_date_from,
+                    on_source_done=_on_retry_source_done,
                     disable_circuit_breaker=True,  # Retry pass: skús aj circuit-open scrapery
+                    max_concurrency=2,  # Nižšia konkurencia pri retry = vyššia úspešnosť obnovy
                 )
             _log.info(f"[{_rid}] Scraper lock released after retry pass {retry_pass + 1}")
             # Počítaj aj execution čas scraperov, nie len sleep delays — inak budget nikdy nevyprší
