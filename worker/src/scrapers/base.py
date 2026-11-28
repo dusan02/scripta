@@ -361,9 +361,9 @@ class BaseScraper(PdfGeneratorMixin, StealthDebtorMixin, TableExtractorMixin, Ca
         """Go to URL with unified retry; mark as UNAVAILABLE on persistent failures.
 
         Používa exponential backoff s jitterom zo unified retry helpera.
-        Default: max 2 pokusy po 25s (namiesto 3×40s = 120s, čo presahovalo 90s per-scraper timeout).
+        Default: settings.scraper_retries + 1 pokusov po 25s (3×25s = 75s < 90-120s per-scraper timeout).
         """
-        attempts = (retries if retries is not None else min(settings.scraper_retries, 1)) + 1
+        attempts = (retries if retries is not None else settings.scraper_retries) + 1
         delay = settings.scraper_retry_delay
         last_error: Optional[Exception] = None
         for attempt in range(1, attempts + 1):

@@ -318,9 +318,9 @@ async def save_vestnik_events_to_db(ico: str, events: List[Dict]):
                 else:
                     record = await transaction.vestnikevent.create({
                         "companyIco": ico,
-                        "eventType": analysis.typ_udalosti,
-                        "severityLevel": analysis.rizikovost,
-                        "summary": analysis.zhrnutie + "\nVarovné indikátory: " + ", ".join(analysis.red_flags),
+                        "eventType": typ_udalosti,
+                        "severityLevel": rizikovost,
+                        "summary": summary_text,
                         "publishedAt": pub_date,
                         "sourceId": source_id,
                     })
