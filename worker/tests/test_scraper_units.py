@@ -564,3 +564,31 @@ class TestPaidReportScraperOptimizations:
         res = asyncio.run(scraper.run(ico="35729066", output_dir=tmp_path))
         assert res.status == "UNAVAILABLE"
         assert "CRZ down" in (res.status_message or "")
+
+    def test_ncrzp_clean_result_not_injected_as_pledge(self):
+        from src.verdict_metrics import _inject_ncrzp_findings
+
+        clean_payload = {"justification": "[]", "executiveSummary": "Čistá firma."}
+        res_clean = _inject_ncrzp_findings(
+            dict(clean_payload),
+            [{"source_type": "NCRZP", "findings": "Subjekt nie je evidovaný v Notárskom centrálnom registri záložných práv."}],
+            "35729066",
+        )
+        assert res_clean["justification"] == "[]"
+
+        hit_payload = {"justification": "[]", "executiveSummary": "Firma s úverom."}
+        res_hit = _inject_ncrzp_findings(
+            dict(hit_payload),
+            [{"source_type": "NCRZP", "findings": "POZOR: Subjekt (IČO: 35729066) je evidovaný v registri NCRZP. NCRzp 12345/2025"}],
+            "35729066",
+        )
+        assert "NCRzp 12345/2025" in res_hit["justification"]
+
+    def test_manual_lookup_urls_updated(self):
+        from src.report_translators import _MANUAL_LOOKUP_URLS
+
+        assert _MANUAL_LOOKUP_URLS["ZRSR"] == "https://www.zrsr.sk/index"
+        assert _MANUAL_LOOKUP_URLS["CRZ"] == "https://www.crz.gov.sk/zmluvy/"
+        assert _MANUAL_LOOKUP_URLS["NCRZP"] == "https://www.notar.sk/zalozne-prava/"
+        assert _MANUAL_LOOKUP_URLS["NCRD"] == "https://www.notar.sk/drazby/"
+        assert _MANUAL_LOOKUP_URLS["RPO"] == "https://rpo.statistics.sk/new/"

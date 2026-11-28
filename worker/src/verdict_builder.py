@@ -1117,11 +1117,18 @@ async def run_and_save_audit_verdict(
         except Exception as qa_err:
             logger.warning(f"Report QA Agent zlyhal pre IČO {ico}: {qa_err} — preskakujem QA kontrolu.")
 
-        # Ak QA našlo CRITICAL nezrovnalosti, zavoláme Chief Auditora znova so spätnou väzbou.
-        if qa_discrepancies and any(d.severity == "CRITICAL" for d in qa_discrepancies):
+        # Ak QA našlo opraviteľné CRITICAL nezrovnalosti vo verdikte, zavoláme Chief Auditora znova.
+        # Pozn.: `balance_sheet_integrity` je anomália v zdrojových dátach RÚZ (napr. časové rozlíšenie
+        # pasív v SK GAAP), ktorú Chief Auditor nemôže v zdrojových dátach zmeniť — jej re-run iba
+        # zbytočne spáli ~43s a ~$0.14.
+        actionable_critical = [
+            d for d in (qa_discrepancies or [])
+            if d.severity == "CRITICAL" and "balance_sheet_integrity" not in (d.field or "").lower()
+        ]
+        if actionable_critical:
             try:
-                qa_discrepancies_json = json.dumps([d.model_dump() for d in qa_discrepancies], ensure_ascii=False)
-                logger.warning(f"[QA RE-RUN] IČO {ico}: re-running Chief Auditor with {len(qa_discrepancies)} discrepancies")
+                qa_discrepancies_json = json.dumps([d.model_dump() for d in actionable_critical], ensure_ascii=False)
+                logger.warning(f"[QA RE-RUN] IČO {ico}: re-running Chief Auditor with {len(actionable_critical)} actionable discrepancies")
                 verdict = await safe_llm_call(
                     evaluate_audit_verdict, auditor_input_json,
                     model=_chief_model,

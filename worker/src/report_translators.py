@@ -9,23 +9,23 @@ from src.report_sanitizers import sanitize_llm_text
 
 _MANUAL_LOOKUP_URLS: dict[str, str] = {
     "ORSR": "https://www.orsr.sk/default.asp?lan=sk",
-    "ZRSR": "https://www.zrsr.sk/default.aspx?lan=sk",
-    "INSOLVENCY": "https://www.justice.gov.sk/Stranky/Registre/Registru-upadcov.aspx",
-    "CRE": "https://www.crz.sk/",
+    "ZRSR": "https://www.zrsr.sk/index",
+    "INSOLVENCY": "https://replik.justice.sk/ru-verejnost-web/",
+    "CRE": "https://obcan.justice.sk/pilot/poverenia/",
     "RPVS": "https://rpvs.gov.sk/rpvs/",
-    "RPO": "https://www.rpo.sk/",
+    "RPO": "https://rpo.statistics.sk/new/",
     "OBCHODNY_VESTNIK": "https://www.slov-lex.sk/obchodny-vestnik/",
-    "CRZ": "https://www.crz.gov.sk/index.php/main/zmluvy/",
+    "CRZ": "https://www.crz.gov.sk/zmluvy/",
     "UVO": "https://www.uvo.gov.sk/evestnik",
     "REGISTER_UZ": "https://www.registeruz.sk/",
-    "ROZHODNUTIA": "https://www.slov-lex.sk/pravne-predpisy/sudy/",
-    "DISKVALIFIKACIE": "https://www.justice.gov.sk/Stranky/Registre/Registrovane-osoby.aspx",
-    "NCRZP": "https://www.ncz.sk/",
-    "NCRD": "https://www.ncrd.sk/",
+    "ROZHODNUTIA": "https://www.justice.gov.sk/sudy-a-rozhodnutia/sudy/rozhodnutia/",
+    "DISKVALIFIKACIE": "https://www.justice.gov.sk/registre/registerDiskvalifikacii/",
+    "NCRZP": "https://www.notar.sk/zalozne-prava/",
+    "NCRD": "https://www.notar.sk/drazby/",
     "OCHRANNE_ZNAMKY": "https://www.upv.gov.sk/sk/registre/",
-    "SP_DLZNICI": "https://www.socpoist.sk/obchodna-informacia/",
+    "SP_DLZNICI": "https://socpoist.sk/nastroje-sluzby/zoznam-dlznikov",
     "VSZP_DLZNICI": "https://www.vszp.sk/platitelia/platenie-poistneho/zoznam-dlznikov.html",
-    "UNION_DLZNICI": "https://www.unionzp.sk/zoznam-dlznikov/",
+    "UNION_DLZNICI": "https://portal.unionzp.sk/pub/dlznici",
     "DOVERA_DLZNICI": "https://www.dovera.sk/overenia/dlznici/zoznam-dlznikov",
     "FS_DANOVE_SUBJEKTY": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
     "FS_DPH_REGISTROVANI": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
@@ -35,7 +35,7 @@ _MANUAL_LOOKUP_URLS: dict[str, str] = {
     "FS_DAN_Z_PRIJMOV": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
     "FS_DAN_PRIJMOV_REG": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
     "FINANCNA_SPRAVA": "https://www.financnasprava.sk/sk/elektronicke-sluzby/verejne-sluzby/zoznamy",
-    "POVERENIA": "https://www.justice.gov.sk/Stranky/Registre/Exekucie.aspx",
+    "POVERENIA": "https://obcan.justice.sk/pilot/poverenia/",
 }
 
 def format_findings(source, i18n=None) -> str:
@@ -62,6 +62,9 @@ def format_findings(source, i18n=None) -> str:
     raw = re.sub(r'^Nepodarilo sa nájsť link\s*["„].*["„]\.', 'Register nedostupný — štátny portál zmenil layout.', raw)
     # Semafor queue timeout — scraper čakal príliš dlho na semafor
     raw = re.sub(r'Scraper čakal príliš dlho na semafor \(\d+s\)\.?', 'Register dočasne nedostupný — prekročený časový limit.', raw)
+    raw = re.sub(r'Scraper timeout \(\d+s\)\.?', 'Register dočasne nedostupný — prekročený časový limit odozvy.', raw)
+    raw = re.sub(r'^ZRSR:\s*Altcha anti-bot ochranu sa nepodarilo vyriešiť\.?', 'Register je momentálne chránený bezpečnostnou kontrolou — vyžaduje manuálne overenie.', raw)
+    raw = re.sub(r'\s*\(Altcha anti-bot\)', '', raw)
     raw = sanitize_llm_text(raw)
 
     # ── Comprehensive scraper findings translation ──

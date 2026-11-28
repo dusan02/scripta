@@ -594,6 +594,15 @@ def compute_financial_ratios(stmt: Any) -> Dict[str, Any]:
         cogs_proxy = None
         if material_consumption is not None and material_consumption > 0:
             cogs_proxy = material_consumption
+        # Pre obchodné/distribučné firmy (napr. predaj vozidiel/tovaru) tvorí hlavnú časť COGS
+        # obstaranie predaného tovaru (revenue - grossProfit), kým spotreba materiálu (r.12) je len zlomok.
+        if (
+            gross_profit_raw is not None
+            and revenue > 0
+            and (revenue - gross_profit_raw) > 0
+            and (cogs_proxy is None or cogs_proxy < 0.05 * revenue)
+        ):
+            cogs_proxy = revenue - gross_profit_raw
         # Anualizácia COGS pre skrátené obdobia
         if cogs_proxy is not None and months_in_period > 0 and months_in_period != 12:
             cogs_proxy = cogs_proxy * (12 / months_in_period)

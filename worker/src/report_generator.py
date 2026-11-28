@@ -1338,7 +1338,7 @@ def render_html_report(context: dict) -> str:
     template = env.get_template("report_template.html")
     return template.render(**context)
 
-async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
+async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str, *, rerender_html_for_pages=None):
     logger.info(f"Spúšťam Playwright pre konverziu do PDF ({pdf_path})...")
     dir_name = os.path.dirname(pdf_path)
     if dir_name:
@@ -1389,6 +1389,29 @@ async def render_pdf_via_playwright(html_content: str, pdf_path: str, ico: str):
                     ),
                     timeout=120,
                 )
+                # Ak sa odhad počtu strán cover page líšil od reality, prepočítame čísla strán
+                # priamo v TEJTO ISTEJ otvorenej inštancii Chromium (bez re-fetchu DB a bez
+                # opätovného generovania 13 grafov — ušetrí ~15-18s na report).
+                if rerender_html_for_pages is not None:
+                    from PyPDF2 import PdfReader
+                    actual_pages = len(PdfReader(str(pdf_path)).pages)
+                    updated_html = rerender_html_for_pages(actual_pages)
+                    if updated_html is not None:
+                        with open(html_path, "w", encoding="utf-8") as f2:
+                            f2.write(updated_html)
+                        await page.goto(f"file://{html_path}", wait_until="domcontentloaded", timeout=30000)
+                        await page.emulate_media(media="print")
+                        await asyncio.wait_for(
+                            page.pdf(
+                                path=pdf_path,
+                                format="A4",
+                                margin={"top": "12mm", "bottom": "18mm", "left": "0mm", "right": "0mm"},
+                                print_background=True,
+                                display_header_footer=False,
+                                prefer_css_page_size=True,
+                            ),
+                            timeout=120,
+                        )
             except asyncio.TimeoutError:
                 logger.error(f"Playwright page.pdf() timeout (120s) — HTML pravdepodobne príliš veľký")
                 raise
@@ -1416,6 +1439,7 @@ async def generate_forensic_pdf_report(
     report_language: str = "sk",
     vestnik_date_from: Optional[str] = None,
     company_name_override: Optional[str] = None,
+    adjust_pages_callback=None,
 ):
     logger.info(f"Generujem HTML/PDF report pre IČO: {ico} (report_language={report_language})")
     db = get_db()
@@ -1459,8 +1483,24 @@ async def generate_forensic_pdf_report(
         context = prepare_report_context(company, sources, start_pages_map, total_pages, generated_at, report_language=report_language, vestnik_date_from=vestnik_date_from)
         html_content = render_html_report(context)
 
+        def _rerender_if_needed(actual_pages: int) -> Optional[str]:
+            if adjust_pages_callback is None:
+                return None
+            updated = adjust_pages_callback(actual_pages)
+            if updated is None:
+                return None
+            new_map, new_total = updated
+            context["start_pages_map"] = new_map
+            context["total_pages"] = new_total
+            return render_html_report(context)
+
         pdf_path = target_path or f"assets/{ico}/Verifa_Forensic_Report_{ico}.pdf"
-        await render_pdf_via_playwright(html_content, pdf_path, ico)
+        await render_pdf_via_playwright(
+            html_content,
+            pdf_path,
+            ico,
+            rerender_html_for_pages=_rerender_if_needed if adjust_pages_callback is not None else None,
+        )
 
         return pdf_path
 

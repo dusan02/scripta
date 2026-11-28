@@ -215,7 +215,7 @@ class RpvsScraper(BaseScraper):
                 verify_link = page.locator("a:has-text('Verifikačný dokument')").first
                 if await verify_link.count() > 0:
                     logger.info(f"[{self.source_type}] Klikám na 'Verifikačný dokument (pdf)'")
-                    dl_result = await self._download_pdf(page, "a:has-text('Verifikačný dokument')", file_path)
+                    dl_result = await self._download_pdf(page, "a:has-text('Verifikačný dokument')", file_path, timeout=5000)
                     if dl_result > 0:
                         logger.info(f"[{self.source_type}] PDF úspešne stiahnuté do {file_path}")
                     else:

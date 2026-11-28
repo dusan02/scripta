@@ -12,7 +12,11 @@ function sanitizeStatusMessage(msg: string | null | undefined, t: (key: string) 
   if (/^Závislosť \w+ neposkytla potrebné údaje\./.test(raw)) {
     return t("report.orsrDependencyMissing");
   }
+  if (/altcha|anti-bot|captcha/i.test(raw)) {
+    return t("report.antibotProtected");
+  }
   raw = raw.replace(/Scraper čakal príliš dlho na semafor \(\d+s\)\.?/g, "Register dočasne nedostupný — prekročený časový limit.");
+  raw = raw.replace(/Scraper timeout \(\d+s\)\.?/g, "Register dočasne nedostupný — prekročený časový limit odozvy.");
   raw = raw.replace(/Page\.goto:\s*Navigation.*timeout.*/g, "Register nedostupný — prekročený časový limit načítania.");
   raw = raw.replace(/Execution context was destroyed.*/g, "Register dočasne nedostupný.");
   raw = raw.replace(/Target page.*has been closed.*/g, "Register dočasne nedostupný.");
@@ -27,6 +31,12 @@ function sanitizeStatusMessage(msg: string | null | undefined, t: (key: string) 
   raw = raw.replace(/^Chyba pri spracovaní[^:]*:\s*\w*Error:\s*/g, "Chyba pri spracovaní — ");
   raw = raw.replace(/Unhandled exception:\s*\w*Error:\s*/g, "");
   return raw.trim() || null;
+}
+
+function formatUnavailableCount(count: number, t: (key: string) => string): string {
+  if (count === 1) return `1 ${t("report.zdrojNedostupny1")}`;
+  if (count >= 2 && count <= 4) return `${count} ${t("report.zdrojeNedostupne")}`;
+  return `${count} ${t("report.zdrojovNedostupnych5")}`;
 }
 
 export default function ErrorDetails({ sources }: { sources: ReportSource[] }) {
@@ -47,7 +57,7 @@ export default function ErrorDetails({ sources }: { sources: ReportSource[] }) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" />
           </svg>
-          {failedSources.length} {t("report.zdrojeNedostupne")}
+          {formatUnavailableCount(failedSources.length, t)}
         </span>
         <svg
           width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"

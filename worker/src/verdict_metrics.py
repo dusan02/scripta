@@ -818,6 +818,23 @@ def _inject_ncrzp_findings(payload: dict, registry_findings: list[dict], ico: st
     if not ncrzp_findings:
         return payload
 
+    # Ochrana pred false-positive: keď je register čistý ("Subjekt nie je evidovaný..."),
+    # findings je neprázdny text o negatívnom výsledku — NESMIE sa injektovať ako záložné právo!
+    _ncrzp_lower = ncrzp_findings.lower()
+    _CLEAN_MARKERS = (
+        "nie je evidovan",
+        "žiadny záznam",
+        "nenašli sa žiadne",
+        "nenašiel sa žiadny",
+        "neobsahuje žiadne",
+        "bez nálezu",
+        "žiadne výsledky",
+        "bez výsledkov",
+        "dočasne nedostupn",
+    )
+    if any(m in _ncrzp_lower for m in _CLEAN_MARKERS):
+        return payload
+
     # Skontroluj či LLM už nespomenul NCRZP / záložné právo v texte
     exec_summary = payload.get("executiveSummary", "") or ""
     key_risk = payload.get("keyRisk", "") or ""
@@ -829,6 +846,8 @@ def _inject_ncrzp_findings(payload: dict, registry_findings: list[dict], ico: st
     # Parsovanie NCRZP findings — extrahuj počet a čísla záložných práv
     import re as _re
     ncrzp_numbers = _re.findall(r'NCRzp\s*\d+/\d+', ncrzp_findings, _re.IGNORECASE)
+    if not ncrzp_numbers and "pozor" not in _ncrzp_lower:
+        return payload
     ncrzp_count = len(ncrzp_numbers) if ncrzp_numbers else 1
 
     # Vytvor štruktúrovaný záznam pre justification tabuľku

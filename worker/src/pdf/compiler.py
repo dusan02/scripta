@@ -187,14 +187,21 @@ class PdfCompiler:
         from src.report_generator import generate_forensic_pdf_report
         ico = identifier.replace("IČO ", "").strip()
 
-        # 3. Odhadneme počet strán cover page podľa počtu zdrojov (vyhneme sa dvojitej generácii).
-        success_sources = [s for s in sources if s.status == "SUCCESS"]
-        estimated_cover_pages = 7 if len(success_sources) <= 18 else 8
+        # 3. Realistický odhad počtu strán cover page (s finančnými výkazmi má moderná šablóna ~18 strán,
+        # bez nich ~9 strán) + in-place prepočet v otvorenom Playwrighte bez opätovného generovania grafov.
+        has_financials = any(s.source_type == "REGISTER_UZ" and s.status == "SUCCESS" for s in sources)
+        estimated_cover_pages = 18 if has_financials else 9
         cover_path = output_dir / "cover_page.pdf"
         _assign_start_pages(estimated_cover_pages)
 
         # Calculate total pages = cover_pages + divider(1) + sum of included source pages
         total_sources_pages = sum(s.page_count for s in sources if s.page_count)
+
+        def _adjust_pages_if_mismatch(actual_pages: int):
+            if actual_pages == estimated_cover_pages:
+                return None
+            _assign_start_pages(actual_pages)
+            return start_pages_map, actual_pages + 1 + total_sources_pages
 
         await generate_forensic_pdf_report(
             ico=ico,
@@ -206,23 +213,9 @@ class PdfCompiler:
             report_language=report_language,
             vestnik_date_from=vestnik_date_from,
             company_name_override=company_name,
+            adjust_pages_callback=_adjust_pages_if_mismatch,
         )
         actual_cover_pages = len(PdfReader(str(cover_path)).pages)
-
-        # 4. Ak sa odhad mýli, regenerujeme s opravenými start_page.
-        if actual_cover_pages != estimated_cover_pages:
-            _assign_start_pages(actual_cover_pages)
-            await generate_forensic_pdf_report(
-                ico=ico,
-                sources=sources,
-                start_pages_map=start_pages_map,
-                total_pages=actual_cover_pages + 1 + total_sources_pages,
-                generated_at=generated_at_str,
-                target_path=str(cover_path),
-                report_language=report_language,
-                vestnik_date_from=vestnik_date_from,
-                company_name_override=company_name,
-            )
 
         # 5. Zlúčime cover page + divider + PDF zdrojov pomocou PdfWriter.
         # Táto operácia je CPU-bound (PyPDF2 merge, page numbering, overlay) a môže trvať

@@ -191,8 +191,14 @@ async def run_scrapers(
     concurrency_limit = max_concurrency or 3
     global_semaphore = asyncio.Semaphore(concurrency_limit)
 
-    # Rozdelíme na nezávislé a závislé scrapery
-    independent = [s for s in sources if s not in _DEPENDS_ON]
+    # Rozdelíme na nezávislé a závislé scrapery.
+    # KRITICKÉ PORADIE: Zdroje, na ktorých závisia iné scrapery (napr. ORSR → RPO, FINANCNA_SPRAVA,
+    # DISKVALIFIKACIE), musia štartovať ako PRVÉ (slot #1), aby závislé scrapery nečakali ~140s na koniec frontu!
+    _dep_providers = set(_DEPENDS_ON.values())
+    independent = sorted(
+        [s for s in sources if s not in _DEPENDS_ON],
+        key=lambda s: (0 if s in _dep_providers else (1 if s in _API_SOURCE_TYPES else 2)),
+    )
     dependent = [s for s in sources if s in _DEPENDS_ON]
 
     results_by_source: Dict[str, ScrapedSource] = {}

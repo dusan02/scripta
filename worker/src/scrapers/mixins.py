@@ -99,8 +99,9 @@ class PdfGeneratorMixin:
     async def _generate_no_results_pdf(
         self, page: Page, output_path: Path, ico: str, *, title: str, message: str
     ) -> None:
-        if SKIP_PDF_VAR.get():
-            return None
+        # PdfCompiler univerzálne vynecháva všetky prílohy bez záznamu (_has_no_record).
+        # Preskočením Chromium page.pdf() pre prázdne výsledky ušetríme ~15-25s CPU a disk I/O.
+        return None
         """Vygeneruje PDF zo SKUTOČNEJ výsledkovej stránky (screenshot dôkaz).
 
         Namiesto vymazania obsahu zachováme reálnu stránku — vyhľadávacie pole
@@ -398,8 +399,9 @@ class StealthDebtorMixin:
         self, page: Page, output_path: Path, ico: str,
         *, source_name: str, has_ico: bool, has_no_results_text: bool,
     ) -> None:
-        if SKIP_PDF_VAR.get():
-            return None
+        # PdfCompiler univerzálne vynecháva všetky prílohy bez záznamu (_has_no_record).
+        # Preskočením Chromium page.pdf() pre čisté registre dlžníkov ušetríme CPU aj disk I/O.
+        return None
         """Vygeneruje PDF s dôkazom negatívneho výsledku pre debtor scrapery.
 
         Rebuildne body tak, aby bol dôkaz vždy viditeľný a neobsahoval

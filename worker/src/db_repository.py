@@ -796,6 +796,13 @@ async def save_scoring_snapshot(snapshot_payload: dict):
         ico = snapshot_payload.get('companyIco', '?')
         logger.info(f"ScoringSnapshot pre {ico} uložený (v={snapshot_payload.get('scoringVersion', '?')}, score={snapshot_payload.get('finalScore', '?')}).")
     except Exception as e:
+        err_str = str(e)
+        if "reportFinancialSnapshotId" in err_str and "does not exist" in err_str and "reportFinancialSnapshotId" in snapshot_payload:
+            fallback_payload = {k: v for k, v in snapshot_payload.items() if k != "reportFinancialSnapshotId"}
+            await db.scoringsnapshot.create(data=fallback_payload)
+            ico = snapshot_payload.get('companyIco', '?')
+            logger.info(f"ScoringSnapshot pre {ico} uložený bez reportFinancialSnapshotId (v={snapshot_payload.get('scoringVersion', '?')}, score={snapshot_payload.get('finalScore', '?')}).")
+            return
         logger.error(f"Chyba pri ukladaní ScoringSnapshot: {e}")
         raise
 
@@ -818,6 +825,9 @@ async def save_report_financial_snapshot(snapshot_payload: dict) -> str | None:
         logger.info(f"[SNAPSHOT] ReportFinancialSnapshot pre {ico} uložený (report={snapshot_payload['reportRequestId']}).")
         return row.id
     except Exception as e:
+        if "does not exist" in str(e):
+            logger.debug(f"[SNAPSHOT] Tabuľka ReportFinancialSnapshot v DB zatiaľ neexistuje — preskakujem.")
+            return None
         logger.error(f"Chyba pri ukladaní ReportFinancialSnapshot: {e}")
         return None
 

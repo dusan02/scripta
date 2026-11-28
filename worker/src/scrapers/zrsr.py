@@ -109,7 +109,7 @@ class ZrsrScraper(BaseScraper):
             if not altcha_ok:
                 return self._make_result(
                     status="UNAVAILABLE",
-                    status_message="ZRSR: Altcha anti-bot ochranu sa nepodarilo vyriešiť.",
+                    status_message="Register je momentálne chránený bezpečnostnou kontrolou (Altcha anti-bot) — vyžaduje manuálne overenie.",
                 )
 
             async with page.expect_navigation(timeout=30000):
@@ -155,7 +155,7 @@ class ZrsrScraper(BaseScraper):
             if not altcha_ok:
                 return self._make_result(
                     status="UNAVAILABLE",
-                    status_message="ZRSR: Altcha anti-bot ochranu sa nepodarilo vyriešiť.",
+                    status_message="Register je momentálne chránený bezpečnostnou kontrolou (Altcha anti-bot) — vyžaduje manuálne overenie.",
                 )
 
             submit_btn = page.locator("input[name='cmdPotvrdit']")
@@ -285,21 +285,21 @@ class ZrsrScraper(BaseScraper):
         Altcha je web component so shadow DOM — treba kliknúť na vnútorný checkbox
         alebo na label 'Nie som robot'.
         Vráti True ak sa podarilo, False ak nie."""
-        for attempt in range(3):
+        # Fail-fast (1 pokus × 5s namiesto 3 × 15s = 45s), aby ZRSR pri anti-bot bloku
+        # nezadržiavalo browserless slot desiatky sekúnd pre ostatné registre.
+        for attempt in range(1):
             try:
                 widget = page.locator("altcha-widget")
                 if await widget.count() == 0:
-                    logger.warning(f"[{self.source_type}] Altcha widget sa nenašiel (pokus {attempt+1}/3).")
-                    if attempt < 2:
-                        await page.wait_for_load_state("domcontentloaded", timeout=5000)
-                    continue
+                    logger.warning(f"[{self.source_type}] Altcha widget sa nenašiel.")
+                    return False
 
                 # Skús 1: Klik na label 'Nie som robot' (najspoľahlivejšie)
                 try:
                     label = page.locator("label[for^='altcha_checkbox']")
                     if await label.count() > 0:
-                        logger.info(f"[{self.source_type}] Klikám na 'Nie som robot' label (attempt {attempt+1}/3).")
-                        await label.click(timeout=5000)
+                        logger.info(f"[{self.source_type}] Klikám na 'Nie som robot' label.")
+                        await label.click(timeout=3000)
                     else:
                         raise Exception("No label found")
                 except Exception:
@@ -307,30 +307,27 @@ class ZrsrScraper(BaseScraper):
                     try:
                         checkbox = page.locator("altcha-widget input[type='checkbox'], altcha-widget >> shadow >> input[type='checkbox']")
                         if await checkbox.count() > 0:
-                            logger.info(f"[{self.source_type}] Klikám na Altcha checkbox (attempt {attempt+1}/3).")
-                            await checkbox.click(timeout=5000)
+                            logger.info(f"[{self.source_type}] Klikám na Altcha checkbox.")
+                            await checkbox.click(timeout=3000)
                         else:
                             raise Exception("No checkbox in shadow DOM")
                     except Exception:
                         # Skús 3: Klik na samotný widget element
-                        logger.info(f"[{self.source_type}] Klikám na Altcha widget element (attempt {attempt+1}/3).")
-                        await widget.click(timeout=5000)
+                        logger.info(f"[{self.source_type}] Klikám na Altcha widget element.")
+                        await widget.click(timeout=3000)
 
-                # Počkaj na proof-of-work — Altcha počíta hash, môže trvať
-                logger.info(f"[{self.source_type}] Čakám na Altcha proof-of-work...")
+                # Krátke počkanie — ak portál blokuje automatizáciu, uvoľníme slot do 5s
+                logger.info(f"[{self.source_type}] Čakám na Altcha verifikáciu (max 5s)...")
                 await page.wait_for_function(
                     'document.querySelector("input[name=\\"altcha\\"]") && document.querySelector("input[name=\\"altcha\\"]").value !== ""',
-                    timeout=15000
+                    timeout=5000
                 )
                 logger.info(f"[{self.source_type}] Altcha úspešne vyriešená!")
                 return True
 
             except Exception as e:
-                logger.warning(f"[{self.source_type}] Altcha attempt {attempt+1}/3 zlyhal: {e}")
-                if attempt < 2:
-                    await page.wait_for_load_state("domcontentloaded", timeout=5000)
+                logger.warning(f"[{self.source_type}] Altcha neprešla ({e}) — rýchle uvoľnenie slotu.")
 
-        logger.error(f"[{self.source_type}] Altcha sa nepodarila vyriešiť po 3 pokusoch.")
         return False
 
     async def _extract_findings(self, page: Page) -> Optional[str]:
