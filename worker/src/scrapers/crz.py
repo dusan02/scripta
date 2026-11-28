@@ -6,6 +6,7 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlencode
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
@@ -18,12 +19,24 @@ logger = logging.getLogger(__name__)
 class CrzScraper(BaseScraper):
     """
     Scraper pre Centrálny register zmlúv (crz.gov.sk).
-    Vyhľadáva podľa IČO dodávateľa s dátumom "od" (default 1 rok dozadu, alebo user setting).
-    Podporuje pagination — scrapne všetky strany a spojí ich do jedného PDF.
+    Používa priamy GET vyhľadávací URL (#frm_filter_3 je GET formulár s art_ico
+    a art_datum_zverejnene_od) — rýchlejšie a spoľahlivejšie než klikanie na
+    kolapsovateľné formuláre. Podporuje pagination (max 30 zmlúv / 5 strán).
     """
 
     source_type = "CRZ"
     base_url = "https://www.crz.gov.sk/"
+    search_url = "https://www.crz.gov.sk/2171273-sk/centralny-register-zmluv/"
+
+    @classmethod
+    def _build_search_url(cls, ico: str, date_from_str: str) -> str:
+        params = urlencode({
+            "art_ico": ico,
+            "art_datum_zverejnene_od": date_from_str,
+            "ID": "2171273",
+            "odoslat": "Vyhľadať",
+        })
+        return f"{cls.search_url}?{params}"
 
     async def run(self, *, ico: str, output_dir: Path, crz_date_from: Optional[str] = None, **kwargs) -> ScrapedSource:
         page: Optional[Page] = None
@@ -32,14 +45,11 @@ class CrzScraper(BaseScraper):
             _t = time.perf_counter()
             page = await self._get_page(block_images=False)
 
-            await self._navigate(page)
-            await self._dismiss_cookie_banner(page)
-            await self._open_advanced_search(page)
-            await self._fill_ico(page, ico)
-
             date_from_str = self._resolve_date_from(crz_date_from)
-            await self._set_date_from(page, date_from_str)
-            await self._click_search(page)
+            target_url = self._build_search_url(ico, date_from_str)
+            logger.info(f"[{self.source_type}] Navigujem priamo na GET search URL (od {date_from_str})")
+            await self._safe_goto(page, target_url, timeout_ms=25000)
+            await self._dismiss_cookie_banner(page)
             await self._wait_for_results(page)
 
             if await self._check_no_results(page):
@@ -93,8 +103,9 @@ class CrzScraper(BaseScraper):
                 findings=findings,
             )
 
-        except ScraperUnavailableError:
-            raise
+        except ScraperUnavailableError as e:
+            logger.warning(f"[{self.source_type}] Nedostupné pre IČO {ico}: {e}")
+            return self._make_result(status="UNAVAILABLE", file_path=None, status_message=str(e))
         except Exception as e:
             logger.exception(f"[{self.source_type}] Nečakaná chyba pri IČO {ico}: {e}")
             return self._make_result(status="FAILED", file_path=None, status_message=f"Interná chyba scrapera: {str(e)}")
@@ -125,8 +136,8 @@ class CrzScraper(BaseScraper):
 
     async def _fill_ico(self, page: Page, ico: str) -> None:
         try:
-            # Presný CSS selector: #search-input (fulltextové vyhľadávanie)
-            ico_input = page.locator("#search-input")
+            # Presný CSS selector vo filtri #frm_filter_3: #frm_filter_3_art_ico
+            ico_input = page.locator("#frm_filter_3_art_ico")
             await ico_input.wait_for(timeout=10000)
             await ico_input.click()
             await ico_input.fill(ico)
@@ -181,18 +192,23 @@ class CrzScraper(BaseScraper):
                 """() => {
                     if (!document.body) return false;
                     const body = document.body.innerText ? document.body.innerText.toLowerCase() : '';
-                    const hasTable = document.querySelector('table tbody tr') !== null;
+                    const hasTable = document.querySelector('table.table_list tbody tr, table tbody tr') !== null;
+                    const hasFilterForm = document.querySelector('#frm_filter_3') !== null;
                     const hasNoResults = ['nenašli sa žiadne','žiadne záznamy','neobsahuje žiadne','0 záznamov'].some(m => body.includes(m));
-                    return hasTable || hasNoResults;
+                    return hasTable || hasNoResults || hasFilterForm;
                 }""",
-                timeout=20000,
+                timeout=15000,
             )
         except PlaywrightTimeoutError:
             logger.warning(f"[{self.source_type}] Čakanie na výsledky vypršalo, pokračujem s aktuálnym obsahom.")
 
     async def _check_no_results(self, page: Page) -> bool:
         body_text = await page.inner_text("body")
-        return self._has_no_results_text(body_text)
+        if self._has_no_results_text(body_text):
+            return True
+        # CRZ pri 0 zmluvách pre zadané IČO nevykreslí tabuľku vôbec (len formulár #frm_filter_3)
+        row_count = await page.locator("table.table_list tbody tr, table tbody tr").count()
+        return row_count == 0
 
     async def _make_no_results_result(self, page: Page, ico: str, output_dir: Path, date_from_str: str) -> ScrapedSource:
         logger.info(f"[{self.source_type}] Žiadne záznamy pre IČO {ico}.")

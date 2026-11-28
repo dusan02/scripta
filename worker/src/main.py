@@ -396,12 +396,20 @@ async def _execute_report_inner(task: ReportTask, *, defer_terminal_failure: boo
                 t.add_done_callback(_background_tasks.discard)
             except RuntimeError:
                 pass
+        def _is_antibot_block(src) -> bool:
+            msg = (src.status_message or "").lower()
+            return "altcha" in msg or "anti-bot" in msg or "captcha" in msg
+
         for retry_pass, base_delay in enumerate(_RETRY_DELAYS):
-            # 3d: Retry len network-related stavy, nie interné chyby (bugy sa nepotvrdia znova)
+            # 3d: Retry len network-related stavy, nie interné chyby ani anti-bot bloky
+            # (opakované volanie napr. ZRSR pri Altcha bloku iba zbytočne pridáva ~2.5 min)
             retryable_sources = [
                 s for s in sources
-                if s.status == "UNAVAILABLE"
-                or (s.status == "FAILED" and ("timeout" in (s.status_message or "").lower() or "unreachable" in (s.status_message or "").lower()))
+                if not _is_antibot_block(s)
+                and (
+                    s.status == "UNAVAILABLE"
+                    or (s.status == "FAILED" and ("timeout" in (s.status_message or "").lower() or "unreachable" in (s.status_message or "").lower()))
+                )
             ]
             if not retryable_sources:
                 break

@@ -545,3 +545,22 @@ class TestPaidReportScraperOptimizations:
         assert _SCRAPER_TIMEOUTS["ZRSR"] == 120
         assert _SCRAPER_TIMEOUTS["RPVS"] == 120
         assert _SCRAPER_TIMEOUTS["CRZ"] == 120
+
+    def test_crz_direct_get_url_and_unavailable_handling(self, tmp_path):
+        from src.scrapers.crz import CrzScraper
+        from src.scrapers.base import ScraperUnavailableError
+
+        url = CrzScraper._build_search_url("35729066", "28.11.2025")
+        assert "art_ico=35729066" in url
+        assert "art_datum_zverejnene_od=28.11.2025" in url
+        assert "ID=2171273" in url
+
+        page = MagicMock()
+        page.close = AsyncMock()
+        scraper = CrzScraper(browser=MagicMock())
+        scraper._get_page = AsyncMock(return_value=page)
+        scraper._safe_goto = AsyncMock(side_effect=ScraperUnavailableError("CRZ down"))
+
+        res = asyncio.run(scraper.run(ico="35729066", output_dir=tmp_path))
+        assert res.status == "UNAVAILABLE"
+        assert "CRZ down" in (res.status_message or "")
