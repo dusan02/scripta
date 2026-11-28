@@ -164,15 +164,13 @@ async def safe_llm_call(func, *args, label: str = "llm_call", **kwargs):
             _log_failed_call_cost(model, label, "error")
             raise
 
-    # Fallback: iba Chief Auditor → 2.5 Pro (nehalucinuje).
-    # Cross-Analysis, QA a extractori → flash tier (flash-lite → flash).
+    # Fallback: Chief Auditor → Pro 3.1 → Flash 3.8.
+    # Cross-Analysis, QA a extractori → 3.6 Flash → 3.5 Flash-Lite.
     _original_model = model
     _is_chief = "Chief" in label
     if _is_chief:
-        # Chief Auditor: fallback len na 2.5 Pro (stabilný, nehalucinuje)
-        _fallback_chain = ("gemini-2.5-pro",)
+        _fallback_chain = (settings.model_verdict_fallback, settings.model_ifrs)
     else:
-        # Cross-Analysis, QA, extractori: flash-lite → flash
         _fallback_chain = (_FALLBACK_MODEL, _FALLBACK_MODEL_2)
     for fb_model in _fallback_chain:
         if model == fb_model or _original_model == fb_model:

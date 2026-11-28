@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from google.genai import types
 
 from src.config import settings
-from .shared import _get_gemini_client, _log_tokens, COMMON_BUT_PATTERNS, COMMON_FORENSIC_RULES, COMMON_TEXT_QUALITY_RULES
+from .shared import _get_gemini_client, _log_tokens, thinking_kwargs, COMMON_BUT_PATTERNS, COMMON_FORENSIC_RULES, COMMON_TEXT_QUALITY_RULES
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +204,8 @@ async def generate_cross_analysis(data_json: str, model: str = settings.model_cr
         response_mime_type="application/json",
         response_schema=CrossAnalysisResult,
         temperature=0.0,
-        max_output_tokens=65536
+        max_output_tokens=65536,
+        **thinking_kwargs(model, settings.thinking_level_cross),
     )
 
     response = await client.aio.models.generate_content(

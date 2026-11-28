@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from google.genai import types
 
 from src.config import settings
-from .shared import _get_gemini_client, _log_tokens
+from .shared import _get_gemini_client, _log_tokens, thinking_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -295,6 +295,7 @@ async def verify_report_quality(
         response_mime_type="application/json",
         response_schema=QAResult,
         temperature=0.0,
+        **thinking_kwargs(model),
     )
 
     response = await client.aio.models.generate_content(

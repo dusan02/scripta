@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from google.genai import types
 
 from src.config import settings
-from .shared import _get_gemini_client, _gemini_uploaded_file, _log_tokens
+from .shared import _get_gemini_client, _gemini_uploaded_file, _log_tokens, thinking_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ PRAVIDLA:
 - Pokud hodnotu nemůžete najít ve výkazu ani v příloze, vraťte hodnotu null a found_in='not_found'."""
 
 
-async def extract_staff_costs_focused(file_path: str, model: str = settings.model_fallback_2, report_language: str = "sk") -> Optional[float]:
+async def extract_staff_costs_focused(file_path: str, model: str = settings.model_staff_costs, report_language: str = "sk") -> Optional[float]:
     """
     Cielene extrahuje iba osobné náklady z PDF/TXT.
     Používa sa ako retry keď hlavná extrakcia vráti None pre osobne_naklady.
@@ -144,7 +144,8 @@ async def extract_staff_costs_focused(file_path: str, model: str = settings.mode
         system_instruction=system_prompt,
         response_mime_type="application/json",
         response_schema=StaffCostsResult,
-        temperature=0.0
+        temperature=0.0,
+        **thinking_kwargs(model),
     )
 
     try:

@@ -33,6 +33,30 @@ def _patched_generate_config(**kwargs):
 
 genai_types.GenerateContentConfig = _patched_generate_config
 
+
+def thinking_kwargs(model: str, level: Optional[str] = None) -> dict:
+    """Thinking nastavenia pre GenerateContentConfig podľa modelu (rozbaľ cez **).
+
+    - Gemini 4 (Hydrogen/Neon/Carbon): thinking_level LOW/MEDIUM/HIGH/XHIGH (thinking nejde vypnúť).
+      SDK pinnuté cez pydantic==2.7.4 (google-genai 1.x) pole thinking_level nepozná,
+      preto ho posielame cez http_options.extra_body.
+    - Pro modely alebo volajúci, ktorý chce reasoning (level zadaný): thinking_budget=-1 (auto).
+    - Flash-Lite 3.5: thinking_budget=0 vracia 400 INVALID_ARGUMENT → default modelu (bez thinkingu).
+    - Ostatné Flash: thinking_budget=0 (rýchla štruktúrovaná extrakcia).
+    """
+    if model.startswith("gemini-4"):
+        return {
+            "thinking_config": genai_types.ThinkingConfig(),
+            "http_options": genai_types.HttpOptions(
+                extra_body={"generationConfig": {"thinkingConfig": {"thinkingLevel": (level or "LOW").lower()}}}
+            ),
+        }
+    if level or "pro" in model:
+        return {"thinking_config": genai_types.ThinkingConfig(thinking_budget=-1)}
+    if "flash-lite" in model:
+        return {"thinking_config": genai_types.ThinkingConfig()}
+    return {"thinking_config": genai_types.ThinkingConfig(thinking_budget=0)}
+
 # ── Gemini API key pool ──────────────────────────────────────────────────────
 # Supports multiple keys via GEMINI_API_KEYS (comma-separated) for round-robin
 # rotation. Falls back to single GEMINI_API_KEY / GOOGLE_API_KEY env var.

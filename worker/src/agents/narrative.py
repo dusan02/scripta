@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from google.genai import types
 
 from src.config import settings
-from .shared import _get_gemini_client, _gemini_uploaded_file, _log_tokens
+from .shared import _get_gemini_client, _gemini_uploaded_file, _log_tokens, thinking_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +196,8 @@ async def extract_narrative_risk(file_path: str, model: str = settings.model_nar
         response_mime_type="application/json",
         response_schema=NarrativeRiskAnalysis,
         temperature=0.0,
-        max_output_tokens=65536
+        max_output_tokens=65536,
+        **thinking_kwargs(model),
     )
     with _gemini_uploaded_file(client, file_path) as uploaded_file:
         response = await client.aio.models.generate_content(

@@ -660,7 +660,7 @@ async def process_company(
                         ),
                         safe_llm_call(
                             verify_critical_numbers_blind, file_path,
-                            model=_MODEL_IFRS, label=f"Financial Verification Analyst:{file_name}"
+                            model=_cfg.model_verify, label=f"Financial Verification Analyst:{file_name}"
                         )
                     )
                 else:
@@ -703,7 +703,7 @@ async def process_company(
                     async with sem:
                         staff_costs = await safe_llm_call(
                             extract_staff_costs_focused, file_path,
-                            model=_MODEL_IFRS, label=f"Financial Statements Analyst STAFF-COSTS:{file_name}",
+                            model=_cfg.model_staff_costs, label=f"Financial Statements Analyst STAFF-COSTS:{file_name}",
                             report_language=report_language,
                         )
                     if staff_costs is not None:
@@ -1007,7 +1007,7 @@ async def process_company(
     logger.info(
         f"[{get_correlation_id() or '-'}] PIPELINE SUMMARY: ico={ico} "
         f"ifrs={_ifrs_count} vs={_vs_count} "
-        f"models=FinStmts:{_MODEL_IFRS}|AnnReport:{_MODEL_NARRATIVE}|Footnotes:{_MODEL_NOTES}|Vestnik:{_MODEL_VESTNIK}|PDFReader:{_cfg.model_pdf_reader}|Chief:{_cfg.model_verdict} "
+        f"models=FinStmts:{_MODEL_IFRS}|Verify:{_cfg.model_verify}|Staff:{_cfg.model_staff_costs}|AnnReport:{_MODEL_NARRATIVE}|Footnotes:{_MODEL_NOTES}|Vestnik:{_MODEL_VESTNIK}|PDFReader:{_cfg.model_pdf_reader}|Cross:{_cfg.model_cross_analysis}|Chief:{_cfg.model_verdict} "
         f"elapsed={_elapsed:.1f}s"
     )
     log_pipeline_end(ico, "OK", _elapsed)

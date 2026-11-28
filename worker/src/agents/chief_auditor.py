@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from google.genai import types
 
 from src.config import settings
-from .shared import _get_gemini_client, _log_tokens, COMMON_BUT_PATTERNS, COMMON_FORENSIC_RULES, COMMON_TEXT_QUALITY_RULES
+from .shared import _get_gemini_client, _log_tokens, thinking_kwargs, COMMON_BUT_PATTERNS, COMMON_FORENSIC_RULES, COMMON_TEXT_QUALITY_RULES
 
 logger = logging.getLogger(__name__)
 
@@ -685,6 +685,7 @@ async def evaluate_audit_verdict(
     report_language: str = "sk",
     cross_analysis_summary: str = "",
     qa_discrepancies_json: str = "",
+    thinking_level: Optional[str] = None,
 ) -> AuditVerdict:
     """
     Vykoná agregovanú analýzu (Chief Auditor) nad všetkými zozbieranými JSON dátami.
@@ -720,10 +721,9 @@ async def evaluate_audit_verdict(
         response_schema=AuditVerdict,
         temperature=0.0,
         max_output_tokens=65536,
-        # Pro models (2.5-pro, 3.1-pro) require thinking mode.
-        # thinking_budget=-1 = auto (let model decide thinking budget).
+        # Hydrogen: thinking_level (HIGH / XHIGH v Expert). Pro/Flash fallback: thinking_budget=-1 (auto).
         # This also bypasses the monkey-patch that sets thinking_budget=0 for Flash models.
-        thinking_config=types.ThinkingConfig(thinking_budget=-1),
+        **thinking_kwargs(model, thinking_level or settings.thinking_level_verdict),
     )
 
     response = await client.aio.models.generate_content(

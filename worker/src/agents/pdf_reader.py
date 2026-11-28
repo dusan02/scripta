@@ -7,7 +7,7 @@ from google.genai import types
 
 from src.config import settings
 from src.pdf_ingestion import extract_relevant_pdf_chunks
-from .shared import _get_gemini_client, _log_tokens
+from .shared import _get_gemini_client, _log_tokens, thinking_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -329,7 +329,7 @@ PDF_READER_PROMPT_PL = f"""Jesteś agentem PDF Reader Agent @ Verifa.sk. Twoim z
 
 async def extract_company_events(
     pdf_texts: List[tuple[str, str]],
-    model: str = settings.model_vestnik,
+    model: str = settings.model_pdf_reader,
     report_language: str = "sk",
 ) -> CompanyEventList:
     """
@@ -427,6 +427,7 @@ async def _extract_events_single(
         response_mime_type="application/json",
         response_schema=CompanyEventList,
         temperature=0.0,
+        **thinking_kwargs(model),
     )
 
     response = await client.aio.models.generate_content(

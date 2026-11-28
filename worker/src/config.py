@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import date
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
@@ -31,38 +32,46 @@ class Settings(BaseSettings):
     proxy_list: Optional[str] = None
 
     # ── Expert Mode ────────────────────────────────────────────────────────────
-    # EXPERT_MODE=1 → Chief Auditor na Pro 3.1 (2-pass: draft→refine), QA na Flash 3.8, viac strán PDF
+    # EXPERT_MODE=1 → Chief Auditor na Gemini 4 Hydrogen (thinking XHIGH), QA na Flash 3.8, viac strán PDF
     expert_mode: bool = False
+    # 1-pass Hydrogen s thinking HIGH/XHIGH nahradil pomalý 2-pass (draft→refine) na Pro 3.1;
+    # možno zapnúť cez env CHIEF_AUDITOR_TWO_PASS=1 ak treba dodatočný refine pass.
+    chief_auditor_two_pass_enabled: bool = False
 
-    # ── LLM Model Configuration ──────────────────────────────────────────────
-    # Komplexní agenti (extrakcia, analýza, verdikt): 3.8 Flash — najlepší pomer cena/inteligencia
-    # Jednoduchá štruktúrovaná extrakcia (vestník, staff costs, verify): 3.5 Flash-Lite — najlacnejší
-    # Fallback: 3.7 Flash (stabilný) → 3.5 Flash-Lite (najrýchlejší)
-    # Expert: Chief Auditor on Pro 3.1 (2-pass), QA on 3.8 Flash
-    model_ifrs: str = "gemini-3.8-flash"        # IFRS tabuľky — komplexná extrakcia 50+ polí
-    model_narrative: str = "gemini-3.8-flash"   # Naratívna analýza (VS) — grounding, reasoning
-    model_notes: str = "gemini-3.8-flash"       # Forenzný analytik (poznámky) — related party, riziká
-    model_vestnik: str = "gemini-3.8-flash"   # Vestník udalosti — zjednotené s ostatnými agentmi
-    model_pdf_reader: str = "gemini-3.8-flash"  # PDF Reader Agent — multimodálna extrakcia z PDF dokumentov
-    model_cross_analysis: str = "gemini-3.8-flash"  # Cross-Analysis Agent — krížová analýza, reasoning
-    model_fallback: str = "gemini-3.7-flash"      # Fallback pri 404/503 (stabilný, rýchly)
-    model_fallback_2: str = "gemini-3.5-flash-lite"  # Sekundárny fallback (najlacnejší)
-    llm_backoff_seconds: str = "5,15,30"  # Exponential backoff pre 429/503 (Gemini free tier ~5 RPM)
+    # ── LLM Model Configuration (Tiered Routing) ─────────────────────────────
+    # Tier 1 — Jednoduchá štruktúrovaná extrakcia & nezávislá verifikácia: 3.5 Flash-Lite ($0.30/$2.50)
+    model_staff_costs: str = "gemini-3.5-flash-lite"  # Cielená extrakcia 1 čísla (osobné náklady)
+    model_vestnik: str = "gemini-3.5-flash-lite"      # Klasifikácia/sumarizácia XML z Obchodného vestníka
+    model_pdf_reader: str = "gemini-3.5-flash-lite"   # Prepis právnych udalostí z textu PDF registrov
+    model_verify: str = "gemini-3.5-flash-lite"       # Slepá verifikácia 5 kľúčových čísel (nezávislý model)
+    # Tier 2 — Komplexné multimodálne PDF extraktory & QA: 3.8 Flash ($0.75/$3.75 do 31.12.2026)
+    model_ifrs: str = "gemini-3.8-flash"              # IFRS/SK GAAP tabuľky — komplexná extrakcia 50+ polí
+    model_narrative: str = "gemini-3.8-flash"         # Naratívna analýza Výročných správ (VS)
+    model_notes: str = "gemini-3.8-flash"             # Forenzný analytik poznámok k závierke
+    # Tier 3 — Krížová syntéza & hlavný posudok: Gemini 4 Hydrogen ($1.50/$7.50)
+    model_cross_analysis: str = "gemini-4-hydrogen"   # Cross-Analysis Agent — krížová analýza (thinking=MEDIUM)
+    model_verdict: str = "gemini-4-hydrogen"          # Chief Auditor — finálny forenzný posudok
+    model_verdict_fallback: str = "gemini-3.1-pro-preview"  # Chief Auditor fallback (3.1 Pro → model_ifrs)
+    # Fallback chain (3.7 Flash Google presmeruje na 3.8 = používame nezávislý 3.6 Flash → 3.5 Flash-Lite)
+    model_fallback: str = "gemini-3.6-flash"
+    model_fallback_2: str = "gemini-3.5-flash-lite"
+    thinking_level_cross: str = "MEDIUM"              # Hydrogen thinking level pre Cross-Analysis
+    llm_backoff_seconds: str = "5,15,30"              # Exponential backoff pre 429/503
 
     @property
-    def model_verdict(self) -> str:
-        """Chief Auditor model — Pro 3.1 in Expert Mode, Flash 3.8 in Standard."""
-        return "gemini-3.1-pro-preview" if self.expert_mode else "gemini-3.8-flash"
+    def thinking_level_verdict(self) -> str:
+        """Chief Auditor thinking level — XHIGH in Expert Mode, HIGH in Standard."""
+        return "XHIGH" if self.expert_mode else "HIGH"
 
     @property
     def model_qa(self) -> str:
-        """QA Agent model — Flash 3.8 in Expert Mode, Flash 3.5 in Standard."""
+        """QA Agent model — Flash 3.8 in Expert Mode, Flash-Lite 3.5 in Standard."""
         return "gemini-3.8-flash" if self.expert_mode else "gemini-3.5-flash-lite"
 
     @property
     def chief_auditor_two_pass(self) -> bool:
-        """2-pass Chief Auditor (draft→refine) enabled in Expert Mode."""
-        return self.expert_mode
+        """2-pass Chief Auditor (draft→refine) — off by default for Gemini 4 Hydrogen (1-pass XHIGH)."""
+        return self.chief_auditor_two_pass_enabled
 
     # ── PDF Ingestion ─────────────────────────────────────────────────────────
     pdf_max_pages_sk_gaap: int = 20    # Úč POD, Úč MUJ — štandardné slovenské závierky
@@ -102,15 +111,20 @@ class Settings(BaseSettings):
 
     @property
     def llm_pricing(self) -> dict[str, tuple[float, float]]:
+        # 3.6/3.8 Flash: intro pricing do 31.12.2026, potom $1.50/$7.50.
+        flash = (0.75, 3.75) if date.today() < date(2027, 1, 1) else (1.50, 7.50)
         return {
             "gemini-2.5-flash":       (0.075, 0.30),
             "gemini-2.5-pro":         (1.25, 10.00),
-            "gemini-3.5-flash":       (1.50,  9.00),
+            "gemini-3.5-flash":       flash,
             "gemini-3.5-flash-lite":  (0.30,  2.50),
-            "gemini-3.5-pro":         (2.50, 15.00),
             "gemini-3.1-pro-preview": (2.00, 12.00),
-            "gemini-3.7-flash":       (0.75,  3.75),  # Intro pricing do 31.12.2026, potom $1.50/$7.50
-            "gemini-3.8-flash":       (0.75,  3.75),  # Intro pricing do 31.12.2026, potom $1.50/$7.50
+            "gemini-3.6-flash":       flash,
+            "gemini-3.7-flash":       flash,
+            "gemini-3.8-flash":       flash,
+            "gemini-4-hydrogen":      (1.50,  7.50),
+            "gemini-4-neon":          (3.00, 15.00),
+            "gemini-4-carbon":        (4.00, 20.00),
         }
 
 

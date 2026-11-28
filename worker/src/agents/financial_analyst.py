@@ -9,6 +9,7 @@ from .shared import (
     _get_gemini_client,
     _gemini_uploaded_file,
     _log_tokens,
+    thinking_kwargs,
     CompanyFinancialExtraction,
     VerificationExtraction,
 )
@@ -77,7 +78,8 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
         system_instruction=prompt_text,
         response_mime_type="application/json",
         response_schema=CompanyFinancialExtraction,
-        temperature=0.0
+        temperature=0.0,
+        **thinking_kwargs(model),
     )
 
     # Pre .txt súbory (HTML extrakcia) — pošli text priamo ako prompt
@@ -172,10 +174,10 @@ async def extract_financial_data(file_path: str, model: str = settings.model_ifr
 
     return data
 
-async def verify_critical_numbers_blind(file_path: str, model: str = settings.model_fallback_2) -> VerificationExtraction:
+async def verify_critical_numbers_blind(file_path: str, model: str = settings.model_verify) -> VerificationExtraction:
     """
     Slepá verifikácia kľúčových polí na celom PDF.
-    Používa sa pre lacnejší model (Flash), na overenie OCR z prvého behu.
+    Používa sa nezávislý lacnejší model (Flash-Lite), na overenie OCR z prvého behu.
     """
     client = _get_gemini_client()
     prompt_text = (
@@ -189,7 +191,8 @@ async def verify_critical_numbers_blind(file_path: str, model: str = settings.mo
         system_instruction=prompt_text,
         response_mime_type="application/json",
         response_schema=VerificationExtraction,
-        temperature=0.0
+        temperature=0.0,
+        **thinking_kwargs(model),
     )
     
     with _gemini_uploaded_file(client, file_path) as uploaded_file:
