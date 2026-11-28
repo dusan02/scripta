@@ -552,6 +552,39 @@ async def save_notes_to_db(ico: str, year: int, notes_risk):
             }
         )
         logger.info(f"Analýza poznámok uložená pre IČO={ico}, ROK={year}")
+
+        # Ak poznámky/príloha obsahovali správu nezávislého audítora (typické pre SK GAAP),
+        # ulož AuditorOpinion k tomuto výkazu, aby str. 2 a scorecard mali aktuálny audit.
+        _ao_type = (getattr(notes_risk, "auditor_opinion_type", None) or "").strip()
+        _unknown_ops = {
+            "", "neznámy", "unknown", "n/a", "nie je známy", "nezistené",
+            "neuvedené", "not stated", "not provided", "not available",
+            "neuvedený", "nezistený", "null", "none",
+        }
+        if _ao_type and _ao_type.lower() not in _unknown_ops:
+            _existing_ao = await db.auditoropinion.find_unique(
+                where={'financialStatementId': statement.id}
+            )
+            if not _existing_ao or (_existing_ao.opinionType or "").strip().lower() in _unknown_ops:
+                _gc = bool(getattr(notes_risk, "auditor_going_concern", False))
+                _res = _clean_text(getattr(notes_risk, "auditor_reservation_text", None) or "") or None
+                await db.auditoropinion.upsert(
+                    where={'financialStatementId': statement.id},
+                    data={
+                        'create': {
+                            'financialStatementId': statement.id,
+                            'opinionType': _ao_type,
+                            'goingConcernRisk': _gc,
+                            'reservationText': _res,
+                        },
+                        'update': {
+                            'opinionType': _ao_type,
+                            'goingConcernRisk': _gc,
+                            'reservationText': _res,
+                        },
+                    },
+                )
+                logger.info(f"AuditorOpinion extrahovaný z poznámok uložený pre IČO={ico}, ROK={year}: {_ao_type}")
     finally:
         pass
 

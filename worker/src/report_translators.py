@@ -158,7 +158,7 @@ def format_findings(source, i18n=None) -> str:
 _FINDINGS_TRANSLATIONS = [
     # Debtor lists
     (r"Žiadny záznam — subjekt nie je v zozname dlžníkov VšZP\.", "scr_no_record_debtors", {"source": "VšZP"}),
-    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení\.", "scr_no_record_debtors", {"source": "Sociálnej poisťovne"}),
+    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení\.", "scr_no_record_debtors", {"source": "Sociálnej poisťovne", "source_i18n_key": "source_sp_name"}),
     (r"Žiadny záznam — subjekt nie je v zozname dlžníkov UNION\.", "scr_no_record_debtors", {"source": "UNION"}),
     (r"Žiadny záznam — subjekt nie je v zozname dlžníkov Dôvery\.", "scr_no_record_debtors", {"source": "Dôvera"}),
     # Insolvency
@@ -231,6 +231,9 @@ def _translate_scraper_findings(raw: str, i18n: dict) -> str:
         if m:
             template = i18n.get(i18n_key, raw)
             kwargs = dict(extra_kwargs)
+            if "source_i18n_key" in kwargs:
+                _skey = kwargs.pop("source_i18n_key")
+                kwargs["source"] = i18n.get(_skey, kwargs.get("source", ""))
             # Extract format args from regex groups
             groups = m.groups()
             if i18n_key == "scr_no_poverenie" and groups:

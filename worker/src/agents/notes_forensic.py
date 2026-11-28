@@ -19,6 +19,9 @@ class NotesRiskAnalysis(BaseModel):
     restructuring_activities: Optional[str] = Field(default=None, description="Reštrukturalizácia, reorganizácia, transformácia. Uveď ROZSAH (čo sa reštrukturalizuje), DÔVOD a OČAKÁVANÝ DOPAD.")
     capital_changes: Optional[str] = Field(default=None, description="Navýšenie/zníženie základného imania, emisia akcií, prevod vlastných akcií. Uveď SUMU, SPÔSOB a DÔVOD.")
     subsequent_events: Optional[str] = Field(default=None, description="Udalosti po súvahovom dni (subsequent events). Uveď ČO sa stalo, SUMU (ak je uvedená) a DOPAD na firmu.")
+    auditor_opinion_type: Optional[str] = Field(default=None, description="Ak PDF obsahuje správu nezávislého audítora, uveď typ názoru: 'Bez výhrad', 'S výhradami', 'Záporný', alebo 'Odmietnutie názoru'. Inak null.")
+    auditor_going_concern: Optional[bool] = Field(default=None, description="True ak audítor v správe upozorňuje na významnú neistotu ohľadom nepretržitého pokračovania v činnosti (going concern). False ak správa audítora existuje a going concern riziko neuvádza. Null ak správa audítora v PDF nie je.")
+    auditor_reservation_text: Optional[str] = Field(default=None, description="Text výhrad audítora alebo zdôraznenia skutočnosti (Emphasis of Matter), ak existujú. Inak null.")
     source_pages: Optional[str] = Field(default=None, description="Strany v zdrojovom PDF dokumente, z ktorých sa extrahovali tieto informácie (napr. '14-18,22,30-32'). Null ak nie je známe.")
 
 NOTES_SYSTEM_PROMPT_SK = """Si Senior Forensic Investigator @ Verifa.sk. Analyzuješ "Poznámky k účtovnej závierke" (Notes).
@@ -35,6 +38,7 @@ Tvoje pravidlá:
 8. REŠTRUKTURALIZÁCIA (restructuring_activities): Hľadaj reštrukturalizačné programy, reorganizácie. Uveď ROZSAH, DÔVOD a OČAKÁVANÝ DOPAD (napr. "zlúčenie dcérskych spoločností, očakávaná úspora 2 mil. EUR ročne").
 9. KAPITÁLOVÉ ZMENY (capital_changes): Hľadaj navýšenie/zníženie základného imania, emisie akcií. Uveď SUMU, SPÔSOB a DÔVOD.
 10. UDALOSTI PO SÚVAHOVOM DNI (subsequent_events): Hľadaj udalosti po súvahovom dni, ktoré môžu ovplyvniť budúce výsledky. Uveď ČO sa stalo, SUMU a DOPAD.
+11. SPRÁVA AUDÍTORA (auditor_opinion_type, auditor_going_concern, auditor_reservation_text): Ak dokument obsahuje správu nezávislého audítora, uveď typ názoru ('Bez výhrad' / 'S výhradami' / 'Záporný' / 'Odmietnutie názoru'), prípadné going concern upozornenie a text výhrad. Ak v dokumente správa audítora nie je, vráť null.
 
 KONKRÉTNE FAKTY, NIE VŠEOBECNOSTI:
 - Pri každom náleze uveď konkrétne čísla (sumu, percento, dátum), ak sú v dokumente uvedené.
@@ -62,6 +66,7 @@ Your rules:
 8. RESTRUCTURING (restructuring_activities): Look for restructuring programs, reorganizations. State the SCOPE, the REASON and the EXPECTED IMPACT (e.g. "merger of subsidiaries, expected savings of 2M EUR annually").
 9. CAPITAL CHANGES (capital_changes): Look for share capital increases/decreases, share issuances. State the AMOUNT, the METHOD and the REASON.
 10. SUBSEQUENT EVENTS (subsequent_events): Look for events after the balance sheet date that may affect future results. State WHAT happened, the AMOUNT (if stated) and the IMPACT on the company.
+11. AUDITOR'S REPORT (auditor_opinion_type, auditor_going_concern, auditor_reservation_text): If the PDF includes an independent auditor's report, extract the opinion type ('Bez výhrad' / 'S výhradami' / 'Záporný' / 'Odmietnutie názoru' or English equivalent), going concern flag, and any reservation/emphasis-of-matter text. Otherwise return null.
 
 CONCRETE FACTS, NOT GENERALITIES:
 - For each finding, state specific numbers (amount, percentage, date) if they are stated in the document.
@@ -173,7 +178,7 @@ ZAKAZ FABRYKACJI:
 - Jeśli tekst nie zawiera nic istotnego, zwróć null. Nigdy niczego nie zmyślaj.
 - Pusty wynik (null) jest ważny i poprawny — to nie jest błąd.
 
-JĘZYK WYNIKOWY: Wszystkie pola tekstowe należy wypełnić w języku angielskim."""
+JĘZYK WYNIKOWY: Wszystkie pola tekstowe należy wypełnić w języku polskim."""
 
 async def extract_notes_risks(file_path: str, model: str = settings.model_notes, report_language: str = "sk") -> NotesRiskAnalysis:
     """Extrahuje riziká z Poznámok k závierke (Related party transactions, atď)."""

@@ -177,7 +177,9 @@ class TestPageCloseSafety:
         scrapers_dir = Path("src/scrapers")
         offenders = []
         for py_file in scrapers_dir.glob("*.py"):
-            content = py_file.read_text()
+            if py_file.name.startswith("._"):
+                continue
+            content = py_file.read_text(encoding="utf-8")
             # Find `await page.close()` NOT preceded by try/except within 3 lines
             lines = content.split("\n")
             for i, line in enumerate(lines):
