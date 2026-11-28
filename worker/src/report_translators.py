@@ -104,7 +104,7 @@ def format_findings(source, i18n=None) -> str:
     findings = findings.replace("\n", "<br/>")
 
     findings = re.sub(
-        r'(https?://[^\s&lt;&gt;]+)',
+        r'(https?://(?:(?!&lt;|&gt;)[^\s<>])+)',
         r'<a href="\1" class="text-blue-600 hover:underline">' + (i18n or {}).get("findings_view_detail", "[Zobraziť detail]") + r'</a>',
         findings,
     )
@@ -158,7 +158,7 @@ def format_findings(source, i18n=None) -> str:
 _FINDINGS_TRANSLATIONS = [
     # Debtor lists
     (r"Žiadny záznam — subjekt nie je v zozname dlžníkov VšZP\.", "scr_no_record_debtors", {"source": "VšZP"}),
-    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení\.", "scr_no_record_debtors", {"source": "Social Insurance"}),
+    (r"Žiadny záznam — subjekt nie je v zozname dlžníkov na sociálnom poistení\.", "scr_no_record_debtors", {"source": "Sociálnej poisťovne"}),
     (r"Žiadny záznam — subjekt nie je v zozname dlžníkov UNION\.", "scr_no_record_debtors", {"source": "UNION"}),
     (r"Žiadny záznam — subjekt nie je v zozname dlžníkov Dôvery\.", "scr_no_record_debtors", {"source": "Dôvera"}),
     # Insolvency

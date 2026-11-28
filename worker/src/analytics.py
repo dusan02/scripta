@@ -389,8 +389,15 @@ def compute_altman_z_score(stmt: Any, force_financial_inst: bool = False) -> Dic
             else:
                 total_liabilities = max(total_assets - equity, 1)  # fallback bilančná rovnica
 
-        # EBIT approx: net profit + interest expense (absolute value, since it may be stored negative)
-        ebit = net_profit + abs(interest_expense) if interest_expense is not None else net_profit
+        # EBIT: prefer profitBeforeTax + |interest| (zhodné s compute_financial_ratios),
+        # fallback na net_profit + incomeTax + |interest|.
+        profit_before_tax = _get(stmt, 'profitBeforeTax')
+        income_tax = _get(stmt, 'incomeTax') or 0
+        interest_abs = abs(interest_expense) if interest_expense is not None else 0
+        if profit_before_tax is not None:
+            ebit = profit_before_tax + interest_abs
+        else:
+            ebit = net_profit + income_tax + interest_abs
 
         x1 = working_capital / total_assets
         # X2: Retained earnings / total assets (original Altman 2005).

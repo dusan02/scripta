@@ -139,9 +139,9 @@ class TestAltmanZone:
 # ════════════════════════════════════════════════════════════════════════
 
 class TestComputeEbitda:
-    def test_gross_plus_depreciation(self):
-        stmt = {"grossProfit": 7_819_601, "depreciation": 7_988_038}
-        assert _compute_ebitda(stmt) == 15_807_639
+    def test_net_plus_tax_interest_depreciation(self):
+        stmt = {"netProfitLoss": 6_028_286, "incomeTax": 2_060_000, "interestExpense": -190_000, "depreciation": 630_000}
+        assert _compute_ebitda(stmt) == 8_908_286
 
     def test_fallback_net_plus_interest_plus_depreciation(self):
         stmt = {"netProfitLoss": -2_686_224, "interestExpense": 703_666, "depreciation": 7_988_038}
@@ -150,8 +150,8 @@ class TestComputeEbitda:
     def test_missing_all(self):
         assert _compute_ebitda({}) is None
 
-    def test_none_gross(self):
-        stmt = {"grossProfit": None, "depreciation": 1000}
+    def test_none_net(self):
+        stmt = {"netProfitLoss": None, "depreciation": 1000}
         assert _compute_ebitda(stmt) is None
 
 
@@ -267,8 +267,8 @@ class TestBuildPlaceholders:
 
     def test_ebitda(self):
         ph = build_metric_placeholders(HEINEKEN_STMTS, HEINEKEN_TRENDS)
-        # grossProfit + depreciation = -7_702_545 + 7_988_038 = 285_493
-        assert ph["{{EBITDA}}"] == "285 tis. €"
+        # netProfitLoss + tax(0) + |interest|(0) + depreciation = -2_686_224 + 7_988_038 = 5_301_814
+        assert ph["{{EBITDA}}"] == "5,3 mil. €"
 
     def test_company_name(self):
         ph = build_metric_placeholders(HEINEKEN_STMTS, HEINEKEN_TRENDS, company_name="Heineken Slovensko, a.s.")
@@ -413,8 +413,8 @@ class TestEdgeCases:
         assert ph["{{CASH}}"] == "N/A"
 
     def test_negative_ebitda(self):
-        """EBITDA keď grossProfit je veľmi záporný"""
-        stmts = [{"year": 2025, "grossProfit": -10_000_000, "depreciation": 2_000_000}]
+        """EBITDA keď netProfitLoss je veľmi záporný"""
+        stmts = [{"year": 2025, "netProfitLoss": -10_000_000, "depreciation": 2_000_000}]
         ph = build_metric_placeholders(stmts)
         assert ph["{{EBITDA}}"] == "-8,0 mil. €"
 
@@ -422,7 +422,7 @@ class TestEdgeCases:
         """EBITDA margin keď EBITDA je záporná"""
         stmts = [{
             "year": 2025,
-            "grossProfit": -10_000_000,
+            "netProfitLoss": -10_000_000,
             "depreciation": 2_000_000,
             "mainActivityRevenue": 100_000_000,
         }]

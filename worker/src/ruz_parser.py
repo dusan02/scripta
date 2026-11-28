@@ -784,6 +784,24 @@ def parse_tables_to_metrics(
     else:
         vlastne_imanie = _get_pasiv_value(ordered, ROW_TOTAL_EQUITY, id_sablony=id_sablony)
         celkove_cudzie_zdroje = _get_pasiv_value(ordered, ROW_TOTAL_LIABILITIES, id_sablony=id_sablony)
+        casove_rozlisenie_pasiv = _get_pasiv_value(ordered, ROW_RESERVES, id_sablony=id_sablony)
+        # V SK GAAP (šablóna 699): SPOLU PASÍVA (r.79) = A. Vlastné imanie (r.80)
+        # + B. Záväzky (r.101) + C. Časové rozlíšenie pasív (r.141).
+        # Ak r.141 > 0 a pripočítanie k r.101 vyrovná súvahu bližšie k aktívam, zahrnieme ho
+        # do celkove_cudzie_zdroje (Total Liabilities = B + C), aby bilančná rovnica sedela
+        # a nevznikal falošný PARSER_ERROR / chýbajúce Equity Ratio.
+        if (
+            celkove_cudzie_zdroje is not None
+            and casove_rozlisenie_pasiv is not None
+            and casove_rozlisenie_pasiv > 0
+        ):
+            if celkove_aktiva is not None and vlastne_imanie is not None:
+                diff_without = abs(celkove_aktiva - (vlastne_imanie + celkove_cudzie_zdroje))
+                diff_with = abs(celkove_aktiva - (vlastne_imanie + celkove_cudzie_zdroje + casove_rozlisenie_pasiv))
+                if diff_with < diff_without:
+                    celkove_cudzie_zdroje = celkove_cudzie_zdroje + casove_rozlisenie_pasiv
+            else:
+                celkove_cudzie_zdroje = celkove_cudzie_zdroje + casove_rozlisenie_pasiv
         dlhodobe_zavazky = _get_pasiv_value(ordered, ROW_LT_LIABILITIES, id_sablony=id_sablony)
         kratkodobe_zavazky = _get_pasiv_value(ordered, ROW_ST_LIABILITIES, id_sablony=id_sablony)
         zavazky_obchod = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES, id_sablony=id_sablony)
@@ -946,6 +964,7 @@ def parse_tables_to_metrics(
         peniaze = peniaze * unit_multiplier if peniaze is not None else None
         pohladavky = pohladavky * unit_multiplier if pohladavky is not None else None
         vlastne_imanie = vlastne_imanie * unit_multiplier if vlastne_imanie is not None else None
+        celkove_cudzie_zdroje = celkove_cudzie_zdroje * unit_multiplier if celkove_cudzie_zdroje is not None else None
         dlhodobe_zavazky = dlhodobe_zavazky * unit_multiplier if dlhodobe_zavazky is not None else None
         kratkodobe_zavazky = kratkodobe_zavazky * unit_multiplier if kratkodobe_zavazky is not None else None
         zavazky_obchod = zavazky_obchod * unit_multiplier if zavazky_obchod is not None else None
@@ -993,11 +1012,18 @@ def parse_tables_to_metrics(
 
     # ── Estimate operating CF (indirect method) using current + previous period ──
     # Previous period values are available in the same závierka JSON (Netto3 / Predchádzajúce columns)
-    zasoby_prev = _get_activ_value(ordered, ROW_INVENTORY, current=False)
-    pohladavky_prev = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES, current=False)
-    zavazky_obchod_prev = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES, current=False)
-    kratkodobe_zavazky_prev = _get_pasiv_value(ordered, ROW_ST_LIABILITIES, current=False)
-    obezny_majetok_prev = _get_activ_value(ordered, ROW_CURRENT_ASSETS, current=False)
+    if is_micro_template:
+        zasoby_prev = _get_activ_value(ordered, ROW_MICRO_INVENTORY, current=False, id_sablony=id_sablony)
+        pohladavky_prev = _get_activ_value(ordered, ROW_MICRO_TRADE_RECEIVABLES, current=False, id_sablony=id_sablony)
+        zavazky_obchod_prev = _get_pasiv_value(ordered, ROW_MICRO_TRADE_PAYABLES, current=False, id_sablony=id_sablony)
+        kratkodobe_zavazky_prev = _get_pasiv_value(ordered, ROW_MICRO_ST_LIABILITIES, current=False, id_sablony=id_sablony)
+        obezny_majetok_prev = _get_activ_value(ordered, ROW_MICRO_CURRENT_ASSETS, current=False, id_sablony=id_sablony)
+    else:
+        zasoby_prev = _get_activ_value(ordered, ROW_INVENTORY, current=False, id_sablony=id_sablony)
+        pohladavky_prev = _get_activ_value(ordered, ROW_TRADE_RECEIVABLES, current=False, id_sablony=id_sablony)
+        zavazky_obchod_prev = _get_pasiv_value(ordered, ROW_TRADE_PAYABLES, current=False, id_sablony=id_sablony)
+        kratkodobe_zavazky_prev = _get_pasiv_value(ordered, ROW_ST_LIABILITIES, current=False, id_sablony=id_sablony)
+        obezny_majetok_prev = _get_activ_value(ordered, ROW_CURRENT_ASSETS, current=False, id_sablony=id_sablony)
 
     # Apply unit multiplier to prev-period values too
     if unit_multiplier != 1.0:
@@ -1042,8 +1068,20 @@ def parse_tables_to_metrics(
             estimated_ocf = pfp_operating_cf
 
     # ── Datum zostavenia závierky (forenzný signál) ──
-    datum_zostavenia = titulna_strana.get("datumZostavenia") or titulna_strana.get("datumZostaveniaK")
-    datum_schvalenia = titulna_strana.get("datumSchvalenia")
+    # RÚZ vracia sentinel dátum "1900-01-01" pre neschválené závierky — odfiltrujeme ho.
+    def _clean_ruz_date(val) -> Optional[str]:
+        if not val:
+            return None
+        s = str(val).strip()
+        if not s or s.startswith("1900-") or s.startswith("0001-"):
+            return None
+        m_yr = re.match(r'^(\d{4})-', s)
+        if m_yr and int(m_yr.group(1)) < 1990:
+            return None
+        return s
+
+    datum_zostavenia = _clean_ruz_date(titulna_strana.get("datumZostavenia") or titulna_strana.get("datumZostaveniaK"))
+    datum_schvalenia = _clean_ruz_date(titulna_strana.get("datumSchvalenia"))
 
     # Build FinancialMetrics
     metrics = FinancialMetrics(
@@ -1148,6 +1186,10 @@ def parse_tables_to_metrics(
         metrics = metrics.model_copy(update={
             "hruba_marza": hruba_marza,
             "zisk_pred_zdanenim": zisk_pred_zdanenim,
+            "naklady_na_hosp_cinnost": naklady_na_hosp_cinnost,
+            "osobne_naklady": osobne_naklady,
+            "spotreba_materialu": spotreba_materialu,
+            "sluzby": sluzby,
             "dan_z_prijmu": dan_z_prijmu_val,
             "uroky": uroky,
             "vysledok_z_fin_cinnosti": vysledok_z_fin_cinnosti,

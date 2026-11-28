@@ -25,9 +25,9 @@
                 <div class="absolute inset-[22px] rounded-full border-[1.5px] border-dashed opacity-30" style="border-color: {{ gauge_color }};"></div>
                 <div class="flex flex-col items-center">
                     <div class="font-black text-[12px] tracking-widest" style="color: {{ gauge_color }};">★ VERIFA ★</div>
-                    <div class="font-black text-7xl mt-1" style="color: {{ gauge_color }}; leading-none">{{ score }}</div>
-                    <div class="w-16 h-[3px] opacity-40 my-2" style="background: {{ gauge_color }};"></div>
-                    <div class="font-bold text-[11px] tracking-widest" style="color: {{ gauge_color }};">{{ i18n.score }}</div>
+                    <div class="font-black text-7xl mt-1 leading-none" style="color: {{ gauge_color }};">{{ score }}</div>
+                    <div class="w-16 h-[3px] opacity-40 my-1.5" style="background: {{ gauge_color }};"></div>
+                    <div class="font-bold text-[11px] tracking-widest" style="color: {{ gauge_color }};">{{ i18n.score }}{% if verdict and verdict.riskCategory %} · {{ verdict.riskCategory }}{% endif %}</div>
                 </div>
             </div>
         </div>
@@ -36,14 +36,22 @@
     <!-- METADATA & SEMAPHORE PILLS -->
     <div class="w-full mb-8">
         <div class="flex justify-between items-end w-full">
-            <!-- Left: Meta -->
-            <div class="space-y-1">
-                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.ico_label }}</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
-                {% if nace_code %}
-                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">NACE</span> <span class="text-sm font-bold">{{ nace_code }}{% if nace_text %} <span class="font-normal text-slate-500">{{ nace_text }}</span>{% endif %}</span></div>
+            <!-- Left: Meta + QR -->
+            <div class="flex items-end gap-4">
+                {% if qr_base64 %}
+                <div class="flex flex-col items-center p-1.5 bg-white border border-slate-200 rounded-lg">
+                    <img src="data:image/png;base64,{{ qr_base64 }}" alt="Verifa QR" class="w-16 h-16">
+                    <span class="text-[7px] text-slate-400 font-semibold mt-0.5 tracking-wide">verifa.sk</span>
+                </div>
                 {% endif %}
-                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.generated }}</span> <span class="text-sm font-bold">{{ generated_at }}</span></div>
-                <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.page_count }}</span> <span class="text-sm font-bold">{{ total_pages }}</span></div>
+                <div class="space-y-1">
+                    <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.ico_label }}</span> <span class="text-sm font-bold">{{ company.ico }}</span></div>
+                    {% if nace_code %}
+                    <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">NACE</span> <span class="text-sm font-bold">{{ nace_code }}{% if nace_text %} <span class="font-normal text-slate-500">{{ nace_text }}</span>{% endif %}</span></div>
+                    {% endif %}
+                    <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.generated }}</span> <span class="text-sm font-bold">{{ generated_at }}</span></div>
+                    <div class="flex gap-4"><span class="text-xs text-slate-500 w-24">{{ i18n.page_count }}</span> <span class="text-sm font-bold">{{ total_pages }}</span></div>
+                </div>
             </div>
             
             <!-- Right: Semaphore -->

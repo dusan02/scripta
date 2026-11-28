@@ -1026,10 +1026,18 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
     if scorecard_breakdown and len(scorecard_breakdown) >= 3:
         radar_chart_base64 = generate_radar_chart(scorecard_breakdown, lang=report_language)
 
-    # Auditor opinion info
+    # Auditor opinion info — najprv latest_stmt, fallback na najnovší výkaz s platným auditom
+    # (konzistentné so scorecardom, aby str. 2 nehovorila 'Chýba audit' keď str. 6 ukazuje 'bez výhrad ✓')
     auditor_opinion = None
-    if latest_stmt and getattr(latest_stmt, 'auditorOpinion', None):
-        ao = latest_stmt.auditorOpinion
+    _audit_stmt = None
+    for _cand in sorted(stmts or [], key=lambda s: s.year, reverse=True):
+        _cand_ao = getattr(_cand, 'auditorOpinion', None)
+        _cand_op = getattr(_cand_ao, 'opinionType', None) if _cand_ao else None
+        if _cand_op and str(_cand_op).strip().lower() not in ("", "null", "none", "neznámy", "unknown", "n/a"):
+            _audit_stmt = _cand
+            break
+    if _audit_stmt and getattr(_audit_stmt, 'auditorOpinion', None):
+        ao = _audit_stmt.auditorOpinion
         raw_opinion_type = getattr(ao, 'opinionType', None)
         # i18n: Translate auditor opinion type from Slovak DB value
         opinion_type = raw_opinion_type
@@ -1053,6 +1061,7 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             "going_concern_risk": _clean_db_val(getattr(ao, 'goingConcernRisk', None)),
             "reservation_text": _clean_db_val(getattr(ao, 'reservationText', None)),
             "auditor_name": _clean_db_val(getattr(ao, 'auditorName', None)),
+            "year": _audit_stmt.year,
         }
 
     # ── Forensic & Audit Findings: structured evidence from NotesRisk, NarrativeRisk, AuditorOpinion ──
@@ -1093,12 +1102,12 @@ def prepare_report_context(company, sources, start_pages_map, total_pages, gener
             except (ValueError, TypeError):
                 pass
 
-    # QR code for cover page
+    # QR code for cover page — odkazuje na verejný profil firmy na Verifa.sk
     qr_base64 = ""
     try:
         import qrcode
         qr = qrcode.QRCode(version=1, box_size=4, border=1)
-        qr.add_data(f"https://verifa.sk/reports/{company.ico}")
+        qr.add_data(f"https://verifa.sk/firma/{company.ico}")
         qr.make(fit=True)
         qr_img = qr.make_image(fill_color='#1e293b', back_color='white')
         qr_buf = io.BytesIO()
@@ -1333,6 +1342,22 @@ def render_html_report(context: dict) -> str:
     env.filters['format_number_millions'] = format_number_millions
     env.filters['format_cf_millions'] = format_cf_millions
     env.filters['format_findings'] = lambda source, i18n=None: format_findings(source, i18n or context.get('i18n', {}))
+    def _format_local_dt(val) -> str:
+        if not val:
+            return ""
+        s = str(val).strip()
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+            from zoneinfo import ZoneInfo as _ZI
+            iso = s.replace("Z", "+00:00")
+            dt = _dt.fromisoformat(iso)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=_tz.utc)
+            return dt.astimezone(_ZI("Europe/Bratislava")).strftime("%d.%m.%Y %H:%M")
+        except Exception:
+            return s[:16].replace("T", " ")
+
+    env.filters['format_local_dt'] = _format_local_dt
     env.filters['sanitize_llm'] = sanitize_llm_text
     
     template = env.get_template("report_template.html")

@@ -130,16 +130,11 @@
                     {% else %}text-slate-500{% endif %}">
                     {% if verdict.llmScoreAdjustment > 0 %}+{% endif %}{{ verdict.llmScoreAdjustment }}
                 </span>
-                {% if verdict.llmScoreAdjustment != 0 and evidence_list %}
-                <div class="mt-1 space-y-0.5">
-                    {% for item in evidence_list if item.get('impact') in ['CRITICAL', 'WARNING'] %}
-                    <div class="text-[10px] text-slate-500 leading-tight">
-                        <span class="font-semibold {% if item.get('impact') == 'CRITICAL' %}text-rose-500{% else %}text-amber-600{% endif %}">{{ item.get('impact') }}:</span>
-                        {{ (item.get('tvrdenie') or item.get('claim') or '') | sanitize_llm }}
-                    </div>
-                    {% endfor %}
-                </div>
-                {% elif det_breakdown %}
+                {% set has_det = namespace(val=false) %}
+                {% if det_breakdown %}
+                    {% for _k, _v in det_breakdown.items() if _v != 0 %}{% set has_det.val = true %}{% endfor %}
+                {% endif %}
+                {% if has_det.val %}
                 <div class="mt-1 space-y-0.5">
                     {% for key, val in det_breakdown.items() if val != 0 %}
                     <div class="text-[10px] text-slate-500 leading-tight">
@@ -151,7 +146,18 @@
                         {% elif key == 'off_balance' %}{{ i18n.off_balance }}
                         {% elif key == 'critical_events' %}{{ i18n.critical_events|default('Kritické udalosti') }}
                         {% elif key == 'active_execution' %}{{ i18n.active_execution|default('Aktívne exekúcie') }}
+                        {% elif key == 'equity_decline' %}{{ i18n.equity_decline|default('Výrazný pokles vlastného imania') }}
+                        {% elif key == 'asset_decline' %}{{ i18n.asset_decline|default('Výrazný pokles celkových aktív') }}
                         {% else %}{{ key }}{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% elif verdict.llmScoreAdjustment != 0 and evidence_list %}
+                <div class="mt-1 space-y-0.5">
+                    {% for item in evidence_list if item.get('impact') in ['CRITICAL', 'WARNING'] %}
+                    <div class="text-[10px] text-slate-500 leading-tight">
+                        <span class="font-semibold {% if item.get('impact') == 'CRITICAL' %}text-rose-500{% else %}text-amber-600{% endif %}">{{ item.get('impact') }}:</span>
+                        {{ (item.get('tvrdenie') or item.get('claim') or '') | sanitize_llm }}
                     </div>
                     {% endfor %}
                 </div>
@@ -215,7 +221,7 @@
 {% if radar_chart_base64 %}
 <div class="flex flex-col items-center mt-3 mb-4">
     <p class="report-caption text-slate-400 text-center mb-1">{{ i18n.pillar_profile }}</p>
-    <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 220px; height: auto;">
+    <img src="data:image/png;base64,{{ radar_chart_base64 }}" alt="{{ i18n.radar_chart_alt }}" style="width: 100%; max-width: 310px; height: auto;">
 </div>
 {% endif %}
 

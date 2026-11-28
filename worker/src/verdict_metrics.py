@@ -79,17 +79,14 @@ def _altman_zone(z_score: Optional[float]) -> str:
 
 
 def _compute_ebitda(stmt: dict) -> Optional[float]:
-    """Aproximácia EBITDA = hrubý zisk + odpisy (alebo prevádzkový zisk + odpisy)."""
-    gross = stmt.get("grossProfit")
-    depreciation = stmt.get("depreciation")
-    if gross is not None and depreciation is not None:
-        return float(gross) + float(depreciation)
-    # Fallback: net profit + interest + depreciation (ak nemáme gross profit)
+    """EBITDA = čistý zisk + daň z príjmov + |úroky| + odpisy (zhodné s analytics.py)."""
     net = stmt.get("netProfitLoss")
-    interest = stmt.get("interestExpense") or 0
-    if net is not None and depreciation is not None:
-        return float(net) + float(interest) + float(depreciation)
-    return None
+    if net is None:
+        return None
+    tax = float(stmt.get("incomeTax") or 0)
+    interest = abs(float(stmt.get("interestExpense") or 0))
+    depreciation = float(stmt.get("depreciation") or 0)
+    return round(float(net) + tax + interest + depreciation, 0)
 
 
 def build_metric_placeholders(

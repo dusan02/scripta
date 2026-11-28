@@ -321,10 +321,13 @@ def generate_liquidity_chart(statements, lang="sk") -> str:
     fig.add_hline(y=1.0, line_dash="dash", line_color="rgba(239,68,68,0.5)", secondary_y=True)
 
     layout = get_base_layout(i.get('chart_liquidity_wc', 'Likvidita a Pracovný kapitál'))
+    layout['title'] = dict(text=i.get('chart_liquidity_wc', 'Likvidita a Pracovný kapitál'), font=dict(size=14, color=COLORS['text'], family=COLORS['font_family']), x=0.0, xanchor='left', y=0.97)
+    layout['legend'] = dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(size=10, color=COLORS['text_light']))
+    layout['margin'] = dict(l=40, r=40, t=72, b=45)
     layout['yaxis'] = dict(showgrid=False, zeroline=True, zerolinecolor=COLORS['zero_line'])
     layout['yaxis2'] = dict(showgrid=True, gridcolor=COLORS['grid'], zeroline=False)
     fig.update_layout(**layout)
-    return _to_base64(fig, 600, 300)
+    return _to_base64(fig, 600, 310)
 
 def generate_altman_chart(altman_scores, lang="sk") -> str:
     if not altman_scores or len(altman_scores) < 2: return ""
@@ -641,12 +644,15 @@ def generate_asset_composition_donut(stmt, lang="sk") -> str:
     if len(filtered) < 2:
         return ""
     labels, values, colors = zip(*filtered)
+    total_v = sum(values) or 1.0
+    slice_text = [f"{v / total_v * 100:.1f}%" if (v / total_v) >= 0.03 else "" for v in values]
 
     fig = go.Figure(data=[go.Pie(
         labels=labels, values=values, hole=.5,
         marker=dict(colors=colors, line=dict(color='#ffffff', width=2)),
-        textinfo='percent',
-        texttemplate='%{percent:.1%}',
+        text=slice_text,
+        textinfo='text',
+        textposition='inside',
         textfont=dict(size=14, color='#ffffff', family=COLORS['font_family'], weight='bold'),
         insidetextorientation='horizontal'
     )])
@@ -701,12 +707,15 @@ def generate_equity_composition_donut(stmt, lang="sk") -> str:
     if len(filtered) < 2:
         return ""
     labels, values, colors = zip(*filtered)
+    total_v = sum(values) or 1.0
+    slice_text = [f"{v / total_v * 100:.1f}%" if (v / total_v) >= 0.03 else "" for v in values]
 
     fig = go.Figure(data=[go.Pie(
         labels=labels, values=values, hole=.5,
         marker=dict(colors=colors, line=dict(color='#ffffff', width=2)),
-        textinfo='percent',
-        texttemplate='%{percent:.1%}',
+        text=slice_text,
+        textinfo='text',
+        textposition='inside',
         textfont=dict(size=14, color='#ffffff', family=COLORS['font_family'], weight='bold'),
         insidetextorientation='horizontal'
     )])

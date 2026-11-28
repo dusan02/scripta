@@ -317,13 +317,18 @@ def _check_balance_sheet_integrity(results: list[CompanyFinancialExtraction]) ->
             alt_diff_pct = alt_diff / assets if assets > 0 else 0
 
             if alt_diff_pct <= tolerance:
-                # celkove_cudzie_zdroje matches! Fix ST/LT split
+                m = d['data'].metriky
+                # Pre deterministicky parsovaný SK GAAP je rozdiel oproti ST+LT+rezervy legitímne
+                # tvorený bankovými úvermi (r.139), fin. výpomocami (r.140) a časovým rozlíšením pasív (r.141).
+                # Nesmú sa prepísať presné ST/LT záväzky z RÚZ JSON.
+                if getattr(m, 'typ_zavierky', None) == "SK_GAAP":
+                    continue
+                # celkove_cudzie_zdroje matches! Fix ST/LT split (LLM IFRS extrakcia)
                 logger.warning(
                     f"[BALANCE FIX] Rok {y}: súvaha nevyrovnaná (diff={diff:,.0f}={diff_pct:.1%}), "
                     f"ale celkove_cudzie_zdroje={total_liab:,.0f} sedí. "
                     f"Opravujem ST/LT záväzky z total_liab."
                 )
-                m = d['data'].metriky
                 # Determine whether total_liab includes reserves or not.
                 # Case A: total_liab = st_liab + lt_liab + reserves → LT = total_liab - st_liab - reserves
                 # Case B: total_liab = st_liab + lt_liab (no reserves)   → LT = total_liab - st_liab

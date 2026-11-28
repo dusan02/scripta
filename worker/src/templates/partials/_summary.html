@@ -254,15 +254,15 @@
                 {% elif f.category == 'ANOMALY' %}border-amber-200 bg-amber-50
                 {% else %}border-slate-200 bg-slate-50{% endif %}" style="page-break-inside: avoid; break-inside: avoid;">
                 <div class="flex items-center gap-1.5 mb-1">
-                    <span class="text-sm font-bold
+                    <span class="text-sm font-bold flex items-center gap-1.5
                         {% if f.category == 'RISK' %}text-rose-600
                         {% elif f.category == 'STRENGTH' %}text-emerald-600
                         {% elif f.category == 'ANOMALY' %}text-amber-600
                         {% else %}text-slate-500{% endif %}">
-                        {% if f.category == 'RISK' %}🔴 {{ i18n.finding_risk }}
-                        {% elif f.category == 'STRENGTH' %}🟢 {{ i18n.finding_strength }}
-                        {% elif f.category == 'ANOMALY' %}🟠 {{ i18n.finding_anomaly }}
-                        {% else %}⚪ {{ i18n.finding_unknown }}{% endif %}
+                        {% if f.category == 'RISK' %}<span class="inline-block w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></span>{{ i18n.finding_risk }}
+                        {% elif f.category == 'STRENGTH' %}<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>{{ i18n.finding_strength }}
+                        {% elif f.category == 'ANOMALY' %}<span class="inline-block w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>{{ i18n.finding_anomaly }}
+                        {% else %}<span class="inline-block w-2 h-2 rounded-full bg-slate-400 flex-shrink-0"></span>{{ i18n.finding_unknown }}{% endif %}
                     </span>
                     {% if f.financialMetric %}
                     <span class="ml-auto text-[10px] font-mono text-slate-400">{{ f.financialMetric }}</span>

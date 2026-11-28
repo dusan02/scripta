@@ -446,7 +446,15 @@ def _compute_deterministic_adjustment(
         litigation = latest_nr.get("litigationRisks") or latest_nr.get("litigation_risks") or ""
         if litigation and isinstance(litigation, str):
             low = litigation.lower().strip()
-            if low and low not in ("žiadne", "none", "no", "nie", "bez rizík", "žiadne riziká"):
+            _no_lit_re = re.search(
+                r'(?i)(neuvádza(?:jú\s+sa)?\s+(?:žiadne|konkrétne)|nenachádzajú\s+sa\s+(?:žiadne|konkrétne)'
+                r'|neobsahuje\s+(?:žiadne|informácie\s+o)|nespomína(?:jú\s+sa)?\s+(?:žiadne|konkrétne)'
+                r'|nie\s+sú\s+(?:evidované|známe|uvedené)\s+(?:žiadne|konkrétne)'
+                r'|žiadne\s+(?:prebiehajúce\s+)?(?:konkrétne\s+)?(?:súdne\s+spor|exekúc|právne\s+hroz|litigation)'
+                r'|no\s+(?:ongoing\s+)?litigation|no\s+legal\s+proceed|none\s+identified|not\s+mentioned)',
+                low,
+            )
+            if low and low not in ("žiadne", "none", "no", "nie", "bez rizík", "žiadne riziká") and not _no_lit_re:
                 adj -= 2
                 breakdown["litigation"] = -2
                 reasons.append("litigation (-2)")
@@ -992,18 +1000,22 @@ async def run_and_save_audit_verdict(
                         ),
                     })
 
-        # 4. Balance sheet gap (assets ≠ equity + liabilities), threshold 3% — konzistentný s report_generator warning
+        # 4. Balance sheet gap (assets ≠ equity + liabilities), threshold 5% — preferuje totalLiabilities (B+C)
         for stmt in _stmts_sorted:
             _assets = stmt.get("totalAssets")
             _equity = stmt.get("equity")
+            _total_liab = stmt.get("totalLiabilities")
             _st_liab = stmt.get("shortTermLiabilities")
             _lt_liab = stmt.get("longTermLiabilities")
-            if _assets is not None and float(_assets) > 0 and all(
-                v is not None for v in (_equity, _st_liab, _lt_liab)
-            ):
-                _liab_total = float(_equity) + float(_st_liab) + float(_lt_liab)
+            if _assets is not None and float(_assets) > 0 and _equity is not None:
+                if _total_liab is not None and float(_total_liab) > 0:
+                    _liab_total = float(_equity) + float(_total_liab)
+                elif _st_liab is not None and _lt_liab is not None:
+                    _liab_total = float(_equity) + float(_st_liab) + float(_lt_liab)
+                else:
+                    continue
                 _gap_pct = abs(float(_assets) - _liab_total) / float(_assets) * 100
-                if _gap_pct > 3:
+                if _gap_pct > 5:
                     _anomaly_alerts.append({
                         "year": stmt.get("year"),
                         "type": "balance_sheet_gap",

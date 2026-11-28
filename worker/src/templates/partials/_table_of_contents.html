@@ -75,7 +75,7 @@
                     {% endif %}
                 </p>
                 {% if source.checked_at %}
-                <p class="text-[7px] text-slate-400 leading-tight mt-0.5">{{ i18n.checked_at }}: {{ source.checked_at[:16]|replace('T', ' ') }}</p>
+                <p class="text-[7px] text-slate-400 leading-tight mt-0.5">{{ i18n.checked_at }}: {{ source.checked_at | format_local_dt }}</p>
                 {% endif %}
             </div>
             <span class="text-[8px] font-mono text-slate-400 flex-shrink-0">{{ start_pages_map.get(source.source_type, '—') }}</span>

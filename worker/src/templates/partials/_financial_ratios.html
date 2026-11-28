@@ -93,7 +93,7 @@
                     <div class="h-full bg-emerald-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dso / (dso + dpo) * 100) }}%;">
                         {% if (dso / (dso + dpo) * 100) > 15 %}DSO {{ dso|round|int }}d{% endif %}
                     </div>
-                    <div class="h-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dpo / (dso + dpo) * 100) }};">
+                    <div class="h-full bg-blue-500 flex items-center justify-center text-[9px] text-white font-bold overflow-hidden text-clip whitespace-nowrap" style="width: {{ (dpo / (dso + dpo) * 100) }}%;">
                         {% if (dpo / (dso + dpo) * 100) > 15 %}DPO {{ dpo|round|int }}d{% endif %}
                     </div>
                 </div>

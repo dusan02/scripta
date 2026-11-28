@@ -348,10 +348,11 @@ def compute_fraud_heatmap(verdict, stmts, vestnik_events, i18n_strings):
                 raw_text = str(val).strip()
                 # Skip "no risk found" statements — they are NOT risk flags
                 _no_risk = re.search(
-                    r'(?i)(neuvádzajú\s+sa\s+(?:žiadne|konkrétne)|nenachádzajú\s+sa\s+(?:žiadne|konkrétne)'
-                    r'|neobsahuje\s+(?:žiadne|informácie\s+o)|nespomínajú\s+sa\s+(?:žiadne|konkrétne)'
-                    r'|žiadne\s+(?:prebiehajúce\s+)?(?:súdne\s+spor|exekúc|právne\s+hroz|litigation)'
-                    r'|no\s+litigation|no\s+legal\s+proceed|none\s+identified|not\s+mentioned)',
+                    r'(?i)(neuvádza(?:jú\s+sa)?\s+(?:žiadne|konkrétne)|nenachádzajú\s+sa\s+(?:žiadne|konkrétne)'
+                    r'|neobsahuje\s+(?:žiadne|informácie\s+o)|nespomína(?:jú\s+sa)?\s+(?:žiadne|konkrétne)'
+                    r'|nie\s+sú\s+(?:evidované|známe|uvedené)\s+(?:žiadne|konkrétne)'
+                    r'|žiadne\s+(?:prebiehajúce\s+)?(?:konkrétne\s+)?(?:súdne\s+spor|exekúc|právne\s+hroz|litigation)'
+                    r'|no\s+(?:ongoing\s+)?litigation|no\s+legal\s+proceed|none\s+identified|not\s+mentioned)',
                     raw_text,
                 )
                 if _no_risk:

@@ -67,6 +67,8 @@ _NO_RECORD_MARKERS = (
     "žiadne záznamy",
     "bez nálezu",
     "nemá negatívne záznamy",
+    "nebolo nájdené žiadne poverenie",
+    "neexistuje žiadne poverenie",
 )
 
 
@@ -270,6 +272,33 @@ class PdfCompiler:
 
         skipped_no_record = []
         bookmarks = []
+        # Analytické záložky (Sekcie I–V) z cover_page.pdf pre pohodlnú navigáciu v PDF čítačkách
+        try:
+            cover_reader = PdfReader(str(cover_path))
+            bookmarks.append((i18n_strings.get("due_diligence_report", "Due Diligence Report"), 0))
+            _section_defs = [
+                ("part_executive", "I. ZHRNUTIE POSUDKU"),
+                ("part_financial_analysis", "II. FINANČNÁ ANALÝZA A SKÓRING"),
+                ("part_forensic", "III. FORENZNÉ A AUDÍTORSKE ZISTENIA"),
+                ("part_registry", "IV. LUSTRÁCIA REGISTROV A PRÁVO"),
+                ("part_appendices", "V. GLOSÁR POJMOV A METODIKA"),
+            ]
+            _found_sections = set()
+            for _pidx, _pg in enumerate(cover_reader.pages):
+                if _pidx == 0:
+                    continue
+                _ptxt = (_pg.extract_text() or "").upper()
+                _ptxt_compact = "".join(_ptxt.split())
+                for _skey, _sdefault in _section_defs:
+                    if _skey in _found_sections:
+                        continue
+                    _slabel = i18n_strings.get(_skey, _sdefault)
+                    if "".join(_slabel.upper().split()) in _ptxt_compact:
+                        bookmarks.append((_slabel, _pidx))
+                        _found_sections.add(_skey)
+        except Exception as bm_err:
+            logger.debug(f"[PdfCompiler] Analytické záložky sa nepodarilo extrahovať: {bm_err}")
+
         bookmarks.append((i18n_strings.get("divider_title", "PRÍLOHY") + " — " + i18n_strings.get("divider_subtitle", "ZDROJOVÉ DÁTA"), actual_cover_pages))
 
         for source in sources:
@@ -283,10 +312,14 @@ class PdfCompiler:
         if skipped_no_record:
             logger.info(f"[PdfCompiler] Preskočených {len(skipped_no_record)} zdrojov bez záznamu: {skipped_no_record}")
 
-        # 6. Pridanie čísel strán do pätičky (okrem cover page a divider page)
-        # PyPDF2 3.0.1 má bug, kedy merge_page na writeri vymaže obsah.
-        # Preto to spravíme bezpečne prečítaním dočastného buffra.
-        writer = self._add_page_numbers(writer, skip_pages=actual_cover_pages + 1, bookmarks=bookmarks)
+        # 6. Jednotné číslovanie strán + bežiaca hlavička na analytickej časti (preskočí len obálku a divider)
+        writer = self._add_page_numbers(
+            writer,
+            skip_pages=actual_cover_pages + 1,
+            bookmarks=bookmarks,
+            cover_pages=actual_cover_pages,
+            header_label=f"Verifa.sk  |  {identifier}",
+        )
 
         # 4. Nahradenie falošných URL odkazov z Cover Page za vnútorné prelinkovania na stránky (GoTo Action)
         # Spracováme PO _add_page_numbers, aby anotácie fungovali na stránkach nového writera.
@@ -348,9 +381,16 @@ class PdfCompiler:
 
         return final_path
 
-    def _add_page_numbers(self, writer: PdfWriter, skip_pages: int, bookmarks: List[tuple]) -> PdfWriter:
-        """Pridá číslo strany do pravého dolného rohu na každú stranu okrem prvých skip_pages
-        (cover page + divider page). Y = total - skip_pages = počet obsahových strán."""
+    def _add_page_numbers(
+        self,
+        writer: PdfWriter,
+        skip_pages: int,
+        bookmarks: List[tuple],
+        cover_pages: int = 0,
+        header_label: str = "",
+    ) -> PdfWriter:
+        """Pridá konzistentné číslo strany (1..total) na každú stranu okrem obálky (str. 1)
+        a divider page, plus jemnú hlavičku na analytické strany (2..cover_pages)."""
         global _FONTS_REGISTERED
         if not _FONTS_REGISTERED:
             with _FONT_LOCK:
@@ -370,17 +410,14 @@ class PdfCompiler:
         
         safe_reader = PdfReader(temp_buf)
         new_writer = PdfWriter()
-        new_writer.append_pages_from_reader(safe_reader) # Skopíruje aj metadáta a outline, ale pages si vypýtame priamo
-        
-        # Očistíme new_writer pages a nahráme ich ručne, aby sme aplikovali merge
-        new_writer = PdfWriter()
 
         total = len(safe_reader.pages)
-        content_total = total - skip_pages
+        divider_idx = cover_pages if cover_pages > 0 else skip_pages - 1
         
         for i in range(total):
             page = safe_reader.pages[i]
-            if i < skip_pages:
+            # Preskoč obálku (str. 1) a divider page medzi analytikou a prílohami
+            if i == 0 or i == divider_idx:
                 new_writer.add_page(page)
                 continue
                 
@@ -389,9 +426,22 @@ class PdfCompiler:
 
             buf = io.BytesIO()
             c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
-            c.setFont("Inter", 9)
+            # Jemná bežiaca hlavička len na analytických stranách (2..cover_pages)
+            if cover_pages > 0 and 1 <= i < cover_pages and header_label:
+                c.setFont("Inter", 7.5)
+                c.setFillColor(colors.HexColor("#94a3b8"))
+                c.drawString(35, page_h - 22, header_label)
+                c.drawRightString(page_w - 35, page_h - 22, "Due Diligence Report")
+                c.setStrokeColor(colors.HexColor("#e2e8f0"))
+                c.setLineWidth(0.5)
+                c.line(35, page_h - 26, page_w - 35, page_h - 26)
+            c.setFont("Inter", 8.5)
             c.setFillColor(colors.HexColor("#94a3b8"))
-            c.drawRightString(page_w - 35, 20, _i18n.get("page_number_format", "Strana {current} z {total}").format(current=i - skip_pages + 1, total=content_total))
+            c.drawRightString(
+                page_w - 35,
+                20,
+                _i18n.get("page_number_format", "Strana {current} z {total}").format(current=i + 1, total=total),
+            )
             c.showPage()
             c.save()
             buf.seek(0)

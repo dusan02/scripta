@@ -278,7 +278,7 @@
             <p class="subsection-title-sm text-rose-500 mb-0.5">{{ i18n.forensic_red_flags }}</p>
             <ul class="space-y-1">
                 {% for flag in latest_stmt.narrativeRisk.forensicRedFlags %}
-                <li class="report-body-sm text-rose-700 flex gap-1"><span>🚩</span><span>{{ flag | sanitize_llm }}</span></li>
+                <li class="report-body-sm text-rose-700 flex items-start gap-1.5"><span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0 mt-1.5"></span><span>{{ flag | sanitize_llm }}</span></li>
                 {% endfor %}
             </ul>
         </div>
@@ -317,11 +317,11 @@
             {% if alert.severity == 'CRITICAL' %}border-rose-500 bg-rose-50
             {% elif alert.severity == 'WARNING' %}border-amber-400 bg-amber-50
             {% else %}border-slate-300 bg-slate-50{% endif %}">
-            <span class="flex-shrink-0 font-bold
+            <span class="flex-shrink-0 font-bold mt-1
                 {% if alert.severity == 'CRITICAL' %}text-rose-500
                 {% elif alert.severity == 'WARNING' %}text-amber-500
                 {% else %}text-slate-400{% endif %}">
-                {% if alert.severity == 'CRITICAL' %}🔴{% elif alert.severity == 'WARNING' %}🟡{% else %}ℹ{% endif %}
+                {% if alert.severity == 'CRITICAL' %}<span class="inline-block w-2 h-2 rounded-full bg-rose-500"></span>{% elif alert.severity == 'WARNING' %}<span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>{% else %}ℹ{% endif %}
             </span>
             <p class="report-body-sm
                 {% if alert.severity == 'CRITICAL' %}text-rose-800
@@ -338,9 +338,9 @@
     {% if rpe_alert and rpe_alert.alert %}
     <div class="mb-3 p-2.5 rounded-lg border-l-4 flex items-start gap-2
         {% if rpe_alert.alert.severity == 'CRITICAL' %}border-rose-500 bg-rose-50{% else %}border-amber-400 bg-amber-50{% endif %}">
-        <span class="flex-shrink-0 font-bold
+        <span class="flex-shrink-0 font-bold mt-1
             {% if rpe_alert.alert.severity == 'CRITICAL' %}text-rose-500{% else %}text-amber-500{% endif %}">
-            {% if rpe_alert.alert.severity == 'CRITICAL' %}🔴{% else %}🟡{% endif %}
+            {% if rpe_alert.alert.severity == 'CRITICAL' %}<span class="inline-block w-2 h-2 rounded-full bg-rose-500"></span>{% else %}<span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>{% endif %}
         </span>
         <p class="report-body-sm
             {% if rpe_alert.alert.severity == 'CRITICAL' %}text-rose-800{% else %}text-amber-800{% endif %}">
@@ -377,12 +377,12 @@
                 {% set display = val if (val is not none and val != '') else '—' %}
                 <td class="py-0.5 px-2 text-right {% if display == '—' %}text-slate-500{% else %}text-slate-700{% endif %}">{{ display }}</td>
                 {% endfor %}
-                <td class="py-0.5 px-2 text-right font-semibold
+                <td class="py-0.5 px-2 text-right font-semibold whitespace-nowrap
                     {% if row.flag == '🔴' %}text-rose-600
                     {% elif row.flag == '🟡' %}text-amber-600
                     {% elif row.flag == '🟢' %}text-emerald-600
                     {% else %}text-slate-500{% endif %}">
-                    {{ row.delta_pct }}{% if row.flag %} {{ row.flag }}{% endif %}
+                    {{ row.delta_pct }}{% if row.flag == '🔴' %}<span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 ml-1 align-middle"></span>{% elif row.flag == '🟡' %}<span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 ml-1 align-middle"></span>{% elif row.flag == '🟢' %}<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 ml-1 align-middle"></span>{% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -425,7 +425,7 @@
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{{ i18n.statement_timing }}</p>
                     <div class="flex flex-wrap gap-3 text-[11px]">
                         <span class="text-slate-600"><strong>{{ i18n.statement_date }}:</strong> {{ stmt_date }}</span>
-                        {% if latest_stmt.approvalDate %}
+                        {% if latest_stmt.approvalDate and not (latest_stmt.approvalDate|string).startswith('1900-') %}
                         <span class="text-slate-600"><strong>{{ i18n.approval_date }}:</strong> {{ latest_stmt.approvalDate }}</span>
                         {% endif %}
                         {% if delay_days > 0 %}
@@ -470,7 +470,7 @@
                 {% if latest_ratios.asset_turnover is defined and latest_ratios.asset_turnover is not none %}
                 <div class="text-center">
                     <p class="report-label text-slate-400">{{ i18n.asset_turnover }}</p>
-                    <p class="text-base font-black text-slate-800">{{ "%.2f"|format(latest_ratios.asset_turnover) }}<span class="block text-xs font-bold text-slate-500 mt-0.5">×</span></p>
+                    <p class="text-base font-black text-slate-800">{{ "%.2f"|format(latest_ratios.asset_turnover) }}<span class="text-xs font-bold text-slate-500 ml-0.5">×</span></p>
                 </div>
                 {% endif %}
                 {% if latest_ratios.retained_earnings_ratio_pct is defined and latest_ratios.retained_earnings_ratio_pct is not none %}
@@ -488,7 +488,7 @@
                 {% if latest_ratios.effective_tax_rate_pct is defined and latest_ratios.effective_tax_rate_pct is not none %}
                 <div class="text-center">
                     <p class="report-label text-slate-400">{{ i18n.effective_tax_rate }}</p>
-                    <p class="text-base font-black {% if latest_ratios.effective_tax_rate_pct > 25 %}text-rose-600{% elif latest_ratios.effective_tax_rate_pct < 15 %}text-amber-600{% else %}text-slate-800{% endif %}">{{ latest_ratios.effective_tax_rate_pct }}%</p>
+                    <p class="text-base font-black {% if latest_ratios.effective_tax_rate_pct > 35 %}text-rose-600{% elif latest_ratios.effective_tax_rate_pct < 10 %}text-amber-600{% else %}text-slate-800{% endif %}">{{ latest_ratios.effective_tax_rate_pct }}%</p>
                 </div>
                 {% endif %}
             </div>
